@@ -61,6 +61,48 @@ async function recordOtpSent(phone: string, context?: OtpAuditContext): Promise<
   }
 }
 
+/** Map an SMS audit source to the SmsDelivery kind stored in the database. */
+const SMS_KIND_BY_SOURCE: Record<string, string> = {
+  'sms:subscription-purchased': 'SUBSCRIPTION_PURCHASED',
+  'sms:subscription-expiring': 'SUBSCRIPTION_EXPIRING',
+  'sms:welcome': 'WELCOME',
+  'sms:activation-reminder': 'ACTIVATION_REMINDER',
+  'sms:activation-complete': 'ACTIVATION_COMPLETE',
+  'sms:trial-expiring': 'TRIAL_EXPIRING',
+  'sms:admin-subscription-purchased': 'ADMIN_SUBSCRIPTION_PURCHASED',
+  'sms:admin-subscription-renewed': 'ADMIN_SUBSCRIPTION_RENEWED',
+  'sms:admin-credit-topup': 'ADMIN_CREDIT_TOPPED_UP',
+}
+
+/**
+ * Durable delivery log so the admin user profile can show every SMS sent to a
+ * phone number ("پیامک‌های ارسال‌شده به این شماره"). Best-effort: a logging
+ * failure must never break the send flow that triggered the SMS.
+ */
+async function recordSmsDelivery(entry: {
+  phone: string
+  workspaceId?: string | null
+  kind: string
+  status: 'SENT' | 'FAILED'
+  ip?: string | null
+}): Promise<void> {
+  try {
+    await prisma.smsDelivery.create({
+      data: {
+        phone: entry.phone,
+        workspaceId: entry.workspaceId ?? null,
+        kind: entry.kind,
+        status: entry.status,
+        ip: entry.ip ?? null,
+      },
+    })
+  } catch (error) {
+    captureWarning('sms:delivery-log-write', error, {
+      metadata: { phone: entry.phone, kind: entry.kind, event: entry.status },
+    })
+  }
+}
+
 interface IppanelMeta {
   status: boolean
   message?: string
@@ -211,6 +253,7 @@ export async function sendOTP(mobile: string, context?: OtpAuditContext): Promis
 
   if (!isSmsConfigured()) {
     await recordOtpSent(normalized, context)
+    await recordSmsDelivery({ phone: normalized, kind: 'OTP', status: 'SENT', ip: context?.ip })
     await persistLog('warn', 'auth:otp:development-delivery', 'OTP delivered through development log only', {
       metadata: { phone: normalized, otpCode: code, requestId: context?.requestId },
       exposeOtpCode,
@@ -243,10 +286,12 @@ export async function sendOTP(mobile: string, context?: OtpAuditContext): Promis
     if (!ok) throw new Error('SMS_FAILED')
 
     await recordOtpSent(normalized, context)
+    await recordSmsDelivery({ phone: normalized, kind: 'OTP', status: 'SENT', ip: context?.ip })
     await persistLog('info', 'auth:otp:sent', 'OTP SMS accepted by provider', {
       metadata: { phone: normalized, requestId: context?.requestId, provider, fromNumber, patternCode },
     })
   } catch (error) {
+    await recordSmsDelivery({ phone: normalized, kind: 'OTP', status: 'FAILED', ip: context?.ip })
     await redis.del(`otp:${normalized}`).catch((cleanupError) => {
       captureError('auth:otp:redis-cleanup', cleanupError, {
         metadata: { phone: normalized, requestId: context?.requestId },
@@ -357,11 +402,23 @@ async function sendPatternSms(
       ...logOptions,
       metadata: { ...logOptions.metadata, provider, patternCode, accepted },
     })
+    await recordSmsDelivery({
+      phone: normalized,
+      workspaceId: audit.workspaceId,
+      kind: SMS_KIND_BY_SOURCE[audit.source] ?? audit.source.toUpperCase(),
+      status: accepted ? 'SENT' : 'FAILED',
+    })
     return accepted
   } catch (e) {
     await persistLog('error', `${audit.source}:exception`, e, {
       ...logOptions,
       metadata: { ...logOptions.metadata, provider, patternCode },
+    })
+    await recordSmsDelivery({
+      phone: normalized,
+      workspaceId: audit.workspaceId,
+      kind: SMS_KIND_BY_SOURCE[audit.source] ?? audit.source.toUpperCase(),
+      status: 'FAILED',
     })
     return false
   }

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import type { ChannelType, ConvStatus } from '@prisma/client'
 import {
   MessageSquare,
   CreditCard,
@@ -14,10 +15,10 @@ import {
   Package,
   ShoppingCart,
   Users,
-  Eye,
   Boxes,
-  HeartPulse,
   FileText,
+  LogIn,
+  Smartphone,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
@@ -32,6 +33,13 @@ import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import { StartImpersonationButton } from '@/components/admin/start-impersonation-button'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
+import { contactDisplayName, channelHandleFor, channelAvatarFor } from '@/lib/crm/display'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { relativeTime } from '@/lib/format'
+import { stripProductTokens } from '@/lib/widget/config'
 import {
   PageHeader,
   Panel,
@@ -61,10 +69,10 @@ const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   BUSINESS: { label: 'سازمانی', tone: 'default' },
 }
 
-const CONV_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
-  OPEN: { label: 'باز', tone: 'info' },
-  RESOLVED: { label: 'بسته‌شده', tone: 'success' },
-  HANDED_OFF: { label: 'تحویل اپراتور', tone: 'warning' },
+const CONV_STATUS_LABEL: Record<string, string> = {
+  OPEN: 'باز',
+  RESOLVED: 'بسته‌شده',
+  HANDED_OFF: 'تحویل اپراتور',
 }
 
 const PAY_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
@@ -106,13 +114,6 @@ const KB_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
   ERROR: { label: 'خطا', tone: 'danger' },
 }
 
-const HEALTH_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
-  ok: { label: 'سالم', tone: 'success' },
-  degraded: { label: 'ضعیف', tone: 'warning' },
-  down: { label: 'قطع', tone: 'danger' },
-  unknown: { label: 'بررسی نشده', tone: 'muted' },
-}
-
 /** WooCommerce-style statuses stored verbatim on StoreOrder.status. */
 const ORDER_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
   completed: { label: 'تکمیل‌شده', tone: 'success' },
@@ -122,6 +123,20 @@ const ORDER_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
   cancelled: { label: 'لغوشده', tone: 'danger' },
   refunded: { label: 'مرجوع‌شده', tone: 'danger' },
   failed: { label: 'ناموفق', tone: 'danger' },
+}
+
+/** Persian label for every SMS kind recorded in SmsDelivery. */
+const SMS_KIND_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
+  OTP: { label: 'کد ورود', tone: 'info' },
+  WELCOME: { label: 'خوش‌آمدگویی', tone: 'default' },
+  SUBSCRIPTION_PURCHASED: { label: 'تأیید خرید اشتراک', tone: 'success' },
+  SUBSCRIPTION_EXPIRING: { label: 'یادآوری انقضای اشتراک', tone: 'warning' },
+  TRIAL_EXPIRING: { label: 'یادآوری پایان آزمایشی', tone: 'warning' },
+  ACTIVATION_REMINDER: { label: 'یادآوری راه‌اندازی', tone: 'muted' },
+  ACTIVATION_COMPLETE: { label: 'تکمیل راه‌اندازی', tone: 'success' },
+  ADMIN_SUBSCRIPTION_PURCHASED: { label: 'اطلاع خرید (مدیریت)', tone: 'muted' },
+  ADMIN_SUBSCRIPTION_RENEWED: { label: 'اطلاع تمدید (مدیریت)', tone: 'muted' },
+  ADMIN_CREDIT_TOPPED_UP: { label: 'اطلاع شارژ (مدیریت)', tone: 'muted' },
 }
 
 /** Store money is synced from WooCommerce in the store's own currency.
@@ -134,9 +149,34 @@ function fmtStoreMoney(total: number, currency: string): string {
   return `${Math.round(total).toLocaleString('fa-IR')} تومان`
 }
 
+/** Compact human-readable device/browser summary from a raw User-Agent. */
+function describeDevice(ua: string | null | undefined): string {
+  if (!ua) return 'دستگاه ناشناس'
+  const isMobile = /Android|iPhone|iPad|Mobile/i.test(ua)
+  let browser = 'مرورگر ناشناخته'
+  if (/Edg\//.test(ua)) browser = 'اِج'
+  else if (/OPR\//.test(ua)) browser = 'اپرا'
+  else if (/SamsungBrowser/.test(ua)) browser = 'مرورگر سامسونگ'
+  else if (/Chrome\//.test(ua)) browser = 'کروم'
+  else if (/Firefox\//.test(ua)) browser = 'فایرفاکس'
+  else if (/Safari\//.test(ua)) browser = 'سافاری'
+  const os = /Android/i.test(ua)
+    ? 'اندروید'
+    : /iPhone|iPad/i.test(ua)
+      ? 'آیفون'
+      : /Windows/i.test(ua)
+        ? 'ویندوز'
+        : /Mac OS X/i.test(ua)
+          ? 'مک'
+          : /Linux/i.test(ua)
+            ? 'لینوکس'
+            : ''
+  const deviceType = isMobile ? 'موبایل' : 'دسکتاپ'
+  return os ? `${deviceType} · ${browser} · ${os}` : `${deviceType} · ${browser}`
+}
+
 const TABS = [
   { key: 'overview', label: 'خلاصه' },
-  { key: 'conversations', label: 'گفتگوها' },
   { key: 'channels', label: 'کانال‌ها' },
   { key: 'knowledge', label: 'دانش' },
   { key: 'products', label: 'محصولات' },
@@ -206,7 +246,7 @@ export default async function AdminUserDetailPage(
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   // ── shared queries (all tabs) ──
-  const [usage, activeChannelCount, convSpark, paySpark, journeySignals, contactStats, orderStats] = await Promise.all([
+  const [usage, activeChannelCount, convSpark, paySpark, journeySignals, contactStats, orderStats, loginCount, smsCount] = await Promise.all([
     prisma.usageLog.aggregate({
       where: { workspaceId, date: { gte: since30 } },
       _sum: { promptTokens: true, completionTokens: true, chargedIRR: true, cost: true },
@@ -242,10 +282,14 @@ export default async function AdminUserDetailPage(
           refunded: (byStatus.get('refunded') ?? 0) + (byStatus.get('cancelled') ?? 0) + (byStatus.get('failed') ?? 0),
         }
       }),
+    // panel sign-ins recorded for this account (login report)
+    prisma.loginEvent.count({ where: { userId: user.id } }),
+    // SMS messages the platform has sent to this phone number
+    prisma.smsDelivery.count({ where: { phone: user.phone } }),
   ])
 
   // ── overview-only queries ──
-  const [overviewPayments, overviewConversations] =
+  const [overviewPayments, overviewConversations, overviewLogins, overviewSms] =
     tab === 'overview'
       ? await Promise.all([
           prisma.payment.findMany({
@@ -264,58 +308,61 @@ export default async function AdminUserDetailPage(
               paidAt: true,
             },
           }),
+          // Inbox-style recent conversations (matches the customer dashboard
+          // conversations tab: avatar, handle, last message, status, channel).
           prisma.conversation.findMany({
             where: { workspaceId },
             orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-            take: 8,
+            take: 10,
             select: {
               id: true,
               channel: true,
               status: true,
+              handedOff: true,
               messageCount: true,
               lastMessageAt: true,
               createdAt: true,
               agent: { select: { name: true } },
-              contact: { select: { name: true, phone: true } },
+              contact: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  telegramUsername: true,
+                  baleUsername: true,
+                  rubikaUsername: true,
+                  whatsappName: true,
+                  instagramUsername: true,
+                  instagramAvatarUrl: true,
+                  telegramAvatarUrl: true,
+                  baleAvatarUrl: true,
+                  rubikaAvatarUrl: true,
+                  whatsappAvatarUrl: true,
+                },
+              },
+              messages: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { id: true, role: true, content: true, createdAt: true },
+              },
             },
+          }),
+          // login report: newest sign-ins with IP + device
+          prisma.loginEvent.findMany({
+            where: { userId: user.id },
+            orderBy: { createdAt: 'desc' },
+            take: 12,
+            select: { id: true, ip: true, userAgent: true, isNewUser: true, createdAt: true },
+          }),
+          // every SMS the platform sent to this user's phone number
+          prisma.smsDelivery.findMany({
+            where: { phone: user.phone },
+            orderBy: { createdAt: 'desc' },
+            take: 12,
+            select: { id: true, kind: true, status: true, ip: true, createdAt: true },
           }),
         ])
-      : [[], []]
-
-  // ── conversations tab ──
-  const conversationsTab =
-    tab === 'conversations'
-      ? await Promise.all([
-          prisma.conversation.findMany({
-            where: { workspaceId },
-            orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-            take: 30,
-            select: {
-              id: true,
-              channel: true,
-              status: true,
-              messageCount: true,
-              lastMessageAt: true,
-              createdAt: true,
-              agent: { select: { name: true } },
-              contact: { select: { name: true, phone: true } },
-            },
-          }),
-          prisma.conversation.groupBy({
-            by: ['status'],
-            where: { workspaceId },
-            _count: { _all: true },
-          }),
-        ]).then(([rows, byStatus]) => {
-          const map = new Map(byStatus.map((r) => [r.status, r._count._all]))
-          return {
-            rows,
-            open: map.get('OPEN') ?? 0,
-            resolved: map.get('RESOLVED') ?? 0,
-            handedOff: map.get('HANDED_OFF') ?? 0,
-          }
-        })
-      : null
+      : [[], [], [], []]
 
   // ── channels tab ──
   const channelsTab =
@@ -328,9 +375,6 @@ export default async function AdminUserDetailPage(
               id: true,
               type: true,
               active: true,
-              healthStatus: true,
-              healthCheckedAt: true,
-              healthError: true,
               lastInboundAt: true,
               createdAt: true,
               agent: { select: { name: true } },
@@ -340,7 +384,7 @@ export default async function AdminUserDetailPage(
             rows,
             total: rows.length,
             activeCount: rows.filter((r) => r.active).length,
-            healthy: rows.filter((r) => r.healthStatus === 'ok').length,
+            recentInbound: rows.filter((r) => r.lastInboundAt && r.lastInboundAt.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length,
           }))
       : null
 
@@ -500,8 +544,11 @@ export default async function AdminUserDetailPage(
   const completedSteps = journeySteps.filter((step) => step.done).length
   const journeyProgress = Math.round((completedSteps / journeySteps.length) * 100)
   const currentStage = currentStepIndex === -1 ? 'کاربر فعال و پرداختی' : journeySteps[currentStepIndex].label
+  const lastLoginAt = user.lastLoginAt ?? journeySignals.lastLogin?.sentAt ?? null
+  const lastLoginDisplay = lastLoginAt ? `${fmtDate(lastLoginAt)} · ${relativeTime(lastLoginAt, 'fa')}` : '—'
   const latestActivityAt = [
     user.createdAt,
+    user.lastLoginAt,
     journeySignals.agent?.updatedAt,
     journeySignals.knowledge?.updatedAt,
     journeySignals.channel?.lastInboundAt,
@@ -512,6 +559,62 @@ export default async function AdminUserDetailPage(
   ].filter((value): value is Date => Boolean(value)).sort((a, b) => b.getTime() - a.getTime())[0]
 
   const tabHref = (key: TabKey) => (key === 'overview' ? `/admin/users/${user.id}` : `/admin/users/${user.id}?tab=${key}`)
+  // Full conversation list for this user, filtered by their phone in the admin conversations page.
+  const conversationsListHref = `/admin/conversations?q=${encodeURIComponent(user.phone)}`
+
+  // Inbox-style presentation rows for the overview "آخرین گفتگوها" panel —
+  // mirrors the customer dashboard conversations tab structure.
+  const inboxItems = overviewConversations.map((c) => {
+    const last = c.messages[0] ?? null
+    const handle = channelHandleFor({
+      channel: c.channel,
+      telegramUsername: c.contact?.telegramUsername,
+      baleUsername: c.contact?.baleUsername,
+      rubikaUsername: c.contact?.rubikaUsername,
+      whatsappName: c.contact?.whatsappName,
+      instagramUsername: c.contact?.instagramUsername,
+    })
+    const avatarSrc = contactAvatarSrc({
+      contactId: c.contact?.id,
+      channel: c.channel,
+      rawUrl: channelAvatarFor({
+        channel: c.channel,
+        telegramAvatarUrl: c.contact?.telegramAvatarUrl,
+        baleAvatarUrl: c.contact?.baleAvatarUrl,
+        rubikaAvatarUrl: c.contact?.rubikaAvatarUrl,
+        whatsappAvatarUrl: c.contact?.whatsappAvatarUrl,
+        instagramAvatarUrl: c.contact?.instagramAvatarUrl,
+      }),
+    })
+    const who = contactDisplayName({
+      name: c.contact?.name,
+      phone: c.contact?.phone,
+      handle,
+      channel: c.channel,
+      channelId: c.contact ? c.channel : null,
+      anonymousLabel: 'مخاطب ناشناس',
+    })
+    const rawPreview = last?.content ? stripProductTokens(last.content).trim() : null
+    const preview = rawPreview
+      ? `${rawPreview}${last?.role === 'ASSISTANT' ? ' ↩' : ''}`
+      : c.agent.name
+    const attention = c.handedOff && c.status !== 'RESOLVED'
+    const displayStatus: ConvStatus = attention ? 'HANDED_OFF' : c.status
+    return {
+      id: c.id,
+      channel: c.channel as ChannelType,
+      who,
+      handle,
+      avatarSrc,
+      agentName: c.agent.name,
+      preview,
+      when: c.lastMessageAt ?? c.createdAt,
+      displayStatus,
+      statusLabel: CONV_STATUS_LABEL[displayStatus] ?? displayStatus,
+      attention,
+      messageCount: c.messageCount,
+    }
+  })
 
   return (
     <div className="space-y-6">
@@ -550,7 +653,6 @@ export default async function AdminUserDetailPage(
               'rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums',
               tab === key ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500',
             )}>
-              {key === 'conversations' && fa(ws._count.conversations)}
               {key === 'channels' && fa(activeChannelCount)}
               {key === 'knowledge' && (knowledgeTab ? fa(knowledgeTab.total) : '—')}
               {key === 'products' && fa(ws._count.products)}
@@ -627,6 +729,7 @@ export default async function AdminUserDetailPage(
                     <div className="divide-y divide-zinc-100">
                       <KV label="نام">{user.name ?? '—'}</KV>
                       <KV label="تلفن" mono><span dir="ltr">{displayPhone(user.phone)}</span></KV>
+                      <KV label="آخرین ورود به پنل">{lastLoginDisplay}</KV>
                       <KV label="دسترسی">
                         <Badge tone={user.platformRole === 'ADMIN' ? 'danger' : 'muted'}>
                           {user.platformRole === 'ADMIN' ? 'مدیر اصلی ویجنتو' : 'کاربر'}
@@ -720,7 +823,7 @@ export default async function AdminUserDetailPage(
                   />
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[11px] sm:grid-cols-4">
-                  <Link href={tabHref('conversations')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">جزئیات گفتگوها</Link>
+                  <Link href={conversationsListHref} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">گفتگوهای این کاربر</Link>
                   <Link href={tabHref('channels')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">کانال‌های فعال</Link>
                   <Link href={tabHref('knowledge')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">دانش‌نامه‌ها</Link>
                   <Link href={tabHref('orders')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">سفارش‌های فروشگاه</Link>
@@ -746,38 +849,110 @@ export default async function AdminUserDetailPage(
                 </div>
               </Panel>
 
-              {/* Recent conversations — compact + clickable */}
+              {/* Recent conversations — inbox-style, mirrors the customer dashboard */}
               <Panel
                 title="آخرین گفتگوها"
-                href={tabHref('conversations')}
+                subtitle={`${fa(ws._count.conversations)} گفتگوی این کاربر · با آواتار، آخرین پیام و وضعیت هر پرونده`}
+                href={conversationsListHref}
                 linkLabel="همه گفتگوهای این کاربر"
               >
-                {overviewConversations.length === 0 ? (
+                {inboxItems.length === 0 ? (
                   <EmptyState icon={<MessageSquare className="h-7 w-7" />}>
                     گفتگویی ثبت نشده
                   </EmptyState>
                 ) : (
+                  <>
+                    {/* mobile cards */}
+                    <div className="grid gap-2 md:hidden">
+                      {inboxItems.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={`/admin/conversations/${item.id}`}
+                          className={cn('rounded-2xl border p-3.5 transition-colors active:bg-zinc-50', item.attention ? 'border-amber-200 bg-amber-50/40' : 'border-black/[0.07] bg-white hover:border-black/15')}
+                        >
+                          <div className="flex items-start gap-3">
+                            <ContactAvatar src={item.avatarSrc} alt={item.who} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span dir="auto" className="truncate text-sm font-bold text-zinc-950">{item.who}</span>
+                                <span className="shrink-0 text-[10px] text-zinc-400">{relativeTime(item.when, 'fa')}</span>
+                              </div>
+                              <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">{item.preview}</p>
+                              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                                <ConversationStatusBadge status={item.displayStatus} label={item.statusLabel} attention={item.attention} />
+                                <ChannelBadge type={item.channel} />
+                                <span className="text-[10px] text-zinc-400">{fa(item.messageCount)} پیام · {item.agentName}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                    {/* desktop inbox rows */}
+                    <div className="hidden divide-y divide-zinc-100 md:block">
+                      {inboxItems.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={`/admin/conversations/${item.id}`}
+                          className={cn('grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-zinc-50', item.attention && 'bg-amber-50/50')}
+                        >
+                          <ContactAvatar src={item.avatarSrc} alt={item.who} size="sm" />
+                          <div className="min-w-0">
+                            <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                              <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-zinc-800">{item.who}</span>
+                              {item.handle && item.who !== item.handle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500">@{item.handle}</span>}
+                              <span className="hidden shrink-0 text-[10px] text-zinc-400 lg:inline">ایجنت: {item.agentName}</span>
+                            </div>
+                            <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">{item.preview}</p>
+                          </div>
+                          <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-zinc-500">
+                            <ConversationStatusBadge status={item.displayStatus} label={item.statusLabel} attention={item.attention} />
+                            <ChannelBadge type={item.channel} />
+                            <span className="tabular-nums">{fa(item.messageCount)} پیام</span>
+                            <span>{relativeTime(item.when, 'fa')}</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                    {ws._count.conversations > inboxItems.length && (
+                      <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[11px] text-zinc-400">{fa(inboxItems.length)} گفتگوی آخر — <Link href={conversationsListHref} className="font-bold text-zinc-600 underline">مشاهده همه</Link></p>
+                    )}
+                  </>
+                )}
+              </Panel>
+
+              {/* Login report — newest sign-ins with IP and device */}
+              <Panel
+                title="گزارش ورود به پنل"
+                subtitle={`${fa(loginCount)} ورود ثبت‌شده — با زمان، IP و دستگاه`}
+              >
+                {overviewLogins.length === 0 ? (
+                  <EmptyState icon={<LogIn className="h-7 w-7" />}>
+                    {journeySignals.lastLogin ? 'ورودهای قدیمی‌تر از زمان فعال‌شدن گزارش ثبت نشده' : 'ورودی برای این کاربر ثبت نشده'}
+                  </EmptyState>
+                ) : (
                   <ul className="divide-y divide-zinc-100">
-                    {overviewConversations.map((c) => {
-                      const st = CONV_STATUS[c.status] ?? { label: c.status, tone: 'muted' as BadgeTone }
-                      const contact = c.contact?.name || displayPhone(c.contact?.phone) || 'مخاطب ناشناس'
-                      return (
-                        <li key={c.id}>
-                          <Link
-                            href={`/admin/conversations/${c.id}`}
-                            className="flex min-h-14 flex-wrap items-center gap-2 rounded-xl px-2 py-2.5 transition-colors hover:bg-zinc-50"
-                          >
-                            <span className="truncate text-sm font-medium text-zinc-800">{contact}</span>
-                            <Badge tone="info">{CHANNEL_LABEL[c.channel] ?? c.channel}</Badge>
-                            <Badge tone={st.tone}>{st.label}</Badge>
-                            <span className="ms-auto text-xs text-zinc-500">
-                              {fa(c.messageCount)} پیام · {fmtDate(c.lastMessageAt ?? c.createdAt)}
-                            </span>
-                          </Link>
-                        </li>
-                      )
-                    })}
+                    {overviewLogins.map((e) => (
+                      <li key={e.id} className="flex flex-wrap items-center gap-3 py-3">
+                        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', e.isNewUser ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-500')}>
+                          {e.isNewUser ? <UserRoundCheck className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-zinc-800">{e.isNewUser ? 'ثبت‌نام و اولین ورود' : 'ورود موفق به پنل'}</p>
+                          <p className="mt-0.5 text-[11px] text-zinc-500">{describeDevice(e.userAgent)}</p>
+                        </div>
+                        <div className="ms-auto text-end">
+                          <p className="text-[11px] font-medium text-zinc-600">{fmtDate(e.createdAt)}</p>
+                          <p className="mt-0.5 text-[10px] text-zinc-400">
+                            {e.ip ? <span dir="ltr" className="font-mono">{e.ip}</span> : 'بدون IP'} · {relativeTime(e.createdAt, 'fa')}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
                   </ul>
+                )}
+                {loginCount > overviewLogins.length && (
+                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[11px] text-zinc-400">{fa(overviewLogins.length)} ورود از {fa(loginCount)} — ۱۲ مورد آخر</p>
                 )}
               </Panel>
 
@@ -817,6 +992,39 @@ export default async function AdminUserDetailPage(
                   </ul>
                 )}
               </Panel>
+
+              {/* SMS sent to this number — full delivery report */}
+              <Panel
+                title="پیامک‌های ارسال‌شده به این شماره"
+                subtitle={`گزارش تحویل پیامک‌های سیستم به ${displayPhone(user.phone)}`}
+              >
+                {overviewSms.length === 0 ? (
+                  <EmptyState icon={<Smartphone className="h-7 w-7" />}>
+                    پیامکی برای این شماره ارسال نشده
+                  </EmptyState>
+                ) : (
+                  <ul className="divide-y divide-zinc-100">
+                    {overviewSms.map((s) => {
+                      const kind = SMS_KIND_LABEL[s.kind] ?? { label: s.kind, tone: 'muted' as BadgeTone }
+                      const sent = s.status === 'SENT'
+                      return (
+                        <li key={s.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                          <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-xl', sent ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>
+                            <Smartphone className="h-4 w-4" />
+                          </span>
+                          <Badge tone={kind.tone}>{kind.label}</Badge>
+                          <Badge tone={sent ? 'success' : 'danger'}>{sent ? 'ارسال‌شده' : 'ناموفق'}</Badge>
+                          {s.ip && <span dir="ltr" className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">{s.ip}</span>}
+                          <span className="ms-auto text-xs text-zinc-500">{fmtDate(s.createdAt)} · {relativeTime(s.createdAt, 'fa')}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+                {smsCount > overviewSms.length && (
+                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[11px] text-zinc-400">{fa(overviewSms.length)} پیامک از {fa(smsCount)} — ۱۲ مورد آخر</p>
+                )}
+              </Panel>
             </div>
 
             {/* ─── SIDEBAR ─── */}
@@ -829,6 +1037,8 @@ export default async function AdminUserDetailPage(
                   <KV label="کل سفارش‌ها">{fa(orderStats.total)}</KV>
                   <KV label="کل محصولات">{fa(ws._count.products)}</KV>
                   <KV label="کل پرداخت‌ها">{fa(ws._count.payments)}</KV>
+                  <KV label="ورودهای ثبت‌شده">{fa(loginCount)}</KV>
+                  <KV label="پیامک‌های این شماره">{fa(smsCount)}</KV>
                   <KV label="مبلغ مصرف‌شده (۳۰ روز)">{fa(Math.round(totalChargedIRR / 10))} تومان</KV>
                   <KV label="هزینه (۳۰ روز)">
                     <span dir="ltr">${fa(totalCost)}</span>
@@ -857,7 +1067,7 @@ export default async function AdminUserDetailPage(
               <Panel title="دسترسی سریع">
                 <nav className="flex flex-col gap-1">
                   <Link
-                    href={tabHref('conversations')}
+                    href={conversationsListHref}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
                   >
                     <MessageSquare className="h-4 w-4" />
@@ -891,101 +1101,13 @@ export default async function AdminUserDetailPage(
         </>
       )}
 
-      {/* ═══ TAB: CONVERSATIONS ═══ */}
-      {tab === 'conversations' && conversationsTab && (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard label="کل گفتگوها" value={ws._count.conversations} icon={<MessageSquare className="h-4 w-4" />} />
-            <StatCard label="باز" value={conversationsTab.open} tone="info" icon={<Activity className="h-4 w-4" />} />
-            <StatCard label="بسته‌شده" value={conversationsTab.resolved} tone="success" icon={<Check className="h-4 w-4" />} />
-            <StatCard label="تحویل اپراتور" value={conversationsTab.handedOff} tone="warning" icon={<Users className="h-4 w-4" />} />
-          </div>
-
-          {conversationsTab.rows.length === 0 ? (
-            <EmptyState icon={<MessageSquare className="h-8 w-8" />}>گفتگویی برای این کاربر ثبت نشده است</EmptyState>
-          ) : (
-            <>
-              {/* mobile cards */}
-              <div className="grid gap-3 md:hidden">
-                {conversationsTab.rows.map((c) => {
-                  const st = CONV_STATUS[c.status] ?? { label: c.status, tone: 'muted' as BadgeTone }
-                  const contact = c.contact?.name || displayPhone(c.contact?.phone) || 'مخاطب ناشناس'
-                  return (
-                    <article key={c.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-zinc-950">{contact}</p>
-                          <p className="mt-1 truncate text-xs text-zinc-500">ایجنت: {c.agent.name}</p>
-                        </div>
-                        <Badge tone={st.tone}>{st.label}</Badge>
-                      </div>
-                      <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                        <div><dt className="text-zinc-400">کانال</dt><dd className="mt-1"><Badge tone="muted">{CHANNEL_LABEL[c.channel] ?? c.channel}</Badge></dd></div>
-                        <div><dt className="text-zinc-400">تعداد پیام</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{fa(c.messageCount)}</dd></div>
-                        <div className="col-span-2"><dt className="text-zinc-400">آخرین فعالیت</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDate(c.lastMessageAt ?? c.createdAt)}</dd></div>
-                      </dl>
-                      <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
-                        <span className="text-[11px] text-zinc-400">شروع: {fmtDate(c.createdAt)}</span>
-                        <Link href={`/admin/conversations/${c.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-xs font-bold text-zinc-900"><Eye className="h-4 w-4" /> مشاهده گفتگو</Link>
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
-              {/* desktop table — rows are clickable */}
-              <div className="hidden md:block">
-                <TableShell>
-                  <thead className="border-b border-zinc-200 bg-zinc-50/60">
-                    <tr>
-                      <Th>مخاطب</Th>
-                      <Th>کانال</Th>
-                      <Th>ایجنت</Th>
-                      <Th>وضعیت</Th>
-                      <Th>پیام‌ها</Th>
-                      <Th>آخرین فعالیت</Th>
-                      <Th>مشاهده</Th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {conversationsTab.rows.map((c) => {
-                      const st = CONV_STATUS[c.status] ?? { label: c.status, tone: 'muted' as BadgeTone }
-                      const contact = c.contact?.name || displayPhone(c.contact?.phone) || 'مخاطب ناشناس'
-                      return (
-                        <tr key={c.id} className="transition-colors hover:bg-zinc-50/60">
-                          <Td>
-                            <Link href={`/admin/conversations/${c.id}`} className="font-medium text-zinc-900 hover:underline">
-                              {contact}
-                            </Link>
-                          </Td>
-                          <Td><Badge tone="muted">{CHANNEL_LABEL[c.channel] ?? c.channel}</Badge></Td>
-                          <Td className="text-zinc-600">{c.agent.name}</Td>
-                          <Td><Badge tone={st.tone}>{st.label}</Badge></Td>
-                          <Td className="tabular-nums text-zinc-600">{fa(c.messageCount)}</Td>
-                          <Td className="text-zinc-500">{fmtDate(c.lastMessageAt ?? c.createdAt)}</Td>
-                          <Td>
-                            <Link href={`/admin/conversations/${c.id}`} aria-label="مشاهده گفتگو" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-semibold text-black/65 transition-[background-color,transform] hover:bg-black/[0.04] active:scale-[.97]"><Eye className="h-4 w-4" /> گفتگو</Link>
-                          </Td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </TableShell>
-              </div>
-              <p className="text-center text-[11px] text-zinc-400">
-                ۳۰ گفتگوی آخر این کاربر — برای بقیه به <Link href="/admin/conversations" className="font-bold text-zinc-600 underline">لیست کامل گفتگوها</Link> بروید
-              </p>
-            </>
-          )}
-        </>
-      )}
-
       {/* ═══ TAB: CHANNELS ═══ */}
       {tab === 'channels' && channelsTab && (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard label="کل اتصال‌ها" value={channelsTab.total} icon={<Cable className="h-4 w-4" />} />
             <StatCard label="فعال" value={channelsTab.activeCount} tone="success" icon={<Check className="h-4 w-4" />} />
-            <StatCard label="سلامت کانال" value={channelsTab.healthy} tone={channelsTab.healthy === channelsTab.total ? 'success' : 'warning'} icon={<HeartPulse className="h-4 w-4" />} sub={`${fa(activeChannelCount)} از ${fa(planDef.maxChannels)} مجاز پلن`} />
+            <StatCard label="ورودی در ۷ روز اخیر" value={channelsTab.recentInbound} tone="info" icon={<Activity className="h-4 w-4" />} sub="کانال‌هایی که پیام دریافت کرده‌اند" />
             <StatCard label="سقف پلن" value={`${fa(activeChannelCount)} / ${fa(planDef.maxChannels)}`} tone="info" icon={<Settings className="h-4 w-4" />} />
           </div>
 
@@ -994,28 +1116,21 @@ export default async function AdminUserDetailPage(
           ) : (
             <>
               <div className="grid gap-3 md:hidden">
-                {channelsTab.rows.map((ch) => {
-                  const health = HEALTH_STATUS[ch.healthStatus] ?? { label: ch.healthStatus, tone: 'muted' as BadgeTone }
-                  return (
-                    <article key={ch.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-zinc-950">{CHANNEL_LABEL[ch.type] ?? ch.type}</p>
-                          <p className="mt-1 truncate text-xs text-zinc-500">ایجنت: {ch.agent.name}</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5">
-                          <Badge tone={ch.active ? 'success' : 'muted'}>{ch.active ? 'فعال' : 'غیرفعال'}</Badge>
-                          <Badge tone={health.tone}>{health.label}</Badge>
-                        </div>
+                {channelsTab.rows.map((ch) => (
+                  <article key={ch.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-zinc-950">{CHANNEL_LABEL[ch.type] ?? ch.type}</p>
+                        <p className="mt-1 truncate text-xs text-zinc-500">ایجنت: {ch.agent.name}</p>
                       </div>
-                      <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                        <div><dt className="text-zinc-400">آخرین پیام دریافتی</dt><dd className="mt-1 font-medium text-zinc-700">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</dd></div>
-                        <div><dt className="text-zinc-400">آخرین بررسی سلامت</dt><dd className="mt-1 font-medium text-zinc-700">{ch.healthCheckedAt ? fmtDate(ch.healthCheckedAt) : '—'}</dd></div>
-                        <div className="col-span-2"><dt className="text-zinc-400">تاریخ اتصال</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDate(ch.createdAt)}</dd></div>
-                      </dl>
-                    </article>
-                  )
-                })}
+                      <Badge tone={ch.active ? 'success' : 'muted'}>{ch.active ? 'فعال' : 'غیرفعال'}</Badge>
+                    </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
+                      <div><dt className="text-zinc-400">آخرین پیام دریافتی</dt><dd className="mt-1 font-medium text-zinc-700">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</dd></div>
+                      <div><dt className="text-zinc-400">تاریخ اتصال</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDate(ch.createdAt)}</dd></div>
+                    </dl>
+                  </article>
+                ))}
               </div>
               <div className="hidden md:block">
                 <TableShell>
@@ -1024,27 +1139,20 @@ export default async function AdminUserDetailPage(
                       <Th>کانال</Th>
                       <Th>ایجنت</Th>
                       <Th>وضعیت</Th>
-                      <Th>سلامت</Th>
                       <Th>آخرین پیام دریافتی</Th>
-                      <Th>آخرین بررسی</Th>
                       <Th>تاریخ اتصال</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {channelsTab.rows.map((ch) => {
-                      const health = HEALTH_STATUS[ch.healthStatus] ?? { label: ch.healthStatus, tone: 'muted' as BadgeTone }
-                      return (
-                        <tr key={ch.id} className="transition-colors hover:bg-zinc-50/60">
-                          <Td><Badge tone="muted">{CHANNEL_LABEL[ch.type] ?? ch.type}</Badge></Td>
-                          <Td className="text-zinc-600">{ch.agent.name}</Td>
-                          <Td><Badge tone={ch.active ? 'success' : 'muted'}>{ch.active ? 'فعال' : 'غیرفعال'}</Badge></Td>
-                          <Td><Badge tone={health.tone}>{health.label}</Badge></Td>
-                          <Td className="text-zinc-500">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</Td>
-                          <Td className="text-zinc-500">{ch.healthCheckedAt ? fmtDate(ch.healthCheckedAt) : '—'}</Td>
-                          <Td className="text-zinc-500">{fmtDate(ch.createdAt)}</Td>
-                        </tr>
-                      )
-                    })}
+                    {channelsTab.rows.map((ch) => (
+                      <tr key={ch.id} className="transition-colors hover:bg-zinc-50/60">
+                        <Td><Badge tone="muted">{CHANNEL_LABEL[ch.type] ?? ch.type}</Badge></Td>
+                        <Td className="text-zinc-600">{ch.agent.name}</Td>
+                        <Td><Badge tone={ch.active ? 'success' : 'muted'}>{ch.active ? 'فعال' : 'غیرفعال'}</Badge></Td>
+                        <Td className="text-zinc-500">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</Td>
+                        <Td className="text-zinc-500">{fmtDate(ch.createdAt)}</Td>
+                      </tr>
+                    ))}
                   </tbody>
                 </TableShell>
               </div>

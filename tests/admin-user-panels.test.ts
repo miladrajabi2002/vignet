@@ -5,36 +5,70 @@ function source(path: string) {
   return readFileSync(path, 'utf8')
 }
 
-describe('admin user detail tab panels (v3.5)', () => {
+describe('admin user detail tab panels (v3.6)', () => {
   const page = () => source('app/admin/(dash)/users/[userId]/page.tsx')
 
-  it('exposes the six per-user tabs the operator asked for', () => {
+  it('exposes five per-user tabs (conversations tab removed by request)', () => {
     const src = page()
     expect(src).toContain("key: 'overview', label: 'خلاصه'")
-    expect(src).toContain("key: 'conversations', label: 'گفتگوها'")
     expect(src).toContain("key: 'channels', label: 'کانال‌ها'")
     expect(src).toContain("key: 'knowledge', label: 'دانش'")
     expect(src).toContain("key: 'products', label: 'محصولات'")
     expect(src).toContain("key: 'orders', label: 'سفارش‌ها'")
+    expect(src).not.toContain("key: 'conversations'")
+    expect(src).not.toContain("tab === 'conversations'")
   })
 
-  it('renders conversations as clickable rows leading to the transcript page', () => {
+  it('removes the channel disconnection alarm entirely', () => {
     const src = page()
-    expect(src).toContain('href={`/admin/conversations/${c.id}`}')
-    // conversation rows include the contact identity, channel and status
-    expect(src).toContain("c.contact?.name || displayPhone(c.contact?.phone) || 'مخاطب ناشناس'")
+    expect(src).not.toContain('HEALTH_STATUS')
+    expect(src).not.toContain('healthStatus')
+    expect(src).not.toContain('healthCheckedAt')
+    expect(src).not.toContain('HeartPulse')
+    expect(src).not.toContain('<Th>سلامت</Th>')
+    expect(src).not.toContain('label="سلامت کانال"')
+  })
+
+  it('renders the overview inbox with avatars, last message, status and channel badges', () => {
+    const src = page()
+    // rows stay clickable and lead to the transcript page
+    expect(src).toContain('href={`/admin/conversations/${item.id}`}')
+    expect(src).toContain('ContactAvatar')
+    expect(src).toContain('ConversationStatusBadge')
+    expect(src).toContain('ChannelBadge')
+    expect(src).toContain('stripProductTokens')
+    expect(src).toContain('relativeTime(item.when')
+    // link to the full per-user conversation list uses the phone filter
+    expect(src).toContain('/admin/conversations?q=${encodeURIComponent(user.phone)}')
+  })
+
+  it('shows the login report (آخرین ورود + گزارش ورود) from LoginEvent', () => {
+    const src = page()
+    expect(src).toContain('prisma.loginEvent.findMany')
+    expect(src).toContain('prisma.loginEvent.count')
+    expect(src).toContain('آخرین ورود به پنل')
+    expect(src).toContain('گزارش ورود به پنل')
+    expect(src).toContain('describeDevice')
+    expect(src).toContain('isNewUser')
+  })
+
+  it('shows the SMS delivery report for this phone number', () => {
+    const src = page()
+    expect(src).toContain('prisma.smsDelivery.findMany')
+    expect(src).toContain('prisma.smsDelivery.count')
+    expect(src).toContain('پیامک‌های ارسال‌شده')
+    expect(src).toContain('SMS_KIND_LABEL')
   })
 
   it('loads tab data conditionally instead of fetching everything at once', () => {
     const src = page()
-    expect(src).toContain("tab === 'conversations'")
     expect(src).toContain("tab === 'channels'")
     expect(src).toContain("tab === 'knowledge'")
     expect(src).toContain("tab === 'products'")
     expect(src).toContain("tab === 'orders'")
   })
 
-  it('shows business KPIs: customers, orders, products, conversations, channels, knowledge', () => {
+  it('shows business KPIs: customers, orders, products, conversations, agents, channels', () => {
     const src = page()
     expect(src).toContain('label="مشتریان"')
     expect(src).toContain('label="سفارش‌ها"')
@@ -48,6 +82,7 @@ describe('admin user detail tab panels (v3.5)', () => {
 
   it('keeps every tab mobile-friendly with card lists and a scrollable tab bar', () => {
     const src = page()
+    expect(src).toContain('grid gap-2 md:hidden')
     expect(src).toContain('grid gap-3 md:hidden')
     expect(src).toContain('hidden md:block')
     expect(src).toContain('overflow-x-auto')
@@ -60,6 +95,34 @@ describe('admin user detail tab panels (v3.5)', () => {
     expect(src).toContain("'IRR'")
     expect(src).toContain('تومان')
     expect(src).not.toContain('ریال')
+  })
+})
+
+describe('login + SMS delivery tracking (v3.6)', () => {
+  it('records a LoginEvent and lastLoginAt on every successful OTP sign-in', () => {
+    const src = source('auth.ts')
+    expect(src).toContain('prisma.loginEvent.create')
+    expect(src).toContain('prisma.user.update')
+    expect(src).toContain('lastLoginAt: new Date()')
+    expect(src).toContain("request.headers.get('user-agent')")
+    // failures must never block the sign-in itself
+    expect(src).toContain('captureWarning')
+  })
+
+  it('records every OTP and pattern SMS in SmsDelivery', () => {
+    const src = source('lib/sms/ippanel.ts')
+    expect(src).toContain('prisma.smsDelivery.create')
+    expect(src).toContain('recordSmsDelivery')
+    expect(src).toContain('SMS_KIND_BY_SOURCE')
+    expect(src).toContain("kind: 'OTP', status: 'SENT'")
+    expect(src).toContain("kind: 'OTP', status: 'FAILED'")
+  })
+
+  it('backfilled history tables exist in the schema', () => {
+    const src = source('prisma/schema.prisma')
+    expect(src).toContain('model LoginEvent')
+    expect(src).toContain('model SmsDelivery')
+    expect(src).toContain('lastLoginAt  DateTime?')
   })
 })
 

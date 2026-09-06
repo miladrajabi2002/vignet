@@ -8,7 +8,7 @@ import { generateSlug } from '@/lib/utils'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { isPlatformOwnerPhone } from '@/lib/admin/owner'
 import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
-import { captureError, persistLog } from '@/lib/errors/capture'
+import { captureError, captureWarning, persistLog } from '@/lib/errors/capture'
 import { getClientIp } from '@/lib/security/request-ip'
 import { getRequestId } from '@/lib/observability/request-context'
 import { verifyAdminImpersonationGrant } from '@/lib/admin/impersonation'
@@ -149,6 +149,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await prisma.workspace.update({
             where: { id: user.workspaceId },
             data: { excludeFromAdminReports: true },
+          })
+        }
+
+        // Login report (گزارش ورود به پنل): one row per successful sign-in plus
+        // a denormalized lastLoginAt for the admin user list/profile. Best-effort —
+        // a logging failure must never block the sign-in itself.
+        try {
+          const userAgent = request.headers.get('user-agent')?.slice(0, 512) ?? null
+          await prisma.loginEvent.create({
+            data: {
+              userId: user.id,
+              workspaceId: user.workspaceId,
+              ip,
+              userAgent,
+              isNewUser: !existingUserAtStart,
+            },
+          })
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          })
+        } catch (error) {
+          captureWarning('auth:login-event-write', error, {
+            workspaceId: user.workspaceId,
+            metadata: { phone, userId: user.id, requestId },
           })
         }
 

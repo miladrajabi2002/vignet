@@ -76,6 +76,7 @@ model Workspace {
   inboundEvents            InboundEvent[]
   conversationTurnLeases   ConversationTurnLease[]
   knowledgeApprovals       KnowledgeApproval[]
+  loginEvents              LoginEvent[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -109,7 +110,10 @@ model User {
   platformRole PlatformRole @default(USER)
   language     String       @default("fa")
   createdAt    DateTime     @default(now())
+  // Last successful panel sign-in (updated on every OTP login).
+  lastLoginAt  DateTime?
 
+  loginEvents                 LoginEvent[]
   workspace                  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   knowledgeApprovalsVerified KnowledgeApproval[] @relation("KnowledgeApprovalVerifier")
 
@@ -134,6 +138,45 @@ model OTPLog {
   @@index([phone])
   @@index([phone, sentAt])
   @@index([verified, sentAt])
+}
+
+// ─── SMS DELIVERY LOG (every SMS sent to a phone: OTP + lifecycle) ─
+// Delivery-centric log keyed by recipient phone so the admin user profile
+// can render "SMS messages sent to this number". OTPLog stays the auth
+// audit trail; this table records actual provider attempts for all kinds.
+model SmsDelivery {
+  id          String   @id @default(cuid())
+  phone       String
+  // Null for pre-signup OTPs and platform-owner alerts.
+  workspaceId String?
+  // OTP | WELCOME | SUBSCRIPTION_PURCHASED | SUBSCRIPTION_EXPIRING |
+  // TRIAL_EXPIRING | ACTIVATION_REMINDER | ACTIVATION_COMPLETE |
+  // ADMIN_SUBSCRIPTION_PURCHASED | ADMIN_SUBSCRIPTION_RENEWED | ADMIN_CREDIT_TOPPED_UP
+  kind        String
+  // SENT | FAILED
+  status      String
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([phone, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+// ─── PANEL LOGIN REPORT (one row per successful sign-in) ──────────
+model LoginEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  ip          String?
+  userAgent   String?  @db.Text
+  isNewUser   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([workspaceId, createdAt])
 }
 
 // ─── AGENT ────────────────────────────────────────────────────────
