@@ -604,7 +604,7 @@ export default async function AdminAiPage({
       <div className="grid gap-4 xl:grid-cols-2">
         <TrendChart
            title={`روند کسر اعتبار — ${RANGE_LABELS[range]}`}
-           subtitle="مجموع مبلغ ریالی ثبت‌شده برای پاسخ‌های موفق"
+           subtitle="مجموع مبلغ کسرشده از اعتبار کاربران (به تومان)"
            data={report.daily.map((row) => ({ day: row.day, value: row.chargedIRR }))}
           color="#18181b"
           variant="area"

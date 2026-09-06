@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, Building2, CreditCard, Clock, UserRound } from 'lucide-react'
+import { Users, CreditCard, Clock, UserRound, UserRoundSearch } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
@@ -85,11 +85,13 @@ export default async function AdminUsersPage(
   }
 
   const stalledSince = new Date(Date.now() - 48 * 60 * 60 * 1000)
-  const [totalCount, todayCount, workspaceCount, paidWorkspaces, stalledWorkspaces, rows, messageUsers] =
+  const [totalCount, todayCount, contactCount, paidWorkspaces, stalledWorkspaces, rows, messageUsers] =
     await Promise.all([
       prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
       prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startOfToday() } } }),
-      prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
+      // Every user owns exactly one workspace (1:1), so the old redundant
+      // "workspaces" KPI is replaced by the customers actually served.
+      prisma.contact.count({ where: { workspace: ADMIN_VISIBLE_WORKSPACE_WHERE } }),
       prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
       prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, onboardingStepUpdatedAt: { lt: stalledSince } } }),
       prisma.user.findMany({
@@ -216,7 +218,7 @@ export default async function AdminUsersPage(
     <div className="space-y-6">
       <PageHeader
         title="کاربر ها"
-        subtitle="مدیریت کاربران، کسب‌وکارها و پلن‌های آن‌ها در یک نمای واحد"
+        subtitle="مدیریت کاربران و پلن‌های آن‌ها در یک نمای واحد"
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
           { label: 'کاربران' },
@@ -245,7 +247,7 @@ export default async function AdminUsersPage(
         <div className="md:hidden">
           <AdminFilterSheet
             title="فیلتر پلن"
-            description="کاربران را بر اساس پلن کسب‌وکار ببینید"
+            description="کاربران را بر اساس پلن ببینید"
             groups={[{ label: 'پلن', options: filterPillOptions }]}
             activeCount={planFilter ? 1 : 0}
             clearHref={q ? `/admin/users?q=${encodeURIComponent(q)}` : '/admin/users'}
@@ -253,7 +255,9 @@ export default async function AdminUsersPage(
         </div>
       </div>
 
-      {/* Stats — merged from old users + workspaces pages */}
+      {/* Stats — the workspace KPI was dropped: every user owns exactly one
+          workspace (1:1), so it duplicated the user count. Customer count is
+          the real adoption signal instead. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="کل کاربران"
@@ -262,9 +266,10 @@ export default async function AdminUsersPage(
           icon={<Users className="h-4 w-4" />}
         />
         <StatCard
-          label="کسب‌وکارها"
-          value={workspaceCount}
-          icon={<Building2 className="h-4 w-4" />}
+          label="مشتریان ثبت‌شده"
+          value={contactCount}
+          sub="مجموع مخاطبین همه کاربران"
+          icon={<UserRoundSearch className="h-4 w-4" />}
           tone="info"
         />
         <StatCard
@@ -296,7 +301,7 @@ export default async function AdminUsersPage(
             <tr>
               <Th>کاربر</Th>
               <Th>شماره تلفن</Th>
-              <Th>کسب‌وکار</Th>
+              <Th>وضعیت</Th>
               <Th>پلن</Th>
               <Th>ایجنت‌ها</Th>
               <Th>مکالمات</Th>
@@ -345,25 +350,15 @@ export default async function AdminUsersPage(
                   </Td>
                   <Td>
                     {ws ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/admin/users/${u.id}`}
-                          className="text-zinc-700 hover:text-zinc-900 hover:underline"
-                        >
-                          {ws.name}
-                        </Link>
-                        <Badge
-                          tone={ws.onboardingCompleted ? 'success' : (onboardingStalled ? 'warning' : 'info')}
-                        >
-                          {ws.onboardingCompleted
-                            ? 'فعال‌شده'
-                            : onboarding?.readyToFinish
-                              ? 'آماده تأیید نهایی'
-                              : `${onboardingStalled ? 'احتمال توقف' : 'در حال راه‌اندازی'} · ${onboarding?.labelFa}`}
-                        </Badge>
-                      </div>
+                      <Badge tone={ws.onboardingCompleted ? 'success' : (onboardingStalled ? 'warning' : 'info')}>
+                        {ws.onboardingCompleted
+                          ? 'فعال‌شده'
+                          : onboarding?.readyToFinish
+                            ? 'آماده تأیید نهایی'
+                            : `${onboardingStalled ? 'احتمال توقف' : 'در حال راه‌اندازی'} · ${onboarding?.labelFa}`}
+                      </Badge>
                     ) : (
-                      <span className="text-zinc-400">نیست</span>
+                      <span className="text-zinc-400">بدون فضای کاری</span>
                     )}
                   </Td>
                   <Td>

@@ -4,7 +4,7 @@ import { ArrowRight, Bot, BrainCircuit, Cable, MessageSquare, WalletCards } from
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { TrendChart } from '@/components/admin/trend-chart'
-import { PageHeader, StatCard, Card, Badge, fa, fmtDate } from '../../ui'
+import { PageHeader, StatCard, Card, Badge, fa, fmtDate, fmtIRR } from '../../ui'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import { displayPhone } from '@/lib/phone'
 
@@ -71,7 +71,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
         <StatCard label="کل گفتگو" value={fa(agent._count.conversations)} icon={<MessageSquare className="h-5 w-5" />} />
         <StatCard label="دانش آماده" value={`${fa(readyKnowledge)} / ${fa(agent._count.knowledgeBases)}`} icon={<BrainCircuit className="h-5 w-5" />} />
         <StatCard label="اتصال‌ها" value={fa(agent._count.channels)} icon={<Cable className="h-5 w-5" />} />
-        <StatCard label="هزینه ۳۰ روز" value={`${fa(usage._sum.chargedIRR ?? 0)} ریال`} sub={`${fa(usage._count._all)} درخواست AI`} icon={<WalletCards className="h-5 w-5" />} />
+        <StatCard label="هزینه ۳۰ روز" value={fmtIRR(usage._sum.chargedIRR ?? 0)} sub={`${fa(usage._count._all)} درخواست AI`} icon={<WalletCards className="h-5 w-5" />} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[1.35fr_.65fr]">

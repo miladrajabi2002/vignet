@@ -90,7 +90,7 @@ export default async function AdminRevenuePage() {
         )}
         {finance.usdToIRR && (
           <p className="mb-4 text-xs text-zinc-500">
-            نرخ محاسبه: هر دلار = {fa(finance.usdToIRR)} ریال
+            نرخ محاسبه: هر دلار = {fa(Math.round(finance.usdToIRR / 10))} تومان
           </p>
         )}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">

@@ -5,7 +5,6 @@ import { useRef, useState, type MouseEvent } from 'react'
 import {
   ArrowLeft,
   Bot,
-  Building2,
   CalendarDays,
   CreditCard,
   MessageSquareText,
@@ -95,14 +94,13 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
 
             {user.workspace && (
               <span className="mt-4 block rounded-xl bg-zinc-50 p-3">
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0 truncate text-xs font-semibold text-zinc-800">{user.workspace.name}</span>
+                <span className="flex items-center justify-end">
                   <StatusBadge label={user.workspace.statusLabel} tone={user.workspace.statusTone} />
                 </span>
                 <span className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <span><span className="block text-[11px] text-zinc-500">ایجنت</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.agents}</strong></span>
                   <span><span className="block text-[11px] text-zinc-500">گفتگو</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.conversations}</strong></span>
-                  <span><span className="block text-[11px] text-zinc-500">پرداخت</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.payments}</strong></span>
+                  <span><span className="block text-[11px] text-zinc-500">محصول</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.products}</strong></span>
                 </span>
               </span>
             )}
@@ -121,7 +119,7 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
       <MobileBottomSheet
         open={selected !== null}
         title={selected?.name ?? 'جزئیات کاربر'}
-        description={selected?.workspace?.name ?? 'بدون کسب‌وکار'}
+        description={selected?.phone ?? '—'}
         closeLabel="بستن جزئیات کاربر"
         size="large"
         motionPreset="detail"
@@ -174,7 +172,7 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
 
                 <section className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-zinc-200 p-4"><CalendarDays className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[11px] text-zinc-500">تاریخ عضویت</p><p className="mt-1 text-xs font-bold text-zinc-900">{selected.joinedAt}</p></div>
-                  <div className="rounded-2xl border border-zinc-200 p-4"><Building2 className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[11px] text-zinc-500">کسب‌وکار</p><p className="mt-1 truncate text-xs font-bold text-zinc-900">{selected.workspace?.name ?? 'ثبت نشده'}</p></div>
+                  <div className="rounded-2xl border border-zinc-200 p-4"><Package className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[11px] text-zinc-500">محصولات</p><p className="mt-1 text-xs font-bold text-zinc-900">{selected.workspace?.counts.products ?? '—'}</p></div>
                 </section>
 
                 {selected.workspace && (
@@ -195,9 +193,6 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
                     <RelationCard icon={MessageSquareText} label="گفتگوها" value={selected.workspace.counts.conversations} />
                     <RelationCard icon={CreditCard} label="پرداخت‌ها" value={selected.workspace.counts.payments} />
                     <RelationCard icon={Package} label="محصولات" value={selected.workspace.counts.products} />
-                    <Link href={`/admin/workspaces/${selected.workspace.id}`} className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-200 text-xs font-bold text-zinc-800">
-                      مشاهده کسب‌وکار
-                    </Link>
                   </>
                 ) : (
                   <p className="col-span-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500">زیرمجموعه‌ای برای این کاربر ثبت نشده است.</p>

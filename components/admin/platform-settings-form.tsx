@@ -26,6 +26,13 @@ const MODEL_META = {
   premium: 'دقیق و حرفه‌ای',
 } as const
 
+/**
+ * Money inputs are presented in Toman across the whole admin panel. The
+ * database keeps integer Rials, so every IRR-backed field is divided by 10
+ * for display and multiplied back on save (TOMAN_SCALE).
+ */
+const TOMAN_SCALE = 10
+
 export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialConfig }) {
   const [value, setValue] = useState(initial)
   const [saving, setSaving] = useState(false)
@@ -38,12 +45,17 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
     setMessage(null)
   }
 
-  function setNumber(path: NumberPath, raw: string) {
-    const parsed = raw === '' ? 0 : Math.max(0, Math.round(Number(raw)))
-    if (!Number.isFinite(parsed)) return
+  /**
+   * @param scale multiplier applied to the parsed input before storing
+   *              (Toman → Rial uses TOMAN_SCALE = 10; plain counts use 1).
+   */
+  function setNumber(path: NumberPath, raw: string, scale = 1) {
+    const empty = raw === ''
+    const parsed = empty ? 0 : Math.max(0, Math.round(Number(raw) * scale))
+    if (!empty && !Number.isFinite(parsed)) return
     setValue((current) => {
       if (path[0] === 'trialCreditIRR') return { ...current, trialCreditIRR: parsed }
-      if (path[0] === 'financeUsdToIRR') return { ...current, financeUsdToIRR: raw === '' ? null : parsed }
+      if (path[0] === 'financeUsdToIRR') return { ...current, financeUsdToIRR: empty ? null : parsed }
       if (path[0] === 'replyPricesIRR') {
         return { ...current, replyPricesIRR: { ...current.replyPricesIRR, [path[1]]: parsed } }
       }
@@ -115,11 +127,11 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
 
       <section className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
         <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-          <div className="flex items-center gap-3"><span className="admin-icon-well"><Volume2 className="h-4 w-4" /></span><div><h2 className="text-base font-bold">تعرفه هر پاسخ موفق</h2><p className="mt-0.5 text-[11px] text-black/45">مقدار داخلی ریال است؛ داشبورد کاربران تومان نمایش می‌دهد.</p></div></div>
+          <div className="flex items-center gap-3"><span className="admin-icon-well"><Volume2 className="h-4 w-4" /></span><div><h2 className="text-base font-bold">تعرفه هر پاسخ موفق</h2><p className="mt-0.5 text-[11px] text-black/45">همه مبالغ به تومان وارد می‌شوند.</p></div></div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {(Object.keys(MODEL_META) as Array<keyof typeof MODEL_META>).map((model) => (
               <Field key={model} label={MODEL_META[model]} hint={model}>
-                <MoneyInput value={value.replyPricesIRR[model]} onChange={(raw) => setNumber(['replyPricesIRR', model], raw)} suffix="ریال" />
+                <MoneyInput value={toToman(value.replyPricesIRR[model])} onChange={(raw) => setNumber(['replyPricesIRR', model], raw, TOMAN_SCALE)} suffix="تومان" />
               </Field>
             ))}
           </div>
@@ -127,18 +139,18 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
         <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
           <div className="flex items-center gap-3"><span className="admin-icon-well"><WalletCards className="h-4 w-4" /></span><div><h2 className="text-base font-bold">اعتبار و نرخ مالی</h2><p className="mt-0.5 text-[11px] text-black/45">برای ثبت‌نام جدید و محاسبه سود تلفیقی</p></div></div>
           <div className="mt-5 space-y-4">
-            <Field label="اعتبار هدیه ماه آزمایشی" hint={`${Math.round(value.trialCreditIRR / 10).toLocaleString('fa-IR')} تومان`}>
-              <MoneyInput value={value.trialCreditIRR} onChange={(raw) => setNumber(['trialCreditIRR'], raw)} suffix="ریال" />
+            <Field label="اعتبار هدیه ماه آزمایشی" hint="به تومان">
+              <MoneyInput value={toToman(value.trialCreditIRR)} onChange={(raw) => setNumber(['trialCreditIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
             </Field>
-            <Field label="هر دلار آمریکا" hint="برای گزارش سود؛ خالی یعنی نمایش ندادن سود تلفیقی">
-              <MoneyInput value={value.financeUsdToIRR ?? ''} onChange={(raw) => setNumber(['financeUsdToIRR'], raw)} suffix="ریال" allowEmpty />
+            <Field label="نرخ هر دلار آمریکا" hint="برای گزارش سود؛ خالی یعنی نمایش ندادن سود تلفیقی">
+              <MoneyInput value={value.financeUsdToIRR == null ? '' : toToman(value.financeUsdToIRR)} onChange={(raw) => setNumber(['financeUsdToIRR'], raw, TOMAN_SCALE)} suffix="تومان" allowEmpty />
             </Field>
           </div>
         </div>
       </section>
 
       <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <div><h2 className="text-lg font-bold">پلن‌ها و ظرفیت سرویس</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
+        <div><h2 className="text-lg font-bold">پلن‌ها و ظرفیت سرویس</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. قیمت‌ها به تومان هستند؛ تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((plan) => {
             const meta = PLAN_META[plan]
@@ -147,9 +159,9 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
               <article key={plan} className={cn('rounded-[1.35rem] border p-4 sm:p-5', plan === 'PRO' ? 'border-black bg-black text-white shadow-[0_18px_48px_-30px_rgba(0,0,0,.8)]' : 'border-black/[0.07] bg-[#f8f8f6] text-black')}>
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{meta.title}</p><p className={cn('mt-1 text-[11px]', plan === 'PRO' ? 'text-white/45' : 'text-black/40')}>{meta.hint}</p></div><span className={cn('rounded-full px-2.5 py-1 text-[11px] font-bold', plan === 'PRO' ? 'bg-white text-black' : 'bg-white text-black/55 ring-1 ring-black/[0.06]')}>{plan}</span></div>
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <PlanNumber label="قیمت ماهانه ریال" value={item.priceIRR} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw)} />
+                  <PlanNumber label="قیمت ماهانه (تومان)" value={toTomanNum(item.priceIRR)} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw, TOMAN_SCALE)} />
                   <PlanNumber label="قیمت دلاری" value={item.priceUSD} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
-                  <PlanNumber label="اعتبار هدیه ریال" value={item.includedCreditIRR} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw)} />
+                  <PlanNumber label="اعتبار هدیه (تومان)" value={toTomanNum(item.includedCreditIRR)} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw, TOMAN_SCALE)} />
                   <PlanNumber label="حداکثر اتصال کانال" value={item.maxChannels} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxChannels'], raw)} />
                   <PlanNumber label="حداکثر محصول" value={item.maxProducts} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxProducts'], raw)} />
                   <PlanNumber label="حداکثر سفارش" value={item.maxOrders} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxOrders'], raw)} />
@@ -170,6 +182,17 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       </div>
     </div>
   )
+}
+
+/** Rial (integer) → Toman for input display; empty stays empty. */
+function toToman(irr: number | null | undefined): number | '' {
+  if (irr === null || irr === undefined) return ''
+  return Math.round(irr / 10)
+}
+
+/** Rial (integer) → Toman for non-nullable plan fields. */
+function toTomanNum(irr: number): number {
+  return Math.round(irr / 10)
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
