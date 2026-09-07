@@ -167,8 +167,11 @@ export function PhoneOtpForm({
         }
 
         setCodeVerified(true)
-        setError('NAME_REQUIRED')
-        setTimeout(() => nameInputRef.current?.focus(), 0)
+        const needsName = nameRef.current.trim().length < 3
+        setError(needsName ? 'NAME_REQUIRED' : null)
+        if (needsName) {
+          setTimeout(() => nameInputRef.current?.focus(), 0)
+        }
       } catch {
         setError('GENERIC')
       } finally {
