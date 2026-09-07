@@ -370,6 +370,10 @@ export function createTelegramLikeAdapter(opts: {
     },
 
     async getAvatarUrl(userId: string): Promise<string | null> {
+      // Bale's Bot API does NOT implement getUserProfilePhotos — every call
+      // 404s with "Bad Request: handler not found" and spams the error log.
+      // Avatars are a nice-to-have, so short-circuit quietly for BALE.
+      if (channel === 'BALE') return null
       // getUserProfilePhotos → pick the largest size → getFile → public URL.
       // Best-effort: returns null when the user has no photo or the API refuses
       // (e.g. privacy settings). Never throws — avatar is a nice-to-have.

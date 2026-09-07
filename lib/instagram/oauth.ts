@@ -265,11 +265,18 @@ export async function exchangeForLongLivedToken(
   shortToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
   const clientSecret = instagramAppSecret()
-  const url = new URL('https://graph.instagram.com/access_token')
-  url.searchParams.set('grant_type', 'ig_exchange_token')
-  url.searchParams.set('client_secret', clientSecret)
-  url.searchParams.set('access_token', shortToken)
-  const res = await fetch(url, { method: 'GET' })
+  // graph.instagram.com token endpoints REJECT GET with "Unsupported request -
+  // method type: get" (IGApiException code 100) — they must be called with
+  // POST and a form-encoded body. (Seen live in production 2026-09-07.)
+  const res = await fetch('https://graph.instagram.com/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'ig_exchange_token',
+      client_secret: clientSecret,
+      access_token: shortToken,
+    }),
+  })
   const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(
@@ -290,10 +297,15 @@ export async function exchangeForLongLivedToken(
 export async function refreshLongLivedToken(
   longToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
-  const url = new URL('https://graph.instagram.com/refresh_access_token')
-  url.searchParams.set('grant_type', 'ig_refresh_token')
-  url.searchParams.set('access_token', longToken)
-  const res = await fetch(url, { method: 'GET' })
+  // Same POST-only rule as {@link exchangeForLongLivedToken}.
+  const res = await fetch('https://graph.instagram.com/refresh_access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'ig_refresh_token',
+      access_token: longToken,
+    }),
+  })
   const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(`Token refresh failed: ${JSON.stringify(data)}`)
