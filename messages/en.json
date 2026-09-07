@@ -30,7 +30,13 @@
     "caughtUp": "You are all caught up",
     "enableBrowser": "Enable browser notifications",
     "browserEnabled": "Browser notifications are enabled",
-    "newNotification": "New notification"
+    "newNotification": "New notification",
+    "markRead": "Mark as read",
+    "markBatchRead": "Mark these as read",
+    "handoffSummary": "{count, plural, one {# conversation transferred to an operator} other {# conversations transferred to operators}}",
+    "batchSummary": "{count, plural, one {# new notification} other {# new notifications}}",
+    "batchBody": "See the notification list for details.",
+    "readError": "Could not save the read status. Please try again."
   },
   "versions": {
     "title": "Saved versions",

@@ -30,7 +30,13 @@
     "caughtUp": "همهٔ اعلان‌ها دیده شده‌اند",
     "enableBrowser": "فعال‌سازی اعلان مرورگر",
     "browserEnabled": "اعلان مرورگر فعال است",
-    "newNotification": "اعلان جدید"
+    "newNotification": "اعلان جدید",
+    "markRead": "علامت‌گذاری به‌عنوان خوانده‌شده",
+    "markBatchRead": "خوانده‌شدن این اعلان‌ها",
+    "handoffSummary": "{count} گفتگو به اپراتور منتقل شد",
+    "batchSummary": "{count} اعلان جدید دارید",
+    "batchBody": "جزئیات در فهرست اعلان‌ها در دسترس است.",
+    "readError": "ثبت وضعیت انجام نشد. دوباره تلاش کنید."
   },
   "versions": {
     "title": "نسخه‌های ذخیره‌شده",

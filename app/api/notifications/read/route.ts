@@ -4,8 +4,9 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
 const bodySchema = z.object({
-  // Mark one notification read, or omit `id` to mark all read.
+  // Mark one notification or a displayed batch read; omit both to mark all.
   id: z.string().optional(),
+  ids: z.array(z.string().min(1)).min(1).max(100).optional(),
 })
 
 export async function POST(req: Request) {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     where: {
       workspaceId: user.workspaceId,
       read: false,
-      ...(parsed.data.id ? { id: parsed.data.id } : {}),
+      ...(parsed.data.id ? { id: parsed.data.id } : parsed.data.ids ? { id: { in: parsed.data.ids } } : {}),
     },
     data: { read: true },
   })

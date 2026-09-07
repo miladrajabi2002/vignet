@@ -13,7 +13,7 @@ export async function GET() {
     prisma.notification.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 100,
       select: {
         id: true,
         type: true,
@@ -29,5 +29,5 @@ export async function GET() {
     }),
   ])
 
-  return NextResponse.json({ items, unread })
+  return NextResponse.json({ items, unread, scope: `${user.workspaceId}:${user.id}` })
 }
