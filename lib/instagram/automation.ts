@@ -448,6 +448,73 @@ export async function willInstagramAutomationHandle(args: {
   return (await findMatchingScenario(args)) !== null
 }
 
+/**
+ * Read-only probe for a matched SILENT scenario. A brand-new thread handled by
+ * SILENT has no customer-visible reply and no operator-visible history, so the
+ * channel handler can settle the inbound ledger event without creating an
+ * empty-looking Conversation. Existing conversations still retain the message.
+ *
+ * Pending follow-gate fulfillment takes precedence over ordinary scenarios in
+ * runInstagramAutomation, so a confirmation/mention must never be classified
+ * as silent even when another SILENT scenario matches the same text.
+ */
+export async function willInstagramAutomationSilentlyIgnore(args: {
+  agentId: string
+  channelId: string
+  msg: InboundMessage
+}): Promise<boolean> {
+  if (args.msg.kind === 'DM' || args.msg.kind === undefined) {
+    const gate = await prisma.instagramFollowGate.findFirst({
+      where: {
+        agentId: args.agentId,
+        igSenderId: args.msg.senderId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { payload: true },
+    })
+    if (gate) {
+      const payload = (gate.payload && typeof gate.payload === 'object'
+        ? gate.payload
+        : {}) as Record<string, unknown>
+      const confirmKeyword = typeof payload.gateConfirmKeyword === 'string'
+        ? payload.gateConfirmKeyword.trim().toLowerCase()
+        : ''
+      const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
+      if (
+        gateMode !== 'STORY_MENTION' &&
+        confirmKeyword &&
+        args.msg.text.trim().toLowerCase() === confirmKeyword
+      ) {
+        return false
+      }
+    }
+  }
+
+  if (args.msg.kind === 'STORY_MENTION') {
+    const gate = await prisma.instagramFollowGate.findFirst({
+      where: {
+        agentId: args.agentId,
+        igSenderId: args.msg.senderId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { payload: true },
+    })
+    if (gate) {
+      const payload = (gate.payload && typeof gate.payload === 'object'
+        ? gate.payload
+        : {}) as Record<string, unknown>
+      if (payload.gateMode === 'STORY_MENTION') return false
+    }
+  }
+
+  const row = await findMatchingScenario(args)
+  return row !== null && readAction(row.action).replyMode === 'SILENT'
+}
+
 const GATE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 export interface AutomationContext {

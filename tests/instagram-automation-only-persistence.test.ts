@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   generateReply: vi.fn(),
   loadAutomationPolicy: vi.fn(),
   willAutomationHandle: vi.fn(),
+  willAutomationSilentlyIgnore: vi.fn(),
   runAutomation: vi.fn(),
   shouldAgentReply: vi.fn(),
   claimInboundEvent: vi.fn(),
@@ -92,6 +93,7 @@ vi.mock('@/lib/instagram/config', () => ({
 vi.mock('@/lib/instagram/automation', () => ({
   loadAutomationPolicy: mocks.loadAutomationPolicy,
   willInstagramAutomationHandle: mocks.willAutomationHandle,
+  willInstagramAutomationSilentlyIgnore: mocks.willAutomationSilentlyIgnore,
   runInstagramAutomation: mocks.runAutomation,
   shouldAgentReply: mocks.shouldAgentReply,
 }))
@@ -208,6 +210,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     mocks.loadAutomationPolicy.mockResolvedValue(automationOnlyPolicy)
     mocks.conversationFindFirst.mockResolvedValue(null)
     mocks.willAutomationHandle.mockResolvedValue(false)
+    mocks.willAutomationSilentlyIgnore.mockResolvedValue(false)
     mocks.markEffectsCommitted.mockResolvedValue(undefined)
     mocks.completeInboundEvent.mockResolvedValue(undefined)
     mocks.conversationUpdate.mockResolvedValue({})
@@ -304,6 +307,51 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.resolveInboundContact).not.toHaveBeenCalled()
     expect(mocks.sendText).not.toHaveBeenCalled()
     expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('settles a SILENT scenario without creating a brand-new conversation', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1', text: 'فالو کردم',
+    }])
+    mocks.willAutomationHandle.mockResolvedValue(true)
+    mocks.willAutomationSilentlyIgnore.mockResolvedValue(true)
+    mocks.conversationFindFirst.mockResolvedValue(null)
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.resolveInboundContact).not.toHaveBeenCalled()
+    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.runAutomation).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        conversationId: null,
+        inboundMessageId: null,
+        resultMessageId: null,
+        result: { outcome: 'SILENT_AUTOMATION_IGNORED' },
+      }),
+    )
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a SILENT message when the sender already has a conversation', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1', text: 'فالو کردم',
+    }])
+    mocks.willAutomationHandle.mockResolvedValue(true)
+    mocks.willAutomationSilentlyIgnore.mockResolvedValue(true)
+    mocks.conversationFindFirst.mockResolvedValue({ id: 'conversation-1' })
+    mocks.runAutomation.mockResolvedValue({ handled: true, replied: false })
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.resolveInboundContact).toHaveBeenCalledOnce()
+    expect(mocks.transaction).toHaveBeenCalled()
+    expect(mocks.runAutomation).toHaveBeenCalledOnce()
+    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ result: { outcome: 'AUTOMATION_HANDLED' } }),
+    )
   })
 
   it('ignores unmatched media without transcription or a generic media reply', async () => {

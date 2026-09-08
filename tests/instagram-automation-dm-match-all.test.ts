@@ -55,6 +55,7 @@ vi.mock('@/lib/instagram/config', () => ({
 import {
   runInstagramAutomation,
   willInstagramAutomationHandle,
+  willInstagramAutomationSilentlyIgnore,
 } from '@/lib/instagram/automation'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 
@@ -205,6 +206,37 @@ describe('willInstagramAutomationHandle — read-only routing probe', () => {
     })
 
     expect(result).toBe(true)
+    expect(mocks.automationFindMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('willInstagramAutomationSilentlyIgnore — no-thread probe', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.followGateFindFirst.mockResolvedValue(null)
+  })
+
+  it('recognizes a matched SILENT scenario', async () => {
+    mocks.automationFindMany.mockResolvedValue([{
+      id: 'auto-silent', agentId: 'agent-1', channelId: 'ig-channel-1',
+      type: 'DIRECT_MESSAGE', name: 'ignore followed', active: true, priority: 0,
+      trigger: { keywords: ['فالو کردم'], matchMode: 'EXACT', storyScope: 'KEYWORD', postIds: [] },
+      action: { replyMode: 'SILENT' },
+    }])
+
+    await expect(willInstagramAutomationSilentlyIgnore({
+      agentId: 'agent-1', channelId: 'ig-channel-1', msg: makeDmMessage('فالو کردم'),
+    })).resolves.toBe(true)
+  })
+
+  it('does not hide a pending follow-gate confirmation', async () => {
+    mocks.followGateFindFirst.mockResolvedValue({
+      payload: { gateMode: 'SOFT', gateConfirmKeyword: 'فالو کردم' },
+    })
+
+    await expect(willInstagramAutomationSilentlyIgnore({
+      agentId: 'agent-1', channelId: 'ig-channel-1', msg: makeDmMessage('فالو کردم'),
+    })).resolves.toBe(false)
     expect(mocks.automationFindMany).not.toHaveBeenCalled()
   })
 })

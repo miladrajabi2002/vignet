@@ -48,6 +48,7 @@ import {
         shouldAgentReply,
         loadAutomationPolicy,
         willInstagramAutomationHandle,
+        willInstagramAutomationSilentlyIgnore,
 } from '@/lib/instagram/automation'
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
@@ -798,6 +799,34 @@ async function processChannelInbound(
                                         if (!automationWillHandle) {
                                                 outcome = 'AUTOMATION_ONLY_UNMATCHED'
                                                 return
+                                        }
+                                }
+
+                                // A matched SILENT scenario intentionally has no
+                                // reply. If this sender has no existing thread,
+                                // settle the durable inbound event without creating
+                                // a contact/conversation consisting only of the
+                                // ignored keyword. Messages in an existing thread
+                                // are retained as part of that real history.
+                                if (!fixedInstagramReply) {
+                                        const silentlyIgnored = await willInstagramAutomationSilentlyIgnore({
+                                                agentId: agent.id,
+                                                channelId,
+                                                msg,
+                                        })
+                                        if (silentlyIgnored) {
+                                                const existingConversation = await prisma.conversation.findFirst({
+                                                        where: {
+                                                                agentId: agent.id,
+                                                                channel: 'INSTAGRAM',
+                                                                externalId: msg.chatId,
+                                                        },
+                                                        select: { id: true },
+                                                })
+                                                if (!existingConversation) {
+                                                        outcome = 'SILENT_AUTOMATION_IGNORED'
+                                                        return
+                                                }
                                         }
                                 }
                         }
