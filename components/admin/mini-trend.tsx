@@ -15,6 +15,10 @@ import { Sparkline } from './sparkline'
  * @param series    daily values for the sparkline
  * @param color     sparkline color (hex, or "auto" for green/red trend)
  * @param hint      optional small text under the value
+ * @param labels    optional per-point labels (oldest → newest) shown in the
+ *                  hover tooltip (e.g. Persian short dates)
+ * @param valueLabel optional metric name shown in the hover tooltip
+ * @param valueFormat 'number' (default) or 'irr' (Rial → Toman)
  */
 export function MiniTrend({
   label,
@@ -22,6 +26,9 @@ export function MiniTrend({
   series,
   color = 'auto',
   hint,
+  labels,
+  valueLabel,
+  valueFormat = 'number',
   variant = 'theme',
   className,
 }: {
@@ -30,6 +37,9 @@ export function MiniTrend({
   series: number[]
   color?: string
   hint?: string
+  labels?: string[]
+  valueLabel?: string
+  valueFormat?: 'number' | 'irr'
   variant?: 'theme' | 'light'
   className?: string
 }) {
@@ -66,7 +76,16 @@ export function MiniTrend({
       {hint && <p className={hintCls}>{hint}</p>}
       {series && series.length > 0 && (
         <div className="mt-3">
-          <Sparkline data={series} color={color} width={200} height={32} fluid />
+          <Sparkline
+            data={series}
+            color={color}
+            width={200}
+            height={32}
+            fluid
+            labels={labels}
+            valueLabel={valueLabel ?? label}
+            valueFormat={valueFormat}
+          />
         </div>
       )}
     </div>

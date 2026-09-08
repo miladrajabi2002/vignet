@@ -16,9 +16,7 @@ import {
 } from '../ui'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { displayPhone } from '@/lib/phone'
-import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
-import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
-import { FilterPills } from '../ui'
+import { AdminConversationFilters } from '@/components/admin/admin-conversation-filters'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,13 +69,15 @@ export default async function AdminConversationsPage(
         { agent: { name: { contains: q, mode: 'insensitive' } } },
         { contact: { name: { contains: q, mode: 'insensitive' } } },
         { contact: { phone: { contains: q } } },
+        { workspace: { name: { contains: q, mode: 'insensitive' } } },
         { workspace: { owner: { name: { contains: q, mode: 'insensitive' } } } },
         { workspace: { owner: { phone: { contains: q } } } },
+        { messages: { some: { content: { contains: q, mode: 'insensitive' } } } },
       ],
     } : {}),
   }
 
-  const [rows, totalCount, openCount, handedOffCount] =
+  const [rows, totalCount, matchedCount, openCount, resolvedCount, handedOffCount, channelGroups] =
     await Promise.all([
       prisma.conversation.findMany({
         where,
@@ -94,6 +94,7 @@ export default async function AdminConversationsPage(
           agent: { select: { name: true } },
           workspace: {
             select: {
+              name: true,
               owner: {
                 select: { id: true, name: true, phone: true },
               },
@@ -103,8 +104,16 @@ export default async function AdminConversationsPage(
         },
       }),
       prisma.conversation.count({ where: ADMIN_VISIBLE_RELATED_WHERE }),
+      prisma.conversation.count({ where }),
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'OPEN' } }),
+      prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'RESOLVED' } }),
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'HANDED_OFF', handedOff: true } }),
+      // Available channels with live counts for the filter dropdown.
+      prisma.conversation.groupBy({
+        by: ['channel'],
+        where: ADMIN_VISIBLE_RELATED_WHERE,
+        _count: { _all: true },
+      }),
     ])
 
   const hasNext = rows.length > PAGE_SIZE
@@ -122,14 +131,11 @@ export default async function AdminConversationsPage(
     const query = params.toString()
     return query ? `/admin/conversations?${query}` : '/admin/conversations'
   }
-  const statusPills = [
-    { label: 'همه', href: buildHref({ status: '' }), active: !statusFilter },
-    ...VALID_STATUSES.map((value) => ({ label: STATUS_META[value].label, href: buildHref({ status: value }), active: statusFilter === value })),
-  ]
-  const channelPills = [
-    { label: 'همه', href: buildHref({ channel: '' }), active: !channelFilter },
-    ...VALID_CHANNELS.map((value) => ({ label: CHANNEL_LABEL[value], href: buildHref({ channel: value }), active: channelFilter === value })),
-  ]
+
+  // Channels sorted by usage — only ones that actually have conversations.
+  const availableChannels = channelGroups
+    .map((g) => ({ channel: g.channel, count: g._count._all }))
+    .sort((a, b) => b.count - a.count)
 
   return (
     <div className="space-y-6">
@@ -142,26 +148,29 @@ export default async function AdminConversationsPage(
         ]}
       />
 
-      <div className="sticky top-20 z-20 flex gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72">
-        <AdminUsersSearchForm
-          defaultQuery={q}
-          placeholder="جستجوی کاربر، مخاطب یا ایجنت…"
-          ariaLabel="جستجوی گفتگوها"
-          basePath="/admin/conversations"
+      {/* Search + filters — same UX as the user dashboard conversations tab:
+          desktop = inline selects, mobile = search + bottom-sheet. */}
+      <div className="spatial-surface rounded-[1.35rem] p-2 shadow-[var(--shadow-soft)] md:p-3">
+        <AdminConversationFilters
+          statusOptions={[
+            { key: 'ALL', label: 'همه', count: totalCount },
+            { key: 'HANDED_OFF', label: 'تحویل به اپراتور', count: handedOffCount },
+            { key: 'OPEN', label: 'باز', count: openCount },
+            { key: 'RESOLVED', label: 'بسته‌شده', count: resolvedCount },
+          ]}
+          channelOptions={[
+            { key: 'ALL', label: 'همه', count: totalCount },
+            ...availableChannels.map((c) => ({
+              key: c.channel,
+              label: CHANNEL_LABEL[c.channel] ?? c.channel,
+              count: c.count,
+            })),
+          ]}
+          activeStatus={statusFilter}
+          activeChannel={channelFilter}
+          query={q}
+          resultCount={matchedCount}
         />
-        <div className="hidden min-w-0 flex-1 gap-2 overflow-x-auto md:flex">
-          <FilterPills options={statusPills} />
-          <FilterPills options={channelPills} />
-        </div>
-        <div className="md:hidden">
-          <AdminFilterSheet
-            title="فیلتر"
-            description="وضعیت و کانال گفتگو را انتخاب کنید"
-            groups={[{ label: 'وضعیت', options: statusPills }, { label: 'کانال', options: channelPills }]}
-            activeCount={(statusFilter ? 1 : 0) + (channelFilter ? 1 : 0)}
-            clearHref={q ? `/admin/conversations?q=${encodeURIComponent(q)}` : '/admin/conversations'}
-          />
-        </div>
       </div>
 
       {/* Stats row */}
@@ -188,7 +197,7 @@ export default async function AdminConversationsPage(
 
       {items.length === 0 ? (
         <EmptyState icon={<MessagesSquare className="h-8 w-8" />}>
-          گفتگویی ثبت نشده است
+          گفتگویی با این فیلترها یافت نشد
         </EmptyState>
       ) : (
         <>
@@ -208,7 +217,7 @@ export default async function AdminConversationsPage(
                 <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
                   <div><dt className="text-zinc-400">کانال</dt><dd className="mt-1"><Badge tone="muted">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel}</Badge></dd></div>
                   <div><dt className="text-zinc-400">تعداد پیام</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{fa(conversation.messageCount)}</dd></div>
-                  <div className="col-span-2"><dt className="text-zinc-400">کاربر پنل</dt><dd className="mt-1 truncate font-medium text-zinc-700">{user ? (user.name || displayPhone(user.phone)) : '—'}</dd></div>
+                  <div className="col-span-2"><dt className="text-zinc-400">کاربر پنل</dt><dd className="mt-1 truncate font-medium text-zinc-700">{user ? (user.name || displayPhone(user.phone)) : conversation.workspace.name}</dd></div>
                 </dl>
                 <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
                   <span className="text-[11px] text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span>
@@ -247,7 +256,7 @@ export default async function AdminConversationsPage(
                         {user.name || displayPhone(user.phone)}
                       </Link>
                     ) : (
-                      <span className="text-zinc-400">—</span>
+                      <span className="text-zinc-400">{c.workspace.name}</span>
                     )}
                   </Td>
                   <Td>{c.agent.name}</Td>

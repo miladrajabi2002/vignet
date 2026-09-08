@@ -8,18 +8,14 @@ import {
   Activity,
   BrainCircuit,
   CircleDollarSign,
-  Bot,
-  ChevronLeft,
-  Gauge,
-  ShieldCheck,
+  PlugZap,
   UserPlus,
 } from 'lucide-react'
 import {
   PageHeader,
   StatCard,
-  Panel,
-  Badge,
   fmtIRR,
+  fmtUSD,
   fa,
 } from './ui'
 import {
@@ -39,10 +35,11 @@ import {
   revenueIRRDaily,
   paymentsDaily,
   usageChargesDaily,
+  connectionsDaily,
   revenueIRRMonthly,
   planDistribution,
 } from '@/lib/admin/charts'
-import { getRevenueKPIs } from '@/lib/admin/revenue'
+import { getRevenueKPIs, getFinanceSummary } from '@/lib/admin/revenue'
 import { getAiOverview } from '@/lib/admin/ai-usage'
 import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
@@ -72,7 +69,6 @@ export default async function AdminOverviewPage(
   const startToday = startOfToday()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const staleOnboarding = new Date(Date.now() - 48 * 60 * 60 * 1000)
   const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
   const visibleErrorWhere = hiddenWorkspaceIds.length
     ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
@@ -92,6 +88,7 @@ export default async function AdminOverviewPage(
 
   const [
     revenueKPIs,
+    finance,
     workspaceCount,
     userCount,
     conversationsToday,
@@ -104,15 +101,11 @@ export default async function AdminOverviewPage(
     activeUsers,
     newUsersToday,
     revenueToday,
-    agentHealth,
     channelHealth,
-    activeHandoffs,
-    lowCreditWorkspaces,
-    stalledWorkspaces,
-    failedPayments24h,
     responseHealth,
   ] = await Promise.all([
     getRevenueKPIs(),
+    getFinanceSummary(),
     prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
     prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: startToday } } }),
@@ -128,8 +121,9 @@ export default async function AdminOverviewPage(
       errorsDailyByLevel('error', 7),
       paymentsDaily(7),
       usageChargesDaily(7),
-    ]).then(([rev, conv, users, err, pays, ai]) => ({
-      rev, conv, users, err, pays, ai,
+      connectionsDaily(7),
+    ]).then(([rev, conv, users, err, pays, ai, conns]) => ({
+      rev, conv, users, err, pays, ai, conns,
     })),
     getAiOverview(30),
     Promise.all([
@@ -149,32 +143,23 @@ export default async function AdminOverviewPage(
     prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startToday } } }),
     prisma.payment.aggregate({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'IRR', paidAt: { gte: startToday } }, _sum: { amount: true } }),
     Promise.all([
-      prisma.agent.count({ where: ADMIN_VISIBLE_RELATED_WHERE }),
-      prisma.agent.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, active: true } }),
-    ]).then(([total, active]) => ({ total, active })),
-    Promise.all([
       prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE } }),
       prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE, active: true } }),
       prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE, active: true, OR: [{ lastInboundAt: { lt: new Date(Date.now() - 72 * 60 * 60 * 1000) } }, { lastInboundAt: null, createdAt: { lt: new Date(Date.now() - 72 * 60 * 60 * 1000) } }] } }),
     ]).then(([total, active, silent]) => ({ total, active, silent })),
-    prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, OR: [{ status: 'HANDED_OFF' }, { handedOff: true }] } }),
-    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, aiCreditBalanceIRR: { lte: 20_000 } } }),
-    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, onboardingStepUpdatedAt: { lt: staleOnboarding } } }),
-    prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'FAILED', createdAt: { gte: since24h } } }),
     Promise.all([
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d } } }),
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d }, messages: { some: { role: 'ASSISTANT' } } } }),
     ]).then(([total, answered]) => ({ total, answered, rate: total > 0 ? Math.round((answered / total) * 100) : 100 })),
   ])
 
-  const attentionItems = [
-    errors24h > 0 ? { label: `${fa(errors24h)} خطای جدید در ۲۴ ساعت`, detail: 'منبع‌های پرتکرار را بررسی و اولویت‌بندی کنید.', href: '/admin/system#errors', tone: 'danger' as const } : null,
-    activeHandoffs > 0 ? { label: `${fa(activeHandoffs)} گفتگوی تحویل‌شده به اپراتور`, detail: 'پرونده‌های باز منتظر تصمیم انسانی هستند.', href: '/admin/conversations?status=HANDED_OFF', tone: 'warning' as const } : null,
-    stalledWorkspaces > 0 ? { label: `${fa(stalledWorkspaces)} کسب‌وکار در راه‌اندازی متوقف شده`, detail: 'بیش از ۴۸ ساعت از ثبت‌نام گذشته و فعال‌سازی کامل نشده است.', href: '/admin/users', tone: 'warning' as const } : null,
-    lowCreditWorkspaces > 0 ? { label: `${fa(lowCreditWorkspaces)} کسب‌وکار با اعتبار AI پایین`, detail: 'موجودی کمتر از ۲ هزار تومان است؛ ریسک توقف پاسخ وجود دارد.', href: '/admin/workspaces', tone: 'warning' as const } : null,
-    channelHealth.silent > 0 ? { label: `${fa(channelHealth.silent)} اتصال فعال بدون ورودی اخیر`, detail: 'کانال‌های ساکت بیش از ۷۲ ساعت را از نظر webhook بررسی کنید.', href: '/admin/agents', tone: 'info' as const } : null,
-    failedPayments24h > 0 ? { label: `${fa(failedPayments24h)} پرداخت ناموفق امروز`, detail: 'الگوی خطای درگاه و امکان بازیابی فروش را بررسی کنید.', href: '/admin/payments?status=FAILED', tone: 'danger' as const } : null,
-  ].filter((item): item is NonNullable<typeof item> => Boolean(item))
+  // ── Net revenue = all collected cash − real AI provider cost ──
+  // getFinanceSummary() converts USD payments and the OpenRouter bill with the
+  // platform USD→IRR rate. When no rate is configured we still subtract nothing
+  // and clearly say so, rather than showing a misleading number.
+  const aiCostIRR = finance.openRouterCostIRR ?? 0
+  const netRevenueIRR =
+    finance.operatingProfitIRR ?? Math.max(0, (finance.cashRevenueIRR ?? revenueKPIs.totalIRR) - aiCostIRR)
 
   return (
     <div className="space-y-6">
@@ -195,6 +180,8 @@ export default async function AdminOverviewPage(
           icon={<Wallet className="h-5 w-5" />}
           tone="success"
           series={kpiTrends.rev.map((point) => point.value)}
+          seriesLabels={kpiTrends.rev.map((point) => point.day)}
+          seriesValueFormat="irr"
         />
         <StatCard
           label="درآمد ماه"
@@ -203,14 +190,17 @@ export default async function AdminOverviewPage(
           icon={<TrendingUp className="h-5 w-5" />}
           tone="success"
           series={kpiTrends.rev.map((point) => point.value)}
+          seriesLabels={kpiTrends.rev.map((point) => point.day)}
+          seriesValueFormat="irr"
         />
         <StatCard
-          label="درآمد کل"
-          value={fmtIRR(revenueKPIs.totalIRR)}
-          sub={`${fa(revenueKPIs.paidCount)} پرداخت موفق`}
+          label="درآمد کل (پس از کسر هزینه AI)"
+          value={fmtIRR(netRevenueIRR)}
+          sub={`کسر هزینه AI: ${fmtUSD(finance.openRouterCostUSD)} · ${fa(revenueKPIs.paidCount)} پرداخت موفق`}
           icon={<CircleDollarSign className="h-5 w-5" />}
-          tone="success"
+          tone={netRevenueIRR >= 0 ? 'success' : 'danger'}
           series={kpiTrends.pays.map((point) => point.value)}
+          seriesLabels={kpiTrends.pays.map((point) => point.day)}
         />
         <StatCard
           label="کاربران فعال ۳۰ روزه"
@@ -219,6 +209,7 @@ export default async function AdminOverviewPage(
           icon={<Activity className="h-5 w-5" />}
           tone="info"
           series={kpiTrends.users.map((point) => point.value)}
+          seriesLabels={kpiTrends.users.map((point) => point.day)}
         />
         <StatCard
           label="کاربر جدید امروز"
@@ -226,6 +217,7 @@ export default async function AdminOverviewPage(
           sub={`${fa(workspaceCount)} کسب‌وکار کل`}
           icon={<UserPlus className="h-5 w-5" />}
           series={kpiTrends.users.map((point) => point.value)}
+          seriesLabels={kpiTrends.users.map((point) => point.day)}
         />
         <StatCard
           label="مکالمات امروز"
@@ -234,14 +226,16 @@ export default async function AdminOverviewPage(
           icon={<MessagesSquare className="h-5 w-5" />}
           tone="info"
           series={kpiTrends.conv.map((point) => point.value)}
+          seriesLabels={kpiTrends.conv.map((point) => point.day)}
         />
         <StatCard
-          label="ایجنت‌های فعال"
-          value={`${fa(agentHealth.active)} / ${fa(agentHealth.total)}`}
-          sub={`${fa(channelHealth.active)} اتصال فعال`}
-          icon={<Bot className="h-5 w-5" />}
-          tone={agentHealth.total === 0 || agentHealth.active / agentHealth.total >= 0.8 ? 'success' : 'warning'}
-          series={kpiTrends.conv.map((point) => point.value)}
+          label="اتصال فعال"
+          value={`${fa(channelHealth.active)} / ${fa(channelHealth.total)}`}
+          sub={`${fa(channelHealth.silent)} اتصال ساکت (۷۲ ساعت بدون ورودی)`}
+          icon={<PlugZap className="h-5 w-5" />}
+          tone={channelHealth.total === 0 || channelHealth.silent / channelHealth.total <= 0.25 ? 'success' : 'warning'}
+          series={kpiTrends.conns.map((point) => point.value)}
+          seriesLabels={kpiTrends.conns.map((point) => point.day)}
         />
         <StatCard
           label="خطاهای ۲۴ ساعت"
@@ -250,29 +244,9 @@ export default async function AdminOverviewPage(
           tone={errors24h > 0 ? 'danger' : 'success'}
           icon={<AlertTriangle className="h-5 w-5" />}
           series={kpiTrends.err.map((point) => point.value)}
+          seriesLabels={kpiTrends.err.map((point) => point.day)}
         />
         </div>
-      </section>
-
-      {/* ─── Executive attention briefing ─────────────────────── */}
-      <section className="spatial-surface overflow-hidden rounded-[1.65rem]" aria-labelledby="attention-title">
-        <div className="flex flex-col gap-4 border-b border-black/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black text-white"><Gauge className="h-4 w-4" /></span>
-            <div><h2 id="attention-title" className="text-sm font-black text-black">گزارش مدیریتی امروز</h2><p className="mt-1 text-[11px] leading-5 text-black/45">اولویت‌بندی خودکار بر اساس خطا، گفتگو، پرداخت، اعتبار، راه‌اندازی و سلامت کانال‌ها</p></div>
-          </div>
-          <div className="flex items-center gap-2"><Badge tone={attentionItems.length ? 'warning' : 'success'}>{attentionItems.length ? `${fa(attentionItems.length)} مورد نیازمند پیگیری` : 'وضعیت پایدار'}</Badge><Link href="/admin/system" className="admin-toolbar-button">سلامت زیرساخت <ChevronLeft className="h-3.5 w-3.5" /></Link></div>
-        </div>
-          <div className="grid gap-2 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-3">
-            {attentionItems.length === 0 ? (
-              <div className="col-span-full flex min-h-32 flex-col items-center justify-center rounded-[1.25rem] border border-emerald-200/70 bg-emerald-50/60 text-center"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-100 text-emerald-700"><ShieldCheck className="h-5 w-5" /></span><p className="mt-3 text-sm font-bold text-zinc-900">مورد بحرانی دیده نشد</p><p className="mt-1 text-[11px] text-zinc-500">سیگنال‌های کلیدی در محدوده پایدار هستند.</p></div>
-            ) : attentionItems.map((item) => (
-              <Link key={item.label} href={item.href} className="group flex min-h-[7rem] flex-col rounded-[1.2rem] border border-black/[0.065] bg-white/70 p-4 transition-[border-color,background-color,transform] hover:border-black/15 hover:bg-white active:scale-[.99]">
-                <div className="flex items-start gap-2"><span className={item.tone === 'danger' ? 'mt-1 h-2 w-2 rounded-full bg-red-500' : item.tone === 'warning' ? 'mt-1 h-2 w-2 rounded-full bg-amber-500' : 'mt-1 h-2 w-2 rounded-full bg-blue-500'} /><p className="text-xs font-bold leading-5 text-zinc-900">{item.label}</p><ChevronLeft className="ms-auto mt-0.5 h-3.5 w-3.5 text-black/25 transition-transform group-hover:-translate-x-0.5" /></div>
-                <p className="mt-2 text-[10px] leading-5 text-zinc-500">{item.detail}</p>
-              </Link>
-            ))}
-          </div>
       </section>
 
       {/* ─── Platform AI spend ─────────────────────────────────── */}
@@ -296,6 +270,8 @@ export default async function AdminOverviewPage(
             sub={`${fa(aiOverview.pricedRequests)} لاگ دارای هزینه`}
             icon={<CircleDollarSign className="h-5 w-5" />}
             series={kpiTrends.ai.map((point) => point.value)}
+            seriesLabels={kpiTrends.ai.map((point) => point.day)}
+            seriesValueFormat="irr"
           />
           <StatCard
             label="کسر از اعتبار کاربران"
@@ -304,6 +280,8 @@ export default async function AdminOverviewPage(
             icon={<Wallet className="h-5 w-5" />}
             tone="success"
             series={kpiTrends.ai.map((point) => point.value)}
+            seriesLabels={kpiTrends.ai.map((point) => point.day)}
+            seriesValueFormat="irr"
           />
           <StatCard
             label="میانگین کسر هر پاسخ"
@@ -312,6 +290,8 @@ export default async function AdminOverviewPage(
             icon={<Activity className="h-5 w-5" />}
             tone="warning"
             series={kpiTrends.ai.map((point) => point.value)}
+            seriesLabels={kpiTrends.ai.map((point) => point.day)}
+            seriesValueFormat="irr"
           />
           <StatCard
             label="پوشش ثبت هزینه"
@@ -320,6 +300,8 @@ export default async function AdminOverviewPage(
             icon={<BrainCircuit className="h-5 w-5" />}
             tone={aiOverview.requests === 0 || aiOverview.pricedRequests / aiOverview.requests >= 0.95 ? 'success' : 'warning'}
             series={kpiTrends.ai.map((point) => point.value)}
+            seriesLabels={kpiTrends.ai.map((point) => point.day)}
+            seriesValueFormat="irr"
           />
         </div>
       </section>
@@ -342,30 +324,6 @@ export default async function AdminOverviewPage(
       </div>
 
       <TrendChart title="گفتگوهای ۷ روز اخیر" subtitle="روند روزانه گفتگوهای جدید پلتفرم" data={kpiTrends.conv} color="#18181b" variant="bar" height={180} />
-
-      <Panel
-        title="تصویر عملیاتی پلتفرم"
-        subtitle="شاخص‌های تصمیم‌ساز؛ جزئیات هر حوزه در صفحه تخصصی همان بخش"
-      >
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            { label: 'نرخ پاسخ ایجنت', value: `${fa(responseHealth.rate)}٪`, note: `${fa(responseHealth.answered)} از ${fa(responseHealth.total)} گفتگو`, href: '/admin/conversations' },
-            { label: 'ایجنت فعال', value: `${fa(agentHealth.active)} / ${fa(agentHealth.total)}`, note: 'آماده پاسخ‌گویی', href: '/admin/agents' },
-            { label: 'اتصال فعال', value: `${fa(channelHealth.active)} / ${fa(channelHealth.total)}`, note: `${fa(channelHealth.silent)} اتصال ساکت`, href: '/admin/agents' },
-            { label: 'تحویل به اپراتور', value: fa(activeHandoffs), note: 'نیازمند پاسخ انسانی', href: '/admin/conversations?status=HANDED_OFF' },
-            { label: 'اعتبار پایین', value: fa(lowCreditWorkspaces), note: 'ریسک توقف پاسخ AI', href: '/admin/workspaces' },
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className="group rounded-2xl border border-black/[0.065] bg-[var(--bg-surface)] p-4 transition-[border-color,background-color,transform] duration-200 hover:border-black/15 hover:bg-white active:scale-[.99]">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-medium text-black/45">{item.label}</p>
-                <ChevronLeft className="h-3.5 w-3.5 text-black/20 transition-transform group-hover:-translate-x-0.5" />
-              </div>
-              <p className="mt-3 text-xl font-bold tabular-nums text-black">{item.value}</p>
-              <p className="mt-1 text-[10px] text-black/40">{item.note}</p>
-            </Link>
-          ))}
-        </div>
-      </Panel>
 
       {/* ─── Charts row 1 ───────────────────────────────────────── */}
       {range === 'monthly' && rangeSeries.monthly ? (

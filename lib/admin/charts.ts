@@ -156,9 +156,25 @@ export async function newUsersDaily(days = 14): Promise<DailyPoint[]> {
         )
 }
 
-/** Successful payments count per day. */
-export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {
+/** New channel connections (AgentChannel rows) created per day. */
+export async function connectionsDaily(days = 14): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - days * 86400000)
+        const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
+    SELECT to_char(date_trunc('day', "AgentChannel"."createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    FROM "AgentChannel"
+    JOIN "Agent" ON "Agent"."id" = "AgentChannel"."agentId"
+    WHERE "AgentChannel"."createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"Agent"."workspaceId"`)}
+    GROUP BY 1 ORDER BY 1
+  `
+        return fillSeries(
+                rows.map((r) => ({ d: r.d, v: Number(r.c) })),
+                days,
+        )
+}
+
+/** Successful payments count per day. */
+export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {        const since = new Date(Date.now() - days * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
     SELECT to_char(date_trunc('day', "paidAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Payment"

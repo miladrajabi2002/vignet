@@ -114,12 +114,46 @@ function isSmsConfigured(): boolean {
   return Boolean(process.env.IPPANEL_PROXY_URL || process.env.IPPANEL_API_KEY)
 }
 
+// ─── SMS digit normalization ────────────────────────────────────────
+// Every number that goes out inside an SMS body must be LATIN (0-9).
+// Persian (۰-۹) and Arabic (٠-٩) digits are hard to read on some handsets,
+// break gateway pattern matching, and the operator explicitly asked for
+// English digits in all outbound SMS. This normalizer is the last line of
+// defense right before the HTTP call, so future call sites can't regress.
+const NON_LATIN_DIGIT_RE = /[۰-۹٠-٩]/g
+
+function latinDigits(value: string): string {
+  return value.replace(NON_LATIN_DIGIT_RE, (digit) => {
+    const persian = '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)
+    if (persian >= 0) return String(persian)
+    const arabic = '٠١٢٣٤٥٦٧٨٩'.indexOf(digit)
+    return arabic >= 0 ? String(arabic) : digit
+  })
+}
+
+/** Recursively convert every Persian/Arabic digit in pattern params to Latin. */
+function normalizeSmsParams(params: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(params)) {
+    out[key] = typeof value === 'string' ? latinDigits(value) : value
+  }
+  return out
+}
+
 async function ippanelSend(
   body: Record<string, unknown>,
   audit?: { workspaceId?: string; metadata?: Record<string, unknown> },
 ): Promise<boolean> {
   const proxyUrl = process.env.IPPANEL_PROXY_URL
   const apiKey = process.env.IPPANEL_API_KEY
+
+  // Normalize pattern params before the request leaves the app.
+  if (body.params && typeof body.params === 'object' && !Array.isArray(body.params)) {
+    body = {
+      ...body,
+      params: normalizeSmsParams(body.params as Record<string, string>),
+    }
+  }
 
   let url: string
   const headers: Record<string, string> = {
@@ -425,12 +459,15 @@ async function sendPatternSms(
 }
 
 /**
- * Persian (Jalali) short date for SMS bodies, e.g. "۱۴۰۳/۰۵/۱۲".
- * Falls back to a Gregorian ISO date when Intl Jaalali isn't available.
+ * Persian (Jalali) short date for SMS bodies, e.g. "1403/05/12".
+ * Digits are LATIN (nu-latn) on purpose: several Iranian SMS gateways and
+ * handsets garble Arabic-Indic digits inside pattern variables, and the
+ * operator asked for plain English digits in every outbound SMS.
+ * Falls back to a Gregorian ISO date when Intl Jalali isn't available.
  */
 function formatPersianDate(date: Date): string {
   try {
-    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

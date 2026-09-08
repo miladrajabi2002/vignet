@@ -19,6 +19,8 @@ import {
   FileText,
   LogIn,
   Smartphone,
+  PlugZap,
+  Webhook,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
@@ -246,7 +248,7 @@ export default async function AdminUserDetailPage(
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   // ── shared queries (all tabs) ──
-  const [usage, activeChannelCount, convSpark, paySpark, journeySignals, contactStats, orderStats, loginCount, smsCount] = await Promise.all([
+  const [usage, activeChannelCount, convSpark, paySpark, journeySignals, contactStats, orderStats, loginCount, smsCount, storeIntegration] = await Promise.all([
     prisma.usageLog.aggregate({
       where: { workspaceId, date: { gte: since30 } },
       _sum: { promptTokens: true, completionTokens: true, chargedIRR: true, cost: true },
@@ -286,6 +288,30 @@ export default async function AdminUserDetailPage(
     prisma.loginEvent.count({ where: { userId: user.id } }),
     // SMS messages the platform has sent to this phone number
     prisma.smsDelivery.count({ where: { phone: user.phone } }),
+    // WordPress/WooCommerce plugin connection details (StoreIntegration).
+    // A workspace can hold more than one integration row (e.g. an old URL plus
+    // the live plugin); prefer the row that actually reports a plugin version.
+    prisma.storeIntegration
+      .findMany({
+        where: { workspaceId },
+        take: 2,
+        select: {
+          id: true,
+          type: true,
+          storeUrl: true,
+          pluginVersion: true,
+          active: true,
+          connectedAt: true,
+          lastWebhookAt: true,
+          lastSyncAt: true,
+          lastSyncStatus: true,
+          lastSyncError: true,
+          pollIntervalMinutes: true,
+          webhookSecret: true,
+          createdAt: true,
+        },
+      })
+      .then((rows) => rows.find((row) => row.pluginVersion) ?? rows[0] ?? null),
   ])
 
   // ── overview-only queries ──
@@ -829,6 +855,85 @@ export default async function AdminUserDetailPage(
                   <Link href={tabHref('orders')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">سفارش‌های فروشگاه</Link>
                 </div>
               </Panel>
+
+              {/* ─── WordPress/WooCommerce plugin connection ─── */}
+              {storeIntegration ? (
+              <Panel
+                title="فروشگاه و افزونه وردپرس"
+                subtitle="وضعیت اتصال افزونه نصب‌شده روی سایت کاربر"
+              >
+                <div className="grid gap-6 xl:grid-cols-2 xl:gap-8">
+                  <div>
+                    <SectionLabel>وضعیت افزونه</SectionLabel>
+                    <div className="divide-y divide-zinc-100">
+                      <KV label="وضعیت اتصال">
+                        <Badge tone={storeIntegration.active ? 'success' : 'muted'}>
+                          {storeIntegration.active ? 'فعال' : 'غیرفعال'}
+                        </Badge>
+                      </KV>
+                      <KV label="نوع فروشگاه">
+                        <Badge tone="info">{storeIntegration.type === 'WOOCOMMERCE' ? 'ووکامرس' : storeIntegration.type === 'SHOPIFY' ? 'شاپی‌فای' : 'URL اختصاصی'}</Badge>
+                      </KV>
+                      <KV label="نسخه افزونه" mono>
+                        <span dir="ltr">{storeIntegration.pluginVersion ?? 'ثبت نشده'}</span>
+                      </KV>
+                      <KV label="آدرس فروشگاه" mono>
+                        <a
+                          href={storeIntegration.storeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          dir="ltr"
+                          className="block max-w-[260px] truncate text-blue-600 hover:underline"
+                          title={storeIntegration.storeUrl}
+                        >
+                          {storeIntegration.storeUrl}
+                        </a>
+                      </KV>
+                      <KV label="webhook امنیتی">
+                        {storeIntegration.webhookSecret ? <Badge tone="success">تنظیم‌شده</Badge> : <Badge tone="warning">بدون امضای دیجیتال</Badge>}
+                      </KV>
+                    </div>
+                  </div>
+                  <div>
+                    <SectionLabel>آخرین فعالیت‌ها</SectionLabel>
+                    <div className="divide-y divide-zinc-100">
+                      <KV label="اتصال اولیه">{storeIntegration.connectedAt ? fmtDate(storeIntegration.connectedAt) : '—'}</KV>
+                      <KV label="آخرین webhook">{storeIntegration.lastWebhookAt ? fmtDate(storeIntegration.lastWebhookAt) : <span className="text-zinc-400">—</span>}</KV>
+                      <KV label="آخرین همگام‌سازی">{storeIntegration.lastSyncAt ? fmtDate(storeIntegration.lastSyncAt) : <span className="text-zinc-400">—</span>}</KV>
+                      <KV label="نتیجه همگام‌سازی">
+                        {storeIntegration.lastSyncStatus === 'ok' ? (
+                          <Badge tone="success">موفق</Badge>
+                        ) : storeIntegration.lastSyncStatus === 'error' ? (
+                          <Badge tone="danger">خطا</Badge>
+                        ) : (
+                          <span className="text-zinc-400">—</span>
+                        )}
+                      </KV>
+                      <KV label="بازه همگام‌سازی">{storeIntegration.pollIntervalMinutes === 0 ? 'فقط webhook' : `${fa(storeIntegration.pollIntervalMinutes)} دقیقه`}</KV>
+                    </div>
+                  </div>
+                </div>
+                {storeIntegration.lastSyncError && (
+                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50/70 px-4 py-3">
+                    <p className="text-[11px] font-bold text-red-800">خطای آخرین همگام‌سازی</p>
+                    <p dir="ltr" className="mt-1 break-words text-left text-[10px] leading-5 text-red-700">{storeIntegration.lastSyncError}</p>
+                  </div>
+                )}
+                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[11px] sm:grid-cols-3">
+                  <Link href={tabHref('products')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black"><Package className="h-3.5 w-3.5" /> محصولات فروشگاه</Link>
+                  <Link href={tabHref('orders')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black"><ShoppingCart className="h-3.5 w-3.5" /> سفارش‌های همگام‌شده</Link>
+                  <span className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-500"><Webhook className="h-3.5 w-3.5" /> آخرین push: {storeIntegration.lastWebhookAt ? relativeTime(storeIntegration.lastWebhookAt) : '—'}</span>
+                </div>
+              </Panel>
+              ) : (
+              <Panel title="فروشگاه و افزونه وردپرس" subtitle="وضعیت اتصال افزونه نصب‌شده روی سایت کاربر">
+                <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-zinc-100 text-zinc-400"><PlugZap className="h-5 w-5" /></span>
+                  <p className="text-sm font-semibold text-zinc-600">افزونه‌ای نصب نشده است</p>
+                  <p className="text-[11px] text-zinc-400">این کاربر هنوز فروشگاه ووکامرسی به ویجنت متصل نکرده است.</p>
+                </div>
+              </Panel>
+              )}
 
               {/* 30-day usage stats */}
               <Panel title="مصرف ۳۰ روز اخیر">

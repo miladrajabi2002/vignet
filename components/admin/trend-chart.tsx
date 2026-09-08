@@ -315,7 +315,7 @@ export function ActivationFunnel({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart layout="vertical" data={rows} margin={{ top: 0, right: 42, bottom: 0, left: 8 }} barCategoryGap={11}>
             <XAxis type="number" domain={[0, 100]} hide />
-            <YAxis type="category" dataKey="label" width={112} tick={{ ...AXIS, textAnchor: 'start' }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="label" width={118} tick={{ ...AXIS, textAnchor: 'end' }} axisLine={false} tickLine={false} />
             <Tooltip {...TOOLTIP} formatter={(_value, _name, item) => [`${item.payload.value.toLocaleString('fa-IR')} کسب‌وکار · ${item.payload.percent.toLocaleString('fa-IR')}٪`, 'فعال‌سازی']} />
             <Bar dataKey="percent" radius={[0, 8, 8, 0]} isAnimationActive={false} barSize={18}>
               {rows.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}

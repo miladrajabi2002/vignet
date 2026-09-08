@@ -65,13 +65,14 @@ function captureAdminCommercialSmsError(
 }
 
 function formatAmount(amount: number, currency: string): string {
+  // SMS bodies must use LATIN digits (operator requirement): en-US grouping.
   if (currency === 'IRR') {
-    return `${Math.round(amount / 10).toLocaleString('fa-IR')} تومان`
+    return `${Math.round(amount / 10).toLocaleString('en-US')} تومان`
   }
   if (currency === 'USD') {
-    return `${amount.toLocaleString('fa-IR', { maximumFractionDigits: 2 })} دلار`
+    return `${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} دلار`
   }
-  return `${amount.toLocaleString('fa-IR', { maximumFractionDigits: 2 })} ${currency}`
+  return `${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${currency}`
 }
 
 /**

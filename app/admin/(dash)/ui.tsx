@@ -119,6 +119,8 @@ export function StatCard({
   tone = 'default',
   trend,
   series,
+  seriesLabels,
+  seriesValueFormat = 'number',
 }: {
   label: string
   value: string | number
@@ -127,6 +129,8 @@ export function StatCard({
   tone?: 'default' | 'success' | 'warning' | 'danger' | 'info'
   trend?: { value: number; label?: string } // percentage, +/-
   series?: number[] // 7-day (or similar) daily values for an inline sparkline
+  seriesLabels?: string[] // optional per-point labels (e.g. Persian short dates) for the hover tooltip
+  seriesValueFormat?: 'number' | 'irr' // value formatting inside the hover tooltip
 }) {
   const toneRing = {
     default: 'bg-zinc-100 text-zinc-700',
@@ -183,7 +187,16 @@ export function StatCard({
       )}
       {series && series.length > 0 && (
         <div className="mt-3">
-          <Sparkline data={series} color={sparkColor} width={200} height={32} fluid />
+          <Sparkline
+            data={series}
+            color={sparkColor}
+            width={200}
+            height={32}
+            fluid
+            labels={seriesLabels}
+            valueLabel={label}
+            valueFormat={seriesValueFormat}
+          />
         </div>
       )}
     </Card>

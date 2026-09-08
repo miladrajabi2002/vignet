@@ -67,7 +67,7 @@ describe('admin commercial SMS notifications', () => {
         owner: 'کاربر نمونه',
         phone: '+989121112233',
         plan: 'حرفه‌ای',
-        amount: `${(2_490_000).toLocaleString('fa-IR')} تومان`,
+        amount: `${(2_490_000).toLocaleString('en-US')} تومان`, // SMS digits must be Latin
         gateway: 'زرین‌پی',
         reference: 'zarin-transaction-42',
       },
@@ -111,8 +111,8 @@ describe('admin commercial SMS notifications', () => {
     expect(mocks.sendAdminCreditTopupSms).toHaveBeenCalledWith(
       '+989128352271',
       expect.objectContaining({
-        amount: `${(50_000).toLocaleString('fa-IR')} تومان`,
-        balance: `${(110_000).toLocaleString('fa-IR')} تومان`,
+        amount: `${(50_000).toLocaleString('en-US')} تومان`,
+        balance: `${(110_000).toLocaleString('en-US')} تومان`,
         reference: 'zarin-transaction-42',
       }),
     )
@@ -137,7 +137,7 @@ describe('admin commercial SMS notifications', () => {
     expect(mocks.sendAdminSubscriptionPurchasedSms).toHaveBeenCalledWith(
       '+989128352271',
       expect.objectContaining({
-        amount: `${(49).toLocaleString('fa-IR', { maximumFractionDigits: 2 })} دلار`,
+        amount: `${(49).toLocaleString('en-US', { maximumFractionDigits: 2 })} دلار`,
         gateway: 'NOWPayments',
         reference: 'nowpayments-transaction-9',
       }),

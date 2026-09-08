@@ -124,10 +124,17 @@ describe('shared adaptive mobile UI contract', () => {
     expect(orderSearch).toContain('type="search"')
     expect(orderSearch).toContain('<MobileBottomSheet')
     expect(orderDetail).toContain('motionPreset="detail"')
-    for (const file of [adminUsers, adminPayments, adminConversations]) {
+    for (const file of [adminUsers, adminPayments]) {
       expect(file).toContain('<AdminUsersSearchForm')
       expect(file).toContain('<AdminFilterSheet')
     }
+    // Admin conversations now use the user-dashboard filter pattern:
+    // inline MaterialSelects on desktop + MobileBottomSheet on mobile.
+    const adminConversationFilters = source('components/admin/admin-conversation-filters.tsx')
+    expect(adminConversations).toContain('<AdminConversationFilters')
+    expect(adminConversationFilters).toContain('type="search"')
+    expect(adminConversationFilters).toContain('<MobileBottomSheet')
+    expect(adminConversationFilters).toContain('<MaterialSelect')
     expect(adminBlog).toContain('type="search"')
     expect(adminBlog).toContain('<MobileBottomSheet')
     expect(adminBlog).toContain('md:hidden')

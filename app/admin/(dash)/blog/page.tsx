@@ -4,6 +4,7 @@ import { AdminBlogManager } from '@/components/blog/admin-blog-manager'
 import { MiniTrend } from '@/components/admin/mini-trend'
 import { getLocale } from 'next-intl/server'
 import { PageHeader, StatCard, Card, Panel, fa } from '../ui'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,6 +68,15 @@ export default async function AdminBlogPage() {
   }
   const publishedWeekTotal = dayBuckets.reduce((a, b) => a + b, 0)
 
+  // Persian short-date labels (oldest → newest) for the sparkline hover tooltip.
+  const dayLabelFmt = new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
+    month: 'short',
+    day: 'numeric',
+  })
+  const dayLabels = dayBuckets.map((_, i) =>
+    dayLabelFmt.format(new Date(Date.now() - (dayBuckets.length - 1 - i) * 86_400_000)),
+  )
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -112,7 +122,10 @@ export default async function AdminBlogPage() {
           value={publishedWeekTotal}
           series={dayBuckets}
           color="#22c55e"
-          hint="بر اساس تاریخ انتشار" variant="light"
+          hint="بر اساس تاریخ انتشار"
+          labels={dayLabels}
+          valueLabel="پست منتشرشده"
+          variant="light"
           className="lg:col-span-1"
         />
         <Panel title="پربازدیدترین مقالات">
