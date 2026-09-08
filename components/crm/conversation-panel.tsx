@@ -29,9 +29,7 @@ import { relativeTime } from '@/lib/format'
  *
  *   1. An "🔔 انتقال به اپراتور" alert banner with the reason + relative time.
  *   2. A customer snapshot card (name / phone / channel / agent / summary).
- *   3. A "بریم سمت کارشناس" section listing the agent's connected messenger
- *      channels so the operator can see where the customer is reachable.
- *   4. A "بستن هشدار" button that PATCHes the alert state to 'resolved'.
+ *   3. A "بستن هشدار" button that PATCHes the alert state to 'resolved'.
  *
  * The reply box is NOT rendered here — it lives at the bottom of the chat
  * card in the parent page so it stays in one place (no layout jump when the
@@ -70,7 +68,6 @@ export function ConversationPanel({
         agentName,
         summary,
         handoffAlert,
-        connectedChannels,
         locale,
 }: {
         status: 'OPEN' | 'RESOLVED' | 'HANDED_OFF'
@@ -80,7 +77,6 @@ export function ConversationPanel({
         agentName: string
         summary: string | null
         handoffAlert: HandoffAlertProp | null
-        connectedChannels: ChannelType[]
         locale: 'fa' | 'en'
 }) {
         const t = useTranslations('conversations')
@@ -107,10 +103,6 @@ export function ConversationPanel({
                         setResolving(false)
                 }
         }
-
-        const activeChannels = connectedChannels.filter(
-                (c) => c !== 'WEB_WIDGET' && c !== 'API',
-        )
 
         return (
                 <div className="space-y-3">
@@ -201,35 +193,6 @@ export function ConversationPanel({
                                 )}
                         </div>
 
-                        {/* "Go to specialist" / connected channels */}
-                        {activeChannels.length > 0 && (
-                                <div className="spatial-surface rounded-[1.5rem] p-5">
-                                        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                                                {t('goToSpecialist')}
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                                {activeChannels.map((c) => {
-                                                        const meta = MESSENGER_META[c]
-                                                        const Icon = meta?.icon ?? Send
-                                                        return (
-                                                                <span
-                                                                        key={c}
-                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-secondary)]"
-                                                                >
-                                                                        <Icon className="h-3.5 w-3.5 text-[var(--green)]" />
-                                                                        {meta?.label ?? c}
-                                                                        <span className="text-[11px] text-[var(--text-muted)]">
-                                                                                • {t('connectedOn')}
-                                                                        </span>
-                                                                </span>
-                                                        )
-                                                })}
-                                        </div>
-                                        <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-                                                💬 {t('replyHere')}
-                                        </p>
-                                </div>
-                        )}
                         {/* The reply box lives at the bottom of the chat card
                            (in the conversation detail page), NOT here. Keeping it
                            in one place avoids a layout jump when the conversation

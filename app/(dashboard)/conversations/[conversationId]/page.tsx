@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import { Phone, Sparkles } from 'lucide-react'
-import type { ChannelType } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
@@ -17,7 +16,6 @@ import {
         ConversationPanel,
         type HandoffAlertProp,
 } from '@/components/crm/conversation-panel'
-import { isMessengerType } from '@/lib/channels/registry'
 import { displayPhone } from '@/lib/phone'
 import { contactDisplayName } from '@/lib/crm/display'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
@@ -108,16 +106,6 @@ export default async function ConversationThreadPage(props: {
                 handoffRecommended: false,
                 analyzedAt: conversation.messages.at(-1)?.createdAt ?? conversation.createdAt,
         }
-
-        // Load the agent's active messenger channels so the panel can show
-        // "go to Telegram/Bale/Rubika" indicators when a handoff is active.
-        const agentChannels = await prisma.agentChannel.findMany({
-                where: { agentId: conversation.agent.id, active: true },
-                select: { type: true },
-        })
-        const connectedChannels: ChannelType[] = agentChannels
-                .map((c) => c.type)
-                .filter((c): c is ChannelType => isMessengerType(c))
 
         // Pick the per-channel avatar + handle for the contact based on the
         // conversation's channel so the header reflects the same identity the
@@ -253,7 +241,6 @@ export default async function ConversationThreadPage(props: {
                                         agentName={conversation.agent.name}
                                         summary={conversation.summary}
                                         handoffAlert={handoffAlertProp}
-                                        connectedChannels={connectedChannels}
                                         locale={locale}
                                 />
                         )}
