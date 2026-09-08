@@ -3,14 +3,43 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Search, SlidersHorizontal, Sparkles, X, Loader2, History, MessageSquare, RotateCcw } from 'lucide-react'
+import type { ChannelType, ConvStatus } from '@prisma/client'
+import {
+  AlertCircle,
+  ArrowLeft,
+  BookOpen,
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Clock3,
+  Filter,
+  History,
+  Loader2,
+  MessageSquare,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  WandSparkles,
+  X,
+} from 'lucide-react'
 import { behaviorValues, draftSchema, type Draft, type ReviewResult, type Selection } from '@/lib/improvement/types'
 import { useLearningCount } from '@/components/agents/learning-count'
+import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
+import { Button } from '@/components/ui/button'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 
-const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2'
-const secondary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black'
-const field = 'min-h-12 w-full min-w-0 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base outline-none focus:ring-2 focus:ring-black/50'
-const surface = 'rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4 sm:p-5'
+const secondary = 'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60'
+const field = 'min-h-12 w-full min-w-0 rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-base text-[var(--text-primary)] shadow-[var(--shadow-xs)] outline-none placeholder:text-[var(--text-hint)] focus:border-[var(--border-hover)] focus:ring-2 focus:ring-black/20 sm:text-sm'
+const surface = 'spatial-surface rounded-[1.35rem] p-4 sm:p-5'
+const inset = 'spatial-inset rounded-2xl'
 type Preview = { baseline: string; proposed: string; historical?: string | null; question: string; testedAt: string; version: number; assessment?: { improved: boolean; reason: string } }
 type Change = { id: string; kind: string; targetId: string | null; createdAt: string; revertedAt: string | null; before: Record<string, unknown>; after: Record<string, unknown> }
 type Evidence = { messageId: string; message: { role: string; content: string }; review: { conversationId: string; runId: string; run: { createdAt: string } } }
@@ -46,22 +75,53 @@ const behaviorLabels: Record<string, [string, string]> = {
   short: ['کوتاه', 'Short'], medium: ['متوسط', 'Medium'], long: ['بلند', 'Long'], formal: ['رسمی', 'Formal'], balanced: ['متعادل', 'Balanced'], casual: ['خودمانی', 'Casual'], rare: ['به‌ندرت', 'Rare'], when_needed: ['فقط در صورت نیاز', 'When needed'], often: ['بیشتر', 'Often'], neutral: ['خنثی', 'Neutral'], warm: ['گرم', 'Warm'], answer_only: ['فقط پاسخ', 'Answer only'], guided: ['راهنمایی مرتبط', 'Guided'], proactive: ['پیشنهاد فعال', 'Proactive'], true: ['فعال', 'Enabled'], false: ['غیرفعال', 'Disabled'],
 }
 
-function DetailDialog({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const node = ref.current
-    node?.showModal()
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { node?.close(); document.body.style.overflow = previous }
+function DetailDialog({
+  title,
+  description,
+  onClose,
+  children,
+  footer,
+  triggerRef,
+  wide = false,
+}: {
+  title: string
+  description?: string
+  onClose: () => void
+  children: ReactNode
+  footer?: ReactNode
+  triggerRef?: { current: HTMLElement | null }
+  wide?: boolean
+}) {
+  const [open, setOpen] = useState(true)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const closing = useRef(false)
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
   }, [])
-  return <dialog ref={ref} onCancel={(e) => { e.preventDefault(); onClose() }} aria-labelledby="improvement-detail-title" className="fixed inset-0 m-auto h-dvh max-h-dvh w-full max-w-none overflow-hidden bg-[var(--bg-base)] p-0 text-[var(--text-primary)] backdrop:bg-black/40 sm:h-[90dvh] sm:max-w-3xl sm:rounded-2xl">
-    <div className="flex h-full min-w-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b p-4 pt-[max(1rem,env(safe-area-inset-top))]"><h2 id="improvement-detail-title" className="text-base font-bold">{title}</h2><button type="button" onClick={onClose} className={secondary} aria-label="Close / بستن"><X className="h-5 w-5" /></button></div>
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
-      {footer && <div className="shrink-0 border-t bg-[var(--bg-base)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>}
-    </div>
-  </dialog>
+  function closeWithMotion() {
+    if (closing.current) return
+    closing.current = true
+    setOpen(false)
+    closeTimer.current = setTimeout(onClose, 240)
+  }
+  return (
+    <MobileBottomSheet
+      open={open}
+      title={title}
+      description={description}
+      closeLabel="Close / بستن"
+      onClose={closeWithMotion}
+      footer={footer}
+      triggerRef={triggerRef}
+      mobileOnly={false}
+      motionPreset="detail"
+      size="large"
+      panelClassName={wide ? 'md:max-w-4xl' : 'md:max-w-3xl'}
+      contentClassName="space-y-5 bg-[var(--bg-base)]/70 sm:px-5 sm:py-5"
+    >
+      {children}
+    </MobileBottomSheet>
+  )
 }
 
 export function ImprovementCenter({ agentId }: { agentId: string }) {
@@ -79,8 +139,14 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState('')
   const busyRef = useRef(false)
   const [selectOpen, setSelectOpen] = useState(false), [settingsOpen, setSettingsOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const analysisTriggerRef = useRef<HTMLButtonElement>(null)
+  const automationTriggerRef = useRef<HTMLButtonElement>(null)
+  const filtersTriggerRef = useRef<HTMLButtonElement>(null)
+  const suggestionTriggerRef = useRef<HTMLButtonElement>(null)
+  const resultsTriggerRef = useRef<HTMLButtonElement>(null)
   const [selection, setSelection] = useState<Selection>(initialSelection)
-  const [estimate, setEstimate] = useState<{ count: number; estimatedTokens: number } | null>(null)
+  const [estimate, setEstimate] = useState<{ count: number; estimatedCreditIRR: number } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([]), [total, setTotal] = useState(0), [page, setPage] = useState(1), [searching, setSearching] = useState(false)
   const [runId, setRunId] = useState<string | null>(null), [reviews, setReviews] = useState<Review[]>([]), [reviewPage, setReviewPage] = useState(1), [reviewTotal, setReviewTotal] = useState(0)
@@ -147,27 +213,240 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   const activeRun = data?.activeRun
   const pending = (data?.suggestions ?? []).filter((s) => s.status === 'PENDING').sort((a, b) => ['HIGH', 'MEDIUM', 'LOW'].indexOf(a.priority) - ['HIGH', 'MEDIUM', 'LOW'].indexOf(b.priority))
   const selected = data?.suggestions.find((s) => s.id === selectedId)
-  const filters = <div className="space-y-3">
-    <label className="relative block"><span className="sr-only">{t('جستجوی گفتگو', 'Search conversations')}</span><Search className="pointer-events-none absolute start-3 top-4 h-4 w-4" /><input className={`${field} ps-10`} value={selection.search} onChange={(e) => updateSelection({ search: e.target.value })} placeholder={t('متن پیام، نام یا شماره مشتری…', 'Message, customer name or phone…')} /></label>
-    <details className="rounded-xl border p-3"><summary className="min-h-8 cursor-pointer text-sm font-medium">{t('فیلتر گفتگوها', 'Conversation filters')}</summary><div className="mt-3 grid gap-3 sm:grid-cols-2">
-      <label className="space-y-1 text-sm"><span>{t('کانال', 'Channel')}</span><select className={field} value={selection.channel ?? ''} onChange={(e) => updateSelection({ channel: (e.target.value || undefined) as Selection['channel'] })}><option value="">{t('همه کانال‌ها', 'All channels')}</option>{['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE', 'WEB_WIDGET', 'CHAT_LINK', 'API'].map((c) => <option key={c}>{c}</option>)}</select></label>
-      <label className="space-y-1 text-sm"><span>{t('وضعیت', 'Status')}</span><select className={field} value={selection.attention} onChange={(e) => updateSelection({ attention: e.target.value as Selection['attention'] })}>{[['all', 'همه', 'All'], ['unanswered', 'بی‌پاسخ', 'Unanswered'], ['handoff', 'ارجاع به اپراتور', 'Handed off'], ['low_rating', 'امتیاز پایین', 'Low rating']].map(([v, f, e]) => <option key={v} value={v}>{t(f, e)}</option>)}</select></label>
-      {(['from', 'to'] as const).map((key) => <label key={key} className="space-y-1 text-sm"><span>{key === 'from' ? t('از تاریخ (میلادی)', 'From date') : t('تا تاریخ (میلادی)', 'To date')}</span><input type="date" className={field} value={selection[key] ? new Date(new Date(selection[key]!).getTime() - new Date(selection[key]!).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ''} onChange={(e) => updateSelection({ [key]: e.target.value ? new Date(`${e.target.value}T${key === 'from' ? '00:00:00' : '23:59:59'}`).toISOString() : undefined })} /></label>)}
-      {selection.contactId && <button className={secondary} onClick={() => updateSelection({ contactId: undefined })}>{t('حذف فیلتر مشتری', 'Clear customer filter')}</button>}
-    </div></details>
-  </div>
-  const conversationList = <div className="space-y-3" aria-busy={searching}>
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{searching ? t('در حال جستجو…', 'Searching…') : t(`${number(total)} گفتگو`, `${number(total)} conversations`)}</span><button className={secondary} disabled={searching || !conversations.length} onClick={() => setSelection((s) => ({ ...s, mode: 'selected', ids: [...new Set([...s.ids, ...conversations.map((c) => c.id)])].slice(0, 500) }))}>{t('انتخاب این صفحه', 'Select this page')}</button></div>
-    {!searching && !conversations.length && <p className={`${surface} text-sm`}>{t('گفتگویی پیدا نشد؛ جستجو یا فیلتر را تغییر دهید.', 'No conversations found. Change the search or filters.')}</p>}
-    {conversations.map((c) => <article key={c.id} className="rounded-xl border p-3"><div className="flex items-start gap-3"><label className="flex min-h-11 min-w-11 items-center justify-center"><input type="checkbox" className="h-5 w-5 accent-black" checked={selection.ids.includes(c.id)} onChange={() => toggle(c.id)} aria-label={t('انتخاب گفتگو با ', 'Select conversation with ') + (c.contact?.name ?? c.id)} /></label><div className="min-w-0 flex-1"><p className="font-semibold">{c.contact?.name || t('مشتری بدون نام', 'Unnamed customer')}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{c.channel} · {number(c.messageCount)} {t('پیام', 'messages')}</p><p className="mt-2 line-clamp-2 break-words text-sm leading-6">{c.messages[0]?.content}</p><div className="mt-2 flex flex-wrap gap-2"><Link className={secondary} href={`/conversations/${c.id}`} target="_blank">{t('مشاهده گفتگو', 'Open conversation')}</Link>{c.contactId && <button className={secondary} onClick={() => updateSelection({ contactId: c.contactId! })}>{t('گفتگوهای این مشتری', 'This customer’s conversations')}</button>}</div></div></div></article>)}
-    <Pagination page={page} total={total} setPage={setPage} fa={fa} />
-  </div>
-  return <div className="min-w-0 space-y-4">
-    <section className={`${surface} space-y-3`}><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5" />{t('تحلیل و بهبود', 'Analyze & improve')}</h2><button className={secondary} onClick={() => setSettingsOpen(true)} disabled={!data}><SlidersHorizontal className="h-4 w-4" />{t('خودکارسازی', 'Automation')}</button></div><p className="max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">{t('گفتگوها را بررسی کنید، علت مشکل را پیدا کنید و دانش یا رفتار ایجنت را از همین‌جا بهتر کنید.', 'Review conversations, understand their problems, and improve agent knowledge and behavior here.')}</p><button className={`${primary} w-full sm:w-auto`} disabled={!!activeRun || !data} onClick={() => { setSelection(initialSelection); setSelectOpen(true) }}><Sparkles className="h-4 w-4" />{t('تحلیل گفتگوها', 'Analyze conversations')}</button></section>
-    {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-800">{error}<button className="ms-3 underline" onClick={() => void refresh().then(() => setError('')).catch(() => {})}>{t('تلاش مجدد', 'Retry')}</button></div>}
-    {notice && <p role="status" className="text-sm text-[var(--text-secondary)]">{notice}</p>}
-    {activeRun && <section className={`${surface} space-y-3`} aria-live="polite"><div className="flex flex-wrap items-center justify-between gap-2"><span className="flex items-center gap-2 text-sm font-medium"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />{label(activeRun.status)}</span><button className={secondary} disabled={!!busy} onClick={() => void act({ action: 'cancel', id: activeRun.id })}>{t('توقف تحلیل', 'Stop analysis')}</button></div><progress className="h-2 w-full accent-black" value={activeRun.reviews.filter((r) => ['DONE', 'ERROR'].includes(r.status)).length} max={activeRun.total} /><p className="text-sm">{number(activeRun.reviews.filter((r) => r.status === 'DONE').length)} {t('از', 'of')} {number(activeRun.total)} {t('گفتگو بررسی شد؛ می‌توانید صفحه را ببندید.', 'reviewed; you can close this page.')}</p></section>}
-    <div role="tablist" aria-label={t('بخش‌های تحلیل', 'Analysis sections')} className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--bg-muted)] p-1">{([['suggestions', 'پیشنهادها', 'Suggestions', Sparkles], ['conversations', 'گفتگوها', 'Conversations', MessageSquare], ['history', 'سابقه', 'History', History]] as const).map(([key, f, e, Icon], i) => <button role="tab" type="button" id={`analysis-tab-${key}`} aria-controls={`analysis-panel-${key}`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} key={key} onClick={() => setTab(key)} onKeyDown={(event) => {
+  const activeFilterCount = [
+    selection.channel,
+    selection.attention !== 'all' ? selection.attention : undefined,
+    selection.from,
+    selection.to,
+    selection.contactId,
+  ].filter(Boolean).length
+  const attentionLabel = selection.attention === 'unanswered'
+    ? t('بی‌پاسخ', 'Unanswered')
+    : selection.attention === 'handoff'
+      ? t('ارجاع‌شده', 'Handed off')
+      : selection.attention === 'low_rating'
+        ? t('امتیاز پایین', 'Low rating')
+        : ''
+  const filters = (
+    <div className={`${surface} space-y-3 p-3 sm:p-4`}>
+      <div className="flex gap-2">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">{t('جستجوی گفتگو', 'Search conversations')}</span>
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
+          <input
+            className={`${field} ps-10`}
+            value={selection.search}
+            onChange={(event) => updateSelection({ search: event.target.value })}
+            placeholder={t('جستجو در پیام، نام یا شماره…', 'Search messages, names or phone…')}
+          />
+        </label>
+        <Button
+          variant="secondary"
+          className="relative shrink-0 px-3 sm:px-4"
+          aria-haspopup="dialog"
+          aria-expanded={filtersOpen}
+          onClick={(event) => {
+            filtersTriggerRef.current = event.currentTarget
+            setFiltersOpen(true)
+          }}
+        >
+          <Filter className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">{t('فیلترها', 'Filters')}</span>
+          {activeFilterCount > 0 && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[10px] font-bold text-white">
+              {number(activeFilterCount)}
+            </span>
+          )}
+        </Button>
+      </div>
+      {activeFilterCount > 0 && (
+        <div className="flex flex-wrap gap-2" aria-label={t('فیلترهای فعال', 'Active filters')}>
+          {selection.channel && <FilterChip label={selection.channel} onRemove={() => updateSelection({ channel: undefined })} fa={fa} />}
+          {attentionLabel && <FilterChip label={attentionLabel} onRemove={() => updateSelection({ attention: 'all' })} fa={fa} />}
+          {(selection.from || selection.to) && <FilterChip label={t('بازهٔ زمانی', 'Date range')} onRemove={() => updateSelection({ from: undefined, to: undefined })} fa={fa} />}
+          {selection.contactId && <FilterChip label={t('یک مشتری', 'One customer')} onRemove={() => updateSelection({ contactId: undefined })} fa={fa} />}
+        </div>
+      )}
+    </div>
+  )
+  const conversationList = (
+    <div className="space-y-3" aria-busy={searching}>
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-2 px-1">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            {searching ? t('در حال جستجو…', 'Searching…') : t(`${number(total)} گفتگو`, `${number(total)} conversations`)}
+          </p>
+          {!!selection.ids.length && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{number(selection.ids.length)} {t('گفتگو انتخاب شده', 'conversations selected')}</p>}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={searching || !conversations.length}
+          onClick={() => setSelection((current) => ({
+            ...current,
+            mode: 'selected',
+            ids: [...new Set([...current.ids, ...conversations.map((conversation) => conversation.id)])].slice(0, 500),
+          }))}
+        >
+          <Check className="h-4 w-4" aria-hidden="true" />
+          {t('انتخاب این صفحه', 'Select this page')}
+        </Button>
+      </div>
+      {searching && (
+        <div className={`${surface} flex min-h-28 items-center justify-center gap-2 text-sm text-[var(--text-secondary)]`} role="status">
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          {t('گفتگوها در حال دریافت‌اند…', 'Loading conversations…')}
+        </div>
+      )}
+      {!searching && !conversations.length && (
+        <div className={`${surface} py-9 text-center`}>
+          <MessageSquare className="mx-auto h-6 w-6 text-[var(--text-muted)]" aria-hidden="true" />
+          <p className="mt-3 text-sm font-semibold">{t('گفتگویی پیدا نشد', 'No conversations found')}</p>
+          <p className="mx-auto mt-1 max-w-md text-xs leading-6 text-[var(--text-muted)]">{t('عبارت جستجو یا فیلترها را تغییر دهید.', 'Change the search term or filters.')}</p>
+        </div>
+      )}
+      {!searching && conversations.map((conversation) => {
+        const who = conversation.contact?.name || conversation.contact?.phone || t('مشتری بدون نام', 'Unnamed customer')
+        const checked = selection.ids.includes(conversation.id)
+        const status = conversation.status as ConvStatus
+        const statusText = status === 'OPEN'
+          ? t('باز', 'Open')
+          : status === 'HANDED_OFF'
+            ? t('ارجاع‌شده', 'Handed off')
+            : t('حل‌شده', 'Resolved')
+        return (
+          <article
+            key={conversation.id}
+            className={cn(
+              'spatial-surface overflow-hidden rounded-[1.35rem] transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none',
+              checked && 'border-black/25 shadow-[0_12px_32px_rgba(17,17,17,0.09)]',
+            )}
+          >
+            <div className="flex min-w-0 items-start gap-3 p-3.5 sm:p-4">
+              <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl hover:bg-[var(--bg-hover)]">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 rounded accent-black"
+                  checked={checked}
+                  onChange={() => toggle(conversation.id)}
+                  aria-label={t('انتخاب گفتگو با ', 'Select conversation with ') + who}
+                />
+              </label>
+              <ContactAvatar alt={who} size="md" className="bg-[var(--bg-surface)]" />
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <p dir="auto" className="truncate text-sm font-bold text-[var(--text-primary)]">{who}</p>
+                  <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
+                    {conversation.lastMessageAt ? date(conversation.lastMessageAt) : t('بدون پیام', 'No messages')}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <ConversationStatusBadge status={status} label={statusText} attention={status === 'HANDED_OFF'} />
+                  <ChannelBadge type={conversation.channel as ChannelType} />
+                  <span className="text-[11px] text-[var(--text-muted)]">{number(conversation.messageCount)} {t('پیام', 'messages')}</span>
+                </div>
+                <p dir="auto" className="mt-2 line-clamp-2 break-words text-sm leading-6 text-[var(--text-secondary)]">
+                  {conversation.messages[0]?.content || t('پیش‌نمایش پیام در دسترس نیست.', 'No message preview available.')}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 border-t border-[var(--border-subtle)] px-3 py-2">
+              <Link className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60" href={`/conversations/${conversation.id}`} target="_blank">
+                {t('مشاهده گفتگو', 'Open conversation')}
+                <ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" />
+              </Link>
+              {conversation.contactId && (
+                <button type="button" className="min-h-10 rounded-xl px-3 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60" onClick={() => updateSelection({ contactId: conversation.contactId! })}>
+                  {t('فقط گفتگوهای این مشتری', 'Only this customer')}
+                </button>
+              )}
+            </div>
+          </article>
+        )
+      })}
+      <Pagination page={page} total={total} setPage={setPage} fa={fa} />
+    </div>
+  )
+  const processedCount = activeRun?.reviews.filter((review) => ['DONE', 'ERROR'].includes(review.status)).length ?? 0
+  const successfulCount = activeRun?.reviews.filter((review) => review.status === 'DONE').length ?? 0
+  const automationEnabled = Boolean(data?.settings.daily || data?.settings.autoBehavior)
+
+  return <div className="min-w-0 space-y-4 pb-4">
+    <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[0.95rem] bg-black text-white shadow-[var(--shadow-control)]">
+            <WandSparkles className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">{t('تحلیل و بهبود', 'Analyze & improve')}</h2>
+              {automationEnabled && <StatusPill tone="success">{t('خودکارسازی فعال', 'Automation on')}</StatusPill>}
+            </div>
+            <p className="mt-1.5 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+              {t('گفتگوها را بررسی کنید، مشکل‌های تکراری را پیدا کنید و دانش یا رفتار ایجنت را با شواهد واقعی بهتر کنید.', 'Review conversations, find recurring problems, and improve agent knowledge or behavior using real evidence.')}
+            </p>
+            {data && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
+                <span>{number(data.pendingCount)} {t('پیشنهاد آمادهٔ بررسی', 'suggestions ready')}</span>
+                <span className="hidden h-1 w-1 rounded-full bg-black/20 sm:block" aria-hidden="true" />
+                <span>{number(data.runTotal)} {t('نوبت تحلیل ثبت‌شده', 'analysis runs')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:flex">
+          <Button
+            disabled={!!activeRun || !data}
+            className="min-w-0 sm:min-w-40"
+            onClick={(event) => {
+              analysisTriggerRef.current = event.currentTarget
+              setError('')
+              setEstimate(null)
+              setSelection(initialSelection)
+              setSelectOpen(true)
+            }}
+          >
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            {t('تحلیل گفتگوها', 'Analyze conversations')}
+          </Button>
+          <Button ref={automationTriggerRef} variant="secondary" disabled={!data} onClick={() => { setError(''); setSettingsOpen(true) }}>
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('خودکارسازی', 'Automation')}</span>
+            <span className="sm:hidden">{t('خودکار', 'Auto')}</span>
+          </Button>
+        </div>
+      </div>
+    </section>
+    {error && (
+      <div role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-sm leading-6 text-red-800">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <p className="min-w-0 flex-1">{error}</p>
+        <button className="min-h-9 shrink-0 rounded-lg px-2 font-semibold underline underline-offset-4" onClick={() => void refresh().then(() => setError('')).catch(() => {})}>{t('تلاش مجدد', 'Retry')}</button>
+      </div>
+    )}
+    {notice && (
+      <div role="status" className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800">
+        <CircleCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {notice}
+      </div>
+    )}
+    {activeRun && (
+      <section className={`${surface} space-y-3.5`} aria-live="polite">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /></span>
+            <div><p className="text-sm font-bold">{label(activeRun.status)}</p><p className="mt-0.5 text-xs text-[var(--text-muted)]">{number(successfulCount)} {t('از', 'of')} {number(activeRun.total)} {t('گفتگو بررسی شده', 'conversations reviewed')}</p></div>
+          </div>
+          <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void act({ action: 'cancel', id: activeRun.id })}>{t('توقف تحلیل', 'Stop analysis')}</Button>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-black/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={activeRun.total} aria-valuenow={processedCount}>
+          <div className="h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${Math.min(100, (processedCount / Math.max(activeRun.total, 1)) * 100)}%` }} />
+        </div>
+        <p className="text-xs leading-6 text-[var(--text-muted)]">{t('تحلیل در پس‌زمینه ادامه دارد و می‌توانید از این صفحه خارج شوید.', 'Analysis continues in the background, so you may leave this page.')}</p>
+      </section>
+    )}
+    <div role="tablist" aria-label={t('بخش‌های تحلیل', 'Analysis sections')} className="spatial-control grid grid-cols-3 gap-1 rounded-[1.25rem] p-1.5">{([['suggestions', 'پیشنهادها', 'Suggestions', Sparkles], ['conversations', 'گفتگوها', 'Conversations', MessageSquare], ['history', 'سابقه', 'History', History]] as const).map(([key, f, e, Icon], i) => <button role="tab" type="button" id={`analysis-tab-${key}`} aria-controls={`analysis-panel-${key}`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} key={key} onClick={() => setTab(key)} onKeyDown={(event) => {
       const keys = ['suggestions', 'conversations', 'history'] as const
       let n = i
       if (event.key === 'Home') n = 0
@@ -176,44 +455,226 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       else if (event.key === 'ArrowRight') n = (i + (fa ? 2 : 1)) % 3
       else return
       event.preventDefault(); setTab(keys[n]); document.getElementById(`analysis-tab-${keys[n]}`)?.focus()
-    }} className={`flex min-h-12 min-w-0 items-center justify-center gap-1 rounded-lg px-1 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-black sm:text-sm ${tab === key ? 'bg-[var(--bg-base)] shadow-sm' : 'text-[var(--text-secondary)]'}`}><Icon className="hidden h-4 w-4 sm:block" />{t(f, e)}{key === 'suggestions' && !!data?.pendingCount && <span className="ms-1">{number(data.pendingCount)}</span>}</button>)}</div>
-    {!data && <p role="status" className={`${surface} animate-pulse motion-reduce:animate-none`}>{t('در حال دریافت اطلاعات…', 'Loading…')}</p>}
+    }} className={cn(
+      'flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl px-1.5 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 motion-reduce:transition-none sm:gap-2 sm:text-sm',
+      tab === key ? 'bg-black text-white shadow-[var(--shadow-control)]' : 'text-[var(--text-secondary)] hover:bg-black/[0.04]',
+    )}><Icon className="h-4 w-4 shrink-0" aria-hidden="true" />{t(f, e)}{key === 'suggestions' && !!data?.pendingCount && <span className={cn('ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold', tab === key ? 'bg-white text-black' : 'bg-black text-white')}>{number(data.pendingCount)}</span>}</button>)}</div>
+    {!data && (
+      <div role="status" className={`${surface} space-y-3 py-7`}>
+        <div className="h-4 w-36 animate-pulse rounded-full bg-black/10 motion-reduce:animate-none" />
+        <div className="h-3 w-2/3 animate-pulse rounded-full bg-black/[0.07] motion-reduce:animate-none" />
+        <span className="sr-only">{t('در حال دریافت اطلاعات…', 'Loading…')}</span>
+      </div>
+    )}
     <section role="tabpanel" id="analysis-panel-suggestions" aria-labelledby="analysis-tab-suggestions" hidden={tab !== 'suggestions'} className="space-y-3">
-      {data && !pending.length && <div className={`${surface} py-10 text-center`}><Sparkles className="mx-auto h-7 w-7" /><p className="mt-3 font-semibold">{t('پیشنهادی در انتظار نیست', 'No pending suggestions')}</p><p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">{t('یک تحلیل شروع کنید؛ نتیجهٔ هر گفتگو و اصلاح‌های پیشنهادی اینجا ظاهر می‌شوند.', 'Start an analysis to see conversation findings and proposed improvements.')}</p></div>}
-      {pending.map((s) => <button key={s.id} className={`${surface} block w-full text-start focus-visible:ring-2 focus-visible:ring-black`} onClick={() => setSelectedId(s.id)}><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-[var(--text-secondary)]">{s.kind === 'KNOWLEDGE' ? t('دانش', 'Knowledge') : s.kind === 'BEHAVIOR' ? t('رفتار و لحن', 'Behavior') : t('روند و ابزار', 'Flow & tools')} · {s.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : s.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</span><span className="text-xs">{number(s.conversationCount)} {t('گفتگو', 'conversations')}</span></div><h3 className="mt-3 font-bold">{s.title}</h3><p className="mt-2 line-clamp-2 text-sm leading-7 text-[var(--text-secondary)]">{s.diagnosis}</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-semibold">{s.draft.missing ? t('تکمیل اطلاعات', 'Complete information') : t('بررسی پیشنهاد', 'Review suggestion')}<ArrowLeft className="h-4 w-4 ltr:rotate-180" /></span></button>)}
+      {data && pending.length > 0 && (
+        <div className="flex items-end justify-between gap-3 px-1 pb-1 pt-1">
+          <div><h3 className="text-sm font-bold">{t('پیشنهادهای آمادهٔ بررسی', 'Suggestions ready for review')}</h3><p className="mt-1 text-xs text-[var(--text-muted)]">{t('موارد مهم‌تر بالاتر نمایش داده می‌شوند.', 'Higher priority items appear first.')}</p></div>
+          <span className="text-xs font-semibold text-[var(--text-muted)]">{number(data.pendingCount)} {t('مورد', 'items')}</span>
+        </div>
+      )}
+      {data && !pending.length && (
+        <div className={`${surface} py-11 text-center`}>
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-black/[0.04] text-[var(--text-secondary)]"><CircleCheck className="h-6 w-6" aria-hidden="true" /></span>
+          <p className="mt-4 font-bold">{t('همه‌چیز بررسی شده است', 'Everything is reviewed')}</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-[var(--text-secondary)]">{t('پیشنهادی در انتظار نیست. برای پیدا کردن فرصت‌های تازه، یک تحلیل جدید شروع کنید.', 'Nothing is waiting for review. Start a new analysis to find fresh opportunities.')}</p>
+        </div>
+      )}
+      {pending.map((suggestion) => {
+        const isKnowledge = suggestion.kind === 'KNOWLEDGE'
+        const isBehavior = suggestion.kind === 'BEHAVIOR'
+        return (
+          <button
+            key={suggestion.id}
+            type="button"
+            className="spatial-surface spatial-press block w-full overflow-hidden rounded-[1.35rem] p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 sm:p-5"
+            onClick={(event) => {
+              suggestionTriggerRef.current = event.currentTarget
+              setError('')
+              setSelectedId(suggestion.id)
+            }}
+          >
+            <div className="flex items-start gap-3.5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]">
+                {isKnowledge ? <BookOpen className="h-4 w-4" aria-hidden="true" /> : isBehavior ? <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> : <MessageSquare className="h-4 w-4" aria-hidden="true" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill>{isKnowledge ? t('دانش', 'Knowledge') : isBehavior ? t('رفتار و لحن', 'Behavior') : t('روند و ابزار', 'Flow & tools')}</StatusPill>
+                  <StatusPill tone={suggestion.priority === 'HIGH' ? 'warning' : 'neutral'}>{suggestion.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : suggestion.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</StatusPill>
+                </div>
+                <h3 className="mt-3 text-[15px] font-bold leading-7 text-[var(--text-primary)]">{suggestion.title}</h3>
+                <p className="mt-1 line-clamp-2 text-sm leading-7 text-[var(--text-secondary)]">{suggestion.diagnosis}</p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
+                  <span className="text-xs text-[var(--text-muted)]">{number(suggestion.conversationCount)} {t('گفتگوی مرتبط', 'related conversations')}</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">{suggestion.draft.missing ? t('تکمیل اطلاعات', 'Complete information') : t('بررسی پیشنهاد', 'Review suggestion')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></span>
+                </div>
+              </div>
+            </div>
+          </button>
+        )
+      })}
       <Pagination page={suggestionPage} total={data?.suggestionTotal ?? 0} setPage={setSuggestionPage} fa={fa} />
     </section>
-    <section role="tabpanel" id="analysis-panel-conversations" aria-labelledby="analysis-tab-conversations" hidden={tab !== 'conversations'} className="space-y-4">{filters}{conversationList}<button className={`${primary} sticky bottom-[max(1rem,env(safe-area-inset-bottom))] w-full shadow-lg sm:w-auto`} disabled={!selection.ids.length || !!activeRun} onClick={() => { updateSelection({ mode: 'selected' }); setSelectOpen(true) }}>{t(`تحلیل ${number(selection.ids.length)} گفتگوی انتخاب‌شده`, `Analyze ${number(selection.ids.length)} selected conversations`)}</button></section>
+    <section role="tabpanel" id="analysis-panel-conversations" aria-labelledby="analysis-tab-conversations" hidden={tab !== 'conversations'} className="space-y-4">
+      <div className="flex items-end justify-between gap-3 px-1 pt-1">
+        <div><h3 className="text-sm font-bold">{t('انتخاب گفتگو برای تحلیل', 'Choose conversations to analyze')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('با جستجو و فیلتر، گفتگوهای مرتبط را پیدا کنید.', 'Use search and filters to find relevant conversations.')}</p></div>
+      </div>
+      {filters}
+      {conversationList}
+      <div className="spatial-control sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-2xl p-2.5">
+        <p className="hidden ps-2 text-xs text-[var(--text-muted)] sm:block">{selection.ids.length ? t(`${number(selection.ids.length)} گفتگو برای تحلیل انتخاب شده`, `${number(selection.ids.length)} conversations selected`) : t('حداقل یک گفتگو انتخاب کنید', 'Select at least one conversation')}</p>
+        <Button
+          className="w-full sm:ms-auto sm:w-auto sm:min-w-56"
+          disabled={!selection.ids.length || !!activeRun}
+          onClick={(event) => {
+            analysisTriggerRef.current = event.currentTarget
+            setError('')
+            setEstimate(null)
+            updateSelection({ mode: 'selected' })
+            setSelectOpen(true)
+          }}
+        >
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          {selection.ids.length ? t(`تحلیل ${number(selection.ids.length)} گفتگو`, `Analyze ${number(selection.ids.length)} conversations`) : t('تحلیل گفتگوهای انتخابی', 'Analyze selected conversations')}
+        </Button>
+      </div>
+    </section>
     <section role="tabpanel" id="analysis-panel-history" aria-labelledby="analysis-tab-history" hidden={tab !== 'history'} className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">{t('تحلیل‌ها، تغییرها و بازگشت به نسخهٔ قبل', 'Analyses, changes, and rollback')}</p>
-      {data?.runs.map((r) => <article key={r.id} className={`${surface} space-y-3`}><div className="flex flex-wrap justify-between gap-2"><span className="text-sm font-semibold">{number(r.total)} {t('گفتگو', 'conversations')} · {label(r.status)}</span><span className="text-xs text-[var(--text-muted)]">{date(r.createdAt)}</span></div><div className="flex flex-wrap gap-2"><button className={secondary} onClick={() => { setRunId(r.id); setReviewPage(1); setReviews([]) }}>{t('نتیجهٔ هر گفتگو', 'Individual results')}</button>{['PARTIAL', 'ERROR'].includes(r.status) && <button className={secondary} disabled={!!busy || !!activeRun} onClick={() => void act({ action: 'retry', id: r.id })}><RotateCcw className="h-4 w-4" />{t('ادامهٔ موارد ناموفق', 'Retry unfinished reviews')}</button>}</div></article>)}
+      <div className="px-1 pt-1"><h3 className="text-sm font-bold">{t('سابقهٔ تحلیل و تغییرها', 'Analysis and change history')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('نتیجهٔ هر نوبت را ببینید یا تغییرهای اعمال‌شده را بازگردانید.', 'Inspect each run or revert applied changes.')}</p></div>
+      {data?.runs.map((run) => (
+        <article key={run.id} className={`${surface} space-y-3.5`}>
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]"><Clock3 className="h-4 w-4" aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold">{number(run.total)} {t('گفتگو بررسی شد', 'conversations reviewed')}</p><StatusPill tone={run.status === 'DONE' ? 'success' : ['ERROR', 'PARTIAL'].includes(run.status) ? 'warning' : 'neutral'}>{label(run.status)}</StatusPill></div><p className="mt-1 text-xs text-[var(--text-muted)]">{date(run.createdAt)}</p></div>
+          </div>
+          <div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-3">
+            <Button variant="secondary" size="sm" onClick={(event) => { resultsTriggerRef.current = event.currentTarget; setRunId(run.id); setReviewPage(1); setReviews([]) }}>{t('نتیجهٔ هر گفتگو', 'Individual results')}</Button>
+            {['PARTIAL', 'ERROR'].includes(run.status) && <Button variant="secondary" size="sm" disabled={!!busy || !!activeRun} onClick={() => void act({ action: 'retry', id: run.id })}><RotateCcw className="h-4 w-4" aria-hidden="true" />{t('ادامهٔ موارد ناموفق', 'Retry unfinished reviews')}</Button>}
+          </div>
+        </article>
+      ))}
       <Pagination page={runPage} total={data?.runTotal ?? 0} setPage={setRunPage} fa={fa} />
-      {data?.suggestions.filter((s) => s.status !== 'PENDING').map((s) => <button key={s.id} className={`${surface} block w-full text-start`} onClick={() => setSelectedId(s.id)}><span className="text-xs text-[var(--text-secondary)]">{label(s.status)}{s.knowledgeStatus ? ` · ${label(s.knowledgeStatus)}` : ''}</span><p className="mt-2 font-semibold">{s.title}</p></button>)}
-      {data && !data.runs.length && <p className={surface}>{t('هنوز تحلیلی ثبت نشده است.', 'No analyses yet.')}</p>}
+      {!!data?.suggestions.filter((suggestion) => suggestion.status !== 'PENDING').length && <div className="px-1 pt-2"><h3 className="text-sm font-bold">{t('تغییرهای بررسی‌شده', 'Reviewed changes')}</h3></div>}
+      {data?.suggestions.filter((suggestion) => suggestion.status !== 'PENDING').map((suggestion) => <button key={suggestion.id} type="button" className="spatial-surface spatial-press flex w-full items-center gap-3 rounded-[1.35rem] p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60" onClick={(event) => { suggestionTriggerRef.current = event.currentTarget; setSelectedId(suggestion.id) }}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/[0.045]"><Check className="h-4 w-4" aria-hidden="true" /></span><span className="min-w-0 flex-1"><span className="text-xs text-[var(--text-muted)]">{label(suggestion.status)}{suggestion.knowledgeStatus ? ` · ${label(suggestion.knowledgeStatus)}` : ''}</span><span className="mt-1 block truncate text-sm font-semibold">{suggestion.title}</span></span><ChevronLeft className="h-4 w-4 shrink-0 text-[var(--text-hint)] ltr:rotate-180" aria-hidden="true" /></button>)}
+      {data && !data.runs.length && <div className={`${surface} py-9 text-center`}><History className="mx-auto h-6 w-6 text-[var(--text-muted)]" aria-hidden="true" /><p className="mt-3 text-sm font-semibold">{t('هنوز تحلیلی ثبت نشده است.', 'No analyses yet.')}</p></div>}
       <Pagination page={suggestionPage} total={data?.suggestionTotal ?? 0} setPage={setSuggestionPage} fa={fa} />
-      <Link className={secondary} href={`/agents/${agentId}/improve?tab=learning&view=approved`}>{t('آرشیو یادگیری قبلی', 'Previous learning archive')}</Link>
     </section>
-    {selectOpen && <DetailDialog title={t('انتخاب گفتگوها برای تحلیل', 'Select conversations to analyze')} onClose={() => setSelectOpen(false)} footer={<div className="space-y-2">{error && <p role="alert" className="text-sm text-red-700">{error}</p>}{estimate && <p className="text-xs leading-6">{number(estimate.count)} {t('گفتگو · برآورد تقریبی مصرف:', 'conversations · Approximate token usage:')} {number(estimate.estimatedTokens)} {t('توکن. مصرف واقعی به طول گفتگو و پاسخ تحلیل بستگی دارد.', 'tokens. Actual usage depends on conversation and analysis length.')}</p>}<button className={`${primary} w-full`} disabled={!!busy || !!activeRun || (selection.mode === 'selected' && !selection.ids.length)} onClick={async () => {
-      if (!estimate) { const r = await act({ action: 'estimate', selection }); if (r) setEstimate(r as typeof estimate & { count: number; estimatedTokens: number }) }
-      else { const r = await act({ action: 'start', selection }); if (r) { setSelectOpen(false); setTab('suggestions') } }
-    }}>{busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{estimate ? t('شروع تحلیل', 'Start analysis') : t('بررسی انتخاب و مصرف', 'Review selection and usage')}</button></div>}>
-      <p className="text-sm leading-7 text-[var(--text-secondary)]">{t('هر گفتگو جدا بررسی می‌شود. پیام‌های پس از شروع تحلیل وارد این نوبت نمی‌شوند.', 'Each conversation is reviewed separately. Messages arriving after the start belong to the next run.')}</p>
-      <div className="grid grid-cols-2 gap-2">{(['latest', 'selected'] as const).map((mode) => <button className={selection.mode === mode ? primary : secondary} key={mode} onClick={() => updateSelection({ mode })}>{mode === 'latest' ? t('آخرین گفتگوها', 'Latest conversations') : t('انتخاب دستی', 'Manual selection')}</button>)}</div>
-      {selection.mode === 'latest' && <label className="block space-y-2 text-sm"><span>{t('تعداد گفتگو (حداکثر ۵۰۰)', 'Number of conversations (max 500)')}</span><input type="number" min={1} max={500} className={field} value={selection.count} onChange={(e) => updateSelection({ count: Math.max(1, Math.min(500, Number(e.target.value) || 1)) })} /><span className="flex gap-2">{[50, 100, 200].map((n) => <button key={n} type="button" className={secondary} onClick={() => updateSelection({ count: n })}>{number(n)}</button>)}</span></label>}
-      {filters}{selection.mode === 'selected' && <><div className="flex items-center justify-between text-sm"><span>{number(selection.ids.length)} {t('انتخاب‌شده', 'selected')}</span><button className={secondary} onClick={() => updateSelection({ ids: [] })}>{t('پاک کردن انتخاب‌ها', 'Clear selection')}</button></div>{conversationList}</>}
+    {selectOpen && <DetailDialog
+      title={t('انتخاب گفتگوها برای تحلیل', 'Select conversations to analyze')}
+      description={t('هر گفتگو به‌صورت جداگانه بررسی می‌شود', 'Every conversation is reviewed separately')}
+      triggerRef={analysisTriggerRef}
+      wide
+      onClose={() => setSelectOpen(false)}
+      footer={<div className="space-y-2.5">
+        {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}
+        {estimate && <div className="flex items-start gap-2 rounded-xl bg-black/[0.035] px-3 py-2.5"><CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><p className="text-xs leading-6"><strong>{number(estimate.count)} {t('گفتگو', 'conversations')}</strong> · {t('اعتبار کسرشونده:', 'Credit deduction:')} {number(estimate.estimatedCreditIRR / 10)} {t('تومان', 'toman')}</p></div>}
+        <Button
+          className="w-full"
+          loading={!!busy}
+          disabled={!!activeRun || (selection.mode === 'selected' && !selection.ids.length)}
+          onClick={async () => {
+            if (!estimate) {
+              const result = await act({ action: 'estimate', selection })
+              if (result) setEstimate(result as { count: number; estimatedCreditIRR: number })
+            } else {
+              const result = await act({ action: 'start', selection })
+              if (result) { setSelectOpen(false); setTab('suggestions') }
+            }
+          }}
+        >
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          {estimate ? t('شروع تحلیل', 'Start analysis') : t('بررسی انتخاب و مصرف', 'Review selection and usage')}
+        </Button>
+      </div>}
+    >
+      <div className={`${inset} p-1.5`} role="radiogroup" aria-label={t('روش انتخاب گفتگو', 'Conversation selection method')}>
+        <div className="grid grid-cols-2 gap-1">
+          {(['latest', 'selected'] as const).map((mode) => <button type="button" role="radio" aria-checked={selection.mode === mode} className={cn('min-h-12 rounded-xl px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 motion-reduce:transition-none', selection.mode === mode ? 'bg-black text-white shadow-[var(--shadow-control)]' : 'text-[var(--text-secondary)] hover:bg-white/70')} key={mode} onClick={() => updateSelection({ mode })}>{mode === 'latest' ? t('آخرین گفتگوها', 'Latest conversations') : t('انتخاب دستی', 'Manual selection')}</button>)}
+        </div>
+      </div>
+      {selection.mode === 'latest' && (
+        <section className={`${surface} space-y-4`}>
+          <div><h3 className="text-sm font-bold">{t('چه تعداد بررسی شود؟', 'How many should be reviewed?')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('از تازه‌ترین گفتگوهای منطبق با جستجو و فیلترها انتخاب می‌شود.', 'The newest conversations matching search and filters are selected.')}</p></div>
+          <label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('تعداد گفتگو؛ حداکثر ۵۰۰', 'Conversation count; maximum 500')}</span><input type="number" min={1} max={500} className={field} value={selection.count} onChange={(event) => updateSelection({ count: Math.max(1, Math.min(500, Number(event.target.value) || 1)) })} /></label>
+          <div className="grid grid-cols-3 gap-2">{[50, 100, 200].map((count) => <button key={count} type="button" className={cn('min-h-11 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', selection.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => updateSelection({ count })}>{number(count)}</button>)}</div>
+        </section>
+      )}
+      {filters}
+      {selection.mode === 'selected' && <><div className="flex min-h-11 items-center justify-between gap-3 px-1"><span className="text-sm font-semibold">{number(selection.ids.length)} {t('انتخاب‌شده', 'selected')}</span><Button variant="ghost" size="sm" onClick={() => updateSelection({ ids: [] })}>{t('پاک کردن انتخاب‌ها', 'Clear selection')}</Button></div>{conversationList}</>}
+      <p className="px-1 text-xs leading-6 text-[var(--text-muted)]">{t('پیام‌هایی که پس از شروع تحلیل برسند در نوبت بعدی بررسی می‌شوند.', 'Messages arriving after analysis starts are reviewed in the next run.')}</p>
     </DetailDialog>}
-    {selected && <SuggestionDetail key={`${selected.id}-${selected.version}`} item={selected} agentId={agentId} fa={fa} busy={busy} error={error} act={act} onClose={() => setSelectedId(null)} />}
-    {settingsOpen && data && <AutomationDialog initial={data.settings} fa={fa} busy={busy} error={error} act={act} onClose={() => setSettingsOpen(false)} />}
-    {runId && <DetailDialog title={t('نتیجهٔ بررسی گفتگوها', 'Conversation review results')} onClose={() => setRunId(null)}>{reviews.map((r) => <article key={r.id} className={`${surface} space-y-3`}><div className="flex flex-wrap justify-between gap-2"><h3 className="font-bold">{r.conversation.contact?.name || t('مشتری بدون نام', 'Unnamed customer')}</h3><span className="text-xs">{label(r.status)}</span></div>{r.result && <><p className="text-xs">{label(r.result.outcome)}</p><p className="text-sm leading-7">{r.result.summary}</p>{!!r.result.strengths.length && <p className="text-sm leading-7 text-[var(--text-secondary)]">{t('نقاط قوت: ', 'Strengths: ')}{r.result.strengths.join(' · ')}</p>}{r.result.findings.map((f, i) => <div key={i} className="border-t pt-2"><p className="text-sm font-semibold">{f.title}</p><p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{f.diagnosis}</p></div>)}</>}<Link className={secondary} href={`/conversations/${r.conversationId}`} target="_blank">{t('مشاهده گفتگو', 'Open conversation')}</Link></article>)}{!reviews.length && <p role="status">{t('در حال دریافت نتیجه‌ها…', 'Loading results…')}</p>}<Pagination page={reviewPage} total={reviewTotal} setPage={setReviewPage} fa={fa} /></DetailDialog>}
+    {selected && <SuggestionDetail key={`${selected.id}-${selected.version}`} item={selected} agentId={agentId} fa={fa} busy={busy} error={error} act={act} triggerRef={suggestionTriggerRef} onClose={() => setSelectedId(null)} />}
+    {settingsOpen && data && <AutomationDialog initial={data.settings} fa={fa} busy={busy} error={error} act={act} triggerRef={automationTriggerRef} onClose={() => setSettingsOpen(false)} />}
+    {filtersOpen && <ConversationFilterDialog selection={selection} fa={fa} activeCount={activeFilterCount} triggerRef={filtersTriggerRef} update={updateSelection} onClose={() => setFiltersOpen(false)} />}
+    {runId && <DetailDialog title={t('نتیجهٔ بررسی گفتگوها', 'Conversation review results')} description={t(`${number(reviewTotal)} گفتگوی بررسی‌شده`, `${number(reviewTotal)} reviewed conversations`)} triggerRef={resultsTriggerRef} wide onClose={() => setRunId(null)}>
+      {reviews.map((review) => <article key={review.id} className={`${surface} space-y-3.5`}>
+        <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-sm font-bold">{review.conversation.contact?.name || t('مشتری بدون نام', 'Unnamed customer')}</h3><p className="mt-1 text-xs text-[var(--text-muted)]">{review.conversation.channel}</p></div><StatusPill tone={review.status === 'DONE' ? 'success' : review.status === 'ERROR' ? 'warning' : 'neutral'}>{label(review.status)}</StatusPill></div>
+        {review.result && <><div className={`${inset} p-3.5`}><div className="flex items-center gap-2"><StatusPill tone={review.result.outcome === 'RESOLVED' ? 'success' : review.result.outcome === 'UNRESOLVED' ? 'warning' : 'neutral'}>{label(review.result.outcome)}</StatusPill></div><p className="mt-3 text-sm leading-7 text-[var(--text-primary)]">{review.result.summary}</p></div>{!!review.result.strengths.length && <div><p className="text-xs font-bold text-[var(--text-muted)]">{t('نقاط قوت', 'Strengths')}</p><p className="mt-1.5 text-sm leading-7 text-[var(--text-secondary)]">{review.result.strengths.join(' · ')}</p></div>}{review.result.findings.map((finding, index) => <div key={index} className="border-t border-[var(--border-subtle)] pt-3"><p className="text-sm font-semibold">{finding.title}</p><p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{finding.diagnosis}</p></div>)}</>}
+        <Link className={`${secondary} w-full sm:w-auto`} href={`/conversations/${review.conversationId}`} target="_blank">{t('مشاهده گفتگو', 'Open conversation')}<ArrowLeft className="h-4 w-4 ltr:rotate-180" aria-hidden="true" /></Link>
+      </article>)}
+      {!reviews.length && <div className={`${surface} flex min-h-32 items-center justify-center gap-2 text-sm text-[var(--text-secondary)]`} role="status"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />{t('در حال دریافت نتیجه‌ها…', 'Loading results…')}</div>}
+      <Pagination page={reviewPage} total={reviewTotal} setPage={setReviewPage} fa={fa} />
+    </DetailDialog>}
   </div>
+}
+
+function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'success' | 'warning' }) {
+  return <span className={cn(
+    'inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold leading-5',
+    tone === 'success' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    tone === 'warning' && 'border-amber-200 bg-amber-50 text-amber-800',
+    tone === 'neutral' && 'border-[var(--border-default)] bg-white text-[var(--text-secondary)]',
+  )}>{children}</span>
+}
+
+function FilterChip({ label, onRemove, fa }: { label: string; onRemove: () => void; fa: boolean }) {
+  return <button type="button" onClick={onRemove} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60">
+    <span>{label}</span><X className="h-3 w-3" aria-hidden="true" /><span className="sr-only">{fa ? 'حذف فیلتر' : 'Remove filter'}</span>
+  </button>
+}
+
+function ConversationFilterDialog({
+  selection,
+  fa,
+  activeCount,
+  triggerRef,
+  update,
+  onClose,
+}: {
+  selection: Selection
+  fa: boolean
+  activeCount: number
+  triggerRef: { current: HTMLElement | null }
+  update: (patch: Partial<Selection>) => void
+  onClose: () => void
+}) {
+  const t = (f: string, e: string) => fa ? f : e
+  const inputDate = (value?: string) => value
+    ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+    : ''
+  return <DetailDialog
+    title={t('فیلتر گفتگوها', 'Conversation filters')}
+    description={activeCount ? t(`${activeCount.toLocaleString('fa-IR')} فیلتر فعال`, `${activeCount} active filters`) : t('نتیجه‌ها را دقیق‌تر کنید', 'Narrow the results')}
+    triggerRef={triggerRef}
+    onClose={onClose}
+    footer={<div className="grid grid-cols-[auto_1fr] gap-2 sm:flex sm:justify-end"><Button variant="secondary" disabled={!activeCount} onClick={() => update({ channel: undefined, attention: 'all', from: undefined, to: undefined, contactId: undefined })}>{t('پاک کردن', 'Clear')}</Button><Button className="sm:min-w-32" onClick={onClose}><Check className="h-4 w-4" aria-hidden="true" />{t('نمایش نتیجه‌ها', 'Show results')}</Button></div>}
+  >
+    <div className="grid gap-4 sm:grid-cols-2">
+      <label className="space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('کانال گفتگو', 'Conversation channel')}</span><select className={field} value={selection.channel ?? ''} onChange={(event) => update({ channel: (event.target.value || undefined) as Selection['channel'] })}><option value="">{t('همهٔ کانال‌ها', 'All channels')}</option>{['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE', 'WEB_WIDGET', 'CHAT_LINK', 'API'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select></label>
+      <label className="space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('نیاز به توجه', 'Needs attention')}</span><select className={field} value={selection.attention} onChange={(event) => update({ attention: event.target.value as Selection['attention'] })}><option value="all">{t('همهٔ گفتگوها', 'All conversations')}</option><option value="unanswered">{t('بی‌پاسخ', 'Unanswered')}</option><option value="handoff">{t('ارجاع به اپراتور', 'Handed off')}</option><option value="low_rating">{t('امتیاز پایین', 'Low rating')}</option></select></label>
+      {(['from', 'to'] as const).map((key) => <label key={key} className="space-y-2 text-sm"><span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{key === 'from' ? t('از تاریخ', 'From date') : t('تا تاریخ', 'To date')}</span><input type="date" className={field} value={inputDate(selection[key])} onChange={(event) => update({ [key]: event.target.value ? new Date(`${event.target.value}T${key === 'from' ? '00:00:00' : '23:59:59'}`).toISOString() : undefined })} /></label>)}
+    </div>
+    {selection.contactId && <div className={`${inset} flex items-center justify-between gap-3 p-3.5`}><div><p className="text-sm font-semibold">{t('فقط گفتگوهای یک مشتری', 'Only one customer')}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{t('این فیلتر از کارت گفتگو فعال شده است.', 'This filter was set from a conversation card.')}</p></div><Button variant="ghost" size="sm" onClick={() => update({ contactId: undefined })}>{t('حذف', 'Remove')}</Button></div>}
+  </DetailDialog>
 }
 
 function Pagination({ page, total, setPage, fa }: { page: number; total: number; setPage: (p: number) => void; fa: boolean }) {
   if (total <= 25) return null
-  return <div className="flex items-center justify-between gap-3"><button className={secondary} disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronRight className="h-4 w-4 ltr:rotate-180" />{fa ? 'قبلی' : 'Previous'}</button><span className="text-xs">{page.toLocaleString(fa ? 'fa-IR' : 'en-US')} / {Math.ceil(total / 25).toLocaleString(fa ? 'fa-IR' : 'en-US')}</span><button className={secondary} disabled={page * 25 >= total} onClick={() => setPage(page + 1)}>{fa ? 'بعدی' : 'Next'}<ChevronLeft className="h-4 w-4 ltr:rotate-180" /></button></div>
+  return <nav className="flex items-center justify-between gap-3 px-1 pt-1" aria-label={fa ? 'صفحه‌بندی' : 'Pagination'}><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronRight className="h-4 w-4 ltr:rotate-180" aria-hidden="true" />{fa ? 'قبلی' : 'Previous'}</Button><span className="text-xs font-semibold tabular-nums text-[var(--text-muted)]">{page.toLocaleString(fa ? 'fa-IR' : 'en-US')} / {Math.ceil(total / 25).toLocaleString(fa ? 'fa-IR' : 'en-US')}</span><Button variant="secondary" size="sm" disabled={page * 25 >= total} onClick={() => setPage(page + 1)}>{fa ? 'بعدی' : 'Next'}<ChevronLeft className="h-4 w-4 ltr:rotate-180" aria-hidden="true" /></Button></nav>
 }
 
-function SuggestionDetail({ item: s, agentId, fa, busy, error, act, onClose }: { item: Suggestion; agentId: string; fa: boolean; busy: string; error: string; act: Action; onClose: () => void }) {
+function SuggestionDetail({ item: s, agentId, fa, busy, error, act, triggerRef, onClose }: { item: Suggestion; agentId: string; fa: boolean; busy: string; error: string; act: Action; triggerRef: { current: HTMLElement | null }; onClose: () => void }) {
   const t = (f: string, e: string) => fa ? f : e
   const [draft, setDraft] = useState<Draft>(() => draftSchema.parse(s.draft))
   const dirty = JSON.stringify(draft) !== JSON.stringify(draftSchema.parse(s.draft))
@@ -221,27 +682,53 @@ function SuggestionDetail({ item: s, agentId, fa, busy, error, act, onClose }: {
   const pending = s.status === 'PENDING'
   const change = s.changes.find((c) => !c.revertedAt)
   const behaviorLabel = (v: unknown) => Array.isArray(v) ? v.join(' · ') : behaviorLabels[String(v)]?.[fa ? 0 : 1] ?? String(v ?? '')
-  return <DetailDialog title={s.title} onClose={onClose} footer={<div className="space-y-2">{error && <p role="alert" className="text-sm leading-6 text-red-700">{error}</p>}{pending ? <div className="grid grid-cols-2 gap-2"><button className={secondary} disabled={!!busy || !dirty} onClick={() => void act({ action: 'save', id: s.id, version: s.version, draft })}>{t('ذخیرهٔ اصلاح', 'Save draft')}</button><button className={primary} disabled={!!busy || dirty || (s.kind !== 'TOOL' && !!draft.missing)} onClick={() => void act({ action: s.kind === 'TOOL' || preview ? 'apply' : 'preview', id: s.id, version: s.version })}>{busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{s.kind === 'TOOL' ? t('ثبت رسیدگی دستی', 'Mark manually handled') : preview ? t('اعمال تغییر', 'Apply change') : t('تست پاسخ', 'Test response')}</button></div> : change && <button className={`${secondary} w-full`} disabled={!!busy} onClick={() => void act({ action: 'revert', id: change.id })}><RotateCcw className="h-4 w-4" />{t('بازگشت به قبل از این تغییر', 'Revert this change')}</button>}{dirty && <p className="text-xs text-[var(--text-secondary)]">{t('قبل از تست، اصلاح‌ها را ذخیره کنید.', 'Save edits before testing.')}</p>}</div>}>
-    <span className="inline-block rounded-full bg-[var(--bg-muted)] px-3 py-1 text-xs">{t('دامنه: همهٔ مشتریان این ایجنت', 'Scope: all customers of this agent')}</span><p className="text-sm leading-8">{s.diagnosis}</p>
+  return <DetailDialog title={s.title} description={s.kind === 'KNOWLEDGE' ? t('پیشنهاد بهبود دانش', 'Knowledge improvement') : s.kind === 'BEHAVIOR' ? t('پیشنهاد رفتار و لحن', 'Behavior improvement') : t('پیشنهاد روند و ابزار', 'Flow and tool improvement')} triggerRef={triggerRef} wide onClose={onClose} footer={<div className="space-y-2">{error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}{pending ? <div className="grid grid-cols-2 gap-2"><Button variant="secondary" disabled={!!busy || !dirty} onClick={() => void act({ action: 'save', id: s.id, version: s.version, draft })}>{t('ذخیرهٔ اصلاح', 'Save draft')}</Button><Button loading={!!busy} disabled={dirty || (s.kind !== 'TOOL' && !!draft.missing)} onClick={() => void act({ action: s.kind === 'TOOL' || preview ? 'apply' : 'preview', id: s.id, version: s.version })}>{s.kind === 'TOOL' ? t('ثبت رسیدگی', 'Mark handled') : preview ? t('اعمال تغییر', 'Apply change') : t('تست پاسخ', 'Test response')}</Button></div> : change && <Button variant="secondary" className="w-full" disabled={!!busy} onClick={() => void act({ action: 'revert', id: change.id })}><RotateCcw className="h-4 w-4" aria-hidden="true" />{t('بازگشت به قبل از این تغییر', 'Revert this change')}</Button>}{dirty && <p className="text-xs text-[var(--text-secondary)]">{t('قبل از تست، اصلاح‌ها را ذخیره کنید.', 'Save edits before testing.')}</p>}</div>}>
+    <div className={`${surface} space-y-3`}><div className="flex flex-wrap gap-2"><StatusPill>{t('دامنه: همهٔ مشتریان این ایجنت', 'Scope: all customers of this agent')}</StatusPill><StatusPill tone={s.priority === 'HIGH' ? 'warning' : 'neutral'}>{s.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : s.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</StatusPill></div><p className="text-sm leading-8 text-[var(--text-secondary)]">{s.diagnosis}</p></div>
     {s.kind === 'KNOWLEDGE' && <div className="space-y-4"><label className="block space-y-2 text-sm"><span>{t('سؤال یا موضوع دانش', 'Knowledge question')}</span><textarea className={field} rows={2} maxLength={2000} disabled={!pending} value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} /></label>{draft.missing && <p className="rounded-xl bg-amber-50 p-3 text-sm leading-7 text-amber-900">{draft.missing}</p>}<label className="block space-y-2 text-sm"><span>{t('پاسخ معتبر کسب‌وکار', 'Verified business answer')}</span><textarea className={`${field} leading-8`} rows={7} maxLength={8000} disabled={!pending} value={draft.answer} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} /></label>{pending && !!draft.missing && <label className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-black" disabled={draft.answer.trim().length < 3} onChange={() => setDraft({ ...draft, missing: '' })} />{t('اطلاعات لازم را در پاسخ تکمیل کردم.', 'I completed the required facts in the answer.')}</label>}{draft.targetKnowledgeId && <p className="text-xs leading-6">{t('این تغییر، پاسخ موجود را به‌روزرسانی می‌کند.', 'This updates an existing knowledge answer.')}</p>}</div>}
     {s.kind === 'BEHAVIOR' && draft.behaviorPath && <div className={`${surface} space-y-3`}><h3 className="font-semibold">{behaviorLabel(draft.behaviorPath)}</h3><p className="text-sm">{t('مقدار فعلی در زمان تحلیل: ', 'Value at analysis time: ')}{Array.isArray(draft.baseline) ? t(`${draft.baseline.length} دستور موجود حفظ می‌شود.`, `${draft.baseline.length} existing instructions are preserved.`) : behaviorLabel(draft.baseline)}</p><label className="block space-y-2 text-sm"><span>{t('مقدار پیشنهادی', 'Proposed value')}</span>{draft.behaviorPath === 'doSay' ? <textarea className={`${field} leading-8`} rows={4} maxLength={500} disabled={!pending} value={String(draft.behaviorValue ?? '')} onChange={(e) => setDraft({ ...draft, behaviorValue: e.target.value })} /> : <select disabled={!pending} className={field} value={String(draft.behaviorValue)} onChange={(e) => setDraft({ ...draft, behaviorValue: e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value })}>{behaviorValues[draft.behaviorPath].map((v) => <option key={String(v)} value={String(v)}>{behaviorLabel(v)}</option>)}</select>}</label></div>}
     {s.kind === 'TOOL' && <div className="space-y-3"><p className="text-sm leading-7">{draft.missing || t('این مورد نیاز به رسیدگی در تنظیمات یا منبع اصلی دارد. پس از اصلاح، رسیدگی را ثبت کنید.', 'Handle this in the source or settings, then record completion.')}</p><label className="block space-y-2 text-sm"><span>{t('یادداشت رسیدگی', 'Resolution note')}</span><textarea className={field} rows={3} value={draft.answer} disabled={!pending} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} /></label><div className="flex flex-wrap gap-2"><Link target="_blank" className={secondary} href={`/agents/${agentId}/improve?tab=knowledge`}>{t('دانش ایجنت', 'Knowledge')}</Link><Link target="_blank" className={secondary} href={`/agents/${agentId}/settings`}>{t('تنظیمات ایجنت', 'Agent settings')}</Link></div></div>}
-    {!!s.evidence.length && <details className="rounded-xl border p-3"><summary className="min-h-9 cursor-pointer text-sm font-semibold">{t('نمونهٔ شواهد از گفتگوها', 'Conversation evidence sample')} ({s.evidence.length.toLocaleString(fa ? 'fa-IR' : 'en-US')})</summary><div className="mt-3 space-y-3">{s.evidence.map((e, i) => <div key={`${e.messageId}-${i}`} className="border-t pt-3"><blockquote dir="auto" className="whitespace-pre-wrap break-words text-sm leading-7">{e.message.content}</blockquote><Link target="_blank" className="mt-2 inline-flex min-h-11 items-center text-sm underline" href={`/conversations/${e.review.conversationId}`}>{t('باز کردن گفتگوی مرجع', 'Open source conversation')}</Link></div>)}</div></details>}
+    {!!s.evidence.length && <details className="spatial-surface overflow-hidden rounded-[1.25rem]"><summary className="flex min-h-12 cursor-pointer items-center px-4 py-3 text-sm font-semibold">{t('نمونهٔ شواهد از گفتگوها', 'Conversation evidence sample')} ({s.evidence.length.toLocaleString(fa ? 'fa-IR' : 'en-US')})</summary><div className="space-y-3 border-t border-[var(--border-subtle)] px-4 pb-4">{s.evidence.map((e, i) => <div key={`${e.messageId}-${i}`} className="pt-3"><blockquote dir="auto" className={`${inset} whitespace-pre-wrap break-words p-3.5 text-sm leading-7 text-[var(--text-secondary)]`}>{e.message.content}</blockquote><Link target="_blank" className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]" href={`/conversations/${e.review.conversationId}`}>{t('باز کردن گفتگوی مرجع', 'Open source conversation')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></Link></div>)}</div></details>}
     {preview && <section className="space-y-3"><h3 className="font-bold">{t('مقایسهٔ پاسخ', 'Response comparison')}</h3><p className="text-xs leading-6 text-[var(--text-secondary)]">{t('آزمایش با دانش و تنظیمات فعلی و حداکثر ۴۰ پیام قبل از سؤال انجام شده؛ پیام‌های بعدی و ابزارهای زندهٔ سفارش و محصول وارد تست نمی‌شوند. این پاسخ برای مشتری ارسال نشده است.', 'Tested with current knowledge and settings and up to 40 prior messages. Later messages and live order/product tools are excluded. No response was sent to the customer.')}</p><blockquote className="rounded-xl bg-[var(--bg-muted)] p-3 text-sm leading-7">{preview.question}</blockquote>{preview.historical && <details className="rounded-xl border p-3"><summary className="min-h-9 cursor-pointer text-sm">{t('پاسخ ثبت‌شده در گفتگوی اصلی', 'Actual historical reply')}</summary><p className="mt-2 whitespace-pre-wrap text-sm leading-7">{preview.historical}</p></details>}<div className="grid gap-3 sm:grid-cols-2">{[[t('بدون تغییر پیشنهادی', 'Without proposed change'), preview.baseline], [t('با تغییر پیشنهادی', 'With proposed change'), preview.proposed]].map(([title, value]) => <div key={title} className={surface}><h4 className="text-sm font-bold">{title}</h4><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-8">{value}</p></div>)}</div>{preview.assessment && <p className="text-sm leading-7">{t('ارزیابی آزمایشی: ', 'Test assessment: ')}{preview.assessment.reason}</p>}{pending && <button className={secondary} disabled={!!busy || dirty} onClick={() => void act({ action: 'preview', id: s.id, version: s.version })}>{t('تست دوباره', 'Test again')}</button>}</section>}
     {s.knowledgeStatus && <div className={`${surface} space-y-2`}><p className="text-sm">{statusLabels[s.knowledgeStatus]?.[fa ? 0 : 1] ?? s.knowledgeStatus}</p>{s.knowledgeStatus === 'ERROR' && change && <button className={secondary} disabled={!!busy} onClick={() => void act({ action: 'ingest', id: change.id })}>{t('تلاش مجدد آماده‌سازی دانش', 'Retry knowledge preparation')}</button>}</div>}
     {s.monitoring && <section className={`${surface} space-y-2`}><h3 className="text-sm font-bold">{t('پیگیری پس از تغییر', 'Follow-up after the change')}</h3><p className="text-sm leading-7">{s.monitoring.reviewed ? t(`از ${s.monitoring.reviewed.toLocaleString('fa-IR')} گفتگوی بررسی‌شده پس از تغییر، این مشکل در ${s.monitoring.recurring.toLocaleString('fa-IR')} گفتگو دوباره دیده شده است.`, `Among ${s.monitoring.reviewed} conversations reviewed after the change, this issue recurred in ${s.monitoring.recurring}.`) : t('هنوز گفتگوی جدیدی پس از این تغییر تحلیل نشده است.', 'No new conversations have been analyzed since this change.')}</p><p className="text-xs leading-6 text-[var(--text-secondary)]">{t('این شمارش مربوط به نمونهٔ تحلیل‌شده است؛ به‌تنهایی اثبات رضایت مشتری یا اثر قطعی تغییر نیست.', 'These observations cover the reviewed sample; they do not establish satisfaction or causality.')}</p></section>}
     {!!s.changes.length && <details className="rounded-xl border p-3"><summary className="min-h-9 cursor-pointer text-sm">{t('سابقهٔ این تغییر', 'Change history')}</summary>{s.changes.map((c) => <div key={c.id} className="mt-3 space-y-2 text-sm"><p>{new Date(c.createdAt).toLocaleString(fa ? 'fa-IR' : 'en-US')} · {c.revertedAt ? t('بازگردانده شده', 'Reverted') : t('اعمال شده', 'Applied')}</p>{typeof c.before.answer === 'string' && <p className="whitespace-pre-wrap leading-7">{t('پاسخ قبلی: ', 'Previous answer: ')}{c.before.answer}</p>}</div>)}</details>}
-    {pending && <button className={secondary} disabled={!!busy} onClick={async () => { if (await act({ action: 'dismiss', id: s.id, version: s.version })) onClose() }}><X className="h-4 w-4" />{t('کنار گذاشتن پیشنهاد', 'Dismiss suggestion')}</button>}
+    {pending && <Button variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" disabled={!!busy} onClick={async () => { if (await act({ action: 'dismiss', id: s.id, version: s.version })) onClose() }}><X className="h-4 w-4" aria-hidden="true" />{t('کنار گذاشتن پیشنهاد', 'Dismiss suggestion')}</Button>}
   </DetailDialog>
 }
 
-function AutomationDialog({ initial, fa, busy, error, act, onClose }: { initial: Settings; fa: boolean; busy: string; error: string; act: Action; onClose: () => void }) {
+function AutomationDialog({ initial, fa, busy, error, act, triggerRef, onClose }: { initial: Settings; fa: boolean; busy: string; error: string; act: Action; triggerRef: { current: HTMLElement | null }; onClose: () => void }) {
   const [settings, setSettings] = useState(initial)
   const t = (f: string, e: string) => fa ? f : e
-  return <DetailDialog title={t('بهبود خودکار', 'Automatic improvement')} onClose={onClose} footer={<div className="space-y-2">{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<button className={`${primary} w-full`} disabled={!!busy} onClick={async () => { if (await act({ action: 'settings', settings })) onClose() }}><Check className="h-4 w-4" />{t('ذخیره تنظیمات', 'Save settings')}</button></div>}>
-    <label className="flex min-h-12 items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5 accent-black" checked={settings.daily} onChange={(e) => setSettings({ ...settings, daily: e.target.checked })} />{t('تحلیل روزانهٔ گفتگوهای تازه', 'Analyze new conversations daily')}</label><p className="text-sm leading-7 text-[var(--text-secondary)]">{t('گفتگوهای تازه یا دارای پیام جدید بررسی می‌شوند؛ نتیجه‌ها در همین بخش می‌آیند. این گزینه مصرف تحلیل دارد.', 'New or updated conversations are reviewed and results appear here. This uses analysis tokens.')}</p>
-    {settings.daily && <label className="block space-y-2 text-sm"><span>{t('حداکثر گفتگو در هر روز', 'Daily conversation limit')}</span><input className={field} type="number" min={1} max={100} value={settings.count} onChange={(e) => setSettings({ ...settings, count: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} /></label>}
-    <label className="flex min-h-12 items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5 accent-black" checked={settings.autoBehavior} onChange={(e) => setSettings({ ...settings, autoBehavior: e.target.checked })} />{t('اعمال خودکار تغییرهای رفتاری مجاز', 'Automatically apply allowed behavior changes')}</label><p className="text-sm leading-7 text-[var(--text-secondary)]">{t('فقط تنظیم‌های انتخاب‌شده، با شواهد حداقل ۳ گفتگو و ارزیابی آزمایشی مثبت اعمال می‌شوند. افزودن واقعیت کسب‌وکار و تغییر ابزارها نیاز به بررسی شما دارد. سابقه و بازگشت همیشه در دسترس است.', 'Only selected settings with evidence from at least 3 conversations and a positive test assessment are applied. Business facts and tools require your review. Changes can be inspected and reverted.')}</p>
-    {settings.autoBehavior && (['format.length', 'conversation.avoidRepeatedGreetings'] as const).map((path) => <label key={path} className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-black" checked={settings.allowedPaths.includes(path)} onChange={(e) => setSettings({ ...settings, allowedPaths: e.target.checked ? [...settings.allowedPaths, path] : settings.allowedPaths.filter((p) => p !== path) })} />{behaviorLabels[path][fa ? 0 : 1]}</label>)}
+  return <DetailDialog
+    title={t('خودکارسازی تحلیل و بهبود', 'Analysis and improvement automation')}
+    description={t('زمان‌بندی و محدودهٔ تغییرهای خودکار', 'Schedule and scope automatic changes')}
+    triggerRef={triggerRef}
+    onClose={onClose}
+    footer={<div className="space-y-2">{error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}<Button className="w-full" loading={!!busy} onClick={async () => { if (await act({ action: 'settings', settings })) onClose() }}><Check className="h-4 w-4" aria-hidden="true" />{t('ذخیره تنظیمات', 'Save settings')}</Button></div>}
+  >
+    <div className={`${inset} flex items-start gap-3 p-4`}><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" /><div><p className="text-sm font-bold">{t('کنترل تغییرها دست شماست', 'You stay in control')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('نتیجهٔ همهٔ تحلیل‌ها و تغییرهای خودکار در سابقه ثبت می‌شود و قابل بازگشت است.', 'Every analysis and automatic change is recorded in history and can be reverted.')}</p></div></div>
+
+    <section className={`${surface} space-y-4`}>
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]"><CalendarDays className="h-4 w-4" aria-hidden="true" /></span>
+        <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('تحلیل روزانه', 'Daily analysis')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('گفتگوهای تازه یا دارای پیام جدید بررسی می‌شوند و پیشنهادها همین‌جا می‌آیند. این تحلیل فعلاً از اعتبار شما کم نمی‌کند.', 'New or updated conversations are reviewed and suggestions appear here. This analysis currently does not deduct from your credit.')}</p></div>
+        <div className="flex min-h-11 items-center"><Switch checked={settings.daily} onChange={(daily) => setSettings({ ...settings, daily })} aria-label={t('تحلیل روزانه', 'Daily analysis')} /></div>
+      </div>
+      {settings.daily && <div className={`${inset} space-y-3 p-3.5`}><label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('حداکثر گفتگو در هر روز', 'Daily conversation limit')}</span><input className={field} type="number" min={1} max={100} value={settings.count} onChange={(event) => setSettings({ ...settings, count: Math.max(1, Math.min(100, Number(event.target.value) || 1)) })} /></label><div className="grid grid-cols-3 gap-2">{[25, 50, 100].map((count) => <button key={count} type="button" className={cn('min-h-10 rounded-xl border bg-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', settings.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => setSettings({ ...settings, count })}>{count.toLocaleString(fa ? 'fa-IR' : 'en-US')}</button>)}</div></div>}
+    </section>
+
+    <section className={`${surface} space-y-4`}>
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]"><WandSparkles className="h-4 w-4" aria-hidden="true" /></span>
+        <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('اعمال خودکار رفتارهای مجاز', 'Apply allowed behaviors automatically')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('فقط تغییرهای انتخابی با شواهد حداقل سه گفتگو و نتیجهٔ آزمایشی مثبت اعمال می‌شوند.', 'Only selected changes with evidence from at least three conversations and a positive test are applied.')}</p></div>
+        <div className="flex min-h-11 items-center"><Switch checked={settings.autoBehavior} onChange={(autoBehavior) => setSettings({ ...settings, autoBehavior })} aria-label={t('اعمال خودکار رفتارها', 'Apply behaviors automatically')} /></div>
+      </div>
+      {settings.autoBehavior && <div className="space-y-2"><p className="text-xs font-semibold text-[var(--text-secondary)]">{t('تغییرهای مجاز', 'Allowed changes')}</p>{(['format.length', 'conversation.avoidRepeatedGreetings'] as const).map((path) => {
+        const checked = settings.allowedPaths.includes(path)
+        return <button key={path} type="button" role="checkbox" aria-checked={checked} className={cn('flex min-h-12 w-full items-center gap-3 rounded-xl border bg-white px-3 text-start text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', checked ? 'border-black/25 text-[var(--text-primary)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => setSettings({ ...settings, allowedPaths: checked ? settings.allowedPaths.filter((item) => item !== path) : [...settings.allowedPaths, path] })}><span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border', checked ? 'border-black bg-black text-white' : 'border-[var(--border-hover)]')} aria-hidden="true">{checked && <Check className="h-3.5 w-3.5" />}</span>{behaviorLabels[path][fa ? 0 : 1]}</button>
+      })}</div>}
+    </section>
+
+    <p className="px-1 text-xs leading-6 text-[var(--text-muted)]">{t('افزودن اطلاعات کسب‌وکار، تغییر دانش و تنظیم ابزارها همیشه برای بررسی شما باقی می‌ماند.', 'Business facts, knowledge changes, and tool settings always remain for your review.')}</p>
   </DetailDialog>
 }

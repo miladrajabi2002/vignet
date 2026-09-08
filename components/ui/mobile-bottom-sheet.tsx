@@ -70,6 +70,22 @@ const reducedDetailSheetVariants = {
   },
 }
 
+const desktopDialogVariants = {
+  hidden: { opacity: 0, scale: 0.97, y: 10 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.985,
+    y: 6,
+    transition: { duration: 0.14, ease: [0.4, 0, 1, 1] as const },
+  },
+}
+
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
   '[href]',
@@ -118,11 +134,21 @@ export function MobileBottomSheet({
   const closeRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
   const [mounted, setMounted] = useState(false)
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const reduceMotion = useReducedMotion()
 
   onCloseRef.current = onClose
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (mobileOnly) return
+    const media = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktopViewport(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [mobileOnly])
 
   useEffect(() => {
     if (!open) return
@@ -188,6 +214,12 @@ export function MobileBottomSheet({
   if (!mounted) return null
 
   const usesDetailMotion = motionPreset === 'detail'
+  const usesDesktopDialogMotion = !mobileOnly && isDesktopViewport
+  const activeDetailVariants = reduceMotion
+    ? reducedDetailSheetVariants
+    : usesDesktopDialogMotion
+      ? desktopDialogVariants
+      : detailSheetVariants
 
   return createPortal(
     <AnimatePresence>
@@ -225,27 +257,25 @@ export function MobileBottomSheet({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
-            variants={
-              usesDetailMotion
-                ? reduceMotion
-                  ? reducedDetailSheetVariants
-                  : detailSheetVariants
-                : undefined
-            }
+            variants={usesDetailMotion ? activeDetailVariants : undefined}
             initial={
               usesDetailMotion
                 ? undefined
                 : reduceMotion
                   ? false
-                  : { y: '100%' }
+                  : usesDesktopDialogMotion
+                    ? { opacity: 0, scale: 0.97, y: 10 }
+                    : { y: '100%' }
             }
-            animate={usesDetailMotion ? undefined : { y: 0 }}
-            exit={usesDetailMotion ? undefined : { y: '100%' }}
+            animate={usesDetailMotion ? undefined : usesDesktopDialogMotion ? { opacity: 1, scale: 1, y: 0 } : { y: 0 }}
+            exit={usesDetailMotion ? undefined : usesDesktopDialogMotion ? { opacity: 0, scale: 0.985, y: 6 } : { y: '100%' }}
             transition={
               usesDetailMotion
                 ? undefined
                 : reduceMotion
                   ? { duration: 0 }
+                  : usesDesktopDialogMotion
+                    ? { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
                   : {
                       type: 'spring',
                       stiffness: 420,

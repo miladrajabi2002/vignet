@@ -68,7 +68,12 @@ export async function POST(req: Request, props: Props) {
         const sizes = await prisma.$queryRaw<Array<{ chars: bigint }>>`SELECT SUM(LENGTH(content)) AS chars FROM "Message" WHERE "conversationId" IN (${Prisma.join(conversations.map((c) => c.id))}) AND role IN ('USER', 'ASSISTANT') GROUP BY "conversationId"`
         const segments = sizes.reduce((sum, r) => sum + Math.max(1, Math.ceil(Number(r.chars) / 16000)), 0)
         const chars = sizes.reduce((sum, r) => sum + Number(r.chars), 0)
-        return NextResponse.json({ count: conversations.length, estimatedTokens: Math.ceil(chars / 2 + segments * 6000), segments })
+        return NextResponse.json({
+          count: conversations.length,
+          estimatedTokens: Math.ceil(chars / 2 + segments * 6000),
+          estimatedCreditIRR: 0,
+          segments,
+        })
       }
       case 'start': return NextResponse.json({ run: await startImprovement(w, agentId, user.id, input.selection) }, { status: 202 })
       case 'settings': await prisma.agent.update({ where: { id: agentId }, data: { improvementSettings: json({ ...input.settings, authorizedBy: user.id }) } }); break
