@@ -1,70 +1,78 @@
-'use client'
+"use client";
 
-import { useId } from 'react'
-import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { useId } from "react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 
-type TrendDirection = 'up' | 'down' | 'flat'
+type TrendDirection = "up" | "down" | "flat";
 
 /**
  * Compute trend direction from a daily series.
  * >5% change = up/down, otherwise flat.
  */
 function computeTrend(data: number[]): TrendDirection {
-  if (!data || data.length === 0) return 'flat'
-  const firstNonZero = data.find((v) => v > 0) ?? 0
-  const last = data[data.length - 1] ?? 0
-  if (firstNonZero === 0 && last === 0) return 'flat'
-  if (firstNonZero === 0 && last > 0) return 'up'
-  const pct = ((last - firstNonZero) / firstNonZero) * 100
-  if (pct > 5) return 'up'
-  if (pct < -5) return 'down'
-  return 'flat'
+  if (!data || data.length === 0) return "flat";
+  const firstNonZero = data.find((v) => v > 0) ?? 0;
+  const last = data[data.length - 1] ?? 0;
+  if (firstNonZero === 0 && last === 0) return "flat";
+  if (firstNonZero === 0 && last > 0) return "up";
+  const pct = ((last - firstNonZero) / firstNonZero) * 100;
+  if (pct > 5) return "up";
+  if (pct < -5) return "down";
+  return "flat";
 }
 
 function fa(n: number): string {
-  return Number(n).toLocaleString('fa-IR')
+  return Number(n).toLocaleString("fa-IR");
 }
 
 /** Format the hovered value: plain count or IRR → Toman. */
-function formatHoverValue(v: number, kind: 'number' | 'irr'): string {
-  if (kind === 'irr') return `${Math.round(v / 10).toLocaleString('fa-IR')} تومان`
-  return fa(v)
+function formatHoverValue(v: number, kind: "number" | "irr"): string {
+  if (kind === "irr")
+    return `${Math.round(v / 10).toLocaleString("fa-IR")} تومان`;
+  return fa(v);
 }
 
-/** Dark rounded hover bubble shared by every sparkline on the site. */
+/**
+ * Minimal single-line hover chip shared by every sparkline on the site.
+ * «day · value» — day first (RTL), faint dot separator, bold value.
+ * Deliberately tiny: one line, no title row, never covers the chart.
+ */
 function SparkTooltipBubble({
   label,
   value,
-  valueLabel,
   kind,
 }: {
-  label: string
-  value: number
-  valueLabel?: string
-  kind: 'number' | 'irr'
+  label: string;
+  value: number;
+  kind: "number" | "irr";
 }) {
   return (
     <div
       dir="rtl"
-      className="pointer-events-none -translate-y-1 rounded-xl border border-white/10 bg-zinc-900/95 px-3 py-2 shadow-[0_6px_24px_rgba(0,0,0,0.28)] backdrop-blur-sm"
+      className="pointer-events-none -translate-y-1 flex items-center gap-1.5 whitespace-nowrap rounded-md border border-white/10 bg-zinc-900/95 px-2 py-1 shadow-[0_4px_12px_rgba(0,0,0,0.22)]"
     >
-      {valueLabel && (
-        <p className="text-[10px] font-semibold leading-4 text-white/55">{valueLabel}</p>
-      )}
-      <p className="text-xs font-bold leading-5 tabular-nums text-white">
+      <span className="text-[10px] font-medium leading-none text-white/55">
+        {label}
+      </span>
+      <span
+        aria-hidden="true"
+        className="text-[10px] leading-none text-white/25"
+      >
+        ·
+      </span>
+      <span className="text-[11px] font-bold leading-none tabular-nums text-white">
         {formatHoverValue(value, kind)}
-      </p>
-      <p className="mt-0.5 text-[10px] leading-4 text-white/60">{label}</p>
+      </span>
     </div>
-  )
+  );
 }
 
 /**
  * Recharts-based sparkline — matches the existing AgentSparkline style
  * (AreaChart with gradient fill) but supports green/red trend coloring.
  *
- * Hover: a subtle column cursor + active dot + a dark rounded bubble that
- * shows the exact day (Persian label) and value — precise and pretty.
+ * Hover: a subtle column cursor + active dot + a minimal single-line dark
+ * chip («day · value») — compact, precise, never covers the chart.
  *
  * @param data     numeric series (oldest → newest)
  * @param color    hex color, or "auto" (green for up-trend, red for down,
@@ -74,61 +82,67 @@ function SparkTooltipBubble({
  * @param fluid    when true, the chart fills its container width
  * @param invert   when true, up = bad (red), down = good (green) — for errors
  * @param labels   optional per-point labels (e.g. Persian short dates,
- *                 oldest → newest) shown in the hover bubble
- * @param valueLabel optional metric name shown above the value in the bubble
- * @param valueFormat 'number' (default) or 'irr' (Rial → Toman in the bubble)
+ *                 oldest → newest) shown in the hover chip
+ * @param valueLabel accepted for backward compatibility — the minimal
+ *                 one-line chip no longer renders a metric title
+ * @param valueFormat 'number' (default) or 'irr' (Rial → Toman in the chip)
  */
 export function Sparkline({
   data,
-  color = 'auto',
+  color = "auto",
   width = 96,
   height = 32,
   fluid = false,
   invert = false,
   labels,
-  valueLabel,
-  valueFormat = 'number',
+  valueFormat = "number",
 }: {
-  data: number[]
-  color?: string
-  width?: number
-  height?: number
-  fluid?: boolean
-  invert?: boolean
-  labels?: string[]
-  valueLabel?: string
-  valueFormat?: 'number' | 'irr'
+  data: number[];
+  color?: string;
+  width?: number;
+  height?: number;
+  fluid?: boolean;
+  invert?: boolean;
+  labels?: string[];
+  valueLabel?: string;
+  valueFormat?: "number" | "irr";
 }) {
   // Stable unique id for the gradient (avoids collisions when multiple
   // sparklines are on the same page).
-  const rawId = useId()
-  const gradId = `spark-${rawId.replace(/[^a-zA-Z0-9]/g, '')}`
+  const rawId = useId();
+  const gradId = `spark-${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   if (!data || data.length === 0) {
-    return <span className="text-[11px] text-[var(--text-muted)]">—</span>
+    return <span className="text-[11px] text-[var(--text-muted)]">—</span>;
   }
 
   // Determine stroke color.
-  let stroke: string
-  if (color === 'auto') {
-    const dir = computeTrend(data)
-    if (dir === 'flat') {
-      stroke = '#71717a' // zinc-500 — visible on both light and dark
+  let stroke: string;
+  if (color === "auto") {
+    const dir = computeTrend(data);
+    if (dir === "flat") {
+      stroke = "#71717a"; // zinc-500 — visible on both light and dark
     } else {
-      const isGood = invert ? dir === 'down' : dir === 'up'
-      stroke = isGood ? '#22c55e' : '#ef4444'
+      const isGood = invert ? dir === "down" : dir === "up";
+      stroke = isGood ? "#22c55e" : "#ef4444";
     }
   } else {
-    stroke = color
+    stroke = color;
   }
 
-  const points = data.map((value, i) => ({ i, value }))
-  const hasLabels = Boolean(labels && labels.length === data.length)
+  const points = data.map((value, i) => ({ i, value }));
+  const hasLabels = Boolean(labels && labels.length === data.length);
 
   return (
-    <div style={{ width: fluid ? '100%' : width, height }} className="group/spark">
+    <div
+      style={{ width: fluid ? "100%" : width, height }}
+      className="group/spark"
+    >
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+        <AreaChart
+          data={points}
+          margin={{ top: 2, right: 0, bottom: 2, left: 0 }}
+        >
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
@@ -136,25 +150,25 @@ export function Sparkline({
             </linearGradient>
           </defs>
           <Tooltip
-            cursor={{ stroke: 'transparent' }}
+            cursor={{ stroke: "transparent" }}
             isAnimationActive={false}
             content={({ active, payload }) => {
-              if (!active || !payload || payload.length === 0) return null
-              const point = payload[0]?.payload as { i: number; value: number } | undefined
-              if (!point) return null
+              if (!active || !payload || payload.length === 0) return null;
+              const point = payload[0]?.payload as
+                { i: number; value: number } | undefined;
+              if (!point) return null;
               const label = hasLabels
                 ? labels![point.i]
                 : point.i === data.length - 1
-                  ? 'امروز'
-                  : `${fa(data.length - 1 - point.i)} روز پیش`
+                  ? "امروز"
+                  : `${fa(data.length - 1 - point.i)} روز پیش`;
               return (
                 <SparkTooltipBubble
                   label={label}
                   value={point.value}
-                  valueLabel={valueLabel}
                   kind={valueFormat}
                 />
-              )
+              );
             }}
           />
           <Area
@@ -169,11 +183,11 @@ export function Sparkline({
               r: 3,
               fill: stroke,
               strokeWidth: 2,
-              stroke: '#ffffff',
+              stroke: "#ffffff",
             }}
           />
         </AreaChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }
