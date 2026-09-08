@@ -1667,6 +1667,21 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                         },
                                 ],
                         },
+                        {
+                                type: 'h2',
+                                fa: 'فاصله از نوار پایین موبایل',
+                                en: 'Mobile bottom navigation clearance',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'اگر سایت شما در موبایل نوار ناوبری ثابت دارد، مقدار data-mobile-bottom-offset را به کد نصب اضافه کنید. مقدار بر حسب پیکسل است، فقط روی نمایشگرهای حداکثر ۷۶۸ پیکسل اعمال می‌شود و با فاصلهٔ امن آیفون جمع می‌شود.',
+                                en: 'If your site has a fixed mobile bottom navigation, add data-mobile-bottom-offset to the embed code. The unitless value is in CSS pixels, applies only at widths up to 768px, and is added to the iPhone safe-area clearance.',
+                        },
+                        {
+                                type: 'code',
+                                caption: { fa: 'نمونه برای نوار پایین ۸۸ پیکسلی', en: 'Example for an 88px bottom bar' },
+                                code: '<script src="https://vigent.ir/widget/loader.js" data-agent-id="YOUR_AGENT_ID" data-mobile-bottom-offset="88"></script>',
+                        },
                         { type: 'h2', fa: 'فرم معرفی قبل از چت', en: 'Pre-chat form' },
                         {
                                 type: 'p',

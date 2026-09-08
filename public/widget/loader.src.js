@@ -13,6 +13,19 @@
                 console.error('[vigent] missing data-agent-id')
                 return
         }
+
+        // Optional clearance for host sites with a fixed mobile bottom nav.
+        // Values are unitless CSS pixels, e.g. data-mobile-bottom-offset="88".
+        // Keep the value bounded so a typo cannot push the launcher off-screen.
+        function readMobileBottomOffset() {
+                var raw = script.getAttribute('data-mobile-bottom-offset')
+                if (raw == null || raw.trim() === '') return 0
+                var parsed = Number(raw)
+                if (!isFinite(parsed)) return 0
+                return Math.min(320, Math.max(0, parsed))
+        }
+        var mobileBottomOffset = readMobileBottomOffset()
+
         if (window.__vigentWidgetLoaded) return
         window.__vigentWidgetLoaded = true
 
@@ -608,6 +621,10 @@
                         '.vgt-bubble-wrap .vgt-msg{max-width:100%;animation:none;}' +
                         '.vgt-backdrop{position:fixed;inset:0;background:var(--vgt-bg);display:none;z-index:0;touch-action:none;}' +
                         '@media (max-width:768px){' +
+                        // Let each host site clear its own fixed bottom navigation.
+                        // The extra offset applies only to the closed launcher; the
+                        // open panel/backdrop remain fixed to the full viewport.
+                        '.vgt-root{bottom:calc(max(16px,env(safe-area-inset-bottom)) + var(--vgt-mobile-bottom-offset,0px));}' +
                         // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
                         // On phones & small tablets the chat panel becomes a true
                         // full-screen sheet. We use position:fixed with ALL FOUR
@@ -700,6 +717,7 @@
         // ---- Build DOM ----
         injectStyles()
         var root = el('div', 'vgt-root')
+        root.style.setProperty('--vgt-mobile-bottom-offset', mobileBottomOffset + 'px')
         // Solid backdrop — sits behind the panel, covers the full viewport on
         // mobile so the host site is never visible through gaps or during the
         // keyboard open transition. On desktop it stays hidden (display:none).
