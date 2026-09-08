@@ -126,7 +126,7 @@ function requestBody(
     temperature: opts.temperature ?? 0.55,
     // Hard server-side ceiling: a stale Agent row can no longer request an
     // 8,000-token completion against the shared platform account.
-    max_tokens: Math.min(Math.max(opts.maxTokens ?? 700, 1), 1200),
+    max_tokens: Math.min(Math.max(opts.maxTokens ?? 700, 1), opts.task === 'learning-review' ? 4500 : 1200),
     stream,
     reasoning: { enabled: false },
     provider: {
@@ -146,6 +146,8 @@ export interface ChatOptions {
   messages: ChatMessage[]
   temperature?: number
   maxTokens?: number
+  /** Internal batch analysis; never populated from customer request fields. */
+  task?: 'learning-review'
   onUsage?: (usage: ChatUsage) => void
   tools?: ChatTool[]
   toolChoice?: 'auto' | 'none'
@@ -197,7 +199,7 @@ export async function chatCompletion(
     method: 'POST',
     headers: appHeaders(),
     body: JSON.stringify(requestBody(opts, false, runtime)),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(opts.task === 'learning-review' ? 120_000 : 60_000),
   })
   if (!res.ok) {
     // Do not persist provider bodies: they may contain request fragments.

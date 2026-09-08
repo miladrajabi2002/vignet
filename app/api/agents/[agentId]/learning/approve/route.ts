@@ -6,18 +6,18 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { dispatchIngestion } from '@/lib/queue/jobs'
 import { LEARNED_PREFIX } from '@/lib/ai/learning'
+import { LEARNING_REVIEW_VERSION, learningRecord } from '@/lib/ai/learning-candidates'
 import {
   LEARNING_POLICY_VERSION,
   evaluateLearningEligibility,
-  isEligibleOperatorLearningMetadata,
 } from '@/lib/ai/learning-policy'
 
 type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({
   messageId: z.string().min(1),
-  question: z.string().min(1).max(2000),
-  answer: z.string().min(1).max(8000),
+  question: z.string().trim().min(3).max(2000),
+  answer: z.string().trim().min(3).max(8000),
   validUntil: z.coerce
     .date()
     .refine((date) => date.getTime() > Date.now(), 'validUntil must be in the future')
@@ -71,6 +71,7 @@ export async function POST(req: Request, props: Params) {
 
   const { messageId } = parsed.data
   const submittedAnswer = parsed.data.answer.trim()
+  const submittedQuestion = parsed.data.question.trim()
 
   const replay = await prisma.knowledgeApproval.findFirst({
     where: { sourceMessageRef: messageId, agentId: agent.id },
@@ -83,6 +84,7 @@ export async function POST(req: Request, props: Params) {
         text: faqText(replay.question, replay.answer),
       })
     } catch {
+      await prisma.knowledgeBase.updateMany({ where: { id: replay.knowledgeBaseId, status: 'PENDING' }, data: { status: 'ERROR', errorMsg: 'INGESTION_UNAVAILABLE' } })
       return NextResponse.json(
         { error: 'INGESTION_UNAVAILABLE', kbId: replay.knowledgeBaseId },
         { status: 503 },
@@ -114,28 +116,26 @@ export async function POST(req: Request, props: Params) {
       if (!sourceMessage) throw new Error('LEARNING_SOURCE_NOT_PENDING')
 
       const metadata = sourceMessage.metadata as Record<string, unknown> | null
+      const review = learningRecord(metadata?.learningReview)
+      if (review.version !== LEARNING_REVIEW_VERSION) throw new Error('LEARNING_ANALYSIS_REQUIRED')
+      if (review.eligible !== true) throw new Error('LEARNING_SOURCE_NOT_ELIGIBLE')
       const storedQuestion =
         metadata && typeof metadata.question === 'string'
           ? metadata.question.trim()
           : ''
       if (!storedQuestion) throw new Error('LEARNING_SOURCE_MISSING_QUESTION')
-      if (normalize(storedQuestion) !== normalize(parsed.data.question)) {
-        throw new Error('LEARNING_QUESTION_MISMATCH')
-      }
-
+      // The source is owned and pending; the reviewer may rewrite its intent.
+      // Keep the original wording in message metadata for provenance.
       const operatorAuthored = metadata?.operator === true
-      if (operatorAuthored && !isEligibleOperatorLearningMetadata(metadata)) {
-        throw new Error('LEARNING_SOURCE_NOT_ELIGIBLE')
-      }
 
       // Re-check the final edited answer at approval time. A safe suggestion
       // can become private or order-specific after an operator edits it.
-      const eligibility = evaluateLearningEligibility(storedQuestion, submittedAnswer)
+      const eligibility = evaluateLearningEligibility(submittedQuestion, submittedAnswer)
       if (!eligibility.eligible) throw new Error('LEARNING_CONTENT_NOT_ELIGIBLE')
 
-      const title = storedQuestion.length > 80
-        ? `${storedQuestion.slice(0, 80)}…`
-        : storedQuestion
+      const title = submittedQuestion.length > 80
+        ? `${submittedQuestion.slice(0, 80)}…`
+        : submittedQuestion
       const kb = await tx.knowledgeBase.create({
         data: {
           agentId: agent.id,
@@ -150,7 +150,7 @@ export async function POST(req: Request, props: Params) {
       const now = new Date()
       const contentHash = crypto
         .createHash('sha256')
-        .update(`${normalize(storedQuestion)}\n${normalize(submittedAnswer)}`)
+        .update(`${normalize(submittedQuestion)}\n${normalize(submittedAnswer)}`)
         .digest('hex')
 
       await tx.knowledgeApproval.create({
@@ -162,7 +162,7 @@ export async function POST(req: Request, props: Params) {
           sourceMessageRef: sourceMessage.id,
           sourceConversationId: sourceMessage.conversationId,
           source: operatorAuthored ? 'OPERATOR_REPLY' : 'AI_UNANSWERED',
-          question: storedQuestion,
+          question: submittedQuestion,
           answer: submittedAnswer,
           contentHash,
           verifiedByUserId: user.id,
@@ -183,7 +183,7 @@ export async function POST(req: Request, props: Params) {
 
       return {
         knowledgeBaseId: kb.id,
-        question: storedQuestion,
+        question: submittedQuestion,
         answer: submittedAnswer,
         agentId: agent.id,
         replayed: false,
@@ -196,6 +196,7 @@ export async function POST(req: Request, props: Params) {
         text: faqText(approved.question, approved.answer),
       })
     } catch {
+      await prisma.knowledgeBase.updateMany({ where: { id: approved.knowledgeBaseId, status: 'PENDING' }, data: { status: 'ERROR', errorMsg: 'INGESTION_UNAVAILABLE' } })
       return NextResponse.json(
         { error: 'INGESTION_UNAVAILABLE', kbId: approved.knowledgeBaseId },
         { status: 503 },

@@ -1,3 +1,4 @@
+import { ImprovementGuide } from '@/components/agents/improvement-guide'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { getTranslations, getLocale } from 'next-intl/server'
@@ -370,6 +371,7 @@ export default async function ConversationsPage(props: {
                                                         locale={locale}
                                                         disabled={audienceContacts.length === 0}
                                                 />
+
                                                 <BulkDeleteButton
                                                         countEndpoint="/api/conversations/bulk"
                                                         deleteEndpoint="/api/conversations/bulk"
@@ -383,6 +385,13 @@ export default async function ConversationsPage(props: {
                                         </>
                                 }
                         />
+
+                        {agents.length > 0 && (
+                          <div className="space-y-2">
+                            <ImprovementGuide agentId={agents.find((agent) => agent.id === agentFilter)?.id ?? agents[0].id} isFa={isFa} compact />
+                            {agents.length > 1 && <div className="flex flex-wrap gap-2">{agents.map((agent) => <Link key={agent.id} href={`/agents/${agent.id}/improve`} className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-xs">{isFa ? `بهبود ${agent.name}` : `Improve ${agent.name}`}</Link>)}</div>}
+                          </div>
+                        )}
 
                         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                                 <DashboardPanel

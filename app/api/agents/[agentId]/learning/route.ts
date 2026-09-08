@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { isEligibleOperatorLearningMetadata } from '@/lib/ai/learning-policy'
+import { getLearningQueue } from '@/lib/ai/learning-queue'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,38 +23,7 @@ export async function GET(_req: Request, props: Params) {
   if (!(await ownAgent(user.workspaceId, params.agentId)))
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-  const rows = await prisma.message.findMany({
-    where: {
-      role: 'ASSISTANT',
-      unanswered: true,
-      conversation: { agentId: params.agentId, workspaceId: user.workspaceId },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-    select: { id: true, metadata: true, createdAt: true, conversationId: true },
-  })
-
-  const items = rows
-    .map((m) => {
-      const meta = m.metadata as Record<string, unknown> | null
-      const operatorAuthored = meta?.operator === true
-      const question = meta && typeof meta.question === 'string' ? meta.question : ''
-      const operatorAnswer =
-        meta && typeof meta.operatorAnswer === 'string' ? meta.operatorAnswer : undefined
-      return {
-        id: m.id,
-        question:
-          operatorAuthored && !isEligibleOperatorLearningMetadata(meta)
-            ? ''
-            : question,
-        conversationId: m.conversationId,
-        createdAt: m.createdAt,
-        operatorAnswer,
-      }
-    })
-    .filter((m) => m.question.length > 0)
-
-  return NextResponse.json({ items })
+  return NextResponse.json(await getLearningQueue(user.workspaceId, params.agentId))
 }
 
 const dismissSchema = z.object({ messageId: z.string().min(1) })

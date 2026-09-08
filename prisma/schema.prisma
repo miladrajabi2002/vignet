@@ -233,6 +233,9 @@ model Agent {
   instagramFollowGates        InstagramFollowGate[]
   instagramAutomationSettings InstagramAutomationSettings?
   knowledgeApprovals          KnowledgeApproval[]
+  improvementSettings         Json?
+  improvementRuns             ImprovementRun[]
+  improvementSuggestions      ImprovementSuggestion[]
 
   @@index([workspaceId])
 }
@@ -672,6 +675,7 @@ model Conversation {
   handoffAlerts HandoffAlert[]
   salesInsight  ConversationSalesInsight?
   memory        ConversationMemory?
+  improvementReviews ImprovementReview[]
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
@@ -808,6 +812,7 @@ model Message {
   inboundEvent          InboundEvent?      @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
   resultForInboundEvent InboundEvent?      @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
   learningApproval      KnowledgeApproval?
+  improvementEvidence   ImprovementEvidence[]
 
   @@index([conversationId])
   @@index([parentId])
@@ -1722,4 +1727,90 @@ enum AppointmentStatus {
   CANCELLED
   COMPLETED
   NO_SHOW
+}
+
+// Durable conversation review jobs. Snapshots identify the settings used for
+// diagnosis; messages are always bounded by createdAt and remain in their source.
+model ImprovementRun {
+  id          String @id @default(cuid())
+  agentId     String
+  workspaceId String
+  createdBy   String
+  status      String @default("QUEUED")
+  total       Int
+  filters     Json
+  snapshot    Json
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  finishedAt  DateTime?
+  agent       Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  reviews     ImprovementReview[]
+  @@index([workspaceId, agentId, createdAt])
+  @@index([agentId, createdAt])
+}
+
+model ImprovementReview {
+  id             String @id @default(cuid())
+  runId          String
+  conversationId String
+  status         String @default("PENDING")
+  result         Json?
+  checkpoint     Json?
+  error          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  run            ImprovementRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  evidence       ImprovementEvidence[]
+  @@unique([runId, conversationId])
+  @@index([conversationId])
+}
+
+model ImprovementSuggestion {
+  id          String @id @default(cuid())
+  agentId     String
+  workspaceId String
+  kind        String
+  topicKey    String
+  title       String
+  diagnosis   String @db.Text
+  priority    String
+  status      String @default("PENDING")
+  draft       Json
+  version     Int @default(1)
+  preview     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agent       Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  evidence    ImprovementEvidence[]
+  changes     ImprovementChange[]
+  @@index([workspaceId, agentId, status])
+  @@index([agentId, topicKey])
+}
+
+model ImprovementEvidence {
+  suggestionId String
+  reviewId     String
+  messageId    String
+  suggestion   ImprovementSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  review       ImprovementReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  @@id([suggestionId, reviewId, messageId])
+  @@index([reviewId])
+  @@index([messageId])
+}
+
+model ImprovementChange {
+  id           String @id @default(cuid())
+  suggestionId String
+  actorId      String
+  kind         String
+  targetId     String?
+  before       Json
+  after        Json
+  revertedAt   DateTime?
+  createdAt    DateTime @default(now())
+  suggestion   ImprovementSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  @@index([suggestionId, createdAt])
 }

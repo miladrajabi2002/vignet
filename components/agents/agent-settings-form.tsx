@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { ImprovementIntro } from '@/components/agents/improvement-intro'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -72,10 +73,14 @@ export interface AgentSettingsData {
 }
 
 export function AgentSettingsForm({
+        section = 'general',
+        storeAccess,
         agent,
         businessType,
         modelPolicy,
 }: {
+        section?: 'general' | 'behavior'
+        storeAccess?: React.ReactNode
         agent: AgentSettingsData
         businessType?: BusinessTypeValue | null
         modelPolicy: {
@@ -143,6 +148,7 @@ export function AgentSettingsForm({
         const [showPreview, setShowPreview] = useState(false)
 
         const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+        const [saveError, setSaveError] = useState('')
 
         // ─ F3: customer identification
         const [requireCustomerInfo, setRequireCustomerInfo] = useState(
@@ -166,7 +172,10 @@ export function AgentSettingsForm({
         }, [promptConfig, form.systemPrompt, form.language])
 
         async function save() {
+                if (status === 'saving') return
+                setSaveError('')
                 setStatus('saving')
+                try {
                 const keywords = form.handoffKeywords
                         .split(/[,\u060c]/)
                         .map((s) => s.trim())
@@ -175,7 +184,10 @@ export function AgentSettingsForm({
                 const res = await fetch(`/api/agents/${agent.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
+                        body: JSON.stringify(section === 'behavior' ? {
+                                promptConfig: hasStructured ? promptConfig : null,
+                                roleTemplate: activeRole?.key ?? null,
+                        } : {
                                 ...form,
                                 handoffKeywords: keywords,
                                 description: form.description || undefined,
@@ -183,9 +195,6 @@ export function AgentSettingsForm({
                                 welcomeMessage: form.welcomeMessage || undefined,
                                 fallbackMessage: form.fallbackMessage || undefined,
                                 handoffMessage: form.handoffMessage || undefined,
-                                // ─ F1: layered prompt (only send if user filled something in)
-                                promptConfig: hasStructured ? promptConfig : null,
-                                roleTemplate: activeRole?.key ?? null,
                                 // ─ F3: customer identification
                                 requireCustomerInfo,
                                 customerInfoPrompt: customerInfoPrompt.trim() || null,
@@ -196,7 +205,11 @@ export function AgentSettingsForm({
                         router.refresh()
                         setTimeout(() => setStatus('idle'), 2000)
                 } else {
+                        throw new Error('SAVE_FAILED')
+                }
+                } catch {
                         setStatus('idle')
+                        setSaveError(locale === 'fa' ? 'تنظیمات ذخیره نشد. دوباره تلاش کنید.' : 'Settings could not be saved. Please try again.')
                 }
         }
 
@@ -251,8 +264,124 @@ export function AgentSettingsForm({
 
         return (
                 <div className="space-y-6">
-                        {/* ─ Basic identity + model ───────────────────────────────────── */}
-                        <div className="spatial-surface space-y-5 rounded-[1.75rem] p-5 sm:p-6">
+                        {section === 'behavior' ? (
+                        <>
+                        <ImprovementIntro section="behavior"
+                                title={locale === 'fa' ? 'رفتار و لحن ایجنت' : 'Agent behavior and tone'}
+                                description={locale === 'fa'
+                                        ? 'شخصیت و نقش ایجنت، لحن رسمی یا صمیمی، محدوده پاسخ‌گویی و بایدها و نبایدها را تنظیم کنید. مشخص کنید وقتی پاسخ را نمی‌داند چه رفتاری داشته باشد و پاسخ‌ها با چه طول و قالبی نوشته شوند. این تنظیمات کمک می‌کند ایجنت با سبک کسب‌وکار شما صحبت کند و پاسخ‌های یکدست‌تری بدهد.'
+                                        : 'Set the agent’s personality and role, formal or friendly tone, response boundaries and rules. Choose how it handles unknown answers and control response length and formatting. Use these settings to match your business voice and keep replies consistent.'} />
+                        {/* ─ 6-LAYER PROMPT ENGINE ──────────────────────────────────── */}
+                        <div id="behavior" className="scroll-mt-28 spatial-surface space-y-5 rounded-[1.5rem] p-5 sm:p-6">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                                <h3 className="text-base font-medium text-[var(--text-primary)]">
+                                                        {tf('promptEngineTitle')}
+                                                </h3>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap">
+                                        <button type="button" onClick={save} disabled={status === 'saving'} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2">
+                                                {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
+                                                {status === 'saved' ? tc('saved') : tc('save')}
+                                        </button>
+                                        <button
+                                                type="button"
+                                                onClick={() => setShowPreview(true)}
+                                                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                                        >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                {tf('previewPrompt')}
+                                        </button>
+                                        </div>
+                                </div>
+                                {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
+
+                                {/* Optional preset replacement stays secondary to editing behavior. */}
+                                <details className="rounded-2xl border border-black/[0.065] px-4">
+                                        <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-2 py-3 text-xs font-semibold text-[var(--text-secondary)]">
+                                                <span>{locale === 'fa' ? 'تغییر قالب آماده (اختیاری)' : 'Change preset (optional)'}</span>
+                                                <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        </summary>
+                                        <p className="mb-3 text-xs leading-6 text-[var(--text-muted)]">{locale === 'fa' ? 'انتخاب یک قالب، تنظیمات این بخش را جایگزین می‌کند؛ سپس می‌توانید ویرایش و ذخیره کنید.' : 'Selecting a preset replaces this section’s settings. You can then edit and save them.'}</p>
+                                <div className="pb-4">
+                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                                <p className="text-xs text-[var(--text-muted)]">{tf('roleTemplateLabel')}</p>
+                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
+                                                        {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
+                                                </span>
+                                        </div>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                                {roleTemplates.map((role) => {
+                                                        const selected = activeRole?.key === role.key
+                                                        const custom = role.key === 'custom'
+                                                        return (
+                                                                <button
+                                                                        key={role.key}
+                                                                        type="button"
+                                                                        onClick={() => applyRoleTemplate(role)}
+                                                                        className={`min-h-[7rem] rounded-2xl border p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-200 ${
+                                                                                selected
+                                                                                        ? 'border-black bg-black/[0.035] shadow-[var(--shadow-xs)]'
+                                                                                        : 'border-[var(--border-default)] bg-white hover:border-black/25 hover:bg-black/[0.015]'
+                                                                        }`}
+                                                                >
+                                                                        <div className="flex items-start justify-between gap-3">
+                                                                                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                                                                        {locale === 'fa' ? role.nameFa : role.nameEn}
+                                                                                </p>
+                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
+                                                                                        <Sparkles className="h-3 w-3" />
+                                                                                </span>
+                                                                        </div>
+                                                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                                                                {locale === 'fa' ? role.descFa : role.descEn}
+                                                                        </p>
+                                                                        <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
+                                                                                {custom
+                                                                                        ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
+                                                                                        : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
+                                                                        </p>
+                                                                </button>
+                                                        )
+                                                })}
+                                        </div>
+                                </div>
+
+                                </details>
+                                {/* Layer tabs */}
+                                <div className="grid grid-cols-3 gap-1 border-b border-[var(--border-subtle)] pb-2 sm:flex sm:flex-wrap">
+                                        {tabs.map(({ key, label, icon: Icon }) => (
+                                                <button
+                                                        key={key}
+                                                        type="button"
+                                                        onClick={() => setActiveTab(key)}
+                                                        className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 sm:px-3 sm:text-xs ${
+                                                                activeTab === key
+                                                                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
+                                                                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                                                        }`}
+                                                >
+                                                        <Icon className="h-3.5 w-3.5" />
+                                                        {label}
+                                                </button>
+                                        ))}
+                                </div>
+
+                                {/* Layer editors */}
+                                <LayerEditor
+                                        tab={activeTab}
+                                        config={promptConfig}
+                                        onChange={setPromptConfig}
+                                        isFa={form.language !== 'en'}
+                                        t={tf}
+                                />
+
+                        </div>
+
+                        </>
+                        ) : (
+                        <>
+                        <div className="spatial-surface space-y-5 rounded-[1.5rem] p-5 sm:p-6">
                                 <Field label={tw('name')}>
                                         <input
                                                 value={form.name}
@@ -314,104 +443,10 @@ export function AgentSettingsForm({
                                 </Field>
                         </div>
 
-                        {/* ─ 6-LAYER PROMPT ENGINE ──────────────────────────────────── */}
-                        <div className="spatial-surface space-y-5 rounded-[1.75rem] p-5 sm:p-6">
-                                <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                                <h3 className="text-base font-medium text-[var(--text-primary)]">
-                                                        {tf('promptEngineTitle')}
-                                                </h3>
-                                                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                                                        {tf('promptEngineDesc')}
-                                                </p>
-                                        </div>
-                                        <button
-                                                type="button"
-                                                onClick={() => setShowPreview(true)}
-                                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                        >
-                                                <Eye className="h-3.5 w-3.5" />
-                                                {tf('previewPrompt')}
-                                        </button>
-                                </div>
-
-                                {/* Role template picker */}
-                                <div>
-                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                                <p className="text-xs text-[var(--text-muted)]">{tf('roleTemplateLabel')}</p>
-                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
-                                                        {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
-                                                </span>
-                                        </div>
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                                {roleTemplates.map((role) => {
-                                                        const selected = activeRole?.key === role.key
-                                                        const custom = role.key === 'custom'
-                                                        return (
-                                                                <button
-                                                                        key={role.key}
-                                                                        type="button"
-                                                                        onClick={() => applyRoleTemplate(role)}
-                                                                        className={`min-h-[7rem] rounded-2xl border p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-200 ${
-                                                                                selected
-                                                                                        ? 'border-black bg-black/[0.035] shadow-[var(--shadow-xs)]'
-                                                                                        : 'border-[var(--border-default)] bg-white hover:border-black/25 hover:bg-black/[0.015]'
-                                                                        }`}
-                                                                >
-                                                                        <div className="flex items-start justify-between gap-3">
-                                                                                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                                                                                        {locale === 'fa' ? role.nameFa : role.nameEn}
-                                                                                </p>
-                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
-                                                                                        <Sparkles className="h-3 w-3" />
-                                                                                </span>
-                                                                        </div>
-                                                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                                                                                {locale === 'fa' ? role.descFa : role.descEn}
-                                                                        </p>
-                                                                        <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
-                                                                                {custom
-                                                                                        ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
-                                                                                        : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
-                                                                        </p>
-                                                                </button>
-                                                        )
-                                                })}
-                                        </div>
-                                </div>
-
-                                {/* Layer tabs */}
-                                <div className="flex flex-wrap gap-1.5 border-b border-[var(--border-subtle)] pb-2">
-                                        {tabs.map(({ key, label, icon: Icon }) => (
-                                                <button
-                                                        key={key}
-                                                        type="button"
-                                                        onClick={() => setActiveTab(key)}
-                                                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
-                                                                activeTab === key
-                                                                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                                                                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                                                        }`}
-                                                >
-                                                        <Icon className="h-3.5 w-3.5" />
-                                                        {label}
-                                                </button>
-                                        ))}
-                                </div>
-
-                                {/* Layer editors */}
-                                <LayerEditor
-                                        tab={activeTab}
-                                        config={promptConfig}
-                                        onChange={setPromptConfig}
-                                        isFa={form.language !== 'en'}
-                                        t={tf}
-                                />
-
-                        </div>
+                        {storeAccess}
 
                         {/* ─ CUSTOMER IDENTIFICATION (F3) ──────────────────────────── */}
-                        <div className="spatial-surface space-y-4 rounded-[1.75rem] p-5 sm:p-6">
+                        <div className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
                                 <div>
                                         <h3 className="text-base font-medium text-[var(--text-primary)]">
                                                 {tf('customerIdentificationTitle')}
@@ -442,7 +477,7 @@ export function AgentSettingsForm({
                         </div>
 
                         {/* ─ Handoff ─────────────────────────────────────────────────── */}
-                        <div className="spatial-surface space-y-4 rounded-[1.75rem] p-5 sm:p-6">
+                        <div className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
                                 <div>
                                         <h3 className="text-base font-medium text-[var(--text-primary)]">
                                                 {tf('handoffTitle')}
@@ -491,6 +526,7 @@ export function AgentSettingsForm({
                                                 {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
                                                 {status === 'saved' ? tc('saved') : tc('save')}
                                         </button>
+                                        {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
                                         {status === 'saved' && (
                                                 <span className="inline-flex items-center gap-1 text-sm text-success">
                                                         <Check className="h-4 w-4" />
@@ -524,6 +560,9 @@ export function AgentSettingsForm({
                                         </button>
                                 </div>
                         </div>
+
+                        </>
+                        )}
 
                         {typeof document !== 'undefined' && createPortal(
                                 <AnimatePresence>

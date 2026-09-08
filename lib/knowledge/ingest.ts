@@ -79,8 +79,14 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
   const kb = await prisma.knowledgeBase.findUnique({ where: { id: data.kbId } })
   if (!kb) throw new Error(`KnowledgeBase ${data.kbId} not found`)
 
-  await prisma.knowledgeBase.update({
-    where: { id: kb.id },
+  const approval = kb.type === 'FAQ'
+    ? await prisma.knowledgeApproval.findUnique({ where: { knowledgeBaseId: kb.id } })
+    : null
+  // Learned answers are durable in the approval ledger. A queued retry must
+  // always use its latest version, even if the original job carried old text.
+  const approvedText = approval ? `سؤال: ${approval.question}\nپاسخ: ${approval.answer}` : data.text
+  await prisma.knowledgeBase.updateMany({
+    where: { id: kb.id, ...(approval ? { approval: { is: { knowledgeVersion: approval.knowledgeVersion } } } : {}) },
     data: { status: 'PROCESSING', errorMsg: null },
   })
 
@@ -95,7 +101,7 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
   const generation = crypto.randomUUID()
 
   try {
-    const sections = await resolveSections(kb, data.text)
+    const sections = await resolveSections(kb, approvedText)
     const chunks = sections.flatMap((section) => {
       const pieces = kb.type === 'FAQ'
         ? chunkFaq(section.text)
@@ -141,6 +147,7 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
             ...(batch[j].page ? { page: batch[j].page } : {}),
             contextualized: true,
             generation,
+            ...(approval ? { learnedVersion: approval.knowledgeVersion } : {}),
           },
           embedding: vectors[j],
         })
@@ -148,18 +155,19 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
       }
     }
 
-    // Swap: retire every chunk that is not part of this generation (previous
-    // generations and legacy chunks without a generation tag).
-    await prisma.knowledgeChunk.deleteMany({
-      where: {
-        kbId: kb.id,
-        NOT: { metadata: { path: ['generation'], equals: generation } },
-      },
-    })
-
-    await prisma.knowledgeBase.update({
-      where: { id: kb.id },
-      data: { status: 'READY', chunkCount: stored },
+    // Publish a learned generation only if its reviewed version is still current.
+    // The KB write and chunk swap share a transaction, so edits cannot publish
+    // an older in-flight job over a newer human-approved answer.
+    await prisma.$transaction(async (tx) => {
+      const published = await tx.knowledgeBase.updateMany({
+        where: { id: kb.id, ...(approval ? { approval: { is: { knowledgeVersion: approval.knowledgeVersion } } } : {}) },
+        data: { status: 'READY', chunkCount: stored },
+      })
+      await tx.knowledgeChunk.deleteMany({
+        where: published.count === 1
+          ? { kbId: kb.id, NOT: { metadata: { path: ['generation'], equals: generation } } }
+          : { kbId: kb.id, metadata: { path: ['generation'], equals: generation } },
+      })
     })
   } catch (e) {
     // Roll back the partial new generation; the previous knowledge stays live.
@@ -172,8 +180,8 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
       })
       .catch(() => {})
     const message = e instanceof Error ? e.message : 'Ingestion failed'
-    await prisma.knowledgeBase.update({
-      where: { id: kb.id },
+    await prisma.knowledgeBase.updateMany({
+      where: { id: kb.id, ...(approval ? { approval: { is: { knowledgeVersion: approval.knowledgeVersion } } } : {}) },
       data: { status: 'ERROR', errorMsg: message.slice(0, 500) },
     })
     // Fire-and-forget ops alert (no-op unless ALERT_EMAIL + Resend configured).

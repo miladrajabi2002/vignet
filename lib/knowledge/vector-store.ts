@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { normalizePersian, buildLexicalQuery } from '@/lib/knowledge/normalize'
 import { rankRetrievedChunks } from '@/lib/knowledge/ranking'
 
@@ -112,6 +112,17 @@ export async function retrieveChunks(params: {
   const queryText = buildLexicalQuery(params.queryText ?? '')
   const includeProductCatalog = params.includeProductCatalog !== false
   const iterativeScan = await supportsIterativeScan()
+  // Approval history is the source of truth for learned answers. Suppress
+  // expired, in-flight and superseded generations in BOTH retrieval branches.
+  const approvedKnowledgeFilter = Prisma.sql`NOT EXISTS (
+    SELECT 1 FROM "KnowledgeApproval" ka
+    JOIN "KnowledgeBase" learned_kb ON learned_kb.id = ka."knowledgeBaseId"
+    WHERE ka."knowledgeBaseId" = kc."kbId"
+      AND (ka."validFrom" > NOW() OR ka."validUntil" <= NOW()
+        OR learned_kb.status <> 'READY'
+        OR COALESCE(kc.metadata ->> 'learnedVersion', '1') <> ka."knowledgeVersion"::text)
+  )`
+
 
   // The workspace/agent WHERE filter is applied *after* the HNSW scan, so for
   // small tenants the default ef_search (40) can return too few (or zero)
@@ -131,6 +142,7 @@ export async function retrieveChunks(params: {
         FROM "KnowledgeChunk" kc
         WHERE kc."workspaceId" = ${params.workspaceId}
           AND kc."agentId" = ${params.agentId}
+          AND ${approvedKnowledgeFilter}
           AND kc.embedding IS NOT NULL
           AND (${includeProductCatalog} OR kc.metadata ->> 'productId' IS NULL)
         ORDER BY kc.embedding <=> ${literal}::vector
@@ -148,6 +160,7 @@ export async function retrieveChunks(params: {
         WHERE ${queryText} <> ''
           AND kc."workspaceId" = ${params.workspaceId}
           AND kc."agentId" = ${params.agentId}
+          AND ${approvedKnowledgeFilter}
           AND (${includeProductCatalog} OR kc.metadata ->> 'productId' IS NULL)
           AND to_tsvector('simple', kc.content) @@ websearch_to_tsquery('simple', ${queryText})
         ORDER BY ts_rank_cd(

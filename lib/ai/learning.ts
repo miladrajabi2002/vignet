@@ -38,9 +38,8 @@ export type DraftResult =
  * Used by the "agent learning" center: the operator reviews/edits the draft
  * before it's saved into the knowledge base (human-in-the-loop).
  *
- * Pulls any existing knowledge for grounding, but explicitly allows a sensible
- * draft even when context is thin — the human approves it, so a starting point
- * is more useful than a refusal.
+ * Grounds drafts in existing knowledge and marks missing business facts for
+ * the owner to complete; approval rejects unfinished placeholders.
  */
 export async function draftAnswer(
   workspaceId: string,
@@ -62,8 +61,8 @@ export async function draftAnswer(
 
   const isFa = agent.language === 'fa'
   const instruction = isFa
-    ? `تو دستیار صاحب یک کسب‌وکار هستی. مشتری این سؤال را پرسیده و دستیار قبلاً نتوانسته پاسخ دهد. یک پاسخ کوتاه، دقیق و حرفه‌ای پیشنهاد بده که بعداً به پایگاه دانش اضافه شود. اگر اطلاعات کافی نداری، یک پیش‌نویس منطقی بنویس که صاحب کسب‌وکار بتواند ویرایش و تکمیلش کند. فقط متن پاسخ را بنویس، بدون مقدمه.`
-    : `You assist a business owner. A customer asked this question and the agent previously failed to answer it. Draft a short, accurate, professional answer to be added to the knowledge base. If you lack details, write a reasonable draft the owner can edit. Output only the answer text, no preamble.`
+    ? `تو دستیار صاحب یک کسب‌وکار هستی. مشتری این سؤال را پرسیده و دستیار قبلاً نتوانسته پاسخ دهد. یک پاسخ کوتاه، دقیق و حرفه‌ای پیشنهاد بده که بعداً به پایگاه دانش اضافه شود. فقط از اطلاعات معتبر موجود استفاده کن. اگر اطلاعات کافی نداری، جزئیات حدسی، زمان ارسال، قیمت، سیاست فروشگاه یا لینک نساز؛ جای اطلاعات لازم را با [نیاز به تکمیل صاحب کسب‌وکار] مشخص کن. سؤال ممکن است خلاصه یک نیاز باشد؛ پاسخ را برای موارد هم‌معنی و قابل‌تکرار بنویس، بدون داده شخصی یا وضعیت سفارش خاص. فقط متن پاسخ را بنویس، بدون مقدمه.`
+    : `You assist a business owner. A customer asked this question and the agent previously failed to answer it. Draft a short, accurate, professional answer to be added to the knowledge base. Use only grounded business facts. Never invent prices, policies, shipping times or URLs. Mark missing facts as [Owner input needed]. The question can describe an intent: make the answer reusable for semantically similar questions without personal or order-specific details. Output only the answer text, no preamble.`
 
   const contextBlock = contextText
     ? isFa

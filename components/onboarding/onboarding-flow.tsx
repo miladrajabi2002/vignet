@@ -614,8 +614,11 @@ function AgentStep({
       </motion.h2>
       <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
         {done
-          ? 'ایجنت آماده است؛ حالا می‌توانید محصولات و خدمات را به آن متصل کنید.'
+          ? 'ایجنت آماده است؛ حالا اطلاعات کسب‌وکارتان را اضافه کنید. بعد از اولین گفتگوها، می‌توانید پاسخ‌هایش را بهتر کنید.'
           : `یک ایجنت آماده و متناسب با «${businessLabel}» بسازید یا جزئیات را خودتان شخصی‌سازی کنید.`}
+      </motion.p>
+      <motion.p variants={staggerChild} className="mx-auto mt-4 max-w-lg spatial-inset rounded-2xl border border-black/[0.055] bg-white/60 p-4 text-sm leading-7 text-[var(--text-secondary)]">
+        برای شروع، تنظیمات پیشنهادی کافی است. بعد از راه‌اندازی و تست گفتگو توسط خودتان یا مشتری‌ها، از «بهبود ایجنت» می‌توانید با موتور ۶ لایه، لحن و رفتار را مطابق نیازتان تنظیم کنید و با دانش و یادگیری، پاسخ‌ها را کامل‌تر کنید. لازم نیست همین حالا همه تنظیمات را بشناسید.
       </motion.p>
 
       {done ? (
@@ -1061,7 +1064,7 @@ function DoneStep() {
       </motion.h2>
 
       <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[var(--text-muted)]">
-        ایجنت شما آماده است. اکنون می‌توانید به داشبورد بروید و گفتگوها را مدیریت کنید.
+        ایجنت شما آماده است. ابتدا خودتان یک گفتگو را امتحان کنید؛ سپس پاسخ‌های مشتری‌ها را بررسی کنید و از «بهبود ایجنت»، دانش، لحن و رفتار آن را به‌مرور بهتر کنید.
       </motion.p>
 
       <motion.div variants={staggerChild} className="mt-8">

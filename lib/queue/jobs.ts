@@ -307,3 +307,14 @@ async function handleEnqueueFailure(
   console.warn(`[queue] ${name} enqueue failed; awaiting inline fallback:`, error)
   await runInline()
 }
+
+/** Durable review jobs never fall back to an untracked web-process promise. */
+export async function dispatchImprovement(data: { runId: string }): Promise<void> {
+  if (isQueueDisabled()) throw new Error('QUEUE_UNAVAILABLE')
+  const queue = await getQueue(QUEUE_NAMES.improvement)
+  await queue.add('review', data, {
+    jobId: `improvement-${data.runId}-${crypto.randomUUID()}`,
+    removeOnComplete: true, removeOnFail: true,
+    attempts: 3, backoff: { type: 'exponential', delay: 15000 },
+  })
+}

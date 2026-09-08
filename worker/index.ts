@@ -4,6 +4,8 @@ import { QUEUE_NAMES, createQueueConnection } from '@/lib/queue/connection'
 import { processIngestion } from '@/lib/knowledge/ingest'
 import { processProductEmbed } from '@/lib/products/catalog'
 import { processSummary } from '@/lib/conversations/summary'
+import { processImprovement } from '@/lib/improvement/review'
+import { prisma } from '@/lib/prisma'
 import { processNotification } from '@/lib/notifications/notify'
 import { handleInbound, handleInstagramGlobalInbound } from '@/lib/channels/handler'
 import { processCampaign } from '@/lib/campaigns/process'
@@ -19,6 +21,9 @@ import { installProcessErrorObservers } from '@/lib/observability/process-errors
  */
 
 const connection = createQueueConnection()
+const improvementWorker = new Worker(QUEUE_NAMES.improvement, async (job) => {
+  await processImprovement(job.data)
+}, { connection, concurrency: 2 })
 installProcessErrorObservers('worker')
 
 const ingestionWorker = new Worker(
@@ -100,6 +105,7 @@ const wooWebhookWorker = new Worker(
 )
 
 for (const [name, w] of [
+  ['improvement', improvementWorker],
   ['ingestion', ingestionWorker],
   ['product-embed', productWorker],
   ['summary', summaryWorker],
@@ -109,6 +115,9 @@ for (const [name, w] of [
   ['woo-webhook', wooWebhookWorker],
 ] as const) {
   w.on('failed', (job, err) => {
+    if (name === 'improvement' && job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      void prisma.improvementRun.updateMany({ where: { id: job.data.runId, status: { in: ['QUEUED', 'RUNNING'] } }, data: { status: 'ERROR', error: 'WORKER_FAILED' } }).catch(() => {})
+    }
     captureError(`worker:${name}:job-failed`, err, {
       metadata: { jobId: job?.id, attemptsMade: job?.attemptsMade },
     })
@@ -126,6 +135,7 @@ async function shutdown() {
   console.log('[worker] shutting down…')
   stopScheduler()
   await Promise.all([
+    improvementWorker.close(),
     ingestionWorker.close(),
     productWorker.close(),
     summaryWorker.close(),

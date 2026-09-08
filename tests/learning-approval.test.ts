@@ -27,6 +27,7 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/queue/jobs', () => ({ dispatchIngestion: mocks.dispatchIngestion }))
 
 import { POST } from '@/app/api/agents/[agentId]/learning/approve/route'
+import { LEARNING_REVIEW_VERSION } from '@/lib/ai/learning-candidates'
 
 const props = { params: Promise.resolve({ agentId: 'agent-1' }) }
 
@@ -57,6 +58,7 @@ describe('learning approval ledger', () => {
         operator: true,
         question: 'ارسال چند روز طول می‌کشد؟',
         learningCandidate: { eligible: true },
+        learningReview: { version: LEARNING_REVIEW_VERSION, eligible: true },
       },
     })
     mocks.tx.knowledgeBase.create.mockResolvedValue({ id: 'kb-1' })
@@ -91,6 +93,44 @@ describe('learning approval ledger', () => {
       kbId: 'kb-1',
       text: expect.stringContaining('ارسال استاندارد'),
     })
+  })
+
+  it('accepts a reviewed intent instead of requiring the original wording', async () => {
+    const req = new Request('http://localhost/api/agents/agent-1/learning/approve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: 'message-1', question: 'مدت زمان معمول ارسال سفارش چقدر است؟', answer: 'ارسال استاندارد سه تا پنج روز کاری زمان می‌برد.' }),
+    })
+    expect((await POST(req, props)).status).toBe(200)
+    expect(mocks.tx.knowledgeApproval.create).toHaveBeenCalledWith({ data: expect.objectContaining({ question: 'مدت زمان معمول ارسال سفارش چقدر است؟', sourceMessageRef: 'message-1' }) })
+  })
+
+  it('rejects a source outside the owned pending queue', async () => {
+    mocks.tx.message.findFirst.mockResolvedValue(null)
+    expect((await POST(request(), props)).status).toBe(409)
+    expect(mocks.tx.knowledgeBase.create).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, { version: 'outdated', eligible: true }])('requires current analysis before approval (%j)', async (learningReview) => {
+    mocks.tx.message.findFirst.mockResolvedValue({
+      id: 'message-1', conversationId: 'conversation-1',
+      metadata: { question: 'ارسال چند روز طول می‌کشد؟', learningReview },
+    })
+    const response = await POST(request(), props)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'LEARNING_ANALYSIS_REQUIRED' })
+    expect(mocks.tx.knowledgeBase.create).not.toHaveBeenCalled()
+    expect(mocks.dispatchIngestion).not.toHaveBeenCalled()
+  })
+
+  it('rejects an AI-excluded source even when the submitted answer looks reusable', async () => {
+    mocks.tx.message.findFirst.mockResolvedValue({
+      id: 'message-1', conversationId: 'conversation-1',
+      metadata: { question: 'ارسال چند روز طول می‌کشد؟', learningReview: { version: LEARNING_REVIEW_VERSION, eligible: false } },
+    })
+    const response = await POST(request(), props)
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: 'LEARNING_SOURCE_NOT_ELIGIBLE' })
+    expect(mocks.tx.knowledgeBase.create).not.toHaveBeenCalled()
   })
 
   it('replays the existing KB instead of creating a duplicate on retry', async () => {

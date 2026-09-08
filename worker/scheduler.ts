@@ -1,5 +1,6 @@
 import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { sweepImprovement } from '@/lib/improvement/automation'
 import { getRedis } from '@/lib/redis'
 import { dispatchProductEmbed, dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
@@ -769,6 +770,9 @@ export function startScheduler(): () => void {
                 '[scheduler] started — hourly conversation, knowledge, and appointment sweeps + channel health + store sync + retention + billing lifecycle reminders',
         )
         // Kick off shortly after boot, then on their own cadences.
+        const runImprovementSweep = () => sweepImprovement().catch(() => console.error('[scheduler] improvement sweep failed'))
+        const initialImprovement = setTimeout(runImprovementSweep, 120_000)
+        const improvementInterval = setInterval(runImprovementSweep, HOUR_MS)
         const initialSweep = setTimeout(runSweep, 30_000)
         const sweepInterval = setInterval(runSweep, HOUR_MS)
 
@@ -834,6 +838,8 @@ export function startScheduler(): () => void {
         const channelHealthInterval = setInterval(runChannelHealthSweep, CHANNEL_HEALTH_INTERVAL_MS)
 
         return () => {
+                clearTimeout(initialImprovement)
+                clearInterval(improvementInterval)
                 clearTimeout(initialSweep)
                 clearInterval(sweepInterval)
                 clearTimeout(initialChannel)

@@ -457,29 +457,34 @@ export function AgentWizard({
                                                                         </div>
 
                                                                         {/* 6-layer prompt engine — always visible, prominently labelled */}
-                                                                        <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--accent-border)] bg-[linear-gradient(180deg,var(--accent-soft),transparent_45%)]">
+                                                                        <div className="mt-4 overflow-hidden rounded-2xl border border-black/[0.065] bg-black/[0.018]">
                                                                                 <button
                                                                                         type="button"
                                                                                         onClick={() => setShowEditor((v) => !v)}
+                                                                                        aria-expanded={showEditor}
+                                                                                        aria-controls="onboarding-behavior-editor"
                                                                                         className="flex w-full items-center justify-between gap-2 px-4 py-3 text-start"
                                                                                 >
                                                                                         <span className="flex items-center gap-2">
-                                                                                                <span className="grid h-8 w-8 place-items-center rounded-xl bg-[var(--accent)] text-white">
+                                                                                                <span className="grid h-8 w-8 place-items-center rounded-xl bg-black text-white">
                                                                                                         <Sparkles className="h-4 w-4" />
                                                                                                 </span>
                                                                                                 <span>
                                                                                                         <span className="block text-sm font-semibold text-[var(--text-primary)]">
-                                                                                                                {locale === 'fa' ? 'موتور پرامپت ۶ لایه‌ای' : 'Six-layer prompt engine'}
+                                                                                                                {locale === 'fa' ? 'بهبود رفتار ایجنت؛ بعد از اولین گفتگو' : 'Refine behavior after your first conversation'}
                                                                                                         </span>
                                                                                                         <span className="block text-[11px] text-[var(--text-muted)]">
-                                                                                                                {locale === 'fa' ? 'شخصیت، لحن، قلمرو، fallback، قالب، پرسش‌وپاسخ' : 'Personality · tone · scope · fallback · format · Q&A'}
+                                                                                                                {locale === 'fa' ? 'موتور ۶ لایه با تنظیمات پیشنهادی آماده است · ویرایش اختیاری' : 'Six layers are ready with suggested settings · editing is optional'}
                                                                                                         </span>
                                                                                                 </span>
                                                                                         </span>
                                                                                         {showEditor ? <ChevronUp className="h-4 w-4 text-[var(--text-muted)]" /> : <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />}
                                                                                 </button>
+                                                                                <p className="px-4 pb-4 text-sm leading-7 text-[var(--text-secondary)]">
+                                                                                        {locale === 'fa' ? 'برای شروع لازم نیست این تنظیمات را تغییر دهید. ایجنت را راه‌اندازی کنید و خودتان یا مشتری‌هایتان با آن گفتگو کنید. بعد، از «بهبود ایجنت» می‌توانید لحن، بایدها و نبایدها و نحوه پاسخ‌گویی را دقیقاً مطابق نیازتان بهتر کنید. معرفی کسب‌وکار و سؤال‌های متداول را در بخش دانش اضافه کنید.' : 'You can start with these defaults. Set up the agent and try conversations yourself or with customers. Then use Improve agent to refine its tone, rules and responses. Add business information and FAQs in Knowledge.'}
+                                                                                </p>
                                                                                 {showEditor && (
-                                                                                        <div className="space-y-4 border-t border-[var(--border-subtle)] bg-white/60 p-4">
+                                                                                        <div id="onboarding-behavior-editor" className="space-y-4 border-t border-[var(--border-subtle)] bg-white/60 p-4">
                                                                                                 <LayerField n={1} label={t('layerPersonality')}>
                                                                                                         <textarea
                                                                                                                 value={draft.personality}

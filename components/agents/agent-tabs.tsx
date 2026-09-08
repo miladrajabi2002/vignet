@@ -7,6 +7,7 @@ import { useLocale } from 'next-intl'
 import {
   MessageSquare,
   Settings,
+  SlidersHorizontal,
   Database,
   Share2,
   Package,
@@ -17,10 +18,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { useLearningCount } from '@/components/agents/learning-count'
 
 const ICONS: Record<string, LucideIcon> = {
   overview: MessageSquare,
   settings: Settings,
+  improve: SlidersHorizontal,
   knowledge: Database,
   catalog: Package,
   channels: Share2,
@@ -38,13 +41,14 @@ export interface AgentTabItem {
 export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabItem[] }) {
   const pathname = usePathname()
   const locale = useLocale()
+  const learning = useLearningCount()
   const base = `/agents/${agentId}`
   const [moreOpen, setMoreOpen] = useState(false)
   const moreTriggerRef = useRef<HTMLButtonElement>(null)
 
   const activeTab = tabs.find(({ href }) => href === base ? pathname === base : pathname.startsWith(href))
   const mobileTabs = useMemo(() => {
-    const preferred = ['overview', 'knowledge', 'channels']
+    const preferred = ['overview', 'improve', 'settings']
       .map((key) => tabs.find((tab) => tab.key === key))
       .filter((tab): tab is AgentTabItem => Boolean(tab))
     if (activeTab && !preferred.some((tab) => tab.key === activeTab.key)) {
@@ -56,6 +60,7 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
   useEffect(() => setMoreOpen(false), [pathname])
 
   function renderTab({ key, href, label, badge }: AgentTabItem, compact = false) {
+    if (key === 'improve' && learning) badge = learning.count
     const Icon = ICONS[key] ?? MessageSquare
     const active = href === base ? pathname === base : pathname.startsWith(href)
     return (
@@ -95,7 +100,7 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
 
   return (
     <>
-      <nav className="sticky top-[5.25rem] z-30 grid grid-cols-4 gap-1 border-t border-black/[0.055] bg-white/95 p-1.5 backdrop-blur-xl md:hidden" aria-label={locale === 'fa' ? 'بخش‌های ایجنت' : 'Agent sections'}>
+      <nav className="grid grid-cols-4 gap-1 border-t border-black/[0.055] bg-white/95 p-1.5 backdrop-blur-xl md:hidden" aria-label={locale === 'fa' ? 'بخش‌های ایجنت' : 'Agent sections'}>
         {mobileTabs.map((tab) => renderTab(tab, true))}
         <button
           ref={moreTriggerRef}

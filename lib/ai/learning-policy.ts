@@ -1,4 +1,4 @@
-export const LEARNING_POLICY_VERSION = 'learning-eligibility-v1'
+export const LEARNING_POLICY_VERSION = 'learning-eligibility-v2'
 
 export type LearningBlockReason =
   | 'PERSONAL_DATA'
@@ -6,6 +6,8 @@ export type LearningBlockReason =
   | 'TIME_SENSITIVE'
   | 'VOLATILE_COMMERCIAL_DATA'
   | 'SECRET_OR_CREDENTIAL'
+  | 'INCOMPLETE_DRAFT'
+  | 'CATALOG_SPECIFIC'
 
 export interface LearningEligibility {
   eligible: boolean
@@ -14,6 +16,8 @@ export interface LearningEligibility {
 }
 
 const RULES: Array<{ code: LearningBlockReason; pattern: RegExp }> = [
+  { code: 'CATALOG_SPECIFIC', pattern: /(?:کد(?:های)?\s*(?:(?:کالا|محصول)\s*)?[:#-]?\s*[a-z]*\d{2,}|\bsku\s*[:#-]?\s*[a-z0-9-]*\d[a-z0-9-]*|\bproduct\s+(?:code|id)\s*[:#-]?\s*[a-z0-9-]+)/iu },
+  { code: 'INCOMPLETE_DRAFT', pattern: /\[(?:[^\]]*(?:نیاز به تکمیل|صاحب کسب.وکار|owner input needed|fill in)[^\]]*)\]/iu },
   {
     code: 'PERSONAL_DATA',
     pattern:
@@ -27,7 +31,7 @@ const RULES: Array<{ code: LearningBlockReason; pattern: RegExp }> = [
   {
     code: 'ORDER_SPECIFIC',
     pattern:
-      /(?:(?:سفارش|مرسوله|فاکتور|تراکنش|پرداخت|استرداد|مرجوعی)\s*(?:من|شما|تان|تون|م|ت)|(?:سفارش|مرسوله|فاکتور|پیگیری)\s*(?:شماره|کد|#)\s*[A-Z0-9_-]+|کد\s*پیگیری|وضعیت\s+(?:سفارش|مرسوله|پرداخت)\s+(?:من|شما)|my\s+(?:order|shipment|invoice|payment|refund)|your\s+(?:order|shipment|invoice|payment|refund)|order\s*(?:id|number|#)\s*[:#-]?\s*[A-Z0-9_-]+)/iu,
+      /(?:(?:سفارش|مرسوله|فاکتور|تراکنش|پرداخت|استرداد|مرجوعی)\s*(?:من|شما|تان|تون|م|ت)(?=[\s؟?!.،]|$)|(?:سفارش|مرسوله|فاکتور|پیگیری)\s*(?:شماره|کد|#)\s*[A-Z0-9_-]+|کد\s*پیگیری|وضعیت\s+(?:سفارش|مرسوله|پرداخت)\s+(?:من|شما)|my\s+(?:order|shipment|invoice|payment|refund)|your\s+(?:order|shipment|invoice|payment|refund)|order\s*(?:id|number|#)\s*[:#-]?\s*[A-Z0-9_-]+)/iu,
   },
   {
     code: 'TIME_SENSITIVE',
@@ -50,7 +54,7 @@ export function evaluateLearningEligibility(
   question: string,
   answer: string,
 ): LearningEligibility {
-  const sample = `${question}\n${answer}`.normalize('NFKC')
+  const sample = `${question}\n${answer}`.normalize('NFKC').replace(/[۰-۹٠-٩]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.includes(digit) ? '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit) : '٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
   const reasonCodes = RULES
     .filter((rule) => rule.pattern.test(sample))
     .map((rule) => rule.code)

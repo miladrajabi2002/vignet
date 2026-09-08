@@ -1,13 +1,12 @@
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
+import { getTranslations, getLocale } from 'next-intl/server'
 import { Bot } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { AgentTabs, type AgentTabItem } from '@/components/agents/agent-tabs'
 import { BackButton } from '@/components/dashboard/back-button'
 import { cn } from '@/lib/utils'
-import { getDashboardModules } from '@/lib/verticals/registry'
-import { readBusinessProfile } from '@/lib/verticals/profile'
+import { LearningCountProvider } from '@/components/agents/learning-count'
 
 export default async function AgentLayout(
   props: {
@@ -23,6 +22,7 @@ export default async function AgentLayout(
 
   const user = await requireUser()
   const t = await getTranslations('agents')
+  const isFa = (await getLocale()) !== 'en'
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
@@ -30,27 +30,18 @@ export default async function AgentLayout(
   })
   if (!agent) notFound()
 
-  const learningCount = await prisma.message.count({
-    where: {
-      role: 'ASSISTANT',
-      unanswered: true,
-      conversation: { agentId: agent.id, workspaceId: user.workspaceId },
-    },
-  })
+  const learningCount = await prisma.improvementSuggestion.count({ where: { workspaceId: user.workspaceId, agentId: agent.id, status: 'PENDING' } })
 
-  const profile = readBusinessProfile(agent.workspace.businessProfile)
-  const modules = getDashboardModules(agent.workspace.businessType, profile?.services)
   const tabs: AgentTabItem[] = [
     { key: 'overview', href: `/agents/${agent.id}`, label: t('overview') },
+    { key: 'improve', href: `/agents/${agent.id}/improve`, label: isFa ? 'بهبود ایجنت' : 'Improve agent', badge: learningCount },
     { key: 'settings', href: `/agents/${agent.id}/settings`, label: t('settings') },
-    { key: 'knowledge', href: `/agents/${agent.id}/knowledge`, label: t('knowledge') },
-    ...(modules.includes('products') ? [{ key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('storeAccessTab') }] : []),
     { key: 'channels', href: `/agents/${agent.id}/channels`, label: t('channels') },
-    { key: 'learning', href: `/agents/${agent.id}/learning`, label: t('learning'), badge: learningCount },
     { key: 'analytics', href: `/agents/${agent.id}/analytics`, label: t('analytics') },
   ]
 
   return (
+    <LearningCountProvider key={agent.id} initialCount={learningCount}>
     <div className="mx-auto max-w-7xl space-y-6">
       <BackButton href="/agents" label={t('title')} />
       <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
@@ -90,5 +81,6 @@ export default async function AgentLayout(
 
       {children}
     </div>
+    </LearningCountProvider>
   )
 }
