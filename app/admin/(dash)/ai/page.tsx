@@ -68,7 +68,7 @@ const TYPE_LABELS: Record<string, string> = {
   TTS: 'تبدیل متن به صدا',
   STT: 'تبدیل صدا به متن',
   SUMMARY: 'خلاصه‌سازی',
-  LEARNING: 'یادگیری',
+  LEARNING: 'تحلیل و بهبود',
   VIGENTO_DRAFT: 'ویجنتو',
 }
 

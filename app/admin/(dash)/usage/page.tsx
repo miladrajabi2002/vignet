@@ -24,7 +24,7 @@ const TYPE_LABEL: Record<string, string> = {
   TTS: 'تبدیل متن به گفتار',
   STT: 'تبدیل گفتار به متن',
   SUMMARY: 'خلاصه‌سازی',
-  LEARNING: 'یادگیری',
+  LEARNING: 'تحلیل و بهبود',
   VIGENTO_DRAFT: 'ساخت ایجنت با ویجنتو',
   VIGENTO_ASSISTANT: 'دستیار ویجنتو',
 }

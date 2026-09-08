@@ -143,7 +143,7 @@ export async function applyImprovement(workspaceId: string, agentId: string, act
         before = { created: true }
         after = { question: draft.question, answer: draft.answer, knowledgeVersion: 1 }
         await tx.knowledgeApproval.create({ data: { agentId, workspaceId, knowledgeBaseId: kb.id, sourceMessageRef: `improvement:${s.id}`,
-          sourceConversationId: s.evidence[0].review.conversationId, source: 'OPERATOR_REPLY', question: draft.question, answer: draft.answer,
+          sourceConversationId: s.evidence[0].review.conversationId, question: draft.question, answer: draft.answer,
           contentHash, verifiedByUserId: actorId, verifiedByUserRef: actorId, policyVersion: LEARNING_POLICY_VERSION } })
       }
     } else {

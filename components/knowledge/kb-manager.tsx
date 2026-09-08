@@ -130,10 +130,6 @@ export function KbManager({
   }
 
   async function startEdit(item: KbItem) {
-    if (item.type === 'FAQ' && item.name.startsWith('❓ ')) {
-      router.push(`/agents/${agentId}/improve?tab=learning&view=approved`)
-      return
-    }
     setEditingId(item.id)
     setEditName(item.name)
     setEditError(null)
