@@ -25,18 +25,13 @@ import { MaterialSelect } from '@/components/ui/material-select'
 import type { ModelAlias } from '@/lib/ai/models'
 import {
         buildLayeredPrompt,
-        getRoleTemplate,
-        getRoleTemplatesForBusiness,
-        getSuggestedRoleTemplate,
         hasMeaningfulPromptConfig,
         normalizePromptConfig,
         type NormalizedPromptConfig,
         type PromptConfig,
         type PromptFormatConfig,
         type PromptQAPair,
-        type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
-import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
 import { NaturalConversationControls } from '@/components/agent-builder/natural-conversation-controls'
 
 const EMPTY_CONFIG: PromptConfig = {
@@ -76,13 +71,11 @@ export function AgentSettingsForm({
         section = 'general',
         storeAccess,
         agent,
-        businessType,
         modelPolicy,
 }: {
         section?: 'general' | 'behavior'
         storeAccess?: React.ReactNode
         agent: AgentSettingsData
-        businessType?: BusinessTypeValue | null
         modelPolicy: {
                 plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
                 enabledModels: ModelAlias[]
@@ -96,10 +89,6 @@ export function AgentSettingsForm({
         const tc = useTranslations('common')
         const locale = useLocale() === 'en' ? 'en' : 'fa'
         const router = useRouter()
-        const roleTemplates = useMemo(() => getRoleTemplatesForBusiness(businessType), [businessType])
-        const businessLabel = locale === 'fa'
-                ? getVerticalPack(businessType).titleFa
-                : getVerticalPack(businessType).titleEn
 
         const [form, setForm] = useState({
                 name: agent.name,
@@ -136,14 +125,6 @@ export function AgentSettingsForm({
                         cancelled = true
                 }
         }, [])
-        const [activeRole, setActiveRole] = useState<RoleTemplate | null>(() => {
-                if (agent.roleTemplate) {
-                        const exact = getRoleTemplate(agent.roleTemplate)
-                        if (exact && roleTemplates.some((role) => role.key === exact.key)) return exact
-                        return getSuggestedRoleTemplate(businessType, agent.roleTemplate)
-                }
-                return null
-        })
         const [activeTab, setActiveTab] = useState<LayerTab>('personality')
         const [showPreview, setShowPreview] = useState(false)
 
@@ -160,11 +141,6 @@ export function AgentSettingsForm({
 
         const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
                 setForm((f) => ({ ...f, [k]: v }))
-
-        function applyRoleTemplate(role: RoleTemplate) {
-                setActiveRole(role)
-                setPromptConfig(normalizePromptConfig(role.config))
-        }
 
         const previewPrompt = useMemo(() => {
                 const isFa = form.language !== 'en'
@@ -186,7 +162,7 @@ export function AgentSettingsForm({
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(section === 'behavior' ? {
                                 promptConfig: hasStructured ? promptConfig : null,
-                                roleTemplate: activeRole?.key ?? null,
+                                roleTemplate: agent.roleTemplate,
                         } : {
                                 ...form,
                                 handoffKeywords: keywords,
@@ -296,58 +272,6 @@ export function AgentSettingsForm({
                                 </div>
                                 {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
 
-                                {/* Optional preset replacement stays secondary to editing behavior. */}
-                                <details className="rounded-2xl border border-black/[0.065] px-4">
-                                        <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-2 py-3 text-xs font-semibold text-[var(--text-secondary)]">
-                                                <span>{locale === 'fa' ? 'تغییر قالب آماده (اختیاری)' : 'Change preset (optional)'}</span>
-                                                <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                        </summary>
-                                        <p className="mb-3 text-xs leading-6 text-[var(--text-muted)]">{locale === 'fa' ? 'انتخاب یک قالب، تنظیمات این بخش را جایگزین می‌کند؛ سپس می‌توانید ویرایش و ذخیره کنید.' : 'Selecting a preset replaces this section’s settings. You can then edit and save them.'}</p>
-                                <div className="pb-4">
-                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                                <p className="text-xs text-[var(--text-muted)]">{tf('roleTemplateLabel')}</p>
-                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
-                                                        {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
-                                                </span>
-                                        </div>
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                                {roleTemplates.map((role) => {
-                                                        const selected = activeRole?.key === role.key
-                                                        const custom = role.key === 'custom'
-                                                        return (
-                                                                <button
-                                                                        key={role.key}
-                                                                        type="button"
-                                                                        onClick={() => applyRoleTemplate(role)}
-                                                                        className={`min-h-[7rem] rounded-2xl border p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-200 ${
-                                                                                selected
-                                                                                        ? 'border-black bg-black/[0.035] shadow-[var(--shadow-xs)]'
-                                                                                        : 'border-[var(--border-default)] bg-white hover:border-black/25 hover:bg-black/[0.015]'
-                                                                        }`}
-                                                                >
-                                                                        <div className="flex items-start justify-between gap-3">
-                                                                                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                                                                                        {locale === 'fa' ? role.nameFa : role.nameEn}
-                                                                                </p>
-                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
-                                                                                        <Sparkles className="h-3 w-3" />
-                                                                                </span>
-                                                                        </div>
-                                                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                                                                                {locale === 'fa' ? role.descFa : role.descEn}
-                                                                        </p>
-                                                                        <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
-                                                                                {custom
-                                                                                        ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
-                                                                                        : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
-                                                                        </p>
-                                                                </button>
-                                                        )
-                                                })}
-                                        </div>
-                                </div>
-
-                                </details>
                                 {/* Layer tabs */}
                                 <div className="grid grid-cols-3 gap-1 border-b border-[var(--border-subtle)] pb-2 sm:flex sm:flex-wrap">
                                         {tabs.map(({ key, label, icon: Icon }) => (

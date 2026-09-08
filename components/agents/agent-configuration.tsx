@@ -18,7 +18,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { plan: true, aiCreditBalanceIRR: true, businessType: true },
+      select: { plan: true, aiCreditBalanceIRR: true },
     }),
     getPlatformAiConfig(),
   ])
@@ -29,7 +29,6 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
       <AgentSettingsForm
         section={section}
         storeAccess={section === 'general' ? <AgentStoreAccess agentId={agentId} /> : undefined}
-        businessType={workspace?.businessType}
         modelPolicy={{
           plan: workspace?.plan ?? 'TRIAL',
           enabledModels: platformPolicy.enabledModels,
