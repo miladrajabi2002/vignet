@@ -116,7 +116,7 @@ export const agentCreateSchema = z.object({
   fallbackMessage: z.string().max(500).optional(),
   handoffEnabled: z.boolean().optional(),
   handoffMessage: z.string().max(500).optional(),
-  handoffKeywords: z.array(z.string().max(50)).max(20).optional(),
+  handoffKeywords: z.array(z.string().max(50)).max(50).optional(),
   // ─ F1: layered prompt
   promptConfig: promptConfigSchema.nullable().optional(),
   roleTemplate: z.enum(roleTemplateKeys).optional(),

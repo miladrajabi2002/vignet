@@ -15,6 +15,19 @@ import { agentCreateSchema } from '@/lib/validations/agent'
 const source = (file: string) => readFileSync(path.join(process.cwd(), file), 'utf8')
 
 describe('managed agent generation settings', () => {
+  it('accepts up to 50 handoff keyword phrases', () => {
+    const keywords = Array.from({ length: 51 }, (_, index) => `keyword-${index + 1}`)
+
+    expect(agentCreateSchema.safeParse({
+      name: 'Support agent',
+      handoffKeywords: keywords.slice(0, 50),
+    }).success).toBe(true)
+    expect(agentCreateSchema.safeParse({
+      name: 'Support agent',
+      handoffKeywords: keywords,
+    }).success).toBe(false)
+  })
+
   it('uses one bounded reply profile for customer-facing agents', () => {
     expect(AGENT_MAX_RESPONSE_TOKENS).toBe(600)
     expect(AGENT_RESPONSE_TEMPERATURE).toBe(0.3)

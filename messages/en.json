@@ -384,7 +384,7 @@
       "handoffMessagePlaceholder": "e.g. Connecting you to a human agent, please wait...",
       "handoffKeywords": "Handoff trigger keywords",
       "handoffKeywordsPlaceholder": "e.g. manager, complaint, human",
-      "handoffKeywordsHint": "Comma-separated — if the user types any of these, the conversation is escalated to a human",
+      "handoffKeywordsHint": "Comma-separated (up to 50 phrases) — if the user types any of these, the conversation is escalated to a human",
       "longChatAutoHandoffHint": "A conversation is also auto-escalated if it drags past the allowed message limit ({threshold} messages) — meaning the agent likely can't resolve it. The limit is set with the LONG_CHAT_THRESHOLD env var.",
       "voiceEnabled": "Voice responses",
       "promptEngineTitle": "Behavior & tone · Six-layer engine",
