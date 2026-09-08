@@ -32,6 +32,20 @@ describe('marketing launch performance boundaries', () => {
 	it.each([
 		['fa', faMessages],
 		['en', enMessages],
+	] as const)('keeps every scoped %s message path backed by the locale catalog', (_locale, messages) => {
+		for (const paths of [
+			MARKETING_CLIENT_MESSAGE_PATHS,
+			AUTH_CLIENT_MESSAGE_PATHS,
+			DASHBOARD_CLIENT_MESSAGE_PATHS,
+			ADMIN_CLIENT_MESSAGE_PATHS,
+		]) {
+			expect(() => pickClientMessages(messages, paths)).not.toThrow()
+		}
+	})
+
+	it.each([
+		['fa', faMessages],
+		['en', enMessages],
 	] as const)('serializes only the %s client message subset', (_locale, messages) => {
 		const scoped = pickClientMessages(messages, MARKETING_CLIENT_MESSAGE_PATHS)
 		const fullBytes = Buffer.byteLength(JSON.stringify(messages))

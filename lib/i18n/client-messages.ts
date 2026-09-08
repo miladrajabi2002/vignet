@@ -56,7 +56,6 @@ export const AUTH_CLIENT_MESSAGE_PATHS = ['auth'] as const
 export const DASHBOARD_CLIENT_MESSAGE_PATHS = [
 	'common',
 	'notifications',
-	'learning',
 	'dashboard',
 	'settings',
 	'agents',
