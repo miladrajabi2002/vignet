@@ -88,7 +88,7 @@ export default async function AdminBlogPage() {
         ]}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard
           label="کل مقالات"
           value={fa(totalPosts)}

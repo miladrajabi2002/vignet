@@ -59,7 +59,7 @@ export default async function AdminAgentsPage({ searchParams }: { searchParams: 
         <AdminUsersSearchForm defaultQuery={q} placeholder="جستجوی نام ایجنت یا کسب‌وکار…" ariaLabel="جستجوی ایجنت‌ها" basePath="/admin/agents" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard label="کل ایجنت‌ها" value={fa(totalAgents)} icon={<Bot className="h-5 w-5" />} />
         <StatCard label="ایجنت فعال" value={fa(activeAgents)} icon={<Sparkles className="h-5 w-5" />} />
         <StatCard label="گفتگو در ۷ روز" value={fa(conversations7d)} icon={<MessageSquare className="h-5 w-5" />} />

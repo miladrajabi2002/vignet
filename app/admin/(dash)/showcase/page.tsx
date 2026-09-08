@@ -41,7 +41,7 @@ export default async function AdminShowcasePage() {
 				]}
 			/>
 
-			<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+			<div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
 				<StatCard
 					label="کل مشتریان ثبت‌شده"
 					value={fa(rows.length)}

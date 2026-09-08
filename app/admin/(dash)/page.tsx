@@ -173,7 +173,7 @@ export default async function AdminOverviewPage(
       {/* ─── Executive pulse — every KPI carries its own mini trend ─── */}
       <section aria-labelledby="executive-pulse-title">
         <h2 id="executive-pulse-title" className="sr-only">شاخص‌های کلیدی</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard
           label="درآمد امروز"
           value={fmtIRR(revenueToday._sum.amount ?? 0)}
@@ -263,7 +263,7 @@ export default async function AdminOverviewPage(
             مدیریت و جزئیات
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 min-[1380px]:grid-cols-4">
           <StatCard
             label="هزینه واقعی OpenRouter"
             value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`}

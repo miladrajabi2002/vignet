@@ -67,7 +67,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard label="کل گفتگو" value={fa(agent._count.conversations)} icon={<MessageSquare className="h-5 w-5" />} />
         <StatCard label="دانش آماده" value={`${fa(readyKnowledge)} / ${fa(agent._count.knowledgeBases)}`} icon={<BrainCircuit className="h-5 w-5" />} />
         <StatCard label="اتصال‌ها" value={fa(agent._count.channels)} icon={<Cable className="h-5 w-5" />} />

@@ -1209,7 +1209,7 @@ export default async function AdminUserDetailPage(
       {/* ═══ TAB: CHANNELS ═══ */}
       {tab === 'channels' && channelsTab && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
             <StatCard label="کل اتصال‌ها" value={channelsTab.total} icon={<Cable className="h-4 w-4" />} />
             <StatCard label="فعال" value={channelsTab.activeCount} tone="success" icon={<Check className="h-4 w-4" />} />
             <StatCard label="ورودی در ۷ روز اخیر" value={channelsTab.recentInbound} tone="info" icon={<Activity className="h-4 w-4" />} sub="کانال‌هایی که پیام دریافت کرده‌اند" />
@@ -1269,7 +1269,7 @@ export default async function AdminUserDetailPage(
       {/* ═══ TAB: KNOWLEDGE ═══ */}
       {tab === 'knowledge' && knowledgeTab && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
             <StatCard label="منابع دانش" value={knowledgeTab.total} icon={<Database className="h-4 w-4" />} />
             <StatCard label="آماده استفاده" value={knowledgeTab.ready} tone="success" icon={<Check className="h-4 w-4" />} />
             <StatCard label="قطعه‌های دانش" value={knowledgeTab.chunks} tone="info" icon={<FileText className="h-4 w-4" />} sub="قطعه‌های قابل بازیابی توسط AI" />
@@ -1340,7 +1340,7 @@ export default async function AdminUserDetailPage(
       {/* ═══ TAB: PRODUCTS ═══ */}
       {tab === 'products' && productsTab && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
             <StatCard label="کل محصولات" value={productsTab.total} icon={<Package className="h-4 w-4" />} />
             <StatCard label="فعال" value={productsTab.activeCount} tone="success" icon={<Check className="h-4 w-4" />} />
             <StatCard label="ناموجود" value={productsTab.outOfStock} tone={productsTab.outOfStock > 0 ? 'warning' : 'default'} icon={<Boxes className="h-4 w-4" />} sub="موجودی صفر" />
@@ -1408,7 +1408,7 @@ export default async function AdminUserDetailPage(
       {/* ═══ TAB: ORDERS ═══ */}
       {tab === 'orders' && ordersTab && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
             <StatCard label="کل سفارش‌ها" value={orderStats.total} icon={<ShoppingCart className="h-4 w-4" />} />
             <StatCard label="تکمیل‌شده" value={orderStats.completed} tone="success" icon={<Check className="h-4 w-4" />} />
             <StatCard label="در جریان" value={orderStats.processing + orderStats.pending} tone="warning" icon={<Activity className="h-4 w-4" />} sub="در حال پردازش یا در انتظار پرداخت" />

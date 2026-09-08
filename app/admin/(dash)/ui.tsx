@@ -172,14 +172,14 @@ export function StatCard({
           <p className="text-[11px] font-medium text-black/45">{label}</p>
           <p
             className={cn(
-              "mt-2 flex flex-wrap items-baseline gap-x-1.5 text-[clamp(1.25rem,3vw,1.8rem)] font-bold leading-tight tracking-tight tabular-nums",
+              "mt-2 flex flex-wrap items-baseline gap-x-1 text-[clamp(0.9rem,3.4vw,1.8rem)] font-bold leading-tight tracking-tight tabular-nums sm:gap-x-1.5",
               valueColor,
             )}
           >
             {unitMatch ? (
               <>
                 <span className="whitespace-nowrap">{unitMatch[1]}</span>
-                <span className="whitespace-nowrap text-[clamp(0.68rem,1.5vw,0.9rem)] font-semibold tracking-normal text-black/50">
+                <span className="whitespace-nowrap text-[clamp(0.6rem,1.6vw,0.85rem)] font-semibold tracking-normal text-black/50">
                   {unitMatch[2]}
                 </span>
               </>

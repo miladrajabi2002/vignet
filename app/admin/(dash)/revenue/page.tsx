@@ -138,7 +138,7 @@ export default async function AdminRevenuePage() {
       </Panel>
 
       {/* Commercial growth KPIs — transaction detail belongs to Payments. */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard
           label="MRR (تومان)"
           value={fmtIRR(kpi.mrrIRR)}

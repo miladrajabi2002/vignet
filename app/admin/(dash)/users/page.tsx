@@ -258,7 +258,7 @@ export default async function AdminUsersPage(
       {/* Stats — the workspace KPI was dropped: every user owns exactly one
           workspace (1:1), so it duplicated the user count. Customer count is
           the real adoption signal instead. */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard
           label="کل کاربران"
           value={totalCount}

@@ -213,7 +213,7 @@ export default async function AdminPaymentsPage(
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard
           label="درآمد کل (تومان)"
           value={fmtIRR(kpi.totalIRR)}
