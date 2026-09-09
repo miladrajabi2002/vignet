@@ -79,6 +79,68 @@ export const reviewSchema = z.object({
   }
 })
 export type ReviewResult = z.infer<typeof reviewSchema>
+
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+function boundedString(value: unknown, max: number) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : ''
+}
+
+function evidenceIds(value: unknown, knownMessageIds: Set<string>, max = 8) {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((id): id is string => typeof id === 'string' && knownMessageIds.has(id)))].slice(0, max)
+}
+
+/**
+ * Models occasionally return one malformed or unsupported finding while the
+ * rest of the review is valid. Treat model output as untrusted data and keep
+ * only contract-valid, evidence-backed items instead of failing (and charging)
+ * the entire conversation because of one bad array member.
+ */
+export function normalizeReviewResult(
+  value: unknown,
+  context: { messageIds: Set<string>; knowledgeIds: Set<string>; contactId?: string | null; hasCustomerMessages: boolean },
+): ReviewResult {
+  const input = record(value)
+  const intentMessageIds = evidenceIds(input.intentMessageIds, context.messageIds)
+  const requestedOutcome = input.outcome === 'RESOLVED' || input.outcome === 'UNRESOLVED' || input.outcome === 'UNKNOWN'
+    ? input.outcome
+    : 'UNKNOWN'
+  const outcomeMessageIds = evidenceIds(input.outcomeMessageIds, context.messageIds)
+
+  const strengths = (Array.isArray(input.strengths) ? input.strengths : []).flatMap((raw) => {
+    const item = record(raw)
+    const title = boundedString(item.title, 400)
+    const messageIds = evidenceIds(item.messageIds, context.messageIds)
+    return title && messageIds.length ? [{ title, messageIds }] : []
+  }).slice(0, 5)
+
+  const findings = (Array.isArray(input.findings) ? input.findings : []).flatMap((raw) => {
+    const parsed = findingSchema.safeParse(raw)
+    if (!parsed.success) return []
+    try {
+      validateFinding(parsed.data, context.messageIds, context.knowledgeIds, context.contactId)
+      return [parsed.data]
+    } catch {
+      return []
+    }
+  }).slice(0, 8)
+
+  const intent = boundedString(input.intent, 1200)
+  return reviewSchema.parse({
+    intent: context.hasCustomerMessages && intent && !intentMessageIds.length ? '' : intent,
+    intentMessageIds,
+    outcome: requestedOutcome !== 'UNKNOWN' && !outcomeMessageIds.length ? 'UNKNOWN' : requestedOutcome,
+    outcomeMessageIds: requestedOutcome !== 'UNKNOWN' && outcomeMessageIds.length ? outcomeMessageIds : [],
+    summary: boundedString(input.summary, 2400),
+    strengths,
+    findings,
+  })
+}
 export const settingsSchema = z.object({
   daily: z.boolean().default(false),
   count: z.number().int().min(1).max(100).default(50),
@@ -93,9 +155,14 @@ export function normalizedTopic(value: string) {
   return value.normalize('NFKC').replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase().replace(/[\s‌_-]+/g, ' ').trim()
 }
 export function conversationWhere(workspaceId: string, agentId: string, input: Selection): Prisma.ConversationWhereInput {
+  // Search and filters help discover conversations. Once the owner explicitly
+  // selects rows, those ids are the source of truth and must not disappear just
+  // because the search term changes while they pick another page of results.
+  if (input.mode === 'selected') {
+    return { workspaceId, agentId, id: { in: [...new Set(input.ids)] } }
+  }
   return {
     workspaceId, agentId,
-    ...(input.mode === 'selected' ? { id: { in: [...new Set(input.ids)] } } : {}),
     ...(input.contactId ? { contactId: input.contactId } : {}),
     ...(input.channel ? { channel: input.channel } : {}),
     ...(input.from || input.to ? { lastMessageAt: { ...(input.from ? { gte: new Date(input.from) } : {}), ...(input.to ? { lte: new Date(input.to) } : {}) } } : {}),

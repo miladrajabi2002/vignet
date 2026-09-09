@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { behaviorValue, changeBehavior, conversationWhere, draftSchema, normalizedTopic, selectionSchema, restoreBehavior, transcriptSegments, validateFinding } from '@/lib/improvement/types'
 
 describe('conversation improvement boundaries', () => {
-  it('keeps workspace and agent scope with search, selection and handoff filters', () => {
+  it('keeps explicit selections stable while search and filters change', () => {
     const input = selectionSchema.parse({ mode: 'selected', ids: ['own', 'own'], search: 'ارسال', attention: 'handoff' })
     const where = conversationWhere('workspace', 'agent', input)
-    expect(where).toMatchObject({ workspaceId: 'workspace', agentId: 'agent', id: { in: ['own'] }, handedOff: true })
-    expect(where.OR).toHaveLength(3)
+    expect(where).toEqual({ workspaceId: 'workspace', agentId: 'agent', id: { in: ['own'] } })
     expect(input.includeReviewed).toBe(false)
+  })
+  it('applies search and attention filters while discovering conversations', () => {
+    const where = conversationWhere('workspace', 'agent', selectionSchema.parse({ search: 'ارسال', attention: 'handoff' }))
+    expect(where).toMatchObject({ workspaceId: 'workspace', agentId: 'agent', handedOff: true })
+    expect(where.OR).toHaveLength(3)
   })
   it('rejects empty selections, excessive batches and inverted dates', () => {
     expect(selectionSchema.safeParse({ mode: 'selected', ids: [] }).success).toBe(false)

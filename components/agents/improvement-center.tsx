@@ -52,6 +52,7 @@ type Suggestion = { conversationCount: number; monitoring?: { reviewed: number; 
 type Run = { id: string; status: string; total: number; createdAt: string; error: string | null; source?: 'manual' | 'automatic'; chargedIRR: number; requestCount: number; reviews: { id: string; status: string }[] }
 type Settings = { daily: boolean; count: number; autoBehavior: boolean; allowedPaths: ('format.length' | 'conversation.avoidRepeatedGreetings')[] }
 type Pricing = { modelAlias: string; modelNameFa: string; modelNameEn: string; requestPriceIRR: number; previewRequestCount: number }
+type Estimate = { count: number; estimatedCreditIRR: number; requestCount: number; requestPriceIRR: number; modelNameFa: string; modelNameEn: string }
 type Overview = { runTotal: number; activeRun: Run | null; suggestionTotal: number; runs: Run[]; suggestions: Suggestion[]; pendingCount: number; settings: Settings; pricing: Pricing; creditBalanceIRR: number }
 type Conversation = { id: string; channel: string; status: string; messageCount: number; lastMessageAt: string | null; contactId: string | null; contact: { name: string | null; phone: string | null } | null; messages: { content: string }[] }
 type Review = { id: string; conversationId: string; status: string; result: ReviewResult | null; conversation: { channel: string; contact: { name: string | null } | null } }
@@ -76,6 +77,12 @@ const errors: Record<string, [string, string]> = {
   EVIDENCE_REQUIRED: ['گفتگوی مرجع حذف شده و این پیشنهاد قابل اعمال نیست.', 'The source conversation was removed.'],
 }
 const statusLabels: Record<string, [string, string]> = { PENDING: ['در انتظار', 'Pending'], PROCESSING: ['در حال بررسی', 'Reviewing'], QUEUED: ['در صف', 'Queued'], RUNNING: ['در حال تحلیل', 'Running'], DONE: ['تکمیل شد', 'Completed'], ERROR: ['نیاز به تلاش مجدد', 'Retry needed'], PARTIAL: ['بخشی نیاز به تلاش مجدد دارد', 'Partially completed'], CANCELLED: ['متوقف شد', 'Stopped'], APPLIED: ['اعمال شد', 'Applied'], DISMISSED: ['کنار گذاشته شد', 'Dismissed'], REVERTED: ['بازگردانده شد', 'Reverted'], READY: ['دانش آماده است', 'Knowledge ready'], RESOLVED: ['حل‌شده', 'Resolved'], UNRESOLVED: ['حل‌نشده', 'Unresolved'], UNKNOWN: ['نتیجه نامشخص', 'Unknown outcome'] }
+const overviewLoadErrors = new Set([
+  'دریافت اطلاعات ممکن نشد؛ دوباره تلاش کنید.',
+  'Could not load data. Please retry.',
+  'ارتباط موقتاً برقرار نیست؛ در حال تلاش دوباره هستیم.',
+  'Connection is temporarily unavailable. Retrying automatically.',
+])
 const behaviorLabels: Record<string, [string, string]> = {
   doSay: ['دستور روند گفتگو', 'Conversation flow instruction'],
   'format.length': ['طول پاسخ', 'Reply length'], 'conversation.formality': ['رسمیت لحن', 'Formality'], 'conversation.followUp': ['سؤال پیگیری', 'Follow-up questions'],
@@ -140,11 +147,11 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   const date = (v: string) => formatLocalizedDateTime(v, fa ? 'fa' : 'en')
   const base = `/api/agents/${agentId}/improvement`
   const [data, setData] = useState<Overview | null>(null)
-  const [tab, setTab] = useState<'suggestions' | 'conversations' | 'history'>('suggestions')
+  const [tab, setTab] = useState<'suggestions' | 'history'>('suggestions')
   const [suggestionPage, setSuggestionPage] = useState(1)
   const [runPage, setRunPage] = useState(1)
   const historyView = tab === 'history'
-  const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState('')
+  const [error, setError] = useState(''), [busy, setBusy] = useState('')
   const busyRef = useRef(false)
   const [selectOpen, setSelectOpen] = useState(false), [settingsOpen, setSettingsOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -154,28 +161,50 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   const suggestionTriggerRef = useRef<HTMLButtonElement>(null)
   const resultsTriggerRef = useRef<HTMLButtonElement>(null)
   const [selection, setSelection] = useState<Selection>(initialSelection)
-  const [estimate, setEstimate] = useState<{ count: number; estimatedCreditIRR: number; requestCount: number; requestPriceIRR: number; modelNameFa: string; modelNameEn: string } | null>(null)
+  const [estimate, setEstimate] = useState<Estimate | null>(null)
+  const [estimateLoading, setEstimateLoading] = useState(false)
+  const [estimateError, setEstimateError] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([]), [total, setTotal] = useState(0), [page, setPage] = useState(1), [searching, setSearching] = useState(false)
   const [runId, setRunId] = useState<string | null>(null), [reviews, setReviews] = useState<Review[]>([]), [reviewPage, setReviewPage] = useState(1), [reviewTotal, setReviewTotal] = useState(0)
   const setCount = useLearningCount()?.setCount
+  const hasActiveRun = Boolean(data?.activeRun)
+  const refreshFailuresRef = useRef(0)
+  const sessionRedirectingRef = useRef(false)
+  const handleUnauthorized = useCallback((response: Response) => {
+    if (response.status !== 401) return false
+    if (!sessionRedirectingRef.current) {
+      sessionRedirectingRef.current = true
+      window.location.replace('/api/auth/force-logout')
+    }
+    return true
+  }, [])
   const refresh = useCallback(async () => {
     const response = await fetch(`${base}?suggestionPage=${suggestionPage}&history=${historyView ? '1' : '0'}&runPage=${runPage}`, { cache: 'no-store' })
+    if (handleUnauthorized(response)) return
     if (!response.ok) throw new Error('FAILED')
     const fresh: Overview = await response.json()
+    refreshFailuresRef.current = 0
+    setError((current) => overviewLoadErrors.has(current) ? '' : current)
     setData(fresh); setCount?.(fresh.pendingCount)
-  }, [base, setCount, suggestionPage, historyView, runPage])
+  }, [base, handleUnauthorized, setCount, suggestionPage, historyView, runPage])
   useEffect(() => {
     let mounted = true
-    const update = () => refresh().catch(() => { if (mounted) setError(fa ? 'دریافت اطلاعات ممکن نشد؛ دوباره تلاش کنید.' : 'Could not load data. Please retry.') })
+    const update = () => refresh().catch(() => {
+      if (!mounted || sessionRedirectingRef.current) return
+      refreshFailuresRef.current += 1
+      if (refreshFailuresRef.current >= 2) setError(fa ? 'ارتباط موقتاً برقرار نیست؛ در حال تلاش دوباره هستیم.' : 'Connection is temporarily unavailable. Retrying automatically.')
+    })
     void update()
-    const timer = setInterval(() => { if (!document.hidden) void update() }, 7000)
+    const timer = setInterval(() => { if (!document.hidden) void update() }, hasActiveRun ? 2500 : 7000)
     return () => { mounted = false; clearInterval(timer) }
-  }, [refresh, fa])
-  useEffect(() => { setEstimate(null) }, [selection])
+  }, [refresh, fa, hasActiveRun])
   useEffect(() => { setSuggestionPage(1) }, [historyView])
   useEffect(() => {
-    if (!(selectOpen || tab === 'conversations')) return
+    if (!selectOpen || selection.mode !== 'selected') {
+      setSearching(false)
+      return
+    }
     const abort = new AbortController()
     setSearching(true)
     const timer = setTimeout(async () => {
@@ -184,34 +213,70 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
         params.set('includeReviewed', String(selection.includeReviewed))
         for (const key of ['channel', 'from', 'to', 'contactId'] as const) if (selection[key]) params.set(key, selection[key]!)
         const r = await fetch(`${base}/conversations?${params}`, { signal: abort.signal })
+        if (handleUnauthorized(r)) return
         if (!r.ok) throw new Error('FAILED')
         const response = await r.json(); setConversations(response.conversations); setTotal(response.total)
       } catch { if (!abort.signal.aborted) setError(fa ? 'جستجو انجام نشد.' : 'Search failed.') }
       finally { if (!abort.signal.aborted) setSearching(false) }
     }, 300)
     return () => { abort.abort(); clearTimeout(timer) }
-  }, [selection, page, selectOpen, tab, base, fa])
+  }, [selection, page, selectOpen, base, fa, handleUnauthorized])
+  useEffect(() => {
+    if (!selectOpen) return
+    if (selection.mode === 'selected' && !selection.ids.length) {
+      setEstimate(null)
+      setEstimateError('')
+      setEstimateLoading(false)
+      return
+    }
+    const abort = new AbortController()
+    setEstimateLoading(true)
+    setEstimateError('')
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'estimate', selection }),
+          signal: abort.signal,
+        })
+        if (handleUnauthorized(response)) return
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'FAILED')
+        setEstimate(result as Estimate)
+      } catch (reason) {
+        if (abort.signal.aborted) return
+        const code = reason instanceof Error ? reason.message : 'FAILED'
+        setEstimate(null)
+        setEstimateError(errors[code]?.[fa ? 0 : 1] ?? (fa ? 'برآورد مصرف به‌روزرسانی نشد.' : 'Could not update the usage estimate.'))
+      } finally {
+        if (!abort.signal.aborted) setEstimateLoading(false)
+      }
+    }, 450)
+    return () => { abort.abort(); clearTimeout(timer) }
+  }, [base, fa, handleUnauthorized, selectOpen, selection])
   useEffect(() => {
     if (!runId) return
     const abort = new AbortController()
     void fetch(`${base}?runId=${runId}&page=${reviewPage}`, { signal: abort.signal }).then(async (r) => {
+      if (handleUnauthorized(r)) return
       if (!r.ok) throw new Error('FAILED')
       const d = await r.json(); setReviews(d.reviews); setReviewTotal(d.total)
     }).catch(() => { if (!abort.signal.aborted) setError(fa ? 'نتیجه‌ها دریافت نشد.' : 'Could not load reviews.') })
     return () => abort.abort()
-  }, [base, runId, reviewPage, data, fa])
+  }, [base, runId, reviewPage, data, fa, handleUnauthorized])
 
   const act: Action = async (body) => {
     if (busyRef.current) return null
-    busyRef.current = true; setBusy(String(body.action)); setError(''); setNotice('')
+    busyRef.current = true; setBusy(String(body.action)); setError('')
     try {
       const r = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (handleUnauthorized(r)) return null
       const result = await r.json()
       if (!r.ok) throw new Error(result.error || 'FAILED')
       if (body.action !== 'estimate') {
         await refresh()
         if (['start', 'retry', 'cancel'].includes(String(body.action))) window.dispatchEvent(new Event(IMPROVEMENT_ACTIVITY_EVENT))
-        setNotice(t('انجام شد.', 'Done.'))
       }
       return result
     } catch (e) {
@@ -247,11 +312,13 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
           <span className="sr-only">{t('جستجوی گفتگو', 'Search conversations')}</span>
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
           <input
-            className={`${field} ps-10`}
+            type="search"
+            className={cn(field, 'ps-10 [&::-webkit-search-cancel-button]:hidden', selection.search && 'pe-11')}
             value={selection.search}
             onChange={(event) => updateSelection({ search: event.target.value })}
             placeholder={t('جستجو در پیام، نام یا شماره…', 'Search messages, names or phone…')}
           />
+          {selection.search && <button type="button" className="absolute end-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60" onClick={() => updateSelection({ search: '' })} aria-label={t('پاک کردن جستجو', 'Clear search')}><X className="h-4 w-4" aria-hidden="true" /></button>}
         </label>
         <Button
           variant="secondary"
@@ -383,10 +450,17 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
     </div>
   )
   const processedCount = activeRun?.reviews.filter((review) => ['DONE', 'ERROR'].includes(review.status)).length ?? 0
-  const successfulCount = activeRun?.reviews.filter((review) => review.status === 'DONE').length ?? 0
   const activePercent = Math.min(100, Math.round((processedCount / Math.max(activeRun?.total ?? 1, 1)) * 100))
   const automationEnabled = Boolean(data?.settings.daily || data?.settings.autoBehavior)
   const estimateInsufficient = Boolean(estimate && data && estimate.estimatedCreditIRR > data.creditBalanceIRR)
+  const liveEstimatePanel = (
+    <section className={cn(surface, 'space-y-3 transition-[border-color,background-color] duration-200 motion-reduce:transition-none', estimateInsufficient && 'border border-amber-200 bg-amber-50/50')} aria-live="polite" aria-busy={estimateLoading}>
+      <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><span className={cn('h-2.5 w-2.5 rounded-full', estimateLoading ? 'animate-pulse bg-amber-500 motion-reduce:animate-none' : estimate ? 'bg-emerald-500' : 'bg-black/20')} aria-hidden="true" /><h3 className="text-sm font-bold">{t('برآورد زندهٔ تحلیل', 'Live analysis estimate')}</h3></div>{estimate && !estimateLoading && <span className="text-[10px] font-semibold text-[var(--text-muted)]">{t('به‌روز است', 'Up to date')}</span>}</div>
+      {estimateLoading ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="status"><span className="sr-only">{t('در حال به‌روزرسانی برآورد مصرف', 'Updating usage estimate')}</span>{Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} delay={index * -120} className={cn('h-[4.5rem] rounded-xl', index === 2 && 'col-span-2 sm:col-span-1')} />)}</div> : estimate ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3"><LiveMetric label={t('گفتگو', 'Conversations')} value={number(estimate.count)} /><LiveMetric label={t('درخواست AI', 'AI requests')} value={number(estimate.requestCount)} /><LiveMetric className="col-span-2 sm:col-span-1" label={t('حداکثر مبلغ برآوردی', 'Maximum estimated cost')} value={`${number(estimate.estimatedCreditIRR / 10)} ${t('تومان', 'toman')}`} /></div> : <div className="flex items-start gap-2 rounded-xl bg-black/[0.035] p-3 text-xs leading-6 text-[var(--text-secondary)]"><AlertCircle className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /><p>{estimateError || t('برای دیدن مبلغ، حداقل یک گفتگو انتخاب کنید.', 'Select at least one conversation to see the cost.')}</p></div>}
+      {estimateInsufficient && <p className="text-xs font-semibold leading-6 text-amber-900">{t('اعتبار فعلی کافی نیست.', 'Current credit is insufficient.')} <Link className="underline underline-offset-4" href="/billing">{t('افزایش اعتبار', 'Add credit')}</Link></p>}
+      <p className="text-[11px] leading-5 text-[var(--text-muted)]">{t('فقط درخواست‌های موفق از اعتبار کم می‌شوند؛ مبلغ نهایی می‌تواند کمتر از این برآورد باشد.', 'Only successful requests are charged; the final amount may be lower than this estimate.')}</p>
+    </section>
+  )
 
   return <div className="min-w-0 space-y-4 pb-4">
     <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
@@ -403,18 +477,10 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
             <p className="mt-1.5 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
               {t('گفتگوها را بررسی کنید، مشکل‌های تکراری را پیدا کنید و دانش یا رفتار ایجنت را با شواهد واقعی بهتر کنید.', 'Review conversations, find recurring problems, and improve agent knowledge or behavior using real evidence.')}
             </p>
-            {data && (
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
-                <span>{number(data.pendingCount)} {t('پیشنهاد آمادهٔ بررسی', 'suggestions ready')}</span>
-                <span className="hidden h-1 w-1 rounded-full bg-black/20 sm:block" aria-hidden="true" />
-                <span>{number(data.runTotal)} {t('نوبت تحلیل ثبت‌شده', 'analysis runs')}</span>
-              </div>
-            )}
+            {data && <p className="mt-3 text-xs text-[var(--text-muted)]">{number(data.pendingCount)} {t('پیشنهاد آمادهٔ بررسی', 'suggestions ready')}</p>}
             {!data && (
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" aria-hidden="true">
+              <div className="mt-3" aria-hidden="true">
                 <Skeleton delay={-100} className="h-3 w-28 rounded-full" />
-                <Skeleton delay={-220} className="h-3 w-24 rounded-full" />
-                <Skeleton delay={-340} className="h-3 w-48 rounded-full" />
               </div>
             )}
           </div>
@@ -427,6 +493,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
               analysisTriggerRef.current = event.currentTarget
               setError('')
               setEstimate(null)
+              setEstimateError('')
               setSelection(initialSelection)
               setSelectOpen(true)
             }}
@@ -449,34 +516,33 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
         <button className="min-h-9 shrink-0 rounded-lg px-2 font-semibold underline underline-offset-4" onClick={() => void refresh().then(() => setError('')).catch(() => {})}>{t('تلاش مجدد', 'Retry')}</button>
       </div>
     )}
-    {notice && (
-      <div role="status" className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800">
-        <CircleCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-        {notice}
-      </div>
-    )}
     {activeRun && (
       <section className={`${surface} space-y-3.5`} aria-live="polite">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /></span>
-            <div><p className="text-sm font-bold">{label(activeRun.status)} · {activeRun.source === 'automatic' ? t('تحلیل خودکار', 'Automatic analysis') : t('تحلیل دستی', 'Manual analysis')}</p><p className="mt-0.5 text-xs text-[var(--text-muted)]">{number(successfulCount)} {t('از', 'of')} {number(activeRun.total)} {t('گفتگو بررسی شده', 'conversations reviewed')}</p></div>
+            <div><p className="text-sm font-bold">{label(activeRun.status)} · {activeRun.source === 'automatic' ? t('تحلیل خودکار', 'Automatic analysis') : t('تحلیل دستی', 'Manual analysis')}</p><p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">{t('نتیجه‌ها و مصرف، هم‌زمان با پیشرفت تحلیل به‌روزرسانی می‌شوند.', 'Results and usage update live as the analysis progresses.')}</p></div>
           </div>
-          <div className="flex items-center gap-3"><span className="text-xl font-black tabular-nums">{number(activePercent)}{fa ? '٪' : '%'}</span><Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void act({ action: 'cancel', id: activeRun.id })}>{t('توقف تحلیل', 'Stop analysis')}</Button></div>
+          <span className="shrink-0 text-xl font-black tabular-nums">{number(activePercent)}{fa ? '٪' : '%'}</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-black/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={activeRun.total} aria-valuenow={processedCount}>
-          <div className="h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${Math.min(100, (processedCount / Math.max(activeRun.total, 1)) * 100)}%` }} />
+          <div className="h-full rounded-full bg-black transition-[width] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none" style={{ width: `${Math.min(100, (processedCount / Math.max(activeRun.total, 1)) * 100)}%` }} />
         </div>
-        <p className="text-xs leading-6 text-[var(--text-muted)]">{t(`تحلیل در پس‌زمینه ادامه دارد؛ تا این لحظه ${number(activeRun.requestCount)} درخواست موفق و ${number(activeRun.chargedIRR / 10)} تومان مصرف ثبت شده است.`, `Analysis continues in the background; ${number(activeRun.requestCount)} successful requests and ${number(activeRun.chargedIRR / 10)} toman have been recorded so far.`)}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <LiveMetric label={t('گفتگوهای پردازش‌شده', 'Processed conversations')} value={`${number(processedCount)} / ${number(activeRun.total)}`} />
+          <LiveMetric label={t('درخواست‌های موفق', 'Successful requests')} value={number(activeRun.requestCount)} />
+          <LiveMetric className="col-span-2 sm:col-span-1" label={t('مصرف تا این لحظه', 'Usage so far')} value={`${number(activeRun.chargedIRR / 10)} ${t('تومان', 'toman')}`} />
+        </div>
+        <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void act({ action: 'cancel', id: activeRun.id })}>{t('توقف تحلیل', 'Stop analysis')}</Button></div>
       </section>
     )}
-    <div role="tablist" aria-label={t('بخش‌های تحلیل', 'Analysis sections')} className="spatial-control grid grid-cols-3 gap-1 rounded-[1.25rem] p-1.5">{([['suggestions', 'پیشنهادها', 'Suggestions', Sparkles], ['conversations', 'گفتگوها', 'Conversations', MessageSquare], ['history', 'سابقه', 'History', History]] as const).map(([key, f, e, Icon], i) => <button role="tab" type="button" id={`analysis-tab-${key}`} aria-controls={`analysis-panel-${key}`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} key={key} onClick={() => setTab(key)} onKeyDown={(event) => {
-      const keys = ['suggestions', 'conversations', 'history'] as const
+    <div role="tablist" aria-label={t('بخش‌های تحلیل', 'Analysis sections')} className="spatial-control grid grid-cols-2 gap-1 rounded-[1.25rem] p-1.5">{([['suggestions', 'پیشنهادها', 'Suggestions', Sparkles], ['history', 'سابقه', 'History', History]] as const).map(([key, f, e, Icon], i) => <button role="tab" type="button" id={`analysis-tab-${key}`} aria-controls={`analysis-panel-${key}`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} key={key} onClick={() => setTab(key)} onKeyDown={(event) => {
+      const keys = ['suggestions', 'history'] as const
       let n = i
       if (event.key === 'Home') n = 0
-      else if (event.key === 'End') n = 2
-      else if (event.key === 'ArrowLeft') n = (i + (fa ? 1 : 2)) % 3
-      else if (event.key === 'ArrowRight') n = (i + (fa ? 2 : 1)) % 3
+      else if (event.key === 'End') n = 1
+      else if (event.key === 'ArrowLeft') n = (i + (fa ? 1 : -1) + 2) % 2
+      else if (event.key === 'ArrowRight') n = (i + (fa ? -1 : 1) + 2) % 2
       else return
       event.preventDefault(); setTab(keys[n]); document.getElementById(`analysis-tab-${keys[n]}`)?.focus()
     }} className={cn(
@@ -493,11 +559,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
           <span className="hidden h-1 w-1 rounded-full bg-black/15 sm:block" aria-hidden="true" />
           <Skeleton delay={-340} className="h-3 w-44 rounded-full" />
         </div>
-        {tab === 'conversations'
-          ? Array.from({ length: 4 }).map((_, index) => (
-              <ConversationCardSkeleton key={`conversation-loading-${index}`} delay={index * -130} />
-            ))
-          : tab === 'history'
+        {tab === 'history'
             ? Array.from({ length: 3 }).map((_, index) => (
                 <HistoryCardSkeleton key={`history-loading-${index}`} delay={index * -160} />
               ))
@@ -557,30 +619,6 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       })}
       <Pagination page={suggestionPage} total={data?.suggestionTotal ?? 0} setPage={setSuggestionPage} fa={fa} />
     </section>
-    <section role="tabpanel" id="analysis-panel-conversations" aria-labelledby="analysis-tab-conversations" hidden={tab !== 'conversations'} className="space-y-4">
-      <div className="flex items-end justify-between gap-3 px-1 pt-1">
-        <div><h3 className="text-sm font-bold">{t('انتخاب گفتگو برای تحلیل', 'Choose conversations to analyze')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('با جستجو و فیلتر، گفتگوهای مرتبط را پیدا کنید.', 'Use search and filters to find relevant conversations.')}</p></div>
-      </div>
-      {filters}
-      {conversationList}
-      <div className="spatial-control sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-2xl p-2.5">
-        <p className="hidden ps-2 text-xs text-[var(--text-muted)] sm:block">{selection.ids.length ? t(`${number(selection.ids.length)} گفتگو برای تحلیل انتخاب شده`, `${number(selection.ids.length)} conversations selected`) : t('حداقل یک گفتگو انتخاب کنید', 'Select at least one conversation')}</p>
-        <Button
-          className="w-full sm:ms-auto sm:w-auto sm:min-w-56"
-          disabled={!selection.ids.length || !!activeRun}
-          onClick={(event) => {
-            analysisTriggerRef.current = event.currentTarget
-            setError('')
-            setEstimate(null)
-            updateSelection({ mode: 'selected' })
-            setSelectOpen(true)
-          }}
-        >
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-          {selection.ids.length ? t(`تحلیل ${number(selection.ids.length)} گفتگو`, `Analyze ${number(selection.ids.length)} conversations`) : t('تحلیل گفتگوهای انتخابی', 'Analyze selected conversations')}
-        </Button>
-      </div>
-    </section>
     <section role="tabpanel" id="analysis-panel-history" aria-labelledby="analysis-tab-history" hidden={tab !== 'history'} className="space-y-4">
       <div className="px-1 pt-1"><h3 className="text-sm font-bold">{t('سابقهٔ تحلیل و تغییرها', 'Analysis and change history')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('نتیجهٔ هر نوبت را ببینید یا تغییرهای اعمال‌شده را بازگردانید.', 'Inspect each run or revert applied changes.')}</p></div>
       {data?.runs.map((run) => (
@@ -609,48 +647,34 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       onClose={() => setSelectOpen(false)}
       footer={<div className="space-y-2.5">
         {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}
-        {estimate && <div className={cn('flex items-start gap-2 rounded-xl px-3 py-2.5', estimateInsufficient ? 'bg-amber-50 text-amber-900' : 'bg-black/[0.035]')}><CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><div className="min-w-0 text-xs leading-6"><p><strong>{number(estimate.count)} {t('گفتگو', 'conversations')}</strong> · {number(estimate.requestCount)} {t('درخواست AI', 'AI requests')}</p><p>{fa ? estimate.modelNameFa : estimate.modelNameEn} · {number(estimate.requestPriceIRR / 10)} {t('تومان برای هر درخواست موفق', 'toman per successful request')} · <strong>{number(estimate.estimatedCreditIRR / 10)} {t('تومان مجموع برآورد', 'toman estimated total')}</strong></p>{estimateInsufficient && <p className="font-semibold">{t('اعتبار فعلی کافی نیست.', 'Current credit is insufficient.')} <Link className="underline underline-offset-4" href="/billing">{t('افزایش اعتبار', 'Add credit')}</Link></p>}</div></div>}
         <Button
           className="w-full"
-          loading={!!busy}
-          disabled={!!activeRun || estimateInsufficient || (selection.mode === 'selected' && !selection.ids.length)}
+          loading={busy === 'start'}
+          disabled={!!activeRun || estimateInsufficient || estimateLoading || !estimate || (selection.mode === 'selected' && !selection.ids.length)}
           onClick={async () => {
-            if (!estimate) {
-              const result = await act({ action: 'estimate', selection })
-              if (result) setEstimate(result as { count: number; estimatedCreditIRR: number; requestCount: number; requestPriceIRR: number; modelNameFa: string; modelNameEn: string })
-            } else {
-              const result = await act({ action: 'start', selection })
-              if (result) { setSelectOpen(false); setTab('suggestions') }
-            }
+            const result = await act({ action: 'start', selection })
+            if (result) { setSelectOpen(false); setTab('suggestions') }
           }}
         >
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-          {estimate ? t('شروع تحلیل', 'Start analysis') : t('بررسی انتخاب و مصرف', 'Review selection and usage')}
+          {busy !== 'start' && <Sparkles className="h-4 w-4" aria-hidden="true" />}
+          {estimateLoading ? t('در حال محاسبهٔ مصرف…', 'Calculating usage…') : estimate ? t(`شروع تحلیل ${number(estimate.count)} گفتگو`, `Analyze ${number(estimate.count)} conversations`) : t('شروع تحلیل', 'Start analysis')}
         </Button>
       </div>}
     >
       <div className={`${inset} p-1.5`} role="radiogroup" aria-label={t('روش انتخاب گفتگو', 'Conversation selection method')}>
         <div className="grid grid-cols-2 gap-1">
-          {(['latest', 'selected'] as const).map((mode) => <button type="button" role="radio" aria-checked={selection.mode === mode} className={cn('min-h-12 rounded-xl px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 motion-reduce:transition-none', selection.mode === mode ? 'bg-black text-white shadow-[var(--shadow-control)]' : 'text-[var(--text-secondary)] hover:bg-white/70')} key={mode} onClick={() => updateSelection({ mode })}>{mode === 'latest' ? t('آخرین گفتگوها', 'Latest conversations') : t('انتخاب دستی', 'Manual selection')}</button>)}
+          {(['latest', 'selected'] as const).map((mode) => <button type="button" role="radio" aria-checked={selection.mode === mode} className={cn('min-h-12 rounded-xl px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 motion-reduce:transition-none', selection.mode === mode ? 'bg-black text-white shadow-[var(--shadow-control)]' : 'text-[var(--text-secondary)] hover:bg-white/70')} key={mode} onClick={() => updateSelection(mode === 'latest' ? { mode, search: '', channel: undefined, attention: 'all', from: undefined, to: undefined, contactId: undefined } : { mode })}>{mode === 'latest' ? t('آخرین گفتگوها', 'Latest conversations') : t('انتخاب دستی', 'Manual selection')}</button>)}
         </div>
       </div>
       {selection.mode === 'latest' && (
         <section className={`${surface} space-y-4`}>
-          <div><h3 className="text-sm font-bold">{t('چه تعداد بررسی شود؟', 'How many should be reviewed?')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('به‌طور پیش‌فرض فقط گفتگوهای جدید یا گفتگوهایی که بعد از آخرین تحلیل پیام تازه دارند انتخاب می‌شوند.', 'By default, only new conversations or conversations updated since their last analysis are selected.')}</p></div>
-          <label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('تعداد گفتگو؛ حداکثر ۵۰۰', 'Conversation count; maximum 500')}</span><input type="number" min={1} max={500} className={field} value={selection.count} onChange={(event) => updateSelection({ count: Math.max(1, Math.min(500, Number(event.target.value) || 1)) })} /></label>
-          <div className="grid grid-cols-3 gap-2">{[50, 100, 200].map((count) => <button key={count} type="button" className={cn('min-h-11 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', selection.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => updateSelection({ count })}>{number(count)}</button>)}</div>
+          <div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-bold">{t('تعداد گفتگوها', 'Conversation count')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('فقط گفتگوهای تازه یا دارای پیام جدید انتخاب می‌شوند.', 'Only new or updated conversations are selected.')}</p></div><output htmlFor="improvement-count" className="min-w-14 rounded-xl bg-black px-3 py-2 text-center text-lg font-black tabular-nums text-white">{number(selection.count)}</output></div>
+          <label className="block"><span className="sr-only">{t('تعداد گفتگو برای تحلیل', 'Number of conversations to analyze')}</span><input id="improvement-count" type="range" min={10} max={500} step={5} className="h-11 w-full cursor-pointer accent-black touch-pan-x" value={selection.count} onChange={(event) => updateSelection({ count: Number(event.target.value) })} /><span className="flex justify-between text-[10px] font-semibold text-[var(--text-muted)]" aria-hidden="true"><span>{number(10)}</span><span>{number(500)}</span></span></label>
+          <div className="grid grid-cols-4 gap-2">{[25, 50, 100, 200].map((count) => <button key={count} type="button" className={cn('min-h-11 rounded-xl border px-1 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 active:scale-[0.97] motion-reduce:transition-none', selection.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => updateSelection({ count })}>{number(count)}</button>)}</div>
         </section>
       )}
-      <section className={`${inset} flex items-start gap-3 p-3.5`}>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{t('تحلیل دوبارهٔ گفتگوی بدون تغییر', 'Re-analyze unchanged conversations')}</p>
-          <p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('خاموش بماند تا بابت گفتگویی که قبلاً کامل تحلیل شده دوباره هزینه نپردازید.', 'Keep this off to avoid paying again for a conversation that was already fully analyzed.')}</p>
-        </div>
-        <Switch checked={selection.includeReviewed} onChange={(includeReviewed) => updateSelection({ includeReviewed })} aria-label={t('اجازه تحلیل دوباره گفتگوهای بدون تغییر', 'Allow re-analysis of unchanged conversations')} />
-      </section>
-      {filters}
-      {selection.mode === 'selected' && <><div className="flex min-h-11 items-center justify-between gap-3 px-1"><span className="text-sm font-semibold">{number(selection.ids.length)} {t('انتخاب‌شده', 'selected')}</span><Button variant="ghost" size="sm" onClick={() => updateSelection({ ids: [] })}>{t('پاک کردن انتخاب‌ها', 'Clear selection')}</Button></div>{conversationList}</>}
-      <p className="px-1 text-xs leading-6 text-[var(--text-muted)]">{t('این کار یک تحلیل تازه و پولی است؛ فقط پس از نمایش برآورد و زدن «شروع تحلیل» اجرا می‌شود. درخواست ناموفق هزینه ندارد.', 'This is a new paid analysis. It runs only after the estimate is shown and you press Start analysis. Failed requests are not charged.')}</p>
+      {selection.mode === 'latest' && liveEstimatePanel}
+      {selection.mode === 'selected' && <><div><h3 className="px-1 text-sm font-bold">{t('گفتگوهای موردنظر را پیدا کنید', 'Find the conversations you need')}</h3><p className="mt-1 px-1 text-xs leading-6 text-[var(--text-muted)]">{t('جستجو و فیلترها همان لحظه روی فهرست زیر اعمال می‌شوند.', 'Search and filters apply to the list below immediately.')}</p></div>{filters}<div className="flex min-h-11 items-center justify-between gap-3 px-1"><span className="text-sm font-semibold">{number(selection.ids.length)} {t('انتخاب‌شده', 'selected')}</span><Button variant="ghost" size="sm" disabled={!selection.ids.length} onClick={() => updateSelection({ ids: [] })}>{t('پاک کردن انتخاب‌ها', 'Clear selection')}</Button></div>{liveEstimatePanel}{conversationList}</>}
     </DetailDialog>}
     {selected && data && <SuggestionDetail key={`${selected.id}-${selected.version}`} item={selected} pricing={data.pricing} agentId={agentId} fa={fa} busy={busy} error={error} act={act} triggerRef={suggestionTriggerRef} onClose={() => setSelectedId(null)} />}
     {settingsOpen && data && <AutomationDialog initial={data.settings} pricing={data.pricing} fa={fa} busy={busy} error={error} act={act} triggerRef={automationTriggerRef} onClose={() => setSettingsOpen(false)} />}
@@ -681,6 +705,13 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
     tone === 'warning' && 'border-amber-200 bg-amber-50 text-amber-800',
     tone === 'neutral' && 'border-[var(--border-default)] bg-white text-[var(--text-secondary)]',
   )}>{children}</span>
+}
+
+function LiveMetric({ label, value, className }: { label: string; value: string; className?: string }) {
+  return <div className={cn('rounded-xl border border-[var(--border-subtle)] bg-white/80 px-3 py-2.5', className)}>
+    <p className="text-[10px] font-semibold leading-5 text-[var(--text-muted)]">{label}</p>
+    <p className="mt-0.5 truncate text-sm font-black tabular-nums text-[var(--text-primary)]" title={value}>{value}</p>
+  </div>
 }
 
 function FilterChip({ label, onRemove, fa }: { label: string; onRemove: () => void; fa: boolean }) {
@@ -742,7 +773,7 @@ function SuggestionDetail({ item: s, pricing, agentId, fa, busy, error, act, tri
   const waitingForInformation =
     (s.kind === 'KNOWLEDGE' && (Boolean(draft.missing) || draft.question.trim().length < 3 || draft.answer.trim().length < 3)) ||
     (s.kind === 'BEHAVIOR' && draft.scope === 'CUSTOMER' && (Boolean(draft.missing) || draft.answer.trim().length < 3))
-  const primaryDisabled = waitingForInformation || (Boolean(preview) && !previewPassed)
+  const primaryDisabled = waitingForInformation
   const primaryAction = s.kind === 'TOOL' || preview ? 'apply' : 'preview'
   const primaryLabel = s.kind === 'TOOL'
     ? t('تأیید رفع مشکل', 'Confirm resolved')
@@ -754,16 +785,16 @@ function SuggestionDetail({ item: s, pricing, agentId, fa, busy, error, act, tri
     {pending ? <>
       {dirty ? (
         <Button className="w-full" loading={!!busy} onClick={() => void act({ action: 'save', id: s.id, version: s.version, draft })}>
-          <Check className="h-4 w-4" aria-hidden="true" />{t('ذخیره تغییرات', 'Save changes')}
+          <Check className="h-4 w-4" aria-hidden="true" />{t('ذخیرهٔ اصلاح', 'Save correction')}
         </Button>
-      ) : (
+      ) : !(preview && !previewPassed) ? (
         <Button className="w-full" loading={!!busy} disabled={primaryDisabled} onClick={() => void act({ action: primaryAction, id: s.id, version: s.version })}>
           {primaryLabel}
         </Button>
-      )}
+      ) : null}
       {!preview && s.kind !== 'TOOL' && !waitingForInformation && <p className="text-[11px] leading-5 text-[var(--text-muted)]">{t(`نسخهٔ فعلی فقط یک‌بار و پیش از اعمال ارزیابی می‌شود: ${number(pricing.previewRequestCount)} درخواست AI و ${number(testCost)} تومان. بدون زدن دکمه هزینه‌ای کم نمی‌شود.`, `The current version is evaluated once before applying: ${number(pricing.previewRequestCount)} AI requests and ${number(testCost)} toman. Nothing is charged until you press the button.`)}</p>}
       {waitingForInformation && !dirty && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">{t('پاسخ معتبر را وارد کنید، تأیید تکمیل اطلاعات را بزنید و تغییرات را ذخیره کنید.', 'Enter a verified answer, confirm the missing information is complete, and save your changes.')}</p>}
-      {preview && !previewPassed && !dirty && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">{t('این نسخه بهتر ارزیابی نشد. متن پیشنهاد را ویرایش کنید؛ دکمهٔ ذخیره بلافاصله فعال می‌شود.', 'This version was not rated better. Edit the suggestion and the save button will become available immediately.')}</p>}
+      {preview && !previewPassed && !dirty && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">{t('این نسخه بهتر ارزیابی نشد. یکی از فیلدهای پیشنهاد را ویرایش کنید؛ دکمهٔ «ذخیرهٔ اصلاح» همان لحظه نمایش داده می‌شود.', 'This version was not rated better. Edit a suggestion field and “Save correction” will appear immediately.')}</p>}
     </> : change && <Button variant="secondary" className="w-full" disabled={!!busy} onClick={() => void act({ action: 'revert', id: change.id })}><RotateCcw className="h-4 w-4" aria-hidden="true" />{t('بازگشت به قبل از این تغییر', 'Revert this change')}</Button>}
   </div>
   return <DetailDialog title={s.title} description={s.kind === 'KNOWLEDGE' ? t('پیشنهاد بهبود دانش', 'Knowledge improvement') : s.kind === 'BEHAVIOR' ? t('پیشنهاد رفتار و لحن', 'Behavior improvement') : t('پیشنهاد روند و ابزار', 'Flow and tool improvement')} triggerRef={triggerRef} wide onClose={onClose} footer={detailFooter}>

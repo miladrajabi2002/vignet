@@ -63,6 +63,13 @@ export function ImprovementActivityIndicator() {
     : activity?.status === 'QUEUED'
       ? fa ? 'تحلیل در صف شروع است' : 'Analysis is queued'
       : fa ? 'هوش مصنوعی در حال تحلیل گفتگوهاست' : 'AI is analyzing conversations'
+  const progressLabel = done
+    ? fa
+      ? `${nf.format(activity?.total ?? 0)} گفتگو بررسی شد`
+      : `${nf.format(activity?.total ?? 0)} conversations analyzed`
+    : fa
+      ? `${nf.format(activity?.processed ?? 0)} از ${nf.format(activity?.total ?? 0)} گفتگو بررسی شده`
+      : `${nf.format(activity?.processed ?? 0)} of ${nf.format(activity?.total ?? 0)} conversations analyzed`
   const href = activity ? `/agents/${activity.agentId}/improve?tab=learning` : '#'
 
   return (
@@ -81,7 +88,7 @@ export function ImprovementActivityIndicator() {
             aria-label={`${title}، ${nf.format(activity.percent)}%`}
             className="group block rounded-[1.2rem] border border-black/[0.08] bg-black text-white shadow-[0_12px_34px_rgba(0,0,0,0.13)] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
           >
-            <div className="flex min-h-12 items-center gap-3 px-3 sm:hidden">
+            <div className="flex min-h-12 items-center gap-3 px-3 lg:hidden">
               <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/12">
                 {done ? <Check className="h-4 w-4" aria-hidden="true" /> : <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                 {!done && <span className="absolute inset-0 rounded-full ring-1 ring-white/20" aria-hidden="true" />}
@@ -95,21 +102,26 @@ export function ImprovementActivityIndicator() {
               <span className="shrink-0 text-sm font-black tabular-nums">{nf.format(activity.percent)}{fa ? '٪' : '%'}</span>
             </div>
 
-            <div className="hidden min-h-14 grid-cols-[minmax(12rem,1fr)_minmax(18rem,1.2fr)_auto] items-center gap-5 px-4 sm:grid xl:px-5">
+            <div className="hidden min-h-14 grid-cols-[minmax(12rem,1fr)_minmax(18rem,1.2fr)_auto] items-center gap-5 px-4 lg:grid xl:px-5">
               <span className="flex min-w-0 items-center gap-3">
                 <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', done ? 'bg-emerald-400 text-black' : 'bg-white/12')}>
                   {done ? <Check className="h-4 w-4" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-bold">{title}</span>
-                  <span className="mt-0.5 block truncate text-[10px] text-white/55">{activity.agentName} · {nf.format(activity.processed)} / {nf.format(activity.total)}</span>
-                </span>
+                <span className="min-w-0 truncate text-xs font-bold">{title}</span>
               </span>
 
-              <span className="grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-2 text-[10px] font-semibold text-white/55" aria-hidden="true">
-                <span className="text-white">{fa ? 'شروع' : 'Start'}</span><span className="h-px bg-white/25" />
-                <span className={done ? 'text-white' : 'text-emerald-300'}>{fa ? 'تحلیل' : 'Analyze'}</span><span className="relative h-px overflow-hidden bg-white/15"><motion.span className="absolute inset-y-0 start-0 bg-white" animate={{ width: `${activity.percent}%` }} transition={{ duration: reduced ? 0.01 : 0.45 }} /></span>
-                <span className={done ? 'text-emerald-300' : ''}>{fa ? 'تکمیل' : 'Done'}</span>
+              <span className="min-w-0">
+                <span className="mb-1.5 block truncate text-[10px] font-semibold text-white/60">{progressLabel}</span>
+                <span
+                  role="progressbar"
+                  aria-label={fa ? 'پیشرفت تحلیل گفتگوها' : 'Conversation analysis progress'}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={activity.percent}
+                  className="relative block h-1.5 overflow-hidden rounded-full bg-white/15"
+                >
+                  <motion.span className={cn('absolute inset-y-0 start-0 rounded-full', done ? 'bg-emerald-300' : 'bg-white')} animate={{ width: `${activity.percent}%` }} transition={{ duration: reduced ? 0.01 : 0.45 }} />
+                </span>
               </span>
 
               <span className="flex shrink-0 items-center gap-4">

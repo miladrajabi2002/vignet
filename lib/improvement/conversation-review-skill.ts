@@ -1,6 +1,6 @@
 import { behaviorValues } from './types'
 
-export const CONVERSATION_REVIEW_SKILL_VERSION = 'conversation-quality-review-v2'
+export const CONVERSATION_REVIEW_SKILL_VERSION = 'conversation-quality-review-v3'
 
 /**
  * Runtime form of .agents/skills/conversation-quality-review. Keeping the
@@ -21,6 +21,7 @@ Evidence rules:
 Diagnosis rules:
 - Distinguish missing knowledge, available knowledge that was not used, contradictory sources, behavior/tone/flow problems, and unavailable or failed tools.
 - A retrieval, integration, permission, inventory, order, booking, or source defect is TOOL; do not fabricate an FAQ to hide it.
+- If a configured handoff keyword matched the customer's topic while relevant ready knowledge could answer it, this is a TOOL/routing conflict, not missing knowledge. Propose removing or narrowing that handoff keyword so knowledge is used before escalation. Cite both the customer question and the premature handoff reply when supplied.
 - Group only the same root cause and remedy under a matching known topic key. A recurrence after an applied fix is new evidence, not proof that the prior change worked.
 
 Grounding and safety:

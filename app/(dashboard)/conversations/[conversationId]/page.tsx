@@ -197,7 +197,6 @@ export default async function ConversationThreadPage(props: {
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
                                                         <span>{conversation.agent.name}</span>
-                                                        <Link href={`/agents/${conversation.agent.id}/improve`} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{locale === 'fa' ? 'بهبود پاسخ‌های این ایجنت' : 'Improve this agent’s answers'}</Link>
                                                         {contactHandle && (
                                                                 <span dir="ltr" className="inline-flex items-center gap-1">
                                                                         @

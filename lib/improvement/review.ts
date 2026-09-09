@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { retrieveContext } from '@/lib/ai/rag'
 import { improvementCompletion, parseModelJson } from './model'
 import { conversationReviewSkillPrompt } from './conversation-review-skill'
-import { behaviorValue, draftSchema, json, normalizedTopic, reviewSchema, transcriptSegments, validateFinding, validateReviewEvidence, type ReviewResult } from './types'
+import { handoffKnowledgeConflictFindings } from './routing-conflicts'
+import { behaviorValue, draftSchema, json, normalizeReviewResult, normalizedTopic, transcriptSegments, validateFinding, type ReviewResult } from './types'
 
 export async function processImprovement({ runId }: { runId: string }) {
   const run = await prisma.improvementRun.findUnique({ where: { id: runId } })
@@ -24,7 +25,7 @@ export async function processImprovement({ runId }: { runId: string }) {
       const [conversation, messages] = await Promise.all([
         prisma.conversation.findFirst({
           where: { id: review.conversationId, agentId: run.agentId, workspaceId: run.workspaceId },
-          select: { contactId: true },
+          select: { contactId: true, handoffAlerts: { where: { createdAt: { lte: run.createdAt } }, select: { reason: true }, take: 20, orderBy: { createdAt: 'desc' } } },
         }),
         prisma.message.findMany({
           where: { conversationId: review.conversationId, createdAt: { lte: run.createdAt }, role: { in: ['USER', 'ASSISTANT'] },
@@ -53,6 +54,14 @@ export async function processImprovement({ runId }: { runId: string }) {
         const knowledgeIds = new Set(sources.map((s) => s.id))
         // Previous findings may reference sources retrieved in previous segments.
         for (const f of result.findings) if (f.draft.targetKnowledgeId) knowledgeIds.add(f.draft.targetKnowledgeId)
+        const routingFindings = handoffKnowledgeConflictFindings({
+          language: snapshot.language === 'en' ? 'en' : 'fa',
+          messages: messages.map((message) => ({ id: message.id, role: message.role, content: message.content, operator: (message.metadata as Record<string, unknown> | null)?.operator === true })),
+          seenMessageIds: seen,
+          handoffKeywords: Array.isArray(snapshot.handoffKeywords) ? snapshot.handoffKeywords.filter((keyword): keyword is string => typeof keyword === 'string') : [],
+          handoffReasons: conversation.handoffAlerts.flatMap((alert) => alert.reason ? [alert.reason] : []),
+          sources,
+        })
         const raw = await improvementCompletion(run.workspaceId, run.agentId, [
           { role: 'system', content: conversationReviewSkillPrompt(snapshot.language === 'en' ? 'en' : 'fa') },
           { role: 'user', content: JSON.stringify({ segment: i + 1, segments: segments.length, settingsAtRunStart: snapshot,
@@ -66,8 +75,26 @@ export async function processImprovement({ runId }: { runId: string }) {
           conversationId: review.conversationId,
         })
         const previousResult = result
-        result = reviewSchema.parse(parseModelJson(raw))
-        validateReviewEvidence(result, seen, messages.some((message) => message.role === 'USER'))
+        try {
+          result = normalizeReviewResult(parseModelJson(raw), {
+            messageIds: seen,
+            knowledgeIds,
+            contactId: conversation.contactId,
+            hasCustomerMessages: messages.some((message) => message.role === 'USER'),
+          })
+        } catch (error) {
+          // A provider-format defect must not hide a high-confidence routing
+          // conflict that the server can prove from stored settings, handoff
+          // evidence, and retrieved ready knowledge.
+          if (!routingFindings.length && !previousResult.findings.length) throw error
+          result = previousResult
+          console.warn('[improvement] invalid model review salvaged with deterministic findings', { runId, reviewId: review.id, segment: i })
+        }
+        for (const routingFinding of routingFindings) {
+          const existing = result.findings.find((finding) => finding.kind === routingFinding.kind && normalizedTopic(finding.topicKey) === normalizedTopic(routingFinding.topicKey))
+          if (existing) existing.messageIds = [...new Set([...existing.messageIds, ...routingFinding.messageIds])].slice(0, 8)
+          else if (result.findings.length < 8) result.findings.push(routingFinding)
+        }
         for (const finding of result.findings) {
           validateFinding(finding, seen, knowledgeIds, conversation.contactId)
           finding.draft.scope = finding.scope
