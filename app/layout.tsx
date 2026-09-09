@@ -6,6 +6,8 @@ import { getLocale } from 'next-intl/server'
 import { Providers } from '@/components/providers'
 import { dirForLocale, type Locale } from '@/lib/locale'
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery'
+import '@doranjs/ui/styles.css'
+import '@doranjs/react/styles.css'
 import 'react-day-picker/style.css'
 import './globals.css'
 

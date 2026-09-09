@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { DoranDate } from '@doranjs/core'
+import { DoranCalendar } from '@doranjs/react'
 import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react'
 import { DayPicker as GregorianDayPicker, type Matcher } from 'react-day-picker'
-import { DayPicker as PersianDayPicker, faIR } from 'react-day-picker/persian'
 import { enUS } from 'react-day-picker/locale'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
@@ -64,6 +65,18 @@ export function LocalizedDatePicker({
   const minDate = useMemo(() => dateFromKey(min), [min])
   const maxDate = useMemo(() => dateFromKey(max), [max])
   const today = useMemo(() => dateFromKey(todayKey) ?? new Date(), [todayKey])
+  const doranSelectedDate = useMemo(
+    () => selectedDate ? DoranDate.fromGregorian(selectedDate, { timeZone }) : null,
+    [selectedDate, timeZone],
+  )
+  const doranMinDate = useMemo(
+    () => minDate ? DoranDate.fromGregorian(minDate, { timeZone }) : undefined,
+    [minDate, timeZone],
+  )
+  const doranMaxDate = useMemo(
+    () => maxDate ? DoranDate.fromGregorian(maxDate, { timeZone }) : undefined,
+    [maxDate, timeZone],
+  )
   const [visibleMonth, setVisibleMonth] = useState<Date>(() => selectedDate ?? today)
 
   useEffect(() => {
@@ -157,9 +170,22 @@ export function LocalizedDatePicker({
           </div>
         }
       >
-        {fa
-          ? <PersianDayPicker {...calendarProps} locale={faIR} dir="rtl" numerals="arabext" />
-          : <GregorianDayPicker {...calendarProps} locale={enUS} dir="ltr" numerals="latn" />}
+        {fa ? (
+          <DoranCalendar
+            value={doranSelectedDate}
+            min={doranMinDate}
+            max={doranMaxDate}
+            timeZone={timeZone}
+            onChange={(date) => { if (date) selectDate(date.toDate()) }}
+            showOutsideDays={false}
+            fixedWeeks={6}
+            footerActions={[]}
+            className="vigent-doran-calendar"
+            dir="rtl"
+          />
+        ) : (
+          <GregorianDayPicker {...calendarProps} locale={enUS} dir="ltr" numerals="latn" />
+        )}
         <p className="mt-2 text-center text-[11px] leading-5 text-[var(--text-muted)]">{fa ? 'تاریخ‌ها بر اساس ساعت تهران هستند' : 'Dates use Tehran time'}</p>
       </MobileBottomSheet>
     </div>

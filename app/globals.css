@@ -142,6 +142,51 @@
 }
 
 /* One calendar surface for both Solar Hijri and Gregorian date pickers. */
+.vigent-doran-calendar {
+        --doran-calendar-width: 100%;
+        --doran-calendar-padding: 0;
+        --doran-calendar-border-width: 0;
+        --doran-calendar-shadow: none;
+        --doran-calendar-radius: 0;
+        --doran-calendar-arrow-size: 2.75rem;
+        --doran-day-size: 2.5rem;
+        --doran-day-radius: 0.75rem;
+        --doran-day-font-size: 0.75rem;
+        --doran-primary: #111111;
+        --doran-primary-hover: #000000;
+        --doran-primary-soft: rgba(17, 17, 17, 0.07);
+        --doran-focus-ring: rgba(17, 17, 17, 0.3);
+        display: flex;
+        max-width: none;
+        font-family: inherit;
+}
+
+.vigent-doran-calendar .doran-calendar__header {
+        min-height: 2.75rem;
+}
+
+.vigent-doran-calendar .doran-calendar__heading {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: rgba(17, 17, 17, 0.82);
+}
+
+.vigent-doran-calendar .doran-calendar__nav {
+        border: 1px solid rgba(17, 17, 17, 0.07);
+        color: rgba(17, 17, 17, 0.58);
+}
+
+.vigent-doran-calendar .doran-month__weekday {
+        padding-block: 0.5rem;
+        font-size: 0.625rem;
+        color: rgba(17, 17, 17, 0.4);
+}
+
+.vigent-doran-calendar .doran-day--today:not(.doran-day--selected) {
+        color: #047857;
+        box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.42);
+}
+
 .vigent-date-calendar {
         --rdp-accent-color: #111111;
         --rdp-accent-background-color: rgba(17, 17, 17, 0.07);
