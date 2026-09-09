@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 import { useLearningCount } from '@/components/agents/learning-count'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -85,15 +86,17 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
         )}>
           <Icon className="h-4 w-4" aria-hidden="true" />
         </span>
-        <span className="max-w-full truncate">{label}</span>
-        {typeof badge === 'number' && badge > 0 && (
-          <span className={cn(
-            'absolute -end-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums',
-            active ? 'bg-white text-black' : 'bg-black text-white',
-          )}>
-            {badge.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
-          </span>
-        )}
+        <span className="flex max-w-full min-w-0 items-center justify-center gap-1.5">
+          <span className="min-w-0 truncate">{label}</span>
+          {typeof badge === 'number' && (
+            <NavigationCountBadge
+              count={badge}
+              active={active}
+              locale={locale === 'fa' ? 'fa-IR' : 'en-US'}
+              label={locale === 'fa' ? 'موارد در انتظار' : 'Pending items'}
+            />
+          )}
+        </span>
       </Link>
     )
   }

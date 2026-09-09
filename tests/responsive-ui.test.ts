@@ -203,4 +203,16 @@ describe('shared adaptive mobile UI contract', () => {
     expect(dashboardHeader).not.toContain('remainingPercent')
     expect(dashboardHeader).not.toContain('percentLabel')
   })
+
+  it('keeps navigation counts inside tabs instead of overlapping their edges', () => {
+    const agentTabs = source('components/agents/agent-tabs.tsx')
+    const improvementTabs = source('components/agents/improvement-tabs.tsx')
+    const countBadge = source('components/ui/navigation-count-badge.tsx')
+
+    expect(agentTabs).toContain('<NavigationCountBadge')
+    expect(improvementTabs).toContain('<NavigationCountBadge')
+    expect(agentTabs).not.toContain('absolute -end-1 -top-1')
+    expect(countBadge).toContain("count > 99 ? `${formatter.format(99)}+`")
+    expect(countBadge).toContain("active\n          ? 'bg-white text-black ring-white'")
+  })
 })

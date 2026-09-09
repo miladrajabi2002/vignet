@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 're
 import { BookOpen, GraduationCap, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLearningCount } from '@/components/agents/learning-count'
+import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 
 export type ImprovementTab = 'behavior' | 'knowledge' | 'learning'
 
@@ -112,13 +113,15 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
           >
             <span className="relative inline-flex items-center gap-1.5">
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {key === 'learning' && pendingCount > 0 && <span className={cn(
-                'inline-flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums',
-                active === key ? 'bg-white text-black' : 'bg-black text-white',
-              )}>
-                <span className="sr-only">{isFa ? 'موارد در انتظار: ' : 'Pending items: '}</span>
-                {pendingCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')}
-              </span>}
+              {key === 'learning' && (
+                <NavigationCountBadge
+                  count={pendingCount}
+                  active={active === key}
+                  locale={isFa ? 'fa-IR' : 'en-US'}
+                  label={isFa ? 'موارد در انتظار' : 'Pending items'}
+                  className="text-[10px]"
+                />
+              )}
             </span>
             <span>{label}</span>
           </button>
