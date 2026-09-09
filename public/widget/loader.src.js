@@ -265,6 +265,37 @@
                 return n
         }
 
+        // The widget renders inside its own Shadow DOM so host-page selectors
+        // (`button:hover`, `svg`, `*`, theme resets, etc.) cannot restyle it.
+        // Keep an old-browser light-DOM fallback, but modern browsers always use
+        // the isolated path. The inline !important reset protects the shadow host
+        // itself, which is the one node that still lives in the host document.
+        var widgetHost = document.createElement('vigent-widget')
+        widgetHost.setAttribute('data-vigent-widget-host', '')
+        widgetHost.style.cssText =
+                'all:initial!important;display:block!important;position:fixed!important;top:0!important;left:0!important;' +
+                'width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;' +
+                'overflow:visible!important;visibility:visible!important;opacity:1!important;z-index:2147483000!important;'
+        var widgetShadow = null
+        if (widgetHost.attachShadow) {
+                try {
+                        // Open mode keeps the widget inspectable in DevTools while retaining
+                        // the exact same CSS encapsulation as a closed shadow root.
+                        widgetShadow = widgetHost.attachShadow({ mode: 'open' })
+                } catch (e) {
+                        widgetShadow = null
+                }
+        }
+
+        function widgetAssetExists(id) {
+                return widgetShadow ? !!widgetShadow.querySelector('#' + id) : !!document.getElementById(id)
+        }
+
+        function appendWidgetAsset(node) {
+                if (widgetShadow) widgetShadow.appendChild(node)
+                else document.head.appendChild(node)
+        }
+
         // ---- Fonts ----
         var FONT_LINKS = {
                 vazirmatn:
@@ -280,22 +311,42 @@
                         "'Samim',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif",
                 yekan:
                         "'Vazir',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif",
-                inherit: 'inherit',
+                inherit: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif",
+        }
+        function resolvedFontFamily() {
+                if (config.font !== 'inherit') return FONT_FAMILY[config.font] || FONT_FAMILY.vazirmatn
+                // "Site font" remains an explicit setting: copy only the body's
+                // computed font family, without inheriting any other host styles
+                // across the Shadow DOM boundary.
+                try {
+                        var siteFont = document.body && window.getComputedStyle(document.body).fontFamily
+                        if (siteFont) return siteFont
+                } catch (e) {
+                        /* Fall through to the isolated system stack. */
+                }
+                return FONT_FAMILY.inherit
         }
         function injectFont() {
-                if (config.font === 'inherit' || document.getElementById('vgt-font')) return
+                if (config.font === 'inherit' || widgetAssetExists('vgt-font')) return
                 var link = document.createElement('link')
                 link.id = 'vgt-font'
                 link.rel = 'stylesheet'
                 var href = FONT_LINKS[config.font] || FONT_LINKS.vazirmatn
                 link.href = href
-                document.head.appendChild(link)
+                appendWidgetAsset(link)
         }
 
         // ---- Stylesheet ----
         function injectStyles() {
-                if (document.getElementById('vgt-styles')) return
+                if (widgetAssetExists('vgt-styles')) return
                 var css =
+                        // Reset every inherited host-page value at the shadow boundary.
+                        // Custom properties are deliberately defined on .vgt-root below by
+                        // applyConfig(), so the host cannot supply theme tokens either.
+                        ':host{all:initial!important;display:block!important;position:fixed!important;top:0!important;left:0!important;' +
+                        'width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;' +
+                        'overflow:visible!important;visibility:visible!important;opacity:1!important;z-index:2147483000!important;' +
+                        '-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important;}' +
                         // Use env(safe-area-inset-*) so the launcher clears the
                         // iPhone home indicator and notches on rotated devices.
                         '.vgt-root{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));z-index:2147483000;direction:ltr;visibility:hidden;opacity:0;' +
@@ -303,10 +354,15 @@
                         '.vgt-root.vgt-ready{visibility:visible;opacity:1;}' +
                         '.vgt-root.vgt-right{inset-inline-end:max(20px,env(safe-area-inset-right));}' +
                         '.vgt-root.vgt-left{inset-inline-start:max(20px,env(safe-area-inset-left));}' +
-                        '.vgt-root *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}' +
+                        '.vgt-root,.vgt-root *,.vgt-root *::before,.vgt-root *::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}' +
                         // touch-action:manipulation removes the legacy 300ms tap delay and
                         // accidental double-tap zoom on every widget button (mobile).
-                        '.vgt-root button,.vgt-root textarea,.vgt-root input{touch-action:manipulation;}' +
+                        // Avoid the `font` shorthand here: its higher-specificity
+                        // textarea selector would override .vgt-input's 16px iOS
+                        // zoom guard. Only the family should be shared.
+                        '.vgt-root button,.vgt-root textarea,.vgt-root input{margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;touch-action:manipulation;}' +
+                        '.vgt-root button{appearance:none;}' +
+                        '.vgt-root svg{display:block;fill:none;stroke:currentColor;}' +
                         // launcher
                         '.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
                         'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
@@ -350,7 +406,7 @@
                         '.vgt-head-title{font-weight:700;font-size:15px;line-height:1.25;color:var(--vgt-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         '.vgt-head-sub{font-size:12.5px;color:var(--vgt-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         // ≥44px touch target (Apple HIG). display:flex already set.
-                        '.vgt-close{background:transparent;border:none;color:var(--vgt-muted);cursor:pointer;padding:7px;border-radius:10px;' +
+                        '.vgt-close{background:transparent;border:none;color:var(--vgt-muted);cursor:pointer;padding:7px;border-radius:50%;' +
                         'min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
                         '.vgt-close:hover{background:var(--vgt-surface);color:var(--vgt-text);}' +
                         '.vgt-close svg{width:18px;height:18px;}' +
@@ -567,22 +623,35 @@
                         // Send button: a flat 40px circle sitting inside the pill,
                         // bottom-aligned with the textarea once it grows. flex-shrink:0
                         // keeps it from squishing. No box-shadow.
-                        '.vgt-send{flex:0 0 40px;width:40px;height:40px;min-width:40px;border:none;cursor:pointer;border-radius:50%;' +
+                        // `!important` is intentional here. This is third-party embed CSS,
+                        // and host themes commonly ship broad rules such as
+                        // `button:hover { border-radius: 5px }` after their component CSS.
+                        // Without an isolated radius the circular control turns square on
+                        // hover (observed on haftmin.shop). Keep the reset limited to the
+                        // send control instead of disturbing every button on the host page.
+                        '.vgt-root .vgt-send{appearance:none;flex:0 0 40px;width:40px;height:40px;min-width:40px;max-width:40px;' +
+                        'margin:0;padding:0;border:0;border-radius:50%!important;cursor:pointer;overflow:hidden;' +
                         'background:var(--vgt-accent);' +
                         'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;' +
                         'transition:transform .15s ease,opacity .15s,background .15s;}' +
-                        '.vgt-send:hover:not(:disabled){background:var(--vgt-accent-deep);}' +
-                        '.vgt-send:active:not(:disabled){transform:scale(.94);}' +
-                        '.vgt-send:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-root .vgt-send:hover:not(:disabled){border-radius:50%!important;background:var(--vgt-accent-deep);}' +
+                        '.vgt-root .vgt-send:active:not(:disabled){transform:scale(.94);}' +
+                        '.vgt-root .vgt-send:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
                         // Disabled covers both "nothing typed yet" and "reply streaming".
-                        '.vgt-send:disabled{opacity:.3;cursor:not-allowed;transform:none;}' +
+                        // Do not fade the entire button: that blends the white arrow into
+                        // the panel background and makes the send affordance disappear.
+                        '.vgt-root .vgt-send:disabled{opacity:1;cursor:not-allowed;transform:none;' +
+                        'background:var(--vgt-accent-soft);color:var(--vgt-accent-ink);}' +
                         // stroke-width here overrides the 2 that svg() writes as an
                         // attribute, matching the shared button's 2.5 arrow.
-                        '.vgt-send svg{width:18px;height:18px;stroke-width:2.5;}' +
+                        // Explicit paint/display values protect the icon from generic host
+                        // rules such as `button svg { fill: currentColor; width: 1em }`.
+                        '.vgt-root .vgt-send svg{width:18px;height:18px;flex:none;' +
+                        'fill:none;stroke:currentColor;stroke-width:2.5;opacity:1;pointer-events:none;}' +
                         // While streaming, the arrow is swapped for a spinner.
-                        '.vgt-send .vgt-send-spin{display:none;animation:vgt-spin .9s linear infinite;}' +
-                        '.vgt-send.vgt-busy .vgt-send-arrow{display:none;}' +
-                        '.vgt-send.vgt-busy .vgt-send-spin{display:block;}' +
+                        '.vgt-send .vgt-send-spin{display:none!important;animation:vgt-spin .9s linear infinite;}' +
+                        '.vgt-send.vgt-busy .vgt-send-arrow{display:none!important;}' +
+                        '.vgt-send.vgt-busy .vgt-send-spin{display:block!important;}' +
                         // direction:ltr forces "Powered by Vigent" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "Vigent by Powered".
@@ -711,7 +780,7 @@
                 var st = document.createElement('style')
                 st.id = 'vgt-styles'
                 st.textContent = css
-                document.head.appendChild(st)
+                appendWidgetAsset(st)
         }
 
         // ---- Build DOM ----
@@ -834,7 +903,7 @@
                 s.setProperty('--vgt-text', dark ? '#f5f5f3' : '#111111')
                 s.setProperty('--vgt-muted', dark ? '#a1a1aa' : '#6b7280')
                 s.setProperty('--vgt-border', dark ? 'rgba(255,255,255,.10)' : 'rgba(17,17,17,.09)')
-                s.setProperty('--vgt-font', FONT_FAMILY[config.font] || FONT_FAMILY.vazirmatn)
+                s.setProperty('--vgt-font', resolvedFontFamily())
                 s.setProperty('--vgt-motion-control', '180ms')
                 s.setProperty('--vgt-motion-surface', '280ms')
                 s.setProperty('--vgt-ease', 'cubic-bezier(.23,1,.32,1)')
@@ -1182,7 +1251,9 @@
                                                 ';font-weight:' + bcs.fontWeight +
                                                 ';line-height:' + bcs.lineHeight +
                                                 ';white-space:pre;visibility:hidden;position:absolute;'
-                                        document.body.appendChild(span)
+                                        // Measure inside the Shadow DOM so even broad host
+                                        // span/text rules cannot distort the bubble width.
+                                        root.appendChild(span)
                                         var maxLineWidth = 0
                                         var lines = (text || '').split('\n')
                                         for (var i = 0; i < lines.length; i++) {
@@ -2350,7 +2421,12 @@
         function mount() {
                 if (mounted) return
                 mounted = true
-                document.body.appendChild(root)
+                if (widgetShadow) {
+                        widgetShadow.appendChild(root)
+                        document.body.appendChild(widgetHost)
+                } else {
+                        document.body.appendChild(root)
+                }
                 reveal()
         }
         function markReady() {
