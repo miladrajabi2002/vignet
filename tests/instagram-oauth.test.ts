@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   INSTAGRAM_WEBHOOK_FIELDS,
+  exchangeForLongLivedToken,
   getInstagramProfile,
+  refreshLongLivedToken,
   subscribeIgUserToWebhook,
   unsubscribeIgUserFromWebhook,
 } from '@/lib/instagram/oauth'
@@ -77,5 +79,67 @@ describe('Instagram webhook subscription', () => {
     expect(url.pathname).toContain('/ig-user-1/subscribed_apps')
     expect(url.searchParams.get('access_token')).toBe('token-1')
     expect(requestInit).toEqual({ method: 'DELETE' })
+  })
+})
+
+describe('Instagram long-lived token endpoints', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it('exchanges the short-lived token with GET query parameters', async () => {
+    vi.stubEnv('INSTAGRAM_APP_SECRET', 'app-secret')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'long-token',
+        token_type: 'bearer',
+        expires_in: 5_184_000,
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      exchangeForLongLivedToken('short-token'),
+    ).resolves.toMatchObject({ token: 'long-token' })
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [
+      string | URL,
+      RequestInit,
+    ]
+    const url = new URL(requestUrl)
+    expect(url.pathname).toBe('/access_token')
+    expect(url.searchParams.get('grant_type')).toBe('ig_exchange_token')
+    expect(url.searchParams.get('client_secret')).toBe('app-secret')
+    expect(url.searchParams.get('access_token')).toBe('short-token')
+    expect(requestInit).toEqual({ method: 'GET' })
+  })
+
+  it('refreshes the long-lived token with GET query parameters', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'refreshed-token',
+        token_type: 'bearer',
+        expires_in: 5_184_000,
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(refreshLongLivedToken('long-token')).resolves.toMatchObject({
+      token: 'refreshed-token',
+    })
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [
+      string | URL,
+      RequestInit,
+    ]
+    const url = new URL(requestUrl)
+    expect(url.pathname).toBe('/refresh_access_token')
+    expect(url.searchParams.get('grant_type')).toBe('ig_refresh_token')
+    expect(url.searchParams.get('access_token')).toBe('long-token')
+    expect(requestInit).toEqual({ method: 'GET' })
   })
 })

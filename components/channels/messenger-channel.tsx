@@ -325,6 +325,7 @@ export function MessengerChannel({
   const [showGuide, setShowGuide] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
 
   const isInstagram = type === 'INSTAGRAM'
   const guideSteps = t.raw(`guide.${type}`) as unknown
@@ -371,7 +372,7 @@ export function MessengerChannel({
   return (
     <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-wrap items-center gap-3">
-        {enabled && isInstagram && botAvatar ? (
+        {enabled && isInstagram && botAvatar && failedAvatarUrl !== botAvatar ? (
           // Connected Instagram OAuth channel — show the IG profile avatar
           // instead of the generic camera icon. Makes it obvious at a glance
           // which account is wired up.
@@ -383,6 +384,7 @@ export function MessengerChannel({
             height={40}
             loading="lazy"
             decoding="async"
+            onError={() => setFailedAvatarUrl(botAvatar)}
             className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
           />
         ) : (

@@ -1057,7 +1057,8 @@ function Avatar({
         ring?: boolean
 }) {
         const initial = (name || 'V').charAt(0).toUpperCase()
-        if (url) {
+        const [failedUrl, setFailedUrl] = useState<string | null>(null)
+        if (url && failedUrl !== url) {
                 return (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1067,6 +1068,7 @@ function Avatar({
                                 height={size}
                                 loading="lazy"
                                 decoding="async"
+                                onError={() => setFailedUrl(url)}
                                 className={`shrink-0 rounded-full object-cover ${ring ? 'ring-2 ring-white p-[1.5px]' : ''}`}
                                 style={{ width: size, height: size }}
                         />

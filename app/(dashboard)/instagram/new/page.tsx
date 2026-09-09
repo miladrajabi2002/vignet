@@ -41,7 +41,6 @@ export default async function NewInstagramAutomationPage({
 
   const config = (igChannel.config ?? {}) as {
     botUsername?: string
-    igProfilePictureUrl?: string
   }
 
   return (
@@ -49,7 +48,7 @@ export default async function NewInstagramAutomationPage({
       agentId={agent.id}
       channelId={igChannel.id}
       accountUsername={config.botUsername ?? 'vigent.bot'}
-      accountAvatarUrl={config.igProfilePictureUrl || undefined}
+      accountAvatarUrl={`/api/agents/${agent.id}/channels/${igChannel.id}/avatar`}
       type={rawType as AutomationType}
       mode="create"
     />

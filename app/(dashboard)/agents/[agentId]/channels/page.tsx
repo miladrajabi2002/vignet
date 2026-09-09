@@ -152,8 +152,8 @@ export default async function AgentChannelsPage(
         ? channel.config as Record<string, unknown>
         : null
       const botUsername = config ? String(config.botUsername ?? '') : ''
-      const botAvatar = config && messenger.type === 'INSTAGRAM'
-        ? String(config.igProfilePictureUrl ?? '')
+      const botAvatar = channel && messenger.type === 'INSTAGRAM'
+        ? `/api/agents/${agent.id}/channels/${channel.id}/avatar`
         : ''
       const quickReplies = messenger.type === 'INSTAGRAM'
         ? []

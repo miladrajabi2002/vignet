@@ -45,7 +45,6 @@ export default async function EditInstagramAutomationPage({
 
   const config = (igChannel.config ?? {}) as {
     botUsername?: string
-    igProfilePictureUrl?: string
   }
   const automation: Automation = {
     id: row.id,
@@ -66,7 +65,7 @@ export default async function EditInstagramAutomationPage({
       agentId={agent.id}
       channelId={igChannel.id}
       accountUsername={config.botUsername ?? 'vigent.bot'}
-      accountAvatarUrl={config.igProfilePictureUrl || undefined}
+      accountAvatarUrl={`/api/agents/${agent.id}/channels/${igChannel.id}/avatar`}
       type={automation.type}
       mode="edit"
       initial={automation}

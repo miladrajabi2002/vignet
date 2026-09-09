@@ -48,10 +48,9 @@ export default async function NewAutomationPage(
 
         const cfg = (igChannel.config ?? {}) as {
                 botUsername?: string
-                igProfilePictureUrl?: string
         }
         const accountUsername = cfg.botUsername ?? 'vigent.bot'
-        const accountAvatarUrl = cfg.igProfilePictureUrl || undefined
+        const accountAvatarUrl = `/api/agents/${agent.id}/channels/${igChannel.id}/avatar`
 
         return (
                 <AutomationForm
