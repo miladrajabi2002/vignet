@@ -233,6 +233,7 @@ export function ConversationThread({
                                                 return (
                                                         <motion.div
                                                                 key={m.id}
+                                                                id={`message-${m.id}`}
                                                                 layout={reduceMotion ? false : 'position'}
                                                                 initial={isLiveMessage ? arrivalInitial : false}
                                                                 animate={{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }}
@@ -266,11 +267,12 @@ export function ConversationThread({
                                                 {sessionBoundaries.has(m.id) && <ConversationSessionDivider locale={locale} />}
                                                 <motion.div
                                                         key={m.id}
+                                                        id={`message-${m.id}`}
                                                         layout={reduceMotion ? false : 'position'}
                                                         initial={isLiveMessage ? arrivalInitial : false}
                                                         animate={{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }}
                                                         transition={arrivalTransition}
-                                                        className={cn('flex', isUser ? 'justify-end' : 'justify-start')}
+                                                        className={cn('flex scroll-mt-28', isUser ? 'justify-end' : 'justify-start')}
                                                 >
                                                         <div
                                                                 className={cn(
