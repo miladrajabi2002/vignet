@@ -2,25 +2,29 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeaderSkeleton, StatCardSkeleton, TableSkeleton } from '../admin-skeletons'
 
 /**
- * Route-level skeleton for /admin/conversations.
- *
- * Mirrors the real page shape — PageHeader, filter card, three stat
- * cards, then the mobile card list / desktop conversation table with
- * pagination — so the force-dynamic page paints its own outline
- * instantly with the same mobile-style shimmer (staggered per card)
- * users know from the rest of the panel.
+ * Route-level skeleton for /admin/conversations — an exact mirror of the
+ * page: PageHeader (no actions), the search/filter card, three stat cards,
+ * then the mobile card list / desktop conversation table with pagination.
+ * Same staggered mobile-style shimmer as the rest of the panel.
  */
 export default function AdminConversationsLoading() {
   return (
     <div className="space-y-6">
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton action={false} />
 
-      {/* Search + filters card */}
+      {/* Search + filters — mirrors AdminConversationFilters:
+          mobile = search + bottom-sheet button, desktop = search + status
+          and channel selects + handed-off pill. */}
       <div className="spatial-surface rounded-[1.35rem] p-2 shadow-[var(--shadow-soft)] md:p-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 md:hidden">
           <Skeleton className="h-11 min-w-[12rem] flex-1 rounded-xl" />
-          <Skeleton delay={-90} className="h-11 w-40 rounded-xl" />
-          <Skeleton delay={-180} className="h-11 w-36 rounded-xl" />
+          <Skeleton delay={-90} className="h-11 w-11 shrink-0 rounded-xl" />
+        </div>
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
+          <Skeleton className="h-11 min-w-[13rem] flex-1 rounded-xl" />
+          <Skeleton delay={-90} className="h-11 min-w-40 rounded-xl" />
+          <Skeleton delay={-180} className="h-11 min-w-40 rounded-xl" />
+          <Skeleton delay={-270} className="h-11 w-36 rounded-xl" />
         </div>
       </div>
 
@@ -45,7 +49,7 @@ export default function AdminConversationsLoading() {
               </div>
               <Skeleton delay={-index * 110} className="h-6 w-20 shrink-0 rounded-md" />
             </div>
-            <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3">
+            <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
               <div className="space-y-1.5">
                 <Skeleton delay={-index * 110} className="h-2.5 w-10 rounded-md" />
                 <Skeleton delay={-index * 110} className="h-5 w-16 rounded-md" />
@@ -67,18 +71,18 @@ export default function AdminConversationsLoading() {
         ))}
       </div>
 
-      {/* Desktop conversation table */}
+      {/* Desktop conversation table — 8 columns like the real table */}
       <div className="hidden md:block">
         <TableSkeleton rows={8} cols={8} minWidth={900} />
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-center gap-2">
-        <Skeleton className="h-9 w-24 rounded-xl" />
-        <Skeleton delay={-80} className="h-9 w-9 rounded-xl" />
-        <Skeleton delay={-160} className="h-9 w-9 rounded-xl" />
-        <Skeleton delay={-240} className="h-9 w-24 rounded-xl" />
-      </div>
+      <nav className="flex flex-wrap items-center justify-center gap-2">
+        <Skeleton className="h-11 w-24 rounded-xl" />
+        <Skeleton delay={-80} className="h-11 w-11 rounded-xl" />
+        <Skeleton delay={-160} className="h-11 w-11 rounded-xl" />
+        <Skeleton delay={-240} className="h-11 w-24 rounded-xl" />
+      </nav>
     </div>
   )
 }

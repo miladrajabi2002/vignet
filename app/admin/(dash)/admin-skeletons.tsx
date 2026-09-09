@@ -11,8 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton'
  * `loading.tsx` route files in this segment.
  */
 
-/** Mirrors PageHeader: icon square + title + subtitle + action control. */
-export function PageHeaderSkeleton() {
+/** Mirrors PageHeader: icon square + title + subtitle + optional action control. */
+export function PageHeaderSkeleton({ action = true }: { action?: boolean }) {
   return (
     <div className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -23,7 +23,7 @@ export function PageHeaderSkeleton() {
             <Skeleton className="h-4 w-64 max-w-full rounded-lg" />
           </div>
         </div>
-        <Skeleton className="h-11 w-44 rounded-2xl" />
+        {action && <Skeleton className="h-11 w-44 rounded-2xl" />}
       </div>
     </div>
   )
