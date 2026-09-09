@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { toEnglishDigits } from '@/lib/phone'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 const ORDER_INTENT = /(?:سفارش|پیگیری\s*(?:خرید|مرسوله|ارسال)?|کد\s*رهگیری|وضعیت\s*(?:خرید|ارسال)|order|tracking|shipment)/i
 const ORDER_MUTATION_INTENT = /(?:ثبت\s*سفارش|سفارش\s*(?:بدم|بدهم|ثبت|لغو)|لغو\s*سفارش|تغییر\s*سفارش|مرجوع|خرید\s*(?:کنم|انجام)|place\s+an?\s*order|cancel\s+(?:my\s+)?order|change\s+(?:my\s+)?order)/i
@@ -38,7 +39,7 @@ function extractBareOrderId(message: string): string | null {
 
 function formatDate(value: Date | null, isFa: boolean): string | null {
   if (!value) return null
-  return new Intl.DateTimeFormat(isFa ? 'fa-IR' : 'en-US', {
+  return new Intl.DateTimeFormat(dateLocaleTag(isFa ? 'fa' : 'en'), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

@@ -4,6 +4,9 @@ import { promptConfigSchema } from '@/lib/validations/agent'
 
 export const selectionSchema = z.object({
   mode: z.enum(['latest', 'selected']).default('latest'),
+  // Re-reviewing an unchanged conversation is an explicit opt-in because every
+  // model request is billable. Updated conversations remain eligible by default.
+  includeReviewed: z.boolean().default(false),
   count: z.number().int().min(1).max(500).default(100),
   ids: z.array(z.string().min(1).max(100)).max(500).default([]),
   search: z.string().trim().max(200).default(''),
@@ -34,12 +37,18 @@ export const draftSchema = z.object({
   targetKnowledgeId: z.string().max(100).nullable().default(null),
   behaviorPath: z.enum(Object.keys(behaviorValues) as [BehaviorPath, ...BehaviorPath[]]).nullable().default(null),
   behaviorValue: z.union([z.string().max(500), z.boolean()]).nullable().default(null),
+  // Scope and customer identity are server-owned. The model chooses only the
+  // finding scope; processImprovement binds CUSTOMER findings to the reviewed
+  // conversation's real contact before anything can be previewed or applied.
+  scope: z.enum(['AGENT', 'CUSTOMER']).default('AGENT'),
+  contactId: z.string().max(100).nullable().default(null),
   // Baseline is injected by the server, never accepted as model authority.
   baseline: z.unknown().optional(),
 })
 export type Draft = z.infer<typeof draftSchema>
 export const findingSchema = z.object({
   kind: z.enum(['KNOWLEDGE', 'BEHAVIOR', 'TOOL']),
+  scope: z.enum(['AGENT', 'CUSTOMER']).default('AGENT'),
   topicKey: z.string().trim().min(2).max(120),
   title: z.string().trim().min(3).max(200),
   diagnosis: z.string().trim().min(3).max(1600),
@@ -47,12 +56,27 @@ export const findingSchema = z.object({
   messageIds: z.array(z.string().min(1)).min(1).max(8),
   draft: draftSchema,
 })
+const strengthSchema = z.union([
+  // Read old checkpoints defensively. New model output always uses the
+  // evidence-bearing object form below.
+  z.string().trim().min(1).max(400).transform((title) => ({ title, messageIds: [] as string[] })),
+  z.object({
+    title: z.string().trim().min(1).max(400),
+    messageIds: z.array(z.string().min(1)).min(1).max(8),
+  }),
+])
 export const reviewSchema = z.object({
   intent: z.string().max(1200),
+  intentMessageIds: z.array(z.string().min(1)).max(8).default([]),
   outcome: z.enum(['RESOLVED', 'UNRESOLVED', 'UNKNOWN']),
+  outcomeMessageIds: z.array(z.string().min(1)).max(8).default([]),
   summary: z.string().max(2400),
-  strengths: z.array(z.string().max(400)).max(5),
+  strengths: z.array(strengthSchema).max(5),
   findings: z.array(findingSchema).max(8),
+}).superRefine((value, ctx) => {
+  if (value.outcome !== 'UNKNOWN' && value.outcomeMessageIds.length === 0) {
+    ctx.addIssue({ code: 'custom', path: ['outcomeMessageIds'], message: 'OUTCOME_EVIDENCE_REQUIRED' })
+  }
 })
 export type ReviewResult = z.infer<typeof reviewSchema>
 export const settingsSchema = z.object({
@@ -83,6 +107,28 @@ export function conversationWhere(workspaceId: string, agentId: string, input: S
       { contact: { phone: { contains: input.search } } },
       { messages: { some: { content: { contains: input.search, mode: 'insensitive' } } } },
     ] } : {}),
+  }
+}
+
+/** Server-side eligibility layer. Kept separate from conversationWhere because
+ * Prisma field references are provided by the generated client instance and the
+ * shared schemas in this module are also imported by client components. */
+export function withImprovementFreshness(
+  where: Prisma.ConversationWhereInput,
+  includeReviewed: boolean,
+  lastReviewField: Prisma.FieldRef<'Conversation', 'DateTime'>,
+): Prisma.ConversationWhereInput {
+  if (includeReviewed) return where
+  return {
+    AND: [
+      where,
+      {
+        OR: [
+          { lastImprovementReviewAt: null },
+          { lastMessageAt: { gt: lastReviewField } },
+        ],
+      },
+    ],
   }
 }
 export function behaviorValue(config: unknown, path: BehaviorPath) {
@@ -118,11 +164,33 @@ export function transcriptSegments(messages: TranscriptMessage[], limit = 16000)
   if (current.length) segments.push(current)
   return segments
 }
-export function validateFinding(finding: z.infer<typeof findingSchema>, messageIds: Set<string>, knowledgeIds: Set<string>) {
+export function validateFinding(
+  finding: Omit<z.infer<typeof findingSchema>, 'scope'> & { scope?: 'AGENT' | 'CUSTOMER' },
+  messageIds: Set<string>,
+  knowledgeIds: Set<string>,
+  contactId?: string | null,
+) {
   if (finding.messageIds.some((id) => !messageIds.has(id))) throw new Error('INVALID_EVIDENCE')
   if (finding.draft.targetKnowledgeId && !knowledgeIds.has(finding.draft.targetKnowledgeId)) throw new Error('INVALID_KNOWLEDGE')
+  if ((finding.scope ?? 'AGENT') === 'CUSTOMER') {
+    if (!contactId || finding.kind !== 'BEHAVIOR' || finding.draft.answer.trim().length < 3 ||
+      finding.draft.targetKnowledgeId || finding.draft.behaviorPath || finding.draft.behaviorValue !== null) {
+      throw new Error('INVALID_CUSTOMER_SCOPE')
+    }
+    return
+  }
   if (finding.kind === 'BEHAVIOR' && (!finding.draft.behaviorPath ||
     (finding.draft.behaviorPath === 'doSay' ? typeof finding.draft.behaviorValue !== 'string' || finding.draft.behaviorValue.trim().length < 3 : !(behaviorValues[finding.draft.behaviorPath] as readonly unknown[]).includes(finding.draft.behaviorValue)))) throw new Error('INVALID_BEHAVIOR')
+}
+
+export function validateReviewEvidence(result: ReviewResult, messageIds: Set<string>, hasCustomerMessages: boolean) {
+  const ids = [
+    ...result.intentMessageIds,
+    ...result.outcomeMessageIds,
+    ...result.strengths.flatMap((strength) => strength.messageIds),
+  ]
+  if (ids.some((id) => !messageIds.has(id))) throw new Error('INVALID_EVIDENCE')
+  if (hasCustomerMessages && result.intent.trim() && result.intentMessageIds.length === 0) throw new Error('INVALID_EVIDENCE')
 }
 
 export function restoreBehavior(config: unknown, path: BehaviorPath, value: unknown) {

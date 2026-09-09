@@ -46,7 +46,7 @@ describe.skipIf(process.env.RUN_IMPROVEMENT_DB_TESTS !== '1')('durable improveme
   it('reviews complete long transcripts independently, merges repeated remedies, and resumes idempotently', async () => {
     mocks.completion.mockImplementation(async (_w, _a, input) => {
       const data = JSON.parse(input[1].content)
-      return JSON.stringify({ intent: 'Short response', outcome: 'UNKNOWN', summary: 'The reply was unnecessarily long.', strengths: [], findings: [{ kind: 'BEHAVIOR', topicKey: 'reply length', title: 'Shorten replies', diagnosis: 'The same need can be answered briefly.', priority: 'MEDIUM', messageIds: [data.messages[0].id], draft: { behaviorPath: 'format.length', behaviorValue: 'short' } }] })
+      return JSON.stringify({ intent: 'Short response', intentMessageIds: [data.messages[0].id], outcome: 'UNKNOWN', outcomeMessageIds: [], summary: 'The reply was unnecessarily long.', strengths: [], findings: [{ kind: 'BEHAVIOR', scope: 'AGENT', topicKey: 'reply length', title: 'Shorten replies', diagnosis: 'The same need can be answered briefly.', priority: 'MEDIUM', messageIds: [data.messages[0].id], draft: { behaviorPath: 'format.length', behaviorValue: 'short' } }] })
     })
     const run = await prisma.improvementRun.findFirstOrThrow({ where: { agentId } })
     await processImprovement({ runId: run.id })
@@ -63,7 +63,7 @@ describe.skipIf(process.env.RUN_IMPROVEMENT_DB_TESTS !== '1')('durable improveme
     const suggestion = await prisma.improvementSuggestion.findFirstOrThrow({ where: { agentId } })
     await expect(applyImprovement(workspaceId, agentId, userId, suggestion.id, 1)).rejects.toThrow('TEST_REQUIRED')
     for (const conversationId of conversations) await prisma.message.create({ data: { conversationId, role: 'ASSISTANT', content: 'FUTURE_OPERATOR_SECRET', metadata: { operator: true } } })
-    mocks.completion.mockReset().mockResolvedValueOnce('Baseline answer').mockResolvedValueOnce('Short answer').mockResolvedValueOnce(JSON.stringify({ improved: true, reason: 'More concise.' }))
+    mocks.completion.mockReset().mockResolvedValueOnce('Short answer').mockResolvedValueOnce(JSON.stringify({ improved: true, reason: 'More concise.' }))
     await previewImprovement(workspaceId, agentId, suggestion.id, 1)
     expect(JSON.stringify(mocks.completion.mock.calls)).not.toContain('FUTURE_OPERATOR_SECRET')
     const change = await applyImprovement(workspaceId, agentId, userId, suggestion.id, 1)
@@ -86,7 +86,7 @@ describe.skipIf(process.env.RUN_IMPROVEMENT_DB_TESTS !== '1')('durable improveme
       draft: json(draftSchema.parse({ question: 'How are returns requested?', missing: 'How should the customer request a return?' })), evidence: { create: { reviewId: review.id, messageId: messages[1] } } } })
     await expect(applyImprovement(workspaceId, agentId, userId, suggestion.id, 1)).rejects.toThrow('MISSING_INFORMATION')
     await saveImprovementDraft(workspaceId, agentId, suggestion.id, 1, draftSchema.parse({ question: 'How are returns requested?', answer: 'Contact support in this conversation to request a return.', missing: '' }))
-    mocks.completion.mockReset().mockResolvedValueOnce('Unknown').mockResolvedValueOnce('Contact support in this conversation.').mockResolvedValueOnce(JSON.stringify({ improved: true, reason: 'Grounded answer.' }))
+    mocks.completion.mockReset().mockResolvedValueOnce('Contact support in this conversation.').mockResolvedValueOnce(JSON.stringify({ improved: true, reason: 'Grounded answer.' }))
     await previewImprovement(workspaceId, agentId, suggestion.id, 2)
     const change = await applyImprovement(workspaceId, agentId, userId, suggestion.id, 2)
     const approval = await prisma.knowledgeApproval.findUniqueOrThrow({ where: { knowledgeBaseId: change.targetId! } })
@@ -95,7 +95,7 @@ describe.skipIf(process.env.RUN_IMPROVEMENT_DB_TESTS !== '1')('durable improveme
     expect((await prisma.knowledgeApproval.findUniqueOrThrow({ where: { id: approval.id } })).validUntil).not.toBeNull()
   })
   it('keeps interrupted jobs retryable without duplicating completed reviews', async () => {
-    const run = await startImprovement(workspaceId, agentId, userId, selectionSchema.parse({ count: 1 }))
+    const run = await startImprovement(workspaceId, agentId, userId, selectionSchema.parse({ count: 1, includeReviewed: true }))
     mocks.completion.mockRejectedValue(new Error('Provider unavailable'))
     await processImprovement({ runId: run.id })
     expect((await prisma.improvementRun.findUniqueOrThrow({ where: { id: run.id } })).status).toBe('PARTIAL')

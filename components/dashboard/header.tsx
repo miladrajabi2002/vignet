@@ -9,6 +9,7 @@ import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registr
 import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
 import { cn } from '@/lib/utils'
 import { PERIOD_DAYS } from '@/lib/billing/plans'
+import { ImprovementActivityIndicator } from '@/components/dashboard/improvement-activity-indicator'
 
 const PLAN_PRESENTATION = {
   TRIAL: { fa: 'دوره آزمایشی', en: 'Trial', shortFa: 'آزمایشی', shortEn: 'Trial', icon: Hourglass },
@@ -286,6 +287,7 @@ export async function Header({
           </form>
         </div>
       </div>
+      <ImprovementActivityIndicator />
     </header>
   )
 }

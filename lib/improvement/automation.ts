@@ -43,9 +43,10 @@ export async function autoApplyRun(runId: string) {
     include: { evidence: { select: { review: { select: { conversationId: true } } } } } })
   for (const s of suggestions) {
     const draft = draftSchema.parse(s.draft)
+    if (draft.scope !== 'AGENT') continue
     if (!settings.allowedPaths.includes(draft.behaviorPath as 'format.length' | 'conversation.avoidRepeatedGreetings') || new Set(s.evidence.map((e) => e.review.conversationId)).size < 3) continue
     try {
-      const preview = await previewImprovement(run.workspaceId, run.agentId, s.id, s.version)
+      const preview = await previewImprovement(run.workspaceId, run.agentId, s.id, s.version, 'automatic')
       if (!preview.assessment.improved) continue
       await applyImprovement(run.workspaceId, run.agentId, actorId, s.id, s.version, true)
     } catch { /* Keep the suggestion pending for the owner; never broaden scope. */ }

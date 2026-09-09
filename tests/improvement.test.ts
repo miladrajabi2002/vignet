@@ -7,6 +7,7 @@ describe('conversation improvement boundaries', () => {
     const where = conversationWhere('workspace', 'agent', input)
     expect(where).toMatchObject({ workspaceId: 'workspace', agentId: 'agent', id: { in: ['own'] }, handedOff: true })
     expect(where.OR).toHaveLength(3)
+    expect(input.includeReviewed).toBe(false)
   })
   it('rejects empty selections, excessive batches and inverted dates', () => {
     expect(selectionSchema.safeParse({ mode: 'selected', ids: [] }).success).toBe(false)
@@ -31,7 +32,7 @@ describe('conversation improvement boundaries', () => {
     expect(() => changeBehavior(config, 'format.length', 'ignore safety')).toThrow('INVALID_BEHAVIOR')
   })
   it('rejects invented message/source references from the model', () => {
-    const finding = { kind: 'KNOWLEDGE' as const, topicKey: 'returns', title: 'Returns', diagnosis: 'Missing policy', priority: 'HIGH' as const,
+    const finding = { kind: 'KNOWLEDGE' as const, scope: 'AGENT' as const, topicKey: 'returns', title: 'Returns', diagnosis: 'Missing policy', priority: 'HIGH' as const,
       messageIds: ['invented'], draft: draftSchema.parse({}) }
     expect(() => validateFinding(finding, new Set(['real']), new Set())).toThrow('INVALID_EVIDENCE')
     finding.messageIds = ['real']; finding.draft.targetKnowledgeId = 'foreign'

@@ -645,6 +645,9 @@ model Conversation {
   summary           String?     @db.Text
   messageCount      Int         @default(0)
   lastMessageAt     DateTime?
+  // Snapshot boundary of the latest successful conversation-quality review.
+  // A later lastMessageAt makes the conversation eligible for analysis again.
+  lastImprovementReviewAt DateTime?
   // ─ F3: customer identification state. 'pending' until the contact has given
   //   their name+phone; 'collected' once captured. 'skipped' for channels where
   //   the platform identity is already trusted (messenger bots).
@@ -676,6 +679,7 @@ model Conversation {
   // Inbox lists filter by workspace + status; the pair avoids a filter+sort
   // over the whole workspace partition as conversation volume grows.
   @@index([workspaceId, status])
+  @@index([agentId, lastImprovementReviewAt])
 }
 
 enum ConvStatus {

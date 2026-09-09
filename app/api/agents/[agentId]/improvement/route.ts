@@ -5,8 +5,9 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { improvementOverview, publicError, retryImprovement, startImprovement } from '@/lib/improvement/service'
-import { conversationWhere, draftSchema, json, selectionSchema, settingsSchema } from '@/lib/improvement/types'
+import { conversationWhere, draftSchema, json, selectionSchema, settingsSchema, withImprovementFreshness } from '@/lib/improvement/types'
 import { applyImprovement, prepareImprovementKnowledge, previewImprovement, revertImprovement, saveImprovementDraft } from '@/lib/improvement/actions'
+import { getImprovementPricing } from '@/lib/improvement/pricing'
 
 type Props = { params: Promise<{ agentId: string }> }
 const identity = { id: z.string().min(1).max(100), version: z.number().int().min(1) }
@@ -27,7 +28,7 @@ export async function GET(req: Request, props: Props) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const { agentId } = await props.params
-  const agent = await prisma.agent.findFirst({ where: { id: agentId, workspaceId: user.workspaceId }, select: { improvementSettings: true } })
+  const agent = await prisma.agent.findFirst({ where: { id: agentId, workspaceId: user.workspaceId }, select: { improvementSettings: true, model: true } })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
   const url = new URL(req.url)
   const runId = url.searchParams.get('runId')
@@ -44,34 +45,46 @@ export async function GET(req: Request, props: Props) {
   }
   const page = Math.max(1, Math.min(10000, Number(url.searchParams.get('suggestionPage')) || 1))
   const overview = await improvementOverview(user.workspaceId, agentId, page, url.searchParams.get('history') === '1', Math.max(1, Math.min(10000, Number(url.searchParams.get('runPage')) || 1)))
-  return NextResponse.json({ ...overview, settings: settingsSchema.parse(agent.improvementSettings ?? {}) }, { headers: { 'Cache-Control': 'no-store' } })
+  const pricing = await getImprovementPricing(agent.model)
+  const workspace = await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { aiCreditBalanceIRR: true } })
+  return NextResponse.json({ ...overview, settings: settingsSchema.parse(agent.improvementSettings ?? {}), pricing, creditBalanceIRR: workspace?.aiCreditBalanceIRR ?? 0 }, { headers: { 'Cache-Control': 'no-store' } })
 }
 export async function POST(req: Request, props: Props) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const { agentId } = await props.params
-  const agent = await prisma.agent.findFirst({ where: { id: agentId, workspaceId: user.workspaceId }, select: { id: true } })
+  const agent = await prisma.agent.findFirst({ where: { id: agentId, workspaceId: user.workspaceId }, select: { id: true, model: true } })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
   const parsed = actionSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
   const input = parsed.data
   const expensive = input.action === 'start' || input.action === 'preview' || input.action === 'retry'
   if (!(await rateLimit(`improvement:${expensive ? 'ai' : 'edit'}:${user.workspaceId}`, expensive ? 12 : 80, 60))) return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
+  const w = user.workspaceId
   try {
-    const w = user.workspaceId
     switch (input.action) {
       case 'estimate': {
-        const conversations = await prisma.conversation.findMany({ where: conversationWhere(w, agentId, input.selection),
+        const conversations = await prisma.conversation.findMany({ where: withImprovementFreshness(
+          conversationWhere(w, agentId, input.selection),
+          input.selection.includeReviewed,
+          prisma.conversation.fields.lastImprovementReviewAt,
+        ),
           orderBy: [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
           take: input.selection.mode === 'selected' ? input.selection.ids.length : input.selection.count, select: { id: true } })
         if (!conversations.length) throw new Error('NO_CONVERSATIONS')
         const sizes = await prisma.$queryRaw<Array<{ chars: bigint }>>`SELECT SUM(LENGTH(content)) AS chars FROM "Message" WHERE "conversationId" IN (${Prisma.join(conversations.map((c) => c.id))}) AND role IN ('USER', 'ASSISTANT') GROUP BY "conversationId"`
         const segments = sizes.reduce((sum, r) => sum + Math.max(1, Math.ceil(Number(r.chars) / 16000)), 0)
         const chars = sizes.reduce((sum, r) => sum + Number(r.chars), 0)
+        const pricing = await getImprovementPricing(agent.model)
         return NextResponse.json({
           count: conversations.length,
           estimatedTokens: Math.ceil(chars / 2 + segments * 6000),
-          estimatedCreditIRR: 0,
+          estimatedCreditIRR: segments * pricing.requestPriceIRR,
+          requestCount: segments,
+          requestPriceIRR: pricing.requestPriceIRR,
+          modelAlias: pricing.modelAlias,
+          modelNameFa: pricing.modelNameFa,
+          modelNameEn: pricing.modelNameEn,
           segments,
         })
       }
@@ -96,7 +109,24 @@ export async function POST(req: Request, props: Props) {
     }
     return NextResponse.json({ ok: true })
   } catch (error) {
-    const code = publicError(error)
-    return NextResponse.json({ error: code }, { status: code === 'NOT_FOUND' ? 404 : ['FAILED', 'QUEUE_UNAVAILABLE', 'AI_UNAVAILABLE', 'INGESTION_UNAVAILABLE'].includes(code) ? 503 : 409 })
+    let code = publicError(error)
+    // These failures mean the proposal can never be safely tested/applied
+    // against the current agent state. Remove it from the active queue instead
+    // of trapping the owner behind a permanently failing action.
+    if (
+      ['preview', 'apply'].includes(input.action) &&
+      (
+        ['KNOWLEDGE_CHANGED', 'BEHAVIOR_CHANGED', 'EVIDENCE_REQUIRED'].includes(code) ||
+        (input.action === 'apply' && code === 'TEST_REQUIRED')
+      ) &&
+      'id' in input
+    ) {
+      await prisma.improvementSuggestion.updateMany({
+        where: { id: input.id, workspaceId: w, agentId, status: 'PENDING' },
+        data: { status: 'DISMISSED', version: { increment: 1 } },
+      }).catch(() => {})
+      code = 'STALE_SUGGESTION'
+    }
+    return NextResponse.json({ error: code }, { status: code === 'NOT_FOUND' ? 404 : code === 'NO_CREDIT' ? 402 : ['FAILED', 'QUEUE_UNAVAILABLE', 'AI_UNAVAILABLE', 'INGESTION_UNAVAILABLE'].includes(code) ? 503 : 409 })
   }
 }

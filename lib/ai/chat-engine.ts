@@ -7,6 +7,7 @@ import {
 } from '@/lib/ai/openrouter'
 import { retrieveContext, buildMessages } from '@/lib/ai/rag'
 import { resolveSystemPrompt } from '@/lib/ai/prompt-builder'
+import { customerPreferenceInstruction, readCustomerAgentPreferences, type CustomerAgentPreference } from '@/lib/ai/customer-agent-preferences'
 import { closingReplyText } from '@/lib/ai/response-policy'
 import {
         extractIdentity,
@@ -170,8 +171,9 @@ function buildSystemPrompt(params: {
         agent: ChatAgent
         customerInfoState: string
         contactName: string | null
+        customerPreferences?: CustomerAgentPreference[]
 }): string {
-        const { agent, customerInfoState, contactName } = params
+        const { agent, customerInfoState, contactName, customerPreferences = [] } = params
 
         // 1. Resolve the layered/role prompt, with the legacy prompt as fallback.
         let base = resolveSystemPrompt({
@@ -190,6 +192,10 @@ function buildSystemPrompt(params: {
                 const isFa = agent.language !== 'en'
                 base += identificationInstruction(isFa, agent.customerInfoPrompt)
         }
+
+        // Explicit per-customer interaction preferences are isolated in CRM
+        // metadata and subordinate to business facts, tools and safety rules.
+        base += customerPreferenceInstruction(agent.language, customerPreferences)
 
         return base
 }
@@ -407,14 +413,14 @@ async function prepareTurn(params: StartChatParams): Promise<
         // Hydrate {customer_name} placeholder if the contact name is known.
         let resolvedContactName = params.contactName ?? null
         let resolvedContactPhone = extracted.phone ?? params.contactPhone ?? null
-        if ((!resolvedContactName || !resolvedContactPhone) && contactId) {
-                const c = await prisma.contact.findUnique({
-                        where: { id: contactId },
-                        select: { name: true, phone: true },
+        const contact = contactId
+                ? await prisma.contact.findFirst({
+                        where: { id: contactId, workspaceId },
+                        select: { name: true, phone: true, metadata: true },
                 })
-                if (!resolvedContactName) resolvedContactName = c?.name ?? null
-                if (!resolvedContactPhone) resolvedContactPhone = c?.phone ?? null
-        }
+                : null
+        if (!resolvedContactName) resolvedContactName = contact?.name ?? null
+        if (!resolvedContactPhone) resolvedContactPhone = contact?.phone ?? null
         // An explicit lead-form name always wins over a heuristic in-message
         // extraction; only fall back to the extracted name when no form name exists.
         if (extracted.name && !params.contactName?.trim()) {
@@ -432,6 +438,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 agent,
                 customerInfoState: freshState,
                 contactName: resolvedContactName,
+                customerPreferences: contact
+                        ? readCustomerAgentPreferences(contact.metadata, agent.id)
+                        : [],
         })
 
         const reserved = await reserveChatCredit({

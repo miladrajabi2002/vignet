@@ -1,0 +1,4 @@
+interface:
+  display_name: "Conversation Quality Review"
+  short_description: "Evidence-based AI conversation quality analysis"
+  default_prompt: "Use $conversation-quality-review to analyze customer conversations and propose grounded, reversible improvements."
