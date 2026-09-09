@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
+import { knowledgeRequestErrorMessageKey } from '@/lib/knowledge/request-error'
 
 type KbStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'ERROR'
 
@@ -66,6 +67,62 @@ export function KbManager({
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const sessionRedirectingRef = useRef(false)
+
+  function redirectAfterUnauthorized() {
+    if (sessionRedirectingRef.current) return
+    sessionRedirectingRef.current = true
+
+    // Keep text/url drafts across the forced sign-in round trip. File objects
+    // cannot be serialized, so browsers will still require re-selecting a file.
+    if (mode !== 'file') {
+      try {
+        sessionStorage.setItem(
+          `knowledge-draft:${agentId}`,
+          JSON.stringify({ mode, name, content, url, refreshHours }),
+        )
+      } catch {
+        // Storage can be unavailable in strict private-browsing contexts.
+      }
+    }
+    const next = `${window.location.pathname}${window.location.search}`
+    window.location.replace(
+      `/api/auth/force-logout?next=${encodeURIComponent(next)}`,
+    )
+  }
+
+  async function readRequestError(response: Response) {
+    const data = (await response.json().catch(() => ({}))) as { error?: string }
+    return t(knowledgeRequestErrorMessageKey(response.status, data.error))
+  }
+
+  useEffect(() => {
+    const key = `knowledge-draft:${agentId}`
+    let raw: string | null = null
+    try {
+      raw = sessionStorage.getItem(key)
+      if (raw) sessionStorage.removeItem(key)
+    } catch {
+      return
+    }
+    if (!raw) return
+    try {
+      const draft = JSON.parse(raw) as {
+        mode?: Mode
+        name?: string
+        content?: string
+        url?: string
+        refreshHours?: number
+      }
+      if (draft.mode === 'text' || draft.mode === 'url') setMode(draft.mode)
+      if (typeof draft.name === 'string') setName(draft.name)
+      if (typeof draft.content === 'string') setContent(draft.content)
+      if (typeof draft.url === 'string') setUrl(draft.url)
+      if (typeof draft.refreshHours === 'number') setRefreshHours(draft.refreshHours)
+    } catch {
+      // Ignore malformed or obsolete drafts.
+    }
+  }, [agentId])
 
   // Auto-refresh while any item is still processing.
   const pending = items.some(
@@ -103,13 +160,14 @@ export function KbManager({
         })
       }
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setError(
-          data.error === 'STORAGE_NOT_CONFIGURED'
-            ? t('storageNotConfigured')
-            : t('add'),
-        )
+        if (res.status === 401) redirectAfterUnauthorized()
+        setError(await readRequestError(res))
         return
+      }
+      try {
+        sessionStorage.removeItem(`knowledge-draft:${agentId}`)
+      } catch {
+        // The successful request matters even when browser storage is blocked.
       }
       setName('')
       setContent('')
@@ -118,7 +176,7 @@ export function KbManager({
       if (fileRef.current) fileRef.current.value = ''
       router.refresh()
     } catch {
-      setError(t('add'))
+      setError(t('requestFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -137,7 +195,11 @@ export function KbManager({
     // Fetch full KB row to get sourceUrl/content
     try {
       const res = await fetch(`/api/agents/${agentId}/knowledge/${item.id}`)
-      if (!res.ok) throw new Error('failed')
+      if (!res.ok) {
+        if (res.status === 401) redirectAfterUnauthorized()
+        setEditError(await readRequestError(res))
+        return
+      }
       const data = (await res.json()) as { kb: KbItem & { sourceUrl?: string | null } }
       setEditUrl(data.kb.sourceUrl ?? '')
       setEditRefreshHours(item.refreshIntervalHours ?? 0)
@@ -146,7 +208,7 @@ export function KbManager({
       // textarea with a hint that this will REPLACE the current content.
       setEditContent('')
     } catch {
-      setEditError(t('add'))
+      setEditError(t('requestFailed'))
     } finally {
       setEditLoading(false)
     }
@@ -185,14 +247,14 @@ export function KbManager({
         body: JSON.stringify(body),
       })
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setEditError(data.error === 'INVALID_URL' ? t('invalidUrl') : t('add'))
+        if (res.status === 401) redirectAfterUnauthorized()
+        setEditError(await readRequestError(res))
         return
       }
       cancelEdit()
       router.refresh()
     } catch {
-      setEditError(t('add'))
+      setEditError(t('requestFailed'))
     } finally {
       setEditLoading(false)
     }

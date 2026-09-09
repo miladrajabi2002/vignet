@@ -41,15 +41,20 @@ export const dynamic = 'force-dynamic'
  * PREFIXES and not in the middleware matcher), so it's reachable even when
  * the rest of the app is in a redirect loop.
  */
-export async function GET() {
-        return doSignOut()
+export async function GET(request: Request) {
+        return doSignOut(request)
 }
 
-export async function POST() {
-        return doSignOut()
+export async function POST(request: Request) {
+        return doSignOut(request)
 }
 
-async function doSignOut() {
+async function doSignOut(request: Request) {
+        const requestedNext = new URL(request.url).searchParams.get('next')
+        const next = requestedNext?.startsWith('/') && !requestedNext.startsWith('//')
+                ? requestedNext
+                : null
+        const loginPath = next ? `/login?next=${encodeURIComponent(next)}` : '/login'
         // signOut() in NextAuth v5 returns a Redirect response (to the
         // configured signOut page or `/` by default). We pass `redirectTo`
         // so the user lands on the login form, ready to sign in again.
@@ -63,7 +68,7 @@ async function doSignOut() {
                 // headers + a redirect. Returning it directly preserves
                 // those headers (which is the whole point — we need the
                 // cookies to be cleared on the client).
-                return await signOut({ redirectTo: '/login', redirect: true }) as unknown as Response
+                return await signOut({ redirectTo: loginPath, redirect: true }) as unknown as Response
         } catch (e) {
                 // NEXT_REDIRECT is thrown as a control-flow signal — when
                 // signOut is configured with redirect:true it throws a
@@ -77,6 +82,6 @@ async function doSignOut() {
                 // case, but at least the user lands on /login where they
                 // can clear cookies manually if needed.
                 console.error('[force-logout] signOut failed:', e)
-                return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'))
+                return NextResponse.redirect(new URL(loginPath, process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'))
         }
 }
