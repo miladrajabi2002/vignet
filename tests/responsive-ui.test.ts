@@ -40,7 +40,7 @@ describe('shared adaptive mobile UI contract', () => {
   it('uses sticky mobile product search and sheet filters', () => {
     const products = source('components/products/product-grid.tsx')
     const productForm = source('components/products/product-form.tsx')
-    const page = source('app/(dashboard)/products/page.tsx')
+    const page = source('app/(dashboard)/products/(list)/page.tsx')
 
     expect(products).toContain('sticky top-[5.35rem]')
     expect(products).toContain('<MobileBottomSheet')
@@ -141,7 +141,7 @@ describe('shared adaptive mobile UI contract', () => {
   })
 
   it('opens a compact mobile conversation preview before entering the thread', () => {
-    const page = source('app/(dashboard)/conversations/page.tsx')
+    const page = source('app/(dashboard)/conversations/(list)/page.tsx')
     const card = source('components/crm/mobile-conversation-card.tsx')
     const filters = source('components/dashboard/conversation-filters.tsx')
 
