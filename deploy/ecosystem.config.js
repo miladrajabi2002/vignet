@@ -1,6 +1,12 @@
 const path = require("path");
 
 const appRoot = path.resolve(__dirname, "..");
+const deploymentEnv = process.env.VIGENT_DEPLOYMENT_ID
+  ? { VIGENT_DEPLOYMENT_ID: process.env.VIGENT_DEPLOYMENT_ID }
+  : {};
+const webBuildEnv = process.env.VIGENT_NEXT_DIST_DIR
+  ? { VIGENT_NEXT_DIST_DIR: process.env.VIGENT_NEXT_DIST_DIR }
+  : {};
 
 module.exports = {
   apps: [
@@ -11,7 +17,11 @@ module.exports = {
       script: require.resolve("next/dist/bin/next", { paths: [appRoot] }),
       args: ["start", "-H", "127.0.0.1", "-p", "3003"],
       cwd: appRoot,
-      env: { NODE_ENV: "production" },
+      env: {
+        NODE_ENV: "production",
+        ...deploymentEnv,
+        ...webBuildEnv,
+      },
       // Safety net against memory leaks, NOT a sizing hint (Next.js normally
       // idles around 300-500 MB). Unlimited is risky on this 7.6 GB box:
       // a runaway leak would trigger the kernel OOM killer, which may take
@@ -28,7 +38,7 @@ module.exports = {
       script: require.resolve("tsx/cli", { paths: [appRoot] }),
       args: ["worker/index.ts"],
       cwd: appRoot,
-      env: { NODE_ENV: "production" },
+      env: { NODE_ENV: "production", ...deploymentEnv },
       max_memory_restart: "512M",
       instances: 1,
       autorestart: true,
@@ -53,7 +63,7 @@ module.exports = {
         "none",
       ],
       cwd: appRoot,
-      env: { NODE_ENV: "production", BROWSER: "none" },
+      env: { NODE_ENV: "production", BROWSER: "none", ...deploymentEnv },
       max_memory_restart: "512M",
       instances: 1,
       exec_mode: "fork",

@@ -376,6 +376,16 @@ if [ "${healthy}" -ne 1 ]; then
   exit 1
 fi
 
+running_dist_dir="$(pm2_process_env_value vignet-web VIGENT_NEXT_DIST_DIR || true)"
+running_deployment_id="$(pm2_process_env_value vignet-web VIGENT_DEPLOYMENT_ID || true)"
+if [ "${running_dist_dir}" != "${VIGENT_NEXT_DIST_DIR}" ] \
+  || [ "${running_deployment_id}" != "${VIGENT_DEPLOYMENT_ID}" ]; then
+  echo "ERROR: health responded from the wrong web artifact" >&2
+  echo "Expected: ${VIGENT_DEPLOYMENT_ID} (${VIGENT_NEXT_DIST_DIR})" >&2
+  echo "Running:  ${running_deployment_id:-unset} (${running_dist_dir:-unset})" >&2
+  exit 1
+fi
+
 echo "==> Waiting for Prisma Studio health"
 studio_healthy=0
 for _ in $(seq 1 30); do
