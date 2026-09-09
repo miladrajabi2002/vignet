@@ -170,22 +170,24 @@ export function LocalizedDatePicker({
           </div>
         }
       >
-        {fa ? (
-          <DoranCalendar
-            value={doranSelectedDate}
-            min={doranMinDate}
-            max={doranMaxDate}
-            timeZone={timeZone}
-            onChange={(date) => { if (date) selectDate(date.toDate()) }}
-            showOutsideDays={false}
-            fixedWeeks={6}
-            footerActions={[]}
-            className="vigent-doran-calendar"
-            dir="rtl"
-          />
-        ) : (
-          <GregorianDayPicker {...calendarProps} locale={enUS} dir="ltr" numerals="latn" />
-        )}
+        <div className="vigent-calendar-stage">
+          {fa ? (
+            <DoranCalendar
+              value={doranSelectedDate}
+              min={doranMinDate}
+              max={doranMaxDate}
+              timeZone={timeZone}
+              onChange={(date) => { if (date) selectDate(date.toDate()) }}
+              showOutsideDays={false}
+              fixedWeeks={6}
+              footerActions={[]}
+              className="vigent-doran-calendar"
+              dir="rtl"
+            />
+          ) : (
+            <GregorianDayPicker {...calendarProps} locale={enUS} dir="ltr" numerals="latn" />
+          )}
+        </div>
         <p className="mt-2 text-center text-[11px] leading-5 text-[var(--text-muted)]">{fa ? 'تاریخ‌ها بر اساس ساعت تهران هستند' : 'Dates use Tehran time'}</p>
       </MobileBottomSheet>
     </div>

@@ -142,6 +142,12 @@
 }
 
 /* One calendar surface for both Solar Hijri and Gregorian date pickers. */
+.vigent-calendar-stage {
+        width: 100%;
+        max-width: 28rem;
+        margin-inline: auto;
+}
+
 .vigent-doran-calendar {
         --doran-calendar-width: 100%;
         --doran-calendar-padding: 0;
@@ -190,10 +196,10 @@
 .vigent-date-calendar {
         --rdp-accent-color: #111111;
         --rdp-accent-background-color: rgba(17, 17, 17, 0.07);
-        --rdp-day-height: 2.5rem;
-        --rdp-day-width: auto;
+        --rdp-day-height: auto;
+        --rdp-day-width: 100%;
         --rdp-day_button-height: 2.5rem;
-        --rdp-day_button-width: 100%;
+        --rdp-day_button-width: 2.5rem;
         --rdp-day_button-border-radius: 0.75rem;
         --rdp-day_button-border: 1px solid transparent;
         --rdp-selected-border: 1px solid #111111;
@@ -210,6 +216,38 @@
 .vigent-date-calendar .rdp-month,
 .vigent-date-calendar .rdp-month_grid {
         width: 100%;
+}
+
+.vigent-date-calendar .rdp-months {
+        display: block;
+        max-width: none;
+}
+
+.vigent-date-calendar .rdp-month {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+}
+
+.vigent-date-calendar .rdp-month_grid,
+.vigent-date-calendar .rdp-month_grid > thead,
+.vigent-date-calendar .rdp-weeks {
+        display: block;
+}
+
+.vigent-date-calendar .rdp-weekdays,
+.vigent-date-calendar .rdp-week {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.vigent-date-calendar .rdp-day {
+        display: flex;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+        align-items: center;
+        justify-content: center;
 }
 
 .vigent-date-calendar .rdp-month_caption {
