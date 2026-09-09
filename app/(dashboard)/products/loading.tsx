@@ -1,14 +1,18 @@
+import { Skeleton } from '@/components/ui/skeleton'
+
 /**
- * Skeleton loader for the products page.
+ * Route-level skeleton loader for the products page.
  *
  * Next.js shows this automatically while the server is rendering
- * `app/(dashboard)/products/page.tsx`. The structure mirrors the real page
- * (header → toolbar → grid → pagination) so the perceived loading feels
- * smooth instead of a blank screen.
+ * `app/(dashboard)/products/page.tsx`. The structure mirrors the real
+ * page (header → setup card → trend charts → toolbar → grid →
+ * pagination) so the perceived loading feels smooth instead of a blank
+ * screen.
  *
- * The skeleton uses `animate-pulse` on muted blocks — matches the rest of the
- * dashboard's spatial-surface design language. Disabled on `prefers-reduced-
- * motion` browsers via the `motion-reduce:animate-none` class.
+ * Uses the shared Skeleton primitive — the same mobile-style shimmer
+ * sweep (staggered per block) as «تحلیل و بهبود» and the admin panel,
+ * direction-agnostic and disabled for reduced-motion users via the
+ * `.skeleton-shimmer` class in globals.css.
  */
 export default function ProductsLoading() {
   return (
@@ -16,32 +20,62 @@ export default function ProductsLoading() {
       {/* Page header skeleton */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+          <Skeleton className="h-10 w-10 rounded-2xl" />
           <div className="space-y-2">
-            <div className="h-5 w-32 rounded-lg bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-            <div className="h-3 w-48 rounded-lg bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+            <Skeleton className="h-5 w-32 rounded-lg" />
+            <Skeleton delay={-90} className="h-3 w-48 rounded-md" />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-9 w-32 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-          <div className="h-9 w-32 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+          <Skeleton delay={-90} className="h-9 w-32 rounded-xl" />
+          <Skeleton delay={-180} className="h-9 w-32 rounded-xl" />
         </div>
       </div>
 
       {/* WooSetupCard placeholder */}
-      <div className="spatial-surface h-24 rounded-[1.5rem] animate-pulse motion-reduce:animate-none" />
+      <div className="spatial-surface rounded-[1.5rem] p-5">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton delay={-90} className="h-4 w-40 rounded-md" />
+            <Skeleton delay={-180} className="h-3 w-56 max-w-full rounded-md" />
+          </div>
+        </div>
+      </div>
 
-      {/* Trend chart + bar list placeholders (only show when not filtering) */}
+      {/* Trend chart + bar list placeholders */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="spatial-surface h-48 rounded-[1.5rem] animate-pulse motion-reduce:animate-none" />
-        <div className="spatial-surface h-48 rounded-[1.5rem] animate-pulse motion-reduce:animate-none" />
+        <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-6">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-44 max-w-full rounded-md" />
+              <Skeleton delay={-90} className="h-3 w-32 max-w-full rounded-md" />
+            </div>
+            <Skeleton delay={-90} className="h-5 w-16 rounded-md" />
+          </div>
+          <Skeleton className="h-28 w-full rounded-xl" />
+        </div>
+        <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-6">
+          <div className="mb-4 space-y-2">
+            <Skeleton delay={-60} className="h-4 w-36 max-w-full rounded-md" />
+            <Skeleton delay={-150} className="h-3 w-28 max-w-full rounded-md" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, row) => (
+              <div key={row} className="flex items-center justify-between gap-3">
+                <Skeleton delay={-row * 90} className="h-3.5 w-24 rounded-md" />
+                <Skeleton delay={-row * 90} className="h-3.5 w-16 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Toolbar skeleton */}
       <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.5rem] p-3 sm:p-4">
-        <div className="h-9 flex-1 min-w-[12rem] rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-        <div className="h-9 w-40 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-        <div className="h-9 w-40 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+        <Skeleton className="h-9 min-w-[12rem] flex-1 rounded-xl" />
+        <Skeleton delay={-90} className="h-9 w-40 rounded-xl" />
+        <Skeleton delay={-180} className="h-9 w-40 rounded-xl" />
       </div>
 
       {/* Product grid skeleton — 6 cards in a 3-column layout */}
@@ -52,17 +86,17 @@ export default function ProductsLoading() {
             className="spatial-surface flex flex-col overflow-hidden rounded-[1.5rem]"
           >
             {/* Image area */}
-            <div className="aspect-video w-full bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+            <Skeleton delay={-i * 120} className="aspect-video w-full rounded-none" />
             {/* Body */}
             <div className="flex flex-1 flex-col p-4">
-              <div className="h-4 w-3/4 rounded-lg bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-              <div className="mt-2 h-3 w-1/2 rounded-lg bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-              <div className="mt-3 h-4 w-1/3 rounded-lg bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+              <Skeleton delay={-i * 120} className="h-4 w-3/4 rounded-lg" />
+              <Skeleton delay={-i * 120} className="mt-2 h-3 w-1/2 rounded-md" />
+              <Skeleton delay={-i * 120} className="mt-3 h-4 w-1/3 rounded-lg" />
               <div className="mt-auto flex items-center justify-between pt-4">
-                <div className="h-3 w-16 rounded-lg bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+                <Skeleton delay={-i * 120} className="h-3 w-16 rounded-md" />
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-16 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-                  <div className="h-7 w-7 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+                  <Skeleton delay={-i * 120} className="h-7 w-16 rounded-xl" />
+                  <Skeleton delay={-i * 120} className="h-7 w-7 rounded-xl" />
                 </div>
               </div>
             </div>
@@ -72,11 +106,11 @@ export default function ProductsLoading() {
 
       {/* Pagination skeleton */}
       <div className="flex items-center justify-center gap-2 pt-2">
-        <div className="h-9 w-24 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-        <div className="h-9 w-9 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-        <div className="h-9 w-9 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-        <div className="h-9 w-9 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
-        <div className="h-9 w-24 rounded-xl bg-[var(--bg-muted)] animate-pulse motion-reduce:animate-none" />
+        <Skeleton className="h-9 w-24 rounded-xl" />
+        <Skeleton delay={-80} className="h-9 w-9 rounded-xl" />
+        <Skeleton delay={-160} className="h-9 w-9 rounded-xl" />
+        <Skeleton delay={-240} className="h-9 w-9 rounded-xl" />
+        <Skeleton delay={-320} className="h-9 w-24 rounded-xl" />
       </div>
     </div>
   )
