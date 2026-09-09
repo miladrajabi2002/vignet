@@ -828,7 +828,7 @@ export function startScheduler(): () => void {
                 try {
                         const stats = await sweepChannelHealth()
                         if (stats.down > 0) {
-                                console.log(`[scheduler] channel health: ${stats.down}/${stats.checked} down (${stats.notified} notified)`)
+                                console.log(`[scheduler] channel health: ${stats.down}/${stats.checked} down (${stats.notified} notified, ${stats.disabled} auto-disabled)`)
                         }
                 } catch (e) {
                         console.error('[scheduler] channel health sweep failed:', e)
