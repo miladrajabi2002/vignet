@@ -141,6 +141,107 @@
         --my: 50%;
 }
 
+/* One calendar surface for both Solar Hijri and Gregorian date pickers. */
+.vigent-date-calendar {
+        --rdp-accent-color: #111111;
+        --rdp-accent-background-color: rgba(17, 17, 17, 0.07);
+        --rdp-day-height: 2.5rem;
+        --rdp-day-width: auto;
+        --rdp-day_button-height: 2.5rem;
+        --rdp-day_button-width: 100%;
+        --rdp-day_button-border-radius: 0.75rem;
+        --rdp-day_button-border: 1px solid transparent;
+        --rdp-selected-border: 1px solid #111111;
+        --rdp-nav_button-height: 2.75rem;
+        --rdp-nav_button-width: 2.75rem;
+        --rdp-nav-height: 2.75rem;
+        width: 100%;
+        margin: 0;
+        color: rgba(17, 17, 17, 0.72);
+        font-family: inherit;
+}
+
+.vigent-date-calendar .rdp-months,
+.vigent-date-calendar .rdp-month,
+.vigent-date-calendar .rdp-month_grid {
+        width: 100%;
+}
+
+.vigent-date-calendar .rdp-month_caption {
+        display: flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+}
+
+.vigent-date-calendar .rdp-caption_label {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: rgba(17, 17, 17, 0.82);
+}
+
+.vigent-date-calendar .rdp-nav {
+        inset-inline: 0;
+        display: flex;
+        justify-content: space-between;
+        pointer-events: none;
+}
+
+.vigent-date-calendar .rdp-button_previous,
+.vigent-date-calendar .rdp-button_next {
+        border: 1px solid rgba(17, 17, 17, 0.07);
+        border-radius: 0.75rem;
+        color: rgba(17, 17, 17, 0.58);
+        pointer-events: auto;
+        transition: background-color 150ms ease, color 150ms ease;
+}
+
+.vigent-date-calendar .rdp-button_previous:hover,
+.vigent-date-calendar .rdp-button_next:hover {
+        background: rgba(17, 17, 17, 0.045);
+        color: #111111;
+}
+
+.vigent-date-calendar .rdp-weekday {
+        padding-block: 0.5rem;
+        font-size: 0.625rem;
+        font-weight: 700;
+        color: rgba(17, 17, 17, 0.4);
+}
+
+.vigent-date-calendar .rdp-day_button {
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: background-color 120ms ease, color 120ms ease;
+}
+
+.vigent-date-calendar .rdp-day_button:hover {
+        background: rgba(17, 17, 17, 0.05);
+}
+
+.vigent-date-calendar .rdp-selected .rdp-day_button {
+        border-color: #111111;
+        background: #111111;
+        color: #ffffff;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.14);
+}
+
+.vigent-date-calendar .rdp-today:not(.rdp-selected) .rdp-day_button {
+        border-color: rgba(5, 150, 105, 0.42);
+        color: #047857;
+}
+
+.vigent-date-calendar .rdp-disabled .rdp-day_button {
+        color: rgba(17, 17, 17, 0.2);
+}
+
+.vigent-date-calendar .rdp-day_button:focus-visible,
+.vigent-date-calendar .rdp-button_previous:focus-visible,
+.vigent-date-calendar .rdp-button_next:focus-visible {
+        outline: 2px solid rgba(17, 17, 17, 0.3);
+        outline-offset: 1px;
+}
+
 @layer base {
         * {
                 border-color: var(--border-default);
@@ -1310,6 +1411,42 @@
         .marketing-section-channels [class*='backdrop-blur'] {
                 backdrop-filter: none;
                 -webkit-backdrop-filter: none;
+        }
+}
+
+/* ── Skeleton Screen shimmer (mobile-style loading cards) ─────────────
+   Base primitive for components/ui/skeleton.tsx. A soft light band sweeps
+   across a muted placeholder block — the pattern users know from mobile
+   apps (Telegram/Instagram feed loading). Direction-agnostic: the sweep is
+   driven by background-position, so it looks identical in RTL and LTR.
+   Reduced-motion users simply see the static muted block. */
+.skeleton-shimmer {
+        background-color: var(--bg-muted);
+        background-image: linear-gradient(
+                100deg,
+                transparent 30%,
+                rgba(var(--ink-rgb), 0.045) 44%,
+                rgba(var(--ink-rgb), 0.085) 50%,
+                rgba(var(--ink-rgb), 0.045) 56%,
+                transparent 70%
+        );
+        background-size: 200% 100%;
+        background-repeat: no-repeat;
+        animation: skeleton-sweep 1.7s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+        from {
+                background-position: 200% 0;
+        }
+        to {
+                background-position: -200% 0;
+        }
+}
+
+@media (prefers-reduced-motion: reduce) {
+        .skeleton-shimmer {
+                animation: none;
         }
 }
 

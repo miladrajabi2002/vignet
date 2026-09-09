@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   WandSparkles,
   X,
 } from 'lucide-react'
@@ -32,35 +33,42 @@ import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { Button } from '@/components/ui/button'
+import { ConversationCardSkeleton, HistoryCardSkeleton, ReviewCardSkeleton, SuggestionCardSkeleton, Skeleton } from '@/components/ui/skeleton'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { Switch } from '@/components/ui/switch'
+import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
+import { IMPROVEMENT_ACTIVITY_EVENT } from '@/components/dashboard/improvement-activity-indicator'
+import { dateKeyBoundaryISOString, dateKeyInTimeZone, formatLocalizedDateTime } from '@/lib/localized-date'
 import { cn } from '@/lib/utils'
 
 const secondary = 'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60'
 const field = 'min-h-12 w-full min-w-0 rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-base text-[var(--text-primary)] shadow-[var(--shadow-xs)] outline-none placeholder:text-[var(--text-hint)] focus:border-[var(--border-hover)] focus:ring-2 focus:ring-black/20 sm:text-sm'
 const surface = 'spatial-surface rounded-[1.35rem] p-4 sm:p-5'
 const inset = 'spatial-inset rounded-2xl'
-type Preview = { baseline: string; proposed: string; historical?: string | null; question: string; testedAt: string; version: number; assessment?: { improved: boolean; reason: string } }
+type Preview = { baseline: string; proposed: string; historical?: string | null; question: string; testedAt: string; version: number; source?: 'manual' | 'automatic'; requestCount?: number; chargedIRR?: number; assessment?: { improved: boolean; reason: string } }
 type Change = { id: string; kind: string; targetId: string | null; createdAt: string; revertedAt: string | null; before: Record<string, unknown>; after: Record<string, unknown> }
 type Evidence = { messageId: string; message: { role: string; content: string }; review: { conversationId: string; runId: string; run: { createdAt: string } } }
 type Suggestion = { conversationCount: number; monitoring?: { reviewed: number; recurring: number } | null; id: string; title: string; kind: string; diagnosis: string; priority: string; status: string; draft: Draft; version: number; preview: Preview | null; evidence: Evidence[]; changes: Change[]; knowledgeStatus?: string | null; topicKey: string }
-type Run = { id: string; status: string; total: number; createdAt: string; error: string | null; reviews: { id: string; status: string }[] }
+type Run = { id: string; status: string; total: number; createdAt: string; error: string | null; source?: 'manual' | 'automatic'; chargedIRR: number; requestCount: number; reviews: { id: string; status: string }[] }
 type Settings = { daily: boolean; count: number; autoBehavior: boolean; allowedPaths: ('format.length' | 'conversation.avoidRepeatedGreetings')[] }
-type Overview = { runTotal: number; activeRun: Run | null; suggestionTotal: number; runs: Run[]; suggestions: Suggestion[]; pendingCount: number; settings: Settings }
+type Pricing = { modelAlias: string; modelNameFa: string; modelNameEn: string; requestPriceIRR: number; previewRequestCount: number }
+type Overview = { runTotal: number; activeRun: Run | null; suggestionTotal: number; runs: Run[]; suggestions: Suggestion[]; pendingCount: number; settings: Settings; pricing: Pricing; creditBalanceIRR: number }
 type Conversation = { id: string; channel: string; status: string; messageCount: number; lastMessageAt: string | null; contactId: string | null; contact: { name: string | null; phone: string | null } | null; messages: { content: string }[] }
 type Review = { id: string; conversationId: string; status: string; result: ReviewResult | null; conversation: { channel: string; contact: { name: string | null } | null } }
 type Action = (body: Record<string, unknown>) => Promise<Record<string, unknown> | null>
-const initialSelection: Selection = { mode: 'latest', count: 100, ids: [], search: '', attention: 'all' }
+const initialSelection: Selection = { mode: 'latest', includeReviewed: false, count: 100, ids: [], search: '', attention: 'all' }
 const errors: Record<string, [string, string]> = {
   RUN_ACTIVE: ['یک تحلیل در حال اجراست؛ تا پایان آن صبر کنید.', 'An analysis is already running.'],
   NO_CONVERSATIONS: ['گفتگویی با این انتخاب پیدا نشد.', 'No matching conversations.'],
   SELECTION_CHANGED: ['بعضی گفتگوها دیگر با انتخاب شما منطبق نیستند؛ انتخاب را تازه کنید.', 'The selection changed. Please select again.'],
   QUEUE_UNAVAILABLE: ['شروع تحلیل ممکن نشد؛ دوباره تلاش کنید.', 'Could not queue analysis. Please retry.'],
   AI_UNAVAILABLE: ['سرویس تحلیل فعلاً در دسترس نیست.', 'Analysis service is unavailable.'],
+  NO_CREDIT: ['اعتبار پاسخ برای این درخواست کافی نیست؛ ابتدا کیف پول را شارژ کنید.', 'There is not enough reply credit for this request.'],
   MISSING_INFORMATION: ['ابتدا پاسخ و اطلاعات ناقص را تکمیل کنید.', 'Complete the missing information first.'],
   TEST_REQUIRED: ['ابتدا پاسخ را با آخرین نسخهٔ تنظیمات تست کنید.', 'Test the latest settings before applying.'],
   KNOWLEDGE_CHANGED: ['دانش از زمان بررسی تغییر کرده؛ دوباره تحلیل یا تست کنید.', 'Knowledge has changed. Review or test again.'],
   BEHAVIOR_CHANGED: ['این تنظیم قبلاً تغییر کرده؛ برای پیشنهاد تازه دوباره تحلیل کنید.', 'This setting has changed. Run a fresh analysis.'],
+  STALE_SUGGESTION: ['این پیشنهاد قدیمی و ناسازگار بود؛ خودکار کنار گذاشته شد و دیگر نمایش داده نمی‌شود.', 'This suggestion was outdated and has been removed automatically.'],
   INGESTION_UNAVAILABLE: ['تغییر ذخیره شد، اما آماده‌سازی دانش نیاز به تلاش مجدد دارد.', 'Saved, but knowledge preparation needs a retry.'],
   INVALID_CONTENT: ['این متن برای دانش عمومی مناسب نیست یا هنوز جای خالی دارد.', 'The draft contains incomplete or non-reusable information.'],
   CONFLICT: ['نسخهٔ این مورد تغییر کرده؛ اطلاعات تازه شد.', 'This item changed. The latest version has been loaded.'],
@@ -116,7 +124,7 @@ function DetailDialog({
       mobileOnly={false}
       motionPreset="detail"
       size="large"
-      panelClassName={wide ? 'md:max-w-4xl' : 'md:max-w-3xl'}
+      panelClassName={cn('max-md:h-dvh max-md:rounded-none max-md:border-0', wide ? 'md:max-w-4xl' : 'md:max-w-3xl')}
       contentClassName="space-y-5 bg-[var(--bg-base)]/70 sm:px-5 sm:py-5"
     >
       {children}
@@ -129,7 +137,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   const t = (f: string, e: string) => fa ? f : e
   const label = (value: string) => statusLabels[value]?.[fa ? 0 : 1] ?? value
   const number = (v: number) => v.toLocaleString(fa ? 'fa-IR' : 'en-US')
-  const date = (v: string) => new Date(v).toLocaleString(fa ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })
+  const date = (v: string) => formatLocalizedDateTime(v, fa ? 'fa' : 'en')
   const base = `/api/agents/${agentId}/improvement`
   const [data, setData] = useState<Overview | null>(null)
   const [tab, setTab] = useState<'suggestions' | 'conversations' | 'history'>('suggestions')
@@ -146,7 +154,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   const suggestionTriggerRef = useRef<HTMLButtonElement>(null)
   const resultsTriggerRef = useRef<HTMLButtonElement>(null)
   const [selection, setSelection] = useState<Selection>(initialSelection)
-  const [estimate, setEstimate] = useState<{ count: number; estimatedCreditIRR: number } | null>(null)
+  const [estimate, setEstimate] = useState<{ count: number; estimatedCreditIRR: number; requestCount: number; requestPriceIRR: number; modelNameFa: string; modelNameEn: string } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([]), [total, setTotal] = useState(0), [page, setPage] = useState(1), [searching, setSearching] = useState(false)
   const [runId, setRunId] = useState<string | null>(null), [reviews, setReviews] = useState<Review[]>([]), [reviewPage, setReviewPage] = useState(1), [reviewTotal, setReviewTotal] = useState(0)
@@ -173,6 +181,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
     const timer = setTimeout(async () => {
       try {
         const params = new URLSearchParams({ page: String(page), search: selection.search, attention: selection.attention })
+        params.set('includeReviewed', String(selection.includeReviewed))
         for (const key of ['channel', 'from', 'to', 'contactId'] as const) if (selection[key]) params.set(key, selection[key]!)
         const r = await fetch(`${base}/conversations?${params}`, { signal: abort.signal })
         if (!r.ok) throw new Error('FAILED')
@@ -199,7 +208,11 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       const r = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const result = await r.json()
       if (!r.ok) throw new Error(result.error || 'FAILED')
-      if (body.action !== 'estimate') { await refresh(); setNotice(t('انجام شد.', 'Done.')) }
+      if (body.action !== 'estimate') {
+        await refresh()
+        if (['start', 'retry', 'cancel'].includes(String(body.action))) window.dispatchEvent(new Event(IMPROVEMENT_ACTIVITY_EVENT))
+        setNotice(t('انجام شد.', 'Done.'))
+      }
       return result
     } catch (e) {
       const code = e instanceof Error ? e.message : 'FAILED'
@@ -293,9 +306,11 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
         </Button>
       </div>
       {searching && (
-        <div className={`${surface} flex min-h-28 items-center justify-center gap-2 text-sm text-[var(--text-secondary)]`} role="status">
-          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-          {t('گفتگوها در حال دریافت‌اند…', 'Loading conversations…')}
+        <div className="space-y-3" role="status">
+          <span className="sr-only">{t('گفتگوها در حال دریافت‌اند…', 'Loading conversations…')}</span>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <ConversationCardSkeleton key={`conversation-skeleton-${index}`} delay={index * -130} />
+          ))}
         </div>
       )}
       {!searching && !conversations.length && (
@@ -369,7 +384,9 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   )
   const processedCount = activeRun?.reviews.filter((review) => ['DONE', 'ERROR'].includes(review.status)).length ?? 0
   const successfulCount = activeRun?.reviews.filter((review) => review.status === 'DONE').length ?? 0
+  const activePercent = Math.min(100, Math.round((processedCount / Math.max(activeRun?.total ?? 1, 1)) * 100))
   const automationEnabled = Boolean(data?.settings.daily || data?.settings.autoBehavior)
+  const estimateInsufficient = Boolean(estimate && data && estimate.estimatedCreditIRR > data.creditBalanceIRR)
 
   return <div className="min-w-0 space-y-4 pb-4">
     <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
@@ -391,6 +408,13 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
                 <span>{number(data.pendingCount)} {t('پیشنهاد آمادهٔ بررسی', 'suggestions ready')}</span>
                 <span className="hidden h-1 w-1 rounded-full bg-black/20 sm:block" aria-hidden="true" />
                 <span>{number(data.runTotal)} {t('نوبت تحلیل ثبت‌شده', 'analysis runs')}</span>
+              </div>
+            )}
+            {!data && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" aria-hidden="true">
+                <Skeleton delay={-100} className="h-3 w-28 rounded-full" />
+                <Skeleton delay={-220} className="h-3 w-24 rounded-full" />
+                <Skeleton delay={-340} className="h-3 w-48 rounded-full" />
               </div>
             )}
           </div>
@@ -436,14 +460,14 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /></span>
-            <div><p className="text-sm font-bold">{label(activeRun.status)}</p><p className="mt-0.5 text-xs text-[var(--text-muted)]">{number(successfulCount)} {t('از', 'of')} {number(activeRun.total)} {t('گفتگو بررسی شده', 'conversations reviewed')}</p></div>
+            <div><p className="text-sm font-bold">{label(activeRun.status)} · {activeRun.source === 'automatic' ? t('تحلیل خودکار', 'Automatic analysis') : t('تحلیل دستی', 'Manual analysis')}</p><p className="mt-0.5 text-xs text-[var(--text-muted)]">{number(successfulCount)} {t('از', 'of')} {number(activeRun.total)} {t('گفتگو بررسی شده', 'conversations reviewed')}</p></div>
           </div>
-          <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void act({ action: 'cancel', id: activeRun.id })}>{t('توقف تحلیل', 'Stop analysis')}</Button>
+          <div className="flex items-center gap-3"><span className="text-xl font-black tabular-nums">{number(activePercent)}{fa ? '٪' : '%'}</span><Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void act({ action: 'cancel', id: activeRun.id })}>{t('توقف تحلیل', 'Stop analysis')}</Button></div>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-black/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={activeRun.total} aria-valuenow={processedCount}>
           <div className="h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${Math.min(100, (processedCount / Math.max(activeRun.total, 1)) * 100)}%` }} />
         </div>
-        <p className="text-xs leading-6 text-[var(--text-muted)]">{t('تحلیل در پس‌زمینه ادامه دارد و می‌توانید از این صفحه خارج شوید.', 'Analysis continues in the background, so you may leave this page.')}</p>
+        <p className="text-xs leading-6 text-[var(--text-muted)]">{t(`تحلیل در پس‌زمینه ادامه دارد؛ تا این لحظه ${number(activeRun.requestCount)} درخواست موفق و ${number(activeRun.chargedIRR / 10)} تومان مصرف ثبت شده است.`, `Analysis continues in the background; ${number(activeRun.requestCount)} successful requests and ${number(activeRun.chargedIRR / 10)} toman have been recorded so far.`)}</p>
       </section>
     )}
     <div role="tablist" aria-label={t('بخش‌های تحلیل', 'Analysis sections')} className="spatial-control grid grid-cols-3 gap-1 rounded-[1.25rem] p-1.5">{([['suggestions', 'پیشنهادها', 'Suggestions', Sparkles], ['conversations', 'گفتگوها', 'Conversations', MessageSquare], ['history', 'سابقه', 'History', History]] as const).map(([key, f, e, Icon], i) => <button role="tab" type="button" id={`analysis-tab-${key}`} aria-controls={`analysis-panel-${key}`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} key={key} onClick={() => setTab(key)} onKeyDown={(event) => {
@@ -460,10 +484,26 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       tab === key ? 'bg-black text-white shadow-[var(--shadow-control)]' : 'text-[var(--text-secondary)] hover:bg-black/[0.04]',
     )}><Icon className="h-4 w-4 shrink-0" aria-hidden="true" />{t(f, e)}{key === 'suggestions' && !!data?.pendingCount && <span className={cn('ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold', tab === key ? 'bg-white text-black' : 'bg-black text-white')}>{number(data.pendingCount)}</span>}</button>)}</div>
     {!data && (
-      <div role="status" className={`${surface} space-y-3 py-7`}>
-        <div className="h-4 w-36 animate-pulse rounded-full bg-black/10 motion-reduce:animate-none" />
-        <div className="h-3 w-2/3 animate-pulse rounded-full bg-black/[0.07] motion-reduce:animate-none" />
+      <div role="status" className="space-y-3">
         <span className="sr-only">{t('در حال دریافت اطلاعات…', 'Loading…')}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
+          <Skeleton delay={-100} className="h-3 w-28 rounded-full" />
+          <span className="hidden h-1 w-1 rounded-full bg-black/15 sm:block" aria-hidden="true" />
+          <Skeleton delay={-220} className="h-3 w-24 rounded-full" />
+          <span className="hidden h-1 w-1 rounded-full bg-black/15 sm:block" aria-hidden="true" />
+          <Skeleton delay={-340} className="h-3 w-44 rounded-full" />
+        </div>
+        {tab === 'conversations'
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <ConversationCardSkeleton key={`conversation-loading-${index}`} delay={index * -130} />
+            ))
+          : tab === 'history'
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <HistoryCardSkeleton key={`history-loading-${index}`} delay={index * -160} />
+              ))
+            : Array.from({ length: 3 }).map((_, index) => (
+                <SuggestionCardSkeleton key={`suggestion-loading-${index}`} delay={index * -160} />
+              ))}
       </div>
     )}
     <section role="tabpanel" id="analysis-panel-suggestions" aria-labelledby="analysis-tab-suggestions" hidden={tab !== 'suggestions'} className="space-y-3">
@@ -501,6 +541,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusPill>{isKnowledge ? t('دانش', 'Knowledge') : isBehavior ? t('رفتار و لحن', 'Behavior') : t('روند و ابزار', 'Flow & tools')}</StatusPill>
+                  <StatusPill>{suggestion.draft.scope === 'CUSTOMER' ? t('برای این مشتری', 'This customer') : t('برای همه', 'All customers')}</StatusPill>
                   <StatusPill tone={suggestion.priority === 'HIGH' ? 'warning' : 'neutral'}>{suggestion.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : suggestion.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</StatusPill>
                 </div>
                 <h3 className="mt-3 text-[15px] font-bold leading-7 text-[var(--text-primary)]">{suggestion.title}</h3>
@@ -546,7 +587,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
         <article key={run.id} className={`${surface} space-y-3.5`}>
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]"><Clock3 className="h-4 w-4" aria-hidden="true" /></span>
-            <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold">{number(run.total)} {t('گفتگو بررسی شد', 'conversations reviewed')}</p><StatusPill tone={run.status === 'DONE' ? 'success' : ['ERROR', 'PARTIAL'].includes(run.status) ? 'warning' : 'neutral'}>{label(run.status)}</StatusPill></div><p className="mt-1 text-xs text-[var(--text-muted)]">{date(run.createdAt)}</p></div>
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold">{number(run.reviews.filter((review) => review.status === 'DONE').length)} {t('از', 'of')} {number(run.total)} {t('گفتگو بررسی شد', 'conversations reviewed')}</p><StatusPill tone={run.status === 'DONE' ? 'success' : ['ERROR', 'PARTIAL'].includes(run.status) ? 'warning' : 'neutral'}>{label(run.status)}</StatusPill></div><p className="mt-1 text-xs text-[var(--text-muted)]">{run.source === 'automatic' ? t('تحلیل خودکار', 'Automatic analysis') : t('تحلیل دستی', 'Manual analysis')} · {date(run.createdAt)} · {number(run.requestCount)} {t('درخواست AI', 'AI requests')} · {number(run.chargedIRR / 10)} {t('تومان', 'toman')}</p>{run.error === 'NO_CREDIT' && <p className="mt-1 text-xs font-semibold text-amber-700">{t('به‌دلیل کافی نبودن اعتبار متوقف شد.', 'Stopped because credit was insufficient.')}</p>}</div>
           </div>
           <div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-3">
             <Button variant="secondary" size="sm" onClick={(event) => { resultsTriggerRef.current = event.currentTarget; setRunId(run.id); setReviewPage(1); setReviews([]) }}>{t('نتیجهٔ هر گفتگو', 'Individual results')}</Button>
@@ -568,15 +609,15 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       onClose={() => setSelectOpen(false)}
       footer={<div className="space-y-2.5">
         {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}
-        {estimate && <div className="flex items-start gap-2 rounded-xl bg-black/[0.035] px-3 py-2.5"><CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><p className="text-xs leading-6"><strong>{number(estimate.count)} {t('گفتگو', 'conversations')}</strong> · {t('اعتبار کسرشونده:', 'Credit deduction:')} {number(estimate.estimatedCreditIRR / 10)} {t('تومان', 'toman')}</p></div>}
+        {estimate && <div className={cn('flex items-start gap-2 rounded-xl px-3 py-2.5', estimateInsufficient ? 'bg-amber-50 text-amber-900' : 'bg-black/[0.035]')}><CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><div className="min-w-0 text-xs leading-6"><p><strong>{number(estimate.count)} {t('گفتگو', 'conversations')}</strong> · {number(estimate.requestCount)} {t('درخواست AI', 'AI requests')}</p><p>{fa ? estimate.modelNameFa : estimate.modelNameEn} · {number(estimate.requestPriceIRR / 10)} {t('تومان برای هر درخواست موفق', 'toman per successful request')} · <strong>{number(estimate.estimatedCreditIRR / 10)} {t('تومان مجموع برآورد', 'toman estimated total')}</strong></p>{estimateInsufficient && <p className="font-semibold">{t('اعتبار فعلی کافی نیست.', 'Current credit is insufficient.')} <Link className="underline underline-offset-4" href="/billing">{t('افزایش اعتبار', 'Add credit')}</Link></p>}</div></div>}
         <Button
           className="w-full"
           loading={!!busy}
-          disabled={!!activeRun || (selection.mode === 'selected' && !selection.ids.length)}
+          disabled={!!activeRun || estimateInsufficient || (selection.mode === 'selected' && !selection.ids.length)}
           onClick={async () => {
             if (!estimate) {
               const result = await act({ action: 'estimate', selection })
-              if (result) setEstimate(result as { count: number; estimatedCreditIRR: number })
+              if (result) setEstimate(result as { count: number; estimatedCreditIRR: number; requestCount: number; requestPriceIRR: number; modelNameFa: string; modelNameEn: string })
             } else {
               const result = await act({ action: 'start', selection })
               if (result) { setSelectOpen(false); setTab('suggestions') }
@@ -595,25 +636,39 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       </div>
       {selection.mode === 'latest' && (
         <section className={`${surface} space-y-4`}>
-          <div><h3 className="text-sm font-bold">{t('چه تعداد بررسی شود؟', 'How many should be reviewed?')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('از تازه‌ترین گفتگوهای منطبق با جستجو و فیلترها انتخاب می‌شود.', 'The newest conversations matching search and filters are selected.')}</p></div>
+          <div><h3 className="text-sm font-bold">{t('چه تعداد بررسی شود؟', 'How many should be reviewed?')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('به‌طور پیش‌فرض فقط گفتگوهای جدید یا گفتگوهایی که بعد از آخرین تحلیل پیام تازه دارند انتخاب می‌شوند.', 'By default, only new conversations or conversations updated since their last analysis are selected.')}</p></div>
           <label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('تعداد گفتگو؛ حداکثر ۵۰۰', 'Conversation count; maximum 500')}</span><input type="number" min={1} max={500} className={field} value={selection.count} onChange={(event) => updateSelection({ count: Math.max(1, Math.min(500, Number(event.target.value) || 1)) })} /></label>
           <div className="grid grid-cols-3 gap-2">{[50, 100, 200].map((count) => <button key={count} type="button" className={cn('min-h-11 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', selection.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => updateSelection({ count })}>{number(count)}</button>)}</div>
         </section>
       )}
+      <section className={`${inset} flex items-start gap-3 p-3.5`}>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{t('تحلیل دوبارهٔ گفتگوی بدون تغییر', 'Re-analyze unchanged conversations')}</p>
+          <p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('خاموش بماند تا بابت گفتگویی که قبلاً کامل تحلیل شده دوباره هزینه نپردازید.', 'Keep this off to avoid paying again for a conversation that was already fully analyzed.')}</p>
+        </div>
+        <Switch checked={selection.includeReviewed} onChange={(includeReviewed) => updateSelection({ includeReviewed })} aria-label={t('اجازه تحلیل دوباره گفتگوهای بدون تغییر', 'Allow re-analysis of unchanged conversations')} />
+      </section>
       {filters}
       {selection.mode === 'selected' && <><div className="flex min-h-11 items-center justify-between gap-3 px-1"><span className="text-sm font-semibold">{number(selection.ids.length)} {t('انتخاب‌شده', 'selected')}</span><Button variant="ghost" size="sm" onClick={() => updateSelection({ ids: [] })}>{t('پاک کردن انتخاب‌ها', 'Clear selection')}</Button></div>{conversationList}</>}
-      <p className="px-1 text-xs leading-6 text-[var(--text-muted)]">{t('پیام‌هایی که پس از شروع تحلیل برسند در نوبت بعدی بررسی می‌شوند.', 'Messages arriving after analysis starts are reviewed in the next run.')}</p>
+      <p className="px-1 text-xs leading-6 text-[var(--text-muted)]">{t('این کار یک تحلیل تازه و پولی است؛ فقط پس از نمایش برآورد و زدن «شروع تحلیل» اجرا می‌شود. درخواست ناموفق هزینه ندارد.', 'This is a new paid analysis. It runs only after the estimate is shown and you press Start analysis. Failed requests are not charged.')}</p>
     </DetailDialog>}
-    {selected && <SuggestionDetail key={`${selected.id}-${selected.version}`} item={selected} agentId={agentId} fa={fa} busy={busy} error={error} act={act} triggerRef={suggestionTriggerRef} onClose={() => setSelectedId(null)} />}
-    {settingsOpen && data && <AutomationDialog initial={data.settings} fa={fa} busy={busy} error={error} act={act} triggerRef={automationTriggerRef} onClose={() => setSettingsOpen(false)} />}
+    {selected && data && <SuggestionDetail key={`${selected.id}-${selected.version}`} item={selected} pricing={data.pricing} agentId={agentId} fa={fa} busy={busy} error={error} act={act} triggerRef={suggestionTriggerRef} onClose={() => setSelectedId(null)} />}
+    {settingsOpen && data && <AutomationDialog initial={data.settings} pricing={data.pricing} fa={fa} busy={busy} error={error} act={act} triggerRef={automationTriggerRef} onClose={() => setSettingsOpen(false)} />}
     {filtersOpen && <ConversationFilterDialog selection={selection} fa={fa} activeCount={activeFilterCount} triggerRef={filtersTriggerRef} update={updateSelection} onClose={() => setFiltersOpen(false)} />}
     {runId && <DetailDialog title={t('نتیجهٔ بررسی گفتگوها', 'Conversation review results')} description={t(`${number(reviewTotal)} گفتگوی بررسی‌شده`, `${number(reviewTotal)} reviewed conversations`)} triggerRef={resultsTriggerRef} wide onClose={() => setRunId(null)}>
       {reviews.map((review) => <article key={review.id} className={`${surface} space-y-3.5`}>
         <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-sm font-bold">{review.conversation.contact?.name || t('مشتری بدون نام', 'Unnamed customer')}</h3><p className="mt-1 text-xs text-[var(--text-muted)]">{review.conversation.channel}</p></div><StatusPill tone={review.status === 'DONE' ? 'success' : review.status === 'ERROR' ? 'warning' : 'neutral'}>{label(review.status)}</StatusPill></div>
-        {review.result && <><div className={`${inset} p-3.5`}><div className="flex items-center gap-2"><StatusPill tone={review.result.outcome === 'RESOLVED' ? 'success' : review.result.outcome === 'UNRESOLVED' ? 'warning' : 'neutral'}>{label(review.result.outcome)}</StatusPill></div><p className="mt-3 text-sm leading-7 text-[var(--text-primary)]">{review.result.summary}</p></div>{!!review.result.strengths.length && <div><p className="text-xs font-bold text-[var(--text-muted)]">{t('نقاط قوت', 'Strengths')}</p><p className="mt-1.5 text-sm leading-7 text-[var(--text-secondary)]">{review.result.strengths.join(' · ')}</p></div>}{review.result.findings.map((finding, index) => <div key={index} className="border-t border-[var(--border-subtle)] pt-3"><p className="text-sm font-semibold">{finding.title}</p><p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{finding.diagnosis}</p></div>)}</>}
+        {review.result && <><div className={`${inset} p-3.5`}><div className="flex flex-wrap items-center gap-2"><StatusPill tone={review.result.outcome === 'RESOLVED' ? 'success' : review.result.outcome === 'UNRESOLVED' ? 'warning' : 'neutral'}>{label(review.result.outcome)}</StatusPill></div><p className="mt-3 text-xs font-bold text-[var(--text-muted)]">{t('نیاز مشتری', 'Customer intent')}</p><p className="mt-1 text-sm leading-7 text-[var(--text-primary)]">{review.result.intent || t('نامشخص', 'Unknown')}</p><p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">{review.result.summary}</p></div>{!!review.result.strengths.length && <div><p className="text-xs font-bold text-[var(--text-muted)]">{t('نقاط قوت', 'Strengths')}</p><div className="mt-2 space-y-2">{review.result.strengths.map((rawStrength, index) => { const strength = typeof rawStrength === 'string' ? { title: rawStrength, messageIds: [] as string[] } : rawStrength; return <div key={`${strength.title}-${index}`} className="text-sm leading-7 text-[var(--text-secondary)]"><span>{strength.title}</span>{strength.messageIds.map((messageId) => <Link key={messageId} className="ms-2 text-[11px] font-bold underline underline-offset-4" target="_blank" href={`/conversations/${review.conversationId}#message-${messageId}`}>{t('شاهد', 'Evidence')}</Link>)}</div> })}</div></div>}{review.result.findings.map((finding, index) => <div key={index} className="border-t border-[var(--border-subtle)] pt-3"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold">{finding.title}</p><StatusPill>{finding.scope === 'CUSTOMER' ? t('برای این مشتری', 'This customer') : t('برای همهٔ مشتریان', 'All customers')}</StatusPill></div><p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{finding.diagnosis}</p><div className="mt-1 flex flex-wrap gap-2">{finding.messageIds.map((messageId) => <Link key={messageId} className="text-[11px] font-bold underline underline-offset-4" target="_blank" href={`/conversations/${review.conversationId}#message-${messageId}`}>{t('مشاهده پیام شاهد', 'Open evidence message')}</Link>)}</div></div>)}</>}
         <Link className={`${secondary} w-full sm:w-auto`} href={`/conversations/${review.conversationId}`} target="_blank">{t('مشاهده گفتگو', 'Open conversation')}<ArrowLeft className="h-4 w-4 ltr:rotate-180" aria-hidden="true" /></Link>
       </article>)}
-      {!reviews.length && <div className={`${surface} flex min-h-32 items-center justify-center gap-2 text-sm text-[var(--text-secondary)]`} role="status"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />{t('در حال دریافت نتیجه‌ها…', 'Loading results…')}</div>}
+      {!reviews.length && (
+        <div className="space-y-3" role="status">
+          <span className="sr-only">{t('در حال دریافت نتیجه‌ها…', 'Loading results…')}</span>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <ReviewCardSkeleton key={`review-skeleton-${index}`} delay={index * -150} />
+          ))}
+        </div>
+      )}
       <Pagination page={reviewPage} total={reviewTotal} setPage={setReviewPage} fa={fa} />
     </DetailDialog>}
   </div>
@@ -650,9 +705,7 @@ function ConversationFilterDialog({
   onClose: () => void
 }) {
   const t = (f: string, e: string) => fa ? f : e
-  const inputDate = (value?: string) => value
-    ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000).toISOString().slice(0, 10)
-    : ''
+  const inputDate = (value?: string) => value ? dateKeyInTimeZone(value) : ''
   return <DetailDialog
     title={t('فیلتر گفتگوها', 'Conversation filters')}
     description={activeCount ? t(`${activeCount.toLocaleString('fa-IR')} فیلتر فعال`, `${activeCount} active filters`) : t('نتیجه‌ها را دقیق‌تر کنید', 'Narrow the results')}
@@ -663,7 +716,7 @@ function ConversationFilterDialog({
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('کانال گفتگو', 'Conversation channel')}</span><select className={field} value={selection.channel ?? ''} onChange={(event) => update({ channel: (event.target.value || undefined) as Selection['channel'] })}><option value="">{t('همهٔ کانال‌ها', 'All channels')}</option>{['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE', 'WEB_WIDGET', 'CHAT_LINK', 'API'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select></label>
       <label className="space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('نیاز به توجه', 'Needs attention')}</span><select className={field} value={selection.attention} onChange={(event) => update({ attention: event.target.value as Selection['attention'] })}><option value="all">{t('همهٔ گفتگوها', 'All conversations')}</option><option value="unanswered">{t('بی‌پاسخ', 'Unanswered')}</option><option value="handoff">{t('ارجاع به اپراتور', 'Handed off')}</option><option value="low_rating">{t('امتیاز پایین', 'Low rating')}</option></select></label>
-      {(['from', 'to'] as const).map((key) => <label key={key} className="space-y-2 text-sm"><span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{key === 'from' ? t('از تاریخ', 'From date') : t('تا تاریخ', 'To date')}</span><input type="date" className={field} value={inputDate(selection[key])} onChange={(event) => update({ [key]: event.target.value ? new Date(`${event.target.value}T${key === 'from' ? '00:00:00' : '23:59:59'}`).toISOString() : undefined })} /></label>)}
+      {(['from', 'to'] as const).map((key) => <div key={key} className="space-y-2 text-sm"><span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{key === 'from' ? t('از تاریخ', 'From date') : t('تا تاریخ', 'To date')}</span><LocalizedDatePicker value={inputDate(selection[key])} onValueChange={(value) => update({ [key]: value ? dateKeyBoundaryISOString(value, key === 'to') : undefined })} locale={fa ? 'fa' : 'en'} ariaLabel={key === 'from' ? t('انتخاب تاریخ شروع', 'Choose start date') : t('انتخاب تاریخ پایان', 'Choose end date')} placeholder={key === 'from' ? t('از تاریخ', 'From date') : t('تا تاریخ', 'To date')} /></div>)}
     </div>
     {selection.contactId && <div className={`${inset} flex items-center justify-between gap-3 p-3.5`}><div><p className="text-sm font-semibold">{t('فقط گفتگوهای یک مشتری', 'Only one customer')}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{t('این فیلتر از کارت گفتگو فعال شده است.', 'This filter was set from a conversation card.')}</p></div><Button variant="ghost" size="sm" onClick={() => update({ contactId: undefined })}>{t('حذف', 'Remove')}</Button></div>}
   </DetailDialog>
@@ -674,29 +727,73 @@ function Pagination({ page, total, setPage, fa }: { page: number; total: number;
   return <nav className="flex items-center justify-between gap-3 px-1 pt-1" aria-label={fa ? 'صفحه‌بندی' : 'Pagination'}><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronRight className="h-4 w-4 ltr:rotate-180" aria-hidden="true" />{fa ? 'قبلی' : 'Previous'}</Button><span className="text-xs font-semibold tabular-nums text-[var(--text-muted)]">{page.toLocaleString(fa ? 'fa-IR' : 'en-US')} / {Math.ceil(total / 25).toLocaleString(fa ? 'fa-IR' : 'en-US')}</span><Button variant="secondary" size="sm" disabled={page * 25 >= total} onClick={() => setPage(page + 1)}>{fa ? 'بعدی' : 'Next'}<ChevronLeft className="h-4 w-4 ltr:rotate-180" aria-hidden="true" /></Button></nav>
 }
 
-function SuggestionDetail({ item: s, agentId, fa, busy, error, act, triggerRef, onClose }: { item: Suggestion; agentId: string; fa: boolean; busy: string; error: string; act: Action; triggerRef: { current: HTMLElement | null }; onClose: () => void }) {
+function SuggestionDetail({ item: s, pricing, agentId, fa, busy, error, act, triggerRef, onClose }: { item: Suggestion; pricing: Pricing; agentId: string; fa: boolean; busy: string; error: string; act: Action; triggerRef: { current: HTMLElement | null }; onClose: () => void }) {
   const t = (f: string, e: string) => fa ? f : e
+  const number = (value: number) => value.toLocaleString(fa ? 'fa-IR' : 'en-US')
   const [draft, setDraft] = useState<Draft>(() => draftSchema.parse(s.draft))
   const dirty = JSON.stringify(draft) !== JSON.stringify(draftSchema.parse(s.draft))
   const preview = s.preview
   const pending = s.status === 'PENDING'
   const change = s.changes.find((c) => !c.revertedAt)
   const behaviorLabel = (v: unknown) => Array.isArray(v) ? v.join(' · ') : behaviorLabels[String(v)]?.[fa ? 0 : 1] ?? String(v ?? '')
-  return <DetailDialog title={s.title} description={s.kind === 'KNOWLEDGE' ? t('پیشنهاد بهبود دانش', 'Knowledge improvement') : s.kind === 'BEHAVIOR' ? t('پیشنهاد رفتار و لحن', 'Behavior improvement') : t('پیشنهاد روند و ابزار', 'Flow and tool improvement')} triggerRef={triggerRef} wide onClose={onClose} footer={<div className="space-y-2">{error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}{pending ? <div className="grid grid-cols-2 gap-2"><Button variant="secondary" disabled={!!busy || !dirty} onClick={() => void act({ action: 'save', id: s.id, version: s.version, draft })}>{t('ذخیرهٔ اصلاح', 'Save draft')}</Button><Button loading={!!busy} disabled={dirty || (s.kind !== 'TOOL' && !!draft.missing)} onClick={() => void act({ action: s.kind === 'TOOL' || preview ? 'apply' : 'preview', id: s.id, version: s.version })}>{s.kind === 'TOOL' ? t('ثبت رسیدگی', 'Mark handled') : preview ? t('اعمال تغییر', 'Apply change') : t('تست پاسخ', 'Test response')}</Button></div> : change && <Button variant="secondary" className="w-full" disabled={!!busy} onClick={() => void act({ action: 'revert', id: change.id })}><RotateCcw className="h-4 w-4" aria-hidden="true" />{t('بازگشت به قبل از این تغییر', 'Revert this change')}</Button>}{dirty && <p className="text-xs text-[var(--text-secondary)]">{t('قبل از تست، اصلاح‌ها را ذخیره کنید.', 'Save edits before testing.')}</p>}</div>}>
-    <div className={`${surface} space-y-3`}><div className="flex flex-wrap gap-2"><StatusPill>{t('دامنه: همهٔ مشتریان این ایجنت', 'Scope: all customers of this agent')}</StatusPill><StatusPill tone={s.priority === 'HIGH' ? 'warning' : 'neutral'}>{s.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : s.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</StatusPill></div><p className="text-sm leading-8 text-[var(--text-secondary)]">{s.diagnosis}</p></div>
+  const previewPassed = preview?.assessment?.improved === true
+  const testCost = pricing.previewRequestCount * pricing.requestPriceIRR / 10
+  const originalReply = preview?.historical || preview?.baseline
+  const waitingForInformation =
+    (s.kind === 'KNOWLEDGE' && (Boolean(draft.missing) || draft.question.trim().length < 3 || draft.answer.trim().length < 3)) ||
+    (s.kind === 'BEHAVIOR' && draft.scope === 'CUSTOMER' && (Boolean(draft.missing) || draft.answer.trim().length < 3))
+  const primaryDisabled = waitingForInformation || (Boolean(preview) && !previewPassed)
+  const primaryAction = s.kind === 'TOOL' || preview ? 'apply' : 'preview'
+  const primaryLabel = s.kind === 'TOOL'
+    ? t('تأیید رفع مشکل', 'Confirm resolved')
+    : preview
+      ? previewPassed ? t('اعمال تغییر', 'Apply change') : t('پیشنهاد را ویرایش کنید', 'Edit the suggestion')
+      : waitingForInformation ? t('ابتدا اطلاعات را تکمیل کنید', 'Complete the information first') : t(`تست و ارزیابی · ${number(testCost)} تومان`, `Test & evaluate · ${number(testCost)} toman`)
+  const detailFooter = <div className="space-y-2.5">
+    {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-6 text-red-700">{error}</p>}
+    {pending ? <>
+      {dirty ? (
+        <Button className="w-full" loading={!!busy} onClick={() => void act({ action: 'save', id: s.id, version: s.version, draft })}>
+          <Check className="h-4 w-4" aria-hidden="true" />{t('ذخیره تغییرات', 'Save changes')}
+        </Button>
+      ) : (
+        <Button className="w-full" loading={!!busy} disabled={primaryDisabled} onClick={() => void act({ action: primaryAction, id: s.id, version: s.version })}>
+          {primaryLabel}
+        </Button>
+      )}
+      {!preview && s.kind !== 'TOOL' && !waitingForInformation && <p className="text-[11px] leading-5 text-[var(--text-muted)]">{t(`نسخهٔ فعلی فقط یک‌بار و پیش از اعمال ارزیابی می‌شود: ${number(pricing.previewRequestCount)} درخواست AI و ${number(testCost)} تومان. بدون زدن دکمه هزینه‌ای کم نمی‌شود.`, `The current version is evaluated once before applying: ${number(pricing.previewRequestCount)} AI requests and ${number(testCost)} toman. Nothing is charged until you press the button.`)}</p>}
+      {waitingForInformation && !dirty && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">{t('پاسخ معتبر را وارد کنید، تأیید تکمیل اطلاعات را بزنید و تغییرات را ذخیره کنید.', 'Enter a verified answer, confirm the missing information is complete, and save your changes.')}</p>}
+      {preview && !previewPassed && !dirty && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">{t('این نسخه بهتر ارزیابی نشد. متن پیشنهاد را ویرایش کنید؛ دکمهٔ ذخیره بلافاصله فعال می‌شود.', 'This version was not rated better. Edit the suggestion and the save button will become available immediately.')}</p>}
+    </> : change && <Button variant="secondary" className="w-full" disabled={!!busy} onClick={() => void act({ action: 'revert', id: change.id })}><RotateCcw className="h-4 w-4" aria-hidden="true" />{t('بازگشت به قبل از این تغییر', 'Revert this change')}</Button>}
+  </div>
+  return <DetailDialog title={s.title} description={s.kind === 'KNOWLEDGE' ? t('پیشنهاد بهبود دانش', 'Knowledge improvement') : s.kind === 'BEHAVIOR' ? t('پیشنهاد رفتار و لحن', 'Behavior improvement') : t('پیشنهاد روند و ابزار', 'Flow and tool improvement')} triggerRef={triggerRef} wide onClose={onClose} footer={detailFooter}>
+    <div className={`${surface} space-y-3`}><div className="flex flex-wrap gap-2"><StatusPill>{draft.scope === 'CUSTOMER' ? t('دامنه: فقط همین مشتری', 'Scope: this customer only') : t('دامنه: همهٔ مشتریان این ایجنت', 'Scope: all customers of this agent')}</StatusPill><StatusPill tone={s.priority === 'HIGH' ? 'warning' : 'neutral'}>{s.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : s.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</StatusPill></div><p className="text-sm leading-8 text-[var(--text-secondary)]">{s.diagnosis}</p></div>
     {s.kind === 'KNOWLEDGE' && <div className="space-y-4"><label className="block space-y-2 text-sm"><span>{t('سؤال یا موضوع دانش', 'Knowledge question')}</span><textarea className={field} rows={2} maxLength={2000} disabled={!pending} value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} /></label>{draft.missing && <p className="rounded-xl bg-amber-50 p-3 text-sm leading-7 text-amber-900">{draft.missing}</p>}<label className="block space-y-2 text-sm"><span>{t('پاسخ معتبر کسب‌وکار', 'Verified business answer')}</span><textarea className={`${field} leading-8`} rows={7} maxLength={8000} disabled={!pending} value={draft.answer} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} /></label>{pending && !!draft.missing && <label className="flex min-h-12 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-black" disabled={draft.answer.trim().length < 3} onChange={() => setDraft({ ...draft, missing: '' })} />{t('اطلاعات لازم را در پاسخ تکمیل کردم.', 'I completed the required facts in the answer.')}</label>}{draft.targetKnowledgeId && <p className="text-xs leading-6">{t('این تغییر، پاسخ موجود را به‌روزرسانی می‌کند.', 'This updates an existing knowledge answer.')}</p>}</div>}
     {s.kind === 'BEHAVIOR' && draft.behaviorPath && <div className={`${surface} space-y-3`}><h3 className="font-semibold">{behaviorLabel(draft.behaviorPath)}</h3><p className="text-sm">{t('مقدار فعلی در زمان تحلیل: ', 'Value at analysis time: ')}{Array.isArray(draft.baseline) ? t(`${draft.baseline.length} دستور موجود حفظ می‌شود.`, `${draft.baseline.length} existing instructions are preserved.`) : behaviorLabel(draft.baseline)}</p><label className="block space-y-2 text-sm"><span>{t('مقدار پیشنهادی', 'Proposed value')}</span>{draft.behaviorPath === 'doSay' ? <textarea className={`${field} leading-8`} rows={4} maxLength={500} disabled={!pending} value={String(draft.behaviorValue ?? '')} onChange={(e) => setDraft({ ...draft, behaviorValue: e.target.value })} /> : <select disabled={!pending} className={field} value={String(draft.behaviorValue)} onChange={(e) => setDraft({ ...draft, behaviorValue: e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value })}>{behaviorValues[draft.behaviorPath].map((v) => <option key={String(v)} value={String(v)}>{behaviorLabel(v)}</option>)}</select>}</label></div>}
+    {s.kind === 'BEHAVIOR' && draft.scope === 'CUSTOMER' && <div className={`${surface} space-y-3`}><div><h3 className="font-semibold">{t('ترجیح تعامل این مشتری', 'This customer’s interaction preference')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('فقط در پروفایل همین مشتری ثبت می‌شود و وارد دانش یا رفتار عمومی ایجنت نخواهد شد.', 'Stored only on this customer profile; it never enters shared knowledge or global agent behavior.')}</p></div><label className="block space-y-2 text-sm"><span>{t('ترجیح صریح', 'Explicit preference')}</span><textarea className={`${field} leading-8`} rows={4} maxLength={500} disabled={!pending} value={draft.answer} onChange={(event) => setDraft({ ...draft, answer: event.target.value })} /></label></div>}
     {s.kind === 'TOOL' && <div className="space-y-3"><p className="text-sm leading-7">{draft.missing || t('این مورد نیاز به رسیدگی در تنظیمات یا منبع اصلی دارد. پس از اصلاح، رسیدگی را ثبت کنید.', 'Handle this in the source or settings, then record completion.')}</p><label className="block space-y-2 text-sm"><span>{t('یادداشت رسیدگی', 'Resolution note')}</span><textarea className={field} rows={3} value={draft.answer} disabled={!pending} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} /></label><div className="flex flex-wrap gap-2"><Link target="_blank" className={secondary} href={`/agents/${agentId}/improve?tab=knowledge`}>{t('دانش ایجنت', 'Knowledge')}</Link><Link target="_blank" className={secondary} href={`/agents/${agentId}/settings`}>{t('تنظیمات ایجنت', 'Agent settings')}</Link></div></div>}
-    {!!s.evidence.length && <details className="spatial-surface overflow-hidden rounded-[1.25rem]"><summary className="flex min-h-12 cursor-pointer items-center px-4 py-3 text-sm font-semibold">{t('نمونهٔ شواهد از گفتگوها', 'Conversation evidence sample')} ({s.evidence.length.toLocaleString(fa ? 'fa-IR' : 'en-US')})</summary><div className="space-y-3 border-t border-[var(--border-subtle)] px-4 pb-4">{s.evidence.map((e, i) => <div key={`${e.messageId}-${i}`} className="pt-3"><blockquote dir="auto" className={`${inset} whitespace-pre-wrap break-words p-3.5 text-sm leading-7 text-[var(--text-secondary)]`}>{e.message.content}</blockquote><Link target="_blank" className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]" href={`/conversations/${e.review.conversationId}`}>{t('باز کردن گفتگوی مرجع', 'Open source conversation')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></Link></div>)}</div></details>}
-    {preview && <section className="space-y-3"><h3 className="font-bold">{t('مقایسهٔ پاسخ', 'Response comparison')}</h3><p className="text-xs leading-6 text-[var(--text-secondary)]">{t('آزمایش با دانش و تنظیمات فعلی و حداکثر ۴۰ پیام قبل از سؤال انجام شده؛ پیام‌های بعدی و ابزارهای زندهٔ سفارش و محصول وارد تست نمی‌شوند. این پاسخ برای مشتری ارسال نشده است.', 'Tested with current knowledge and settings and up to 40 prior messages. Later messages and live order/product tools are excluded. No response was sent to the customer.')}</p><blockquote className="rounded-xl bg-[var(--bg-muted)] p-3 text-sm leading-7">{preview.question}</blockquote>{preview.historical && <details className="rounded-xl border p-3"><summary className="min-h-9 cursor-pointer text-sm">{t('پاسخ ثبت‌شده در گفتگوی اصلی', 'Actual historical reply')}</summary><p className="mt-2 whitespace-pre-wrap text-sm leading-7">{preview.historical}</p></details>}<div className="grid gap-3 sm:grid-cols-2">{[[t('بدون تغییر پیشنهادی', 'Without proposed change'), preview.baseline], [t('با تغییر پیشنهادی', 'With proposed change'), preview.proposed]].map(([title, value]) => <div key={title} className={surface}><h4 className="text-sm font-bold">{title}</h4><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-8">{value}</p></div>)}</div>{preview.assessment && <p className="text-sm leading-7">{t('ارزیابی آزمایشی: ', 'Test assessment: ')}{preview.assessment.reason}</p>}{pending && <button className={secondary} disabled={!!busy || dirty} onClick={() => void act({ action: 'preview', id: s.id, version: s.version })}>{t('تست دوباره', 'Test again')}</button>}</section>}
+    {!!s.evidence.length && <details className="spatial-surface overflow-hidden rounded-[1.25rem]"><summary className="flex min-h-12 cursor-pointer items-center px-4 py-3 text-sm font-semibold">{t('نمونهٔ شواهد از گفتگوها', 'Conversation evidence sample')} ({s.evidence.length.toLocaleString(fa ? 'fa-IR' : 'en-US')})</summary><div className="space-y-3 border-t border-[var(--border-subtle)] px-4 pb-4">{s.evidence.map((e, i) => <div key={`${e.messageId}-${i}`} className="pt-3"><blockquote dir="auto" className={`${inset} whitespace-pre-wrap break-words p-3.5 text-sm leading-7 text-[var(--text-secondary)]`}>{e.message.content}</blockquote><Link target="_blank" className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]" href={`/conversations/${e.review.conversationId}#message-${e.messageId}`}>{t('رفتن به پیام شاهد', 'Open evidence message')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></Link></div>)}</div></details>}
+    {preview && <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><h3 className="font-bold">{t('قبل و بعد از تغییر', 'Before and after')}</h3><p className="mt-1 text-xs text-[var(--text-muted)]">{preview.source === 'automatic' ? t('تست خودکار', 'Automatic test') : t('تست دستی', 'Manual test')}</p></div>
+        <StatusPill>{number(preview.requestCount ?? pricing.previewRequestCount)} {t('درخواست AI', 'AI requests')} · {number((preview.chargedIRR ?? pricing.previewRequestCount * pricing.requestPriceIRR) / 10)} {t('تومان', 'toman')}</StatusPill>
+      </div>
+      <div className={`${inset} p-3.5`}><p className="text-[11px] font-bold text-[var(--text-muted)]">{t('پیام مشتری', 'Customer message')}</p><blockquote className="mt-1.5 whitespace-pre-wrap text-sm leading-7 text-[var(--text-primary)]">{preview.question}</blockquote></div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className={`${surface} border border-[var(--border-default)]`}><div className="flex items-center justify-between gap-2"><h4 className="text-sm font-bold">{t('پاسخ واقعی ایجنت', 'Actual agent reply')}</h4><StatusPill>{t('قبل', 'Before')}</StatusPill></div><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-8 text-[var(--text-secondary)]">{originalReply}</p></div>
+        <div className={cn(surface, 'border', previewPassed ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-200 bg-amber-50/35')}><div className="flex items-center justify-between gap-2"><h4 className="text-sm font-bold">{t('پاسخ پیشنهادی جدید', 'New proposed reply')}</h4><StatusPill tone={previewPassed ? 'success' : 'warning'}>{t('بعد', 'After')}</StatusPill></div><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-8 text-[var(--text-primary)]">{preview.proposed}</p></div>
+      </div>
+      {preview.assessment && <div className={cn('flex items-start gap-2.5 rounded-xl border p-3.5 text-sm leading-7', previewPassed ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-950')}>{previewPassed ? <CircleCheck className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /> : <AlertCircle className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />}<div><p className="font-bold">{previewPassed ? t('این پاسخ بهتر ارزیابی شد', 'This reply was rated better') : t('این پیشنهاد هنوز بهتر نیست', 'This suggestion is not better yet')}</p><p className="mt-1">{preview.assessment.reason}</p></div></div>}
+      <p className="text-xs leading-6 text-[var(--text-muted)]">{t('این پیش‌نمایش برای مشتری ارسال نشده و ابزار زنده‌ای را اجرا نکرده است.', 'This preview was not sent to the customer and did not execute live tools.')}</p>
+    </section>}
     {s.knowledgeStatus && <div className={`${surface} space-y-2`}><p className="text-sm">{statusLabels[s.knowledgeStatus]?.[fa ? 0 : 1] ?? s.knowledgeStatus}</p>{s.knowledgeStatus === 'ERROR' && change && <button className={secondary} disabled={!!busy} onClick={() => void act({ action: 'ingest', id: change.id })}>{t('تلاش مجدد آماده‌سازی دانش', 'Retry knowledge preparation')}</button>}</div>}
     {s.monitoring && <section className={`${surface} space-y-2`}><h3 className="text-sm font-bold">{t('پیگیری پس از تغییر', 'Follow-up after the change')}</h3><p className="text-sm leading-7">{s.monitoring.reviewed ? t(`از ${s.monitoring.reviewed.toLocaleString('fa-IR')} گفتگوی بررسی‌شده پس از تغییر، این مشکل در ${s.monitoring.recurring.toLocaleString('fa-IR')} گفتگو دوباره دیده شده است.`, `Among ${s.monitoring.reviewed} conversations reviewed after the change, this issue recurred in ${s.monitoring.recurring}.`) : t('هنوز گفتگوی جدیدی پس از این تغییر تحلیل نشده است.', 'No new conversations have been analyzed since this change.')}</p><p className="text-xs leading-6 text-[var(--text-secondary)]">{t('این شمارش مربوط به نمونهٔ تحلیل‌شده است؛ به‌تنهایی اثبات رضایت مشتری یا اثر قطعی تغییر نیست.', 'These observations cover the reviewed sample; they do not establish satisfaction or causality.')}</p></section>}
-    {!!s.changes.length && <details className="rounded-xl border p-3"><summary className="min-h-9 cursor-pointer text-sm">{t('سابقهٔ این تغییر', 'Change history')}</summary>{s.changes.map((c) => <div key={c.id} className="mt-3 space-y-2 text-sm"><p>{new Date(c.createdAt).toLocaleString(fa ? 'fa-IR' : 'en-US')} · {c.revertedAt ? t('بازگردانده شده', 'Reverted') : t('اعمال شده', 'Applied')}</p>{typeof c.before.answer === 'string' && <p className="whitespace-pre-wrap leading-7">{t('پاسخ قبلی: ', 'Previous answer: ')}{c.before.answer}</p>}</div>)}</details>}
-    {pending && <Button variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" disabled={!!busy} onClick={async () => { if (await act({ action: 'dismiss', id: s.id, version: s.version })) onClose() }}><X className="h-4 w-4" aria-hidden="true" />{t('کنار گذاشتن پیشنهاد', 'Dismiss suggestion')}</Button>}
+    {!!s.changes.length && <details className="rounded-xl border p-3"><summary className="min-h-9 cursor-pointer text-sm">{t('سابقهٔ این تغییر', 'Change history')}</summary>{s.changes.map((c) => <div key={c.id} className="mt-3 space-y-2 text-sm"><p>{formatLocalizedDateTime(c.createdAt, fa ? 'fa' : 'en')} · {c.revertedAt ? t('بازگردانده شده', 'Reverted') : t('اعمال شده', 'Applied')}</p>{typeof c.before.answer === 'string' && <p className="whitespace-pre-wrap leading-7">{t('پاسخ قبلی: ', 'Previous answer: ')}{c.before.answer}</p>}</div>)}</details>}
+    {pending && <Button variant="danger" className="w-full" disabled={!!busy} onClick={async () => { if (await act({ action: 'dismiss', id: s.id, version: s.version })) onClose() }}><Trash2 className="h-4 w-4" aria-hidden="true" />{t('حذف پیشنهاد', 'Delete suggestion')}</Button>}
   </DetailDialog>
 }
 
-function AutomationDialog({ initial, fa, busy, error, act, triggerRef, onClose }: { initial: Settings; fa: boolean; busy: string; error: string; act: Action; triggerRef: { current: HTMLElement | null }; onClose: () => void }) {
+function AutomationDialog({ initial, pricing, fa, busy, error, act, triggerRef, onClose }: { initial: Settings; pricing: Pricing; fa: boolean; busy: string; error: string; act: Action; triggerRef: { current: HTMLElement | null }; onClose: () => void }) {
   const [settings, setSettings] = useState(initial)
   const t = (f: string, e: string) => fa ? f : e
   return <DetailDialog
@@ -711,7 +808,7 @@ function AutomationDialog({ initial, fa, busy, error, act, triggerRef, onClose }
     <section className={`${surface} space-y-4`}>
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]"><CalendarDays className="h-4 w-4" aria-hidden="true" /></span>
-        <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('تحلیل روزانه', 'Daily analysis')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('گفتگوهای تازه یا دارای پیام جدید بررسی می‌شوند و پیشنهادها همین‌جا می‌آیند. این تحلیل فعلاً از اعتبار شما کم نمی‌کند.', 'New or updated conversations are reviewed and suggestions appear here. This analysis currently does not deduct from your credit.')}</p></div>
+        <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('تحلیل روزانه', 'Daily analysis')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t(`گفتگوهای تازه یا دارای پیام جدید بررسی می‌شوند. هر درخواست موفق مدل ${pricing.modelNameFa}، ${(pricing.requestPriceIRR / 10).toLocaleString('fa-IR')} تومان خودکار از اعتبار کم می‌کند.`, `New or updated conversations are reviewed. Each successful ${pricing.modelNameEn} request automatically deducts ${(pricing.requestPriceIRR / 10).toLocaleString('en-US')} toman.`)}</p></div>
         <div className="flex min-h-11 items-center"><Switch checked={settings.daily} onChange={(daily) => setSettings({ ...settings, daily })} aria-label={t('تحلیل روزانه', 'Daily analysis')} /></div>
       </div>
       {settings.daily && <div className={`${inset} space-y-3 p-3.5`}><label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('حداکثر گفتگو در هر روز', 'Daily conversation limit')}</span><input className={field} type="number" min={1} max={100} value={settings.count} onChange={(event) => setSettings({ ...settings, count: Math.max(1, Math.min(100, Number(event.target.value) || 1)) })} /></label><div className="grid grid-cols-3 gap-2">{[25, 50, 100].map((count) => <button key={count} type="button" className={cn('min-h-10 rounded-xl border bg-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', settings.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => setSettings({ ...settings, count })}>{count.toLocaleString(fa ? 'fa-IR' : 'en-US')}</button>)}</div></div>}
@@ -720,9 +817,13 @@ function AutomationDialog({ initial, fa, busy, error, act, triggerRef, onClose }
     <section className={`${surface} space-y-4`}>
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]"><WandSparkles className="h-4 w-4" aria-hidden="true" /></span>
-        <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('اعمال خودکار رفتارهای مجاز', 'Apply allowed behaviors automatically')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('فقط تغییرهای انتخابی با شواهد حداقل سه گفتگو و نتیجهٔ آزمایشی مثبت اعمال می‌شوند.', 'Only selected changes with evidence from at least three conversations and a positive test are applied.')}</p></div>
-        <div className="flex min-h-11 items-center"><Switch checked={settings.autoBehavior} onChange={(autoBehavior) => setSettings({ ...settings, autoBehavior })} aria-label={t('اعمال خودکار رفتارها', 'Apply behaviors automatically')} /></div>
+        <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('شیوهٔ اعمال تغییر', 'Change application mode')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('دانش، ابزار و ترجیح مخصوص مشتری همیشه برای بررسی می‌مانند؛ خودکارسازی فقط به رفتارهای مجاز محدود است.', 'Knowledge, tools and customer-specific preferences always require review; automation is limited to allowed behaviors.')}</p></div>
       </div>
+      <div className={`${inset} grid grid-cols-2 gap-1.5 p-1.5`} role="radiogroup" aria-label={t('شیوهٔ اعمال تغییر', 'Change application mode')}>
+        <button type="button" role="radio" aria-checked={!settings.autoBehavior} onClick={() => setSettings({ ...settings, autoBehavior: false })} className={cn('min-h-12 rounded-xl px-2 text-xs font-bold transition-colors', !settings.autoBehavior ? 'bg-black text-white' : 'text-[var(--text-secondary)] hover:bg-white')}>{t('بررسی قبل از اعمال', 'Review before applying')}</button>
+        <button type="button" role="radio" aria-checked={settings.autoBehavior} onClick={() => setSettings({ ...settings, autoBehavior: true })} className={cn('min-h-12 rounded-xl px-2 text-xs font-bold transition-colors', settings.autoBehavior ? 'bg-black text-white' : 'text-[var(--text-secondary)] hover:bg-white')}>{t('اعمال خودکار مجازها', 'Auto-apply allowed')}</button>
+      </div>
+      {settings.autoBehavior && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-900">{t(`تست خودکار هر پیشنهاد ${pricing.previewRequestCount.toLocaleString('fa-IR')} درخواست موفق (${(pricing.previewRequestCount * pricing.requestPriceIRR / 10).toLocaleString('fa-IR')} تومان) دارد.`, `Each automatic suggestion test uses ${pricing.previewRequestCount} successful requests (${(pricing.previewRequestCount * pricing.requestPriceIRR / 10).toLocaleString('en-US')} toman).`)}</p>}
       {settings.autoBehavior && <div className="space-y-2"><p className="text-xs font-semibold text-[var(--text-secondary)]">{t('تغییرهای مجاز', 'Allowed changes')}</p>{(['format.length', 'conversation.avoidRepeatedGreetings'] as const).map((path) => {
         const checked = settings.allowedPaths.includes(path)
         return <button key={path} type="button" role="checkbox" aria-checked={checked} className={cn('flex min-h-12 w-full items-center gap-3 rounded-xl border bg-white px-3 text-start text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60', checked ? 'border-black/25 text-[var(--text-primary)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => setSettings({ ...settings, allowedPaths: checked ? settings.allowedPaths.filter((item) => item !== path) : [...settings.allowedPaths, path] })}><span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border', checked ? 'border-black bg-black text-white' : 'border-[var(--border-hover)]')} aria-hidden="true">{checked && <Check className="h-3.5 w-3.5" />}</span>{behaviorLabels[path][fa ? 0 : 1]}</button>
