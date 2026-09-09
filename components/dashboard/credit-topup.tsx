@@ -46,12 +46,12 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
         </span>
         <div>
           <h2 className="text-sm font-bold text-[var(--text-primary)]">
-            {fa ? 'افزایش اعتبار پاسخ‌ها' : 'Top up reply credit'}
+            {fa ? 'افزایش اعتبار هوش مصنوعی' : 'Top up AI credit'}
           </h2>
           <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
             {fa
-              ? 'اعتبار تاریخ انقضا ندارد و فقط بعد از یک پاسخ موفق از آن کم می‌شود.'
-              : 'Credit does not expire and is deducted only after a successful reply.'}
+              ? 'اعتبار منقضی نمی‌شود؛ هر پاسخ، تحلیل یا تست موفق با قیمت مدل انتخابی محاسبه می‌شود.'
+              : 'Credit does not expire; every successful reply, analysis, or test is charged at the selected model price.'}
           </p>
         </div>
       </div>

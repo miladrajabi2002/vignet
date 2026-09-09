@@ -96,7 +96,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		proofs: [
 			'راه‌اندازی بدون کدنویسی',
 			'اتوماسیون ثابت اینستاگرام رایگان',
-			'کسر اعتبار فقط بعد از پاسخ موفق AI',
+			'هزینهٔ شفاف هر درخواست موفق AI',
 			'تحویل گفتگو به انسان با خلاصه کامل',
 			'درک پیام صوتی فارسی',
 			'همهٔ کانال‌ها در یک صندوق گفتگو',
@@ -204,7 +204,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		pricingEyebrow: 'شروع بدون ریسک',
 		pricingTitle: 'اول یک ماه بسازید و امتحان کنید؛ بعد پلن بخرید',
 		pricingSubtitle:
-			'اشتراک، هزینهٔ پلتفرم و اتصال‌هاست. اعتبار پاسخ جدا است، منقضی نمی‌شود و فقط بعد از یک پاسخ موفق کم می‌شود.',
+			'اشتراک، هزینهٔ پلتفرم و اتصال‌هاست. اعتبار هوش مصنوعی جدا و بدون انقضاست؛ پاسخ، تحلیل و تست موفق با قیمت مدل انتخابی محاسبه می‌شوند.',
 		pricingTrialTitle: 'یک ماه تجربهٔ رایگان',
 		pricingTrialDescription: 'امکانات اصلی، اعتبار اولیهٔ پاسخ و یک اتصال فعال — بدون کارت بانکی، بدون تعهد.',
 		pricingPlanCta: 'انتخاب این پلن',
@@ -212,7 +212,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		pricingChannels: 'اتصال فعال',
 		pricingCredit: 'تومان اعتبار پاسخ هدیه',
 		pricingAllFeatures: 'همهٔ قابلیت‌ها + ایجنت نامحدود',
-		pricingReplyPrice: 'تومان به‌ازای هر پاسخ موفق',
+		pricingReplyPrice: 'تومان به‌ازای هر درخواست موفق AI',
 		faqEyebrow: 'پاسخ‌های کوتاه و روشن',
 		faqTitle: 'قبل از شروع شاید این‌ها را بپرسید',
 		faqs: [
@@ -227,9 +227,9 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 					'دو کار می‌کند: گفتگو را همراه خلاصهٔ کامل به اپراتور انسانی تحویل می‌دهد و سؤال را با یک پاسخ پیشنهادی در «مرکز یادگیری» ثبت می‌کند. شما تأیید می‌کنید و از آن پس ایجنت آن را می‌داند.',
 			},
 			{
-				question: 'هزینهٔ پاسخ‌های هوش مصنوعی چطور حساب می‌شود؟',
+				question: 'هزینهٔ درخواست‌های هوش مصنوعی چطور حساب می‌شود؟',
 				answer:
-					'اشتراک هزینهٔ پلتفرم و اتصال‌هاست. اعتبار پاسخ جدا و پیش‌پرداخت است و فقط پس از یک پاسخ موفق کم می‌شود؛ پاسخ ناموفق هزینه ندارد و اعتبار منقضی نمی‌شود. اتوماسیون ثابت اینستاگرام هم اصلاً اعتبار مصرف نمی‌کند.',
+					'اشتراک هزینهٔ پلتفرم و اتصال‌هاست. هر پاسخ، تحلیل گفتگو یا تست پاسخِ موفق با قیمت مدل انتخابی از اعتبار پیش‌پرداخت کم می‌شود؛ رزرو درخواست ناموفق کامل برمی‌گردد و اعتبار منقضی نمی‌شود. اتوماسیون ثابت اینستاگرام هم اعتبار مصرف نمی‌کند.',
 			},
 			{
 				question: 'کدام کانال‌ها پشتیبانی می‌شوند؟',
@@ -448,7 +448,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		],
 		pricingEyebrow: 'Start without risk',
 		pricingTitle: 'Build and test free for a month. Pick a plan when ready.',
-		pricingSubtitle: 'The subscription covers the platform and connections. Reply credit is separate, never expires and is deducted only after a successful reply.',
+		pricingSubtitle: 'The subscription covers the platform and connections. AI credit is separate, never expires, and successful replies, analyses, and tests are charged at the selected model price.',
 		pricingTrialTitle: 'One month free',
 		pricingTrialDescription: 'Core features, starter reply credit and one active connection — no card, no commitment.',
 		pricingPlanCta: 'Choose this plan',
@@ -456,13 +456,13 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		pricingChannels: 'active connections',
 		pricingCredit: 'toman included reply credit',
 		pricingAllFeatures: 'All features + unlimited agents',
-		pricingReplyPrice: 'toman per successful reply',
+		pricingReplyPrice: 'toman per successful AI request',
 		faqEyebrow: 'Short, clear answers',
 		faqTitle: 'Questions you may have before starting',
 		faqs: [
 			{ question: 'Do I need technical skills?', answer: 'No. The guided flow is made for business owners: pick your business type, add information and connect a channel step by step. Setup usually takes under 10 minutes.' },
 			{ question: 'What if the agent does not know an answer?', answer: 'It hands the conversation to a person with a full summary, and logs the question in the Learning Center with a suggested answer. You approve it once — the agent knows it forever.' },
-			{ question: 'How is AI usage charged?', answer: 'The subscription covers the platform and connections. Prepaid reply credit is deducted only after a successful reply; failed replies are free and credit never expires. Deterministic Instagram automation uses no credit at all.' },
+			{ question: 'How is AI usage charged?', answer: 'The subscription covers the platform and connections. Each successful AI request—reply, analysis, or test—is charged at the selected model price; failed reservations are refunded and credit never expires. Deterministic Instagram automation uses no credit.' },
 			{ question: 'Which channels are supported?', answer: 'Instagram (DM, comments, stories), Telegram, Bale, Rubika, a web widget for any site and a dedicated chat-link for your bio. The WordPress/WooCommerce plugin syncs products and orders.' },
 			{ question: 'Does it understand Persian voice messages?', answer: 'Yes. Customers can send voice notes and the agent understands and answers them. The tone is configurable — from casual to fully formal.' },
 			{ question: 'Is the free period really one month?', answer: 'Yes. Your first sign-in starts 30 days with core features, starter reply credit and one active connection.' },

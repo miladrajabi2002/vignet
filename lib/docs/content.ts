@@ -164,12 +164,12 @@ const ALL_DOCS: DocPage[] = [
                                                 en: 'The monthly subscription covers platform features, channel connection limits, and service capacity; agent count is not limited.',
                                         },
                                         {
-                                                fa: 'اعتبار پاسخ، موجودی پیش‌پرداخت برای تولید پاسخ‌های هوش مصنوعی است؛ پلن مستقل یا بستهٔ پیام ماهانه نیست.',
-                                                en: 'Reply credit is a prepaid balance for generating AI replies; it is not a separate plan or a monthly message bundle.',
+                                                fa: 'اعتبار پاسخ، موجودی پیش‌پرداخت برای درخواست‌های هوش مصنوعی مثل پاسخ، تحلیل گفتگو و تست پاسخ است؛ پلن مستقل یا بستهٔ پیام ماهانه نیست.',
+                                                en: 'Reply credit is a prepaid balance for AI requests such as replies, conversation analysis, and response tests; it is not a separate plan or monthly message bundle.',
                                         },
                                         {
-                                                fa: 'اعتبار فقط بعد از پاسخ موفق کم می‌شود. اگر درخواست ناموفق یا لغو شود، مبلغ رزروشده به موجودی برمی‌گردد.',
-                                                en: 'Credit is captured only after a successful reply. If a request fails or is cancelled, the reserved amount returns to your balance.',
+                                                fa: 'اعتبار فقط بعد از درخواست موفق AI کم می‌شود. اگر درخواست ناموفق یا لغو شود، مبلغ رزروشده به موجودی برمی‌گردد.',
+                                                en: 'Credit is captured only after a successful AI request. If it fails or is cancelled, the reserved amount returns to your balance.',
                                         },
                                 ],
                         },
@@ -182,8 +182,8 @@ const ALL_DOCS: DocPage[] = [
                         { type: 'h2', fa: 'هزینهٔ شفاف و قابل پیگیری', en: 'Transparent, trackable charges' },
                         {
                                 type: 'p',
-                                fa: 'قیمت هر حالت پیش از استفاده مشخص است. موجودی، پاسخ‌های موفق و مبلغ کسرشده را در بخش صورتحساب می‌بینید؛ بنابراین هزینهٔ پاسخ‌ها از هزینهٔ اشتراک جدا و قابل پیگیری می‌ماند.',
-                                en: 'The price of each mode is shown before use. Billing displays your balance, successful replies and deducted amounts, keeping reply charges separate from and traceable alongside the subscription.',
+                                fa: 'قیمت هر حالت پیش از استفاده مشخص است. پیش از تحلیل و تست هم تعداد درخواست و برآورد هزینه نمایش داده می‌شود؛ موجودی و مبلغ کسرشده در صورتحساب قابل پیگیری است.',
+                                en: 'Each mode price is shown before use. Analysis and testing also show request count and estimated cost in advance; your balance and deductions remain traceable in Billing.',
                         },
                         {
                                 type: 'callout',
@@ -1600,14 +1600,14 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'با اولین ورود، یک ماه استفادهٔ رایگان با همان اعتبار اولیهٔ پاسخ فعال می‌شود. اتوماسیون‌های ثابت اینستاگرام رایگان‌اند و فقط پاسخ موفق هوش مصنوعی از اعتبار کم می‌کند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا تجاری را از بخش «صورتحساب» انتخاب کنید.',
-                                en: 'Your first login starts one free month with the same starter reply credit. Static Instagram automations are free; only a successful AI reply consumes credit. Afterwards, choose Starter, Pro or Business from Billing.',
+                                fa: 'با اولین ورود، یک ماه استفادهٔ رایگان با همان اعتبار اولیهٔ پاسخ فعال می‌شود. اتوماسیون‌های ثابت اینستاگرام رایگان‌اند و درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا تجاری را از بخش «صورتحساب» انتخاب کنید.',
+                                en: 'Your first login starts one free month with starter reply credit. Static Instagram automations are free; successful AI requests—replies, analyses, and tests—consume credit. Afterwards, choose Starter, Pro or Business from Billing.',
                         },
                         { type: 'h2', fa: 'اعتبار پاسخ', en: 'Reply credit' },
                         {
                                 type: 'p',
-                                fa: 'اعتبار پاسخ موجودی پیش‌پرداخت جدا از اشتراک است، نه یک پلن مستقل. برای هر درخواست مبلغ حالت انتخابی موقتاً رزرو می‌شود؛ پس از پاسخ موفق کسر نهایی انجام می‌شود و در صورت خطا یا لغو، مبلغ کامل برمی‌گردد.',
-                                en: 'Reply credit is a prepaid balance separate from the subscription, not a standalone plan. Each request temporarily reserves the selected mode price; it is captured after a successful reply and fully returned after a failure or cancellation.',
+                                fa: 'اعتبار پاسخ موجودی پیش‌پرداخت جدا از اشتراک است، نه یک پلن مستقل. برای هر درخواست AI مبلغ مدل انتخابی موقتاً رزرو می‌شود؛ پس از موفقیت کسر نهایی انجام می‌شود و در صورت خطا یا لغو، مبلغ کامل برمی‌گردد.',
+                                en: 'Reply credit is a prepaid balance separate from the subscription, not a standalone plan. Each AI request temporarily reserves the selected model price; it is captured after success and fully returned after a failure or cancellation.',
                         },
                         { type: 'h2', fa: 'روش‌های پرداخت', en: 'Payment methods' },
                         {
@@ -1722,8 +1722,8 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                         },
                         {
                                 type: 'p',
-                                fa: 'اشتراک هزینهٔ پلتفرم و ظرفیت خدمات را پوشش می‌دهد. هر پاسخ موفق بر اساس حالت سریع، متعادل یا حرفه‌ای از اعتبار پیش‌پرداخت کم می‌شود؛ درخواست ناموفق هزینه‌ای ندارد و مبلغ رزروشده برمی‌گردد.',
-                                en: 'The subscription covers the platform and service capacity. Each successful reply deducts the displayed Fast, Balanced or Premium price from prepaid credit; failed requests cost nothing and the reservation is returned.',
+						fa: 'اشتراک هزینهٔ پلتفرم و ظرفیت خدمات را پوشش می‌دهد. هر درخواست موفق AI بر اساس مدل انتخابی از اعتبار پیش‌پرداخت کم می‌شود؛ تحلیل گفتگو یک درخواست برای هر قطعه و تست پاسخ دو درخواست (ساخت پاسخ جدید و ارزیابی آن) دارد. پاسخ واقعی گفتگو بدون هزینه به‌عنوان مبنا استفاده می‌شود و رزرو درخواست ناموفق کامل برمی‌گردد.',
+						en: 'The subscription covers platform and service capacity. Each successful AI request deducts the selected model price; conversation analysis uses one request per segment and a response test uses two (candidate and judge). The real conversation reply is reused as the free baseline, and failed reservations are fully released.',
                         },
                         {
                                 type: 'h2',

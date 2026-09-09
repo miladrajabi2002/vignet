@@ -11,7 +11,7 @@ const COPY = {
         fa: {
                 eyebrow: 'Vigento AI | هوش مصنوعی ویجنتو',
                 title: 'یک ماه فرصت دارید کسب‌وکارتان را هوشمندتر اداره کنید',
-                subtitle: 'اتوماسیون ثابت اینستاگرام رایگان است؛ فقط پاسخ موفق AI از اعتبار کم می‌کند',
+                subtitle: 'اتوماسیون ثابت اینستاگرام رایگان است؛ پاسخ، تحلیل و تست موفق AI به قیمت مدل محاسبه می‌شوند',
                 button: 'شروع رایگان — یک ماه',
                 desc: 'سیستم‌عامل هوشمند کسب‌وکار برای فروش، پشتیبانی، CRM، رزرو و ارتباط با مشتری در همه کانال‌ها',
                 productTitle: 'محصول',
@@ -31,7 +31,7 @@ const COPY = {
         en: {
                 eyebrow: 'Vigento AI | Business intelligence core',
                 title: 'Take a month to run your business with an intelligent operating layer',
-                subtitle: 'Deterministic Instagram automation is free; only successful AI replies use credit',
+                subtitle: 'Deterministic Instagram automation is free; successful AI replies, analyses, and tests use model-priced credit',
                 button: 'Start free — one month',
                 desc: 'An intelligent operating system for sales, support, CRM, booking and customer conversations across every channel.',
                 productTitle: 'Product',

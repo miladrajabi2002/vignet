@@ -100,7 +100,7 @@ const PRICING_FAQ = {
         en: [
                 {
                         q: 'How are AI reply costs calculated?',
-                        a: 'AI credit is prepaid and deducted only after each successful AI reply, one reply at a time. Failed replies cost nothing, and deterministic Instagram automations (such as automatic replies to comments and stories) are completely free. Usage is reported transparently in your dashboard.',
+                        a: 'AI credit is prepaid. Every successful AI request—reply, conversation analysis, or response test—is charged at the selected model price. Failed reservations are refunded, and deterministic Instagram automations such as fixed comment and story replies remain free. Usage is itemized in your dashboard.',
                 },
                 {
                         q: 'Which channels does Vigent support?',

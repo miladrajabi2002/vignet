@@ -769,7 +769,7 @@
     "conversations": "Conversations",
     "tokens": "Tokens",
     "estCost": "Successful reply charges",
-    "usageBilling": "Vigent manages the AI service. Each successful reply is deducted from prepaid reply credit, and failed replies are not charged.",
+    "usageBilling": "Vigent manages the AI service. Each successful AI request—including a reply, conversation analysis, or response test—is deducted at the selected model price, and a failed request is fully released.",
     "upgrade": "Upgrade plan",
     "planTrial": "Trial",
     "planStarter": "Starter",
@@ -1420,7 +1420,7 @@
       "allChannels": "Access to every channel type",
       "managedAi": "Choose Fast, Balanced or Premium with central service management",
       "planCta": "Choose {plan}",
-      "billingNote": "Your subscription covers platform features and service capacity. Reply credit is prepaid separately and deducted only after a successful AI reply; it is not a separate plan or a monthly message bundle.",
+      "billingNote": "Your subscription covers platform features and service capacity. AI credit is prepaid separately; every successful request—reply, analysis, or test—is charged at the selected model price, while failed requests are refunded.",
       "plans": {
         "starter": {
           "name": "Starter",
@@ -1456,7 +1456,7 @@
         },
         {
           "q": "How are AI reply costs handled?",
-          "a": "The monthly plan covers the platform and service. AI replies use prepaid reply credit that is deducted only after a successful response; failed responses are refunded. You never need a separate AI account or API key."
+          "a": "The monthly plan covers the platform and service. Every successful AI request—from a reply to conversation analysis or response testing—is charged to prepaid credit at the selected model price; failed reservations are fully refunded. You never need a separate AI account or API key."
         },
         {
           "q": "Which connections are supported?",
@@ -1476,7 +1476,7 @@
         },
         {
           "q": "Can I try it for free?",
-          "a": "Yes — you get one free month with the core features and the same starter reply credit. Static Instagram automation is free; only successful AI replies consume credit."
+          "a": "Yes — you get one free month with the core features and starter AI credit. Static Instagram automation is free; successful AI requests such as replies, analyses, and tests consume credit."
         }
       ]
     },

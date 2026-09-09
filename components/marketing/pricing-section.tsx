@@ -72,7 +72,7 @@ export async function PricingSection() {
                                         </div>
                                         <div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
                                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><MessageSquareText className="h-4 w-4" /></span>
-                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'AI فقط بعد از پاسخ موفق' : 'AI credit only after a successful reply'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'پاسخ ناموفق هزینه‌ای ندارد و مصرف اعتبار شفاف نمایش داده می‌شود' : 'Failed replies cost nothing and credit usage stays transparent'}</p></div>
+                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'هزینهٔ شفاف هر درخواست موفق AI' : 'Transparent pricing per successful AI request'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'پاسخ، تحلیل و تست با قیمت مدل؛ درخواست ناموفق بدون هزینه' : 'Replies, analyses, and tests use the model price; failed requests cost nothing'}</p></div>
                                         </div>
                                 </div>
 

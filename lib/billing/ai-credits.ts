@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import type { LogType } from '@prisma/client'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { getEffectiveReplyPriceIRR, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import type { ChatUsage } from '@/lib/ai/openrouter'
@@ -17,17 +18,19 @@ export type ReserveCreditResult =
   | { ok: false; reason: 'NO_CREDIT' | 'WORKSPACE_NOT_FOUND' }
 
 /**
- * Atomically reserve the fixed price of one successful AI reply.
+ * Atomically reserve the fixed price of one AI request.
  * The available balance is reduced before the provider call, preventing
  * concurrent requests from overspending the same wallet credit.
  */
-export async function reserveChatCredit(params: {
+export async function reserveAiCredit(params: {
   workspaceId: string
   agentId: string
-  conversationId: string
+  conversationId?: string | null
   model: string | null | undefined
   providerModel: string
   idempotencyKey: string
+  usageType: LogType
+  ledgerNote?: string
 }): Promise<ReserveCreditResult> {
   const alias = resolveModelAlias(params.model)
   const [planDefs, replyPriceIRR] = await Promise.all([
@@ -37,25 +40,9 @@ export async function reserveChatCredit(params: {
 
   try {
     const reservation = await prisma.$transaction(async (tx) => {
-      const existing = await tx.usageLog.findUnique({
-        where: { idempotencyKey: params.idempotencyKey },
-      })
-      if (existing) {
-        const ws = await tx.workspace.findUnique({
-          where: { id: params.workspaceId },
-          select: { aiCreditBalanceIRR: true },
-        })
-        return {
-          usageLogId: existing.id,
-          chargeIRR: existing.chargedIRR,
-          balanceAfterIRR: ws?.aiCreditBalanceIRR ?? 0,
-          modelAlias: alias,
-        }
-      }
-
       const workspace = await tx.workspace.findUnique({
         where: { id: params.workspaceId },
-        select: { plan: true },
+        select: { plan: true, aiCreditBalanceIRR: true },
       })
       if (!workspace) throw new Error('WORKSPACE_NOT_FOUND')
 
@@ -64,6 +51,18 @@ export async function reserveChatCredit(params: {
         replyPriceIRR,
         def.replyDiscountBps,
       )
+
+      const existing = await tx.usageLog.findUnique({
+        where: { idempotencyKey: params.idempotencyKey },
+      })
+      if (existing && existing.status !== 'RELEASED') {
+        return {
+          usageLogId: existing.id,
+          chargeIRR: existing.chargedIRR,
+          balanceAfterIRR: workspace.aiCreditBalanceIRR,
+          modelAlias: alias,
+        }
+      }
 
       const claimed = await tx.workspace.updateMany({
         where: {
@@ -82,18 +81,30 @@ export async function reserveChatCredit(params: {
           where: { id: params.workspaceId },
           select: { aiCreditBalanceIRR: true },
         }),
-        tx.usageLog.create({
-          data: {
-            workspaceId: params.workspaceId,
-            agentId: params.agentId,
-            conversationId: params.conversationId,
-            model: params.providerModel,
-            type: 'CHAT',
-            status: 'RESERVED',
-            chargedIRR: chargeIRR,
-            idempotencyKey: params.idempotencyKey,
-          },
-        }),
+        existing
+          ? tx.usageLog.update({
+              where: { id: existing.id },
+              data: {
+                agentId: params.agentId,
+                conversationId: params.conversationId ?? null,
+                model: params.providerModel,
+                type: params.usageType,
+                status: 'RESERVED',
+                chargedIRR: chargeIRR,
+              },
+            })
+          : tx.usageLog.create({
+              data: {
+                workspaceId: params.workspaceId,
+                agentId: params.agentId,
+                conversationId: params.conversationId ?? null,
+                model: params.providerModel,
+                type: params.usageType,
+                status: 'RESERVED',
+                chargedIRR: chargeIRR,
+                idempotencyKey: params.idempotencyKey,
+              },
+            }),
       ])
 
       await tx.walletLedger.create({
@@ -103,7 +114,7 @@ export async function reserveChatCredit(params: {
           type: 'AI_CHARGE',
           amountIRR: -chargeIRR,
           balanceAfterIRR: balance.aiCreditBalanceIRR,
-          note: `AI reply (${alias}) reserved`,
+          note: params.ledgerNote ?? `AI request (${params.usageType.toLowerCase()}, ${alias}) reserved`,
         },
       })
 
@@ -147,8 +158,24 @@ export async function reserveChatCredit(params: {
   }
 }
 
+/** Reserve one customer-facing chat request at the configured model price. */
+export function reserveChatCredit(params: {
+  workspaceId: string
+  agentId: string
+  conversationId: string
+  model: string | null | undefined
+  providerModel: string
+  idempotencyKey: string
+}): Promise<ReserveCreditResult> {
+  return reserveAiCredit({
+    ...params,
+    usageType: 'CHAT',
+    ledgerNote: `AI reply (${resolveModelAlias(params.model)}) reserved`,
+  })
+}
+
 /** Finalize a reservation with provider tokens and exact USD cost. */
-export async function captureChatCredit(
+export async function captureAiCredit(
   reservation: CreditReservation,
   usage: ChatUsage | null,
 ): Promise<void> {
@@ -192,8 +219,10 @@ export async function captureChatCredit(
   }
 }
 
+export const captureChatCredit = captureAiCredit
+
 /** Refund a failed/aborted reply exactly once. */
-export async function releaseChatCredit(
+export async function releaseAiCredit(
   reservation: CreditReservation,
   note = 'AI reply failed',
 ): Promise<void> {
@@ -230,3 +259,5 @@ export async function releaseChatCredit(
     })
   })
 }
+
+export const releaseChatCredit = releaseAiCredit

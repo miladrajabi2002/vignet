@@ -158,8 +158,8 @@ export function ModelSelect({
 
       <p className="text-xs leading-5 text-[var(--text-muted)]">
         {isFa
-          ? 'هزینه فقط برای پاسخ موفق از اعتبار شما کم می‌شود؛ کلید و زیرساخت هوش مصنوعی را ویجنت مدیریت می‌کند.'
-          : 'You are charged only for successful replies; Vigent manages the AI key and infrastructure.'}
+          ? 'پاسخ و سایر درخواست‌های موفق AI مثل تحلیل و تست، با قیمت همین مدل از اعتبار کم می‌شوند؛ ویجنت کلید و زیرساخت را مدیریت می‌کند.'
+          : 'Replies and other successful AI requests such as analysis and testing use this model price; Vigent manages the key and infrastructure.'}
       </p>
     </div>
   )

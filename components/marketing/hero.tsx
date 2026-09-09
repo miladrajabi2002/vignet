@@ -65,7 +65,7 @@ const COPY: Record<Locale, HeroCopy> = {
                 headlineBottom: 'از همه‌جا، در یک پنل',
                 startShort: 'شروع رایگان',
                 featuresShort: 'امکانات',
-                mobilePromise: 'یک ماه رایگان · پرداخت فقط برای پاسخ موفق',
+                mobilePromise: 'یک ماه رایگان · پرداخت به‌ازای درخواست موفق AI',
                 stageAria:
                         'نمایش زنده پنج پنل تخصصی فروشگاه، سفارش غذا، نوبت‌دهی، خدمات و آموزش که به هسته هوشمند ویجنت و کانال‌های ارتباطی متصل‌اند.',
                 stageTitle: 'مرکز عملیات هوشمند کسب‌وکار',
@@ -78,7 +78,7 @@ const COPY: Record<Locale, HeroCopy> = {
                 promises: [
                         'یک ماه رایگان',
                         'اتوماسیون اینستاگرام رایگان',
-                        'اعتبار فقط برای پاسخ موفق AI',
+                        'هزینهٔ شفاف هر درخواست موفق AI',
                 ],
                 scenes: [
                         {
@@ -149,7 +149,7 @@ const COPY: Record<Locale, HeroCopy> = {
                 headlineBottom: 'Every channel, one inbox',
                 startShort: 'Start free',
                 featuresShort: 'Features',
-                mobilePromise: 'One month free · pay only for successful AI replies',
+                mobilePromise: 'One month free · pay per successful AI request',
                 stageAria:
                         'A live presentation of five specialized workspaces connected to the Vigent intelligence core.',
                 stageTitle: 'The intelligent business operating system',
@@ -162,7 +162,7 @@ const COPY: Record<Locale, HeroCopy> = {
                 promises: [
                         'One month free',
                         'Free Instagram automation',
-                        'Credit only for successful AI replies',
+                        'Transparent pricing per successful AI request',
                 ],
                 scenes: [
                         {
