@@ -8,7 +8,7 @@
 	},
 	"scripts": {
 		"dev": "next dev -p 3003",
-		"build": "node scripts/minify-widget.mjs && next build",
+		"build": "node scripts/safe-next-build.mjs",
 		"start": "next start -H 127.0.0.1 -p 3003",
 		"check:production-env": "tsx scripts/check-production-env.ts",
 		"lint": "next lint",

@@ -88,6 +88,43 @@ pm2_process_snapshot() {
   ' "${service}"
 }
 
+pm2_process_env_value() {
+  local service="$1"
+  local key="$2"
+  pm2 jlist 2>/dev/null | node -e '
+    let input = "";
+    process.stdin.on("data", chunk => input += chunk);
+    process.stdin.on("end", () => {
+      const [name, key] = process.argv.slice(1);
+      try {
+        const processInfo = JSON.parse(input).find(item => item.name === name);
+        const value = processInfo?.pm2_env?.[key];
+        if (typeof value === "string") process.stdout.write(value);
+      } catch {}
+    });
+  ' "${service}" "${key}"
+}
+
+validate_dist_dir() {
+  local dist_dir="$1"
+  if [ "${dist_dir}" = ".next" ] || [[ "${dist_dir}" =~ ^\.next-builds/[0-9a-f]{40}(-[0-9]+-[0-9]+)?$ ]]; then
+    return 0
+  fi
+  echo "ERROR: unsafe Next.js dist directory: ${dist_dir}" >&2
+  return 1
+}
+
+remove_versioned_build_dir() {
+  local dist_dir="$1"
+  if ! [[ "${dist_dir}" =~ ^\.next-builds/[0-9a-f]{40}(-[0-9]+-[0-9]+)?$ ]]; then
+    echo "ERROR: refusing to remove unsafe build directory: ${dist_dir}" >&2
+    return 1
+  fi
+  [ ! -d "${dist_dir}" ] && return 0
+  find "${dist_dir}" -mindepth 1 -delete
+  rmdir "${dist_dir}"
+}
+
 pm2_scripts_match_ecosystem() {
   pm2 jlist 2>/dev/null | node -e '
     const path = require("path");
@@ -137,19 +174,44 @@ set -a
 source .env
 set +a
 
+# Capture the immutable artifact used by the currently running web process.
+# This is also the rollback target if any later deployment step fails.
+active_dist_dir="$(pm2_process_env_value vignet-web VIGENT_NEXT_DIST_DIR || true)"
+active_dist_dir="${active_dist_dir:-.next}"
+active_deployment_id="$(pm2_process_env_value vignet-web VIGENT_DEPLOYMENT_ID || true)"
+validate_dist_dir "${active_dist_dir}"
+
+services_stopped=0
+recover_failed_deployment() {
+  local status=$?
+  trap - EXIT
+  if [ "${status}" -ne 0 ] && [ "${services_stopped}" -eq 1 ]; then
+    echo "ERROR: deployment failed; restarting the previous release" >&2
+    export VIGENT_NEXT_DIST_DIR="${active_dist_dir}"
+    if [ -n "${active_deployment_id}" ]; then
+      export VIGENT_DEPLOYMENT_ID="${active_deployment_id}"
+    else
+      unset VIGENT_DEPLOYMENT_ID
+    fi
+    pm2 restart deploy/ecosystem.config.js --update-env >/dev/null 2>&1 || true
+  fi
+  exit "${status}"
+}
+trap recover_failed_deployment EXIT
+
 # Next.js salts Server Action IDs with this key. Its default is regenerated on
 # every build, so an otherwise unchanged action stops existing for tabs opened
 # before a deployment. Preserve the key from the currently served artifact on
 # the first upgraded deploy, then persist it in .env for every later build.
 if [ -z "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}" ]; then
   previous_actions_key=""
-  if [ -f .next/server/server-reference-manifest.json ]; then
+  if [ -f "${active_dist_dir}/server/server-reference-manifest.json" ]; then
     previous_actions_key="$(node -e '
       try {
-        const manifest = require("./.next/server/server-reference-manifest.json");
+        const manifest = require(process.argv[1]);
         if (typeof manifest.encryptionKey === "string") process.stdout.write(manifest.encryptionKey);
       } catch {}
-    ')"
+    ' "./${active_dist_dir}/server/server-reference-manifest.json")"
   fi
 
   if ! node -e '
@@ -202,6 +264,31 @@ git pull --ff-only
 # next.config.mjs uses this to version asset requests for the release being
 # built. It deliberately comes from the pulled commit, not the pre-pull state.
 export VIGENT_DEPLOYMENT_ID="$(git rev-parse --verify HEAD)"
+# A commit may be deployed more than once. Always use a unique artifact path
+# so a retry can never delete the currently active rollback build.
+export VIGENT_NEXT_DIST_DIR=".next-builds/${VIGENT_DEPLOYMENT_ID}-$(date +%s)-$$"
+validate_dist_dir "${VIGENT_NEXT_DIST_DIR}"
+
+# PM2 restart/startOrRestart does not replace pm_exec_path for an existing app.
+# Detect a required command migration before npm ci replaces node_modules.
+recreate_pm2_apps=0
+if ! pm2_scripts_match_ecosystem; then
+  recreate_pm2_apps=1
+fi
+if pm2_apps_have_insecure_tls_override; then
+  echo "==> Removing stale insecure TLS override from PM2 services"
+  recreate_pm2_apps=1
+fi
+
+# npm ci replaces node_modules in place. Stop every process that imports from
+# it before installation; otherwise a live request can observe a half-replaced
+# Next.js/Prisma tree. The EXIT trap restarts the previous immutable build if
+# installation, compilation, backup, migration, or health verification fails.
+echo "==> Stopping Vigent services before replacing dependencies"
+services_stopped=1
+pm2 stop vignet-worker >/dev/null 2>&1 || true
+stop_service_and_release_port "vignet-web" 3003 "${APP_ROOT}"
+stop_service_and_release_port "vignet-studio" 5555 "${APP_ROOT}"
 
 echo "==> Installing locked application dependencies"
 npm ci
@@ -217,34 +304,19 @@ unset NODE_TLS_REJECT_UNAUTHORIZED
 echo "==> Generating Prisma client"
 npx prisma generate
 
-# Keep content-hashed assets from the currently served release while the next
-# build replaces `.next`. Tabs opened before the restart may still request
-# those chunks. Files retain their original mtimes and are pruned after 24h.
-previous_static_dir="$(mktemp -d /tmp/vigent-next-static.XXXXXX)"
-cleanup_previous_static() {
-  case "${previous_static_dir}" in
-    /tmp/vigent-next-static.*)
-      find "${previous_static_dir}" -mindepth 1 -delete 2>/dev/null || true
-      rmdir "${previous_static_dir}" 2>/dev/null || true
-      ;;
-  esac
-}
-trap cleanup_previous_static EXIT
-if [ -d .next/static ]; then
-  cp -a .next/static/. "${previous_static_dir}/"
-fi
-
-# Build before changing the database. A compile failure therefore leaves the
-# currently-running application and schema untouched.
+# Each commit gets a separate build directory. Never let `next build` mutate
+# the artifact selected by a running or rollback server.
+remove_versioned_build_dir "${VIGENT_NEXT_DIST_DIR}"
+mkdir -p .next-builds
 echo "==> Building production artifact"
 npm run build
 
-if find "${previous_static_dir}" -type f -print -quit | grep -q .; then
+if [ -d "${active_dist_dir}/static" ]; then
   echo "==> Retaining previous release chunks for open browser tabs"
-  mkdir -p .next/static
-  cp -an "${previous_static_dir}/." .next/static/
-  find .next/static -type f -mmin +1440 -delete
-  find .next/static -depth -type d -empty -delete
+  mkdir -p "${VIGENT_NEXT_DIST_DIR}/static"
+  cp -an "${active_dist_dir}/static/." "${VIGENT_NEXT_DIST_DIR}/static/"
+  find "${VIGENT_NEXT_DIST_DIR}/static" -type f -mmin +1440 -delete
+  find "${VIGENT_NEXT_DIST_DIR}/static" -depth -type d -empty -delete
 fi
 
 # A migration must never be the first operation that touches production data.
@@ -257,22 +329,6 @@ echo "==> Applying checked-in database migrations"
 npx prisma migrate deploy
 
 echo "==> Restarting services"
-
-# PM2 restart/startOrRestart does not replace pm_exec_path for an existing app.
-# Detect the one-time migration from the old npm wrappers before stopping them.
-recreate_pm2_apps=0
-if ! pm2_scripts_match_ecosystem; then
-  recreate_pm2_apps=1
-fi
-if pm2_apps_have_insecure_tls_override; then
-  echo "==> Removing stale insecure TLS override from PM2 services"
-  recreate_pm2_apps=1
-fi
-
-# Stop port-owning services before changing their PM2 command. This also
-# self-heals the orphaned Next.js/npm state created by older deployments.
-stop_service_and_release_port "vignet-web" 3003 "${APP_ROOT}"
-stop_service_and_release_port "vignet-studio" 5555 "${APP_ROOT}"
 if [ "${recreate_pm2_apps}" -eq 1 ]; then
   echo "==> Re-registering PM2 services with direct executables"
   pm2 delete vignet-web vignet-worker vignet-studio >/dev/null 2>&1 || true
@@ -343,5 +399,19 @@ if [ "${studio_healthy}" -ne 1 ]; then
 fi
 
 pm2 save
+services_stopped=0
+
+# Retain the current and two previous versioned builds for rollback. The
+# original `.next` directory is left intact as the first migration fallback.
+mapfile -t stale_build_dirs < <(
+  find .next-builds -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+    | sort -nr \
+    | tail -n +4 \
+    | cut -d' ' -f2-
+)
+for stale_build_dir in "${stale_build_dirs[@]}"; do
+  remove_versioned_build_dir "${stale_build_dir}"
+done
+
 pm2 status
 echo "==> Deployment is healthy"

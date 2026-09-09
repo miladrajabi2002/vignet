@@ -5,6 +5,10 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+	// Production deploys build into a release-specific directory. The running
+	// server keeps reading its own immutable build until PM2 is restarted with
+	// the new directory, so `next build` can never remove live CSS/JS chunks.
+	distDir: process.env.VIGENT_NEXT_DIST_DIR || '.next',
         // Appended to asset URLs so proxies and long-lived browser tabs never mix
         // files from two production releases. deploy/deploy.sh supplies the commit.
         deploymentId: process.env.VIGENT_DEPLOYMENT_ID,

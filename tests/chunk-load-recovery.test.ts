@@ -22,13 +22,17 @@ describe('Next.js chunk load recovery', () => {
     )
   })
 
-  it('keeps previous release assets during deploy and installs root recovery', () => {
+  it('deploys immutable builds, keeps previous assets, and installs root recovery', () => {
     const deploy = readFileSync(path.join(process.cwd(), 'deploy/deploy.sh'), 'utf8')
     const layout = readFileSync(path.join(process.cwd(), 'app/layout.tsx'), 'utf8')
+    const nextConfig = readFileSync(path.join(process.cwd(), 'next.config.mjs'), 'utf8')
+    const buildGuard = readFileSync(path.join(process.cwd(), 'scripts/safe-next-build.mjs'), 'utf8')
 
-    expect(deploy).toContain('cp -a .next/static/. "${previous_static_dir}/"')
-    expect(deploy).toContain('cp -an "${previous_static_dir}/." .next/static/')
-    expect(deploy).toContain('find .next/static -type f -mmin +1440 -delete')
+    expect(deploy).toContain('export VIGENT_NEXT_DIST_DIR=".next-builds/${VIGENT_DEPLOYMENT_ID}-$(date +%s)-$$"')
+    expect(deploy).toContain('cp -an "${active_dist_dir}/static/." "${VIGENT_NEXT_DIST_DIR}/static/"')
+    expect(deploy).toContain('export VIGENT_NEXT_DIST_DIR="${active_dist_dir}"')
+    expect(nextConfig).toContain("distDir: process.env.VIGENT_NEXT_DIST_DIR || '.next'")
+    expect(buildGuard).toContain('refusing to overwrite the live Next.js build')
     expect(layout).toContain('<ChunkLoadRecovery />')
   })
 })
