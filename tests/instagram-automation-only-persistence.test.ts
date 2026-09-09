@@ -426,4 +426,31 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.generateReply).not.toHaveBeenCalled()
     expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
   })
+
+  it('hands unsupported media to an operator when the regular agent owns the DM', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true, mediaKind: 'image',
+    }])
+    mocks.loadAutomationPolicy.mockResolvedValue({
+      ...automationOnlyPolicy, dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+    })
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.fixedReply).toHaveBeenCalledWith('mediaUnsupportedMessage', 'workspace-1')
+    expect(mocks.conversationUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'conversation-1' },
+      data: { handedOff: true, status: 'HANDED_OFF' },
+    })
+    expect(mocks.notifyHandoff).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 'workspace-1',
+      conversationId: 'conversation-1',
+      agentId: 'agent-1',
+      reason: expect.stringContaining('image'),
+    }))
+    expect(mocks.sendText).toHaveBeenCalledWith('sender-1', 'متن پیش‌فرض', undefined)
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
 })

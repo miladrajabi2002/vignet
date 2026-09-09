@@ -958,9 +958,10 @@ async function processChannelInbound(
                                 return
                         }
 
-                        // ─ A13: media-only inbound. Answer with the configurable fixed
-                        // text before any automation/AI turn — the model never sees the
-                        // media placeholder as a question and never guesses content.
+                        // ─ A13: media-only inbound. The model cannot inspect the
+                        // attachment URL on every channel, so this is an operational
+                        // handoff rather than a promise in generated prose. It is free
+                        // (no model call), durable and visible to the operator.
                         if (mediaOnlyInbound && !automationOnly) {
                                 const mediaText = await fixedReplyForWorkspace(
                                         'mediaUnsupportedMessage',
@@ -971,6 +972,22 @@ async function processChannelInbound(
                                         mediaText,
                                         eventLease.id,
                                 )
+                                await prisma.conversation.updateMany({
+                                        where: { id: persistedInbound.conversationId },
+                                        data: { handedOff: true, status: 'HANDED_OFF' },
+                                })
+                                await notifyHandoff({
+                                        workspaceId: agent.workspaceId,
+                                        conversationId: persistedInbound.conversationId,
+                                        agentId: agent.id,
+                                        agentName: agent.name,
+                                        channel: type,
+                                        contactId,
+                                        contactName,
+                                        contactPhone: null,
+                                        reason: `پیوست ${msg.mediaKind ?? 'رسانه'} نیازمند بررسی اپراتور است`,
+                                        summary: text,
+                                })
                                 if (eventLease.deliveryStartedAt) {
                                         deliveryUncertain = !eventLease.deliveryCompletedAt
                                         outcome = deliveryUncertain
@@ -979,7 +996,7 @@ async function processChannelInbound(
                                         return
                                 }
                                 await deliveryAdapter.sendText(msg.chatId, mediaText)
-                                outcome = 'MEDIA_UNSUPPORTED_REPLIED'
+                                outcome = 'MEDIA_HANDED_OFF'
                                 return
                         }
 
