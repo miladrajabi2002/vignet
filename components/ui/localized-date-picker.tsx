@@ -1,33 +1,45 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { CalendarDays, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react'
+import { DayPicker as GregorianDayPicker, type Matcher } from 'react-day-picker'
+import { DayPicker as PersianDayPicker, faIR } from 'react-day-picker/persian'
+import { enUS } from 'react-day-picker/locale'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
 import {
-  calendarMonthLength,
-  calendarMonthOffset,
-  calendarPartsFromDateKey,
-  dateKeyFromCalendarParts,
+  dateKeyInTimeZone,
   formatDateKey,
-  shiftCalendarMonth,
+  parseDateKey,
   todayDateKey,
-  type CalendarMonth,
   type DateLocale,
 } from '@/lib/localized-date'
 
-type PickerPosition = { left: number; top?: number; bottom?: number; width: number }
+export type LocalizedDatePickerProps = {
+  value: string
+  onValueChange: (value: string) => void
+  locale: DateLocale
+  min?: string
+  max?: string
+  ariaLabel: string
+  placeholder?: string
+  disabled?: boolean
+  name?: string
+  className?: string
+  buttonClassName?: string
+  timeZone?: string
+}
 
-const WEEKDAYS = {
-  fa: [
-    { short: 'ش', full: 'شنبه' }, { short: 'ی', full: 'یکشنبه' }, { short: 'د', full: 'دوشنبه' },
-    { short: 'س', full: 'سه‌شنبه' }, { short: 'چ', full: 'چهارشنبه' }, { short: 'پ', full: 'پنجشنبه' }, { short: 'ج', full: 'جمعه' },
-  ],
-  en: [
-    { short: 'Su', full: 'Sunday' }, { short: 'Mo', full: 'Monday' }, { short: 'Tu', full: 'Tuesday' },
-    { short: 'We', full: 'Wednesday' }, { short: 'Th', full: 'Thursday' }, { short: 'Fr', full: 'Friday' }, { short: 'Sa', full: 'Saturday' },
-  ],
-} as const
+function dateFromKey(value?: string): Date | undefined {
+  if (!value) return undefined
+  try {
+    const { year, month, day } = parseDateKey(value)
+    // Noon survives display-zone conversion without crossing the date boundary.
+    return new Date(Date.UTC(year, month - 1, day, 12))
+  } catch {
+    return undefined
+  }
+}
 
 export function LocalizedDatePicker({
   value,
@@ -42,96 +54,52 @@ export function LocalizedDatePicker({
   className,
   buttonClassName,
   timeZone = 'Asia/Tehran',
-}: {
-  value: string
-  onValueChange: (value: string) => void
-  locale: DateLocale
-  min?: string
-  max?: string
-  ariaLabel: string
-  placeholder?: string
-  disabled?: boolean
-  name?: string
-  className?: string
-  buttonClassName?: string
-  timeZone?: string
-}) {
+}: LocalizedDatePickerProps) {
   const id = useId()
   const fa = locale === 'fa'
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState<PickerPosition | null>(null)
-  const today = useMemo(() => todayDateKey(timeZone), [timeZone])
-  const initialKey = value || min || today
-  const initialParts = calendarPartsFromDateKey(initialKey, locale)
-  const [visibleMonth, setVisibleMonth] = useState<CalendarMonth>({ year: initialParts.year, month: initialParts.month })
-
-  useEffect(() => setMounted(true), [])
-  useEffect(() => {
-    if (!open) return
-    const parts = calendarPartsFromDateKey(value || min || today, locale)
-    setVisibleMonth({ year: parts.year, month: parts.month })
-  }, [locale, min, open, today, value])
-
-  const updatePosition = useCallback(() => {
-    const trigger = triggerRef.current
-    if (!trigger) return
-    const rect = trigger.getBoundingClientRect()
-    const width = Math.min(336, window.innerWidth - 16)
-    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8)
-    const below = window.innerHeight - rect.bottom
-    const placeAbove = below < 430 && rect.top > below
-    setPosition(placeAbove
-      ? { left, bottom: window.innerHeight - rect.top + 8, width }
-      : { left, top: Math.min(rect.bottom + 8, window.innerHeight - 96), width })
-  }, [])
+  const todayKey = useMemo(() => todayDateKey(timeZone), [timeZone])
+  const selectedDate = useMemo(() => dateFromKey(value), [value])
+  const minDate = useMemo(() => dateFromKey(min), [min])
+  const maxDate = useMemo(() => dateFromKey(max), [max])
+  const today = useMemo(() => dateFromKey(todayKey) ?? new Date(), [todayKey])
+  const [visibleMonth, setVisibleMonth] = useState<Date>(() => selectedDate ?? today)
 
   useEffect(() => {
-    if (!open) return
-    updatePosition()
-    function onPointerDown(event: PointerEvent) {
-      const target = event.target as Node
-      if (!triggerRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false)
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
-    function onViewportChange() { setOpen(false) }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    window.addEventListener('resize', onViewportChange, { passive: true })
-    window.addEventListener('scroll', onViewportChange, { passive: true, capture: true })
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('resize', onViewportChange)
-      window.removeEventListener('scroll', onViewportChange, true)
-    }
-  }, [open, updatePosition])
+    if (open) setVisibleMonth(selectedDate ?? today)
+  }, [open, selectedDate, today])
 
-  const monthLength = calendarMonthLength(visibleMonth, locale)
-  const offset = calendarMonthOffset(visibleMonth, locale)
-  const monthTitleKey = dateKeyFromCalendarParts(visibleMonth.year, visibleMonth.month, 1, locale)
-  const monthTitle = formatDateKey(monthTitleKey, locale, { year: 'numeric', month: 'long' })
-  const days = Array.from({ length: 42 }, (_, index) => {
-    const day = index - offset + 1
-    return day >= 1 && day <= monthLength ? day : null
-  })
+  function selectDate(date: Date) {
+    onValueChange(dateKeyInTimeZone(date, timeZone))
+    setOpen(false)
+  }
+
   const displayValue = value
     ? formatDateKey(value, locale, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })
     : placeholder ?? (fa ? 'انتخاب تاریخ' : 'Choose a date')
-  const PrevIcon = fa ? ChevronRight : ChevronLeft
-  const NextIcon = fa ? ChevronLeft : ChevronRight
-
-  function selectDate(dateKey: string) {
-    onValueChange(dateKey)
-    setOpen(false)
-    requestAnimationFrame(() => triggerRef.current?.focus())
+  const unavailable: Matcher[] = [
+    ...(minDate ? [{ before: minDate } as const] : []),
+    ...(maxDate ? [{ after: maxDate } as const] : []),
+  ]
+  const calendarProps = {
+    id: `${id}-calendar`,
+    mode: 'single' as const,
+    selected: selectedDate,
+    month: visibleMonth,
+    onMonthChange: setVisibleMonth,
+    onSelect: (date: Date | undefined) => { if (date) selectDate(date) },
+    disabled: unavailable,
+    startMonth: minDate,
+    endMonth: maxDate,
+    today,
+    timeZone,
+    noonSafe: true,
+    fixedWeeks: true,
+    showOutsideDays: false,
+    navLayout: 'around' as const,
+    autoFocus: true,
+    className: 'vigent-date-calendar',
   }
 
   return (
@@ -144,88 +112,56 @@ export function LocalizedDatePicker({
         aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls={`${id}-calendar`}
-        onClick={() => {
-          if (!open) updatePosition()
-          setOpen((current) => !current)
-        }}
-        onKeyDown={(event) => {
-          if ((event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') && !open) {
-            event.preventDefault()
-            updatePosition()
-            setOpen(true)
-          }
-        }}
+        onClick={() => setOpen(true)}
         className={cn(
           'spatial-press flex min-h-11 w-full items-center gap-2 rounded-xl border border-black/[0.08] bg-white px-3 text-start shadow-[0_6px_18px_rgba(0,0,0,0.055)] transition-[border-color,box-shadow,background-color] duration-150 hover:border-black/[0.14] focus-visible:border-black/20 focus-visible:shadow-[0_10px_28px_rgba(0,0,0,0.09)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
           open && 'border-black/20 shadow-[0_10px_28px_rgba(0,0,0,0.09)]',
           buttonClassName,
         )}
       >
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-black/[0.045] text-black/55"><CalendarDays className="h-3.5 w-3.5" /></span>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-black/[0.045] text-black/55"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /></span>
         <span className={cn('min-w-0 flex-1 truncate text-xs font-medium', value ? 'text-black/75' : 'text-black/35')}>{displayValue}</span>
       </button>
 
-      {mounted && open && position && createPortal(
-        <div
-          ref={panelRef}
-          id={`${id}-calendar`}
-          role="dialog"
-          aria-modal="false"
-          aria-label={ariaLabel}
-          dir={fa ? 'rtl' : 'ltr'}
-          className="material-select-menu fixed z-[130] max-h-[min(31rem,calc(100dvh-1rem))] overflow-y-auto rounded-[1.35rem] border border-black/10 bg-white/97 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl"
-          style={position}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => setVisibleMonth((current) => shiftCalendarMonth(current, -1))} aria-label={fa ? 'ماه قبل' : 'Previous month'} className="grid h-11 w-11 place-items-center rounded-xl border border-black/[0.07] text-black/55 transition-colors hover:bg-black/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"><PrevIcon className="h-4 w-4" /></button>
-            <div className="min-w-0 text-center">
-              <p className="truncate text-sm font-bold text-black/80">{monthTitle}</p>
-              <p className="mt-0.5 text-[10px] text-black/35">{fa ? 'تقویم شمسی' : 'Gregorian calendar'}</p>
-            </div>
-            <button type="button" onClick={() => setVisibleMonth((current) => shiftCalendarMonth(current, 1))} aria-label={fa ? 'ماه بعد' : 'Next month'} className="grid h-11 w-11 place-items-center rounded-xl border border-black/[0.07] text-black/55 transition-colors hover:bg-black/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"><NextIcon className="h-4 w-4" /></button>
+      <MobileBottomSheet
+        open={open}
+        title={fa ? 'انتخاب تاریخ' : 'Choose a date'}
+        description={fa ? 'تقویم شمسی' : 'Gregorian calendar'}
+        closeLabel={fa ? 'بستن تقویم' : 'Close calendar'}
+        triggerRef={triggerRef}
+        mobileOnly={false}
+        motionPreset="detail"
+        panelClassName="md:max-w-md"
+        contentClassName="pb-2"
+        onClose={() => setOpen(false)}
+        footer={
+          <div className="flex min-h-12 items-center justify-between gap-2">
+            <button
+              type="button"
+              disabled={!value}
+              onClick={() => { onValueChange(''); setOpen(false) }}
+              className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 disabled:invisible"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              {fa ? 'پاک کردن' : 'Clear'}
+            </button>
+            <button
+              type="button"
+              disabled={Boolean((min && todayKey < min) || (max && todayKey > max))}
+              onClick={() => selectDate(today)}
+              className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              {fa ? 'امروز' : 'Today'}
+            </button>
           </div>
-
-          <div className="mt-3 grid grid-cols-7 gap-1" role="row">
-            {WEEKDAYS[locale].map((weekday) => <span key={weekday.full} title={weekday.full} className="grid h-8 place-items-center text-[10px] font-bold text-black/35">{weekday.short}</span>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1" role="grid" aria-label={monthTitle}>
-            {days.map((day, index) => {
-              if (day === null) return <span key={`empty-${index}`} className="h-10" aria-hidden />
-              const dateKey = dateKeyFromCalendarParts(visibleMonth.year, visibleMonth.month, day, locale)
-              const selected = dateKey === value
-              const isToday = dateKey === today
-              const unavailable = Boolean((min && dateKey < min) || (max && dateKey > max))
-              return (
-                <button
-                  key={dateKey}
-                  type="button"
-                  role="gridcell"
-                  aria-selected={selected}
-                  aria-current={isToday ? 'date' : undefined}
-                  aria-label={formatDateKey(dateKey, locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                  disabled={unavailable}
-                  onClick={() => selectDate(dateKey)}
-                  className={cn(
-                    'relative grid h-10 place-items-center rounded-xl text-xs font-semibold tabular-nums transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 disabled:cursor-not-allowed disabled:text-black/18',
-                    selected ? 'bg-black text-white shadow-sm' : 'text-black/65 hover:bg-black/[0.05]',
-                    isToday && !selected && 'ring-1 ring-emerald-500/45 text-emerald-700',
-                  )}
-                >
-                  {day.toLocaleString(fa ? 'fa-IR' : 'en-US', { useGrouping: false })}
-                  {selected && <Check className="absolute bottom-0.5 end-0.5 h-2.5 w-2.5" />}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="mt-3 flex items-center justify-between border-t border-black/[0.07] pt-3">
-            <p className="text-[10px] text-black/35">{fa ? 'انتخاب تاریخ بر اساس ساعت تهران' : 'Dates use Tehran time'}</p>
-            <button type="button" disabled={Boolean((min && today < min) || (max && today > max))} onClick={() => selectDate(today)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-[11px] font-bold text-black/60 transition-colors hover:bg-black/[0.045] disabled:opacity-30"><RotateCcw className="h-3.5 w-3.5" />{fa ? 'امروز' : 'Today'}</button>
-          </div>
-        </div>,
-        document.body,
-      )}
+        }
+      >
+        {fa
+          ? <PersianDayPicker {...calendarProps} locale={faIR} dir="rtl" numerals="arabext" />
+          : <GregorianDayPicker {...calendarProps} locale={enUS} dir="ltr" numerals="latn" />}
+        <p className="mt-2 text-center text-[11px] leading-5 text-[var(--text-muted)]">{fa ? 'تاریخ‌ها بر اساس ساعت تهران هستند' : 'Dates use Tehran time'}</p>
+      </MobileBottomSheet>
     </div>
   )
 }

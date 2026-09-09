@@ -41,6 +41,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { cn } from '@/lib/utils'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 export interface OperatorChannelInfo {
   id: string
@@ -99,7 +100,7 @@ function localeNumber(value: number, fa: boolean): string {
 
 function localeDate(value: string | null, fa: boolean): string {
   if (!value) return fa ? 'هنوز فعالیتی ثبت نشده' : 'No activity yet'
-  return new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', {
+  return new Intl.DateTimeFormat(dateLocaleTag(fa ? 'fa' : 'en'), {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))

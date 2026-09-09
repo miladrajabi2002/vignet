@@ -1,4 +1,4 @@
-import { jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js'
+import { gregorianToJalali, instantToWallClock, jalaliMonthLength, jalaliToGregorian, wallClockToInstant } from '@doranjs/core'
 
 export type DateLocale = 'fa' | 'en'
 
@@ -69,13 +69,34 @@ export function todayDateKey(timeZone = DEFAULT_DISPLAY_TIMEZONE): string {
   return `${part('year')}-${part('month')}-${part('day')}`
 }
 
+export function dateKeyInTimeZone(value: Date | string | number, timeZone = DEFAULT_DISPLAY_TIMEZONE): string {
+  const date = asDate(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const wall = instantToWallClock(date.getTime(), timeZone)
+  return `${String(wall.year).padStart(4, '0')}-${String(wall.month).padStart(2, '0')}-${String(wall.day).padStart(2, '0')}`
+}
+
+/** Convert a Gregorian machine date key into an inclusive Tehran-time filter
+ * boundary without depending on the browser or server's local time zone. */
+export function dateKeyBoundaryISOString(dateKey: string, end = false, timeZone = DEFAULT_DISPLAY_TIMEZONE): string {
+  const { year, month, day } = parseDateKey(dateKey)
+  return new Date(wallClockToInstant({
+    year,
+    month,
+    day,
+    hour: end ? 23 : 0,
+    minute: end ? 59 : 0,
+    second: end ? 59 : 0,
+    millisecond: end ? 999 : 0,
+  }, timeZone)).toISOString()
+}
+
 export type CalendarMonth = { year: number; month: number }
 
 export function calendarPartsFromDateKey(dateKey: string, locale: DateLocale): { year: number; month: number; day: number } {
   const gregorian = parseDateKey(dateKey)
   if (locale === 'en') return gregorian
-  const jalali = toJalaali(gregorian.year, gregorian.month, gregorian.day)
-  return { year: jalali.jy, month: jalali.jm, day: jalali.jd }
+  return gregorianToJalali(gregorian.year, gregorian.month, gregorian.day)
 }
 
 export function dateKeyFromCalendarParts(
@@ -84,14 +105,14 @@ export function dateKeyFromCalendarParts(
   day: number,
   locale: DateLocale,
 ): string {
-  const gregorian = locale === 'fa' ? toGregorian(year, month, day) : { gy: year, gm: month, gd: day }
-  const key = `${String(gregorian.gy).padStart(4, '0')}-${String(gregorian.gm).padStart(2, '0')}-${String(gregorian.gd).padStart(2, '0')}`
+  const gregorian = locale === 'fa' ? jalaliToGregorian(year, month, day) : { year, month, day }
+  const key = `${String(gregorian.year).padStart(4, '0')}-${String(gregorian.month).padStart(2, '0')}-${String(gregorian.day).padStart(2, '0')}`
   parseDateKey(key)
   return key
 }
 
 export function calendarMonthLength(month: CalendarMonth, locale: DateLocale): number {
-  if (locale === 'fa') return jalaaliMonthLength(month.year, month.month)
+  if (locale === 'fa') return jalaliMonthLength(month.year, month.month)
   return new Date(Date.UTC(month.year, month.month, 0)).getUTCDate()
 }
 

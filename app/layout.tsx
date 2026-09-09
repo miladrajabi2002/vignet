@@ -6,6 +6,7 @@ import { getLocale } from 'next-intl/server'
 import { Providers } from '@/components/providers'
 import { dirForLocale, type Locale } from '@/lib/locale'
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery'
+import 'react-day-picker/style.css'
 import './globals.css'
 
 const geistSans = localFont({

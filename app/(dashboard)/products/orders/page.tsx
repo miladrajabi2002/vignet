@@ -16,6 +16,7 @@ import { MobileOrderCard } from '@/components/products/mobile-order-card'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 const PAGE_SIZE = 20
 const ORDER_STATUSES = [
@@ -106,7 +107,7 @@ export default async function OrdersPage({
   const totalPages = Math.max(1, Math.ceil(totalOrders / PAGE_SIZE))
   const hasFilters = Boolean(q || status)
   const numberLocale = locale === 'en' ? 'en-US' : 'fa-IR'
-  const dateFormatter = new Intl.DateTimeFormat(numberLocale, {
+  const dateFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale === 'en' ? 'en' : 'fa'), {
     dateStyle: 'medium',
     timeStyle: 'short',
   })

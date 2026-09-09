@@ -382,13 +382,13 @@ export function AppointmentsWorkspace({
       .filter((appointment) => !['CANCELLED', 'NO_SHOW'].includes(appointment.status))
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
     if (!active.length) return fa ? 'برنامه فعالی ندارد' : 'No active schedule'
-    const format = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', {
+    const format = new Intl.DateTimeFormat(dateLocaleTag(locale), {
       timeZone: active[0].timezone,
       hour: '2-digit',
       minute: '2-digit',
     })
     return `${format.format(new Date(active[0].startsAt))} ${fa ? 'تا' : 'to'} ${format.format(new Date(active[active.length - 1].endsAt))}`
-  }, [appointments, fa])
+  }, [appointments, fa, locale])
 
   const selectedServiceName = services.find((service) => service.id === serviceFilter)?.name
 
@@ -726,8 +726,8 @@ function StatCard({ icon: Icon, label, value, locale, tone }: { icon: typeof Cal
 function AppointmentCard({ appointment, locale, busy, cancelling, cancellationReason, onCancellationReason, onStartCancel, onStopCancel, onStatus }: { appointment: AppointmentRow; locale: Locale; busy: boolean; cancelling: boolean; cancellationReason: string; onCancellationReason: (value: string) => void; onStartCancel: () => void; onStopCancel: () => void; onStatus: (status: AppointmentStatus, reason?: string) => void }) {
   const fa = locale === 'fa'
   const timeFmt = useMemo(
-    () => new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit' }),
-    [appointment.timezone, fa],
+    () => new Intl.DateTimeFormat(dateLocaleTag(locale), { timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit' }),
+    [appointment.timezone, locale],
   )
   const start = timeFmt.format(new Date(appointment.startsAt))
   const end = timeFmt.format(new Date(appointment.endsAt))
