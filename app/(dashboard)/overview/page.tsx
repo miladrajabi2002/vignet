@@ -11,7 +11,6 @@ import {
   Camera,
   ChartNoAxesCombined,
   CheckCircle2,
-  GraduationCap,
   MessagesSquare,
   Package,
   Plug,
@@ -105,7 +104,7 @@ export default async function OverviewPage() {
     openConversations,
     totalConversations,
     resolvedConversations,
-    pendingLearnings,
+    pendingImprovements,
     activeAgents,
     activeProducts,
     activeChannels,
@@ -143,9 +142,7 @@ export default async function OverviewPage() {
     prisma.conversation.count({ where: { workspaceId, status: 'OPEN' } }),
     prisma.conversation.count({ where: { workspaceId } }),
     prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED' } }),
-    prisma.message.count({
-      where: { role: 'ASSISTANT', unanswered: true, conversation: { workspaceId } },
-    }),
+    prisma.improvementSuggestion.count({ where: { workspaceId, status: 'PENDING' } }),
     prisma.agent.count({ where: { workspaceId, active: true } }),
     prisma.product.count({ where: { workspaceId, active: true } }),
     prisma.agentChannel.count({ where: { active: true, agent: { workspaceId } } }),
@@ -237,7 +234,7 @@ export default async function OverviewPage() {
   const resolveRate = totalConversations
     ? Math.round((resolvedConversations / totalConversations) * 100)
     : 0
-  const attentionCount = handedOff + pendingLearnings
+  const attentionCount = handedOff + pendingImprovements
   const conversationDelta = percentDelta(conversations7d, previousConversations7d)
   const hasBookingModule = modules.includes('appointments')
 
@@ -344,12 +341,12 @@ export default async function OverviewPage() {
                 locale={lang}
               />
               <AttentionItem
-                href="/agents"
-                icon={GraduationCap}
-                value={pendingLearnings}
-                label={fa ? 'سؤال بی‌پاسخ' : 'Unanswered'}
-                hint={fa ? 'برای مرکز یادگیری' : 'learning review'}
-                urgent={pendingLearnings > 0}
+                href={primaryAgent ? `/agents/${primaryAgent.id}/improve` : '/agents'}
+                icon={Sparkles}
+                value={pendingImprovements}
+                label={fa ? 'فرصت بهبود' : 'Improvement opportunities'}
+                hint={fa ? 'آمادهٔ بررسی' : 'ready for review'}
+                urgent={pendingImprovements > 0}
                 locale={lang}
               />
               <AttentionItem

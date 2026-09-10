@@ -4,7 +4,6 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import {
   ArrowRight,
   BarChart3,
-  BookOpenCheck,
   Cable,
   CheckCircle2,
   Circle,
@@ -22,6 +21,7 @@ import {
   SlidersHorizontal,
   TrendingUp,
   TriangleAlert,
+  WandSparkles,
   type LucideIcon,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
@@ -111,7 +111,7 @@ export default async function AgentDetailPage(
     kbCount,
     channels,
     conversationCount,
-    unansweredCount,
+    pendingImprovementCount,
   ] =
     await Promise.all([
       prisma.workspace.findUnique({
@@ -158,12 +158,8 @@ export default async function AgentDetailPage(
       prisma.conversation.count({
         where: { agentId: agent.id, workspaceId: user.workspaceId },
       }),
-      prisma.message.count({
-        where: {
-          role: 'ASSISTANT',
-          unanswered: true,
-          conversation: { agentId: agent.id, workspaceId: user.workspaceId },
-        },
+      prisma.improvementSuggestion.count({
+        where: { agentId: agent.id, workspaceId: user.workspaceId, status: 'PENDING' },
       }),
     ])
 
@@ -302,16 +298,16 @@ export default async function AgentDetailPage(
     (integration) => integration.lastSyncStatus === 'error',
   )
 
-  if (unansweredCount > 0) {
+  if (pendingImprovementCount > 0) {
     growthActions.push({
-      key: 'learning',
-      icon: BookOpenCheck,
-      title: fa ? 'تکمیل پاسخ‌های یادگرفته‌نشده' : 'Review unanswered questions',
+      key: 'improvement',
+      icon: WandSparkles,
+      title: fa ? 'بررسی فرصت‌های بهبود ایجنت' : 'Review agent improvements',
       desc: fa
-        ? `${unansweredCount.toLocaleString('fa-IR')} سؤال منتظر بررسی شماست؛ تأییدشان مستقیماً دقت ایجنت را بهتر می‌کند.`
-        : `${unansweredCount.toLocaleString('en-US')} questions await review; approving them directly improves accuracy.`,
-      href: `/agents/${agent.id}/learning`,
-      cta: fa ? 'بررسی یادگیری' : 'Review learning',
+        ? `${pendingImprovementCount.toLocaleString('fa-IR')} پیشنهاد مبتنی بر گفتگو آمادهٔ بررسی است؛ دانش، رفتار یا روند پاسخ‌گویی را بهتر کنید.`
+        : `${pendingImprovementCount.toLocaleString('en-US')} conversation-based suggestions are ready to improve knowledge, behavior, or reply flow.`,
+      href: `/agents/${agent.id}/improve`,
+      cta: fa ? 'رفتن به بهبود ایجنت' : 'Open agent improvements',
       badge: fa ? 'اثر بالا' : 'High impact',
       attention: true,
     })

@@ -22,7 +22,7 @@ export async function GET(req: Request, props: { params: Promise<{ agentId: stri
   const [conversations, total] = await Promise.all([
     prisma.conversation.findMany({ where, orderBy: [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }], skip: (page - 1) * 25, take: 25,
       select: { id: true, channel: true, status: true, messageCount: true, lastMessageAt: true, contactId: true,
-        contact: { select: { name: true, phone: true } }, messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1, select: { content: true } } } }),
+        contact: { select: { name: true, phone: true, telegramAvatarUrl: true, baleAvatarUrl: true, rubikaAvatarUrl: true, whatsappAvatarUrl: true, instagramAvatarUrl: true } }, messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1, select: { content: true } } } }),
     prisma.conversation.count({ where }),
   ])
   return NextResponse.json({ conversations: conversations.map((c) => ({ ...c, messages: c.messages.map((m) => ({ content: m.content.slice(0, 250) })) })), total }, { headers: { 'Cache-Control': 'no-store' } })
