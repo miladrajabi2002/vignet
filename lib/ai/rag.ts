@@ -1,7 +1,8 @@
 import { embedText } from '@/lib/ai/embeddings'
 import { retrieveChunks, type RetrievedChunk } from '@/lib/knowledge/vector-store'
 import type { ChatMessage } from '@/lib/ai/openrouter'
-import { responseEndingInstruction } from '@/lib/ai/response-policy'
+import type { AgentSkillPlan } from '@/lib/agent-kernel/contracts'
+import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 
 export interface RagContext {
   contextText: string
@@ -26,51 +27,6 @@ export interface CatalogService {
   description: string | null
   durationMinutes: number
   location: string | null
-}
-
-const BARE_GREETING = /^(?:(?:سلام|درود|وقت(?:تون|تان)?\s*(?:بخیر|خوش)|صبح\s*بخیر|عصر\s*بخیر|شب\s*بخیر|hi|hello|hey|good\s+(?:morning|afternoon|evening))[\s!,.،؟?]*)+$/i
-
-function isBareGreeting(message: string): boolean {
-  return BARE_GREETING.test(message.trim())
-}
-
-/**
- * Give the model explicit turn-level continuity. Static role templates can say
- * "greet once", but without this runtime signal smaller models often greet on
- * every answer or postpone a concrete first-turn request behind onboarding.
- */
-function buildConversationFlowInstruction(params: {
-  isFa: boolean
-  history: ChatMessage[]
-  userMessage: string
-}): string {
-  const hasPriorTurns = params.history.some((message) =>
-    message.role === 'user' || message.role === 'assistant')
-  const greetingOnly = isBareGreeting(params.userMessage)
-
-  if (params.isFa) {
-    if (hasPriorTurns) {
-      return 'این نوبت ادامهٔ همان گفتگو است: پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن و مستقیم به پیام آخر پاسخ بده؛ تاریخچه فقط زمینه است، درخواست‌های پاسخ‌داده‌شده را دوباره جواب نده. اگر مشتری فقط سلام کرده هم یک تأیید خیلی کوتاه کافی است. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
-    }
-    if (greetingOnly) {
-      return 'این پیام فقط احوال‌پرسی است: یک خوش‌آمد کوتاه و فقط یک سؤال ساده برای فهم نیاز بپرس؛ مثلاً «سلام! چطور می‌توانم کمکتان کنم؟». سؤال دوم، چندبخشی یا مثالِ پرسشی اضافه نکن. هنوز محصول، خدمت یا قیمت پیشنهاد نده. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
-    }
-    return 'این نخستین نوبت است اما مشتری درخواست مشخصی دارد: پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن و اول همان درخواست را مستقیم پاسخ بده. صرفاً به‌خاطر اولین پیام، پاسخ را عقب نینداز یا از مشتری نپرس چه کمکی می‌خواهد. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
-  }
-
-  if (hasPriorTurns) {
-    return 'This turn continues the same conversation: do not begin with another greeting, welcome, or introduction. Answer the latest message; history is context, not a request to answer resolved questions again. Even if the customer only says hello, a very brief acknowledgement is enough. Use emoji only when the agent format or brand voice explicitly allows it.'
-  }
-  if (greetingOnly) {
-    return 'This message is only a greeting: give one short welcome and exactly one simple question, for example “Hello! How can I help?”. Never add a second, compound, or example question. Do not pitch a product, service, or price yet. Use emoji only when the agent format or brand voice explicitly allows it.'
-  }
-  return 'This is the first turn, but the customer has made a concrete request: do not begin with a greeting, welcome, or introduction; answer that request first. Never delay an answer merely because it is the first message, and do not ask how you can help. Use emoji only when the agent format or brand voice explicitly allows it.'
-}
-
-function buildTurnEvidenceReminder(isFa: boolean): string {
-  return isFa
-    ? 'در همین پاسخ، هر ادعای مربوط به قیمت، موجودی، ویژگی، نتیجه، پوشش، زمان یا سیاست این کسب‌وکار باید منبع صریحی در دستورها یا داده‌های بالا داشته باشد. اگر ندارد، فقط نبود اطلاعات قطعی و راه بررسی را بگو؛ توضیح احتمالی، مزیت عمومی، دامنهٔ فرضی یا اطلاعات مرتبطِ پرسیده‌نشده اضافه نکن. مسیر بررسی، شماره تماس، لینک یا بخش سایت را هم از خودت نساز؛ اگر راه واقعی ثبت نشده، فقط پیشنهاد بده موضوع در همین گفتگو برای اپراتور خلاصه و منتقل شود.'
-    : 'In this reply, every claim about this business\'s price, stock, features, outcomes, coverage, timing, or policies must have an explicit source in the instructions or data above. If it does not, state only that confirmed information is unavailable and give a verification path; add no probable explanation, generic benefit, assumed coverage, or unrelated fact. Never invent a contact number, link, website section, or verification channel; when none is registered, only offer to summarize and hand the issue to an operator in this conversation.'
 }
 
 const CATALOG_QUERY_INTENT =
@@ -311,24 +267,20 @@ export function buildMessages(params: {
    * can render rich product cards. Text-only channels must NOT set this.
    */
   richCards?: boolean
+  /** Precompiled by the chat kernel so activation and trace use one plan. */
+  skillPlan?: AgentSkillPlan
 }): ChatMessage[] {
   const isFa = params.language === 'fa'
-
-  const langLine = isFa ? 'به زبان فارسی پاسخ بده.' : 'Respond in English.'
-
-  // This is deliberately business-neutral: the layered prompt owns the actual
-  // role (restaurant host, receptionist, support specialist, etc.). Calling
-  // every vertical a salesperson here used to override those distinctions.
-  const toneInstruction = isFa
-    ? 'طبیعی، مختصر و متناسب با نقش همین کسب‌وکار پاسخ بده؛ از جمله‌های کوتاه و روشن استفاده کن و پیام مشتری را طوطی‌وار تکرار نکن. ابتدا به بخش قابل‌پاسخ درخواست جواب بده، سپس فقط اگر یک اطلاعات ضروری کم است حداکثر یک سؤال مشخص بپرس. اگر مشتری درخواست مستقیم و قابل‌انجامی دارد، با سؤال اضافه معطلش نکن.'
-    : 'Reply naturally, concisely, and in the voice of this business role. Use short, clear sentences and do not parrot the customer. Answer the part you can answer first, then ask at most one precise question only when essential information is missing. Do not delay a direct, actionable request with unnecessary discovery.'
-
-  const flowInstruction = buildConversationFlowInstruction({
-    isFa,
-    history: params.history,
+  const skillPlan = params.skillPlan ?? compileAgentSkillPlan({
+    language: params.language,
     userMessage: params.userMessage,
+    history: params.history,
+    hasKnowledgeContext: Boolean(params.contextText),
+    productTurn: params.productRequest?.isProductTurn,
+    catalogAccessEnabled: params.catalogAccessEnabled !== false,
+    orderTurn: Boolean(params.orderContext),
+    richProductCards: Boolean(params.richCards),
   })
-  const turnEvidenceReminder = buildTurnEvidenceReminder(isFa)
 
   const catalogBlock = buildCatalogBlock(
     params.catalogProducts,
@@ -367,8 +319,8 @@ export function buildMessages(params: {
           : '\n\nThe previous product topic was reset; do not carry forward earlier product or stock claims.'
         : params.productRequest?.isProductTurn
           ? isFa
-            ? '\n\nمشاورهٔ محصول: مشتری دنبال محصول مشخصی است. اول دقیق به همان درخواست پاسخ بده و مناسب‌ترین گزینه(ها) را از نتیجهٔ کاتالوگ همین نوبت با یک دلیل کوتاه معرفی کن؛ موجودی و قیمت را از همین داده‌ها بگو. اگر یک مشخصهٔ مهم (مثل سایز یا رنگ) واقعاً برای انتخاب لازم است، در پایان فقط همان یک سؤال را بپرس. اگر مورد منطبق ناموجود بود، صادقانه بگو و نزدیک‌ترین جایگزین موجود را پیشنهاد بده.'
-            : '\n\nProduct consult: the customer wants something specific. Answer that exact request first, recommending the best-fitting option(s) from this turn\'s catalog result with one short reason; quote stock and price only from these rows. If one key attribute (size, color) is truly needed to choose, ask only that one question at the end. If the match is out of stock, say so honestly and offer the closest available alternative.'
+            ? '\n\nمشاورهٔ محصول: مشتری دنبال محصول مشخصی است. اول نام کامل و دقیق محصول را همان‌طور که در کاتالوگ آمده ذکر کن، سپس دقیق به همان درخواست پاسخ بده و مناسب‌ترین گزینه(ها) را از نتیجهٔ کاتالوگ همین نوبت با یک دلیل کوتاه معرفی کن؛ موجودی و قیمت را از همین داده‌ها بگو. اگر یک مشخصهٔ مهم (مثل سایز یا رنگ) واقعاً برای انتخاب لازم است، در پایان فقط همان یک سؤال را بپرس. اگر مورد منطبق ناموجود بود، صادقانه بگو و نزدیک‌ترین جایگزین موجود را پیشنهاد بده.'
+            : '\n\nProduct consult: the customer wants something specific. Start with the full exact product name as written in the catalog, then answer that exact request, recommending the best-fitting option(s) from this turn\'s catalog result with one short reason; quote stock and price only from these rows. If one key attribute (size, color) is truly needed to choose, ask only that one question at the end. If the match is out of stock, say so honestly and offer the closest available alternative.'
           : ''
 
   // Rich product cards (web widget only): teach the model the [[product:{…}]]
@@ -392,7 +344,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${flowInstruction}\n${turnEvidenceReminder}\n${responseEndingInstruction(isFa)}`,
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}\n${skillPlan.instructions.ending}`,
   }
 
   return [

@@ -16,6 +16,8 @@
 		"test": "vitest run",
 		"test:agent-live": "tsx -r dotenv/config scripts/agent-live-smoke.ts",
 		"test:agent-eval": "AGENT_SMOKE_EXTENDED=1 tsx -r dotenv/config scripts/agent-live-smoke.ts",
+		"test:agent-real-eval": "tsx -r dotenv/config scripts/agent-real-account-eval.ts",
+		"test:vigento-isolation": "tsx -r dotenv/config scripts/vigento-isolation-smoke.ts",
 		"test:watch": "vitest",
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate dev",

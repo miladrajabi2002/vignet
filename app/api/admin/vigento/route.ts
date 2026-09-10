@@ -11,6 +11,7 @@ import { resolveModelId } from '@/lib/ai/models'
 import { createAdminActionToken } from '@/lib/admin/vigento-actions'
 import { displayPhone, normalizePhone } from '@/lib/phone'
 import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
+import { ADMIN_VIGENTO_TOOL_NAMES, VIGENTO_ADMIN_SKILL_VERSION } from '@/lib/vigento/profiles'
 
 const inputSchema = z.object({ message: z.string().trim().min(2).max(1800) })
 const querySchema = z.object({ query: z.string().trim().min(1).max(140) })
@@ -47,6 +48,14 @@ const TOOLS: ChatTool[] = [
   { type: 'function', function: { name: 'propose_set_agent_active', description: 'Preview activating or deactivating one agent. Requires owner confirmation.', parameters: { type: 'object', properties: { agentQuery: { type: 'string' }, active: { type: 'boolean' }, reason: { type: 'string' } }, required: ['agentQuery', 'active', 'reason'] } } },
   { type: 'function', function: { name: 'propose_delete_user_account', description: 'Preview permanently deleting the single owner account and all data owned by its workspace. Platform admins are protected and owner confirmation is required.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
 ]
+
+const actualAdminToolNames = TOOLS.map((tool) => tool.function.name)
+if (
+  actualAdminToolNames.length !== ADMIN_VIGENTO_TOOL_NAMES.length
+  || actualAdminToolNames.some((name, index) => name !== ADMIN_VIGENTO_TOOL_NAMES[index])
+) {
+  throw new Error('VIGENTO_ADMIN_PROFILE_MISMATCH')
+}
 
 async function platformSummary(days: number) {
   const since = new Date(Date.now() - days * 86_400_000)
@@ -307,16 +316,17 @@ export async function POST(request: Request) {
     const alias = config.vigentoModel
     const model = resolveModelId(alias, config.providerModels)
     const messages: ChatMessage[] = [
-      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise, clear Persian and use the conversation history for follow-ups. Use tools for every factual platform/database/file claim; never invent values. Each workspace has one owner account and there are no team roles or members. For person lookups, always use find_user and trust that exact user's platformRole. If multiple people match, show the candidates and ask for a phone or id. You may read aggregates, find users/workspaces/agents, inspect a conversation and read one safe project file. Mutations are strictly allow-listed and proposal-only: credit adjustment, resolve conversation, update workspace, toggle agent, and delete a non-platform-admin user account. Every mutation MUST return a confirmation card and is executed only after owner confirmation; never claim it already executed. Platform admins are protected. Secrets, raw SQL, .env and unrestricted deletion are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
+      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise, clear Persian and use the conversation history for follow-ups. Use tools for every factual platform/database/file claim; never invent values. Each workspace has one owner account and there are no team roles or members. For person lookups, always use find_user and trust that exact user's platformRole. If multiple people match, show the candidates and ask for a phone or id. You may read aggregates, find users/workspaces/agents, inspect a conversation and read one safe project file. Mutations are strictly allow-listed and proposal-only: credit adjustment, resolve conversation, update workspace, toggle agent, and delete a non-platform-admin user account. Every mutation MUST return a confirmation card and is executed only after owner confirmation; never claim it already executed. Platform admins are protected. Secrets, raw SQL, .env and unrestricted deletion are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous. Runtime skill version: ${VIGENTO_ADMIN_SKILL_VERSION}.` },
       ...history,
       { role: 'user', content: parsed.data.message },
     ]
     const first = await chatCompletion({ model, messages, tools: TOOLS, temperature: 0.1, maxTokens: 700 })
     if (!first.toolCalls.length) return answer(first.content || 'برای پاسخ دقیق‌تر، نام کسب‌وکار یا شناسه مورد را بفرستید.', { source: 'ai', modelAlias: alias })
 
-    messages.push({ role: 'assistant', content: first.content, tool_calls: first.toolCalls })
+    const calls = first.toolCalls.slice(0, 3)
+    messages.push({ role: 'assistant', content: first.content, tool_calls: calls })
     let proposal: Proposal | undefined
-    for (const call of first.toolCalls.slice(0, 3)) {
+    for (const call of calls) {
       const output = await executeTool(call.function.name, call.function.arguments)
       proposal = proposal || output.proposal
       messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(output.result) })

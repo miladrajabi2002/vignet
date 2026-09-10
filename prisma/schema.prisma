@@ -41,9 +41,9 @@ model Workspace {
   dashboardChecklistDismissedAt DateTime?
   // ─ A16: trial quota alerting. The reconstructed trial grant plus two
   // one-shot latches (80% warning, 100% exhausted). Null until first use.
-  trialInitialCreditIRR    Int?
-  trialQuota80AlertedAt    DateTime?
-  trialQuota100AlertedAt   DateTime?
+  trialInitialCreditIRR         Int?
+  trialQuota80AlertedAt         DateTime?
+  trialQuota100AlertedAt        DateTime?
   // Internal/test workspaces are intentionally omitted from admin commercial reports.
   excludeFromAdminReports       Boolean      @default(false)
   createdAt                     DateTime     @default(now())
@@ -70,6 +70,7 @@ model Workspace {
   creditAlertStates        CreditAlertState[]
   chatLinks                ChatLink[]
   vigentoRuns              VigentoRun[]
+  vigentoThreads           WorkspaceVigentoThread[]
   campaigns                Campaign[]
   services                 Service[]
   appointments             Appointment[]
@@ -113,9 +114,10 @@ model User {
   // Last successful panel sign-in (updated on every OTP login).
   lastLoginAt  DateTime?
 
-  loginEvents                 LoginEvent[]
-  workspace                  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  knowledgeApprovalsVerified KnowledgeApproval[] @relation("KnowledgeApprovalVerifier")
+  loginEvents                LoginEvent[]
+  workspace                  Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  knowledgeApprovalsVerified KnowledgeApproval[]      @relation("KnowledgeApprovalVerifier")
+  vigentoThreads             WorkspaceVigentoThread[]
 
   @@unique([workspaceId])
   @@index([phone])
@@ -181,44 +183,44 @@ model LoginEvent {
 
 // ─── AGENT ────────────────────────────────────────────────────────
 model Agent {
-  id                   String   @id @default(cuid())
-  workspaceId          String
-  name                 String
-  description          String?
-  systemPrompt         String   @db.Text
-  model                String?
-  temperature          Float    @default(0.55)
-  maxTokens            Int      @default(600)
-  language             String   @default("fa")
-  voiceEnabled         Boolean  @default(false)
-  ttsVoice             String   @default("alloy")
-  avatar               String?
-  welcomeMessage       String?
-  fallbackMessage      String?
-  handoffEnabled       Boolean  @default(false)
-  handoffMessage       String?
-  handoffKeywords      String[] @default([])
-  active               Boolean  @default(true)
+  id                      String   @id @default(cuid())
+  workspaceId             String
+  name                    String
+  description             String?
+  systemPrompt            String   @db.Text
+  model                   String?
+  temperature             Float    @default(0.55)
+  maxTokens               Int      @default(600)
+  language                String   @default("fa")
+  voiceEnabled            Boolean  @default(false)
+  ttsVoice                String   @default("alloy")
+  avatar                  String?
+  welcomeMessage          String?
+  fallbackMessage         String?
+  handoffEnabled          Boolean  @default(false)
+  handoffMessage          String?
+  handoffKeywords         String[] @default([])
+  active                  Boolean  @default(true)
   // ─ 6-LAYER PROMPT ENGINE (F1) ─────────────────────────────────────────
   //   Structured prompt configuration that replaces the single-line systemPrompt
   //   with six composable layers: personality, tone, scope, fallback behavior,
   //   response format, and curated Q&A pairs. When promptConfig is set it takes
   //   precedence over systemPrompt; the legacy field is kept for backward-compat
   //   and as a free-form fallback.
-  promptConfig         Json?
+  promptConfig            Json?
   //   Role template key used to seed promptConfig (e.g. 'sales_consult',
   //   'post_sale_support', 'pre_sales', 'follow_up', 'general_support').
-  roleTemplate         String?
+  roleTemplate            String?
   // ─ Customer identification (F3): require name + phone at conversation start
   //   before the agent proceeds. Drives the collect-info flow at thread open.
-  requireCustomerInfo  Boolean  @default(false)
-  customerInfoPrompt   String?  @db.Text
-  productAccessEnabled Boolean  @default(true)
-  orderTrackingEnabled Boolean  @default(true)
-  productAccessConfigured Boolean @default(false)
-  orderTrackingConfigured Boolean @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  requireCustomerInfo     Boolean  @default(false)
+  customerInfoPrompt      String?  @db.Text
+  productAccessEnabled    Boolean  @default(true)
+  orderTrackingEnabled    Boolean  @default(true)
+  productAccessConfigured Boolean  @default(false)
+  orderTrackingConfigured Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   workspace                   Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   channels                    AgentChannel[]
@@ -295,9 +297,9 @@ model AgentChannel {
   healthAlertedAt DateTime? // last time a "channel silent" alert was sent (dedup)
   // ─ A20: real periodic health check results (getMe / token validity).
   //   'unknown' | 'ok' | 'degraded' | 'down'
-  healthStatus    String    @default("unknown")
+  healthStatus    String      @default("unknown")
   healthCheckedAt DateTime? // last completed active health check
-  healthError     String?   // short provider error summary of the last check
+  healthError     String? // short provider error summary of the last check
   createdAt       DateTime    @default(now())
 
   agent                  Agent                   @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -478,7 +480,7 @@ model AgentCatalog {
 
 // ─── KNOWLEDGE BASE ───────────────────────────────────────────────
 model KnowledgeBase {
-  id                   String         @id @default(cuid())
+  id                   String    @id @default(cuid())
   agentId              String
   workspaceId          String
   name                 String
@@ -513,21 +515,21 @@ model KnowledgeApproval {
   id                   String    @id @default(cuid())
   workspaceId          String
   agentId              String
-  knowledgeBaseId      String         @unique
-  sourceMessageRef     String         @unique
+  knowledgeBaseId      String    @unique
+  sourceMessageRef     String    @unique
   sourceConversationId String
-  question             String         @db.Text
-  answer               String         @db.Text
+  question             String    @db.Text
+  answer               String    @db.Text
   contentHash          String
   verifiedByUserId     String?
   verifiedByUserRef    String
-  verifiedAt           DateTime       @default(now())
-  validFrom            DateTime       @default(now())
+  verifiedAt           DateTime  @default(now())
+  validFrom            DateTime  @default(now())
   validUntil           DateTime?
-  knowledgeVersion     Int            @default(1)
+  knowledgeVersion     Int       @default(1)
   policyVersion        String
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   agent         Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -633,41 +635,41 @@ model Contact {
 
 // ─── CONVERSATION ─────────────────────────────────────────────────
 model Conversation {
-  id                String      @id @default(cuid())
-  workspaceId       String
-  agentId           String
-  contactId         String?
-  channel           ChannelType
-  externalId        String?
-  status            ConvStatus  @default(OPEN)
-  handedOff         Boolean     @default(false)
-  rating            Int?
-  summary           String?     @db.Text
-  messageCount      Int         @default(0)
-  lastMessageAt     DateTime?
+  id                      String      @id @default(cuid())
+  workspaceId             String
+  agentId                 String
+  contactId               String?
+  channel                 ChannelType
+  externalId              String?
+  status                  ConvStatus  @default(OPEN)
+  handedOff               Boolean     @default(false)
+  rating                  Int?
+  summary                 String?     @db.Text
+  messageCount            Int         @default(0)
+  lastMessageAt           DateTime?
   // Snapshot boundary of the latest successful conversation-quality review.
   // A later lastMessageAt makes the conversation eligible for analysis again.
   lastImprovementReviewAt DateTime?
   // ─ F3: customer identification state. 'pending' until the contact has given
   //   their name+phone; 'collected' once captured. 'skipped' for channels where
   //   the platform identity is already trusted (messenger bots).
-  customerInfoState String      @default("pending")
-  identifiedAt      DateTime?
+  customerInfoState       String      @default("pending")
+  identifiedAt            DateTime?
   // ─ Channel-automation flags. Currently used by the Instagram automation
   //   engine to mark a conversation as "AI paused" (e.g. when a STOP_AI scenario
   //   matches, or when an operator wants only scenarios to reply). Shape:
   //   { aiPaused?: boolean, pausedAt?: string, pausedBy?: string }
-  metadata          Json?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  metadata                Json?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
 
-  workspace     Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  agent         Agent                     @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  contact       Contact?                  @relation(fields: [contactId], references: [id])
-  messages      Message[]
-  handoffAlerts HandoffAlert[]
-  salesInsight  ConversationSalesInsight?
-  memory        ConversationMemory?
+  workspace          Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent              Agent                     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  contact            Contact?                  @relation(fields: [contactId], references: [id])
+  messages           Message[]
+  handoffAlerts      HandoffAlert[]
+  salesInsight       ConversationSalesInsight?
+  memory             ConversationMemory?
   improvementReviews ImprovementReview[]
 
   @@unique([agentId, channel, externalId])
@@ -800,11 +802,11 @@ model Message {
   inboundEventId          String?     @unique
   resultForInboundEventId String?     @unique
 
-  conversation          Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  parent                Message?           @relation("MessageReplies", fields: [parentId], references: [id])
-  replies               Message[]          @relation("MessageReplies")
-  inboundEvent          InboundEvent?      @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
-  resultForInboundEvent InboundEvent?      @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
+  conversation          Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  parent                Message?              @relation("MessageReplies", fields: [parentId], references: [id])
+  replies               Message[]             @relation("MessageReplies")
+  inboundEvent          InboundEvent?         @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
+  resultForInboundEvent InboundEvent?         @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
   improvementEvidence   ImprovementEvidence[]
 
   @@index([conversationId])
@@ -1086,16 +1088,19 @@ model AdminVigentoMessage {
 // assistant. Raw descriptions and generated drafts deliberately do not live in
 // this table; only outcome/model/duration and explicit user feedback do.
 model VigentoRun {
-  id          String           @id @default(cuid())
-  workspaceId String
-  status      VigentoRunStatus
-  modelAlias  String?
-  durationMs  Int
-  applied     Boolean          @default(false)
-  appliedAt   DateTime?
-  helpful     Boolean?
-  failureCode String?
-  createdAt   DateTime         @default(now())
+  id            String           @id @default(cuid())
+  workspaceId   String
+  status        VigentoRunStatus
+  modelAlias    String?
+  skillVersion  String?
+  toolNames     String[]         @default([])
+  principalKind String?
+  durationMs    Int
+  applied       Boolean          @default(false)
+  appliedAt     DateTime?
+  helpful       Boolean?
+  failureCode   String?
+  createdAt     DateTime         @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -1106,6 +1111,42 @@ model VigentoRun {
 enum VigentoRunStatus {
   SUCCEEDED
   FAILED
+}
+
+// User-facing Vigento history is physically separate from the platform-admin
+// history. The unique scope also prevents one owner from reading another
+// owner's thread, even inside the same workspace lifecycle.
+model WorkspaceVigentoThread {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User                      @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  messages  WorkspaceVigentoMessage[]
+
+  @@unique([workspaceId, actorId])
+  @@index([workspaceId, updatedAt])
+  @@index([actorId])
+}
+
+model WorkspaceVigentoMessage {
+  id        String                 @id @default(cuid())
+  threadId  String
+  role      VigentoUserMessageRole
+  content   String                 @db.Text
+  createdAt DateTime               @default(now())
+
+  thread WorkspaceVigentoThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+enum VigentoUserMessageRole {
+  USER
+  ASSISTANT
 }
 
 // Campaigns are frozen, auditable batches. Creating a DRAFT never sends;
@@ -1408,9 +1449,9 @@ model StoreOrder {
   // Populated from the WooCommerce plugin's shipping_info object, which
   // aggregates meta keys from Iranian shipment plugins (PWS, Postex,
   // WooCommerce Shipment Tracking, custom theme fields).
-  courierName     String?   // e.g. «پست پیشتاز», «تیپاکس»
-  shippingDate    String?   // Jalali or Gregorian, passed through as-is
-  trackingLink    String?   // e.g. https://tracking.post.ir/?id=1234567890123
+  courierName     String? // e.g. «پست پیشتاز», «تیپاکس»
+  shippingDate    String? // Jalali or Gregorian, passed through as-is
+  trackingLink    String? // e.g. https://tracking.post.ir/?id=1234567890123
   shippingNote    String?   @db.Text // extra description from the store
   // ISO date strings from the store
   orderDate       DateTime?
@@ -1725,59 +1766,62 @@ enum AppointmentStatus {
 // Durable conversation review jobs. Snapshots identify the settings used for
 // diagnosis; messages are always bounded by createdAt and remain in their source.
 model ImprovementRun {
-  id          String @id @default(cuid())
+  id          String              @id @default(cuid())
   agentId     String
   workspaceId String
   createdBy   String
-  status      String @default("QUEUED")
+  status      String              @default("QUEUED")
   total       Int
   filters     Json
   snapshot    Json
   error       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   finishedAt  DateTime?
-  agent       Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent       Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
   reviews     ImprovementReview[]
+
   @@index([workspaceId, agentId, createdAt])
   @@index([agentId, createdAt])
 }
 
 model ImprovementReview {
-  id             String @id @default(cuid())
+  id             String                @id @default(cuid())
   runId          String
   conversationId String
-  status         String @default("PENDING")
+  status         String                @default("PENDING")
   result         Json?
   checkpoint     Json?
   error          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  run            ImprovementRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  run            ImprovementRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  conversation   Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   evidence       ImprovementEvidence[]
+
   @@unique([runId, conversationId])
   @@index([conversationId])
 }
 
 model ImprovementSuggestion {
-  id          String @id @default(cuid())
+  id          String                @id @default(cuid())
   agentId     String
   workspaceId String
   kind        String
   topicKey    String
   title       String
-  diagnosis   String @db.Text
+  diagnosis   String                @db.Text
   priority    String
-  status      String @default("PENDING")
+  status      String                @default("PENDING")
   draft       Json
-  version     Int @default(1)
+  version     Int                   @default(1)
   preview     Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  agent       Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  agent       Agent                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
   evidence    ImprovementEvidence[]
   changes     ImprovementChange[]
+
   @@index([workspaceId, agentId, status])
   @@index([agentId, topicKey])
 }
@@ -1787,15 +1831,16 @@ model ImprovementEvidence {
   reviewId     String
   messageId    String
   suggestion   ImprovementSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
-  review       ImprovementReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  review       ImprovementReview     @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  message      Message               @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
   @@id([suggestionId, reviewId, messageId])
   @@index([reviewId])
   @@index([messageId])
 }
 
 model ImprovementChange {
-  id           String @id @default(cuid())
+  id           String                @id @default(cuid())
   suggestionId String
   actorId      String
   kind         String
@@ -1803,7 +1848,8 @@ model ImprovementChange {
   before       Json
   after        Json
   revertedAt   DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime              @default(now())
   suggestion   ImprovementSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
   @@index([suggestionId, createdAt])
 }

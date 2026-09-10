@@ -100,6 +100,31 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
     void ask(input)
   }
 
+  // Restore only this authenticated owner/workspace thread. Keep a message the
+  // user may have sent while the request was in flight instead of overwriting it.
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/api/vigento/assistant', { method: 'GET' })
+      .then(async (response) => {
+        if (!response.ok) return
+        const data = await response.json() as { messages?: unknown }
+        if (cancelled || !Array.isArray(data.messages)) return
+        const restored = data.messages.flatMap((item): ChatMessage[] => {
+          if (!item || typeof item !== 'object') return []
+          const value = item as { role?: unknown; content?: unknown }
+          if ((value.role !== 'assistant' && value.role !== 'user') || typeof value.content !== 'string') return []
+          return [{ role: value.role, content: value.content }]
+        })
+        if (restored.length > 0) {
+          setMessages((current) => current.length === 1 ? restored : current)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="mx-auto grid max-w-6xl gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <section className="spatial-surface overflow-hidden rounded-[1.75rem]">

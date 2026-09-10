@@ -12,8 +12,8 @@ import {
   executeBookingAgentTool,
 } from '@/lib/bookings/agent-tools'
 import type { ConversationReceipt } from '@/lib/conversations/activity'
+import { hasBookingIntent } from '@/lib/bookings/intent'
 
-const BOOKING_INTENT = /(رزرو|نوبت|وقت|تقویم|ساعت|امروز|فردا|پس.?فردا|لغو نوبت|appointment|booking|book|slot|schedule|calendar|tomorrow|cancel)/i
 const MAX_TOOL_ROUNDS = 4
 
 export interface BookingChatResult {
@@ -42,12 +42,6 @@ function combinedUsage(items: ChatUsage[]): ChatUsage {
     costUSD: null,
     providerRequestId: null,
   })
-}
-
-function hasBookingContext(messages: ChatMessage[]): boolean {
-  return messages
-    .slice(-8)
-    .some((message) => typeof message.content === 'string' && BOOKING_INTENT.test(message.content))
 }
 
 function safeToolError(error: unknown): string {
@@ -106,7 +100,7 @@ export async function maybeRunBookingAgentTurn(params: {
   temperature: number
   maxTokens: number
 }): Promise<BookingChatResult | null> {
-  if (!hasBookingContext(params.messages)) return null
+  if (!hasBookingIntent(params.messages)) return null
 
   const hasActiveService = await prisma.service.count({
     where: { workspaceId: params.workspaceId, active: true },
@@ -170,13 +164,14 @@ export async function maybeRunBookingAgentTurn(params: {
       }
     }
 
+    const calls = result.toolCalls.slice(0, 3)
     messages.push({
       role: 'assistant',
       content: result.content || null,
-      tool_calls: result.toolCalls,
+      tool_calls: calls,
     })
 
-    for (const call of result.toolCalls.slice(0, 3)) {
+    for (const call of calls) {
       let output: unknown
       try {
         const parsedArguments = JSON.parse(call.function.arguments) as Record<string, unknown>

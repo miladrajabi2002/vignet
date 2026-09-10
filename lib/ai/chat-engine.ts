@@ -49,11 +49,18 @@ import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
 import { buildTrustedProductReply, parseProductDirectives } from '@/lib/products/presentation'
-import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
+import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
+import {
+        agentSkillTrace,
+        hasAgentSkill,
+        type AgentSkillPlan,
+} from '@/lib/agent-kernel/contracts'
+import { runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
+import { hasBookingIntent } from '@/lib/bookings/intent'
 import { getRedis } from '@/lib/redis'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
-import type { ChannelType } from '@prisma/client'
+import type { ChannelType, Prisma } from '@prisma/client'
 import {
         AGENT_MAX_RESPONSE_TOKENS,
         AGENT_RESPONSE_TEMPERATURE,
@@ -319,6 +326,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                   retrievedChunks: Array<{ metadata: unknown }>
                   catalogProducts: CatalogProduct[]
                   productRequest: ProductRequestPlan
+                  skillPlan: AgentSkillPlan
                   canBypassDeterministicReply: boolean
                   closingReply: string | null
           }
@@ -434,13 +442,14 @@ async function prepareTurn(params: StartChatParams): Promise<
                 select: { customerInfoState: true },
         }))?.customerInfoState ?? conversation.customerInfoState
 
+        const customerPreferences = contact
+                ? readCustomerAgentPreferences(contact.metadata, agent.id)
+                : []
         const finalSystemPrompt = buildSystemPrompt({
                 agent,
                 customerInfoState: freshState,
                 contactName: resolvedContactName,
-                customerPreferences: contact
-                        ? readCustomerAgentPreferences(contact.metadata, agent.id)
-                        : [],
+                customerPreferences,
         })
 
         const reserved = await reserveChatCredit({
@@ -477,13 +486,22 @@ async function prepareTurn(params: StartChatParams): Promise<
                 const productRequest = planProductRequest(message, history)
                 const closingReply = closingReplyText(message, history, agent.language)
                 if (closingReply) {
+                        const skillPlan = compileAgentSkillPlan({
+                                language: agent.language,
+                                userMessage: message,
+                                history,
+                                deterministicClosing: true,
+                                identificationPending: freshState === 'pending' && agent.requireCustomerInfo,
+                                hasCustomerPreferences: customerPreferences.length > 0,
+                                handoffEnabled: agent.handoffEnabled,
+                        })
                         // A pure closing needs neither embedding/catalog retrieval
                         // nor an LLM call. The normal ownership, handoff, persistence
                         // and credit-release paths still apply on every channel.
                         return {
                                 model, modelAlias, reservation, conversationId, contactId,
                                 contactName: resolvedContactName, contactPhone: resolvedContactPhone,
-                                messages: [], retrievedChunks: [], catalogProducts: [], productRequest,
+                                messages: [], retrievedChunks: [], catalogProducts: [], productRequest, skillPlan,
                                 canBypassDeterministicReply: freshState !== 'pending', closingReply,
                         }
                 }
@@ -528,6 +546,25 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 ? fetchCatalogCategories(agent.id).catch(() => [] as string[])
                                 : Promise.resolve([] as string[]),
                 ])
+                const turnHistory = historyForProductTurn(history, productRequest)
+                const skillPlan = compileAgentSkillPlan({
+                        language: agent.language,
+                        userMessage: message,
+                        history: turnHistory,
+                        hasKnowledgeContext: Boolean(contextText),
+                        productTurn: productRequest.isProductTurn,
+                        catalogAccessEnabled: agent.productAccessEnabled,
+                        orderTurn: Boolean(orderContext),
+                        bookingTurn: hasBookingIntent([
+                                ...history,
+                                { role: 'user', content: message },
+                        ]),
+                        identificationPending: freshState === 'pending' && agent.requireCustomerInfo,
+                        hasCustomerPreferences: customerPreferences.length > 0,
+                        handoffEnabled: agent.handoffEnabled,
+                        salesIntelligenceEnabled: true,
+                        richProductCards: agent.productAccessEnabled && params.channel !== 'API',
+                })
 
                 const messages = buildMessages({
                         systemPrompt: finalSystemPrompt,
@@ -535,7 +572,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         contextText,
                         catalogProducts,
                         catalogServices,
-                        history: historyForProductTurn(history, productRequest),
+                        history: turnHistory,
                         userMessage: message,
                         catalogAccessEnabled: agent.productAccessEnabled,
                         orderContext,
@@ -544,6 +581,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         // Web surfaces render cards directly; messenger channels
                         // resolve markers against trusted DB rows before sending.
                         richCards: agent.productAccessEnabled && params.channel !== 'API',
+                        skillPlan,
                 })
 
                 return {
@@ -558,6 +596,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         retrievedChunks: chunks,
                         catalogProducts,
                         productRequest,
+                        skillPlan,
                         canBypassDeterministicReply: freshState !== 'pending',
                         closingReply: null,
                 }
@@ -578,10 +617,14 @@ async function persistHandoff(params: {
         contactPhone: string | null
         reason: string
         replyText: string
+        skillPlan: AgentSkillPlan
         inboundEventId?: string
         inboundAlreadyPersisted?: boolean
 }): Promise<{ messageId: string } | null> {
         try {
+                const metadata = {
+                        agentSkillTrace: agentSkillTrace(params.skillPlan),
+                } as unknown as Prisma.InputJsonObject
                 const saved = await prisma.$transaction(async (tx) => {
                         let created = true
                         let messageId: string
@@ -591,6 +634,7 @@ async function persistHandoff(params: {
                                                 conversationId: params.conversationId,
                                                 role: 'ASSISTANT',
                                                 content: params.replyText,
+                                                metadata,
                                                 resultForInboundEventId: params.inboundEventId,
                                         }],
                                         skipDuplicates: true,
@@ -610,6 +654,7 @@ async function persistHandoff(params: {
                                                 conversationId: params.conversationId,
                                                 role: 'ASSISTANT',
                                                 content: params.replyText,
+                                                metadata,
                                         },
                                         select: { id: true },
                                 })
@@ -668,6 +713,7 @@ async function persistAssistantTurn(params: {
         reply: string
         retrievedChunks: Array<{ metadata: unknown }>
         extraReceipts?: ConversationReceipt[]
+        skillPlan: AgentSkillPlan
         inboundEventId?: string
         inboundAlreadyPersisted?: boolean
 }): Promise<{ messageId: string }> {
@@ -683,7 +729,10 @@ async function persistAssistantTurn(params: {
         const saved = await prisma.$transaction(async (tx) => {
                 const metadata = metadataWithReceipts(
                         receipts,
-                        unanswered ? { question: params.userMessage } : undefined,
+                        {
+                                ...(unanswered ? { question: params.userMessage } : {}),
+                                agentSkillTrace: agentSkillTrace(params.skillPlan) as unknown as Prisma.InputJsonObject,
+                        },
                 )
                 let created = true
                 let messageId: string
@@ -763,6 +812,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 retrievedChunks,
                 catalogProducts,
                 productRequest,
+                skillPlan,
                 canBypassDeterministicReply,
                 closingReply,
         } = prep
@@ -824,6 +874,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         contactPhone,
                                         reason: handoffCheck.reason,
                                         replyText: handoffText,
+                                        skillPlan,
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
@@ -857,6 +908,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                         reply: deterministicReply,
                                                         retrievedChunks,
                                                         extraReceipts: [],
+                                                        skillPlan,
                                                         inboundEventId: params.inboundEventId,
                                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                                 })
@@ -885,15 +937,17 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         let extraReceipts: ConversationReceipt[] = []
                         let providerFailed = false
                         try {
-                                const bookingTurn = await maybeRunBookingAgentTurn({
-                                        workspaceId,
-                                        conversationId,
-                                        contactId,
-                                        model,
-                                        messages,
-                                        temperature: AGENT_RESPONSE_TEMPERATURE,
-                                        maxTokens: AGENT_MAX_RESPONSE_TOKENS,
-                                })
+                                const bookingTurn = hasAgentSkill(skillPlan, 'appointment-booking')
+                                        ? await maybeRunBookingAgentTurn({
+                                                workspaceId,
+                                                conversationId,
+                                                contactId,
+                                                model,
+                                                messages,
+                                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
+                                        })
+                                        : null
                                 if (bookingTurn) {
                                         full = bookingTurn.content
                                         usage = bookingTurn.usage
@@ -950,6 +1004,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         }
 
                         if (
+                                hasAgentSkill(skillPlan, 'product-card-hydration') &&
                                 agent.productAccessEnabled &&
                                 params.channel !== 'API' &&
                                 (!providerFailed || productRequest.explicitShowcase)
@@ -990,7 +1045,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         }
 
                         // A5: canonical chat style — drop trailing periods on short Persian prose.
-                        full = stripTrailingPersianPeriod(full)
+                        full = runAgentSkillPostprocessors(full, skillPlan, {
+                                catalogProducts: providerFailed ? [] : catalogProducts,
+                        })
                         send({ type: 'replace', text: full })
 
                         // Persist assistant reply and update conversation counters.
@@ -1004,6 +1061,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         reply: full,
                                         retrievedChunks,
                                         extraReceipts,
+                                        skillPlan,
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
@@ -1080,6 +1138,7 @@ export async function generateReply(
                 retrievedChunks,
                 catalogProducts,
                 productRequest,
+                skillPlan,
                 canBypassDeterministicReply,
                 closingReply,
         } = prep
@@ -1105,6 +1164,7 @@ export async function generateReply(
                         contactPhone,
                         reason: handoffCheck.reason,
                         replyText: reply,
+                        skillPlan,
                         inboundEventId: params.inboundEventId,
                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                 })
@@ -1135,6 +1195,7 @@ export async function generateReply(
                                         reply: deterministicReply,
                                         retrievedChunks,
                                         extraReceipts: [],
+                                        skillPlan,
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
@@ -1169,15 +1230,17 @@ export async function generateReply(
         let extraReceipts: ConversationReceipt[] = []
         let providerFailed = false
         try {
-                const bookingTurn = await maybeRunBookingAgentTurn({
-                        workspaceId,
-                        conversationId,
-                        contactId,
-                        model,
-                        messages,
-                        temperature: AGENT_RESPONSE_TEMPERATURE,
-                        maxTokens: AGENT_MAX_RESPONSE_TOKENS,
-                })
+                const bookingTurn = hasAgentSkill(skillPlan, 'appointment-booking')
+                        ? await maybeRunBookingAgentTurn({
+                                workspaceId,
+                                conversationId,
+                                contactId,
+                                model,
+                                messages,
+                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
+                        })
+                        : null
                 if (bookingTurn) {
                         reply = bookingTurn.content.trim()
                         usage = bookingTurn.usage
@@ -1234,6 +1297,7 @@ export async function generateReply(
         // and return. Text, carousel and conversation UIs now share the exact
         // same trusted DB result-set; model-authored ids/prices never leak.
         if (
+                hasAgentSkill(skillPlan, 'product-card-hydration') &&
                 agent.productAccessEnabled &&
                 params.channel !== 'API' &&
                 (!providerFailed || productRequest.explicitShowcase)
@@ -1266,7 +1330,9 @@ export async function generateReply(
         }
 
         // A5: canonical chat style — drop trailing periods on short Persian prose.
-        reply = stripTrailingPersianPeriod(reply)
+        reply = runAgentSkillPostprocessors(reply, skillPlan, {
+                catalogProducts: providerFailed ? [] : catalogProducts,
+        })
 
         let persistedMessageId: string | undefined
         try {
@@ -1279,6 +1345,7 @@ export async function generateReply(
                         reply,
                         retrievedChunks,
                         extraReceipts,
+                        skillPlan,
                         inboundEventId: params.inboundEventId,
                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                 })

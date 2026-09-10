@@ -3,77 +3,135 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
-import { chatCompletion, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
-import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
-import { resolveModelId } from '@/lib/ai/models'
-import { displayPhone } from '@/lib/phone'
+import { getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
+import { getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
+import { createWorkspaceVigentoContext } from '@/lib/vigento/access'
+import { VIGENTO_USER_SKILL_VERSION } from '@/lib/vigento/profiles'
+import { WorkspaceVigentoRepository } from '@/lib/vigento/workspace-repository'
+import { runWorkspaceVigento } from '@/lib/vigento/workspace-agent'
 
 const inputSchema = z.object({
   message: z.string().trim().min(2).max(1000),
   language: z.enum(['fa', 'en']).default('fa'),
-})
+}).strict()
+
+type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
+
+function createRuntime(user: CurrentUser) {
+  const context = createWorkspaceVigentoContext(user)
+  return { context, repository: new WorkspaceVigentoRepository(context) }
+}
+
+async function fallbackAnswer(
+  repository: WorkspaceVigentoRepository,
+  language: 'fa' | 'en',
+): Promise<string> {
+  const overview = await repository.getOverview(1)
+  const conversationCount = Object.values(overview.conversations)
+    .reduce((sum, count) => sum + count, 0)
+  return language === 'fa'
+    ? `در ۲۴ ساعت اخیر ${conversationCount.toLocaleString('fa-IR')} گفتگو و ${overview.messages.toLocaleString('fa-IR')} پیام ثبت شده است. ${overview.activeAppointments.toLocaleString('fa-IR')} رزرو فعال دارید و هزینهٔ ثبت‌شدهٔ AI ${overview.ai.chargedToman.toLocaleString('fa-IR')} تومان بوده است.`
+    : `In the last 24 hours, ${conversationCount} conversations and ${overview.messages} messages were recorded. You have ${overview.activeAppointments} active bookings, and recorded AI cost was ${overview.ai.chargedToman} toman.`
+}
+
+function failureCode(error: unknown): string {
+  const value = error instanceof Error ? error.message : 'VIGENTO_FAILED'
+  return /^[A-Z0-9_]+$/.test(value) ? value.slice(0, 80) : 'VIGENTO_FAILED'
+}
+
+export async function GET() {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  const { repository } = createRuntime(user)
+  return NextResponse.json({ messages: await repository.loadHistory(40) })
+}
+
+export async function DELETE() {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  const { repository } = createRuntime(user)
+  await repository.clearHistory()
+  return NextResponse.json({ ok: true })
+}
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!(await rateLimit(`vigento-assistant:${user.workspaceId}`, 8, 60))) {
+  if (!(await rateLimit(`vigento-assistant:${user.workspaceId}:${user.id}`, 8, 60))) {
     return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   }
   const parsed = inputSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  const [workspace, conversations, messages, contacts, handoffs, open, resolved, appointments, spend, activeContacts, recent] = await Promise.all([
-    prisma.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { name: true, plan: true, aiCreditBalanceIRR: true, businessType: true } }),
-    prisma.conversation.count({ where: { workspaceId: user.workspaceId, createdAt: { gte: start } } }),
-    prisma.message.count({ where: { createdAt: { gte: start }, conversation: { workspaceId: user.workspaceId } } }),
-    prisma.contact.count({ where: { workspaceId: user.workspaceId, createdAt: { gte: start } } }),
-    prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' } }),
-    prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'OPEN' } }),
-    prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'RESOLVED', createdAt: { gte: start } } }),
-    prisma.appointment.count({ where: { workspaceId: user.workspaceId, startsAt: { gte: start }, status: { in: ['PENDING', 'CONFIRMED'] } } }),
-    prisma.usageLog.aggregate({ where: { workspaceId: user.workspaceId, date: { gte: start }, status: 'CAPTURED' }, _sum: { chargedIRR: true } }),
-    prisma.contact.findMany({ where: { workspaceId: user.workspaceId, lastActivityAt: { gte: start } }, orderBy: { lastActivityAt: 'desc' }, take: 5, select: { name: true, phone: true, instagramUsername: true, _count: { select: { conversations: true } } } }),
-    prisma.conversation.findMany({ where: { workspaceId: user.workspaceId }, orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }], take: 5, select: { status: true, summary: true, messageCount: true, contact: { select: { name: true, phone: true } } } }),
-  ])
+  const startedAt = Date.now()
+  const { context, repository } = createRuntime(user)
+  const { message, language } = parsed.data
+  await repository.saveMessage('USER', message)
 
-  const facts = {
-    date: start.toISOString().slice(0, 10),
-    workspace: workspace.name,
-    plan: workspace.plan,
-    businessType: workspace.businessType,
-    creditToman: Math.round(workspace.aiCreditBalanceIRR / 10),
-    today: { conversations, messages, newContacts: contacts, resolved, aiCostToman: Math.round((spend._sum.chargedIRR ?? 0) / 10) },
-    attention: { handoffs, openConversations: open, upcomingAppointments: appointments },
-    mostRecentlyActiveContacts: activeContacts.map((contact) => ({ identity: contact.name || contact.instagramUsername || displayPhone(contact.phone) || 'unknown', conversationCount: contact._count.conversations })),
-    recentCases: recent,
-    unavailableData: ['sales/orders are not modeled unless a store integration supplies them'],
+  const answerWithFallback = async (code: string) => {
+    const answer = await fallbackAnswer(repository, language)
+    await repository.saveMessage('ASSISTANT', answer)
+    await prisma.vigentoRun.create({
+      data: {
+        workspaceId: user.workspaceId,
+        status: 'FAILED',
+        skillVersion: VIGENTO_USER_SKILL_VERSION,
+        toolNames: [],
+        principalKind: context.kind,
+        durationMs: Date.now() - startedAt,
+        failureCode: code,
+      },
+    }).catch(() => null)
+    return NextResponse.json({ answer, source: 'facts', skillVersion: VIGENTO_USER_SKILL_VERSION })
   }
 
-  const fa = parsed.data.language === 'fa'
-  const fallback = fa
-    ? `امروز ${conversations.toLocaleString('fa-IR')} گفتگوی جدید و ${messages.toLocaleString('fa-IR')} پیام ثبت شده است. ${handoffs.toLocaleString('fa-IR')} مورد تحویل به اپراتور و ${open.toLocaleString('fa-IR')} گفتگوی باز نیاز به بررسی دارد. هزینه پاسخ‌های AI امروز ${Math.round((spend._sum.chargedIRR ?? 0) / 10).toLocaleString('fa-IR')} تومان بوده است.`
-    : `Today there were ${conversations} new conversations and ${messages} messages. ${handoffs} handoffs and ${open} open conversations need review. AI replies cost ${Math.round((spend._sum.chargedIRR ?? 0) / 10)} toman today.`
+  if (!getPlatformOpenRouterKey()) return answerWithFallback('PLATFORM_AI_NOT_CONFIGURED')
 
-  if (!getPlatformOpenRouterKey()) return NextResponse.json({ answer: fallback, source: 'facts' })
   try {
     const config = await getPlatformAiConfig()
-    if (!(await hasPlatformAiBudget(config))) return NextResponse.json({ answer: fallback, source: 'facts' })
-    const alias = applyPlatformModelPolicy('fast', config)
-    const model = resolveModelId(alias, config.providerModels)
-    const completion = await chatCompletion({
-      model,
-      messages: [
-        { role: 'system', content: `You are Vigento, a concise workspace operations copilot. Answer only from LIVE_FACTS. Never invent sales, revenue, identities, or outcomes. Clearly say when data is unavailable. This endpoint is READ ONLY: if the user asks to mutate credit, delete data, edit files, or change a record, provide a short preview of the requested operation and state that confirmation-enabled execution is not available yet; never claim it happened. Reply in ${fa ? 'Persian' : 'English'}. LIVE_FACTS=${JSON.stringify(facts)}` },
-        { role: 'user', content: parsed.data.message },
-      ],
-      temperature: 0.2,
-      maxTokens: 520,
+    if (!(await hasPlatformAiBudget(config))) return answerWithFallback('PLATFORM_AI_BUDGET_REACHED')
+
+    const history = await repository.loadHistory(18)
+    const result = await runWorkspaceVigento({
+      repository,
+      language,
+      history: history.slice(0, -1),
+      message,
     })
-    await prisma.usageLog.create({ data: { workspaceId: user.workspaceId, type: 'VIGENTO_ASSISTANT', model, promptTokens: completion.usage.promptTokens, completionTokens: completion.usage.completionTokens, reasoningTokens: completion.usage.reasoningTokens, cachedTokens: completion.usage.cachedTokens, providerRequestId: completion.usage.providerRequestId, cost: completion.usage.costUSD } }).catch(() => {})
-    return NextResponse.json({ answer: completion.content || fallback, source: 'ai' })
-  } catch {
-    return NextResponse.json({ answer: fallback, source: 'facts' })
+    await repository.saveMessage('ASSISTANT', result.answer)
+    await Promise.all([
+      prisma.usageLog.create({
+        data: {
+          workspaceId: user.workspaceId,
+          type: 'VIGENTO_ASSISTANT',
+          model: result.providerModel,
+          promptTokens: result.usage.promptTokens,
+          completionTokens: result.usage.completionTokens,
+          reasoningTokens: result.usage.reasoningTokens,
+          cachedTokens: result.usage.cachedTokens,
+          providerRequestId: result.usage.providerRequestId,
+          cost: result.usage.costUSD,
+        },
+      }).catch(() => null),
+      prisma.vigentoRun.create({
+        data: {
+          workspaceId: user.workspaceId,
+          status: 'SUCCEEDED',
+          modelAlias: result.modelAlias,
+          skillVersion: VIGENTO_USER_SKILL_VERSION,
+          toolNames: result.toolNames,
+          principalKind: context.kind,
+          durationMs: Date.now() - startedAt,
+        },
+      }).catch(() => null),
+    ])
+    return NextResponse.json({
+      answer: result.answer,
+      source: 'ai',
+      modelAlias: result.modelAlias,
+      skillVersion: VIGENTO_USER_SKILL_VERSION,
+    })
+  } catch (error) {
+    return answerWithFallback(failureCode(error))
   }
 }
