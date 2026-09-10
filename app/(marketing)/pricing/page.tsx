@@ -14,12 +14,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP
 // genuinely bilingual and can carry hreflang alternates again.
 const COPY = {
         fa: {
-                title: 'تعرفه‌ها و پلن‌ها',
+                title: 'قیمت و تعرفه ایجنت هوش مصنوعی ویجنت | پلن‌ها و امکانات',
                 description: 'پلن‌ها، تعرفه ماهانه و اعتبار پاسخ هوش مصنوعی ویجنت را شفاف مقایسه کنید و پلن مناسب کسب‌وکار خود را انتخاب کنید.',
                 ogTitle: 'تعرفه‌ها و پلن‌های ویجنت',
                 ogDescription: 'مقایسه شفاف پلن‌ها، اعتبار پاسخ هوش مصنوعی و امکانات هر سطح از ویجنت.',
                 heroEyebrow: 'VIGENT PRICING',
-                h1: 'تعرفه روشن برای رشد واقعی کسب‌وکار',
+                h1: 'قیمت و تعرفه ایجنت هوش مصنوعی ویجنت',
                 subtitle: 'از یک ماه رایگان شروع کنید، پلن مناسب تعداد کانال‌های خود را انتخاب کنید و مصرف پاسخ‌های هوش مصنوعی را شفاف ببینید.',
                 assurancesLabel: 'مزایای تعرفه ویجنت',
                 assurances: [
@@ -39,7 +39,7 @@ const COPY = {
                 breadcrumbCurrent: 'تعرفه‌ها و پلن‌ها',
         },
         en: {
-                title: 'Pricing and plans',
+                title: 'Vigent AI Agent Pricing and Plans — Features per Tier',
                 description: 'Compare Vigent plans, monthly pricing and AI reply credit transparently, and pick the right plan for your business.',
                 ogTitle: 'Vigent pricing and plans',
                 ogDescription: 'A transparent comparison of plans, AI reply credit and what each Vigent tier includes.',

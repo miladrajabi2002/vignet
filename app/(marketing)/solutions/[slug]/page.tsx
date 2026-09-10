@@ -20,6 +20,8 @@ import {
 import { getLocale } from 'next-intl/server'
 import { SOLUTIONS, getLocalizedSolution, getLocalizedSolutions } from '@/lib/marketing/solutions'
 import { InstagramIcon } from '@/components/marketing/social-links'
+import { prisma } from '@/lib/prisma'
+import { getMainWorkspaceId } from '@/lib/blog/workspace'
 import { Spotlight } from '@/components/marketing/spotlight'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
@@ -74,7 +76,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 	return {
 		title: { absolute: solution.metaTitle },
 		description: solution.metaDescription,
-		keywords: solution.keywords,
 		category: 'technology',
 		alternates: { canonical },
 		robots: {
@@ -107,6 +108,27 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 	const Icon = meta.icon
 	const DirectionArrow = isFa ? ArrowLeft : ArrowRight
 	const canonical = `${SITE_URL}/solutions/${solution.slug}`
+	// Related blog posts for cluster internal linking (optional, only if the
+	// solution declares relatedArticles and the slugs exist in the DB).
+	const wsId = await getMainWorkspaceId()
+	const relatedArticles = solution.relatedArticles?.length
+		? await prisma.blogPost.findMany({
+				where: {
+					workspaceId: wsId ?? undefined,
+					status: 'PUBLISHED',
+					slug: { in: solution.relatedArticles },
+				},
+				select: { slug: true, title: true, excerpt: true, coverImage: true, readingMinutes: true },
+				take: 4,
+			}).catch(() => [])
+		: []
+	// Preserve the order from solution.relatedArticles for editorial intent.
+	const orderedArticles = relatedArticles
+		? solution.relatedArticles!
+				.map((slug) => relatedArticles.find((p) => p.slug === slug))
+				.filter((p): p is NonNullable<typeof p> => Boolean(p))
+		: []
+
 	const relatedSolutions = solutions.filter((item) => item.slug !== solution.slug).slice(0, 3)
 	const jsonLd = {
 		'@context': 'https://schema.org',
@@ -118,7 +140,6 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 				name: solution.metaTitle,
 				description: solution.metaDescription,
 				inLanguage: isFa ? 'fa-IR' : 'en-US',
-				keywords: solution.keywords.join(isFa ? '، ' : ', '),
 				breadcrumb: { '@id': `${canonical}#breadcrumb` },
 				mainEntity: { '@id': `${canonical}#service` },
 			},
@@ -131,7 +152,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 				url: canonical,
 				areaServed: { '@type': 'Country', name: isFa ? 'ایران' : 'Iran' },
 				audience: { '@type': 'BusinessAudience', audienceType: isFa ? 'کسب‌وکارهای فارسی‌زبان' : 'Businesses serving Persian and English-speaking customers' },
-				provider: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Vigent', alternateName: isFa ? 'ویجنت' : 'Vigento', url: SITE_URL },
+				provider: { '@id': `${SITE_URL}/#organization` },
 			},
 			{
 				'@type': 'BreadcrumbList',
@@ -225,7 +246,33 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 				</div>
 			</section>
 
-			<section aria-labelledby="related-solutions-title" className="border-t border-black/10 bg-[#f7f7f5] py-16 sm:py-20">
+			{orderedArticles.length > 0 && (
+			<section aria-labelledby="related-articles-title" className="border-t border-black/10 bg-white py-16 sm:py-20">
+				<div className="mx-auto max-w-6xl px-5 sm:px-8">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+						<div>
+							<p className="text-[11px] font-medium text-black/40">{isFa ? 'مطالعه مرتبط' : 'Related reading'}</p>
+							<h2 id="related-articles-title" className="mt-3 text-2xl font-semibold leading-[1.4] tracking-[-0.025em] text-black rtl:tracking-normal sm:text-3xl">{isFa ? 'برای این راهکار چه بخوانیم؟' : 'Read more about this solution'}</h2>
+						</div>
+					</div>
+					<div className="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+						{orderedArticles.map((article) => (
+							<Link key={article.slug} href={`/blog/${article.slug}`} className="group flex flex-col rounded-[1.35rem] border border-black/10 bg-[#fbfbf9] p-5 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-black/20 hover:shadow-[0_16px_40px_rgba(0,0,0,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+								{article.coverImage && (
+									// eslint-disable-next-line @next/next/no-img-element
+									<img src={article.coverImage} alt={article.title} loading="lazy" decoding="async" className="mb-4 aspect-[16/10] w-full rounded-xl object-cover" />
+								)}
+								<h3 className="text-sm font-semibold leading-7 text-black">{article.title}</h3>
+								{article.excerpt && <p className="mt-2 line-clamp-2 text-xs leading-6 text-black/50">{article.excerpt}</p>}
+								<span className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-black/50 transition-colors group-hover:text-black">{isFa ? 'مطالعه مقاله' : 'Read article'}<DirectionArrow className="h-3.5 w-3.5 transition-transform group-hover:rtl:-translate-x-0.5 group-hover:ltr:translate-x-0.5" /></span>
+							</Link>
+						))}
+					</div>
+				</div>
+			</section>
+		)}
+
+		<section aria-labelledby="related-solutions-title" className="border-t border-black/10 bg-[#f7f7f5] py-16 sm:py-20">
 				<div className="mx-auto max-w-6xl px-5 sm:px-8">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 						<div>

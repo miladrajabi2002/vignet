@@ -153,7 +153,7 @@ function ChannelLogo({ channel, small = false }: { channel: ChannelDefinition; s
                 return (
                         <Image
                                 src={channel.logoSrc}
-                                alt=""
+                                alt={channel.fa ?? channel.en ?? channel.key}
                                 width={90}
                                 height={40}
                                 loading="lazy"

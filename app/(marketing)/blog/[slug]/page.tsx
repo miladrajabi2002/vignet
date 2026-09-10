@@ -45,7 +45,6 @@ export async function generateMetadata(props: Props) {
                 title,
                 description,
                 alternates: { canonical: post.canonicalUrl || url },
-                keywords: post.seoKeywords,
                 openGraph: {
                         title,
                         description,
@@ -89,17 +88,12 @@ export default async function PublicBlogPostPage(props: Props) {
                 description: post.seoDescription ?? plainExcerpt,
                 datePublished: post.publishedAt?.toISOString() ?? post.createdAt.toISOString(),
                 dateModified: post.updatedAt.toISOString(),
-                author: { '@type': 'Organization', name: 'Vigent' },
-                publisher: {
-                        '@type': 'Organization',
-                        name: 'Vigent',
-                        url: 'https://vigent.ir',
-                },
+                author: { '@id': `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'}/#organization` },
+			publisher: { '@id': `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'}/#organization` },
                 mainEntityOfPage: {
                         '@type': 'WebPage',
                         '@id': `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/blog/${post.slug}`,
                 },
-                keywords: post.seoKeywords.join(', '),
                 image: post.ogImage ?? post.coverImage ?? undefined,
         }
 

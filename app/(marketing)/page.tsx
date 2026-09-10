@@ -32,16 +32,14 @@ const HOME_METADATA_COPY = {
 	fa: {
 		title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
 		description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
-		keywords: ['ایجنت هوش مصنوعی فارسی', 'پشتیبانی هوشمند مشتری', 'اتوماسیون اینستاگرام', 'چت‌بات فارسی', 'CRM چندکاناله', 'دستیار فروش هوشمند'],
-		openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
+				openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
 		openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
 		twitterDescription: 'فروش، پشتیبانی، رزرو و CRM چندکاناله با هوش مصنوعی فارسی.',
 	},
 	en: {
 		title: 'Vigent | AI Sales, Support and Omnichannel CRM',
 		description: 'Vigent unifies AI customer support, sales, booking, CRM and Instagram automation across Instagram, Telegram, Bale, Rubika and your website.',
-		keywords: ['AI sales agent', 'AI customer support', 'Instagram automation', 'omnichannel CRM', 'Persian AI chatbot', 'AI booking assistant'],
-		openGraphTitle: 'Vigent | Intelligent Business Operations',
+				openGraphTitle: 'Vigent | Intelligent Business Operations',
 		openGraphDescription: 'Run sales, support, booking, CRM and customer conversations across every channel with one AI agent and one dashboard.',
 		twitterDescription: 'AI-powered sales, support, booking and omnichannel CRM in one workspace.',
 	},
@@ -54,7 +52,6 @@ export async function generateMetadata(): Promise<Metadata> {
 	return {
 		title: { absolute: copy.title },
 		description: copy.description,
-		keywords: [...copy.keywords],
 		applicationName: 'Vigent',
 		category: 'business software',
 		alternates: {
@@ -151,7 +148,13 @@ export default async function HomePage() {
 			name: 'Vigent',
 			alternateName: structuredDataCopy.alternateName,
 			url: SITE_URL,
-			logo: `${SITE_URL}/android-chrome-512x512.png`,
+			logo: {
+				'@type': 'ImageObject',
+				url: `${SITE_URL}/android-chrome-512x512.png`,
+				width: 512,
+				height: 512,
+			},
+			image: `${SITE_URL}/android-chrome-512x512.png`,
 			telephone: SUPPORT_PHONE_E164,
 			contactPoint: {
 				'@type': 'ContactPoint',

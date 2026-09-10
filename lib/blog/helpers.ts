@@ -360,7 +360,13 @@ export function renderMarkdown(markdown: string): string {
 		if (h) {
 			flushParagraph()
 			closeList()
-			const level = h[1].length
+			// Demote markdown H1 (#) to HTML H2 — the article hero already
+			// renders the single page H1 (post.title). Google recommends
+			// exactly one H1 per page; without this, every published post
+			// that opens its markdown body with a `# Heading` line gets two
+			// H1s (hero + body), confusing Google's main-content detection.
+			const rawLevel = h[1].length
+			const level = Math.max(2, rawLevel)
 			out.push(`<h${level}>${inline(h[2])}</h${level}>`)
 			continue
 		}

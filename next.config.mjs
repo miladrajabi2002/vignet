@@ -40,6 +40,21 @@ const nextConfig = {
                                 destination: '/blog/woocommerce-ai-sales-automation',
                                 permanent: true,
                         },
+                        // SEO: reclaim URLs that still have GSC history but currently 404.
+                        // Smart WhatsApp+Telegram article -> closest topic (unified inbox).
+                        {
+                                source: '/blog/smart-whatsapp-telegram-chatbot-for-business',
+                                destination: '/blog/unified-inbox-instagram-whatsapp-telegram',
+                                permanent: true,
+                        },
+                        // Instagram automation safety: had GSC history before being deleted.
+                        // Redirect to the Instagram solution page until a dedicated safety
+                        // article is published (see SEO plan, item 15).
+                        {
+                                source: '/blog/instagram-automation-safety',
+                                destination: '/solutions/instagram',
+                                permanent: true,
+                        },
                 ]
         },
         async headers() {

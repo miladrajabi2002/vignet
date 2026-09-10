@@ -269,7 +269,7 @@ function ConnectedChannelLogos({ locale }: { locale: Locale }) {
                                                 className={`grid size-7 shrink-0 place-items-center rounded-lg border ${channel.surface}`}
                                         >
                                                 {channel.logoSrc ? (
-                                                        <Image src={channel.logoSrc} alt="" width={28} height={28} className="size-4 object-contain" />
+                                                        <Image src={channel.logoSrc} alt={locale === 'fa' ? `لوگوی ${channel.fa}` : `${channel.en} logo`} width={28} height={28} className="size-4 object-contain" />
                                                 ) : Icon ? (
                                                         <Icon className="size-3.5" />
                                                 ) : null}
