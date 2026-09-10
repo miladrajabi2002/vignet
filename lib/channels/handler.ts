@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
 import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
+import type { StartChatParams } from '@/lib/ai/chat-types'
 import { notifyHandoff } from '@/lib/ai/handoff'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
@@ -422,7 +423,10 @@ async function persistInstagramReaction(args: {
         created: boolean
 }> {
         return prisma.$transaction(async (tx) => {
-                const conversation = await tx.conversation.upsert({
+                // Reactions are annotations on an existing thread, never thread
+                // starters: an upsert here used to spawn an empty conversation whose
+                // only (hidden) row was the reaction itself.
+                const conversation = await tx.conversation.findUniqueOrThrow({
                         where: {
                                 agentId_channel_externalId: {
                                         agentId: args.agentId,
@@ -430,15 +434,6 @@ async function persistInstagramReaction(args: {
                                         externalId: args.externalId,
                                 },
                         },
-                        create: {
-                                workspaceId: args.workspaceId,
-                                agentId: args.agentId,
-                                contactId: args.contactId,
-                                channel: 'INSTAGRAM',
-                                externalId: args.externalId,
-                                customerInfoState: 'skipped',
-                        },
-                        update: { contactId: args.contactId },
                         select: { id: true, status: true, handedOff: true },
                 })
                 const inserted = await tx.message.createMany({
@@ -773,6 +768,11 @@ async function processChannelInbound(
                         if (!text) return
 
                         const inboundMetadata = inboundMessageMetadata(type, msg)
+                        // Verified channel media on this turn (trusted payload only,
+                        // never inferred from the customer's prose) — feeds the
+                        // visual-reference grounding skill and its deterministic guard.
+                        const inboundMediaKind: StartChatParams['inboundMediaKind'] =
+                                msg.voiceFileId && !msg.mediaKind ? 'voice' : msg.mediaKind
 
                         let scenarioHandled = false
                         let reactionClassInput = false
@@ -828,6 +828,27 @@ async function processChannelInbound(
                                                         return
                                                 }
                                         }
+                                }
+                        }
+
+                        // A native reaction with no existing thread has nothing to
+                        // attach to. The inbox UI folds reaction rows into their target
+                        // message; when that target doesn't exist the conversation
+                        // renders permanently empty (observed: a thread whose only row
+                        // was a hidden ❤). Settle the event without creating a
+                        // conversation or a contact.
+                        if (type === 'INSTAGRAM' && msg.kind === 'REACTION') {
+                                const reactionTargetThread = await prisma.conversation.findFirst({
+                                        where: {
+                                                agentId: agent.id,
+                                                channel: 'INSTAGRAM',
+                                                externalId: msg.chatId,
+                                        },
+                                        select: { id: true },
+                                })
+                                if (!reactionTargetThread) {
+                                        outcome = 'REACTION_NO_THREAD'
+                                        return
                                 }
                         }
 
@@ -1388,6 +1409,7 @@ async function processChannelInbound(
                                                 conversationId: persistedInbound.conversationId,
                                                 externalId: msg.chatId,
                                                 inboundMetadata,
+                                                inboundMediaKind,
                                                 inboundEventId: eventLease.id,
                                                 inboundAlreadyPersisted: true,
                                         },

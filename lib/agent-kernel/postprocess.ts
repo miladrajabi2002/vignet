@@ -1,9 +1,16 @@
 import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
+import { enforceActionCapabilities } from '@/lib/agent-kernel/skills/action-capabilities'
+import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 
 export interface AgentSkillPostprocessContext {
   /** Trusted rows selected by the scoped catalog repository for this turn. */
   catalogProducts?: Array<{ name: string }>
+  /** Current customer text is required for deterministic capability guards. */
+  userMessage?: string
+  isFa?: boolean
+  /** Verified channel media on this turn, when the platform payload proves one. */
+  inboundMediaKind?: string
 }
 
 function normalizeIdentity(value: string): string {
@@ -34,6 +41,21 @@ export function runAgentSkillPostprocessors(
   context: AgentSkillPostprocessContext = {},
 ): string {
   let output = reply
+  if (hasAgentSkill(plan, 'action-capability-boundaries') && context.userMessage) {
+    output = enforceActionCapabilities({
+      reply: output,
+      userMessage: context.userMessage,
+      isFa: context.isFa ?? true,
+    })
+  }
+  if (hasAgentSkill(plan, 'visual-reference-grounding') && context.userMessage) {
+    output = enforceVisualReferenceGrounding({
+      reply: output,
+      userMessage: context.userMessage,
+      inboundMediaKind: context.inboundMediaKind,
+      isFa: context.isFa ?? true,
+    })
+  }
   if (hasAgentSkill(plan, 'product-consultation')) {
     output = ensureSingleProductIdentity(output, context)
   }

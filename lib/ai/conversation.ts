@@ -41,9 +41,9 @@ export interface ProductRequestPlan {
 }
 
 const PRODUCT_INTENT_RE =
-        /(?:محصول|کالا|کاتالوگ|فروشگاه|قیمت|موجود|خرید|پیراهن|لباس|کفش|کیف|product|catalog|price|buy|shop|in\s*stock|available)/i
+        /(?:محصول|کالا|کاتالوگ|فروشگاه|قیمت|موجود|خرید|پیراهن|لباس|کفش|کیف|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه|product|catalog|price|buy|shop|in\s*stock|available)/i
 const PRODUCT_SUBJECT_RE =
-        /(?:محصول|کالا|کاتالوگ|فروشگاه|پیراهن|لباس|کفش|کیف|product|catalog|shop)/i
+        /(?:محصول|کالا|کاتالوگ|فروشگاه|پیراهن|لباس|کفش|کیف|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه|product|catalog|shop)/i
 /**
  * Natural shopping language often contains no catalog noun at all:
  * «دنبال جنس بابوس هستم», «یه چیز خنک می‌خوام», or "looking for linen".
@@ -98,6 +98,33 @@ const ORDER_ONLY_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|ار
 // the customer's policy question.
 const BUSINESS_POLICY_RE =
         /(?:ارسال\s*رایگان|هزینه\s*ارسال|شرایط\s*ارسال|محدوده\s*ارسال|شهر(?:های)?\s*تحت\s*پوشش|زمان\s*تحویل|گارانتی|ضمانت|مرجوعی|بازگشت\s*وجه|روش\s*پرداخت|پرداخت\s*قسط|فاکتور|ساعت\s*کاری|free\s*shipping|shipping\s*(?:cost|policy|coverage)|delivery\s*time|warranty|returns?\s*policy|refund|payment\s*method|invoice|business\s*hours)/i
+// ─── Courier / shipping-method questions are business policy, never a product
+// showcase. «فروشگاه قبول می‌کنه با اسنپ هم ارسال کنه؟» previously matched
+// SHOWCASE_COMMAND_RE («ارسال») + PRODUCT_INTENT_RE («فروشگاه»), produced an
+// explicit showcase and dumped a 10-card catalog. A strong shipping signal
+// must win even when the same sentence names the shop or a garment, so these
+// are kept separate from BUSINESS_POLICY_RE (whose policyOnly guard yields
+// whenever a product subject noun is present).
+const UNAMBIGUOUS_CARRIER_RE = /(?:اسنپ|تی\s*پاکس|چاپار|باربری)/iu
+const CARRIER_WORD_RE = /(?:اسنپ|تی\s*پاکس|پست|پیک|چاپار|باربری)/iu
+const SEND_VERB_RE = /(?:ارسال|بفرست|می\s*فرست|میفرست|تحویل|برسون)/iu
+// «ماشین» only counts together with a send verb ("با ماشین برام ارسال کنن").
+const SHIPPING_METHOD_RE =
+        /(?:نحوه|روش|شرایط|محدوده)\s*ارسال|چطور\s*(?:می\s*)?ارسال|چجوری\s*(?:می\s*)?ارسال|(?:با|از)\s*(?:اسنپ|تی\s*پاکس|پست|پیک|ماشین|باربری|چاپار)[^.!؟?\n]{0,40}(?:ارسال|بفرست|می\s*فرست|میفرست)|(?:ارسال|بفرست|می\s*فرست|میفرست)[^.!؟?\n]{0,40}(?:با|از)\s*(?:اسنپ|تی\s*پاکس|پست|پیک|ماشین|باربری|چاپار)|(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:ارسال|بفرست|می\s*فرست|میفرست)/iu
+/** Objects that make a send-verb a showcase demand rather than a shipping one. */
+const SHOWCASE_OBJECT_RE =
+        /(?:کاتالوگ|لیست|فهرست|عکس|تصاویر|تصویر|قیمت[ها]?|مدل[ها]?|گزینه[ها]?|محصولات|product|catalog|photo|image|price|list)/i
+/**
+ * A courier or shipping-method question that must be answered from business
+ * policy knowledge instead of triggering catalog retrieval/showcase. Bare
+ * «پست» (an Instagram post) only counts together with a send verb, so
+ * «پستتون قشنگ بود» keeps its normal non-policy handling.
+ */
+function isShippingPolicyQuestion(normalized: string): boolean {
+        if (UNAMBIGUOUS_CARRIER_RE.test(normalized)) return true
+        if (CARRIER_WORD_RE.test(normalized) && SEND_VERB_RE.test(normalized)) return true
+        return SHIPPING_METHOD_RE.test(normalized) && !SHOWCASE_OBJECT_RE.test(normalized)
+}
 // Bare «وقت» would match the greeting «وقت بخیر», so it only counts with a
 // booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).
 const SERVICE_ONLY_RE =
@@ -264,7 +291,10 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const normalized = normalizePersianText(message)
         const resetRequested = RESET_CONTEXT_RE.test(normalized)
         const orderOnly = ORDER_ONLY_RE.test(normalized)
-        const policyOnly = BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
+        // A strong courier/shipping signal overrides the generic product-subject
+        // guard: «فروشگاه با اسنپ هم ارسال می‌کنه؟» must stay a policy question.
+        const policyOnly = isShippingPolicyQuestion(normalized)
+                || (BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized))
         const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)

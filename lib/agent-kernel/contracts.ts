@@ -7,6 +7,8 @@ export type AgentSkillKey =
   | 'response-style'
   | 'conversation-flow'
   | 'evidence-grounding'
+  | 'action-capability-boundaries'
+  | 'visual-reference-grounding'
   | 'knowledge-retrieval'
   | 'product-consultation'
   | 'order-tracking'
@@ -41,6 +43,8 @@ export interface AgentSkillPlanInput {
   salesIntelligenceEnabled?: boolean
   richProductCards?: boolean
   deterministicClosing?: boolean
+  /** Verified media on the current inbound event, never inferred from prose. */
+  inboundMediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
 }
 
 export interface AgentSkillPlan {
@@ -51,6 +55,8 @@ export interface AgentSkillPlan {
     responseStyle: string
     conversationFlow: string
     evidence: string
+    capabilities: string
+    visualReference: string
     ending: string
   }
 }

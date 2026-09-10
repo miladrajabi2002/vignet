@@ -31,6 +31,7 @@ type Receipt = {
     | 'slots_checked'
     | 'appointment_booked'
     | 'appointment_cancelled'
+    | 'model_error'
   count?: number
 }
 
@@ -54,6 +55,7 @@ function asReceipt(value: unknown): Receipt | null {
     'slots_checked',
     'appointment_booked',
     'appointment_cancelled',
+    'model_error',
   ]
   if (!kinds.includes(row.kind as Receipt['kind'])) return null
   return {
@@ -84,6 +86,8 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
         return 'Appointment confirmed and recorded'
       case 'appointment_cancelled':
         return 'Appointment cancellation recorded'
+      case 'model_error':
+        return 'AI service error — reply not generated from knowledge'
     }
   }
 
@@ -106,6 +110,8 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
       return 'نوبت تأیید و در تقویم ثبت شد'
     case 'appointment_cancelled':
       return 'لغو نوبت در تقویم ثبت شد'
+    case 'model_error':
+      return 'خطای سرویس هوش مصنوعی — پاسخ از پایگاه دانش تولید نشد'
   }
 }
 
@@ -119,6 +125,7 @@ const receiptIcons: Record<Receipt['kind'], typeof BadgeCheck> = {
   slots_checked: CalendarClock,
   appointment_booked: CalendarCheck2,
   appointment_cancelled: CalendarX2,
+  model_error: TriangleAlert,
 }
 
 export function MessageActivityReceipts({
@@ -162,7 +169,12 @@ export function MessageActivityReceipts({
           <span
             key={`${receipt.kind}-${index}`}
             role="listitem"
-            className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[11px] leading-4 text-emerald-700 dark:text-emerald-300"
+            className={cn(
+              'inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] leading-4',
+              receipt.kind === 'model_error'
+                ? 'border border-amber-500/20 bg-amber-500/[0.08] text-amber-700 dark:text-amber-300'
+                : 'border border-emerald-500/15 bg-emerald-500/[0.07] text-emerald-700 dark:text-emerald-300',
+            )}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             {receiptCopy(receipt, locale)}

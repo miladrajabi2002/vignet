@@ -344,7 +344,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}\n${skillPlan.instructions.ending}`,
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
   }
 
   return [

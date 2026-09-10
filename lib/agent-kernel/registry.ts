@@ -3,16 +3,20 @@ import type { AgentSkillManifest, AgentSkillPlan, AgentSkillPlanInput } from '@/
 import { RESPONSE_STYLE_SKILL_VERSION, responseStyleInstruction } from '@/lib/agent-kernel/skills/response-style'
 import { CONVERSATION_FLOW_SKILL_VERSION, conversationFlowInstruction } from '@/lib/agent-kernel/skills/conversation-flow'
 import { EVIDENCE_GROUNDING_SKILL_VERSION, evidenceGroundingInstruction } from '@/lib/agent-kernel/skills/evidence-grounding'
+import { ACTION_CAPABILITY_SKILL_VERSION, actionCapabilityInstruction } from '@/lib/agent-kernel/skills/action-capabilities'
+import { needsVisualReferenceSkill, VISUAL_REFERENCE_SKILL_VERSION, visualReferenceInstruction } from '@/lib/agent-kernel/skills/visual-reference'
 
-export const AGENT_KERNEL_VERSION = '2026.09.10'
+export const AGENT_KERNEL_VERSION = '2026.09.11'
 
 const manifests = {
   security: { key: 'security-boundaries', version: '1.0.0', phase: 'policy', priority: 1000, description: 'Immutable safety and instruction hierarchy.' },
+  capabilities: { key: 'action-capability-boundaries', version: ACTION_CAPABILITY_SKILL_VERSION, phase: 'policy', priority: 925, description: 'Prevent claims about actions the runtime cannot execute.' },
   evidence: { key: 'evidence-grounding', version: EVIDENCE_GROUNDING_SKILL_VERSION, phase: 'policy', priority: 900, description: 'Ground business claims and action outcomes in trusted evidence.' },
+  visualReference: { key: 'visual-reference-grounding', version: VISUAL_REFERENCE_SKILL_VERSION, phase: 'policy', priority: 875, description: 'Distinguish verified inbound media from references to earlier outbound cards.' },
   flow: { key: 'conversation-flow', version: CONVERSATION_FLOW_SKILL_VERSION, phase: 'policy', priority: 800, description: 'Preserve continuity and ask only necessary questions.' },
   style: { key: 'response-style', version: RESPONSE_STYLE_SKILL_VERSION, phase: 'policy', priority: 700, description: 'Apply the configured natural response style.' },
   knowledge: { key: 'knowledge-retrieval', version: '1.0.0', phase: 'context', priority: 600, description: 'Use workspace- and agent-scoped knowledge.' },
-  product: { key: 'product-consultation', version: '1.2.0', phase: 'context', priority: 610, description: 'Answer from the assigned product catalog and preserve exact single-product identity.' },
+  product: { key: 'product-consultation', version: '1.3.0', phase: 'context', priority: 610, description: 'Answer from the assigned product catalog and preserve exact single-product identity.' },
   order: { key: 'order-tracking', version: '1.0.0', phase: 'context', priority: 620, description: 'Read an exact workspace-scoped order without mutation.' },
   identification: { key: 'customer-identification', version: '1.0.0', phase: 'action', priority: 650, description: 'Collect the configured minimum customer identity.' },
   preferences: { key: 'customer-preferences', version: '1.0.0', phase: 'context', priority: 500, description: 'Apply explicit CRM interaction preferences.' },
@@ -31,7 +35,9 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
   const isFa = input.language !== 'en'
   const selected: Array<AgentSkillManifest | null> = [
     manifests.security,
+    manifests.capabilities,
     manifests.evidence,
+    needsVisualReferenceSkill(input) ? manifests.visualReference : null,
     manifests.flow,
     manifests.style,
     !input.deterministicClosing && input.hasKnowledgeContext ? manifests.knowledge : null,
@@ -60,6 +66,13 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
         userMessage: input.userMessage,
       }),
       evidence: evidenceGroundingInstruction(isFa),
+      capabilities: actionCapabilityInstruction(isFa),
+      visualReference: visualReferenceInstruction({
+        isFa,
+        userMessage: input.userMessage,
+        history: input.history,
+        inboundMediaKind: input.inboundMediaKind,
+      }),
       ending: responseEndingInstruction(isFa),
     },
   }

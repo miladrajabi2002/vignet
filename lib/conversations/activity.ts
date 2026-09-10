@@ -20,6 +20,7 @@ export type ConversationReceiptKind =
   | 'slots_checked'
   | 'appointment_booked'
   | 'appointment_cancelled'
+  | 'model_error'
 
 export type ConversationTimelineKind =
   | 'customer_identified'
@@ -59,10 +60,30 @@ function productCardCount(content: string): number {
   return content.match(/\[\[product:\{[\s\S]*?\}\]\]/g)?.length ?? 0
 }
 
+function knowledgeChunkCount(chunks: Array<{ metadata: unknown }>): number {
+  // Product chunks are counted separately as catalog_checked; counting them
+  // again as knowledge_used produced misleading "12 knowledge sections"
+  // labels on turns that used a single policy chunk plus 11 product rows.
+  return chunks.filter((chunk) => {
+    if (!chunk.metadata || typeof chunk.metadata !== 'object') return true
+    return !('productId' in (chunk.metadata as Record<string, unknown>))
+  }).length
+}
+
 /** Build receipts only from facts that actually happened during the turn. */
-export function buildTurnReceipts(evidence: TurnEvidence): ConversationReceipt[] {
+export function buildTurnReceipts(
+  evidence: TurnEvidence,
+  options: { serviceError?: boolean } = {},
+): ConversationReceipt[] {
+  if (options.serviceError) {
+    // The reply is the provider-failure fallback: nothing in it was built
+    // from retrieved knowledge or catalog rows, so the turn must not claim
+    // "checked N sources". An explicit model_error receipt keeps the UI
+    // honest about why the customer saw the technical-apology text.
+    return [{ kind: 'model_error' }]
+  }
   const receipts: ConversationReceipt[] = []
-  const chunkCount = evidence.retrievedChunks.length
+  const chunkCount = knowledgeChunkCount(evidence.retrievedChunks)
   const catalogCount = uniqueProductCount(evidence.retrievedChunks)
   const cards = productCardCount(evidence.assistantReply)
   const normalizedQuestion = evidence.userMessage.toLocaleLowerCase('fa')

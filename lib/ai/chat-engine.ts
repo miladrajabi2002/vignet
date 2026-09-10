@@ -551,6 +551,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                         language: agent.language,
                         userMessage: message,
                         history: turnHistory,
+                        // Verified channel media on this turn (never inferred from prose).
+                        inboundMediaKind: params.inboundMediaKind,
                         hasKnowledgeContext: Boolean(contextText),
                         productTurn: productRequest.isProductTurn,
                         catalogAccessEnabled: agent.productAccessEnabled,
@@ -716,13 +718,22 @@ async function persistAssistantTurn(params: {
         skillPlan: AgentSkillPlan
         inboundEventId?: string
         inboundAlreadyPersisted?: boolean
+        /**
+         * True when the reply body is the provider-failure fallback: nothing in
+         * it was generated from retrieved knowledge or catalog rows, so the
+         * turn must not claim "checked N sources" receipts.
+         */
+        serviceError?: boolean
 }): Promise<{ messageId: string }> {
         const unanswered = detectUnanswered(params.reply, params.agent.fallbackMessage)
-        const receipts = buildTurnReceipts({
-                userMessage: params.userMessage,
-                assistantReply: params.reply,
-                retrievedChunks: params.retrievedChunks,
-        })
+        const receipts = buildTurnReceipts(
+                {
+                        userMessage: params.userMessage,
+                        assistantReply: params.reply,
+                        retrievedChunks: params.serviceError ? [] : params.retrievedChunks,
+                },
+                { serviceError: params.serviceError },
+        )
         for (const receipt of params.extraReceipts ?? []) {
                 if (!receipts.some((item) => item.kind === receipt.kind)) receipts.push(receipt)
         }
@@ -1047,6 +1058,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         // A5: canonical chat style — drop trailing periods on short Persian prose.
                         full = runAgentSkillPostprocessors(full, skillPlan, {
                                 catalogProducts: providerFailed ? [] : catalogProducts,
+                                userMessage: message,
+                                isFa: agent.language !== 'en',
+                                inboundMediaKind: params.inboundMediaKind,
                         })
                         send({ type: 'replace', text: full })
 
@@ -1064,6 +1078,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         skillPlan,
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
+                                        serviceError: providerFailed,
                                 })
                                 send({ type: 'done', messageId })
                         } catch (e) {
@@ -1332,6 +1347,9 @@ export async function generateReply(
         // A5: canonical chat style — drop trailing periods on short Persian prose.
         reply = runAgentSkillPostprocessors(reply, skillPlan, {
                 catalogProducts: providerFailed ? [] : catalogProducts,
+                userMessage: message,
+                isFa: agent.language !== 'en',
+                inboundMediaKind: params.inboundMediaKind,
         })
 
         let persistedMessageId: string | undefined
@@ -1348,6 +1366,7 @@ export async function generateReply(
                         skillPlan,
                         inboundEventId: params.inboundEventId,
                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
+                        serviceError: providerFailed,
                 })
                 persistedMessageId = persisted.messageId
         } catch (e) {

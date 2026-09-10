@@ -29,14 +29,28 @@ export interface InboundMessage {
   /** Opaque file id for an attached voice message, if any. */
   voiceFileId?: string
   /**
-   * True when the inbound carried a non-voice media attachment (photo, video,
-   * sticker, file…) with no usable text (A13). The handler answers these with
-   * a configurable fixed reply BEFORE any automation or AI turn so the model
-   * never guesses media content.
+   * True when the inbound carried a media attachment (photo, video, sticker,
+   * file…), with or without caption text (A13). The handler answers media-only
+   * turns with a configurable fixed reply BEFORE any automation or AI turn so
+   * the model never guesses media content; captioned media keeps its AI turn
+   * with a verified media-kind signal for visual-reference grounding.
    */
   hasMedia?: boolean
   /** Coarse media classification used for the inbox placeholder label. */
   mediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
+  /**
+   * Platform-provided direct URL for the attachment (Instagram webhook CDN
+   * URL). Stored as a view-time reference in message metadata and proxied on
+   * demand by the conversation media route — the file itself is never
+   * persisted on this server.
+   */
+  mediaUrl?: string
+  /**
+   * Opaque platform file id for the attachment (Telegram/Bale photo/video/
+   * voice). Resolved back to a downloadable URL via getFile at view time by
+   * the conversation media route; no bytes are stored locally.
+   */
+  mediaFileId?: string
   /** When the inbound is itself a reply to another message (e.g. Telegram reply_to_message), the platform message id being quoted. */
   replyToMessageId?: string
   /**

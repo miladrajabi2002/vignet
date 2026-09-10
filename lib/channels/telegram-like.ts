@@ -122,6 +122,37 @@ export function createTelegramLikeAdapter(opts: {
         ? [from.first_name, from.last_name].filter(Boolean).join(' ') ||
           from.username
         : undefined
+      // Media detection for the shared pipeline + view-time display:
+      //   • photo → largest size's file_id (highest resolution)
+      //   • video / sticker / document → their file_id
+      //   • voice / audio → kept on voiceFileId for STT transcription and
+      //     also surfaced as a media reference for the player in the inbox.
+      // A photo without a caption previously produced no text, no hasMedia
+      // and no voiceFileId — the handler dropped the event entirely. A
+      // captioned photo lost its media signal. Both now carry a verified
+      // media reference; the bytes themselves are only proxied on demand.
+      const photoFileId = msg.photo?.length
+        ? msg.photo[msg.photo.length - 1]?.file_id
+        : undefined
+      const mediaKind: InboundMessage['mediaKind'] | undefined = photoFileId
+        ? 'photo'
+        : msg.video
+          ? 'video'
+          : msg.voice
+            ? 'voice'
+            : msg.audio
+              ? 'audio'
+              : msg.sticker
+                ? 'sticker'
+                : msg.document
+                  ? 'file'
+                  : undefined
+      const mediaFileId = photoFileId
+        ?? msg.video?.file_id
+        ?? msg.sticker?.file_id
+        ?? msg.document?.file_id
+        ?? msg.voice?.file_id
+        ?? msg.audio?.file_id
       return [
         {
           chatId: String(msg.chat.id),
@@ -139,6 +170,13 @@ export function createTelegramLikeAdapter(opts: {
               ? `${msg.chat.id}:${msg.message_id}`
               : undefined,
           voiceFileId: msg.voice?.file_id ?? msg.audio?.file_id,
+          ...(mediaKind
+            ? {
+                hasMedia: true,
+                mediaKind,
+                mediaFileId,
+              }
+            : {}),
           // Telegram reply_to_message → quote link (best-effort, stringified id).
           replyToMessageId: msg.reply_to_message?.message_id
             ? String(msg.reply_to_message.message_id)
@@ -409,6 +447,10 @@ interface TgMessage {
   caption?: string
   voice?: { file_id: string }
   audio?: { file_id: string }
+  photo?: Array<{ file_id: string }>
+  video?: { file_id: string }
+  sticker?: { file_id: string }
+  document?: { file_id: string }
   reply_to_message?: { message_id: number | string }
 }
 

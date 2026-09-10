@@ -44,6 +44,13 @@ export interface StartChatParams {
         contactPhone?: string | null
         /** Channel-native origin (DM/comment/story/reaction) persisted on the USER message. */
         inboundMetadata?: Prisma.InputJsonValue
+        /**
+         * Media classification for a verified channel attachment on this turn
+         * (photo/video/voice/sticker/file/audio). Comes from trusted channel
+         * payload parsing only — never inferred from the message prose — and
+         * feeds the visual-reference grounding skill.
+         */
+        inboundMediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
         /** Durable channel event that owns this turn (messenger workers only). */
         inboundEventId?: string
         /** The channel handler already persisted/counted the USER message. */

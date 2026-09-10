@@ -20,6 +20,14 @@ export type InboundSource = {
   storyId?: string
   storyMediaType?: string
   pendingFolder?: boolean
+  /**
+   * Verified attachment reference (view-time only, never a stored file):
+   * `mediaKind` + `mediaUrl` (Instagram CDN URL) or `mediaFileId`
+   * (Telegram/Bale file id resolved via getFile on demand).
+   */
+  mediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
+  mediaUrl?: string
+  mediaFileId?: string
 }
 
 /** Stable metadata written on every messenger USER message. */
@@ -38,6 +46,14 @@ export function inboundMessageMetadata(
   if (message.storyId) source.storyId = message.storyId
   if (message.storyMediaType) source.storyMediaType = message.storyMediaType
   if (message.pendingFolder) source.pendingFolder = true
+  // Verified channel attachment reference for view-time media display. The
+  // URL/id is a channel-scoped pointer only — the media proxy route resolves
+  // it live and the file is never persisted on this server.
+  const mediaKind = message.voiceFileId && !message.mediaKind ? 'voice' : message.mediaKind
+  if (mediaKind) source.mediaKind = mediaKind
+  if (message.mediaUrl) source.mediaUrl = message.mediaUrl
+  const mediaFileId = message.mediaFileId ?? message.voiceFileId
+  if (mediaFileId) source.mediaFileId = mediaFileId
   return { vigentoInbound: source as Prisma.InputJsonObject }
 }
 

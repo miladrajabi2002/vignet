@@ -297,6 +297,12 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                                         : t === 'audio' ? 'audio'
                                                                         : t === 'media_share' ? 'photo'
                                                                         : (t as 'video' | 'sticker' | 'file'),
+                                                                // Platform CDN URL (short-lived): kept as a view-time
+                                                                // reference; the media proxy re-fetches on demand and
+                                                                // the file is never stored on this server.
+                                                                mediaUrl: typeof mediaAttachment.payload?.url === 'string'
+                                                                        ? mediaAttachment.payload.url
+                                                                        : undefined,
                                                         })
                                                 }
                                                 continue
@@ -312,6 +318,15 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         // Replying to a message-request via the API auto-accepts it and
                                         // moves it to Primary, so we WANT to attempt the reply (the handler
                                         // captures any send failure gracefully).
+                                        // A captioned media DM (photo/video/… + text) previously
+                                        // dropped the attachment entirely: the model then had no
+                                        // verified media signal and could claim «عکسی نفرستادید».
+                                        // Keep the trusted attachment reference next to the caption.
+                                        const captionedMedia = m.message?.attachments?.find((a) => {
+                                                const t = a?.type
+                                                return t === 'image' || t === 'video' || t === 'sticker'
+                                                        || t === 'audio' || t === 'file' || t === 'media_share'
+                                        })
                                         out.push({
                                                 chatId: senderId,
                                                 senderId,
@@ -319,6 +334,19 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 text,
                                                 kind: 'DM',
                                                 platformMessageId,
+                                                ...(captionedMedia
+                                                        ? {
+                                                                hasMedia: true,
+                                                                mediaKind: (captionedMedia.type === 'image' || captionedMedia.type === 'media_share'
+                                                                        ? 'photo'
+                                                                        : captionedMedia.type === 'audio'
+                                                                                ? 'audio'
+                                                                                : (captionedMedia.type as 'video' | 'sticker' | 'file')) as 'photo' | 'video' | 'sticker' | 'file' | 'audio',
+                                                                mediaUrl: typeof captionedMedia.payload?.url === 'string'
+                                                                        ? captionedMedia.payload.url
+                                                                        : undefined,
+                                                        }
+                                                        : {}),
                                         })
                                 }
 

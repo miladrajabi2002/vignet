@@ -40,6 +40,7 @@ import {
 } from './conversation-activity'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { presentConversationMessages } from '@/lib/conversations/reactions'
+import { InboundMedia } from './inbound-media'
 import { conversationSessionBoundaries } from '@/lib/conversations/session'
 import { ConversationSessionDivider } from './conversation-session-divider'
 
@@ -50,6 +51,33 @@ export type ThreadMessage = {
         createdAt: string
         contentType: string
         metadata: Record<string, unknown> | null
+}
+
+type InboundMediaKind = 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
+
+/** Verified channel media reference persisted by the inbound pipeline. */
+function readInboundMediaKind(metadata: Record<string, unknown> | null): InboundMediaKind | null {
+        const inbound = metadata && typeof metadata === 'object'
+                ? (metadata as Record<string, unknown>).vigentoInbound
+                : null
+        if (!inbound || typeof inbound !== 'object') return null
+        const kind = (inbound as Record<string, unknown>).mediaKind
+        const hasReference = Boolean(
+                (inbound as Record<string, unknown>).mediaUrl
+                || (inbound as Record<string, unknown>).mediaFileId,
+        )
+        if (!hasReference) return null
+        return typeof kind === 'string' && ['photo', 'video', 'voice', 'sticker', 'file', 'audio'].includes(kind)
+                ? (kind as InboundMediaKind)
+                : null
+}
+
+/** Media-only turns persist a label instead of text; the media element replaces it. */
+function isMediaPlaceholderText(content: string): boolean {
+        const t = content.trim()
+        return [
+                '[عکس]', '[ویدیو]', '[استیکر]', '[فایل]', '[پیام صوتی]', '[فایل صوتی]', '[پیام رسانه‌ای]',
+        ].includes(t)
 }
 
 export function ConversationThread({
@@ -262,6 +290,12 @@ export function ConversationThread({
                                                 : parseProductShowcaseContent(m.content)
                                         const hasShowcase = showcase.products.length > 0
                                         const reactions = reactionsByMessageId.get(m.id) ?? []
+                                        // Verified inbound channel media (photo/video/voice) is
+                                        // rendered through the view-time proxy; the placeholder
+                                        // label stands in only when the channel reference is
+                                        // missing or has expired.
+                                        const inboundMediaKind = isUser ? readInboundMediaKind(m.metadata) : null
+                                        const mediaOnlyLabel = Boolean(inboundMediaKind) && isMediaPlaceholderText(m.content)
                                         return (
                                                 <Fragment key={m.id}>
                                                 {sessionBoundaries.has(m.id) && <ConversationSessionDivider locale={locale} />}
@@ -281,7 +315,22 @@ export function ConversationThread({
                                                                         hasShowcase && !isUser && 'w-full max-w-full',
                                                                 )}
                                                         >
-                                                                {showcase.text && (
+                                                                {inboundMediaKind && (
+                                                                        <div className={cn('mb-1.5 flex max-w-full flex-col', isUser ? 'items-end' : 'items-start')}>
+                                                                                <InboundMedia
+                                                                                        conversationId={conversationId}
+                                                                                        messageId={m.id}
+                                                                                        kind={inboundMediaKind}
+                                                                                        locale={locale}
+                                                                                />
+                                                                                {mediaOnlyLabel && (
+                                                                                        <span className="mt-0.5 px-1 text-[10px] text-[var(--text-muted)]">
+                                                                                                {formatDateTime(new Date(m.createdAt), locale)}
+                                                                                        </span>
+                                                                                )}
+                                                                        </div>
+                                                                )}
+                                                                {showcase.text && !mediaOnlyLabel && (
                                                                 <div className="relative max-w-full">
                                                                 {isLiveMessage && (
                                                                         <motion.span
