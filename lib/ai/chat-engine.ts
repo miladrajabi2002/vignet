@@ -247,6 +247,9 @@ async function buildDeterministicTurnReply(params: {
                 agentId: params.agent.id,
                 isFa: params.agent.language !== 'en',
                 preferredProductIds: params.catalogProducts.map((product) => product.id),
+                identifiedProductIds: params.catalogProducts
+                        .filter((product) => product.fullTermMatch)
+                        .map((product) => product.id),
                 forceShowcase: true,
                 subjectPhrase: showcaseSubjectPhrase(params.productRequest),
         })
@@ -1029,6 +1032,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                 agentId: agent.id,
                                                 isFa: agent.language !== 'en',
                                                 preferredProductIds: catalogProducts.map((product) => product.id),
+                                                identifiedProductIds: catalogProducts
+                                                        .filter((product) => product.fullTermMatch)
+                                                        .map((product) => product.id),
                                                 forceShowcase: productRequest.explicitShowcase,
                                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
                                         })
@@ -1327,6 +1333,9 @@ export async function generateReply(
                                 agentId: agent.id,
                                 isFa: agent.language !== 'en',
                                 preferredProductIds: catalogProducts.map((product) => product.id),
+                                identifiedProductIds: catalogProducts
+                                        .filter((product) => product.fullTermMatch)
+                                        .map((product) => product.id),
                                 forceShowcase: productRequest.explicitShowcase,
                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
                         })

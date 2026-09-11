@@ -23,7 +23,8 @@ export interface ProductDirective {
  * and offers one narrowing question. Only catalog-noun terms are named so the
  * sentence stays true even when the ranking includes loosely related matches;
  * adjectives such as «مجلسی» are intentionally dropped because not every
- * returned product necessarily carries them.
+ * returned product necessarily carries them, and the caller additionally
+ * drops the subject entirely when the shown products do not carry it.
  */
 export function showcaseIntroText(params: {
   count: number
@@ -118,6 +119,11 @@ function normalizedProductMention(value: string): string {
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
     .replace(/[\u200c\u200d]/g, ' ')
+    // Catalog names usually carry ASCII digits («تونیک روناز 0788») while the
+    // model echoes the customer's script («تونیک روناز ۰۷۸۸»). Folding digit
+    // scripts keeps exact-name recovery working across both conventions.
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .toLocaleLowerCase('fa')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
@@ -177,14 +183,14 @@ export async function resolveProductShowcases(params: {
   })
 
   const byId = new Map(candidates.map(({ product }) => [product.id, product]))
-  const byName = new Map(candidates.map(({ product }) => [product.name.toLocaleLowerCase(), product]))
+  const byName = new Map(candidates.map(({ product }) => [normalizedProductMention(product.name), product]))
   const seen = new Set<string>()
   const output: TrustedProductShowcase[] = []
 
   for (const directive of directives) {
     const product =
       (directive.id ? byId.get(directive.id) : undefined) ??
-      (directive.name ? byName.get(directive.name.toLocaleLowerCase()) : undefined)
+      (directive.name ? byName.get(normalizedProductMention(directive.name)) : undefined)
     if (!product || seen.has(product.id)) continue
     seen.add(product.id)
     const attributeRows = [
@@ -247,6 +253,24 @@ export function formatProductFallback(products: TrustedProductShowcase[], isFa: 
 }
 
 /**
+ * The subject is only named when the shown products actually carry it.
+ * Vector search has no similarity floor, so a query such as «دوچرخه» on a
+ * fashion catalog still returns loosely related rows; calling those
+ * «مدل دوچرخه» would turn a weak ranking into a false customer-facing claim.
+ * At least half of the selected products must mention a subject term.
+ */
+function subjectIsCoveredByProducts(products: TrustedProductShowcase[], subject: string): boolean {
+  if (!subject) return false
+  const terms = subject.split(/\s+/).map((term) => normalizedProductMention(term)).filter(Boolean)
+  if (!terms.length) return false
+  const matches = products.filter((product) => {
+    const name = normalizedProductMention(product.name)
+    return terms.some((term) => name.includes(term))
+  }).length
+  return matches >= Math.ceil(products.length / 2)
+}
+
+/**
  * Replace model-authored markers with canonical DB snapshots before a public
  * web reply is persisted. Text may be model-authored; identity, price, image
  * and destination URL are always sourced from the product row.
@@ -262,15 +286,25 @@ export async function buildTrustedProductReply(params: {
   forceShowcase?: boolean
   /** Catalog subject noun(s) from the customer's own request, for the intro. */
   subjectPhrase?: string
+  /**
+   * Rows the deterministic search proved the customer named (every search
+   * term of a code-carrying query is covered by the row). Their cards are
+   * attached even to consultation replies the model paraphrased, and a
+   * forced showcase narrows to exactly these products.
+   */
+  identifiedProductIds?: string[]
 }): Promise<string> {
   const subject = (params.subjectPhrase ?? '').trim()
   const parsed = parseProductDirectives(params.raw)
   const preferredDirectives = [...new Set(params.preferredProductIds ?? [])]
     .slice(0, MAX_PRODUCTS_PER_REPLY)
     .map((id) => ({ id, name: '' }))
+  const identifiedDirectives = [...new Set(params.identifiedProductIds ?? [])]
+    .slice(0, MAX_PRODUCTS_PER_REPLY)
+    .map((id) => ({ id, name: '' }))
   const directives = params.forceShowcase
-    ? preferredDirectives
-    : [...parsed.directives, ...preferredDirectives]
+    ? (identifiedDirectives.length ? identifiedDirectives : preferredDirectives)
+    : [...parsed.directives, ...preferredDirectives, ...identifiedDirectives]
 
   if (!directives.length) {
     if (params.forceShowcase) {
@@ -298,11 +332,13 @@ export async function buildTrustedProductReply(params: {
     ))
     .map((product) => product.id))
   const preferredIds = new Set(preferredDirectives.map((directive) => directive.id))
+  const identifiedIds = new Set(identifiedDirectives.map((directive) => directive.id))
   const selectedProducts = params.forceShowcase
     ? products
     : products.filter((product) =>
       explicitlyResolved.has(product.id) ||
-      (preferredIds.has(product.id) && replyMentionsProduct(parsed.text, product.name)),
+      (preferredIds.has(product.id) && replyMentionsProduct(parsed.text, product.name)) ||
+      identifiedIds.has(product.id),
     )
 
   if (!selectedProducts.length) {
@@ -330,7 +366,11 @@ export async function buildTrustedProductReply(params: {
   })
 
   const visibleText = params.forceShowcase
-    ? showcaseIntroText({ count: selectedProducts.length, subject, isFa: params.isFa })
+    ? showcaseIntroText({
+        count: selectedProducts.length,
+        subject: subjectIsCoveredByProducts(selectedProducts, subject) ? subject : '',
+        isFa: params.isFa,
+      })
     : parsed.text
 
   return [visibleText, markers.join('\n')].filter(Boolean).join('\n\n')

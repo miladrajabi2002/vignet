@@ -38,6 +38,14 @@ export interface ProductRequestPlan {
         searchTerms: string[]
         /** Recommendations normally exclude stock=0. Product.stock=null means available/unlimited. */
         inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
+        /**
+         * The customer referenced an identifier-like product code (a bare
+         * leading-zero SKU such as «۰۷۸۸», or a «کد 0742»-style label). When
+         * the catalog search then finds a row covering every search term, that
+         * row is the exact item the customer named and its product card must
+         * be presented — on showcase and consultation turns alike.
+         */
+        codeIdentified: boolean
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -48,7 +56,7 @@ export interface ProductRequestPlan {
 // NOT bare tokens — only their unambiguous compounds are listed.
 const PRODUCT_NOUNS =
         'محصول|کالا|کاتالوگ|فروشگاه' +
-        '|پیراهن|لباس|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه' +
+        '|پیراهن|لباس|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|سارافان|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه' +
         '|کت|جین|شرت|هودی|سویشرت|تیشرت|تاپ|کراپ|کراوات|پاپیون|شال|چادر|شنل|جوراب|کلاه|دستکش|کمربند' +
         '|کفش|صندل|بوت|کالج|کتانی|دمپایی' +
         '|کیف|کوله|ساک|چمدان' +
@@ -143,10 +151,28 @@ const CARRIER_WORD_RE = /(?:اسنپ|تی\s*پاکس|پست|پیک|چاپار|ب
 const SEND_VERB_RE = /(?:ارسال|بفرست|می\s*فرست|میفرست|تحویل|برسون)/iu
 // «ماشین» only counts together with a send verb ("با ماشین برام ارسال کنن").
 const SHIPPING_METHOD_RE =
-        /(?:نحوه|روش|شرایط|محدوده)\s*ارسال|چطور\s*(?:می\s*)?ارسال|چجوری\s*(?:می\s*)?ارسال|(?:با|از)\s*(?:اسنپ|تی\s*پاکس|پست|پیک|ماشین|باربری|چاپار)[^.!؟?\n]{0,40}(?:ارسال|بفرست|می\s*فرست|میفرست)|(?:ارسال|بفرست|می\s*فرست|میفرست)[^.!؟?\n]{0,40}(?:با|از)\s*(?:اسنپ|تی\s*پاکس|پست|پیک|ماشین|باربری|چاپار)|(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:ارسال|بفرست|می\s*فرست|میفرست)/iu
+        /(?:نحوه|روش|شرایط|محدوده)\s*ارسال|چطور\s*(?:می\s*)?ارسال|چجوری\s*(?:می\s*)?ارسال|(?:با|از)\s*(?:اسنپ|تی\s*پاکس|پست|پیک|ماشین|باربری|چاپار)[^.!؟?\n]{0,40}(?:ارسال|بفرست|می\s*فرست|میفرست)|(?:ارسال|بفرست|می\s*فرست|میفرست)[^.!؟?\n]{0,40}(?:با|از)\s*(?:اسنپ|تی\s*پاکس|پست|پیک|ماشین|باربری|چاپار)/iu
 /** Objects that make a send-verb a showcase demand rather than a shipping one. */
 const SHOWCASE_OBJECT_RE =
         /(?:کاتالوگ|لیست|فهرست|عکس|تصاویر|تصویر|قیمت[ها]?|مدل[ها]?|گزینه[ها]?|محصولات|product|catalog|photo|image|price|list)/i
+/**
+ * «[چیز] رو بفرست» — the IMPERATIVE send command with no carrier word in
+ * sight. For an order/merchandise object («سفارشم رو بفرست») this is a
+ * fulfilment request and stays policy; for a product subject or code
+ * («تونیک روناز ۰۷۸۸ رو بفرست», «کفش رو بفرست») the same words are a
+ * showcase demand — the customer wants to SEE the item they just named.
+ * The guard inside isShippingPolicyQuestion tells the two apart.
+ */
+const BARE_SEND_IMPERATIVE_RE =
+        /(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:بفرست(?:ید|ین)?|ارسال\s*کن|ارسال\s*کنید|ارسال\s*کنین)/iu
+/**
+ * «[چیز] رو ارسال میکنید / رو میفرستین» — the interrogative/present-tense
+ * form asks WHETHER the shop ships, which is fulfilment policy even when the
+ * object is a garment («قسط‌ها تموم شد، لباس رو ارسال میکنید؟» must stay a
+ * shipping question, not a 10-card catalog dump).
+ */
+const BARE_SEND_QUESTION_RE =
+        /(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:ارسال|می\s*فرست|میفرست)/iu
 /**
  * A courier or shipping-method question that must be answered from business
  * policy knowledge instead of triggering catalog retrieval/showcase. Bare
@@ -156,7 +182,18 @@ const SHOWCASE_OBJECT_RE =
 function isShippingPolicyQuestion(normalized: string): boolean {
         if (UNAMBIGUOUS_CARRIER_RE.test(normalized)) return true
         if (CARRIER_WORD_RE.test(normalized) && SEND_VERB_RE.test(normalized)) return true
-        return SHIPPING_METHOD_RE.test(normalized) && !SHOWCASE_OBJECT_RE.test(normalized)
+        if (SHIPPING_METHOD_RE.test(normalized) && !SHOWCASE_OBJECT_RE.test(normalized)) return true
+        // «X رو ارسال میکنید؟» asks about fulfilment and stays policy even
+        // when X is a product noun.
+        if (BARE_SEND_QUESTION_RE.test(normalized) && !SHOWCASE_OBJECT_RE.test(normalized)) return true
+        // «X رو بفرست» is only a fulfilment/policy request when X is NOT a
+        // product the customer just named: a product subject noun or an
+        // identifier-like code turns the same words into a showcase demand.
+        return BARE_SEND_IMPERATIVE_RE.test(normalized)
+                && !SHOWCASE_OBJECT_RE.test(normalized)
+                && !PRODUCT_SUBJECT_RE.test(normalized)
+                && !PRODUCT_CODE_RE.test(normalized)
+                && !BARE_PRODUCT_CODE_RE.test(normalized)
 }
 // Bare «وقت» would match the greeting «وقت بخیر», so it only counts with a
 // booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).
@@ -263,8 +300,14 @@ function extractProductTerms(value: string): string[] {
                 // Persian plural suffixes are often written without a ZWNJ.
                 // Strip a colloquial possessive only when the base is a known
                 // product/generic term. Blindly stripping «تون» corrupts «تابستون».
-                const possessiveCandidate = token.length > 4
-                        ? token.replace(/(?:تون|مون|شون)$/u, '')
+                // «دامنش که عکس گذاشتین موجوده» (its skirt) must search for «دامن»:
+                // the bare possessive suffixes «ش»/«م» are stripped exactly like
+                // تون/مون/شون, but only when the remaining base is itself a known
+                // product noun or stopword, so real words are never corrupted
+                // («ستون» never becomes «س»: the base check rejects it, and the
+                // singular fallback drops 1-letter bases).
+                const possessiveCandidate = token.length > 3
+                        ? token.replace(/(?:تون|مون|شون|ش|م)$/u, '')
                         : token
                 const withoutPossessive = possessiveCandidate !== token && (
                         PRODUCT_STOP_WORDS.has(possessiveCandidate) || PRODUCT_SUBJECT_RE.test(possessiveCandidate)
@@ -518,6 +561,9 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         explicitCount ?? (explicitShowcase ? MAX_SHOWCASE_PRODUCTS : discoveryBrowse ? 6 : 5),
                 searchTerms,
                 inventoryMode,
+                // The customer named an identifier-like SKU; used to guarantee
+                // the exact catalog match is presented as a product card.
+                codeIdentified: productCodeSignal,
         }
 }
 
@@ -806,6 +852,11 @@ export async function fetchCatalogProducts(
 
         const semanticRank = new Map(rankedIds.map((id, index) => [id, index]))
         const phrase = terms.join(' ')
+        // A code-carrying query («تونیک روناز ۰۷۸۸») that is fully covered by
+        // one row has *identified* that exact catalog item: every search term
+        // (including the code) is part of the row. The presentation layer
+        // attaches that row's product card even on consultation turns.
+        const identifyByFullCoverage = plan.codeIdentified && terms.length > 0
         const ranked = rows.map((product) => {
                 const searchable = searchableProductText(product)
                 let coverage = 0
@@ -855,7 +906,7 @@ export async function fetchCatalogProducts(
                 return right.product.updatedAt.getTime() - left.product.updatedAt.getTime()
         })
 
-        return ranked.slice(0, Math.min(MAX_SHOWCASE_PRODUCTS, plan.requestedCount)).map(({ product }) => ({
+        return ranked.slice(0, Math.min(MAX_SHOWCASE_PRODUCTS, plan.requestedCount)).map(({ product, coverage }) => ({
                 id: product.id,
                 name: product.name,
                 description: product.description,
@@ -866,6 +917,7 @@ export async function fetchCatalogProducts(
                 url: product.externalUrl,
                 attributes: product.attributes,
                 tags: product.tags,
+                fullTermMatch: identifyByFullCoverage && coverage === terms.length,
         }))
 }
 

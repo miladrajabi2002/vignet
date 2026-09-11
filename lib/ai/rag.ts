@@ -20,6 +20,14 @@ export interface CatalogProduct {
   url: string | null
   attributes: unknown
   tags: string[]
+  /**
+   * True when this row matched EVERY search term of a code-carrying query
+   * (e.g. «تونیک روناز ۰۷۸۸») — the customer named this exact catalog item.
+   * The presentation layer then guarantees its product card is attached to
+   * the reply even on consultation turns, whether the model echoed the exact
+   * name or paraphrased it. False/undefined for ordinary ranked results.
+   */
+  fullTermMatch?: boolean
 }
 
 export interface CatalogService {
