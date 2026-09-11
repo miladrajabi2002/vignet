@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import {
         getPlatformOpenRouterKey,
-        streamChat,
+        streamChatWithRetry,
         chatCompletion,
         type ChatUsage,
 } from '@/lib/ai/openrouter'
@@ -965,7 +965,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         extraReceipts = bookingTurn.receipts
                                         send({ type: 'delta', text: full })
                                 } else {
-                                        for await (const delta of streamChat({
+                                        for await (const delta of streamChatWithRetry({
                                                 model,
                                                 messages,
                                                 temperature: AGENT_RESPONSE_TEMPERATURE,
@@ -1262,7 +1262,7 @@ export async function generateReply(
                         extraReceipts = bookingTurn.receipts
                         options.onTextUpdate?.(reply)
                 } else if (options.onTextUpdate) {
-                        for await (const delta of streamChat({
+                        for await (const delta of streamChatWithRetry({
                                 model,
                                 messages,
                                 temperature: AGENT_RESPONSE_TEMPERATURE,

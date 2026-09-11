@@ -40,10 +40,30 @@ export interface ProductRequestPlan {
         inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
 }
 
+// ─── Catalog intent vocabulary ───────────────────────────────────────────────
+// One shared noun list feeds both the intent and the subject matcher so every
+// store vertical (fashion, bags, shoes, jewelry, cosmetics, electronics, home,
+// food, books, toys, sports) gets the same routing quality. Words that are
+// ambiguous outside a shopping context (ساعت, پست, رژ, گل…) are intentionally
+// NOT bare tokens — only their unambiguous compounds are listed.
+const PRODUCT_NOUNS =
+        'محصول|کالا|کاتالوگ|فروشگاه' +
+        '|پیراهن|لباس|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه' +
+        '|کت|جین|شرت|هودی|سویشرت|تیشرت|تاپ|کراپ|کراوات|پاپیون|شال|چادر|شنل|جوراب|کلاه|دستکش|کمربند' +
+        '|کفش|صندل|بوت|کالج|کتانی|دمپایی' +
+        '|کیف|کوله|ساک|چمدان' +
+        '|عینک|ساعت\\s*مچی|ساعت\\s*هوشمند|گوشواره|گردنبند|دستبند|انگشتری|زیورآل|جواهر' +
+        '|عطر|آرایش|کرم|لاک|لوسیون|شامپو|ضد\\s*آفتاب' +
+        '|گوشی|موبایل|لپ\\s*تاپ|تبلت|هندزفری|هدست|ایرباد|پاوربانک|شارژر' +
+        '|فرش|قالی|مبل|مبلمان|پرده|روتختی|رو\\s*تختی|تشک|لحاف|پتو|بالش|لوستر|آباژور|ظروف|ست\\s*صبحانه' +
+        '|شکلات|کیک|شیرینی|قهوه|چای|عسل|خرما|آجیل|زعفران|برنج|روغن|خشکبار' +
+        '|اسباب\\s*بازی|کتاب|دفتر|مداد|خودکار' +
+        '|دوچرخه|اسکوتر|گلدان|اکسسوری'
+
 const PRODUCT_INTENT_RE =
-        /(?:محصول|کالا|کاتالوگ|فروشگاه|قیمت|موجود|خرید|پیراهن|لباس|کفش|کیف|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه|product|catalog|price|buy|shop|in\s*stock|available)/i
+        new RegExp(`(?:${PRODUCT_NOUNS}|قیمت|موجود|خرید|product|catalog|price|buy|shop|in\\s*stock|available)`, 'i')
 const PRODUCT_SUBJECT_RE =
-        /(?:محصول|کالا|کاتالوگ|فروشگاه|پیراهن|لباس|کفش|کیف|شومیز|بلوز|تونیک|دامن|شلوار|سارافون|مانتو|کاپشن|پالتو|بافت|روسری|مقنعه|product|catalog|shop)/i
+        new RegExp(`(?:${PRODUCT_NOUNS}|product|catalog|shop)`, 'i')
 /**
  * Natural shopping language often contains no catalog noun at all:
  * «دنبال جنس بابوس هستم», «یه چیز خنک می‌خوام», or "looking for linen".
@@ -66,7 +86,10 @@ const SHOWCASE_COMMAND_RE =
         /(?:بفرست|ارسال|نشون|نشان|نمایش|لیست|فهرست|معرفی|پیشنهاد|گزینه|هرچی|هرچه|send|show|list|recommend)/i
 /** Interrogative browsing — "what do you have / sell?" without a command. */
 const BROWSE_QUERY_RE =
-        /(?:چی\s*(?:دار|موجود|هست|می\s*فروش)|چیا\s*(?:دار|موجود)|چه\s*(?:محصول|کالا|جنس|چیز|مدل)|محصولات(?:تون|تان|تو)?\s*چی|what\s+do\s+you\s+(?:have|sell)|what(?:'s|\s+is)\s+available)/i
+        /(?:^|[^\p{L}])(?:چی\s*(?:دار|موجود|هست|می\s*فروش)|چیا\s*(?:دار|موجود)|چه\s*(?:محصول|کالا|جنس|چیز|مدل)|محصولات(?:تون|تان|تو)?\s*چی(?=$|[^\p{L}]))|what\s+do\s+you\s+(?:have|sell)|what(?:'s|\s+is)\s+available/iu
+// The leading (?:^|[^\p{L}]) keeps «چی» a standalone word: without it,
+// «ساعت مچی دارین؟» matched «چی دار» inside «مچی دارین» and was misrouted
+// from a product vitrin to a generic browse turn.
 /** A short bare "yes / show me" reply to the agent's own narrowing question. */
 const AFFIRMATIVE_SHOW_RE =
         /^(?:آره|اره|بله|باشه|اوکی|اکی|حتما|حتماً|بفرما|ببینم|نشون\s*بده|نشان\s*بده|بفرست|همه|همش|ok(?:ay)?|yes|sure|show\s*me)[\s.!؟?]*$/i
@@ -98,6 +121,16 @@ const ORDER_ONLY_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|ار
 // the customer's policy question.
 const BUSINESS_POLICY_RE =
         /(?:ارسال\s*رایگان|هزینه\s*ارسال|شرایط\s*ارسال|محدوده\s*ارسال|شهر(?:های)?\s*تحت\s*پوشش|زمان\s*تحویل|گارانتی|ضمانت|مرجوعی|بازگشت\s*وجه|روش\s*پرداخت|پرداخت\s*قسط|فاکتور|ساعت\s*کاری|free\s*shipping|shipping\s*(?:cost|policy|coverage)|delivery\s*time|warranty|returns?\s*policy|refund|payment\s*method|invoice|business\s*hours)/i
+/**
+ * Unambiguous business-policy phrases that must stay policy answers even when
+ * the same sentence names a product («هزینه ارسال کتاب چقدره؟», «ارسال رایگان
+ * برای کفش دارین؟»). The weak BUSINESS_POLICY_RE above yields whenever a
+ * product subject noun is present, which stayed safe while the noun list was
+ * fashion-only — now that PRODUCT_NOUNS covers every store vertical, these
+ * phrases need their own strong signal.
+ */
+const STRONG_BUSINESS_POLICY_RE =
+        /(?:ارسال\s*رایگان|پست\s*رایگان|هزینه\s*(?:ارسال|پست|باربری|پیک)|باربری)/iu
 // ─── Courier / shipping-method questions are business policy, never a product
 // showcase. «فروشگاه قبول می‌کنه با اسنپ هم ارسال کنه؟» previously matched
 // SHOWCASE_COMMAND_RE («ارسال») + PRODUCT_INTENT_RE («فروشگاه»), produced an
@@ -282,6 +315,47 @@ function explicitRequestedCount(normalized: string): number | null {
         return null
 }
 
+// ─── Vitrin: a bare product phrase is a showcase demand ─────────────────────
+// «شومیز», «کیف دوشی دارین؟», «سارافون مجلسی» name the thing the customer
+// wants to SEE. They must produce the vitrin — up to MAX_SHOWCASE_PRODUCTS
+// available product cards on every channel — instead of a five-row prose
+// consultation that mentions products the customer cannot tap or view.
+// Question-shaped, priced, counted, coded, attribute and policy/order turns
+// stay on the richer consultation path.
+const VITRIN_EXCLUDE_RE =
+        /(?:چند|چنده|چندتا|چرا|کجا|کجاست|چطور|چجوری|ایا|آیا|کدوم|کدام|قیمت|تومن|تومان|ریال|سفارش|پیگیری|رهگیری|مرسوله|ارسال|باربری|اسنپ|تی\s*پاکس|چاپار|گارانتی|ضمانت|مرجوع|تعویض|بازگشت|قسط|اقساط|فاکتور|تخفیف|هدیه|پرداخت|می\s*خواستم|خریدم|خریده|دوست|قشنگ|خوشگل|زشت|دیدم|دیدید|گرفتم|موند|مونده|تموم|رسید|اومد|برگشت|برگردون|گم|شکست|پاره|اندازه|جنس|پارچه|سایزبندی|میشه|می\s*تونم|میتونین|می\s*تونین|ممنون|مرسی|تشکر|عالی|راهنمایی|کمک|مشکل|سوال|سؤال|نظر|فرستادم|گذاشتین|موجودیت|باقی|تمام|شده|price|cost|order|shipping|deliver|refund|return|track|when|why)/iu
+/** Trailing availability tail of a bare vitrin phrase («شومیز دارین؟»). */
+const VITRIN_TRAILING_RE =
+        /\s*(?:دار(?:ی|ید|ین|ن)|موجود(?:ه|ین|ید|ن)?|هست(?:ین|ید)?)[\s؟?!.،,]*$/iu
+
+function isBareVitrinPhrase(normalized: string, terms: string[]): boolean {
+        if (!terms.length) return false
+        if (VITRIN_EXCLUDE_RE.test(normalized)) return false
+        // Counts, prices, sizes and product codes are consultations/lookups.
+        if (/[\p{N}]/u.test(normalized)) return false
+        const stripped = normalized
+                .replace(/[\s؟?!.،,]+$/u, '')
+                .replace(VITRIN_TRAILING_RE, '')
+                .replace(/[\s؟?!.،,]+$/u, '')
+                .trim()
+        // A sentence-like message (multiple clauses) is never a bare phrase.
+        if (/[.!؟?\n]/.test(stripped)) return false
+        const tokens = stripped
+                .toLocaleLowerCase('fa')
+                .split(/[^\p{L}\p{N}_-]+/u)
+                .map((token) => token.trim())
+                .filter((token) => token.length >= 2 && !PRODUCT_STOP_WORDS.has(token))
+        // «شومیز», «کیف دوشی», «سارافون مجلسی» — at most two content words; a
+        // longer description («پیراهن وارداتی شنل رنگ صورتی») is a consultation.
+        if (!tokens.length || tokens.length > 2) return false
+        // The phrase itself must name a real product subject — a single noun
+        // («شومیز») or a catalog compound («ساعت مچی», «لپ تاپ», «ست صبحانه»).
+        // A bare modifier («قرمز دارین؟») or a non-noun token («سایزم رو فراموش
+        // کردی؟») must never trigger a showcase, so plain term membership is not
+        // enough here: terms are merely non-stopword tokens.
+        return PRODUCT_SUBJECT_RE.test(stripped)
+}
+
 /**
  * Build a deterministic product-search plan from the current message. When a
  * follow-up only says "send five", the closest earlier user product terms are
@@ -294,6 +368,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // A strong courier/shipping signal overrides the generic product-subject
         // guard: «فروشگاه با اسنپ هم ارسال می‌کنه؟» must stay a policy question.
         const policyOnly = isShippingPolicyQuestion(normalized)
+                || STRONG_BUSINESS_POLICY_RE.test(normalized)
                 || (BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized))
         const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
@@ -313,10 +388,17 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // queries, but are not product intent when the user explicitly asks
         // about services, appointments or bookings.
         const serviceOnly = SERVICE_ONLY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
+        // «شماره تماس فروشگاه چیه؟» / «پشتیبانی آنلاین دارین؟» name the shop or
+        // an availability verb but are non-shopping needs: the NON_PRODUCT gate
+        // keeps them out of catalog retrieval. Product codes stay above the gate
+        // because a real SKU is unambiguous catalog evidence.
+        const nonProductNeed = NON_PRODUCT_NEED_RE.test(normalized)
         const directProductSignal = !policyOnly && !nonCatalogCode && (
-                productKeywordSignal ||
                 productCodeSignal ||
-                (!serviceOnly && (AVAILABLE_RE.test(normalized) || shoppingNeedSignal || attributeSignal))
+                (!nonProductNeed && (
+                        productKeywordSignal ||
+                        (!serviceOnly && (AVAILABLE_RE.test(normalized) || shoppingNeedSignal || attributeSignal))
+                ))
         )
 
         let priorProductTerms: string[] = []
@@ -380,11 +462,23 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const showcaseFromContext =
                 showcaseCommand &&
                 (priorProductTerms.length > 0 || (priorProductSignal && currentTerms.length === 0))
+        // A bare product phrase («شومیز», «کیف دوشی دارین؟») names the thing the
+        // customer wants to SEE, so it upgrades the turn to a vitrin showcase:
+        // up to ten AVAILABLE product cards on every channel, with no follow-up
+        // question. Showcase commands keep their own routing above; question-
+        // shaped, priced, counted, coded, attribute and policy/order turns stay
+        // consultations via the guards inside isBareVitrinPhrase.
+        const vitrinPhrase =
+                !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
+                !showcaseCommand && !browseQuery && !affirmativeFollowUp &&
+                directProductSignal &&
+                isBareVitrinPhrase(normalized, currentTerms)
         const explicitShowcase =
                 !orderOnly && !serviceOnly && !policyOnly && (
                         (showcaseCommand && directProductSignal) ||
                         showcaseFromContext ||
-                        affirmativeFollowUp
+                        affirmativeFollowUp ||
+                        vitrinPhrase
                 )
         // «بیخیال، چی دارین؟» resets AND states the new request in one message;
         // only a reset with no product/browse content asks for a fresh prompt.

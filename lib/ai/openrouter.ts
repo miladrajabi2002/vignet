@@ -32,12 +32,19 @@ function isRetryableProviderError(e: unknown): boolean {
 export async function fetchWithProviderRetry(
   url: string,
   init: RequestInit,
+  opts: { timeoutMs?: number } = {},
 ): Promise<Response> {
   let lastError: unknown
   for (let attempt = 0; attempt <= PROVIDER_RETRY_ATTEMPTS; attempt++) {
     if (attempt > 0) await sleepMs(PROVIDER_RETRY_DELAY_MS)
     try {
-      const res = await fetch(url, init)
+      // A fresh AbortSignal per attempt: a signal shared across attempts
+      // stays aborted after the first timeout, so every "retry" failed
+      // instantly and real timeouts were never retried at all.
+      const attemptInit: RequestInit = opts.timeoutMs
+        ? { ...init, signal: AbortSignal.timeout(opts.timeoutMs) }
+        : init
+      const res = await fetch(url, attemptInit)
       if (res.ok || !isRetryableProviderStatus(res.status)) return res
       // Retryable status — drain the body so the socket is released, then retry.
       await res.text().catch(() => undefined)
@@ -199,7 +206,10 @@ export async function chatCompletion(
     method: 'POST',
     headers: appHeaders(),
     body: JSON.stringify(requestBody(opts, false, runtime)),
-    signal: AbortSignal.timeout(opts.task === 'learning-review' ? 120_000 : 60_000),
+  }, {
+    // Per-attempt timeout: fetchWithProviderRetry builds a fresh signal for
+    // every attempt so a timed-out attempt is really retried.
+    timeoutMs: opts.task === 'learning-review' ? 120_000 : 60_000,
   })
   if (!res.ok) {
     // Do not persist provider bodies: they may contain request fragments.
@@ -242,7 +252,9 @@ export async function* streamChat(
     method: 'POST',
     headers: appHeaders(),
     body: JSON.stringify(requestBody(opts, true, runtime)),
-    signal: AbortSignal.timeout(90_000),
+  }, {
+    // Fresh signal per attempt — see fetchWithProviderRetry.
+    timeoutMs: 90_000,
   })
   if (!res.ok || !res.body) {
     throw new Error(`OPENROUTER_STREAM_${res.status}`)
@@ -274,6 +286,42 @@ export async function* streamChat(
       } catch {
         // Ignore keep-alive comments and malformed partial chunks.
       }
+    }
+  }
+}
+
+// ─── Stream-level retries ─────────────────────────────────────────────────────
+// A stream can also die mid-flight (cold-start stall past the attempt timeout,
+// connection reset). Once a delta has reached the consumer it has already
+// accumulated that text, so a restart would duplicate it — those failures
+// still surface honestly. But a stream that dies BEFORE the first token is
+// invisible to the consumer and can be restarted cleanly, which covers the
+// most common real-world timeout (model never started generating).
+const STREAM_RETRY_ATTEMPTS = 2
+const STREAM_RETRY_DELAY_MS = 2_500
+
+/**
+ * streamChat() plus whole-stream retries while no token has reached the
+ * consumer yet. Use this everywhere a customer is waiting on a live reply;
+ * the retry is invisible because nothing was streamed or persisted.
+ */
+export async function* streamChatWithRetry(
+  opts: ChatOptions,
+): AsyncGenerator<string, void, unknown> {
+  let firstTokenReceived = false
+  for (let attempt = 0; attempt <= STREAM_RETRY_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleepMs(STREAM_RETRY_DELAY_MS)
+    try {
+      for await (const delta of streamChat(opts)) {
+        firstTokenReceived = true
+        yield delta
+      }
+      return
+    } catch (error) {
+      // Status errors (OPENROUTER_*) were already retried at the handshake
+      // inside fetchWithProviderRetry; only retry the transport here.
+      if (firstTokenReceived || attempt === STREAM_RETRY_ATTEMPTS) throw error
+      if (!isRetryableProviderError(error)) throw error
     }
   }
 }
