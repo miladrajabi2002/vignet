@@ -58,7 +58,30 @@ export async function persistFindings(drafts: FindingDraft[]): Promise<PersistSt
         continue
       }
       const seenAt = draft.seenAt ?? new Date()
-      if (existing.status === 'RESOLVED') {
+      if (draft.initialStatus === 'RESOLVED') {
+        // Positive confirmations ("بهبود تأیید شد") are historical facts about
+        // a change window, not recurring problems — they must stay resolved and
+        // never trigger the reopen-on-recurrence path.
+        if (existing.status !== 'RESOLVED') {
+          await prisma.skillFinding.update({
+            where: { id: existing.id },
+            data: {
+              status: 'RESOLVED',
+              resolvedAt: seenAt,
+              resolvedNote: 'خودکار: بهبود در پنجرهٔ بعدی تأیید شد',
+              title: draft.title,
+              diagnosis: draft.diagnosis,
+              evidence: (draft.evidence ?? undefined) as Prisma.InputJsonValue | undefined,
+              suggestedAction: (draft.suggestedAction ?? undefined) as Prisma.InputJsonValue | undefined,
+              occurrences: { increment: 1 },
+              lastSeenAt: seenAt,
+            },
+          })
+        } else {
+          await prisma.skillFinding.update({ where: { id: existing.id }, data: { lastSeenAt: seenAt } })
+        }
+        stats.updated++
+      } else if (existing.status === 'RESOLVED') {
         // Recurrence after a recorded fix — reopen and keep the audit trail.
         await prisma.skillFinding.update({
           where: { id: existing.id },

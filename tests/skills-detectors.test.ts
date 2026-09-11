@@ -425,4 +425,27 @@ describe.skipIf(process.env.RUN_SKILLS_DB_TESTS !== '1')('skills findings store 
     expect(reopened.status).toBe('OPEN')
     expect(reopened.severity).toBe('HIGH')
   })
+
+  it('keeps positive confirmations resolved across re-detections', async () => {
+    const { prisma } = await import('@/lib/prisma')
+    const draft: FindingDraft = {
+      skillKey: 'before-after',
+      dedupeKey: `test-positive:${agentId}`,
+      workspaceId,
+      agentId,
+      severity: 'LOW',
+      initialStatus: 'RESOLVED',
+      title: 'بهبود تأیید شد',
+      diagnosis: 'نرخ حل بهتر شده.',
+      seenAt: new Date(),
+    }
+    await persistFindings([draft])
+    // Re-detect twice — must never reopen.
+    await persistFindings([{ ...draft, diagnosis: 'همچنان بهتر است.' }])
+    await persistFindings([{ ...draft }])
+    const stored = await prisma.skillFinding.findUniqueOrThrow({ where: { skillKey_dedupeKey: { skillKey: draft.skillKey, dedupeKey: draft.dedupeKey } } })
+    expect(stored.status).toBe('RESOLVED')
+    expect(stored.resolvedNote).toBe('خودکار: بهبود در پنجرهٔ بعدی تأیید شد')
+    expect(stored.occurrences).toBe(1) // lastSeen-only refresh, no occurrence inflation
+  })
 })
