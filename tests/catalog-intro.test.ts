@@ -189,4 +189,58 @@ describe('buildTrustedProductReply — showcase replies open with the introducti
     expect(reply).toBe('این شومیز برای مهمانی عالی است.')
     expect(mocks.agentCatalogFindMany).not.toHaveBeenCalled()
   })
+
+  it('drops the subject when the shown products do not actually carry it', async () => {
+    // Vector search without a similarity floor: «دوچرخه» on a fashion catalog
+    // still returns loosely related rows. Naming them «مدل دوچرخه» would be a
+    // false customer-facing claim, so the intro falls back to the neutral form.
+    mocks.agentCatalogFindMany.mockResolvedValue([
+      catalogRow('p1', 'پیراهن روزمره نلا 0351'),
+      catalogRow('p2', 'ست خانومی میکی موس 0349'),
+      catalogRow('p3', 'تونیک آرامش 0352'),
+      catalogRow('p4', 'بلوز کشباف 0305'),
+    ])
+    const reply = await buildTrustedProductReply({
+      raw: '',
+      workspaceId: 'ws',
+      agentId: 'agent',
+      isFa: true,
+      preferredProductIds: ['p1', 'p2', 'p3', 'p4'],
+      forceShowcase: true,
+      subjectPhrase: 'دوچرخه',
+    })
+    expect(reply.split('\n')[0]).toContain('۴ محصول موجود و مرتبط')
+    expect(reply.split('\n')[0]).not.toContain('دوچرخه')
+  })
+
+  it('keeps the subject when at least half the products genuinely carry it', async () => {
+    mocks.agentCatalogFindMany.mockResolvedValue([
+      catalogRow('p1', 'شارژ کیف پول'),
+      catalogRow('p2', 'پیراهن روزمره ثریا 0308'),
+    ])
+    const reply = await buildTrustedProductReply({
+      raw: '',
+      workspaceId: 'ws',
+      agentId: 'agent',
+      isFa: true,
+      preferredProductIds: ['p1', 'p2'],
+      forceShowcase: true,
+      subjectPhrase: 'کیف',
+    })
+    expect(reply.split('\n')[0]).toContain('۲ مدل کیف')
+  })
+
+  it('keeps the subject in the zero-result intro — nothing was found is honest', async () => {
+    mocks.agentCatalogFindMany.mockResolvedValue([])
+    const reply = await buildTrustedProductReply({
+      raw: '',
+      workspaceId: 'ws',
+      agentId: 'agent',
+      isFa: true,
+      preferredProductIds: ['gone'],
+      forceShowcase: true,
+      subjectPhrase: 'دوچرخه',
+    })
+    expect(reply.split('\n')[0]).toContain('هیچ دوچرخه موجودی')
+  })
 })

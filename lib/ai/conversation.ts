@@ -156,23 +156,24 @@ const SHIPPING_METHOD_RE =
 const SHOWCASE_OBJECT_RE =
         /(?:کاتالوگ|لیست|فهرست|عکس|تصاویر|تصویر|قیمت[ها]?|مدل[ها]?|گزینه[ها]?|محصولات|product|catalog|photo|image|price|list)/i
 /**
- * «[چیز] رو بفرست» — the IMPERATIVE send command with no carrier word in
- * sight. For an order/merchandise object («سفارشم رو بفرست») this is a
- * fulfilment request and stays policy; for a product subject or code
- * («تونیک روناز ۰۷۸۸ رو بفرست», «کفش رو بفرست») the same words are a
- * showcase demand — the customer wants to SEE the item they just named.
- * The guard inside isShippingPolicyQuestion tells the two apart.
+ * «[چیز] رو بفرست» with no carrier word in sight. For an order/merchandise
+ * object («سفارشم رو بفرست») this is a fulfilment request and stays policy;
+ * for a product subject or code («تونیک روناز ۰۷۸۸ رو بفرست», «کفش رو
+ * بفرست») the same words are a showcase demand — the customer wants to SEE
+ * the item they just named. The guard inside isShippingPolicyQuestion tells
+ * the two apart.
  */
-const BARE_SEND_IMPERATIVE_RE =
-        /(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:بفرست(?:ید|ین)?|ارسال\s*کن|ارسال\s*کنید|ارسال\s*کنین)/iu
+const BARE_SEND_OBJECT_RE =
+        /(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:ارسال|بفرست|می\s*فرست|میفرست)/iu
 /**
- * «[چیز] رو ارسال میکنید / رو میفرستین» — the interrogative/present-tense
- * form asks WHETHER the shop ships, which is fulfilment policy even when the
- * object is a garment («قسط‌ها تموم شد، لباس رو ارسال میکنید؟» must stay a
- * shipping question, not a 10-card catalog dump).
+ * Interrogative shipping verbs («ارسال میکنید؟», «می‌فرستین؟») ask whether the
+ * store ships at all — a fulfilment/policy question even when the object is a
+ * product («قسط‌ها تموم شد، لباس رو ارسال میکنید؟»). Only the imperative forms
+ * («بفرست», «ارسال کن») stay potential showcase demands, because there the
+ * customer commands the agent to show/send a named item («کفش رو بفرست»).
  */
-const BARE_SEND_QUESTION_RE =
-        /(?<!همه)(?<!تا)(?<!های)(?:^|\s)(?:رو|را)\s+(?:هم\s+)?(?:ارسال|می\s*فرست|میفرست)/iu
+const INTERROGATIVE_SHIP_RE =
+        /(?:ارسال\s*می|می\s*(?:کنی[دن]?|فرستی[دن]?)|do\s+you\s+(?:ship|send)|are\s+you\s+(?:shipping|sending))/iu
 /**
  * A courier or shipping-method question that must be answered from business
  * policy knowledge instead of triggering catalog retrieval/showcase. Bare
@@ -183,17 +184,16 @@ function isShippingPolicyQuestion(normalized: string): boolean {
         if (UNAMBIGUOUS_CARRIER_RE.test(normalized)) return true
         if (CARRIER_WORD_RE.test(normalized) && SEND_VERB_RE.test(normalized)) return true
         if (SHIPPING_METHOD_RE.test(normalized) && !SHOWCASE_OBJECT_RE.test(normalized)) return true
-        // «X رو ارسال میکنید؟» asks about fulfilment and stays policy even
-        // when X is a product noun.
-        if (BARE_SEND_QUESTION_RE.test(normalized) && !SHOWCASE_OBJECT_RE.test(normalized)) return true
-        // «X رو بفرست» is only a fulfilment/policy request when X is NOT a
-        // product the customer just named: a product subject noun or an
-        // identifier-like code turns the same words into a showcase demand.
-        return BARE_SEND_IMPERATIVE_RE.test(normalized)
+        // «X رو بفرست» is only a fulfilment/policy request when X is NOT a product
+        // the customer just named: a product subject noun or an identifier-like
+        // code turns the same words into a showcase demand instead — but an
+        // interrogative verb («لباس رو ارسال میکنید؟») asks about fulfilment
+        // regardless of the object, so it always stays policy.
+        return BARE_SEND_OBJECT_RE.test(normalized)
                 && !SHOWCASE_OBJECT_RE.test(normalized)
-                && !PRODUCT_SUBJECT_RE.test(normalized)
                 && !PRODUCT_CODE_RE.test(normalized)
                 && !BARE_PRODUCT_CODE_RE.test(normalized)
+                && (INTERROGATIVE_SHIP_RE.test(normalized) || !PRODUCT_SUBJECT_RE.test(normalized))
 }
 // Bare «وقت» would match the greeting «وقت بخیر», so it only counts with a
 // booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).
