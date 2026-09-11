@@ -348,7 +348,16 @@ export async function resolveProductShowcases(params: {
     })
   }
 
-  return output
+  // A generic card and a variation card of the SAME product never coexist in
+  // one reply: when the customer picked a specific variant («0788 طرح 05»),
+  // the model's plain marker for the product and the hint-driven identified
+  // directive both resolve — keep the specific one, drop the parent cover.
+  const variationParentIds = new Set(
+    output
+      .filter((card) => card.variation)
+      .map((card) => card.id.split('#')[0]),
+  )
+  return output.filter((card) => card.variation || !variationParentIds.has(card.id))
 }
 
 function safeProductUrl(value: string | null | undefined): string | null {
