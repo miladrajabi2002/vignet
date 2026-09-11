@@ -164,7 +164,7 @@ export function detectKnowledgeGaps(agents: KnowledgeGapAgentInput[]): DetectorR
         severity: agent.unanswered.length >= 8 ? 'HIGH' : 'MEDIUM',
         title: `${agent.unanswered.length} پیام مشتری بدون پاسخ (${agent.agentName ?? 'ایجنت'})`,
         diagnosis: [
-          `در ۷ روز اخیر ${agent.unanswered.length} پیام مشتری بدون پاسخ ایجنت مانده است${agent.unresolvedReviews ? ` و ${agent.unresolvedReviews} گفتگوی بررسی‌شده نیز بدون نتیجه تمام شده` : ''}.`,
+          `در مکالمات امروز ${agent.unanswered.length} پیام مشتری بدون پاسخ ایجنت مانده است${agent.unresolvedReviews ? ` و ${agent.unresolvedReviews} گفتگوی بررسی‌شدهٔ امروز نیز بدون نتیجه تمام شده` : ''}.`,
           'نمونه‌ها:',
           quotes,
           'این پیام‌ها معمولاً سوالی هستند که ایجنت پاسخش را در دانش‌نامه ندارد؛ با ثبت پاسخ، همین سوال دیگر بی‌جواب نمی‌ماند.',
@@ -204,7 +204,7 @@ export function detectKnowledgeGaps(agents: KnowledgeGapAgentInput[]): DetectorR
       })
     }
   }
-  return { findings, clean, cleanNote: 'همه پیام‌های اخیر پاسخ گرفته‌اند' }
+  return { findings, clean, cleanNote: 'همه پیام‌های امروز پاسخ گرفته‌اند' }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ export function detectToolFailures(
         severity: errors.length >= 3 ? 'HIGH' : 'MEDIUM',
         title: `${errors.length} خطای سرویس مدل در پاسخ‌های ایجنت (${agent.agentName ?? 'ایجنت'})`,
         diagnosis: [
-          `در ۷ روز اخیر ${errors.length} بار مدل پاسخ نهایی نداده و مشتری متن عذرخواهی فنی دریافت کرده است.`,
+          `در مکالمات امروز ${errors.length} بار مدل پاسخ نهایی نداده و مشتری متن عذرخواهی فنی دریافت کرده است.`,
           errors.slice(0, 3).map((e) => `• ${e.createdAt.toISOString().slice(0, 16).replace('T', ' ')} — گفتگو ${e.conversationId}`).join('\n'),
           'اگر تکرار شود، مدل یا تأمین‌کننده را در «مدل‌ها و سیاست AI» بررسی کنید؛ تایم‌اوت‌ها معمولاً از کندی یا قطعی تأمین‌کننده می‌آیند.',
         ].join('\n'),
@@ -378,7 +378,7 @@ export function detectToolFailures(
     })
   }
 
-  return { findings, clean, cleanNote: 'در پنجرهٔ اخیر خطای سرویس دیده نشد' }
+  return { findings, clean, cleanNote: 'در مکالمات امروز خطای سرویس دیده نشد' }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -478,7 +478,7 @@ export function detectPostChanges(changes: PostChangeInput[]): DetectorResult {
             severity: comparison.severity,
             title: `افت ${comparison.labelFa} پس از تغییر: ${change.title}`,
             diagnosis: [
-              `پس از اعمال «${change.title}»، ${comparison.labelFa} از ${(before.resolutionRate !== null && comparison.metric === 'resolution' ? before.resolutionRate : comparison.metric === 'unanswered' ? before.unansweredRate : before.modelErrorRate)!.toLocaleString('fa-IR', { style: 'percent' })} به ${(after.resolutionRate !== null && comparison.metric === 'resolution' ? after.resolutionRate : comparison.metric === 'unanswered' ? after.unansweredRate : after.modelErrorRate)!.toLocaleString('fa-IR', { style: 'percent' })} تغییر کرده است (پنجرهٔ ۷ روز قبل و بعد از تغییر).`,
+              `پس از اعمال «${change.title}»، ${comparison.labelFa} از ${(before.resolutionRate !== null && comparison.metric === 'resolution' ? before.resolutionRate : comparison.metric === 'unanswered' ? before.unansweredRate : before.modelErrorRate)!.toLocaleString('fa-IR', { style: 'percent' })} به ${(after.resolutionRate !== null && comparison.metric === 'resolution' ? after.resolutionRate : comparison.metric === 'unanswered' ? after.unansweredRate : after.modelErrorRate)!.toLocaleString('fa-IR', { style: 'percent' })} تغییر کرده است (۷ روز قبل از تغییر در برابر مکالمات امروز پس از تغییر).`,
               comparison.metric === 'resolution'
                 ? `بر اساس ${change.before.reviews} و ${change.after.reviews} گفتگوی بررسی‌شده.`
                 : comparison.metric === 'unanswered'
@@ -505,7 +505,7 @@ export function detectPostChanges(changes: PostChangeInput[]): DetectorResult {
             severity: 'LOW',
             initialStatus: 'RESOLVED',
             title: `بهبود تأیید شد — ${comparison.labelFa} (${agentLabel})`,
-            diagnosis: `پس از اعمال «${change.title}»، ${comparison.labelFa} به میزان ${Math.abs(comparison.delta).toLocaleString('fa-IR', { style: 'percent' })} بهتر شده است. این عدد از مقایسهٔ ۷ روز قبل و بعد از تغییر به دست آمده.`,
+            diagnosis: `پس از اعمال «${change.title}»، ${comparison.labelFa} به میزان ${Math.abs(comparison.delta).toLocaleString('fa-IR', { style: 'percent' })} بهتر شده است. این عدد از مقایسهٔ ۷ روز قبل از تغییر با مکالمات امروز پس از تغییر به دست آمده.`,
             evidence: {
               appliedAt: change.appliedAt.toISOString(),
               metric: comparison.metric,
@@ -519,7 +519,7 @@ export function detectPostChanges(changes: PostChangeInput[]): DetectorResult {
       }
     }
   }
-  return { findings, clean, cleanNote: 'پس از اصلاح، در گفتگوهای بررسی‌شده تکرار نشد' }
+  return { findings, clean, cleanNote: 'پس از اصلاح، در گفتگوهای امروز تکرار نشد' }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

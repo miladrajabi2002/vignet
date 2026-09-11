@@ -841,7 +841,9 @@ export function startScheduler(): () => void {
 
         // ─ Admin improvement skills: a FREE pass every 6 hours keeps the
         // SkillFinding board fresh (knowledge gaps, tool failures, regression
-        // guards, before/after metrics). DEEP skills stay manual-only.
+        // guards, before/after metrics). Only TODAY's conversations are
+        // reviewed — older findings are auto-resolved as stale. DEEP skills
+        // stay manual-only.
         const runSkillsSweep = () => sweepSkills().catch(() => console.error('[scheduler] skills sweep failed'))
         const initialSkills = setTimeout(runSkillsSweep, 4 * 60_000)
         const skillsInterval = setInterval(runSkillsSweep, SKILLS_SWEEP_INTERVAL_MS)

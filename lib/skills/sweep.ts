@@ -1,10 +1,12 @@
 /**
  * Admin-only improvement skills — scheduler sweep.
  *
- * Every 6 hours the worker runs the FREE skills over the trailing week and
- * reaps stale RUNNING runs left behind by a crashed process. DEEP skills are
- * never scheduled: they cost platform AI budget and run only when the owner
- * explicitly triggers them from /admin/skills.
+ * Every 6 hours the worker runs the FREE skills over TODAY's conversations
+ * (midnight Asia/Tehran onward; owner policy 2026-09-12: old conversations are
+ * finished and no longer reviewed) and reaps stale RUNNING runs left behind by
+ * a crashed process. DEEP skills are never scheduled: they cost platform AI
+ * budget and run only when the owner explicitly triggers them from
+ * /admin/skills.
  */
 
 import { prisma } from '@/lib/prisma'

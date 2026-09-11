@@ -6,6 +6,13 @@
  * conversations and knowledge bases through the PLATFORM AI budget — never a
  * workspace wallet, so store owners neither pay for nor ever see this.
  *
+ * REVIEW WINDOW POLICY (owner, 2026-09-12): only TODAY's conversations are
+ * reviewed. Old conversations are deliberately skipped — the agent has
+ * changed a lot since then, so findings derived from them are stale. The
+ * window starts at midnight Asia/Tehran (the platform's operating timezone;
+ * Iran keeps a fixed UTC+03:30 offset, no DST since 2022). Findings that are
+ * not re-observed during today's pass are auto-resolved as stale.
+ *
  * Every query is bounded (caps + window) so a sweep stays cheap even on a busy
  * platform, and every write is idempotent through the (skillKey, dedupeKey)
  * uniqueness contract in lib/skills/findings.ts.
@@ -38,8 +45,21 @@ import {
 import { markClean, persistFindings, type PersistStats } from './findings'
 import { DEEP_SKILL_KEYS, FREE_SKILL_KEYS, type SkillKey } from './registry'
 
+// Only the post-change "before" baseline still uses a 7-day look-back; every
+// conversation scanned by the skills themselves comes from today only.
 const WINDOW_DAYS = 7
 const DAY_MS = 86_400_000
+
+/** Iran's fixed offset (UTC+03:30, no DST since 2022). The server and Postgres
+ * both run in Asia/Tehran, and the platform's display timezone is the same. */
+const TEHRAN_OFFSET_MS = 3.5 * 3_600_000
+
+/** Start of the current day (midnight) in Asia/Tehran, independent of the host
+ * machine's local timezone. All conversation review windows start here. */
+function startOfToday(): Date {
+  const wall = new Date(Date.now() + TEHRAN_OFFSET_MS)
+  return new Date(Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate()) - TEHRAN_OFFSET_MS)
+}
 
 // Caps — one sweep must stay bounded on a busy platform.
 const MAX_RECEIPT_MESSAGES = 1500
@@ -106,12 +126,17 @@ interface RunStats extends PersistStats {
 // ─── Data collection ─────────────────────────────────────────────────────────
 
 async function activeAgents(since: Date): Promise<AgentRow[]> {
+  // NOTE on raw Date parameters: our DateTime columns are naive UTC wall
+  // clocks, but $queryRaw Date params arrive as timestamptz — comparing them
+  // directly lets the session timezone shift the boundary by 3.5h. Wrapping
+  // the parameter in (… AT TIME ZONE 'UTC') keeps raw queries in exact
+  // agreement with Prisma typed queries, whatever the session timezone is.
   return prisma.$queryRaw<AgentRow[]>`
     SELECT a.id AS "agentId", a."workspaceId", a.name, w.name AS "workspaceName", a.language,
            MAX(c."lastMessageAt") AS "lastActiveAt"
     FROM "Agent" a
     JOIN "Workspace" w ON w.id = a."workspaceId"
-    JOIN "Conversation" c ON c."agentId" = a.id AND c."lastMessageAt" > ${since}
+    JOIN "Conversation" c ON c."agentId" = a.id AND c."lastMessageAt" > (${since} AT TIME ZONE 'UTC')
     WHERE w."excludeFromAdminReports" = false
     GROUP BY a.id, a."workspaceId", a.name, w.name, a.language
     ORDER BY "lastActiveAt" DESC`
@@ -134,7 +159,7 @@ async function receiptTurns(since: Date): Promise<ReceiptTurnInput[]> {
     FROM "Message" m
     JOIN "Conversation" c ON c.id = m."conversationId"
     JOIN "Workspace" w ON w.id = c."workspaceId"
-    WHERE m.role = 'ASSISTANT' AND m."createdAt" > ${since}
+    WHERE m.role = 'ASSISTANT' AND m."createdAt" > (${since} AT TIME ZONE 'UTC')
       AND m.metadata ? 'vigentoReceipts'
       AND w."excludeFromAdminReports" = false
     ORDER BY m."createdAt" DESC
@@ -144,7 +169,7 @@ async function receiptTurns(since: Date): Promise<ReceiptTurnInput[]> {
   const userRows = await prisma.$queryRaw<Array<{ id: string; conversationId: string; createdAt: Date; content: string }>>`
     SELECT m.id, m."conversationId", m."createdAt", LEFT(m.content, 300) AS content
     FROM "Message" m
-    WHERE m.role = 'USER' AND m."createdAt" > ${since}
+    WHERE m.role = 'USER' AND m."createdAt" > (${since} AT TIME ZONE 'UTC')
       AND m."conversationId" IN (${Prisma.join(conversationIds)})
     ORDER BY m."createdAt" ASC
     LIMIT ${MAX_PAIRING_USER_MESSAGES}`
@@ -185,15 +210,19 @@ async function unansweredMessages(since: Date): Promise<UnansweredRow[]> {
     FROM "Message" m
     JOIN "Conversation" c ON c.id = m."conversationId"
     JOIN "Workspace" w ON w.id = c."workspaceId"
-    WHERE m.role = 'USER' AND m.unanswered = true AND m."createdAt" > ${since}
+    WHERE m.role = 'USER' AND m.unanswered = true AND m."createdAt" > (${since} AT TIME ZONE 'UTC')
       AND w."excludeFromAdminReports" = false
     ORDER BY m."createdAt" DESC
     LIMIT ${MAX_UNANSWERED}`
 }
 
-async function pendingSuggestions() {
+/** Pending suggestions feed the knowledge-gap and tool-failure skills. Owner
+ * policy: only suggestions raised from TODAY's improvement runs are in scope —
+ * suggestions derived from old conversations are finished and no longer
+ * reviewed. */
+async function pendingSuggestions(since: Date) {
   return prisma.improvementSuggestion.findMany({
-    where: { status: 'PENDING', agent: { workspace: { excludeFromAdminReports: false } } },
+    where: { status: 'PENDING', createdAt: { gte: since }, agent: { workspace: { excludeFromAdminReports: false } } },
     take: MAX_SUGGESTIONS,
     orderBy: { updatedAt: 'desc' },
     select: {
@@ -212,7 +241,7 @@ async function unresolvedReviewCounts(since: Date): Promise<Map<string, number>>
     JOIN "ImprovementRun" run ON run.id = r."runId"
     JOIN "Agent" a ON a.id = run."agentId"
     JOIN "Workspace" w ON w.id = a."workspaceId"
-    WHERE r.status = 'DONE' AND run."createdAt" > ${since}
+    WHERE r.status = 'DONE' AND run."createdAt" > (${since} AT TIME ZONE 'UTC')
       AND r.result->>'outcome' = 'UNRESOLVED'
       AND w."excludeFromAdminReports" = false
     GROUP BY run."agentId"`
@@ -228,7 +257,10 @@ interface EvidenceRow {
   topicKey: string
 }
 
-async function appliedChangesWithEvidence() {
+/** Recurrence evidence comes ONLY from today's improvement reviews — the
+ * post-change guard answers "did the problem come back in today's
+ * conversations?", never "did it ever come back?". */
+async function appliedChangesWithEvidence(since: Date) {
   const changes = await prisma.improvementChange.findMany({
     where: { revertedAt: null },
     orderBy: { createdAt: 'desc' },
@@ -239,14 +271,13 @@ async function appliedChangesWithEvidence() {
     },
   })
   if (!changes.length) return { changes, evidence: [] as EvidenceRow[] }
-  const earliest = changes.reduce((min, c) => Math.min(min, c.createdAt.getTime()), Date.now())
   const evidence = await prisma.$queryRaw<EvidenceRow[]>`
     SELECT e."reviewId", r."conversationId", run."createdAt" AS "reviewedAt", s.id AS "suggestionId", s.kind, s."topicKey"
     FROM "ImprovementEvidence" e
     JOIN "ImprovementReview" r ON r.id = e."reviewId"
     JOIN "ImprovementRun" run ON run.id = r."runId"
     JOIN "ImprovementSuggestion" s ON s.id = e."suggestionId"
-    WHERE run."createdAt" >= ${new Date(earliest)} AND r.status = 'DONE'
+    WHERE run."createdAt" >= (${since} AT TIME ZONE 'UTC') AND r.status = 'DONE'
     ORDER BY run."createdAt" ASC
     LIMIT ${MAX_EVIDENCE_ROWS}`
   return { changes, evidence }
@@ -260,12 +291,12 @@ async function windowMetrics(agentId: string, from: Date, to: Date): Promise<Met
            COUNT(*) FILTER (WHERE m.role = 'ASSISTANT' AND m.metadata->'vigentoReceipts' @> '[{"kind":"model_error"}]') AS "modelErrors"
     FROM "Message" m
     JOIN "Conversation" c ON c.id = m."conversationId"
-    WHERE c."agentId" = ${agentId} AND m."createdAt" >= ${from} AND m."createdAt" < ${to}`
+    WHERE c."agentId" = ${agentId} AND m."createdAt" >= (${from} AT TIME ZONE 'UTC') AND m."createdAt" < (${to} AT TIME ZONE 'UTC')`
   const reviewRows = await prisma.$queryRaw<Array<{ outcome: string; n: bigint }>>`
     SELECT r.result->>'outcome' AS outcome, COUNT(*) AS n
     FROM "ImprovementReview" r
     JOIN "ImprovementRun" run ON run.id = r."runId"
-    WHERE run."agentId" = ${agentId} AND r.status = 'DONE' AND run."createdAt" >= ${from} AND run."createdAt" < ${to}
+    WHERE run."agentId" = ${agentId} AND r.status = 'DONE' AND run."createdAt" >= (${from} AT TIME ZONE 'UTC') AND run."createdAt" < (${to} AT TIME ZONE 'UTC')
     GROUP BY 1`
   const resolved = Number(reviewRows.find((r) => r.outcome === 'RESOLVED')?.n ?? 0)
   const reviews = reviewRows.reduce((sum, r) => sum + Number(r.n), 0)
@@ -279,7 +310,7 @@ async function windowMetrics(agentId: string, from: Date, to: Date): Promise<Met
   }
 }
 
-async function preferenceContacts(): Promise<PreferenceContactInput[]> {
+async function preferenceContacts(since: Date): Promise<PreferenceContactInput[]> {
   const rows = await prisma.$queryRaw<Array<{ contactId: string; workspaceId: string; name: string | null; metadata: unknown }>>`
     SELECT ct.id AS "contactId", ct."workspaceId", ct.name, ct.metadata
     FROM "Contact" ct
@@ -294,12 +325,15 @@ async function preferenceContacts(): Promise<PreferenceContactInput[]> {
       const preferences = readCustomerAgentPreferences(row.metadata, agentId)
       if (!preferences.length) continue
       const earliest = preferences.reduce((min, p) => Math.min(min, p.createdAt ? new Date(p.createdAt).getTime() || Date.now() : Date.now()), Date.now())
+      // Preference guard checks only today's product suggestions (owner
+      // policy: old conversations are finished and no longer reviewed).
+      const from = new Date(Math.max(earliest, since.getTime()))
       const messages = await prisma.$queryRaw<Array<{ messageId: string; conversationId: string; createdAt: Date; content: string }>>`
         SELECT m.id AS "messageId", m."conversationId", m."createdAt", LEFT(m.content, 1200) AS content
         FROM "Message" m
         JOIN "Conversation" c ON c.id = m."conversationId"
         WHERE c."contactId" = ${row.contactId} AND c."agentId" = ${agentId}
-          AND m.role = 'ASSISTANT' AND m."createdAt" > ${new Date(earliest)}
+          AND m.role = 'ASSISTANT' AND m."createdAt" > (${from} AT TIME ZONE 'UTC')
           AND m.content LIKE '%[[product:%'
         ORDER BY m."createdAt" DESC
         LIMIT 40`
@@ -319,15 +353,18 @@ async function preferenceContacts(): Promise<PreferenceContactInput[]> {
 // ─── FREE pass ───────────────────────────────────────────────────────────────
 
 async function runFree(): Promise<RunStats> {
-  const since = new Date(Date.now() - WINDOW_DAYS * DAY_MS)
+  // Owner policy: review only TODAY's conversations (midnight Asia/Tehran
+  // onward). Yesterday and older are finished — the agent changed too much
+  // since then for their findings to still be actionable.
+  const since = startOfToday()
   const [agents, turns, unanswered, suggestions, unresolved, changesBundle, contacts] = await Promise.all([
     activeAgents(since),
     receiptTurns(since),
     unansweredMessages(since),
-    pendingSuggestions(),
+    pendingSuggestions(since),
     unresolvedReviewCounts(since),
-    appliedChangesWithEvidence(),
-    preferenceContacts(),
+    appliedChangesWithEvidence(since),
+    preferenceContacts(since),
   ])
   const agentById = new Map(agents.map((a) => [a.agentId, a]))
 
@@ -399,9 +436,11 @@ async function runFree(): Promise<RunStats> {
     }
     const agent = agentById.get(change.suggestion.agentId)
     const appliedAt = change.createdAt
+    // "Before" keeps its 7-day baseline; "after" counts only today's
+    // conversations (owner policy: old traffic is no longer reviewed).
     const [before, after] = await Promise.all([
       windowMetrics(change.suggestion.agentId, new Date(appliedAt.getTime() - WINDOW_DAYS * DAY_MS), appliedAt),
-      windowMetrics(change.suggestion.agentId, appliedAt, new Date(Math.min(Date.now(), appliedAt.getTime() + WINDOW_DAYS * DAY_MS))),
+      windowMetrics(change.suggestion.agentId, new Date(Math.max(appliedAt.getTime(), since.getTime())), new Date()),
     ])
     reviewsByChange.push({
       changeId: change.id,
@@ -431,9 +470,19 @@ async function runFree(): Promise<RunStats> {
   ]
   const persist = await persistFindings(allFindings)
   let resolved = 0
-  resolved += await markClean('knowledge-gap', gapResult.clean, gapResult.cleanNote ?? 'خودکار: همه پیام‌ها پاسخ گرفته‌اند')
-  resolved += await markClean('tool-failure', toolResult.clean, toolResult.cleanNote ?? 'خودکار: خطای سرویس در پنجرهٔ اخیر دیده نشد')
-  resolved += await markClean('post-change', postChangeResult.clean, postChangeResult.cleanNote ?? 'خودکار: پس از اصلاح تکرار نشد')
+  resolved += await markClean('knowledge-gap', gapResult.clean, gapResult.cleanNote ?? 'خودکار: همه پیام‌های امروز پاسخ گرفته‌اند')
+  resolved += await markClean('tool-failure', toolResult.clean, toolResult.cleanNote ?? 'خودکار: خطای سرویس در مکالمات امروز دیده نشد')
+  resolved += await markClean('post-change', postChangeResult.clean, postChangeResult.cleanNote ?? 'خودکار: پس از اصلاح، در مکالمات امروز تکرار نشد')
+  // Owner policy (2026-09-12): only today's conversations are reviewed, so an
+  // OPEN finding that this pass did not re-observe (lastSeenAt still before
+  // today's midnight) is finished and is auto-resolved instead of lingering on
+  // the board. DISMISSED/ACKNOWLEDGED rows keep their owner-set status; a real
+  // recurrence in today's traffic reopens the finding via persistFindings.
+  const stale = await prisma.skillFinding.updateMany({
+    where: { status: 'OPEN', lastSeenAt: { lt: since } },
+    data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedNote: 'خودکار: قدیمی — فقط مکالمات امروز بررسی می‌شود' },
+  })
+  resolved += stale.count
 
   const conversationsScanned = new Set([...turns.map((t) => t.conversationId), ...unanswered.map((u) => u.conversationId)])
   return {
@@ -449,8 +498,9 @@ async function runFree(): Promise<RunStats> {
 
 async function runDeep(freeStats: RunStats): Promise<RunStats> {
   const stats: RunStats = { ...freeStats, deepSkipped: null }
-  const since14d = new Date(Date.now() - 14 * DAY_MS)
-  const agents = await activeAgents(new Date(Date.now() - WINDOW_DAYS * DAY_MS))
+  // Owner policy: DEEP tone review samples only TODAY's conversations too.
+  const since = startOfToday()
+  const agents = await activeAgents(since)
   const deepAgents = agents.slice(0, DEEP_MAX_AGENTS)
   const findings: FindingDraft[] = []
   let llmRequests = 0
@@ -462,7 +512,7 @@ async function runDeep(freeStats: RunStats): Promise<RunStats> {
     const conversations = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT c.id
       FROM "Conversation" c
-      WHERE c."agentId" = ${agent.agentId} AND c."lastMessageAt" > ${since14d} AND c."handedOff" = false
+      WHERE c."agentId" = ${agent.agentId} AND c."lastMessageAt" > (${since} AT TIME ZONE 'UTC') AND c."handedOff" = false
         AND (SELECT COUNT(*) FROM "Message" m WHERE m."conversationId" = c.id AND m.role IN ('USER','ASSISTANT')) >= 6
       ORDER BY c."lastMessageAt" DESC
       LIMIT ${DEEP_TONE_CONVERSATIONS_PER_AGENT}`
