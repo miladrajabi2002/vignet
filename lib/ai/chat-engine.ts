@@ -23,6 +23,7 @@ import {
         historyForProductTurn,
         isHumanOwnedConversation,
         planProductRequest,
+        showcaseSubjectPhrase,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
 import type { CatalogProduct } from '@/lib/ai/rag'
@@ -247,6 +248,7 @@ async function buildDeterministicTurnReply(params: {
                 isFa: params.agent.language !== 'en',
                 preferredProductIds: params.catalogProducts.map((product) => product.id),
                 forceShowcase: true,
+                subjectPhrase: showcaseSubjectPhrase(params.productRequest),
         })
 }
 
@@ -1028,6 +1030,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                 isFa: agent.language !== 'en',
                                                 preferredProductIds: catalogProducts.map((product) => product.id),
                                                 forceShowcase: productRequest.explicitShowcase,
+                                                subjectPhrase: showcaseSubjectPhrase(productRequest),
                                         })
                                         if (trustedReply !== full) {
                                                 full = trustedReply
@@ -1325,6 +1328,7 @@ export async function generateReply(
                                 isFa: agent.language !== 'en',
                                 preferredProductIds: catalogProducts.map((product) => product.id),
                                 forceShowcase: productRequest.explicitShowcase,
+                                subjectPhrase: showcaseSubjectPhrase(productRequest),
                         })
                 } catch (error) {
                         console.error('[chat-engine] product-card hydration failed:', error)

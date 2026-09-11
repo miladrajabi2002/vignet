@@ -13,6 +13,75 @@ export interface ProductDirective {
   name: string
 }
 
+/**
+ * Customer-facing introduction for a deterministic showcase reply.
+ *
+ * The previous one-liner («X محصول موجود و مرتبط پیدا کردم:») told the
+ * customer how many products had been found, but not what they were about
+ * to receive or how to continue. A salesperson opening a vitrine does all
+ * three: names the category, sets expectations about what each card shows,
+ * and offers one narrowing question. Only catalog-noun terms are named so the
+ * sentence stays true even when the ranking includes loosely related matches;
+ * adjectives such as «مجلسی» are intentionally dropped because not every
+ * returned product necessarily carries them.
+ */
+export function showcaseIntroText(params: {
+  count: number
+  subject?: string
+  isFa: boolean
+}): string {
+  const subject = (params.subject ?? '').trim().slice(0, 40)
+  const hasSubject = subject.length >= 2
+  if (params.isFa) {
+    const count = params.count.toLocaleString('fa-IR')
+    if (params.count === 0) {
+      return [
+        hasSubject
+          ? `فعلاً هیچ ${subject} موجودی مطابق این درخواست در کاتالوگ پیدا نکردم.`
+          : 'فعلاً محصول موجود و منطبقی برای این درخواست در کاتالوگ پیدا نشد.',
+        'مدل یا رنگ خاصی مدنظرتان است؟ بگویید تا دوباره دقیق‌تر جست‌وجو کنم.',
+      ].join('\n')
+    }
+    if (params.count === 1) {
+      return [
+        hasSubject
+          ? `یک مدل ${subject} موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصاتش را در ادامه می‌بینید.`
+          : 'یک محصول موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصاتش را در ادامه می‌بینید.',
+        'اگر سایز یا رنگ خاصی لازم دارید، بگویید تا موجودیش را چک کنم.',
+      ].join('\n')
+    }
+    return [
+      hasSubject
+        ? `${count} مدل ${subject} موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`
+        : `${count} محصول موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`,
+      'رنگ یا سایز خاصی مدنظرتان است؟ بگویید تا از بین همین‌ها دقیق‌تر نشانتان بدهم.',
+    ].join('\n')
+  }
+  if (params.count === 0) {
+    return [
+      hasSubject
+        ? `I could not find an available ${subject} matching that request in the catalog right now.`
+        : 'No available matching product was found in the catalog right now.',
+      'Got a specific model or color in mind? Tell me and I will search again more precisely.',
+    ].join('\n')
+  }
+  if (params.count === 1) {
+    return [
+      hasSubject
+        ? `I found one available ${subject} that matches what you asked for; its photo, price and specs follow.`
+        : 'I found one available matching product; its photo, price and specs follow.',
+      'Need a specific size or color? Tell me and I will check its availability.',
+    ].join('\n')
+  }
+  const count = params.count.toLocaleString('en-US')
+  return [
+    hasSubject
+      ? `I found ${count} available ${subject} options that match what you asked for; the photo, price and specs of each follow.`
+      : `I found ${count} available matching options; the photo, price and specs of each follow.`,
+    'Looking for a specific color or size? Tell me and I will narrow these down for you.',
+  ].join('\n')
+}
+
 export type TrustedProductShowcase = ProductShowcase & { specs: string[] }
 
 /**
@@ -191,7 +260,10 @@ export async function buildTrustedProductReply(params: {
   preferredProductIds?: string[]
   /** Ignore model product prose/markers and render exactly preferredProductIds. */
   forceShowcase?: boolean
+  /** Catalog subject noun(s) from the customer's own request, for the intro. */
+  subjectPhrase?: string
 }): Promise<string> {
+  const subject = (params.subjectPhrase ?? '').trim()
   const parsed = parseProductDirectives(params.raw)
   const preferredDirectives = [...new Set(params.preferredProductIds ?? [])]
     .slice(0, MAX_PRODUCTS_PER_REPLY)
@@ -202,9 +274,7 @@ export async function buildTrustedProductReply(params: {
 
   if (!directives.length) {
     if (params.forceShowcase) {
-      return params.isFa
-        ? 'محصول موجود و منطبقی برای این درخواست در کاتالوگ پیدا نشد.'
-        : 'No available matching product was found in the catalog.'
+      return showcaseIntroText({ count: 0, subject, isFa: params.isFa })
     }
     return parsed.text === params.raw.trim() ? params.raw : parsed.text
   }
@@ -237,9 +307,7 @@ export async function buildTrustedProductReply(params: {
 
   if (!selectedProducts.length) {
     return params.forceShowcase
-      ? params.isFa
-        ? 'محصول موجود و منطبقی برای این درخواست در کاتالوگ پیدا نشد.'
-        : 'No available matching product was found in the catalog.'
+      ? showcaseIntroText({ count: 0, subject, isFa: params.isFa })
       : parsed.text
   }
 
@@ -262,9 +330,7 @@ export async function buildTrustedProductReply(params: {
   })
 
   const visibleText = params.forceShowcase
-    ? params.isFa
-      ? `${selectedProducts.length.toLocaleString('fa-IR')} محصول موجود و مرتبط پیدا کردم:`
-      : `I found ${selectedProducts.length} available matching product${selectedProducts.length === 1 ? '' : 's'}:`
+    ? showcaseIntroText({ count: selectedProducts.length, subject, isFa: params.isFa })
     : parsed.text
 
   return [visibleText, markers.join('\n')].filter(Boolean).join('\n\n')

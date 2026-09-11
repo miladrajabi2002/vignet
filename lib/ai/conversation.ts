@@ -521,6 +521,22 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         }
 }
 
+/**
+ * Catalog subject noun(s) for the showcase introduction message. Only terms
+ * that are themselves product nouns are named back to the customer: modifiers
+ * such as «مجلسی» or brand words are dropped because the hybrid search ranks
+ * by them but does not strictly filter on them, and the intro must stay true
+ * for every card that follows. Terms come back normalized/lowercase, which is
+ * fine for Persian (no letter case) and keeps English subjects readable.
+ */
+export function showcaseSubjectPhrase(plan: ProductRequestPlan): string {
+        return plan.searchTerms
+                .filter((term) => PRODUCT_SUBJECT_RE.test(term))
+                .slice(0, 2)
+                .join(' ')
+                .slice(0, 40)
+}
+
 /** Remove stale product claims when the customer starts a fresh catalog request. */
 export function historyForProductTurn(
         history: ChatMessage[],
