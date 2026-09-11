@@ -15,7 +15,6 @@
  */
 
 import { planProductRequest } from '@/lib/ai/conversation'
-import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { SkillKey, SkillSeverity } from './registry'
 
 export interface FindingDraft {
@@ -270,7 +269,14 @@ export function detectToolFailures(
     }
   }
 
-  // (b) per-turn checks: promise vs delivered cards, and catalog lookups with no product shown
+  // (b) per-agent aggregation: promise-vs-delivered mismatches, and explicit
+  // showcase requests where the catalog was consulted but nothing was shown.
+  // Per-agent (not per-message) keeps the board curated even when a routing
+  // defect fires on every turn; occurrences accumulate on the same finding.
+  interface MismatchSample { messageId: string; conversationId: string; claimed: number; presented: number; userContent: string; at: Date }
+  interface NoshowSample { messageId: string; conversationId: string; catalogChecked: number; userContent: string; at: Date }
+  const mismatchesByAgent = new Map<string, MismatchSample[]>()
+  const noshowByAgent = new Map<string, NoshowSample[]>()
   for (const turn of turns) {
     const agent = agentById.get(turn.agentId)
     if (!agent) continue
@@ -280,53 +286,77 @@ export function detectToolFailures(
     if (presented > 0) {
       const claimed = claimedProductCount(turn.content)
       if (claimed !== null && claimed - presented >= 2) {
-        findings.push({
-          skillKey: 'tool-failure',
-          dedupeKey: `tool:countmismatch:${turn.messageId}`,
-          workspaceId: turn.workspaceId,
-          agentId: turn.agentId,
-          conversationId: turn.conversationId,
-          severity: claimed - presented >= 3 ? 'HIGH' : 'MEDIUM',
-          title: `متن ${claimed} محصول وعده داده ولی ${presented} کارت ارسال شده`,
-          diagnosis: [
-            `پیام ایجنت به ${claimed} محصول/کارت اشاره می‌کند اما رسید پیام نشان می‌دهد فقط ${presented} کارت محصول واقعاً ارسال شده است.`,
-            turn.userContent ? `درخواست مشتری: «${turn.userContent.slice(0, 160).replace(/\s+/g, ' ')}»` : '',
-            'این ناسازگاری معمولاً از فیلتر رتبه‌بندی کاتالوگ یا نمایش ناقص کارت‌ها می‌آید؛ گفتگو را باز کنید تا دقیق‌تر بررسی شود.',
-          ].filter(Boolean).join('\n'),
-          evidence: {
-            messageId: turn.messageId,
-            conversationId: turn.conversationId,
-            claimed,
-            presented,
-            at: turn.createdAt.toISOString(),
-          },
-          suggestedAction: { type: 'inspect_conversation', conversationId: turn.conversationId, description: 'گفتگو را در پنل ادمین باز کنید' },
-          seenAt: turn.createdAt,
-        })
+        const list = mismatchesByAgent.get(turn.agentId) ?? []
+        list.push({ messageId: turn.messageId, conversationId: turn.conversationId, claimed, presented, userContent: (turn.userContent ?? '').slice(0, 160), at: turn.createdAt })
+        mismatchesByAgent.set(turn.agentId, list)
       }
     }
 
     if (catalogChecked > 0 && presented === 0 && turn.userContent) {
+      // Only an EXPLICIT request to see products ("کاتالوگ بفرست", "شومیز دارین؟")
+      // proves the customer expected cards; a passing product mention may be
+      // answered in text legitimately. This also avoids vocabulary quirks like
+      // «کلاه برداری» tripping a bare product noun.
       const plan = planProductRequest(turn.userContent, [])
-      if (plan.isProductTurn || plan.explicitShowcase) {
-        findings.push({
-          skillKey: 'tool-failure',
-          dedupeKey: `tool:noshow:${turn.messageId}`,
-          workspaceId: turn.workspaceId,
-          agentId: turn.agentId,
-          conversationId: turn.conversationId,
-          severity: 'MEDIUM',
-          title: 'کاتالوگ بررسی شد اما هیچ محصولی ارائه نشد',
-          diagnosis: [
-            `ایجنت ${catalogChecked} ردیف کاتالوگ را بررسی کرده ولی هیچ کارت محصولی برای مشتری نفرستاده است، در حالی که درخواست مشتری درباره محصول بود.`,
-            `درخواست مشتری: «${turn.userContent.slice(0, 160).replace(/\s+/g, ' ')}»`,
-            'احتمالاً جستجوی کاتالوگ نتیجهٔ بی‌ربطی داده یا آستانهٔ انتخاب محصول بیش از حد سخت است.',
-          ].join('\n'),
-          evidence: { messageId: turn.messageId, conversationId: turn.conversationId, catalogChecked, at: turn.createdAt.toISOString() },
-          suggestedAction: { type: 'inspect_conversation', conversationId: turn.conversationId, description: 'گفتگو را در پنل ادمین باز کنید' },
-          seenAt: turn.createdAt,
-        })
+      if (plan.explicitShowcase) {
+        const list = noshowByAgent.get(turn.agentId) ?? []
+        list.push({ messageId: turn.messageId, conversationId: turn.conversationId, catalogChecked, userContent: turn.userContent.slice(0, 160), at: turn.createdAt })
+        noshowByAgent.set(turn.agentId, list)
       }
+    }
+  }
+  for (const agent of agents) {
+    const mismatches = mismatchesByAgent.get(agent.agentId) ?? []
+    const mismatchDedupe = `tool:countmismatch:${agent.agentId}`
+    if (mismatches.length) {
+      const worstGap = Math.max(...mismatches.map((m) => m.claimed - m.presented))
+      findings.push({
+        skillKey: 'tool-failure',
+        dedupeKey: mismatchDedupe,
+        workspaceId: agent.workspaceId,
+        agentId: agent.agentId,
+        severity: worstGap >= 3 ? 'HIGH' : 'MEDIUM',
+        title: `${mismatches.length} پاسخ با تعداد وعده‌داده‌شدهٔ ناسازگار (${agent.agentName ?? 'ایجنت'})`,
+        diagnosis: [
+          `${mismatches.length} پاسخ ایجنت در متن به تعداد محصولی بیش از کارت‌های واقعاً ارسال‌شده اشاره کرده است.`,
+          mismatches.slice(0, 4).map((m) => `• گفتگو ${m.conversationId}: متن ${m.claimed} محصول، کارت ${m.presented}${m.userContent ? ` — درخواست: «${m.userContent.replace(/\s+/g, ' ')}»` : ''}`).join('\n'),
+          'این ناسازگاری معمولاً از فیلتر رتبه‌بندی کاتالوگ یا نمایش ناقص کارت‌ها می‌آید؛ گفتگوها را باز کنید تا دقیق‌تر بررسی شود.',
+        ].join('\n'),
+        evidence: {
+          count: mismatches.length,
+          samples: mismatches.slice(0, 5).map((m) => ({ messageId: m.messageId, conversationId: m.conversationId, claimed: m.claimed, presented: m.presented, at: m.at.toISOString() })),
+        },
+        suggestedAction: { type: 'inspect_conversation', conversationId: mismatches[0].conversationId, description: 'گفتگوها را در پنل ادمین باز کنید' },
+        seenAt: mismatches[mismatches.length - 1]?.at,
+      })
+    } else {
+      clean.push(mismatchDedupe)
+    }
+
+    const noshows = noshowByAgent.get(agent.agentId) ?? []
+    const noshowDedupe = `tool:noshow:${agent.agentId}`
+    if (noshows.length) {
+      findings.push({
+        skillKey: 'tool-failure',
+        dedupeKey: noshowDedupe,
+        workspaceId: agent.workspaceId,
+        agentId: agent.agentId,
+        severity: noshows.length >= 5 ? 'HIGH' : 'MEDIUM',
+        title: `${noshows.length} درخواست صریح محصول بدون ارائهٔ کارت (${agent.agentName ?? 'ایجنت'})`,
+        diagnosis: [
+          `مشتری صریحاً خواستار دیدن محصولات بوده و ایجنت کاتالوگ را بررسی کرده، اما هیچ کارت محصولی ارسال نشده است.`,
+          noshows.slice(0, 4).map((n) => `• «${n.userContent.replace(/\s+/g, ' ')}» — ${n.catalogChecked} ردیف بررسی‌شده، گفتگو ${n.conversationId}`).join('\n'),
+          'احتمالاً جستجوی کاتالوگ نتیجهٔ بی‌ربطی داده یا آستانهٔ انتخاب محصول بیش از حد سخت است.',
+        ].join('\n'),
+        evidence: {
+          count: noshows.length,
+          samples: noshows.slice(0, 5).map((n) => ({ messageId: n.messageId, conversationId: n.conversationId, catalogChecked: n.catalogChecked, userContent: n.userContent, at: n.at.toISOString() })),
+        },
+        suggestedAction: { type: 'inspect_conversation', conversationId: noshows[0].conversationId, description: 'گفتگوها را در پنل ادمین باز کنید' },
+        seenAt: noshows[noshows.length - 1]?.at,
+      })
+    } else {
+      clean.push(noshowDedupe)
     }
   }
 

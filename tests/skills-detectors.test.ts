@@ -92,11 +92,13 @@ describe('skills detectors — tool failure investigator', () => {
         receipts: [{ kind: 'products_presented', count: 1 }, { kind: 'catalog_checked', count: 12 }],
       }),
     ], [])
-    const mismatch = result.findings.find((f) => f.dedupeKey === 'tool:countmismatch:m10')
+    const mismatch = result.findings.find((f) => f.dedupeKey === 'tool:countmismatch:agent-1')
     expect(mismatch).toBeDefined()
     expect(mismatch!.severity).toBe('HIGH')
-    expect((mismatch!.evidence as { claimed: number; presented: number }).claimed).toBe(10)
-    expect((mismatch!.evidence as { claimed: number; presented: number }).presented).toBe(1)
+    const evidence = mismatch!.evidence as { count: number; samples: Array<{ claimed: number; presented: number }> }
+    expect(evidence.count).toBe(1)
+    expect(evidence.samples[0].claimed).toBe(10)
+    expect(evidence.samples[0].presented).toBe(1)
   })
 
   it('does not flag honest counts', () => {
@@ -107,10 +109,10 @@ describe('skills detectors — tool failure investigator', () => {
         receipts: [{ kind: 'products_presented', count: 10 }, { kind: 'catalog_checked', count: 12 }],
       }),
     ], [])
-    expect(result.findings.filter((f) => f.dedupeKey === 'tool:countmismatch:m11')).toHaveLength(0)
+    expect(result.findings.filter((f) => f.dedupeKey === 'tool:countmismatch:agent-1')).toHaveLength(0)
   })
 
-  it('flags catalog lookups that showed no product on a product turn', () => {
+  it('flags explicit showcase requests that showed no product', () => {
     const result = detectToolFailures([AGENT], [
       turn({
         messageId: 'm20',
@@ -119,19 +121,20 @@ describe('skills detectors — tool failure investigator', () => {
         receipts: [{ kind: 'catalog_checked', count: 12 }],
       }),
     ], [])
-    expect(result.findings.some((f) => f.dedupeKey === 'tool:noshow:m20')).toBe(true)
+    const noshow = result.findings.find((f) => f.dedupeKey === 'tool:noshow:agent-1')
+    expect(noshow).toBeDefined()
+    expect((noshow!.evidence as { count: number }).count).toBe(1)
+    expect(result.clean).not.toContain('tool:noshow:agent-1')
   })
 
-  it('stays silent on policy questions with catalog receipts', () => {
-    const result = detectToolFailures([AGENT], [
-      turn({
-        messageId: 'm21',
-        content: 'ارسال با تیپاکس و پست انجام می‌شود.',
-        userContent: 'هزینه ارسال چقدره؟',
-        receipts: [{ kind: 'knowledge_used', count: 1 }],
-      }),
-    ], [])
-    expect(result.findings.filter((f) => f.dedupeKey === 'tool:noshow:m21')).toHaveLength(0)
+  it('ignores catalog consultations without an explicit showcase request (vocabulary quirks)', () => {
+    for (const userContent of ['واقعیه یانه کلاه برداری نباشه', 'خرید از اینجا', 'هزینه ارسال چقدره؟']) {
+      const result = detectToolFailures([AGENT], [
+        turn({ messageId: 'm21', content: 'بله فروشگاه معتبر است.', userContent, receipts: [{ kind: 'catalog_checked', count: 3 }] }),
+      ], [])
+      expect(result.findings.filter((f) => f.dedupeKey === 'tool:noshow:agent-1')).toHaveLength(0)
+      expect(result.clean).toContain('tool:noshow:agent-1')
+    }
   })
 
   it('surfaces pending TOOL suggestions for the platform owner', () => {
