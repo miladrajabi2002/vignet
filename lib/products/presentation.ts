@@ -576,25 +576,32 @@ function sortVariationsByLabel(variations: VariationRow[]): VariationRow[] {
   )
 }
 
+// ─── Variant vitrine + variant pick (shared target resolution) ───────────────
+/** Shape of a catalog row resolved for a variant turn. */
+type VariantTargetRow = {
+  id: string
+  name: string
+  description: string | null
+  price: number | null
+  images: string[] | null
+  externalUrl: string | null
+  sku: string | null
+  attributes: unknown
+}
+
 /**
- * Deterministic reply for «کاتالوگ طرح‌های دیگشو میفرستی» — a vitrine of the
- * in-stock variations of the product under discussion. Every card carries the
- * variation's OWN photo, price and stock, so the customer finally sees the
- * variety instead of a vector search's random products.
- *
- * candidateRefs are most-recent-first: product ids (possibly «id#v123» from
- * earlier variation cards) and bare product codes («0788»). The first ref
- * that resolves to an assigned, active product WITH variations is the target.
- *
- * Returns null when no ref resolves or the target has no variations at all —
- * the caller then falls back to the ordinary showcase/consultation flow.
+ * Resolve the product a variant turn is about. candidateRefs are most-recent-
+ * first: product ids (possibly «id#v123» from earlier variation cards) and
+ * bare product codes («0788»). The first ref that resolves to an assigned,
+ * active product WITH variations is the target; the first resolvable row is
+ * kept as a fallback so an «all out of stock» list can still produce an
+ * honest reply. Returns null when no ref resolves at all.
  */
-export async function buildVariantShowcaseReply(params: {
+async function resolveVariantTarget(params: {
   workspaceId: string
   agentId: string
-  isFa: boolean
   candidateRefs: string[]
-}): Promise<string | null> {
+}): Promise<{ target: VariantTargetRow; variations: VariationRow[] } | null> {
   const refs = params.candidateRefs
     .map((ref) => ref.trim())
     .filter(Boolean)
@@ -651,7 +658,7 @@ export async function buildVariantShowcaseReply(params: {
   }
 
   // First resolvable ref (most recent reference wins) that has variations.
-  let target: typeof rows[number]['product'] | null = null
+  let target: VariantTargetRow | null = null
   for (const ref of refs) {
     const row = rowByProductId.get(ref.split('#')[0]) ?? rowByCode.get(ref) ?? null
     if (row && extractTypedVariations(row.attributes).length > 0) {
@@ -663,8 +670,37 @@ export async function buildVariantShowcaseReply(params: {
     if (row && !target) target = row
   }
   if (!target) return null
+  return { target, variations: extractTypedVariations(target.attributes) }
+}
 
-  const variations = extractTypedVariations(target.attributes)
+/** «طرح 07» already names its noun; «شکلاتی، L» needs the «رنگ» prefix. */
+function variationDisplay(variation: VariationRow, noun: string): string {
+  const label = variationLabel(variation)
+  return label.startsWith(noun) ? label : `${noun} ${label}`
+}
+
+/**
+ * Deterministic reply for «کاتالوگ طرح‌های دیگشو میفرستی» — a vitrine of the
+ * in-stock variations of the product under discussion. Every card carries the
+ * variation's OWN photo, price and stock, so the customer finally sees the
+ * variety instead of a vector search's random products.
+ *
+ * Returns null when no ref resolves or the target has no variations at all —
+ * the caller then falls back to the ordinary showcase/consultation flow.
+ */
+export async function buildVariantShowcaseReply(params: {
+  workspaceId: string
+  agentId: string
+  isFa: boolean
+  candidateRefs: string[]
+}): Promise<string | null> {
+  const resolved = await resolveVariantTarget({
+    workspaceId: params.workspaceId,
+    agentId: params.agentId,
+    candidateRefs: params.candidateRefs,
+  })
+  if (!resolved) return null
+  const { target, variations } = resolved
   if (!variations.length) return null
   const available = sortVariationsByLabel(variations.filter(isVariationAvailable))
   const noun = variationNoun(variations, params.isFa)
@@ -718,4 +754,80 @@ export async function buildVariantShowcaseReply(params: {
         ].join('\n')
 
   return [intro, markers.join('\n')].filter(Boolean).join('\n\n')
+}
+
+/**
+ * Deterministic reply for a SINGULAR variant pick of the product under
+ * discussion WITHOUT a product code — «طرح 07 رو میخوام», «رنگ شکلاتی
+ * دارین؟», «مدل 05». The hint is matched against the target's variations;
+ * a hit produces exactly one card carrying that variation's own photo,
+ * price and stock. An out-of-stock hit still attaches the card (badge
+ * «ناموجود») with an honest line, mirroring the code+hint flow
+ * («0788 طرح 05») which already behaves this way.
+ *
+ * Returns null when no ref resolves, the target has no variations, or the
+ * hint matches none of them — the caller falls back to the consultation
+ * flow with the target product in the model's catalog context.
+ */
+export async function buildVariantPickReply(params: {
+  workspaceId: string
+  agentId: string
+  isFa: boolean
+  candidateRefs: string[]
+  hint: string
+}): Promise<string | null> {
+  const hint = params.hint.trim()
+  if (!hint) return null
+  const resolved = await resolveVariantTarget({
+    workspaceId: params.workspaceId,
+    agentId: params.agentId,
+    candidateRefs: params.candidateRefs,
+  })
+  if (!resolved) return null
+  const { target, variations } = resolved
+  if (!variations.length) return null
+  const variation = matchVariationRow(variations, { label: hint })
+  if (!variation) return null
+
+  const noun = variationNoun(variations, params.isFa)
+  const display = variationDisplay(variation, noun)
+  const available = isVariationAvailable(variation)
+  const marker = `[[product:${JSON.stringify({
+    id: `${target.id}#v${variation.id}`,
+    name: `${target.name} — ${variationLabel(variation)}`,
+    price: (variation.price ?? target.price) == null
+      ? ''
+      : params.isFa
+        ? `${(variation.price ?? target.price)!.toLocaleString('fa-IR')} تومان`
+        : (variation.price ?? target.price)!.toLocaleString('en-US'),
+    desc: cleanProductDescription(target.description, 240),
+    badge: available
+      ? (params.isFa ? 'موجود' : 'Available')
+      : (params.isFa ? 'ناموجود' : 'Out of stock'),
+    image: safeProductUrl(variation.image ?? null) ?? safeProductUrl(pickTemplateImageUrl(target.images)) ?? '',
+    url: safeProductUrl(target.externalUrl) ?? '',
+    specs: variationSpecs(variation, target.attributes),
+  })}]]`
+
+  const intro = params.isFa
+    ? available
+      ? [
+          `این هم ${display} از «${target.name}»؛ عکس، قیمت و موجودی‌اش روی کارت زیر هست.`,
+          `اگر ${noun} دیگری هم خواستید، بگویید.`,
+        ].join('\n')
+      : [
+          `${display} از «${target.name}» فعلاً ناموجود شده است؛ کارتش را برایتان گذاشتم تا از نزدیک ببینید.`,
+          `${noun}های موجود این مدل را هم بفرستم؟`,
+        ].join('\n')
+    : available
+      ? [
+          `Here is the ${display} of “${target.name}”; its photo, price and stock are on the card below.`,
+          `Tell me if you would like another ${noun}.`,
+        ].join('\n')
+      : [
+          `The ${display} of “${target.name}” is currently out of stock; I attached its card so you can see it up close.`,
+          `Shall I send the available ${noun}s of this model?`,
+        ].join('\n')
+
+  return [intro, marker].join('\n\n')
 }

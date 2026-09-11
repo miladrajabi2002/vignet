@@ -70,6 +70,14 @@ export interface ProductRequestPlan {
          * the presentation layer against the agent's assigned catalog.
          */
         variantTargetRefs: string[]
+        /**
+         * The customer named ONE specific variant of the product under
+         * discussion WITHOUT a product code («طرح 07 رو میخوام»,
+         * «رنگ شکلاتی دارین؟») — hint present + an earlier product reference.
+         * The deterministic reply is that variation's own card; the catalog-
+         * wide vitrine must NOT fire on the variant word instead.
+         */
+        variantPick: boolean
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -266,9 +274,9 @@ function extractMarkerProductIds(content: string): string[] {
         return ids
 }
 
-// ─── Singular variant reference: «0788 طرح 05» / «رنگ کرم» ───────────────────
+// ─── Singular variant reference: «0788 طرح 05» / «رنگ کرم» / «مدل 05» ───────
 const VARIANT_HINT_NOUNS = new Set([
-        'طرح', 'رنگ', 'تنوع', 'سایز', 'اندازه',
+        'طرح', 'رنگ', 'تنوع', 'سایز', 'اندازه', 'مدل',
         'design', 'color', 'colour', 'variant', 'size',
 ])
 /** Tokens that may sit between the noun and its value («طرح شماره ۵»). */
@@ -587,18 +595,8 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const showcaseFromContext =
                 showcaseCommand &&
                 (priorProductTerms.length > 0 || (priorProductSignal && currentTerms.length === 0))
-        // A bare product phrase («شومیز», «کیف دوشی دارین؟») names the thing the
-        // customer wants to SEE, so it upgrades the turn to a vitrin showcase:
-        // up to ten AVAILABLE product cards on every channel, with no follow-up
-        // question. Showcase commands keep their own routing above; question-
-        // shaped, priced, counted, coded, attribute and policy/order turns stay
-        // consultations via the guards inside isBareVitrinPhrase.
-        const vitrinPhrase =
-                !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
-                !showcaseCommand && !browseQuery && !affirmativeFollowUp &&
-                directProductSignal &&
-                isBareVitrinPhrase(normalized, currentTerms)
-        // ─── Variant browse: «کاتالوگ طرح‌های دیگشو میفرستی» ───────────────
+        // ─── Variant routing (must precede vitrinPhrase so a variant pick of
+        // the discussed product is never mistaken for a catalog-wide browse).
         // Pluralized variant noun + browse cue = the customer wants the variety
         // of the product under discussion. Order/policy/service/reset turns keep
         // their own routing; a non-catalog code context can't be a variant target.
@@ -612,7 +610,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // card (marker ids) or the customer naming a code — is the target, so a
         // «طرح‌هاشو بفرست» after a text-only consult on «0788» still finds 0788.
         const variantTargetRefs: string[] = []
-        if (variantBrowse) {
+        if (variantBrowse || variantHint) {
                 const lookbackFloor = Math.max(0, history.length - 24)
                 for (let index = history.length - 1; index >= lookbackFloor; index -= 1) {
                         const item = history[index]
@@ -636,9 +634,32 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         }
                 }
         }
+        // ─── Variant pick: «طرح 07 رو میخوام» / «رنگ شکلاتی دارین؟» ──────────
+        // The customer named ONE specific variant of the product already under
+        // discussion (hint present + a resolvable earlier reference). Without
+        // this flag the bare «رنگ شکلاتی دارین؟» fires the catalog-wide vitrine
+        // on the color word and returns random products that merely MENTION the
+        // color. A pick must resolve against the discussed product instead.
+        const variantPick =
+                !orderOnly && !serviceOnly && !policyOnly && !resetRequested && !nonCatalogCode &&
+                variantHint != null && variantTargetRefs.length > 0
+        // A bare product phrase («شومیز», «کیف دوشی دارین؟») names the thing the
+        // customer wants to SEE, so it upgrades the turn to a vitrin showcase:
+        // up to ten AVAILABLE product cards on every channel, with no follow-up
+        // question. Showcase commands keep their own routing above; question-
+        // shaped, priced, counted, coded, attribute and policy/order turns stay
+        // consultations via the guards inside isBareVitrinPhrase. A variant pick
+        // of the discussed product overrides it — «رنگ شکلاتی دارین؟» after a
+        // پرنسس vitrine is about THAT product's شکلاتی variant, not the catalog.
+        const vitrinPhrase =
+                !variantPick &&
+                !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
+                !showcaseCommand && !browseQuery && !affirmativeFollowUp &&
+                directProductSignal &&
+                isBareVitrinPhrase(normalized, currentTerms)
 
         const explicitShowcase =
-                !orderOnly && !serviceOnly && !policyOnly && (
+                !variantPick && !orderOnly && !serviceOnly && !policyOnly && (
                         (showcaseCommand && directProductSignal) ||
                         showcaseFromContext ||
                         affirmativeFollowUp ||
@@ -647,21 +668,22 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // «بیخیال، چی دارین؟» resets AND states the new request in one message;
         // only a reset with no product/browse content asks for a fresh prompt.
         const requestNewTopic =
-                resetRequested && !explicitShowcase && !browseQuery && !directProductSignal
+                resetRequested && !explicitShowcase && !browseQuery && !directProductSignal && !variantPick
         const isProductTurn =
                 !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
-                (directProductSignal || browseQuery || explicitShowcase || variantBrowse)
+                (directProductSignal || browseQuery || explicitShowcase || variantBrowse || variantPick)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.
         let searchTerms = isProductTurn ? (affirmativeFollowUp ? [] : currentTerms) : []
 
         if (isProductTurn && searchTerms.length === 0 && !resetRequested) searchTerms = priorProductTerms
 
-        // Variant browse is about the product already under discussion; plural
-        // variant nouns («طرح‌ها») alone would pollute the catalog search and
-        // return random variation-bearing rows. Prefer the current code terms
-        // plus the prior discussion's terms instead.
-        if (variantBrowse) {
+        // Variant turns are about the product already under discussion; plural
+        // variant nouns («طرح‌ها») and bare variant values («شکلاتی», «07») alone
+        // would pollute the catalog search and return random variation-bearing
+        // rows. Prefer the current code terms plus the prior discussion's terms
+        // instead so the model consults with the RIGHT product in context.
+        if (variantBrowse || variantPick) {
                 const codeTerms = currentTerms.filter((term) => /^\d{3,8}$/.test(term))
                 const merged = [...new Set([...codeTerms, ...priorProductTerms])]
                 if (merged.length) searchTerms = merged
@@ -697,6 +719,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 codeIdentified: productCodeSignal,
                 variantBrowse,
                 variantHint,
+                variantPick,
                 variantTargetRefs,
         }
 }

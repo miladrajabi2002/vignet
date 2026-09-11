@@ -234,3 +234,74 @@ describe('conversation reopen on new inbound (routing-level guards)', () => {
     expect(plan.isProductTurn).toBe(true)
   })
 })
+
+describe('variant pick routing — «طرح 07 رو میخوام» / «رنگ شکلاتی رو دارین؟»', () => {
+  // A vitrine reply like the deterministic variant showcase sends.
+  const vitrineHistory = [
+    user('شلوار دامنی پرنسس 0556'),
+    assistant(
+      '۱۰ رنگ موجود را فرستادم.\n' +
+      '[[product:{"id":"cmt9de4ew05u2eoqg26pshl8g#v70254","name":"شلوار دامنی پرنسس 0556 — موکا، L"}]]\n' +
+      '[[product:{"id":"cmt9de4ew05u2eoqg26pshl8g#v70258","name":"شلوار دامنی پرنسس 0556 — شکلاتی، L"}]]',
+    ),
+  ]
+  const consultHistory = [
+    user('ست خانگی شادی 0736'),
+    assistant('[[product:{"id":"cmta9kwh700rgeolm9tnafdjh","name":"ست خانگی شادی 0736"}]]'),
+  ]
+
+  it('routes a no-code variant pick of the discussed product', () => {
+    const plan = planProductRequest('طرح 07 رو میخوام', consultHistory)
+    expect(plan.variantHint).toBe('07')
+    expect(plan.variantPick).toBe(true)
+    expect(plan.variantTargetRefs).toContain('cmta9kwh700rgeolm9tnafdjh')
+    expect(plan.isProductTurn).toBe(true)
+  })
+
+  it('«رنگ شکلاتی رو دارین؟» becomes a pick of the discussed product, not a catalog vitrine', () => {
+    const plan = planProductRequest('رنگ شکلاتی رو دارین؟', vitrineHistory)
+    expect(plan.variantHint).toBe('شکلاتی')
+    expect(plan.variantPick).toBe(true)
+    expect(plan.explicitShowcase).toBe(false)
+    expect(plan.isProductTurn).toBe(true)
+  })
+
+  it('collects the vitrine markers (with «#v» suffixes) as pick refs', () => {
+    const plan = planProductRequest('رنگ شکلاتی رو دارین؟', vitrineHistory)
+    expect(plan.variantTargetRefs).toContain('cmt9de4ew05u2eoqg26pshl8g#v70254')
+    expect(plan.variantTargetRefs).toContain('cmt9de4ew05u2eoqg26pshl8g#v70258')
+  })
+
+  it('«مدل 05» extracts a hint and picks the discussed product', () => {
+    const plan = planProductRequest('مدل 05 رو میخوام', consultHistory)
+    expect(plan.variantHint).toBe('05')
+    expect(plan.variantPick).toBe(true)
+  })
+
+  it('«مدل دیگه ای دارین؟» stays a normal browse (blocked hint value)', () => {
+    const plan = planProductRequest('مدل دیگه ای دارین؟', consultHistory)
+    expect(plan.variantHint).toBeNull()
+    expect(plan.variantPick).toBe(false)
+  })
+
+  it('pick turns search with the prior discussion terms, not the variant word', () => {
+    const plan = planProductRequest('رنگ شکلاتی رو دارین؟', vitrineHistory)
+    expect(plan.searchTerms).not.toContain('شکلاتی')
+    expect(plan.searchTerms.some((term) => /0556|شلوار|پرنسس/.test(term))).toBe(true)
+  })
+
+  it('no product context — pick stays off (fresh conversations keep the ordinary routing)', () => {
+    const plan = planProductRequest('رنگ شکلاتی رو دارین؟', [])
+    expect(plan.variantPick).toBe(false)
+  })
+
+  it('reset turns never pick a variant', () => {
+    const plan = planProductRequest('بیخیال رنگ شکلاتی رو دارین؟', vitrineHistory)
+    expect(plan.variantPick).toBe(false)
+  })
+
+  it('order/policy turns never pick a variant', () => {
+    expect(planProductRequest('سفارشم کی ارسال میشه طرح 05؟', vitrineHistory).variantPick).toBe(false)
+    expect(planProductRequest('هزینه ارسال طرح 05 چقدره؟', vitrineHistory).variantPick).toBe(false)
+  })
+})

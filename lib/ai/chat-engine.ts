@@ -49,7 +49,7 @@ import {
 import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
-import { buildTrustedProductReply, buildVariantShowcaseReply, parseProductDirectives } from '@/lib/products/presentation'
+import { buildTrustedProductReply, buildVariantPickReply, buildVariantShowcaseReply, parseProductDirectives } from '@/lib/products/presentation'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import {
         agentSkillTrace,
@@ -235,12 +235,38 @@ async function buildDeterministicTurnReply(params: {
                         : 'باشه؛ موضوع قبلی را کنار گذاشتم.'
         }
         if (!params.agent.productAccessEnabled) {
-                if (params.productRequest.variantBrowse || params.productRequest.explicitShowcase) {
+                if (params.productRequest.variantBrowse || params.productRequest.variantPick || params.productRequest.explicitShowcase) {
                         return params.agent.language === 'en'
                                 ? 'This agent does not currently have access to the product catalog.'
                                 : 'دسترسی این ایجنت به کاتالوگ محصولات در حال حاضر غیرفعال است.'
                 }
                 return null
+        }
+        // «طرح 07 رو میخوام» / «رنگ شکلاتی دارین؟» — the customer picked ONE
+        // variant of the discussed product WITHOUT a code. Resolve it against
+        // that product's variations (own photo/price/stock) instead of letting
+        // the bare variant word fire a catalog-wide vitrine of random products
+        // that merely mention the color/design in their names.
+        if (params.productRequest.variantPick) {
+                try {
+                        const pickReply = await buildVariantPickReply({
+                                workspaceId: params.workspaceId,
+                                agentId: params.agent.id,
+                                isFa: params.agent.language !== 'en',
+                                candidateRefs: [
+                                        ...params.productRequest.variantTargetRefs,
+                                        ...params.catalogProducts
+                                                .filter((product) => product.fullTermMatch)
+                                                .map((product) => product.id),
+                                ],
+                                hint: params.productRequest.variantHint ?? '',
+                        })
+                        if (pickReply) return pickReply
+                } catch (error) {
+                        console.error('[chat-engine] variant pick failed:', error)
+                }
+                // No matching variation — fall through: the consultation flow
+                // has the target product in the model's catalog context.
         }
         // «کاتالوگ طرح‌های دیگشو میفرستی» — a deterministic vitrine of the
         // discussed product's in-stock variations (each card = that variant's
