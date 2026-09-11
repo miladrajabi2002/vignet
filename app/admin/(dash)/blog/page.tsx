@@ -1,17 +1,19 @@
 import { FileText, CheckCircle2, PencilLine, Eye } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { AdminBlogManager } from '@/components/blog/admin-blog-manager'
-import { MiniTrend } from '@/components/admin/mini-trend'
+import { TrendChart } from '@/components/admin/trend-chart'
 import { getLocale } from 'next-intl/server'
 import { PageHeader, StatCard, Card, Panel, fa } from '../ui'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
+import { lastNTehranDayKeys } from '@/lib/blog/daily-views'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminBlogPage() {
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 
-  const since7d = new Date(Date.now() - 7 * 86_400_000)
+  // Last 7 Tehran calendar days (oldest → newest) as UTC-midnight keys.
+  const dayKeys = lastNTehranDayKeys(7)
 
   const [
     posts,
@@ -21,7 +23,7 @@ export default async function AdminBlogPage() {
     draftCount,
     viewsAgg,
     topPostsByViews,
-    publishedLast7dRaw,
+    dailyViewsRaw,
   ] = await Promise.all([
     prisma.blogPost.findMany({
       orderBy: { updatedAt: 'desc' },
@@ -46,36 +48,36 @@ export default async function AdminBlogPage() {
       take: 5,
       select: { title: true, views: true },
     }),
-    // Posts published per day over the last 7 days — for the sparkline.
-    prisma.blogPost.findMany({
-      where: { publishedAt: { gte: since7d } },
-      select: { publishedAt: true },
+    // Real page views per day over the last 7 days (beacon-aggregated).
+    prisma.blogPostDailyView.groupBy({
+      by: ['day'],
+      where: { day: { gte: dayKeys[0] } },
+      _sum: { count: true },
     }),
   ])
 
   const totalViews = viewsAgg._sum.views ?? 0
 
-  // Build the 7-day "published posts" series (oldest → newest).
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const dayBuckets = new Array(7).fill(0)
-  for (const p of publishedLast7dRaw) {
-    if (!p.publishedAt) continue
-    const d = new Date(p.publishedAt)
-    d.setHours(0, 0, 0, 0)
-    const idx = Math.floor((today.getTime() - d.getTime()) / 86_400_000)
-    if (idx >= 0 && idx < 7) dayBuckets[6 - idx] += 1
+  // Map the grouped rows onto the fixed 7-day window (oldest → newest).
+  const viewsByDay = new Map<string, number>()
+  for (const row of dailyViewsRaw) {
+    viewsByDay.set(row.day.toISOString().slice(0, 10), row._sum.count ?? 0)
   }
-  const publishedWeekTotal = dayBuckets.reduce((a, b) => a + b, 0)
+  const dayStrings = dayKeys.map((d) => d.toISOString().slice(0, 10))
+  const series = dayStrings.map((day) => viewsByDay.get(day) ?? 0)
+  const weekViewsTotal = series.reduce((a, b) => a + b, 0)
 
-  // Persian short-date labels (oldest → newest) for the sparkline hover tooltip.
-  const dayLabelFmt = new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
-    month: 'short',
+  // Best day of the window — "which day got the most views, and how much".
+  const bestIdx = series.reduce((best, v, i) => (v > series[best] ? i : best), 0)
+  const bestDayFmt = new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
+    weekday: 'long',
     day: 'numeric',
+    month: 'long',
   })
-  const dayLabels = dayBuckets.map((_, i) =>
-    dayLabelFmt.format(new Date(Date.now() - (dayBuckets.length - 1 - i) * 86_400_000)),
-  )
+  const viewsSubtitle =
+    weekViewsTotal === 0
+      ? 'هنوز بازدیدی در ۷ روز اخیر ثبت نشده است'
+      : `مجموع ${fa(weekViewsTotal)} بازدید · بیشترین: ${bestDayFmt.format(dayKeys[bestIdx])} با ${fa(series[bestIdx])} بازدید`
 
   return (
     <div className="space-y-6">
@@ -115,18 +117,15 @@ export default async function AdminBlogPage() {
         />
       </div>
 
-      {/* ─── Compact charts: publish trend + top viewed posts ─── */}
+      {/* ─── Compact charts: 7-day real views + top viewed posts ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <MiniTrend
-          label="پست‌های منتشرشده ۷ روز اخیر"
-          value={publishedWeekTotal}
-          series={dayBuckets}
-          color="#22c55e"
-          hint="بر اساس تاریخ انتشار"
-          labels={dayLabels}
-          valueLabel="پست منتشرشده"
-          variant="light"
-          className="lg:col-span-1"
+        <TrendChart
+          title="بازدید ۷ روز اخیر"
+          subtitle={viewsSubtitle}
+          data={dayStrings.map((day, i) => ({ day, value: series[i] }))}
+          color="#2563eb"
+          variant="bar"
+          height={200}
         />
         <Panel title="پربازدیدترین مقالات">
           {topPostsByViews.length === 0 ? (

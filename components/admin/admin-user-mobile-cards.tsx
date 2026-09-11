@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRef, useState, type MouseEvent } from 'react'
 import {
   ArrowLeft,
-  Bot,
+  Cable,
   CalendarDays,
   CreditCard,
   MessageSquareText,
@@ -31,7 +31,7 @@ export interface AdminMobileUser {
     statusLabel: string
     statusTone: Tone
     counts: {
-      agents: string
+      connections: string
       conversations: string
       payments: string
       products: string
@@ -98,7 +98,7 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
                   <StatusBadge label={user.workspace.statusLabel} tone={user.workspace.statusTone} />
                 </span>
                 <span className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <span><span className="block text-[11px] text-zinc-500">ایجنت</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.agents}</strong></span>
+                  <span><span className="block text-[11px] text-zinc-500">اتصال</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.connections}</strong></span>
                   <span><span className="block text-[11px] text-zinc-500">گفتگو</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.conversations}</strong></span>
                   <span><span className="block text-[11px] text-zinc-500">محصول</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.products}</strong></span>
                 </span>
@@ -189,7 +189,7 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
               <div role="tabpanel" className="grid grid-cols-2 gap-3">
                 {selected.workspace ? (
                   <>
-                    <RelationCard icon={Bot} label="ایجنت‌ها" value={selected.workspace.counts.agents} />
+                    <RelationCard icon={Cable} label="اتصالات" value={selected.workspace.counts.connections} />
                     <RelationCard icon={MessageSquareText} label="گفتگوها" value={selected.workspace.counts.conversations} />
                     <RelationCard icon={CreditCard} label="پرداخت‌ها" value={selected.workspace.counts.payments} />
                     <RelationCard icon={Package} label="محصولات" value={selected.workspace.counts.products} />
@@ -211,7 +211,7 @@ function RelationCard({
   label,
   value,
 }: {
-  icon: typeof Bot
+  icon: typeof Cable
   label: string
   value: string
 }) {

@@ -1307,6 +1307,7 @@ model BlogPost {
 
   workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   category  BlogCategory? @relation(fields: [categoryId], references: [id])
+  dailyViews BlogPostDailyView[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, status, publishedAt])
@@ -1314,6 +1315,27 @@ model BlogPost {
   @@index([categoryId])
   // Admin "most viewed posts" orders by views across all posts.
   @@index([views])
+}
+
+// ─── BLOG DAILY VIEW COUNTER ─────────────────────────────────────────
+//   Per-post, per-day aggregate of real page views (same beacon semantics
+//   as BlogPost.views). Written by POST /api/blog/[slug]/view in the same
+//   request as the total counter, so the admin "last 7 days views" chart
+//   has exact daily history without storing one row per view event.
+//   `day` is the Tehran calendar date of the view, stored as a DateTime at
+//   UTC midnight of that date (pure day key — never a real instant).
+model BlogPostDailyView {
+  id     String   @id @default(cuid())
+  postId String
+  day    DateTime
+  count  Int      @default(0)
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, day])
+  @@index([day])
+  // Admin chart aggregates across all posts for a day range.
+  @@index([postId, day])
 }
 
 enum BlogStatus {

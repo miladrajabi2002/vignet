@@ -110,6 +110,14 @@ export default async function AdminUsersPage(
               agents: {
                 select: {
                   _count: { select: { knowledgeBases: true, channels: true } },
+                  // Active paid-quota channels per agent — mirrors
+                  // getActiveChannelConnectionCount (CHAT_LINK is counted via
+                  // the ChatLink model; INSTAGRAM is free and never consumes
+                  // the connection quota).
+                  channels: {
+                    where: { active: true, type: { notIn: ['CHAT_LINK', 'INSTAGRAM'] } },
+                    select: { id: true },
+                  },
                 },
               },
               _count: { select: { agents: true, conversations: true, payments: true, products: true } },
@@ -140,6 +148,31 @@ export default async function AdminUsersPage(
   const workspaceIds = items
     .map((u) => u.workspace?.id)
     .filter((id): id is string => !!id)
+
+  // Enabled public chat links per workspace (the second half of the
+  // "connections" metric, alongside active agent channels above).
+  const chatLinkRows = workspaceIds.length
+    ? await prisma.chatLink.groupBy({
+        by: ['workspaceId'],
+        where: { enabled: true, workspaceId: { in: workspaceIds } },
+        _count: { _all: true },
+      })
+    : []
+  const chatLinksByWorkspace = new Map(
+    chatLinkRows.map((r) => [r.workspaceId, r._count._all]),
+  )
+  // Connections = active agent channels (excl. CHAT_LINK/INSTAGRAM) + enabled chat links.
+  const connectionsByWorkspace = new Map<string, number>()
+  for (const u of items) {
+    const ws = u.workspace
+    if (!ws) continue
+    const agentChannels = ws.agents.reduce((sum, a) => sum + a.channels.length, 0)
+    connectionsByWorkspace.set(
+      ws.id,
+      agentChannels + (chatLinksByWorkspace.get(ws.id) ?? 0),
+    )
+  }
+
   const sparks = workspaceIds.length
     ? await conversationsDailyByWorkspace(7)
     : new Map<string, { workspaceId: string; series: number[]; total: number }>()
@@ -205,7 +238,7 @@ export default async function AdminUsersPage(
         statusLabel: workspace.onboardingCompleted ? 'فعال' : stalled ? 'متوقف' : onboarding.labelFa,
         statusTone: workspace.onboardingCompleted ? 'success' : stalled ? 'warning' : 'info',
         counts: {
-          agents: fa(workspace._count.agents),
+          connections: fa(connectionsByWorkspace.get(workspace.id) ?? 0),
           conversations: fa(workspace._count.conversations),
           payments: fa(workspace._count.payments),
           products: fa(workspace._count.products),
@@ -303,7 +336,7 @@ export default async function AdminUsersPage(
               <Th>شماره تلفن</Th>
               <Th>وضعیت</Th>
               <Th>پلن</Th>
-              <Th>ایجنت‌ها</Th>
+              <Th title="کانال‌های فعال + لینک‌های چت منتشرشده">اتصالات</Th>
               <Th>مکالمات</Th>
               <Th>روند ۷ روز</Th>
               <Th>تاریخ عضویت</Th>
@@ -368,8 +401,8 @@ export default async function AdminUsersPage(
                       <span className="text-zinc-400">—</span>
                     )}
                   </Td>
-                  <Td className="text-zinc-600 tabular-nums">
-                    {fa(ws?._count.agents ?? 0)}
+                  <Td className="text-zinc-600 tabular-nums" title={ws ? 'کانال‌های فعال + لینک‌های چت منتشرشده' : undefined}>
+                    {fa(ws ? connectionsByWorkspace.get(ws.id) ?? 0 : 0)}
                   </Td>
                   <Td className="text-zinc-600 tabular-nums">
                     {fa(ws?._count.conversations ?? 0)}

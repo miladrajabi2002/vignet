@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Edit3, Trash2, Loader2, X, FileText, Wand2, Search, SlidersHorizontal } from 'lucide-react'
+import { Plus, Edit3, Trash2, Loader2, X, FileText, Wand2, Search, SlidersHorizontal, ImagePlus } from 'lucide-react'
 import {
         BlogEditor,
         type BlogPostData,
         type BlogCategory,
 } from '@/components/blog/blog-editor'
 import { JsonImportDialog } from '@/components/blog/json-import-dialog'
+import { PosterPromptDialog } from '@/components/blog/poster-prompt-dialog'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { toPersianDigits } from '@/lib/blog/helpers'
 import { cn } from '@/lib/utils'
@@ -76,6 +77,7 @@ export function AdminBlogManager({
         const filterTriggerRef = useRef<HTMLButtonElement>(null)
         const [jsonImportOpen, setJsonImportOpen] = useState(false)
         const [importedInitial, setImportedInitial] = useState<BlogPostData | null>(null)
+        const [posterPromptFor, setPosterPromptFor] = useState<AdminPostRow | null>(null)
 
         const isFa = locale === 'fa'
         const statusLabels = isFa ? STATUS_LABELS_FA : STATUS_LABELS_EN
@@ -327,7 +329,16 @@ export function AdminBlogManager({
                                                                         // eslint-disable-next-line @next/next/no-img-element
                                                                         <img src={post.coverImage} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-xl border border-zinc-200 object-cover" />
                                                                 ) : (
-                                                                        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50"><FileText className="h-5 w-5 text-zinc-300" /></span>
+                                                                        <button
+                                                                                type="button"
+                                                                                onClick={() => setPosterPromptFor(post)}
+                                                                                title={isFa ? 'بدون پوستر — ساخت پرامپت عکس با ۳ رنگ' : 'No cover — build 3-color poster prompts'}
+                                                                                aria-label={isFa ? 'ساخت پرامپت پوستر' : 'Build poster prompts'}
+                                                                                className="group grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
+                                                                        >
+                                                                                <ImagePlus className="h-5 w-5 text-zinc-300 transition-colors group-hover:text-emerald-500" />
+                                                                                <span className="text-[9px] font-medium text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
+                                                                        </button>
                                                                 )}
                                                                 <div className="min-w-0 flex-1">
                                                                         <div className="flex items-start justify-between gap-2">
@@ -383,9 +394,16 @@ export function AdminBlogManager({
                                                                                                 className="h-12 w-16 shrink-0 rounded-lg border border-zinc-200 object-cover"
                                                                                         />
                                                                                 ) : (
-                                                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50">
-                                                                                                <FileText className="h-4 w-4 text-zinc-300" />
-                                                                                        </div>
+                                                                                        <button
+                                                                                                type="button"
+                                                                                                onClick={() => setPosterPromptFor(p)}
+                                                                                                title={isFa ? 'بدون پوستر — ساخت پرامپت عکس با ۳ رنگ' : 'No cover — build 3-color poster prompts'}
+                                                                                                aria-label={isFa ? 'ساخت پرامپت پوستر' : 'Build poster prompts'}
+                                                                                                className="group flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
+                                                                                        >
+                                                                                                <ImagePlus className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-emerald-500" />
+                                                                                                <span className="text-[8px] font-medium leading-none text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
+                                                                                        </button>
                                                                                 )}
                                                                         </td>
                                                                         <td className="px-4 py-3">
@@ -492,6 +510,20 @@ export function AdminBlogManager({
                                 open={jsonImportOpen}
                                 onClose={() => setJsonImportOpen(false)}
                                 onImport={handleJsonImport}
+                        />
+
+                        {/* ─── Poster prompts for a post without a cover image ─── */}
+                        <PosterPromptDialog
+                                open={posterPromptFor !== null}
+                                onClose={() => setPosterPromptFor(null)}
+                                post={posterPromptFor
+                                        ? {
+                                                        title: posterPromptFor.title,
+                                                        slug: posterPromptFor.slug,
+                                                        excerpt: posterPromptFor.excerpt,
+                                                        content: posterPromptFor.content,
+                                                }
+                                        : null}
                         />
                 </div>
         )

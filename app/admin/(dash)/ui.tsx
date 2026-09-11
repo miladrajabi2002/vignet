@@ -289,12 +289,15 @@ export function LevelBadge({ level }: { level: string }) {
 export function Th({
   children,
   className,
+  title,
 }: {
   children?: React.ReactNode;
   className?: string;
+  title?: string;
 }) {
   return (
     <th
+      title={title}
       className={cn(
         "whitespace-nowrap px-4 py-3.5 text-start text-[11px] font-semibold text-zinc-500",
         className,
@@ -308,12 +311,14 @@ export function Th({
 export function Td({
   children,
   className,
+  title,
 }: {
   children?: React.ReactNode;
   className?: string;
+  title?: string;
 }) {
   return (
-    <td className={cn("px-4 py-3.5 text-[13px] text-zinc-700", className)}>
+    <td title={title} className={cn("px-4 py-3.5 text-[13px] text-zinc-700", className)}>
       {children}
     </td>
   );
