@@ -305,3 +305,105 @@ describe('variant pick routing — «طرح 07 رو میخوام» / «رنگ ش
     expect(planProductRequest('هزینه ارسال طرح 05 چقدره؟', vitrineHistory).variantPick).toBe(false)
   })
 })
+
+describe('code-named variant vitrine routing — «0788» / «تونیک روناز ۰۷۸۸»', () => {
+  // The owner's exact scenario: a bare product code must present the
+  // product's variety (its vitrine), not one design's parent card.
+  it.each([
+    '0788',
+    '۰۷۸۸',
+    'کد 0788',
+    'کد 0788 رو بفرست',
+    'تونیک روناز 0788',
+    'تونیک روناز ۰۷۸۸',
+    '0788 موجوده؟',
+    '0788 رو میخوام',
+    '0788 چنده؟',
+  ])('routes %s to the code variant vitrine', (message) => {
+    const plan = planProductRequest(message, [])
+    expect(plan.codeVariantVitrine).toBe(true)
+    expect(plan.codeIdentified).toBe(true)
+    expect(plan.variantHint).toBeNull()
+    expect(plan.variantBrowse).toBe(false)
+    expect(plan.variantPick).toBe(false)
+    expect(plan.isProductTurn).toBe(true)
+  })
+
+  it.each([
+    ['0788 طرح 05', 'a pinned variation keeps the single-card route'],
+    ['0788 طرح شماره 5', 'filler form pins the variation too'],
+    ['تونیک روناز 0788 رنگ کرم', 'color hint pins the variation'],
+    ['0788 طرح هاشو بفرست', 'plural browse keeps its own vitrine route'],
+    ['0788 طرح های دیگشو بفرست', 'plural browse (long form)'],
+    ['کد پیگیری 0788', 'tracking code is non-catalog'],
+    ['رمز 0788 رو بفرست', 'password code is non-catalog'],
+    ['هزینه ارسال 0788 چقدره؟', 'policy turn'],
+    ['سفارش 0788 کی میره؟', 'order turn'],
+    ['شماره کارت 0788 رو بفرست', 'payment identifiers stay non-product'],
+  ])('%s does NOT trigger the code vitrine (%s)', (message) => {
+    expect(planProductRequest(message, []).codeVariantVitrine).toBe(false)
+  })
+
+  it('multi-code messages stay plan-eligible but can never single-match (chat-engine gates on exactly one fullTermMatch)', () => {
+    const plan = planProductRequest('0788 و 0742', [])
+    expect(plan.codeIdentified).toBe(true)
+    // Two distinct codes cannot be covered by one catalog row, so the
+    // deterministic vitrine never fires; the consultation flow presents
+    // both cards exactly as before.
+    expect(plan.searchTerms).toContain('0788')
+    expect(plan.searchTerms).toContain('0742')
+  })
+
+  it('a repeated bare code after a variant vitrine still routes to the vitrine', () => {
+    const history = [
+      user('0788'),
+      assistant('[[product:{"id":"p1#v77647","name":"تونیک روناز 0788 — طرح 01"}]]'),
+      user('0788 طرح 05'),
+      assistant('[[product:{"id":"p1#v77651","name":"تونیک روناز 0788 — طرح 05"}]]'),
+    ]
+    const plan = planProductRequest('0788', history)
+    expect(plan.codeVariantVitrine).toBe(true)
+    expect(plan.variantPick).toBe(false)
+  })
+
+  it('«0788 طرح هاشو بفرست» keeps variantBrowse (history refs still resolve)', () => {
+    const history = [
+      user('0788'),
+      assistant('[[product:{"id":"p1","name":"تونیک روناز 0788"}]]'),
+    ]
+    const plan = planProductRequest('0788 طرح هاشو بفرست', history)
+    expect(plan.variantBrowse).toBe(true)
+    expect(plan.codeVariantVitrine).toBe(false)
+    expect(plan.variantTargetRefs).toContain('p1')
+  })
+
+  it('«شماره کارت بفرست» with product history is no longer a product showcase', () => {
+    const history = [
+      user('تونیک روناز 0788'),
+      assistant('از ۱۵ طرح، طرح‌های ۰۱ تا ۱۲ موجود هستند.'),
+    ]
+    const plan = planProductRequest('شماره کارت بفرست', history)
+    expect(plan.explicitShowcase).toBe(false)
+    expect(plan.isProductTurn).toBe(false)
+  })
+
+  it('«شماره تماس رو بفرست» with product history is no longer a product showcase', () => {
+    const history = [
+      user('تونیک روناز 0788'),
+      assistant('موجود است؛ کدام طرح را می‌خواهید؟'),
+    ]
+    const plan = planProductRequest('شماره تماس رو بفرست', history)
+    expect(plan.explicitShowcase).toBe(false)
+    expect(plan.isProductTurn).toBe(false)
+  })
+
+  it('a genuine contextual send («بفرست» after an offer) still showcases', () => {
+    const history = [
+      user('شومیز دارین؟'),
+      assistant('بله؛ چند مدل شومیز موجود است. عکس‌ها را بفرستم؟'),
+    ]
+    const plan = planProductRequest('بفرست', history)
+    expect(plan.explicitShowcase).toBe(true)
+    expect(plan.isProductTurn).toBe(true)
+  })
+})

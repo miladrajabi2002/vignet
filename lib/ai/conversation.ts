@@ -78,6 +78,19 @@ export interface ProductRequestPlan {
          * wide vitrine must NOT fire on the variant word instead.
          */
         variantPick: boolean
+        /**
+         * The customer named ONE exact catalog row by its product code — a
+         * bare «0788», «کد 0788» or «تونیک روناز ۰۷۸۸» — without pinning any
+         * specific variation. When the catalog search's full-term match then
+         * identifies exactly one variant-bearing row, the deterministic reply
+         * is that product's variant vitrine: every available design's own
+         * photo/price/stock card, exactly like «طرح هاشو بفرست», instead of a
+         * consultation whose single parent card happens to show one design.
+         * Hint («0788 طرح 05»), plural-browse («0788 طرح‌هاشو بفرست»),
+         * order/service/policy/reset and non-catalog-code turns keep their
+         * own routing and never fire this flag.
+         */
+        codeVariantVitrine: boolean
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -117,7 +130,7 @@ const PRODUCT_ATTRIBUTE_RE =
         /(?:جنس(?:\s+کار)?|پارچه|متریال|رنگ|سایز(?:بندی)?|اندازه|قد(?:\s*کار)?|دور\s*(?:سینه|کمر|باسن)|فری\s*سایز|برند|مدل|طرح|fabric|material|colou?r|size|length|chest|waist|fit)\s*[:：-]?\s*[\p{L}\p{N}]/iu
 /** Obvious non-shopping needs must not pull arbitrary semantic product hits. */
 const NON_PRODUCT_NEED_RE =
-        /(?:پشتیبانی|اپراتور|آدرس|نشانی|شماره\s*(?:تماس|تلفن)|استخدام|شغل|همکاری|نمایندگی|کسی|شخص|پیج|اینستاگرام|ورود|حساب|رمز|خطا|مشکل\s*(?:فنی|سیستم)|support|operator|address|phone|job|career|person|login|account|password)/iu
+        /(?:پشتیبانی|اپراتور|آدرس|نشانی|شماره\s*(?:تماس|تلفن|موبایل|کارت)|کارت\s*به\s*کارت|استخدام|شغل|همکاری|نمایندگی|کسی|شخص|پیج|اینستاگرام|ورود|حساب|رمز|خطا|مشکل\s*(?:فنی|سیستم)|support|operator|address|phone|job|career|person|login|account|password)/iu
 const GENERIC_HELP_RE = /(?:راهنمایی|کمک|guidance|help)/iu
 const INFORMATION_SEEKING_RE =
         /(?:می\s*خوام\s*(?:بدونم|بپرسم)|می\s*خواستم\s*بدونم|سوال\s*دارم|i\s+want\s+to\s+(?:know|ask))/iu
@@ -591,9 +604,12 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // "send this message" and "show my orders" must never become a catalog
         // showcase. A product/commercial cue or a recent product context is
         // required; the latter supports follow-ups such as "send five" and
-        // "show all" right after a browse question.
+        // "show all" right after a browse question. A non-shopping need in the
+        // CURRENT message («شماره کارت بفرست», «شماره تماس رو بفرست») stays a
+        // non-product turn even when product terms sit in the history — the
+        // customer is asking for contact/payment details, not for cards.
         const showcaseFromContext =
-                showcaseCommand &&
+                showcaseCommand && !nonProductNeed &&
                 (priorProductTerms.length > 0 || (priorProductSignal && currentTerms.length === 0))
         // ─── Variant routing (must precede vitrinPhrase so a variant pick of
         // the discussed product is never mistaken for a catalog-wide browse).
@@ -643,6 +659,19 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const variantPick =
                 !orderOnly && !serviceOnly && !policyOnly && !resetRequested && !nonCatalogCode &&
                 variantHint != null && variantTargetRefs.length > 0
+        // ─── Code-named variant vitrine: «0788» / «تونیک روناز ۰۷۸۸» ──────────
+        // The code alone names the exact product but no specific variation,
+        // so the customer is asking to SEE the item — and for a variant-bearing
+        // product the item IS its variety. The deterministic reply is that
+        // product's variant vitrine (each design's own photo/price/stock),
+        // before any consultation could attach a single parent card whose
+        // image is merely one of the designs. The full-term match must resolve
+        // to exactly one row (see chat-engine); variation-less products fall
+        // back to the ordinary consultation/showcase flow.
+        const codeVariantVitrine =
+                productCodeSignal && variantHint == null && !nonProductNeed &&
+                !variantBrowse && !variantPick &&
+                !orderOnly && !serviceOnly && !policyOnly && !resetRequested && !nonCatalogCode
         // A bare product phrase («شومیز», «کیف دوشی دارین؟») names the thing the
         // customer wants to SEE, so it upgrades the turn to a vitrin showcase:
         // up to ten AVAILABLE product cards on every channel, with no follow-up
@@ -721,6 +750,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 variantHint,
                 variantPick,
                 variantTargetRefs,
+                codeVariantVitrine,
         }
 }
 

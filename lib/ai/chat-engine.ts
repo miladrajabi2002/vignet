@@ -291,6 +291,34 @@ async function buildDeterministicTurnReply(params: {
                 // No resolvable target with variations — fall through to the
                 // ordinary showcase/consultation flow below.
         }
+        // «0788» / «تونیک روناز ۰۷۸۸» — the code alone names the exact product
+        // but no specific variation. Present that product's variant vitrine
+        // directly (every available design's own photo/price/stock card)
+        // instead of a consultation whose single parent card happens to show
+        // only one design. The deterministic search must have identified
+        // exactly one row (fullTermMatch); ambiguous multi-code or fuzzy
+        // matches keep the ordinary consultation with cards, and a row with
+        // no variations falls through to the parent-card flow below.
+        if (params.productRequest.codeVariantVitrine) {
+                const identifiedTargets = params.catalogProducts
+                        .filter((product) => product.fullTermMatch)
+                if (identifiedTargets.length === 1) {
+                        try {
+                                const variantReply = await buildVariantShowcaseReply({
+                                        workspaceId: params.workspaceId,
+                                        agentId: params.agent.id,
+                                        isFa: params.agent.language !== 'en',
+                                        candidateRefs: [identifiedTargets[0].id],
+                                })
+                                if (variantReply) return variantReply
+                        } catch (error) {
+                                console.error('[chat-engine] code variant vitrine failed:', error)
+                        }
+                        // The identified row carries no variations — the parent
+                        // card in the showcase/consultation below is the right
+                        // presentation for a variation-less product.
+                }
+        }
         if (!params.productRequest.explicitShowcase) return null
 
         return buildTrustedProductReply({
