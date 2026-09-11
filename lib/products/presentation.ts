@@ -3,7 +3,7 @@ import {
   pickTemplateImageUrl,
   type ProductShowcase,
 } from '@/lib/instagram/media'
-import { extractListItems, normalizeAttributes, stripListBlocks } from '@/lib/products/description'
+import { extractListItems, extractTypedVariations, normalizeAttributes, stripListBlocks, type VariationRow } from '@/lib/products/description'
 
 const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
 const MAX_PRODUCTS_PER_REPLY = 10
@@ -11,6 +11,14 @@ const MAX_PRODUCTS_PER_REPLY = 10
 export interface ProductDirective {
   id: string | null
   name: string
+  /**
+   * Variant label the model picked from the catalog's variation list
+   * («طرح 05», «رنگ کرم»). The trusted resolver maps it back to the exact
+   * variation row so the card carries that variation's own photo and price
+   * instead of the parent product's cover image (which usually belongs to a
+   * DIFFERENT variant — the parent image of tonik 0788 is actually طرح 08).
+   */
+  variant?: string | null
 }
 
 /**
@@ -83,7 +91,13 @@ export function showcaseIntroText(params: {
   ].join('\n')
 }
 
-export type TrustedProductShowcase = ProductShowcase & { specs: string[] }
+export type TrustedProductShowcase = ProductShowcase & {
+  specs: string[]
+  /** Stock badge derived from the variation when a specific variant was asked for. */
+  badge?: string
+  /** The exact variation this card represents (null = the product as a whole). */
+  variation?: VariationRow | null
+}
 
 /**
  * Remove model-only product markers from visible text and retain only the
@@ -100,7 +114,8 @@ export function parseProductDirectives(raw: string): {
       const value = JSON.parse(json) as Record<string, unknown>
       const name = typeof value.name === 'string' ? value.name.trim().slice(0, 120) : ''
       const id = typeof value.id === 'string' ? value.id.trim().slice(0, 80) : ''
-      if (id || name) directives.push({ id: id || null, name })
+      const variant = typeof value.variant === 'string' ? value.variant.trim().slice(0, 80) : ''
+      if (id || name) directives.push({ id: id || null, name, variant: variant || null })
     } catch {
       // A malformed marker is never sent to the customer.
     }
@@ -137,6 +152,83 @@ function replyMentionsProduct(reply: string, productName: string): boolean {
   return ` ${normalizedProductMention(reply)} `.includes(` ${name} `)
 }
 
+// ─── Variation helpers ─────────────────────────────────────────────────────────
+/** True when this variation can actually be bought right now. */
+export function isVariationAvailable(variation: VariationRow): boolean {
+  if (variation.manageStock) return (variation.stockQuantity ?? 0) > 0
+  return variation.inStock !== false
+}
+
+/** Human label of a variation: its attribute values («طرح 05», «رنگ کرم»). */
+export function variationLabel(variation: VariationRow): string {
+  return Object.values(variation.attributes)
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+    .join('، ')
+}
+
+function trailingNumber(value: string): number | null {
+  const match = value.match(/(\d+)\s*$/)
+  return match ? Number(match[1]) : null
+}
+
+/**
+ * Find the variation a directive pointed at. Matching order:
+ *   1. explicit variation id (from an id like «productId#v77651»);
+ *   2. exact normalized label equality ("طرح 05" === "طرح 05");
+ *   3. the hint's words appear in the value ("05" matches "طرح 05");
+ *   4. the hint's trailing number equals the value's trailing number
+ *      ("طرح 5" matches "طرح 05" — Persian users drop the leading zero).
+ */
+export function matchVariationRow(
+  variations: VariationRow[],
+  hint: { variationId?: number | null; label?: string | null },
+): VariationRow | null {
+  if (hint.variationId != null) {
+    const byId = variations.find((variation) => variation.id === hint.variationId)
+    if (byId) return byId
+  }
+  const label = (hint.label ?? '').trim()
+  if (!label) return null
+  const normalizedLabel = normalizedProductMention(label)
+  if (!normalizedLabel) return null
+  for (const variation of variations) {
+    for (const value of Object.values(variation.attributes)) {
+      const normalizedValue = normalizedProductMention(String(value))
+      if (normalizedValue === normalizedLabel) return variation
+      if (normalizedValue.split(' ').includes(normalizedLabel)) return variation
+    }
+  }
+  const labelNumber = trailingNumber(normalizedLabel)
+  if (labelNumber != null) {
+    for (const variation of variations) {
+      for (const value of Object.values(variation.attributes)) {
+        const valueNumber = trailingNumber(normalizedProductMention(String(value)))
+        if (valueNumber === labelNumber) return variation
+      }
+    }
+  }
+  return null
+}
+
+/** Specs of a variation card: its own attributes first, then the parent's. */
+function variationSpecs(variation: VariationRow, parentAttributes: unknown): string[] {
+  const rows: string[] = []
+  const ownKeys = new Set(Object.keys(variation.attributes))
+  for (const [label, value] of Object.entries(variation.attributes)) {
+    const cleanLabel = cleanSpecPart(label, 28)
+    const cleanValue = cleanSpecPart(String(value), 38)
+    if (cleanLabel && cleanValue) rows.push(`${cleanLabel}: ${cleanValue}`)
+  }
+  for (const row of normalizeAttributes(parentAttributes)) {
+    if (ownKeys.has(row.label)) continue
+    const cleanLabel = cleanSpecPart(row.label, 28)
+    const cleanValue = cleanSpecPart(row.value, 38)
+    if (cleanLabel && cleanValue) rows.push(`${cleanLabel}: ${cleanValue}`)
+  }
+  return [...new Set(rows)].slice(0, 4)
+}
+
 /** Resolve model markers against products that are active and assigned to the agent. */
 export async function resolveProductShowcases(params: {
   workspaceId: string
@@ -148,6 +240,17 @@ export async function resolveProductShowcases(params: {
 
   const ids = [...new Set(directives.map((item) => item.id).filter((id): id is string => !!id))]
   const names = [...new Set(directives.map((item) => item.name).filter(Boolean))]
+
+  // Directive ids may carry a variation suffix («productId#v77651») emitted by
+  // the deterministic variant showcase; the DB query must use the parent id.
+  const directiveProductId = (directiveId: string): string => directiveId.split('#')[0]
+  const directiveVariationId = (directiveId: string): number | null => {
+    const suffix = directiveId.split('#')[1]
+    if (!suffix) return null
+    const numeric = /^v?(\d+)$/i.exec(suffix)
+    return numeric ? Number(numeric[1]) : null
+  }
+  const parentIds = [...new Set(ids.map(directiveProductId))]
   const candidates = await prisma.agentCatalog.findMany({
     where: {
       agentId: params.agentId,
@@ -160,7 +263,7 @@ export async function resolveProductShowcases(params: {
           { OR: [{ stock: null }, { stock: { gt: 0 } }] },
           {
             OR: [
-              ...(ids.length ? [{ id: { in: ids } }] : []),
+              ...(parentIds.length ? [{ id: { in: parentIds } }] : []),
               ...names.map((name) => ({ name: { equals: name, mode: 'insensitive' as const } })),
             ],
           },
@@ -189,31 +292,59 @@ export async function resolveProductShowcases(params: {
 
   for (const directive of directives) {
     const product =
-      (directive.id ? byId.get(directive.id) : undefined) ??
+      (directive.id ? byId.get(directiveProductId(directive.id)) : undefined) ??
       (directive.name ? byName.get(normalizedProductMention(directive.name)) : undefined)
-    if (!product || seen.has(product.id)) continue
-    seen.add(product.id)
-    const attributeRows = [
-      ...normalizeAttributes(product.attributes),
-      ...extractListItems(product.description ?? ''),
-    ]
-    const specs = [...new Set(attributeRows.map((item) => {
-      const label = cleanSpecPart(item.label, 28)
-      const value = cleanSpecPart(item.value, 38)
-      return label && value ? `${label}: ${value}` : label
-    }).filter(Boolean))].slice(0, 4)
+    if (!product) continue
+
+    // A variation-suffixed id or an explicit variant label means this card is
+    // for ONE specific variant: use that variation's own image/price/name so
+    // «0788 طرح 05» shows طرح 05's photo, not the parent cover (طرح 08's).
+    const variations = extractTypedVariations(product.attributes)
+    const variation = matchVariationRow(variations, {
+      variationId: directive.id ? directiveVariationId(directive.id) : null,
+      label: directive.variant ?? null,
+    })
+    const cardId = variation ? `${product.id}#v${variation.id}` : product.id
+    if (seen.has(cardId)) continue
+    seen.add(cardId)
+
+    if (!variation) {
+      const attributeRows = [
+        ...normalizeAttributes(product.attributes),
+        ...extractListItems(product.description ?? ''),
+      ]
+      const specs = [...new Set(attributeRows.map((item) => {
+        const label = cleanSpecPart(item.label, 28)
+        const value = cleanSpecPart(item.value, 38)
+        return label && value ? `${label}: ${value}` : label
+      }).filter(Boolean))].slice(0, 4)
+      output.push({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        // v3.1: prefer JPG/PNG/GIF over webp and percent-encode Persian paths —
+        // Instagram's Generic Template silently drops webp images, which showed
+        // up as product cards without photos. Web renderers handle the picked
+        // jpg/png equally well, so one selection rule serves every surface.
+        imageUrl: pickTemplateImageUrl(product.images),
+        productUrl: safeProductUrl(product.externalUrl),
+        specs,
+        variation: null,
+      })
+      continue
+    }
+
     output.push({
-      id: product.id,
-      name: product.name,
+      id: cardId,
+      name: `${product.name} — ${variationLabel(variation)}`,
       description: product.description,
-      price: product.price,
-      // v3.1: prefer JPG/PNG/GIF over webp and percent-encode Persian paths —
-      // Instagram's Generic Template silently drops webp images, which showed
-      // up as product cards without photos. Web renderers handle the picked
-      // jpg/png equally well, so one selection rule serves every surface.
-      imageUrl: pickTemplateImageUrl(product.images),
+      price: variation.price ?? product.price,
+      imageUrl: safeProductUrl(variation.image ?? null) ?? pickTemplateImageUrl(product.images),
       productUrl: safeProductUrl(product.externalUrl),
-      specs,
+      specs: variationSpecs(variation, product.attributes),
+      badge: isVariationAvailable(variation) ? 'موجود' : 'ناموجود',
+      variation,
     })
   }
 
@@ -293,6 +424,13 @@ export async function buildTrustedProductReply(params: {
    * forced showcase narrows to exactly these products.
    */
   identifiedProductIds?: string[]
+  /**
+   * The singular variant the customer named in THIS message («0788 طرح 05» →
+   * «05»). Applied to the identified directives so their card shows that
+   * variation's own photo, price and stock — deterministically, even when
+   * the model omitted the "variant" field from its marker.
+   */
+  identifiedVariantHint?: string | null
 }): Promise<string> {
   const subject = (params.subjectPhrase ?? '').trim()
   const parsed = parseProductDirectives(params.raw)
@@ -301,7 +439,7 @@ export async function buildTrustedProductReply(params: {
     .map((id) => ({ id, name: '' }))
   const identifiedDirectives = [...new Set(params.identifiedProductIds ?? [])]
     .slice(0, MAX_PRODUCTS_PER_REPLY)
-    .map((id) => ({ id, name: '' }))
+    .map((id) => ({ id, name: '', variant: params.identifiedVariantHint ?? null }))
   const directives = params.forceShowcase
     ? (identifiedDirectives.length ? identifiedDirectives : preferredDirectives)
     : [...parsed.directives, ...preferredDirectives, ...identifiedDirectives]
@@ -322,12 +460,16 @@ export async function buildTrustedProductReply(params: {
   // the internal [[product:...]] directives. Recover only exact names from
   // this turn's deterministic catalog result; never trust a model-authored
   // price, id or URL. This keeps rich cards reliable without turning generic
-  // replies into product dumps.
+  // replies into product dumps. Variation cards carry a «#v<id>»-suffixed id —
+  // compare against the parent id so they keep matching their directive.
+  const parentId = (id: string) => id.split('#')[0]
   const explicitlyResolved = new Set(products
     .filter((product) => parsed.directives.some((directive) =>
-      directive.id === product.id || (
-        directive.name &&
-        normalizedProductMention(directive.name) === normalizedProductMention(product.name)
+      directive.id === parentId(product.id) || (
+        directive.name && (
+          normalizedProductMention(directive.name) === normalizedProductMention(product.name) ||
+          normalizedProductMention(product.name).startsWith(`${normalizedProductMention(directive.name)} —`)
+        )
       ),
     ))
     .map((product) => product.id))
@@ -337,8 +479,12 @@ export async function buildTrustedProductReply(params: {
     ? products
     : products.filter((product) =>
       explicitlyResolved.has(product.id) ||
-      (preferredIds.has(product.id) && replyMentionsProduct(parsed.text, product.name)) ||
-      identifiedIds.has(product.id),
+      (preferredIds.has(parentId(product.id)) && replyMentionsProduct(parsed.text, product.name)) ||
+      identifiedIds.has(parentId(product.id)) ||
+      // A directive that explicitly named a variant («0788 طرح 05») resolves
+      // to a variation card even though its plain product id was preferred.
+      (parsed.directives.some((directive) => directive.variant && directive.id === parentId(product.id)) &&
+        product.variation != null),
     )
 
   if (!selectedProducts.length) {
@@ -358,7 +504,7 @@ export async function buildTrustedProductReply(params: {
       name: product.name,
       price,
       desc: cleanProductDescription(product.description, 240),
-      badge: params.isFa ? 'موجود' : 'Available',
+      badge: product.badge ?? (params.isFa ? 'موجود' : 'Available'),
       image: safeProductUrl(product.imageUrl) ?? '',
       url: safeProductUrl(product.productUrl) ?? '',
       specs: product.specs,
@@ -396,4 +542,171 @@ function cleanProductDescription(value: string | null | undefined, maxLength: nu
 
 function cleanSpecPart(value: string, maxLength: number): string {
   return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength)
+}
+
+// ─── Variant vitrine ──────────────────────────────────────────────────────────
+/** Dominant attribute key of a variation list («طرح», «رنگ», …). */
+function variationNoun(variations: VariationRow[], isFa: boolean): string {
+  const counts = new Map<string, number>()
+  for (const variation of variations) {
+    for (const key of Object.keys(variation.attributes)) {
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  const dominant = [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? ''
+  if (!isFa) return 'variant'
+  if (/طرح/.test(dominant)) return 'طرح'
+  if (/رنگ/.test(dominant)) return 'رنگ'
+  return 'تنوع'
+}
+
+/** Natural (numeric-aware) order so «طرح 02» sorts before «طرح 10». */
+function sortVariationsByLabel(variations: VariationRow[]): VariationRow[] {
+  return [...variations].sort((left, right) =>
+    variationLabel(left).localeCompare(variationLabel(right), 'fa', { numeric: true }),
+  )
+}
+
+/**
+ * Deterministic reply for «کاتالوگ طرح‌های دیگشو میفرستی» — a vitrine of the
+ * in-stock variations of the product under discussion. Every card carries the
+ * variation's OWN photo, price and stock, so the customer finally sees the
+ * variety instead of a vector search's random products.
+ *
+ * candidateRefs are most-recent-first: product ids (possibly «id#v123» from
+ * earlier variation cards) and bare product codes («0788»). The first ref
+ * that resolves to an assigned, active product WITH variations is the target.
+ *
+ * Returns null when no ref resolves or the target has no variations at all —
+ * the caller then falls back to the ordinary showcase/consultation flow.
+ */
+export async function buildVariantShowcaseReply(params: {
+  workspaceId: string
+  agentId: string
+  isFa: boolean
+  candidateRefs: string[]
+}): Promise<string | null> {
+  const refs = params.candidateRefs
+    .map((ref) => ref.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+  if (!refs.length) return null
+
+  const productIds = [...new Set(
+    refs
+      .filter((ref) => !/^\d+$/.test(ref.split('#')[0]))
+      .map((ref) => ref.split('#')[0]),
+  )]
+  const codes = [...new Set(refs.filter((ref) => /^\d{3,8}$/.test(ref)))]
+  if (!productIds.length && !codes.length) return null
+
+  const rows = await prisma.agentCatalog.findMany({
+    where: {
+      agentId: params.agentId,
+      product: {
+        workspaceId: params.workspaceId,
+        active: true,
+        OR: [
+          ...(productIds.length ? [{ id: { in: productIds } }] : []),
+          ...codes.flatMap((code) => [
+            { sku: { contains: code } },
+            { name: { contains: code } },
+          ]),
+        ],
+      },
+    },
+    select: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          images: true,
+          externalUrl: true,
+          sku: true,
+          attributes: true,
+        },
+      },
+    },
+    take: 40,
+  })
+  const rowByProductId = new Map(rows.map(({ product }) => [product.id, product]))
+  const rowByCode = new Map<string, typeof rows[number]['product']>()
+  for (const code of codes) {
+    for (const { product } of rows) {
+      if (product.sku?.includes(code) || product.name.includes(code)) {
+        if (!rowByCode.has(code)) rowByCode.set(code, product)
+      }
+    }
+  }
+
+  // First resolvable ref (most recent reference wins) that has variations.
+  let target: typeof rows[number]['product'] | null = null
+  for (const ref of refs) {
+    const row = rowByProductId.get(ref.split('#')[0]) ?? rowByCode.get(ref) ?? null
+    if (row && extractTypedVariations(row.attributes).length > 0) {
+      target = row
+      break
+    }
+    // Remember the first resolvable row so an «all out of stock» variant list
+    // can still produce an honest text reply below.
+    if (row && !target) target = row
+  }
+  if (!target) return null
+
+  const variations = extractTypedVariations(target.attributes)
+  if (!variations.length) return null
+  const available = sortVariationsByLabel(variations.filter(isVariationAvailable))
+  const noun = variationNoun(variations, params.isFa)
+  const name = target.name
+
+  if (!available.length) {
+    return params.isFa
+      ? `فعلاً همهٔ ${noun}های «${name}» ناموجود شده‌اند. مدل مشابه دیگری معرفی کنم؟`
+      : `All ${noun}s of “${name}” are currently out of stock. Would you like me to suggest a similar model?`
+  }
+
+  const shown = available.slice(0, MAX_PRODUCTS_PER_REPLY)
+  const count = shown.length
+  const markers = shown.map((variation) => `[[product:${JSON.stringify({
+    id: `${target.id}#v${variation.id}`,
+    name: `${name} — ${variationLabel(variation)}`,
+    price: (variation.price ?? target.price) == null
+      ? ''
+      : params.isFa
+        ? `${(variation.price ?? target.price)!.toLocaleString('fa-IR')} تومان`
+        : (variation.price ?? target.price)!.toLocaleString('en-US'),
+    desc: cleanProductDescription(target.description, 240),
+    badge: params.isFa ? 'موجود' : 'Available',
+    image: safeProductUrl(variation.image ?? null) ?? safeProductUrl(pickTemplateImageUrl(target.images)) ?? '',
+    url: safeProductUrl(target.externalUrl) ?? '',
+    specs: variationSpecs(variation, target.attributes),
+  })}]]`)
+
+  const intro = params.isFa
+    ? count === 1
+      ? [
+          `فعلاً فقط یک ${noun} از «${name}» موجود است؛ عکس و قیمتش را در کارت زیر می‌بینید.`,
+          'اگر مدل دیگری هم خواستید، بگویید.',
+        ].join('\n')
+      : [
+          `${count.toLocaleString('fa-IR')} ${noun} موجودِ «${name}» را برایتان فرستادم؛ عکس، قیمت و موجودی هر ${noun} روی کارت خودش هست.`,
+          available.length > shown.length
+            ? `${available.length.toLocaleString('fa-IR')} ${noun} موجود بود و ${count.toLocaleString('fa-IR')} تای اول را فرستادم — بگویید تا بقیه را هم بفرستم.`
+            : `کدام ${noun} را می‌خواهید؟`,
+        ].join('\n')
+    : count === 1
+      ? [
+          `Only one ${noun} of “${name}” is currently available; its photo and price are on the card below.`,
+          'Tell me if you would like another model.',
+        ].join('\n')
+      : [
+          `I sent you the ${count} available ${noun}s of “${name}”; each card shows that ${noun}'s own photo, price and stock.`,
+          available.length > shown.length
+            ? `There are ${available.length} available ${noun}s in total — say the word and I will send the rest too.`
+            : `Which ${noun} would you like?`,
+        ].join('\n')
+
+  return [intro, markers.join('\n')].filter(Boolean).join('\n\n')
 }

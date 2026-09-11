@@ -16,6 +16,7 @@ vi.mock('@/lib/instagram/media', () => ({
   pickTemplateImageUrl: mocks.pickTemplateImageUrl,
 }))
 vi.mock('@/lib/products/description', () => ({
+  extractTypedVariations: vi.fn(() => []),
   extractListItems: vi.fn(() => []),
   normalizeAttributes: vi.fn(() => []),
   stripListBlocks: vi.fn((value: string) => value),

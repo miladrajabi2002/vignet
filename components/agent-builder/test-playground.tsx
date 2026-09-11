@@ -354,7 +354,9 @@ export function TestPlayground({
                                                                                         products={showcase.products}
                                                                                         locale={locale}
                                                                                         compact
-                                                                                        className="mt-1 w-full"
+                                                                                        // No w-full: shrink-wrap so a one/two-card
+                                                                                        // vitrine hugs the agent side.
+                                                                                        className="mt-1"
                                                                                 />
                                                                         )}
                                                                         {m.role === 'assistant' && m.id && m.content && (

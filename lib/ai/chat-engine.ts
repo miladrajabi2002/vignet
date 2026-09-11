@@ -49,7 +49,7 @@ import {
 import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
-import { buildTrustedProductReply, parseProductDirectives } from '@/lib/products/presentation'
+import { buildTrustedProductReply, buildVariantShowcaseReply, parseProductDirectives } from '@/lib/products/presentation'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import {
         agentSkillTrace,
@@ -234,12 +234,38 @@ async function buildDeterministicTurnReply(params: {
                         ? 'Okay, I set the previous topic aside.'
                         : 'باشه؛ موضوع قبلی را کنار گذاشتم.'
         }
-        if (!params.productRequest.explicitShowcase) return null
         if (!params.agent.productAccessEnabled) {
-                return params.agent.language === 'en'
-                        ? 'This agent does not currently have access to the product catalog.'
-                        : 'دسترسی این ایجنت به کاتالوگ محصولات در حال حاضر غیرفعال است.'
+                if (params.productRequest.variantBrowse || params.productRequest.explicitShowcase) {
+                        return params.agent.language === 'en'
+                                ? 'This agent does not currently have access to the product catalog.'
+                                : 'دسترسی این ایجنت به کاتالوگ محصولات در حال حاضر غیرفعال است.'
+                }
+                return null
         }
+        // «کاتالوگ طرح‌های دیگشو میفرستی» — a deterministic vitrine of the
+        // discussed product's in-stock variations (each card = that variant's
+        // own photo/price/stock) instead of a random vector-search dump.
+        if (params.productRequest.variantBrowse) {
+                try {
+                        const variantReply = await buildVariantShowcaseReply({
+                                workspaceId: params.workspaceId,
+                                agentId: params.agent.id,
+                                isFa: params.agent.language !== 'en',
+                                candidateRefs: [
+                                        ...params.productRequest.variantTargetRefs,
+                                        ...params.catalogProducts
+                                                .filter((product) => product.fullTermMatch)
+                                                .map((product) => product.id),
+                                ],
+                        })
+                        if (variantReply) return variantReply
+                } catch (error) {
+                        console.error('[chat-engine] variant showcase failed:', error)
+                }
+                // No resolvable target with variations — fall through to the
+                // ordinary showcase/consultation flow below.
+        }
+        if (!params.productRequest.explicitShowcase) return null
 
         return buildTrustedProductReply({
                 raw: '',
@@ -252,6 +278,7 @@ async function buildDeterministicTurnReply(params: {
                         .map((product) => product.id),
                 forceShowcase: true,
                 subjectPhrase: showcaseSubjectPhrase(params.productRequest),
+                identifiedVariantHint: params.productRequest.variantHint,
         })
 }
 
@@ -1037,6 +1064,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                         .map((product) => product.id),
                                                 forceShowcase: productRequest.explicitShowcase,
                                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
+                                                identifiedVariantHint: productRequest.variantHint,
                                         })
                                         if (trustedReply !== full) {
                                                 full = trustedReply
@@ -1338,6 +1366,7 @@ export async function generateReply(
                                         .map((product) => product.id),
                                 forceShowcase: productRequest.explicitShowcase,
                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
+                                identifiedVariantHint: productRequest.variantHint,
                         })
                 } catch (error) {
                         console.error('[chat-engine] product-card hydration failed:', error)

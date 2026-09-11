@@ -388,6 +388,16 @@ async function persistInboundOnly(args: {
                                 data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
                         })
                 }
+                // A resolved thread resumes the moment the customer writes
+                // again — the inbox must not keep showing a «closed» badge over
+                // an actively ongoing chat. A human handoff stays sticky: only
+                // the operator-facing reset returns control to the AI.
+                if (conversation.status === 'RESOLVED' && !conversation.handedOff) {
+                        await tx.conversation.update({
+                                where: { id: conversation.id },
+                                data: { status: 'OPEN' },
+                        })
+                }
                                 return {
                         conversationId: conversation.id,
                         messageId,
@@ -1615,7 +1625,7 @@ async function processChannelInbound(
                                                                         : isFa
                                                                                 ? `${product.price.toLocaleString('fa-IR')} تومان`
                                                                                 : product.price.toLocaleString('en-US'),
-                                                                badge: isFa ? 'موجود' : 'Available',
+                                                                badge: product.badge ?? (isFa ? 'موجود' : 'Available'),
                                                                 specs: product.specs,
                                                                 imageUrl: product.imageUrl,
                                                                 productUrl: product.productUrl,

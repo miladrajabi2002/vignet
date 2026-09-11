@@ -46,6 +46,30 @@ export interface ProductRequestPlan {
          * be presented — on showcase and consultation turns alike.
          */
         codeIdentified: boolean
+        /**
+         * The customer asked to SEE the variants (طرح/رنگ/تنوع) of the product
+         * under discussion — «کاتالوگ طرح‌های دیگشو میفرستی», «رنگ هاشو بفرست».
+         * The deterministic reply is a vitrine of that product's in-stock
+         * variations, each card carrying the variation's own photo and price.
+         */
+        variantBrowse: boolean
+        /**
+         * A SINGULAR variant reference in the current message («0788 طرح 05»,
+         * «رنگ کرم») — the noun plus the value token right after it. Attached to
+         * identified product directives so the trusted card deterministically
+         * carries that variation's own photo/price/stock, with no reliance on
+         * the model echoing a "variant" field. Null on browse turns and when
+         * no such noun+value pair exists.
+         */
+        variantHint: string | null
+        /**
+         * Most-recent-first references to the product the variant browse is
+         * about: product ids extracted from [[product:]] markers in recent
+         * assistant replies (may carry a «#v<id>» variation suffix) and bare
+         * product codes from recent customer messages. Resolution happens in
+         * the presentation layer against the agent's assigned catalog.
+         */
+        variantTargetRefs: string[]
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -211,6 +235,64 @@ const BARE_PRODUCT_CODE_RE = /(?:^|[^\p{L}\p{N}_٬,،])0\d{2,7}(?=$|[^\p{L}\p{N}
 const NON_CATALOG_CODE_RE =
         /(?:رمز(?:\s*(?:ورود|عبور|یک\s*بار|یکبار))?|کد\s*(?:تأیید|تایید|ورود|تخفیف|کوپن|پیگیری|سفارش|مرسوله)|شماره\s*(?:موبایل|تماس|تلفن)?|otp|verification\s*code|password|discount\s*code|coupon\s*code|tracking\s*(?:code|number))/iu
 const PRICE_VALUE_RE = /(?:قیمت|تومان|تومن|ریال|هزار|میلیون|price|irr|rial)/iu
+
+// ─── Variant browse: «کاتالوگ طرح‌های دیگشو میفرستی» ──────────────────────────
+// A pluralized variant noun (طرح‌ها / رنگ‌ها / تنوع‌ها…) plus a browse cue means
+// the customer wants to SEE the variety of the product already under
+// discussion — not a fresh catalog search (which used to return random
+// products because «طرح» alone matches every variation-bearing row). The
+// singular «طرح 05» stays a consultation: it names ONE variant, it does not
+// ask to browse them. «مدل» is intentionally excluded — «مدل‌های دیگه» usually
+// means OTHER products, not other variants of this one. «سایز» is excluded
+// because sizes answer in prose; a size vitrine would show identical photos.
+const VARIANT_PLURAL_RE = /(?:طرح|تنوع|رنگ\s*بندی|رنگبندی|رنگ)\s*ها(?:ی|یی|م|ش|تون|مون|شون)?/iu
+const VARIANT_BROWSE_CUE_RE =
+        /(?:دیگه|دیگر|دیگش|بقیه|همه|کاتالوگ|عکس|عکسا|لیست|فهرست|بفرست|می\s*فرست|میفرست|ببینم|نشون|نشان|نمایش|بده|دارین|دارید|ندارین|ندارید|چیه|چی\s*هست)/iu
+const VARIANT_PLURAL_EN_RE = /\b(?:designs|colors|colours|variants|variations|patterns)\b/iu
+const VARIANT_BROWSE_CUE_EN_RE =
+        /(?:other|more|all|rest|show|send|list|catalog|photos|see|view)/iu
+/** Product ids inside [[product:{…}]] markers of an assistant reply. */
+const MARKER_PRODUCT_ID_RE = /\[\[product:\s*\{[\s\S]*?"id"\s*:\s*"([^"]+)"/g
+
+function extractMarkerProductIds(content: string): string[] {
+        const ids: string[] = []
+        MARKER_PRODUCT_ID_RE.lastIndex = 0
+        let match: RegExpExecArray | null
+        while ((match = MARKER_PRODUCT_ID_RE.exec(content)) !== null) {
+                const id = match[1]?.trim().slice(0, 100)
+                if (id && !ids.includes(id)) ids.push(id)
+                if (ids.length >= MAX_SHOWCASE_PRODUCTS) break
+        }
+        return ids
+}
+
+// ─── Singular variant reference: «0788 طرح 05» / «رنگ کرم» ───────────────────
+const VARIANT_HINT_NOUNS = new Set([
+        'طرح', 'رنگ', 'تنوع', 'سایز', 'اندازه',
+        'design', 'color', 'colour', 'variant', 'size',
+])
+/** Tokens that may sit between the noun and its value («طرح شماره ۵»). */
+const VARIANT_HINT_FILLERS = new Set(['شماره', 'number', 'no'])
+
+function extractVariantHint(normalized: string): string | null {
+        const tokens = normalized
+                .toLocaleLowerCase('fa')
+                .split(/[^\p{L}\p{N}]+/u)
+                .filter(Boolean)
+        for (let index = 0; index < tokens.length - 1; index += 1) {
+                if (!VARIANT_HINT_NOUNS.has(tokens[index])) continue
+                let valueIndex = index + 1
+                // «طرح شماره ۵» — skip the filler, take what follows it.
+                while (valueIndex < tokens.length && VARIANT_HINT_FILLERS.has(tokens[valueIndex])) valueIndex += 1
+                const value = tokens[valueIndex]
+                if (!value || value.length < 1 || value.length > 24) continue
+                // «طرح‌ها / رنگ‌های …» are browse turns, not a singular pick — the
+                // plural suffixes themselves must never become the hint value.
+                if (/^(?:های|هایی|ها|هام|هاش|هاتون|هامون|هاشون|دیگه|دیگر|بقیه|همه|موجود|نداریم|ندارین|دارین|دارید|چیه|چی)$/u.test(value)) continue
+                return value
+        }
+        return null
+}
 
 const PRODUCT_STOP_WORDS = new Set([
         'سلام', 'درود', 'لطفا', 'لطفاً', 'خواهشاً', 'میشه', 'می‌شه', 'میتونی', 'می‌تونی',
@@ -516,6 +598,45 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 !showcaseCommand && !browseQuery && !affirmativeFollowUp &&
                 directProductSignal &&
                 isBareVitrinPhrase(normalized, currentTerms)
+        // ─── Variant browse: «کاتالوگ طرح‌های دیگشو میفرستی» ───────────────
+        // Pluralized variant noun + browse cue = the customer wants the variety
+        // of the product under discussion. Order/policy/service/reset turns keep
+        // their own routing; a non-catalog code context can't be a variant target.
+        const variantBrowse = !orderOnly && !serviceOnly && !policyOnly && !resetRequested && !nonCatalogCode && (
+                (VARIANT_PLURAL_RE.test(normalized) && VARIANT_BROWSE_CUE_RE.test(normalized)) ||
+                (VARIANT_PLURAL_EN_RE.test(normalized) && VARIANT_BROWSE_CUE_EN_RE.test(normalized))
+        )
+        const variantHint = variantBrowse ? null : extractVariantHint(normalized)
+        // Most-recent-first references to the product the variants belong to.
+        // Chronology wins: the closest earlier reference — an assistant product
+        // card (marker ids) or the customer naming a code — is the target, so a
+        // «طرح‌هاشو بفرست» after a text-only consult on «0788» still finds 0788.
+        const variantTargetRefs: string[] = []
+        if (variantBrowse) {
+                const lookbackFloor = Math.max(0, history.length - 24)
+                for (let index = history.length - 1; index >= lookbackFloor; index -= 1) {
+                        const item = history[index]
+                        const content = item.content ?? ''
+                        if (item.role === 'assistant') {
+                                const markerIds = extractMarkerProductIds(content)
+                                if (markerIds.length) {
+                                        variantTargetRefs.push(...markerIds)
+                                        break
+                                }
+                                continue
+                        }
+                        if (item.role !== 'user') continue
+                        const previousContent = normalizePersianText(content)
+                        if (RESET_CONTEXT_RE.test(previousContent)) break
+                        const codeTerms = extractProductTerms(previousContent)
+                                .filter((term) => /^\d{3,8}$/.test(term))
+                        if (codeTerms.length) {
+                                variantTargetRefs.push(...codeTerms)
+                                break
+                        }
+                }
+        }
+
         const explicitShowcase =
                 !orderOnly && !serviceOnly && !policyOnly && (
                         (showcaseCommand && directProductSignal) ||
@@ -529,12 +650,22 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 resetRequested && !explicitShowcase && !browseQuery && !directProductSignal
         const isProductTurn =
                 !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
-                (directProductSignal || browseQuery || explicitShowcase)
+                (directProductSignal || browseQuery || explicitShowcase || variantBrowse)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.
         let searchTerms = isProductTurn ? (affirmativeFollowUp ? [] : currentTerms) : []
 
         if (isProductTurn && searchTerms.length === 0 && !resetRequested) searchTerms = priorProductTerms
+
+        // Variant browse is about the product already under discussion; plural
+        // variant nouns («طرح‌ها») alone would pollute the catalog search and
+        // return random variation-bearing rows. Prefer the current code terms
+        // plus the prior discussion's terms instead.
+        if (variantBrowse) {
+                const codeTerms = currentTerms.filter((term) => /^\d{3,8}$/.test(term))
+                const merged = [...new Set([...codeTerms, ...priorProductTerms])]
+                if (merged.length) searchTerms = merged
+        }
 
         const explicitCount = explicitRequestedCount(normalized.toLocaleLowerCase('fa'))
 
@@ -547,7 +678,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
 
         const inventoryMode = OUT_OF_STOCK_RE.test(normalized)
                 ? 'OUT_OF_STOCK'
-                : explicitShowcase || AVAILABLE_RE.test(normalized)
+                : explicitShowcase || variantBrowse || AVAILABLE_RE.test(normalized)
                         ? 'AVAILABLE'
                         : 'ANY'
 
@@ -558,12 +689,15 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 resetProductContext: resetRequested || explicitShowcase,
                 requestNewTopic,
                 requestedCount:
-                        explicitCount ?? (explicitShowcase ? MAX_SHOWCASE_PRODUCTS : discoveryBrowse ? 6 : 5),
+                        explicitCount ?? (explicitShowcase || variantBrowse ? MAX_SHOWCASE_PRODUCTS : discoveryBrowse ? 6 : 5),
                 searchTerms,
                 inventoryMode,
                 // The customer named an identifier-like SKU; used to guarantee
                 // the exact catalog match is presented as a product card.
                 codeIdentified: productCodeSignal,
+                variantBrowse,
+                variantHint,
+                variantTargetRefs,
         }
 }
 
@@ -648,13 +782,24 @@ export async function resolveConversation(
                         where: { id: params.conversationId, workspaceId, agentId: agent.id },
                         select: { id: true, customerInfoState: true, status: true, handedOff: true },
                 })
-                if (found)
+                if (found) {
+                        // Same resume rule as the externalId branch below: a resolved
+                        // thread reopens the moment the customer writes again, while a
+                        // human handoff stays sticky until the operator resets it. The
+                        // web widget used to keep showing a «closed» conversation badge
+                        // over an actively ongoing chat.
+                        if (found.status === 'RESOLVED' && !found.handedOff) {
+                                await prisma.conversation
+                                        .update({ where: { id: found.id }, data: { status: 'OPEN' } })
+                                        .catch(() => {})
+                        }
                         return {
                                 id: found.id,
                                 customerInfoState: found.customerInfoState,
-                                status: found.status,
+                                status: found.status === 'RESOLVED' && !found.handedOff ? 'OPEN' : found.status,
                                 handedOff: found.handedOff,
                         }
+                }
         }
 
         if (params.externalId) {

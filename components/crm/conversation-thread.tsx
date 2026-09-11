@@ -26,6 +26,7 @@
  */
 
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -90,6 +91,7 @@ export function ConversationThread({
         locale: 'fa' | 'en'
 }) {
         const t = useTranslations('conversations')
+        const router = useRouter()
         const reduceMotion = useReducedMotion()
         const [pendingMessages, setPendingMessages] = useState<ThreadMessage[]>([])
         const [polledMessages, setPolledMessages] = useState<ThreadMessage[]>([])
@@ -167,6 +169,13 @@ export function ConversationThread({
                                 })
                                 if (!isAtBottomRef.current) {
                                         setHasNewMessages(true)
+                                }
+                                // A fresh inbound message means the customer is still
+                                // talking: silently re-render the server component so the
+                                // header status (a resolved thread just reopened, handoff
+                                // flags, counters) stops showing stale «closed» state.
+                                if (data.messages.some((m: ThreadMessage) => m.role === 'USER')) {
+                                        router.refresh()
                                 }
                         } catch (error) {
                                 if (!(error instanceof DOMException && error.name === 'AbortError')) {
@@ -381,7 +390,10 @@ export function ConversationThread({
                                                                                 products={showcase.products}
                                                                                 locale={locale}
                                                                                 compact
-                                                                                className="mt-2 w-full max-w-[46rem]"
+                                                                                // No w-full: the rail shrink-wraps to its cards so a
+                                                                                // one/two-card vitrine hugs the agent side (left),
+                                                                                // exactly like the bubble above it.
+                                                                                className="mt-2 max-w-[46rem]"
                                                                         />
                                                                 )}
                                                                 {!isUser && hasShowcase && !showcase.text && (
