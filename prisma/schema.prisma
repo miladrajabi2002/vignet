@@ -238,6 +238,7 @@ model Agent {
   improvementSettings         Json?
   improvementRuns             ImprovementRun[]
   improvementSuggestions      ImprovementSuggestion[]
+  skillFindings               SkillFinding[]
 
   @@index([workspaceId])
 }
@@ -671,6 +672,7 @@ model Conversation {
   salesInsight       ConversationSalesInsight?
   memory             ConversationMemory?
   improvementReviews ImprovementReview[]
+  skillFindings       SkillFinding[]
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
@@ -1874,4 +1876,64 @@ model ImprovementChange {
   suggestion   ImprovementSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
 
   @@index([suggestionId, createdAt])
+}
+
+// ─── ADMIN-ONLY IMPROVEMENT SKILLS ──────────────────────────────────
+// Post-hoc conversation analysis produced by the seven improvement skills
+// (lib/skills). Findings are visible ONLY to the platform owner under
+// /admin/skills: workspace users never see them and are never billed for
+// them. (skillKey, dedupeKey) is the identity — re-detections refresh the
+// same row and a recurrence after RESOLVED reopens it.
+model SkillFinding {
+  id              String    @id @default(cuid())
+  skillKey        String
+  dedupeKey       String
+  workspaceId     String
+  agentId         String?
+  conversationId  String?
+  contactId       String?
+  severity        String    @default("MEDIUM") // HIGH | MEDIUM | LOW
+  title           String
+  diagnosis       String    @db.Text
+  evidence        Json?
+  suggestedAction Json?
+  status          String    @default("OPEN") // OPEN | ACKNOWLEDGED | RESOLVED | DISMISSED
+  occurrences     Int       @default(1)
+  firstSeenAt     DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedNote    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  agent        Agent?        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([skillKey, dedupeKey])
+  @@index([status, severity, lastSeenAt])
+  @@index([skillKey, lastSeenAt])
+  @@index([workspaceId, agentId])
+}
+
+// One durable pass of the skills engine. FREE passes are scheduled (worker
+// sweep) or manual; DEEP passes add the two LLM skills and are manual only.
+model SkillRun {
+  id                  String    @id @default(cuid())
+  mode                String    // FREE | DEEP
+  source              String    @default("manual") // manual | scheduled
+  skills              Json
+  status              String    @default("RUNNING") // RUNNING | DONE | ERROR
+  agentsScanned       Int       @default(0)
+  conversationsScanned Int      @default(0)
+  findingsCreated     Int       @default(0)
+  findingsUpdated     Int       @default(0)
+  findingsResolved    Int       @default(0)
+  llmRequests         Int       @default(0)
+  durationMs          Int       @default(0)
+  error               String?
+  createdAt           DateTime  @default(now())
+  finishedAt          DateTime?
+
+  @@index([status, createdAt])
+  @@index([source, mode, createdAt])
 }

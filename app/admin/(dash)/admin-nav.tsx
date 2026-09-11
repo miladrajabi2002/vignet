@@ -18,6 +18,7 @@ import {
   Database,
   ExternalLink,
   Mail,
+  Radar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
@@ -37,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/conversations', label: 'گفتگوها', icon: MessagesSquare },
       { href: '/admin/mail', label: 'صندوق ایمیل', icon: Mail },
       { href: '/admin/agents', label: 'ایجنت‌ها', icon: Bot },
+      { href: '/admin/skills', label: 'اسکیل‌های بهبود', icon: Radar },
       { href: '/admin/revenue', label: 'درآمد و سود', icon: TrendingUp },
       { href: '/admin/payments', label: 'پرداخت‌ها و فاکتورها', icon: CreditCard },
       { href: '/admin/usage', label: 'مصرف و هزینه AI', icon: BarChart3 },

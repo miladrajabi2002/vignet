@@ -1,6 +1,7 @@
 import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { sweepImprovement } from '@/lib/improvement/automation'
+import { sweepSkills } from '@/lib/skills/sweep'
 import { getRedis } from '@/lib/redis'
 import { dispatchProductEmbed, dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
@@ -45,6 +46,7 @@ const HOUR_MS = 60 * 60 * 1000
 const STALE_HOURS = 24
 const BATCH = 100
 const ADMIN_COMMERCIAL_SMS_SWEEP_INTERVAL_MS = 5 * 60_000
+const SKILLS_SWEEP_INTERVAL_MS = 6 * HOUR_MS
 
 async function sweepStaleConversations(): Promise<void> {
         const cutoff = new Date(Date.now() - STALE_HOURS * HOUR_MS)
@@ -837,6 +839,13 @@ export function startScheduler(): () => void {
         const initialChannelHealth = setTimeout(runChannelHealthSweep, 90_000)
         const channelHealthInterval = setInterval(runChannelHealthSweep, CHANNEL_HEALTH_INTERVAL_MS)
 
+        // ─ Admin improvement skills: a FREE pass every 6 hours keeps the
+        // SkillFinding board fresh (knowledge gaps, tool failures, regression
+        // guards, before/after metrics). DEEP skills stay manual-only.
+        const runSkillsSweep = () => sweepSkills().catch(() => console.error('[scheduler] skills sweep failed'))
+        const initialSkills = setTimeout(runSkillsSweep, 4 * 60_000)
+        const skillsInterval = setInterval(runSkillsSweep, SKILLS_SWEEP_INTERVAL_MS)
+
         return () => {
                 clearTimeout(initialImprovement)
                 clearInterval(improvementInterval)
@@ -864,5 +873,7 @@ export function startScheduler(): () => void {
                 clearInterval(tokenRefreshInterval)
                 clearTimeout(initialChannelHealth)
                 clearInterval(channelHealthInterval)
+                clearTimeout(initialSkills)
+                clearInterval(skillsInterval)
         }
 }
