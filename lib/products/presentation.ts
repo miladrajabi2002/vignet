@@ -4,6 +4,25 @@ import {
   type ProductShowcase,
 } from '@/lib/instagram/media'
 import { extractListItems, extractTypedVariations, normalizeAttributes, stripListBlocks, type VariationRow } from '@/lib/products/description'
+import { numberLocale, type TurnLanguage } from '@/lib/ai/turn-language'
+
+/** Reply locale for deterministic customer-facing templates. */
+export type ReplyLanguage = TurnLanguage
+
+/**
+ * Resolve the reply locale from the new `lang` field with backward
+ * compatibility for the legacy `isFa` boolean (tests and older call sites).
+ */
+function resolveReplyLang(lang: ReplyLanguage | undefined, isFa: boolean | undefined): ReplyLanguage {
+  if (lang === 'fa' || lang === 'ar' || lang === 'en') return lang
+  return isFa === false ? 'en' : 'fa'
+}
+
+/** Locale-aware price line for deterministic replies. */
+function priceLine(value: number, lang: ReplyLanguage): string {
+  const amount = value.toLocaleString(numberLocale(lang))
+  return lang === 'en' ? amount : `${amount} تومان`
+}
 
 const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
 const MAX_PRODUCTS_PER_REPLY = 10
@@ -37,11 +56,39 @@ export interface ProductDirective {
 export function showcaseIntroText(params: {
   count: number
   subject?: string
-  isFa: boolean
+  isFa?: boolean
+  /** Three-way reply locale; wins over the legacy isFa flag. */
+  lang?: ReplyLanguage
 }): string {
+  const lang = resolveReplyLang(params.lang, params.isFa)
   const subject = (params.subject ?? '').trim().slice(0, 40)
   const hasSubject = subject.length >= 2
-  if (params.isFa) {
+  if (lang === 'ar') {
+    const count = params.count.toLocaleString(numberLocale(lang))
+    if (params.count === 0) {
+      return [
+        hasSubject
+          ? `لم أجد حاليًا أي ${subject} متوفر يطابق هذا الطلب في الكتالوج.`
+          : 'لم يتم العثور حاليًا على منتج متوفر ومطابق لهذا الطلب في الكتالوج.',
+        'هل لديك طراز أو لون معين في ذهنك؟ أخبرني لأبحث مرة أخرى بدقة أكبر.',
+      ].join('\n')
+    }
+    if (params.count === 1) {
+      return [
+        hasSubject
+          ? `وجدت ${subject} واحدًا متوفرًا ومطابقًا لطلبك؛ صورته وسعره ومواصفاته في الأسفل.`
+          : 'وجدت منتجًا واحدًا متوفرًا ومطابقًا؛ صورته وسعره ومواصفاته في الأسفل.',
+        'تحتاج مقاسًا أو لونًا معينًا؟ أخبرني لأتحقق من توفره.',
+      ].join('\n')
+    }
+    return [
+      hasSubject
+        ? `وجدت ${count} من ${subject} المتوفرة والمطابقة لطلبك؛ صورة وسعر ومواصفات كل منها في الأسفل.`
+        : `وجدت ${count} خيارًا متوفرًا ومطابقًا؛ صورة وسعر ومواصفات كل منها في الأسفل.`,
+      'تبحث عن لون أو مقاس معين؟ أخبرني لأضيّق لك الاختيارات من بينها.',
+    ].join('\n')
+  }
+  if (lang === 'fa') {
     const count = params.count.toLocaleString('fa-IR')
     if (params.count === 0) {
       return [
@@ -371,17 +418,19 @@ function safeProductUrl(value: string | null | undefined): string | null {
 }
 
 /** Compact cross-channel fallback for messengers without generic templates. */
-export function formatProductFallback(products: TrustedProductShowcase[], isFa: boolean): string {
+export function formatProductFallback(
+  products: TrustedProductShowcase[],
+  isFa: boolean | ReplyLanguage,
+): string {
+  const lang: ReplyLanguage = isFa === 'fa' || isFa === 'ar' || isFa === 'en'
+    ? isFa
+    : isFa === false ? 'en' : 'fa'
   return products
     .slice(0, MAX_PRODUCTS_PER_REPLY)
     .map((product, index) => {
       const details: string[] = []
       if (product.price != null) {
-        details.push(
-          isFa
-            ? `${product.price.toLocaleString('fa-IR')} تومان`
-            : `${product.price.toLocaleString('en-US')}`,
-        )
+        details.push(priceLine(product.price, lang))
       }
       const url = safeProductUrl(product.productUrl)
       const line = `${index + 1}. ${product.name}${details.length ? ` — ${details.join(' | ')}` : ''}`
@@ -419,7 +468,9 @@ export async function buildTrustedProductReply(params: {
   raw: string
   workspaceId: string
   agentId: string
-  isFa: boolean
+  isFa?: boolean
+  /** Three-way reply locale; wins over the legacy isFa flag. */
+  lang?: ReplyLanguage
   /** Deterministic DB selection made by the hybrid product search. */
   preferredProductIds?: string[]
   /** Ignore model product prose/markers and render exactly preferredProductIds. */
@@ -441,6 +492,7 @@ export async function buildTrustedProductReply(params: {
    */
   identifiedVariantHint?: string | null
 }): Promise<string> {
+  const lang = resolveReplyLang(params.lang, params.isFa)
   const subject = (params.subjectPhrase ?? '').trim()
   const parsed = parseProductDirectives(params.raw)
   const preferredDirectives = [...new Set(params.preferredProductIds ?? [])]
@@ -455,7 +507,7 @@ export async function buildTrustedProductReply(params: {
 
   if (!directives.length) {
     if (params.forceShowcase) {
-      return showcaseIntroText({ count: 0, subject, isFa: params.isFa })
+      return showcaseIntroText({ count: 0, subject, lang })
     }
     return parsed.text === params.raw.trim() ? params.raw : parsed.text
   }
@@ -484,36 +536,43 @@ export async function buildTrustedProductReply(params: {
     .map((product) => product.id))
   const preferredIds = new Set(preferredDirectives.map((directive) => directive.id))
   const identifiedIds = new Set(identifiedDirectives.map((directive) => directive.id))
+  // Turn-scope guard: only products chosen by THIS turn's deterministic
+  // catalog search (preferred or identified) may be carded at all. The model
+  // only ever sees this same set in its catalog block, so a model-authored
+  // directive naming anything else is off-turn noise (e.g. a stale product
+  // remembered from an earlier turn) and must not reach the customer.
+  const turnScopeIds = new Set([...preferredIds, ...identifiedIds])
   const selectedProducts = params.forceShowcase
     ? products
-    : products.filter((product) =>
-      explicitlyResolved.has(product.id) ||
-      (preferredIds.has(parentId(product.id)) && replyMentionsProduct(parsed.text, product.name)) ||
-      identifiedIds.has(parentId(product.id)) ||
-      // A directive that explicitly named a variant («0788 طرح 05») resolves
-      // to a variation card even though its plain product id was preferred.
-      (parsed.directives.some((directive) => directive.variant && directive.id === parentId(product.id)) &&
-        product.variation != null),
-    )
+    : products.filter((product) => {
+      if (!turnScopeIds.has(parentId(product.id))) return false
+      return (
+        explicitlyResolved.has(product.id) ||
+        (preferredIds.has(parentId(product.id)) && replyMentionsProduct(parsed.text, product.name)) ||
+        identifiedIds.has(parentId(product.id)) ||
+        // A directive that explicitly named a variant («0788 طرح 05») resolves
+        // to a variation card even though its plain product id was preferred.
+        (parsed.directives.some((directive) => directive.variant && directive.id === parentId(product.id)) &&
+          product.variation != null)
+      )
+    })
 
   if (!selectedProducts.length) {
     return params.forceShowcase
-      ? showcaseIntroText({ count: 0, subject, isFa: params.isFa })
+      ? showcaseIntroText({ count: 0, subject, lang })
       : parsed.text
   }
 
   const markers = selectedProducts.map((product) => {
     const price = product.price == null
       ? ''
-      : params.isFa
-        ? `${product.price.toLocaleString('fa-IR')} تومان`
-        : product.price.toLocaleString('en-US')
+      : priceLine(product.price, lang)
     return `[[product:${JSON.stringify({
       id: product.id,
       name: product.name,
       price,
       desc: cleanProductDescription(product.description, 240),
-      badge: product.badge ?? (params.isFa ? 'موجود' : 'Available'),
+      badge: product.badge ?? (lang === 'en' ? 'Available' : lang === 'ar' ? 'متوفر' : 'موجود'),
       image: safeProductUrl(product.imageUrl) ?? '',
       url: safeProductUrl(product.productUrl) ?? '',
       specs: product.specs,
@@ -524,7 +583,7 @@ export async function buildTrustedProductReply(params: {
     ? showcaseIntroText({
         count: selectedProducts.length,
         subject: subjectIsCoveredByProducts(selectedProducts, subject) ? subject : '',
-        isFa: params.isFa,
+        lang,
       })
     : parsed.text
 
@@ -555,7 +614,7 @@ function cleanSpecPart(value: string, maxLength: number): string {
 
 // ─── Variant vitrine ──────────────────────────────────────────────────────────
 /** Dominant attribute key of a variation list («طرح», «رنگ», …). */
-function variationNoun(variations: VariationRow[], isFa: boolean): string {
+function variationNoun(variations: VariationRow[], lang: ReplyLanguage): string {
   const counts = new Map<string, number>()
   for (const variation of variations) {
     for (const key of Object.keys(variation.attributes)) {
@@ -563,7 +622,12 @@ function variationNoun(variations: VariationRow[], isFa: boolean): string {
     }
   }
   const dominant = [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? ''
-  if (!isFa) return 'variant'
+  if (lang === 'en') return 'variant'
+  if (lang === 'ar') {
+    if (/طرح/.test(dominant)) return 'تصميم'
+    if (/رنگ/.test(dominant)) return 'اللون'
+    return 'الخيار'
+  }
   if (/طرح/.test(dominant)) return 'طرح'
   if (/رنگ/.test(dominant)) return 'رنگ'
   return 'تنوع'
@@ -676,7 +740,13 @@ async function resolveVariantTarget(params: {
 /** «طرح 07» already names its noun; «شکلاتی، L» needs the «رنگ» prefix. */
 function variationDisplay(variation: VariationRow, noun: string): string {
   const label = variationLabel(variation)
-  return label.startsWith(noun) ? label : `${noun} ${label}`
+  if (label.startsWith(noun)) return label
+  // Arabic nouns («تصميم») precede the shop's own Persian labels; the
+  // definite article keeps the mixed-script phrase readable.
+  if (/^[\u0621-\u064A]/.test(noun) && !/^(?:طرح|رنگ|تنوع)/.test(noun)) {
+    return `${noun} «${label}»`
+  }
+  return `${noun} ${label}`
 }
 
 /**
@@ -691,9 +761,12 @@ function variationDisplay(variation: VariationRow, noun: string): string {
 export async function buildVariantShowcaseReply(params: {
   workspaceId: string
   agentId: string
-  isFa: boolean
+  isFa?: boolean
+  /** Three-way reply locale; wins over the legacy isFa flag. */
+  lang?: ReplyLanguage
   candidateRefs: string[]
 }): Promise<string | null> {
+  const lang = resolveReplyLang(params.lang, params.isFa)
   const resolved = await resolveVariantTarget({
     workspaceId: params.workspaceId,
     agentId: params.agentId,
@@ -703,13 +776,16 @@ export async function buildVariantShowcaseReply(params: {
   const { target, variations } = resolved
   if (!variations.length) return null
   const available = sortVariationsByLabel(variations.filter(isVariationAvailable))
-  const noun = variationNoun(variations, params.isFa)
+  const noun = variationNoun(variations, lang)
   const name = target.name
 
   if (!available.length) {
-    return params.isFa
-      ? `فعلاً همهٔ ${noun}های «${name}» ناموجود شده‌اند. مدل مشابه دیگری معرفی کنم؟`
-      : `All ${noun}s of “${name}” are currently out of stock. Would you like me to suggest a similar model?`
+    if (lang === 'ar') {
+      return `جميع ${noun}ات «${name}» غير متوفرة حاليًا. هل تريد أن أقترح عليك طرازًا مشابهًا؟`
+    }
+    return lang === 'en'
+      ? `All ${noun}s of “${name}” are currently out of stock. Would you like me to suggest a similar model?`
+      : `فعلاً همهٔ ${noun}های «${name}» ناموجود شده‌اند. مدل مشابه دیگری معرفی کنم؟`
   }
 
   const shown = available.slice(0, MAX_PRODUCTS_PER_REPLY)
@@ -719,39 +795,49 @@ export async function buildVariantShowcaseReply(params: {
     name: `${name} — ${variationLabel(variation)}`,
     price: (variation.price ?? target.price) == null
       ? ''
-      : params.isFa
-        ? `${(variation.price ?? target.price)!.toLocaleString('fa-IR')} تومان`
-        : (variation.price ?? target.price)!.toLocaleString('en-US'),
+      : priceLine((variation.price ?? target.price)!, lang),
     desc: cleanProductDescription(target.description, 240),
-    badge: params.isFa ? 'موجود' : 'Available',
+    badge: lang === 'en' ? 'Available' : lang === 'ar' ? 'متوفر' : 'موجود',
     image: safeProductUrl(variation.image ?? null) ?? safeProductUrl(pickTemplateImageUrl(target.images)) ?? '',
     url: safeProductUrl(target.externalUrl) ?? '',
     specs: variationSpecs(variation, target.attributes),
   })}]]`)
 
-  const intro = params.isFa
+  const intro = lang === 'ar'
     ? count === 1
       ? [
-          `فعلاً فقط یک ${noun} از «${name}» موجود است؛ عکس و قیمتش را در کارت زیر می‌بینید.`,
-          'اگر مدل دیگری هم خواستید، بگویید.',
+          `يتوفر حاليًا ${noun} واحد فقط من «${name}»؛ سترى صورته وسعره في البطاقة أدناه.`,
+          'أخبرني إن كنت تريد أيضًا طرازًا آخر.',
         ].join('\n')
       : [
-          `${count.toLocaleString('fa-IR')} ${noun} موجودِ «${name}» را برایتان فرستادم؛ عکس، قیمت و موجودی هر ${noun} روی کارت خودش هست.`,
+          `أرسلت لك ${count.toLocaleString(numberLocale(lang))} ${noun} متوفرًا من «${name}»؛ صورة وسعر وتوفر كل ${noun} على بطاقته الخاصة.`,
           available.length > shown.length
-            ? `${available.length.toLocaleString('fa-IR')} ${noun} موجود بود و ${count.toLocaleString('fa-IR')} تای اول را فرستادم — بگویید تا بقیه را هم بفرستم.`
-            : `کدام ${noun} را می‌خواهید؟`,
+            ? `يوجد ${available.length.toLocaleString(numberLocale(lang))} ${noun} متوفرًا وقد أرسلت لك أول ${count.toLocaleString(numberLocale(lang))} — أخبرني لإرسال البقية أيضًا.`
+            : `أي ${noun} تفضل؟`,
         ].join('\n')
-    : count === 1
-      ? [
-          `Only one ${noun} of “${name}” is currently available; its photo and price are on the card below.`,
-          'Tell me if you would like another model.',
-        ].join('\n')
-      : [
-          `I sent you the ${count} available ${noun}s of “${name}”; each card shows that ${noun}'s own photo, price and stock.`,
-          available.length > shown.length
-            ? `There are ${available.length} available ${noun}s in total — say the word and I will send the rest too.`
-            : `Which ${noun} would you like?`,
-        ].join('\n')
+    : lang === 'fa'
+      ? count === 1
+        ? [
+            `فعلاً فقط یک ${noun} از «${name}» موجود است؛ عکس و قیمتش را در کارت زیر می‌بینید.`,
+            'اگر مدل دیگری هم خواستید، بگویید.',
+          ].join('\n')
+        : [
+            `${count.toLocaleString('fa-IR')} ${noun} موجودِ «${name}» را برایتان فرستادم؛ عکس، قیمت و موجودی هر ${noun} روی کارت خودش هست.`,
+            available.length > shown.length
+              ? `${available.length.toLocaleString('fa-IR')} ${noun} موجود بود و ${count.toLocaleString('fa-IR')} تای اول را فرستادم — بگویید تا بقیه را هم بفرستم.`
+              : `کدام ${noun} را می‌خواهید؟`,
+          ].join('\n')
+      : count === 1
+        ? [
+            `Only one ${noun} of “${name}” is currently available; its photo and price are on the card below.`,
+            'Tell me if you would like another model.',
+          ].join('\n')
+        : [
+            `I sent you the ${count} available ${noun}s of “${name}”; each card shows that ${noun}'s own photo, price and stock.`,
+            available.length > shown.length
+              ? `There are ${available.length} available ${noun}s in total — say the word and I will send the rest too.`
+              : `Which ${noun} would you like?`,
+          ].join('\n')
 
   return [intro, markers.join('\n')].filter(Boolean).join('\n\n')
 }
@@ -772,10 +858,13 @@ export async function buildVariantShowcaseReply(params: {
 export async function buildVariantPickReply(params: {
   workspaceId: string
   agentId: string
-  isFa: boolean
+  isFa?: boolean
+  /** Three-way reply locale; wins over the legacy isFa flag. */
+  lang?: ReplyLanguage
   candidateRefs: string[]
   hint: string
 }): Promise<string | null> {
+  const lang = resolveReplyLang(params.lang, params.isFa)
   const hint = params.hint.trim()
   if (!hint) return null
   const resolved = await resolveVariantTarget({
@@ -789,7 +878,7 @@ export async function buildVariantPickReply(params: {
   const variation = matchVariationRow(variations, { label: hint })
   if (!variation) return null
 
-  const noun = variationNoun(variations, params.isFa)
+  const noun = variationNoun(variations, lang)
   const display = variationDisplay(variation, noun)
   const available = isVariationAvailable(variation)
   const marker = `[[product:${JSON.stringify({
@@ -797,37 +886,45 @@ export async function buildVariantPickReply(params: {
     name: `${target.name} — ${variationLabel(variation)}`,
     price: (variation.price ?? target.price) == null
       ? ''
-      : params.isFa
-        ? `${(variation.price ?? target.price)!.toLocaleString('fa-IR')} تومان`
-        : (variation.price ?? target.price)!.toLocaleString('en-US'),
+      : priceLine((variation.price ?? target.price)!, lang),
     desc: cleanProductDescription(target.description, 240),
     badge: available
-      ? (params.isFa ? 'موجود' : 'Available')
-      : (params.isFa ? 'ناموجود' : 'Out of stock'),
+      ? (lang === 'en' ? 'Available' : lang === 'ar' ? 'متوفر' : 'موجود')
+      : (lang === 'en' ? 'Out of stock' : lang === 'ar' ? 'غير متوفر' : 'ناموجود'),
     image: safeProductUrl(variation.image ?? null) ?? safeProductUrl(pickTemplateImageUrl(target.images)) ?? '',
     url: safeProductUrl(target.externalUrl) ?? '',
     specs: variationSpecs(variation, target.attributes),
   })}]]`
 
-  const intro = params.isFa
+  const intro = lang === 'ar'
     ? available
       ? [
-          `این هم ${display} از «${target.name}»؛ عکس، قیمت و موجودی‌اش روی کارت زیر هست.`,
-          `اگر ${noun} دیگری هم خواستید، بگویید.`,
+          `هذا هو ${display} من «${target.name}»؛ صورته وسعره وتوفره على البطاقة أدناه.`,
+          `أخبرني إن كنت تريد ${noun} آخر.`,
         ].join('\n')
       : [
-          `${display} از «${target.name}» فعلاً ناموجود شده است؛ کارتش را برایتان گذاشتم تا از نزدیک ببینید.`,
-          `${noun}های موجود این مدل را هم بفرستم؟`,
+          `${display} من «${target.name}» غير متوفر حاليًا؛ أرفقت بطاقته لتشاهدها عن قرب.`,
+          `هل أرسل لك ${noun}ات هذا الطراز المتوفرة؟`,
         ].join('\n')
-    : available
-      ? [
-          `Here is the ${display} of “${target.name}”; its photo, price and stock are on the card below.`,
-          `Tell me if you would like another ${noun}.`,
-        ].join('\n')
-      : [
-          `The ${display} of “${target.name}” is currently out of stock; I attached its card so you can see it up close.`,
-          `Shall I send the available ${noun}s of this model?`,
-        ].join('\n')
+    : lang === 'fa'
+      ? available
+        ? [
+            `این هم ${display} از «${target.name}»؛ عکس، قیمت و موجودی‌اش روی کارت زیر هست.`,
+            `اگر ${noun} دیگری هم خواستید، بگویید.`,
+          ].join('\n')
+        : [
+            `${display} از «${target.name}» فعلاً ناموجود شده است؛ کارتش را برایتان گذاشتم تا از نزدیک ببینید.`,
+            `${noun}های موجود این مدل را هم بفرستم؟`,
+          ].join('\n')
+      : available
+        ? [
+            `Here is the ${display} of “${target.name}”; its photo, price and stock are on the card below.`,
+            `Tell me if you would like another ${noun}.`,
+          ].join('\n')
+        : [
+            `The ${display} of “${target.name}” is currently out of stock; I attached its card so you can see it up close.`,
+            `Shall I send the available ${noun}s of this model?`,
+          ].join('\n')
 
   return [intro, marker].join('\n\n')
 }

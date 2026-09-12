@@ -4,6 +4,7 @@ export type AgentSkillPhase = 'policy' | 'context' | 'action' | 'postprocess'
 
 export type AgentSkillKey =
   | 'security-boundaries'
+  | 'language-mirroring'
   | 'response-style'
   | 'conversation-flow'
   | 'evidence-grounding'

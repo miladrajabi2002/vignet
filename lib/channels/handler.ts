@@ -54,6 +54,7 @@ import {
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import { refreshConversationSalesInsight } from '@/lib/ai/sales-intelligence'
+import { detectTurnLanguage } from '@/lib/ai/turn-language'
 import { sendProductCarousel } from '@/lib/instagram/media'
 import {
         formatProductFallback,
@@ -1549,9 +1550,12 @@ async function processChannelInbound(
                                         directives: parsedReply.directives,
                                 })
                                 : []
+                        // Reply locale for card fallback text mirrors the
+                        // customer's own message, not the agent's pinned locale.
+                        const cardLang = detectTurnLanguage(text ?? msg.text ?? '')
                         const productFallback = formatProductFallback(
                                 showcasedProducts,
-                                agent.language !== 'en',
+                                cardLang,
                         )
                         let spokenReply = parsedReply.text
                         const sendReplyText = async (replyText: string, quickReplies?: string[]) => {
@@ -1613,7 +1617,7 @@ async function processChannelInbound(
                                                 await textStream?.cancel()
                                                 textStream = undefined
                                         }
-                                        const isFa = agent.language !== 'en'
+                                        const cardIsFa = cardLang !== 'en'
                                         const failedProducts: typeof showcasedProducts = []
                                         for (const product of showcasedProducts) {
                                                 try {
@@ -1622,14 +1626,14 @@ async function processChannelInbound(
                                                                 description: product.description ?? null,
                                                                 price: product.price == null
                                                                         ? null
-                                                                        : isFa
+                                                                        : cardIsFa
                                                                                 ? `${product.price.toLocaleString('fa-IR')} تومان`
                                                                                 : product.price.toLocaleString('en-US'),
-                                                                badge: product.badge ?? (isFa ? 'موجود' : 'Available'),
+                                                                badge: product.badge ?? (cardIsFa ? 'موجود' : 'Available'),
                                                                 specs: product.specs,
                                                                 imageUrl: product.imageUrl,
                                                                 productUrl: product.productUrl,
-                                                                ctaLabel: isFa ? '🛒 مشاهده و خرید' : 'View / Buy',
+                                                                ctaLabel: cardIsFa ? '🛒 مشاهده و خرید' : 'View / Buy',
                                                         })
                                                 } catch (cardError) {
                                                         console.error(`[handler] ${type} product card failed:`, cardError)
@@ -1639,7 +1643,7 @@ async function processChannelInbound(
                                         // Preserve every failed item as text. Previously a partial
                                         // failure silently hid the missing product whenever at least
                                         // one sibling card succeeded.
-                                        const failedProductFallback = formatProductFallback(failedProducts, isFa)
+                                        const failedProductFallback = formatProductFallback(failedProducts, cardLang)
                                         if (failedProductFallback) {
                                                 await deliveryAdapter.sendText(msg.chatId, failedProductFallback, {
                                                         quickReplies: settings.quickReplies,

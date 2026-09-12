@@ -40,6 +40,7 @@ import {
         type CreditReservation,
 } from '@/lib/billing/ai-credits'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
+import { detectTurnLanguage, type TurnLanguage } from '@/lib/ai/turn-language'
 import type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
 import {
         buildTurnReceipts,
@@ -180,8 +181,10 @@ function buildSystemPrompt(params: {
         customerInfoState: string
         contactName: string | null
         customerPreferences?: CustomerAgentPreference[]
+        /** Language of the customer's current turn (kernel mirrors it). */
+        turnLanguage?: TurnLanguage
 }): string {
-        const { agent, customerInfoState, contactName, customerPreferences = [] } = params
+        const { agent, customerInfoState, contactName, customerPreferences = [], turnLanguage } = params
 
         // 1. Resolve the layered/role prompt, with the legacy prompt as fallback.
         let base = resolveSystemPrompt({
@@ -196,16 +199,25 @@ function buildSystemPrompt(params: {
 
         // 3. If the conversation is still pending identification, inject the
         //    collect-info instruction so the agent asks for name+phone first.
+        //    The instruction script follows the customer's own turn language
+        //    (the kernel's mirroring rule owns the reply language itself).
         if (customerInfoState === 'pending' && agent.requireCustomerInfo) {
-                const isFa = agent.language !== 'en'
+                const isFa = (turnLanguage ?? agent.language) !== 'en'
                 base += identificationInstruction(isFa, agent.customerInfoPrompt)
         }
 
         // Explicit per-customer interaction preferences are isolated in CRM
         // metadata and subordinate to business facts, tools and safety rules.
-        base += customerPreferenceInstruction(agent.language, customerPreferences)
+        base += customerPreferenceInstruction((turnLanguage ?? agent.language) === 'en' ? 'en' : 'fa', customerPreferences)
 
         return base
+}
+
+/** Locale-aware default text for provider failures (no configured fallback). */
+function defaultProviderFailureText(lang: TurnLanguage): string {
+        if (lang === 'ar') return 'حدث خطأ تقني مؤقت، من فضلك أعد إرسال رسالتك بعد لحظات'
+        if (lang === 'en') return 'A temporary technical issue occurred — please message again in a few moments'
+        return 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
 }
 
 function appendSalesGuidance(
@@ -226,17 +238,22 @@ async function buildDeterministicTurnReply(params: {
         productRequest: ProductRequestPlan
         canBypass: boolean
         closingReply: string | null
+        /** Reply locale detected from the customer's current message. */
+        lang?: TurnLanguage
 }): Promise<string | null> {
         if (params.closingReply) return params.closingReply
         if (!params.canBypass || params.channel === 'API') return null
+        const lang = params.lang ?? 'fa'
         if (params.productRequest.requestNewTopic) {
-                return params.agent.language === 'en'
+                if (lang === 'ar') return 'حسنًا، لقد تركت الموضوع السابق جانبًا.'
+                return lang === 'en'
                         ? 'Okay, I set the previous topic aside.'
                         : 'باشه؛ موضوع قبلی را کنار گذاشتم.'
         }
         if (!params.agent.productAccessEnabled) {
                 if (params.productRequest.variantBrowse || params.productRequest.variantPick || params.productRequest.explicitShowcase) {
-                        return params.agent.language === 'en'
+                        if (lang === 'ar') return 'وصول هذا المساعد إلى كتالوج المنتجات معطّل حاليًا.'
+                        return lang === 'en'
                                 ? 'This agent does not currently have access to the product catalog.'
                                 : 'دسترسی این ایجنت به کاتالوگ محصولات در حال حاضر غیرفعال است.'
                 }
@@ -252,7 +269,7 @@ async function buildDeterministicTurnReply(params: {
                         const pickReply = await buildVariantPickReply({
                                 workspaceId: params.workspaceId,
                                 agentId: params.agent.id,
-                                isFa: params.agent.language !== 'en',
+                                lang,
                                 candidateRefs: [
                                         ...params.productRequest.variantTargetRefs,
                                         ...params.catalogProducts
@@ -276,7 +293,7 @@ async function buildDeterministicTurnReply(params: {
                         const variantReply = await buildVariantShowcaseReply({
                                 workspaceId: params.workspaceId,
                                 agentId: params.agent.id,
-                                isFa: params.agent.language !== 'en',
+                                lang,
                                 candidateRefs: [
                                         ...params.productRequest.variantTargetRefs,
                                         ...params.catalogProducts
@@ -307,7 +324,7 @@ async function buildDeterministicTurnReply(params: {
                                 const variantReply = await buildVariantShowcaseReply({
                                         workspaceId: params.workspaceId,
                                         agentId: params.agent.id,
-                                        isFa: params.agent.language !== 'en',
+                                        lang,
                                         candidateRefs: [identifiedTargets[0].id],
                                 })
                                 if (variantReply) return variantReply
@@ -325,7 +342,7 @@ async function buildDeterministicTurnReply(params: {
                 raw: '',
                 workspaceId: params.workspaceId,
                 agentId: params.agent.id,
-                isFa: params.agent.language !== 'en',
+                lang,
                 preferredProductIds: params.catalogProducts.map((product) => product.id),
                 identifiedProductIds: params.catalogProducts
                         .filter((product) => product.fullTermMatch)
@@ -415,6 +432,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                   skillPlan: AgentSkillPlan
                   canBypassDeterministicReply: boolean
                   closingReply: string | null
+                  /** Reply locale detected from the customer's message. */
+                  turnLang: TurnLanguage
           }
 > {
         const { workspaceId, agent, message } = params
@@ -531,11 +550,24 @@ async function prepareTurn(params: StartChatParams): Promise<
         const customerPreferences = contact
                 ? readCustomerAgentPreferences(contact.metadata, agent.id)
                 : []
+        // History must load before the prompt is built so the reply language
+        // can inherit the customer's last lettered message when the current
+        // one is digits-only («0788»). Loading here (before the credit
+        // reservation) keeps the same error semantics: a history failure
+        // surfaces without ever holding a reservation.
+        const [history, catalogServices] = await Promise.all([
+                loadHistory(conversationId, params.inboundEventId),
+                fetchCatalogServices(workspaceId),
+        ])
+        // Language mirroring: the reply locale comes from what the customer
+        // actually wrote THIS turn — never from a pinned agent locale.
+        const turnLang = detectTurnLanguage(message, history)
         const finalSystemPrompt = buildSystemPrompt({
                 agent,
                 customerInfoState: freshState,
                 contactName: resolvedContactName,
                 customerPreferences,
+                turnLanguage: turnLang,
         })
 
         const reserved = await reserveChatCredit({
@@ -555,11 +587,6 @@ async function prepareTurn(params: StartChatParams): Promise<
         const reservation = reserved.reservation
 
         try {
-                const [history, catalogServices] = await Promise.all([
-                        loadHistory(conversationId, params.inboundEventId),
-                        fetchCatalogServices(workspaceId),
-                ])
-
         // Persist the incoming user message (or reuse the event-anchored row
         // that the durable channel handler committed before automation).
                 await persistInboundTurnMessage(params, conversationId, false)
@@ -570,10 +597,10 @@ async function prepareTurn(params: StartChatParams): Promise<
 
         // Retrieve context and build the prompt.
                 const productRequest = planProductRequest(message, history)
-                const closingReply = closingReplyText(message, history, agent.language)
+                const closingReply = closingReplyText(message, history, turnLang)
                 if (closingReply) {
                         const skillPlan = compileAgentSkillPlan({
-                                language: agent.language,
+                                language: turnLang,
                                 userMessage: message,
                                 history,
                                 deterministicClosing: true,
@@ -589,6 +616,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 contactName: resolvedContactName, contactPhone: resolvedContactPhone,
                                 messages: [], retrievedChunks: [], catalogProducts: [], productRequest, skillPlan,
                                 canBypassDeterministicReply: freshState !== 'pending', closingReply,
+                                turnLang,
                         }
                 }
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
@@ -634,7 +662,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 ])
                 const turnHistory = historyForProductTurn(history, productRequest)
                 const skillPlan = compileAgentSkillPlan({
-                        language: agent.language,
+                        language: turnLang,
                         userMessage: message,
                         history: turnHistory,
                         // Verified channel media on this turn (never inferred from prose).
@@ -656,7 +684,7 @@ async function prepareTurn(params: StartChatParams): Promise<
 
                 const messages = buildMessages({
                         systemPrompt: finalSystemPrompt,
-                        language: agent.language,
+                        language: turnLang,
                         contextText,
                         catalogProducts,
                         catalogServices,
@@ -687,6 +715,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         skillPlan,
                         canBypassDeterministicReply: freshState !== 'pending',
                         closingReply: null,
+                        turnLang,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -912,6 +941,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 skillPlan,
                 canBypassDeterministicReply,
                 closingReply,
+                turnLang,
         } = prep
 
         const encoder = new TextEncoder()
@@ -989,6 +1019,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         productRequest,
                                         canBypass: canBypassDeterministicReply,
                                         closingReply,
+                                        lang: turnLang,
                                 })
                                 if (deterministicReply) {
                                         // No model call and therefore no AI charge. The DB
@@ -1071,7 +1102,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         metadata: { agentId: agent.id, model, conversationId },
                                 })
                                 if (!full) {
-                                        full = agent.fallbackMessage || 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
+                                        full = agent.fallbackMessage || defaultProviderFailureText(turnLang)
                                         send({ type: 'delta', text: full })
                                 }
                                 send({ type: 'error', error: 'STREAM_FAILED' })
@@ -1095,7 +1126,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         // successful reply and must not consume reply credit.
                         if (!providerFailed && !full.trim()) {
                                 providerFailed = true
-                                full = agent.fallbackMessage || 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
+                                full = agent.fallbackMessage || defaultProviderFailureText(turnLang)
                                 send({ type: 'delta', text: full })
                                 send({ type: 'error', error: 'EMPTY_RESPONSE' })
                         }
@@ -1107,11 +1138,11 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 (!providerFailed || productRequest.explicitShowcase)
                         ) {
                                 try {
-                                        const trustedReply = await buildTrustedProductReply({
+                                                        const trustedReply = await buildTrustedProductReply({
                                                 raw: full,
                                                 workspaceId,
                                                 agentId: agent.id,
-                                                isFa: agent.language !== 'en',
+                                                lang: turnLang,
                                                 preferredProductIds: catalogProducts.map((product) => product.id),
                                                 identifiedProductIds: catalogProducts
                                                         .filter((product) => product.fullTermMatch)
@@ -1150,7 +1181,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         full = runAgentSkillPostprocessors(full, skillPlan, {
                                 catalogProducts: providerFailed ? [] : catalogProducts,
                                 userMessage: message,
-                                isFa: agent.language !== 'en',
+                                isFa: turnLang !== 'en',
                                 inboundMediaKind: params.inboundMediaKind,
                         })
                         send({ type: 'replace', text: full })
@@ -1247,6 +1278,7 @@ export async function generateReply(
                 skillPlan,
                 canBypassDeterministicReply,
                 closingReply,
+                turnLang,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -1286,6 +1318,7 @@ export async function generateReply(
                         productRequest,
                         canBypass: canBypassDeterministicReply,
                         closingReply,
+                        lang: turnLang,
                 })
                 if (deterministicReply) {
                         await options.onGenerationStart?.()
@@ -1396,7 +1429,7 @@ export async function generateReply(
         if (!reply) {
                 // Empty provider content is a failed reply for billing purposes.
                 providerFailed = true
-                reply = agent.fallbackMessage || 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
+                reply = agent.fallbackMessage || defaultProviderFailureText(turnLang)
         }
 
         // Canonicalize markers for every public messenger before persistence
@@ -1413,7 +1446,7 @@ export async function generateReply(
                                 raw: reply,
                                 workspaceId,
                                 agentId: agent.id,
-                                isFa: agent.language !== 'en',
+                                lang: turnLang,
                                 preferredProductIds: catalogProducts.map((product) => product.id),
                                 identifiedProductIds: catalogProducts
                                         .filter((product) => product.fullTermMatch)
@@ -1444,7 +1477,7 @@ export async function generateReply(
         reply = runAgentSkillPostprocessors(reply, skillPlan, {
                 catalogProducts: providerFailed ? [] : catalogProducts,
                 userMessage: message,
-                isFa: agent.language !== 'en',
+                isFa: turnLang !== 'en',
                 inboundMediaKind: params.inboundMediaKind,
         })
 

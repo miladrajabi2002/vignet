@@ -958,12 +958,28 @@ function searchableProductText(product: {
         attributes: string
         category: string
 } {
+        // Private/internal attribute keys (underscore-prefixed, e.g. the
+        // WooCommerce `_variations` rows with their own SKUs, prices, stock
+        // counts and variation ids) must NOT participate in lexical term
+        // matching: a bare product code such as "0706" coincidentally occurs
+        // inside unrelated numbers there (variation sku "1420170070615"),
+        // which once poisoned fullTermMatch and turned the exact single-code
+        // variant vitrine into a consultation with irrelevant extra cards.
+        // Public facet attributes (طرح/رنگ/سایز/…) stay searchable.
+        const facetAttributes = (() => {
+                if (!product.attributes || typeof product.attributes !== 'object' || Array.isArray(product.attributes)) {
+                        return ''
+                }
+                const publicEntries = Object.entries(product.attributes as Record<string, unknown>)
+                        .filter(([key]) => !key.startsWith('_'))
+                return publicEntries.length ? JSON.stringify(Object.fromEntries(publicEntries)) : ''
+        })()
         return {
                 name: normalizePersianText(product.name).toLocaleLowerCase('fa'),
                 description: normalizePersianText(product.description ?? '').toLocaleLowerCase('fa'),
                 sku: normalizePersianText(product.sku ?? '').toLocaleLowerCase('fa'),
                 tags: normalizePersianText(product.tags.join(' ')).toLocaleLowerCase('fa'),
-                attributes: normalizePersianText(product.attributes ? JSON.stringify(product.attributes) : '').toLocaleLowerCase('fa'),
+                attributes: normalizePersianText(facetAttributes).toLocaleLowerCase('fa'),
                 category: normalizePersianText(product.category?.name ?? '').toLocaleLowerCase('fa'),
         }
 }

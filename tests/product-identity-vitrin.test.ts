@@ -83,9 +83,25 @@ describe('product card hydration — digit-script-insensitive name matching', ()
       workspaceId: 'ws',
       agentId: 'ag',
       isFa: true,
+      preferredProductIds: [RONAZ, PERIAN],
     })
     expect(reply).toContain(`[[product:{"id":"${RONAZ}"`)
     expect(reply).toContain('"name":"تونیک روناز 0788"')
+  })
+
+  it('drops a model-authored directive for a product outside this turn\'s catalog scope', async () => {
+    // The engine only shows the model the deterministic top-N rows of the
+    // CURRENT turn; a directive naming anything else is off-turn noise and
+    // must never reach the customer as a card.
+    const reply = await buildTrustedProductReply({
+      raw: 'این مدل مناسب شماست.\n[[product:{"id":"","name":"تونیک پریان ۰۶۴۹"}]]',
+      workspaceId: 'ws',
+      agentId: 'ag',
+      isFa: true,
+      preferredProductIds: [RONAZ],
+    })
+    expect(reply).not.toContain(`[[product:{"id":"${PERIAN}"`)
+    expect(reply).toContain('این مدل مناسب شماست.')
   })
 
   it('still skips cards when neither the name nor an identification is present', async () => {

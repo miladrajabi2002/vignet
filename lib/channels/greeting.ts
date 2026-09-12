@@ -14,6 +14,8 @@
  *    falls through to the normal AI turn.
  */
 
+import { detectTurnLanguage } from '@/lib/ai/turn-language'
+
 const GREETING_TOKENS = new Set([
         // Persian greetings
         'سلام',
@@ -22,6 +24,13 @@ const GREETING_TOKENS = new Set([
         'سلامعلیکم',
         'السلامعلیکم',
         'علیکسلام',
+        // Arabic greetings (space-separated forms of «السلام علیکم»)
+        'السلام',
+        'علیکم',
+        'اهلا',
+        'اهلاوسهلا',
+        'صباح',
+        'الخیر',
         // Time-of-day formulas (tokens so «وقت بخیر» and «صبحتون بخیر» both work)
         'وقت',
         'وقتتون',
@@ -113,6 +122,10 @@ function normalizeGreetingText(text: string): string {
  *
  * `hasPriorReply` keeps the short follow-up acknowledgement («سلام.») so a
  * repeated greeting inside an ongoing thread stays natural.
+ *
+ * Reply language mirrors the customer's greeting: Latin script → English,
+ * Arabic script that is NOT Persian (e.g. «مرحبا», «السلام علیکم») → Arabic,
+ * otherwise Persian.
  */
 export function greetingReplyText(
         firstMessage: string,
@@ -126,11 +139,14 @@ export function greetingReplyText(
         const configured = options?.configuredWelcome?.trim()
                 || options?.channelWelcome?.trim()
                 || ''
-        // Latin-script message → reply in English; otherwise Persian wins.
+        // Latin-script message → English; Arabic-script non-Persian → Arabic;
+        // otherwise Persian wins.
         const english = /^[\x00-\x7F\s]+$/.test(firstMessage)
+        const arabic = !english && detectTurnLanguage(firstMessage) === 'ar'
 
         if (hasPriorReply) {
                 if (configured) return configured
+                if (arabic) return 'مرحبا.'
                 return english ? 'Hello.' : 'سلام.'
         }
 
@@ -140,6 +156,12 @@ export function greetingReplyText(
                 return options?.businessName
                         ? `Hello! 👋 Welcome to ${options.businessName}. How can I help you today?`
                         : 'Hello! 👋 Welcome. How can I help you today?'
+        }
+
+        if (arabic) {
+                return options?.businessName
+                        ? `مرحبا! 👋 أهلًا بك في ${options.businessName}. كيف أستطيع مساعدتك اليوم؟`
+                        : 'مرحبا! 👋 أهلًا بك. كيف أستطيع مساعدتك اليوم؟'
         }
 
         return options?.businessName

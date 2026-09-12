@@ -1505,12 +1505,14 @@ export function resolveSystemPrompt(params: {
         ].join('\n')
     // A5 — global conversational response style. Applied to EVERY agent
     // (structured config, role template, and legacy prompt alike): colloquial
-    // Persian, direct, at most two sentences for most replies, no repeated
-    // courtesy filler, no echoing the customer's question back.
+    // tone in WHATEVER language the customer writes (the kernel's
+    // language-mirroring rule owns the language choice), direct, at most two
+    // sentences for most replies, no repeated courtesy filler, no echoing the
+    // customer's question back.
     const responseStyle = isFa
       ? [
           '### سبک پاسخ (قانون سراسری)',
-          '• فارسی محاوره‌ای و طبیعی بنویس؛ رسمی و کتابی حرف نزن.',
+          '• به همان زبانی که مشتری با آن می‌نویسد، محاوره‌ای و طبیعی جواب بده؛ رسمی و کتابی حرف نزن.',
           '• مستقیم به درخواست مشتری جواب بده؛ در اکثر پاسخ‌ها حداکثر ۲ جمله کافی است.',
           '• تعارف و جمله‌های تکراری («امیدوارم روز خوبی داشته باشید»، «در خدمتم»، «ممنون از تماس شما») حذف است؛ حداکثر در اولین پیام گفتگو یک سلام کوتاه.',
           '• سؤال یا درخواست مشتری را بازگویی/تکرار نکن؛ فقط جوابش را بده.',

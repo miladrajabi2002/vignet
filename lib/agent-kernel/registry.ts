@@ -1,15 +1,17 @@
 import { responseEndingInstruction } from '@/lib/ai/response-policy'
 import type { AgentSkillManifest, AgentSkillPlan, AgentSkillPlanInput } from '@/lib/agent-kernel/contracts'
+import { LANGUAGE_MIRRORING_SKILL_VERSION, languageMirroringInstruction } from '@/lib/agent-kernel/skills/language-mirroring'
 import { RESPONSE_STYLE_SKILL_VERSION, responseStyleInstruction } from '@/lib/agent-kernel/skills/response-style'
 import { CONVERSATION_FLOW_SKILL_VERSION, conversationFlowInstruction } from '@/lib/agent-kernel/skills/conversation-flow'
 import { EVIDENCE_GROUNDING_SKILL_VERSION, evidenceGroundingInstruction } from '@/lib/agent-kernel/skills/evidence-grounding'
 import { ACTION_CAPABILITY_SKILL_VERSION, actionCapabilityInstruction } from '@/lib/agent-kernel/skills/action-capabilities'
 import { needsVisualReferenceSkill, VISUAL_REFERENCE_SKILL_VERSION, visualReferenceInstruction } from '@/lib/agent-kernel/skills/visual-reference'
 
-export const AGENT_KERNEL_VERSION = '2026.09.11'
+export const AGENT_KERNEL_VERSION = '2026.09.12'
 
 const manifests = {
   security: { key: 'security-boundaries', version: '1.0.0', phase: 'policy', priority: 1000, description: 'Immutable safety and instruction hierarchy.' },
+  language: { key: 'language-mirroring', version: LANGUAGE_MIRRORING_SKILL_VERSION, phase: 'policy', priority: 990, description: 'Mirror the language of the customer\u2019s latest message instead of a pinned agent locale.' },
   capabilities: { key: 'action-capability-boundaries', version: ACTION_CAPABILITY_SKILL_VERSION, phase: 'policy', priority: 925, description: 'Prevent claims about actions the runtime cannot execute.' },
   evidence: { key: 'evidence-grounding', version: EVIDENCE_GROUNDING_SKILL_VERSION, phase: 'policy', priority: 900, description: 'Ground business claims and action outcomes in trusted evidence.' },
   visualReference: { key: 'visual-reference-grounding', version: VISUAL_REFERENCE_SKILL_VERSION, phase: 'policy', priority: 875, description: 'Distinguish verified inbound media from references to earlier outbound cards.' },
@@ -35,6 +37,7 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
   const isFa = input.language !== 'en'
   const selected: Array<AgentSkillManifest | null> = [
     manifests.security,
+    manifests.language,
     manifests.capabilities,
     manifests.evidence,
     needsVisualReferenceSkill(input) ? manifests.visualReference : null,
@@ -58,7 +61,10 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
     kernelVersion: AGENT_KERNEL_VERSION,
     active,
     instructions: {
-      language: isFa ? 'به زبان فارسی پاسخ بده.' : 'Respond in English.',
+      // Universal mirroring replaces the old pinned locale rule
+      // («به زبان فارسی پاسخ بده» / «Respond in English.»): the reply now
+      // always follows the customer's own latest-message language.
+      language: languageMirroringInstruction(isFa),
       responseStyle: responseStyleInstruction(isFa),
       conversationFlow: conversationFlowInstruction({
         isFa,
