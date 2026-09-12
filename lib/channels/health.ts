@@ -162,7 +162,7 @@ export async function sweepChannelHealth(): Promise<{
                         config: true,
                         healthStatus: true,
                         healthAlertedAt: true,
-                        agent: { select: { name: true, workspaceId: true } },
+                        agent: { select: { id: true, name: true, workspaceId: true } },
                 },
                 take: 500,
         })
@@ -224,7 +224,7 @@ export async function sweepChannelHealth(): Promise<{
                                         type: 'CHANNEL_DOWN',
                                         title: 'کانال به‌صورت خودکار غیرفعال شد',
                                         body: `بررسی دوره‌ای چند بار متوالی نشان داد کانال ${ch.type} ایجنت «${ch.agent.name}» قطع است${probe.error ? ` (${probe.error})` : ''}. برای توقف هشدارهای تکراری، کانال غیرفعال شد؛ هر وقت خواستید از صفحه کانال‌ها دوباره متصلش کنید.`,
-                                        link: '/channels',
+                                        link: `/agents/${ch.agent.id}/channels`,
                                         operatorTelegram: true,
                                 }).catch(() => {})
                         }
@@ -242,7 +242,7 @@ export async function sweepChannelHealth(): Promise<{
                                         type: 'CHANNEL_DOWN',
                                         title: 'کانال پاسخگویی قطع شده است',
                                         body: `بررسی دوره‌ای نشان داد کانال ${ch.type} ایجنت «${ch.agent.name}» پاسخ نمی‌دهد${probe.error ? ` (${probe.error})` : ''}. لطفاً از بخش کانال‌ها دوباره متصل شوید.`,
-                                        link: '/channels',
+                                        link: `/agents/${ch.agent.id}/channels`,
                                         operatorTelegram: true,
                                 }).catch(() => {})
                         }

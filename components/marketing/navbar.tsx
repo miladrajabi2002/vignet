@@ -16,9 +16,6 @@ const HOME_VARIANT_PATH = /^\/[1-5]$/
 const COPY = {
 	fa: {
 		home: 'صفحه اصلی',
-		product: 'محصول',
-		vigento: 'ویجنتو',
-		solutions: 'راهکارها',
 		start: 'شروع رایگان — یک ماه',
 		startShort: 'شروع رایگان',
 		dashboard: 'داشبورد من',
@@ -29,9 +26,6 @@ const COPY = {
 	},
 	en: {
 		home: 'Home',
-		product: 'Product',
-		vigento: 'Vigento',
-		solutions: 'Solutions',
 		start: 'Start free — one month',
 		startShort: 'Start free',
 		dashboard: 'My dashboard',
@@ -84,16 +78,12 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 
 	const links = [
 		{ href: '/', id: 'home', label: copy.home },
-		{ href: '/#solutions', id: 'solutions', label: copy.solutions },
-		{ href: '/#product', id: 'product', label: copy.product },
-		{ href: '/#vigento', id: 'vigento', label: copy.vigento },
-		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
-		{ href: '/blog', id: 'blog', label: t('blog') },
 		{ href: '/docs', id: 'docs', label: t('docs') },
+		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
 	].map((link) => {
 		if (!homeVariantPath) return link
 		if (link.id === 'home') return { ...link, href: homeVariantPath }
-		if (SECTION_IDS.some((id) => id === link.id)) {
+		if (link.id === 'pricing') {
 			return { ...link, href: `${homeVariantPath}#${link.id}` }
 		}
 		return link
@@ -117,7 +107,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 					{links.map((link) => {
 						const active = link.id === 'home'
 							? isLandingPath && activeSection === ''
-							: link.id === 'blog' || link.id === 'docs'
+							: link.id === 'docs'
 							? pathname.startsWith(`/${link.id}`)
 							: isLandingPath && activeSection === link.id
 						return (

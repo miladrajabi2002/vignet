@@ -29,6 +29,7 @@ import {
         ChevronDown,
         Zap,
         AlertCircle,
+        AlertTriangle,
         Check,
         ArrowUp,
         ArrowDown,
@@ -64,6 +65,7 @@ import {
         MATCH_MODE_DESC,
         newMessageId,
 } from '@/components/instagram/types'
+import { parseInstagramPostReferences } from '@/lib/instagram/post-reference'
 
 // These tools are only shown after the operator chooses a media/voice action.
 // Keep them out of the initial form chunk without removing any capability.
@@ -234,7 +236,17 @@ export function AutomationForm({
         const [keywordInput, setKeywordInput] = useState('')
         const [busy, setBusy] = useState(false)
         const [error, setError] = useState<string | null>(null)
+        const [postReferencesTouched, setPostReferencesTouched] = useState(false)
+        const [resolvingPostReferences, setResolvingPostReferences] = useState(false)
+        const [postReferenceFeedback, setPostReferenceFeedback] = useState<{
+                kind: 'ok' | 'error'
+                text: string
+        } | null>(null)
         const nameRef = useRef<HTMLInputElement>(null)
+        const parsedPostReferences = useMemo(
+                () => parseInstagramPostReferences(form.postIdsText),
+                [form.postIdsText],
+        )
 
         // Auto-focus name on mount.
         useEffect(() => {
@@ -243,6 +255,73 @@ export function AutomationForm({
 
         const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
                 setForm((f) => ({ ...f, [k]: v }))
+
+        async function resolvePostReferences(showGlobalError = false): Promise<string[] | null> {
+                setPostReferencesTouched(true)
+                const parsed = parseInstagramPostReferences(form.postIdsText)
+                if (parsed.invalid.length > 0 || (parsed.ids.length === 0 && parsed.shortcodes.length === 0)) {
+                        const text = parsed.invalid.length > 0
+                                ? `لینک یا شناسه «${parsed.invalid[0]}» شناخته نشد.`
+                                : 'لینک یا شناسه حداقل یک پست را وارد کنید.'
+                        setPostReferenceFeedback({ kind: 'error', text })
+                        if (showGlobalError) setError(text)
+                        return null
+                }
+
+                if (parsed.shortcodes.length === 0) {
+                        set('postIdsText', parsed.ids.join(', '))
+                        setPostReferenceFeedback({
+                                kind: 'ok',
+                                text: `${parsed.ids.length.toLocaleString('fa-IR')} شناسه معتبر آماده است.`,
+                        })
+                        return parsed.ids
+                }
+
+                setResolvingPostReferences(true)
+                setPostReferenceFeedback(null)
+                try {
+                        const response = await fetch(`/api/agents/${agentId}/instagram/media/resolve`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ references: form.postIdsText }),
+                        })
+                        const data = (await response.json().catch(() => ({}))) as {
+                                ids?: string[]
+                                error?: string
+                        }
+                        if (!response.ok || !Array.isArray(data.ids) || data.ids.length === 0) {
+                                const text = data.error === 'MEDIA_NOT_FOUND'
+                                        ? 'این پست در پیج متصل پیدا نشد؛ مطمئن شوید لینک متعلق به همین پیج است.'
+                                        : data.error === 'IG_RECONNECT_REQUIRED'
+                                                ? 'برای استخراج شناسه، اتصال اینستاگرام را یک‌بار تازه‌سازی کنید.'
+                                                : 'استخراج شناسه از Meta انجام نشد؛ دوباره تلاش کنید یا شناسه عددی را وارد کنید.'
+                                setPostReferenceFeedback({ kind: 'error', text })
+                                if (showGlobalError) setError(text)
+                                return null
+                        }
+
+                        const ids = [...new Set(data.ids.filter((id) => /^\d{5,30}$/.test(id)))]
+                        if (ids.length === 0) {
+                                const text = 'Meta برای این لینک شناسه معتبری برنگرداند.'
+                                setPostReferenceFeedback({ kind: 'error', text })
+                                if (showGlobalError) setError(text)
+                                return null
+                        }
+                        set('postIdsText', ids.join(', '))
+                        setPostReferenceFeedback({
+                                kind: 'ok',
+                                text: `شناسه عددی ${ids.length.toLocaleString('fa-IR')} پست از Meta استخراج شد.`,
+                        })
+                        return ids
+                } catch {
+                        const text = 'ارتباط با Meta برای استخراج شناسه برقرار نشد؛ دوباره تلاش کنید.'
+                        setPostReferenceFeedback({ kind: 'error', text })
+                        if (showGlobalError) setError(text)
+                        return null
+                } finally {
+                        setResolvingPostReferences(false)
+                }
+        }
 
         // ── Keyword tag input ─────────────────────────────────────────────────
         function addKeyword(raw: string) {
@@ -332,7 +411,7 @@ export function AutomationForm({
         }
 
         // ── Build payload ─────────────────────────────────────────────────────
-        function buildPayload(): {
+        function buildPayload(resolvedPostIds?: string[]): {
                 trigger: AutomationTrigger
                 action: AutomationAction
         } {
@@ -340,7 +419,7 @@ export function AutomationForm({
                 const effectiveKeywords = form.keywordFilter === 'SPECIFIC' ? form.keywords : []
                 const effectivePostIds =
                         type === 'COMMENT' && form.postFilter === 'SPECIFIC'
-                                ? splitTags(form.postIdsText)
+                                ? resolvedPostIds ?? parsedPostReferences.ids
                                 : []
 
                 const trigger: AutomationTrigger = {
@@ -434,6 +513,17 @@ export function AutomationForm({
                         setError('حداقل یک کلمه‌کلیدی اضافه کنید یا حالت «هر کلمه‌ای» را انتخاب کنید.')
                         return
                 }
+                if (type === 'COMMENT' && form.postFilter === 'SPECIFIC') {
+                        setPostReferencesTouched(true)
+                        if (parsedPostReferences.ids.length === 0 && parsedPostReferences.shortcodes.length === 0) {
+                                setError('لینک یا شناسه حداقل یک پست را وارد کنید.')
+                                return
+                        }
+                        if (parsedPostReferences.invalid.length > 0) {
+                                setError('یکی از لینک‌ها یا شناسه‌های پست معتبر نیست؛ مورد مشخص‌شده زیر فیلد را اصلاح کنید.')
+                                return
+                        }
+                }
                 // For STATIC with no messages, suggest adding one.
                 if (
                         form.replyMode === 'STATIC' &&
@@ -463,7 +553,11 @@ export function AutomationForm({
                 setBusy(true)
                 setError(null)
                 try {
-                        const { trigger, action } = buildPayload()
+                        const resolvedPostIds = type === 'COMMENT' && form.postFilter === 'SPECIFIC'
+                                ? await resolvePostReferences(true)
+                                : undefined
+                        if (type === 'COMMENT' && form.postFilter === 'SPECIFIC' && !resolvedPostIds) return
+                        const { trigger, action } = buildPayload(resolvedPostIds ?? undefined)
                         const base = `/api/agents/${agentId}/instagram/automations`
                         const body = {
                                 type,
@@ -602,7 +696,10 @@ export function AutomationForm({
                                                         <SegmentedField
                                                                 label="کدام پست‌ها؟"
                                                                 value={form.postFilter}
-                                                                onChange={(v) => set('postFilter', v as PostFilter)}
+                                                                onChange={(v) => {
+                                                                        set('postFilter', v as PostFilter)
+                                                                        setPostReferencesTouched(false)
+                                                                }}
                                                                 options={[
                                                                         { value: 'ANY', label: 'هر پستی' },
                                                                         { value: 'SPECIFIC', label: 'پست‌های مشخص' },
@@ -612,18 +709,45 @@ export function AutomationForm({
                                                 {isComment && form.postFilter === 'SPECIFIC' && (
                                                         <div className="space-y-1.5">
                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                        شناسه پست‌ها
+                                                                        لینک یا شناسه پست‌ها
                                                                 </label>
                                                                 <input
                                                                         dir="ltr"
                                                                         value={form.postIdsText}
-                                                                        onChange={(e) => set('postIdsText', e.target.value)}
-                                                                        placeholder="178414… , 178414…"
-                                                                        className="input"
+                                                                        onChange={(e) => {
+                                                                                set('postIdsText', e.target.value)
+                                                                                if (postReferencesTouched) setPostReferencesTouched(false)
+                                                                                setPostReferenceFeedback(null)
+                                                                        }}
+                                                                        onBlur={() => void resolvePostReferences()}
+                                                                        aria-invalid={postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error')}
+                                                                        aria-describedby="instagram-post-reference-help"
+                                                                        placeholder="https://www.instagram.com/p/DdMvc4dDhai/"
+                                                                        autoCapitalize="none"
+                                                                        autoCorrect="off"
+                                                                        spellCheck={false}
+                                                                        className={`input ${postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? 'border-red-400 focus:border-red-500' : ''}`}
                                                                 />
-                                                                <p className="text-[11px] text-[var(--text-muted)]">
-                                                                        با کاما جدا کنید. شناسه عددی پست از URL اینستاگرام.
-                                                                </p>
+                                                                {resolvingPostReferences ? (
+                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[11px] leading-5 text-[var(--text-secondary)]">
+                                                                                <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                                                در حال دریافت شناسه دقیق پست از Meta…
+                                                                        </p>
+                                                                ) : postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? (
+                                                                        <p id="instagram-post-reference-help" role="alert" className="flex items-start gap-1.5 text-[11px] leading-5 text-red-700">
+                                                                                <AlertCircle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                                                                {postReferenceFeedback?.text ?? `لینک یا شناسه «${parsedPostReferences.invalid[0]}» شناخته نشد.`}
+                                                                        </p>
+                                                                ) : postReferenceFeedback?.kind === 'ok' ? (
+                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[11px] leading-5 text-emerald-700">
+                                                                                <Check aria-hidden="true" className="h-3.5 w-3.5" />
+                                                                                {postReferenceFeedback.text}
+                                                                        </p>
+                                                                ) : (
+                                                                        <p id="instagram-post-reference-help" className="text-[11px] leading-5 text-[var(--text-muted)]">
+                                                                                لینک پست یا ریلز را با یا بدون <bdi dir="ltr">www / https</bdi> وارد کنید؛ شناسه عددی خودکار استخراج می‌شود. کد کوتاه و شناسه عددی هم پذیرفته می‌شوند و چند مورد را می‌توانید با کاما جدا کنید.
+                                                                        </p>
+                                                                )}
                                                         </div>
                                                 )}
 
@@ -708,12 +832,34 @@ export function AutomationForm({
                                                         />
                                                 )}
                                                 {isComment && (
-                                                        <CommentActionSelector
-                                                                replyMode={form.replyMode}
-                                                                dmOnComment={form.dmOnComment}
-                                                                onReplyModeChange={(v) => set('replyMode', v)}
-                                                                onDmOnCommentChange={(v) => set('dmOnComment', v)}
-                                                        />
+                                                        <>
+                                                                <CommentActionSelector
+                                                                        replyMode={form.replyMode}
+                                                                        dmOnComment={form.dmOnComment}
+                                                                        onReplyModeChange={(v) => set('replyMode', v)}
+                                                                        onDmOnCommentChange={(v) => set('dmOnComment', v)}
+                                                                />
+                                                                {form.dmOnComment && !form.followGate && (
+                                                                        <div className="flex flex-col gap-3 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950 sm:flex-row sm:items-center" role="status">
+                                                                                <div className="flex min-w-0 flex-1 items-start gap-2">
+                                                                                        <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                                                                                        <p className="text-xs leading-6">
+                                                                                                اگر تعامل بالایی دارید، شرط فالو را فعال کنید تا ارسال پیام به افراد غیرفالوور کمتر و ریسک محدودشدن پیج پایین‌تر شود.
+                                                                                        </p>
+                                                                                </div>
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                                set('followGate', true)
+                                                                                                requestAnimationFrame(() => document.getElementById('automation-follow-gate')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+                                                                                        }}
+                                                                                        className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-amber-900/15 bg-white px-3 text-xs font-bold text-amber-950 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700/50"
+                                                                                >
+                                                                                        فعال‌کردن شرط فالو
+                                                                                </button>
+                                                                        </div>
+                                                                )}
+                                                        </>
                                                 )}
                                                 {isStory && (
                                                         <StoryActionSelector
@@ -838,7 +984,7 @@ export function AutomationForm({
                                         )}
 
                                         {/* ─── Follow gate (collapsed by default) ─────────────────── */}
-                                        <Section title="شرط دنبال کردن" Icon={Shield}>
+                                        <Section id="automation-follow-gate" title="شرط دنبال کردن" Icon={Shield}>
                                                 <div className="flex items-start justify-between gap-3">
                                                         <div className="flex min-w-0 items-start gap-2.5">
                                                                 <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
@@ -848,6 +994,9 @@ export function AutomationForm({
                                                                         </p>
                                                                         <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
                                                                                 اگر کاربر فالو داشته باشد، پاسخ ارسال می‌شود. در غیر این‌صورت از او می‌خواهیم اول فالو کند.
+                                                                        </p>
+                                                                        <p className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-[11px] leading-5 text-amber-900">
+                                                                                برای پیج‌های پرتعاملی پیشنهاد می‌شود؛ تعداد ارسال به افراد غیرفالوور را کمتر می‌کند و ریسک محدودشدن پیج را پایین می‌آورد.
                                                                         </p>
                                                                 </div>
                                                         </div>
@@ -2535,9 +2684,3 @@ function TagInput({
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
-function splitTags(input: string): string[] {
-        return input
-                .split(/[,\n]/)
-                .map((s) => s.trim())
-                .filter(Boolean)
-}

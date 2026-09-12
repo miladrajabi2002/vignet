@@ -182,20 +182,6 @@ export function InstagramAutomationManager({
                                 icon={Camera}
                                 title={t('manager.title')}
                                 subtitle={t('manager.subtitle')}
-                                actions={
-                                        <button
-                                                type="button"
-                                                onClick={() =>
-                                                        router.push(
-                                                                `/instagram/new?agentId=${agentId}&type=${activeTab}`,
-                                                        )
-                                                }
-                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-semibold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
-                                        >
-                                                <Plus className="h-4 w-4" />
-                                                {t('manager.addScenario')}
-                                        </button>
-                                }
                         />
 
                         {/* Channel settings (slimmed down — replyPolicy + stopWords only) */}
@@ -291,6 +277,13 @@ export function InstagramAutomationManager({
                                                                 onDelete={() => setDeleteTarget(a)}
                                                         />
                                                 ))}
+                                                <CreateScenarioCard
+                                                        Icon={currentTab.Icon}
+                                                        typeLabel={t(currentTab.labelKey)}
+                                                        onCreate={() =>
+                                                                router.push(`/instagram/new?agentId=${agentId}&type=${activeTab}`)
+                                                        }
+                                                />
                                         </div>
                                 )}
                                 </div>
@@ -706,6 +699,41 @@ function ChannelSettingsCard({
                                 </div>
                         )}
                 </section>
+        )
+}
+
+function CreateScenarioCard({
+        Icon,
+        typeLabel,
+        onCreate,
+}: {
+        Icon: LucideIcon
+        typeLabel: string
+        onCreate: () => void
+}) {
+        const t = useTranslations('instagram')
+        const locale = useLocale()
+
+        return (
+                <button
+                        type="button"
+                        onClick={onCreate}
+                        aria-label={`${t('manager.addScenario')} — ${typeLabel}`}
+                        className="group flex min-h-[13rem] w-full flex-col items-center justify-center rounded-[1.35rem] border border-dashed border-black/15 bg-[linear-gradient(145deg,rgba(255,255,255,0.72),rgba(247,247,249,0.64))] p-6 text-center transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-black/35 hover:bg-white hover:shadow-[0_20px_50px_-38px_rgba(0,0,0,0.65)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/65 focus-visible:ring-offset-2 active:translate-y-0 motion-reduce:transform-none"
+                >
+                        <span className="relative grid h-12 w-12 place-items-center rounded-2xl bg-black text-white shadow-[0_12px_28px_-16px_rgba(0,0,0,0.8)] transition-transform duration-200 group-hover:scale-105 motion-reduce:transform-none">
+                                <Icon aria-hidden="true" className="h-4 w-4 opacity-55" />
+                                <Plus aria-hidden="true" className="absolute h-5 w-5" />
+                        </span>
+                        <span className="mt-4 text-sm font-bold text-[var(--text-primary)]">
+                                {t('manager.addScenario')}
+                        </span>
+                        <span className="mt-1.5 max-w-xs text-xs leading-6 text-[var(--text-secondary)]">
+                                {locale === 'fa'
+                                        ? `یک سناریوی جدید برای ${typeLabel} بسازید.`
+                                        : `Create another scenario for ${typeLabel}.`}
+                        </span>
+                </button>
         )
 }
 

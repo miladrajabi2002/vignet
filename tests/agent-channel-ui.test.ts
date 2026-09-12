@@ -37,6 +37,15 @@ describe('agent channel UI', () => {
     expect(instagram).toContain('aria-modal="true"')
   })
 
+  it('explains the temporary Meta role step before Instagram OAuth', () => {
+    const instagram = source('components/channels/instagram-connect-wizard.tsx')
+
+    expect(instagram).toContain('App Roles / Testers')
+    expect(instagram).toContain('این پیام نشانه مشکل امنیتی پیج شما نیست')
+    expect(instagram).toContain('پیج اضافه شده؛ اتصال')
+    expect(instagram).toContain('SUPPORT_TELEGRAM_URL')
+  })
+
   it('keeps large connection editors collapsed by default', () => {
     const widget = source('components/channels/web-widget-channel.tsx')
     const chatLink = source('components/channels/chat-link-channel.tsx')

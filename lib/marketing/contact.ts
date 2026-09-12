@@ -10,3 +10,4 @@
  */
 export const SUPPORT_PHONE_E164 = '+989128352271'
 export const SUPPORT_PHONE_DISPLAY = '09128352271'
+export const SUPPORT_TELEGRAM_URL = 'https://t.me/+989128352271'

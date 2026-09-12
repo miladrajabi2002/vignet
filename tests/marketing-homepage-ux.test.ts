@@ -16,7 +16,7 @@ describe('marketing homepage UX contracts', () => {
                 ].map(read).join('\n')
                 const anchorIds = [...navbar.matchAll(/href: '\/#([^']+)'/g)].map((match) => match[1])
 
-                expect(anchorIds).toContain('solutions')
+                expect(anchorIds).toEqual(['pricing'])
                 expect(anchorIds).not.toContain('businesses')
                 for (const id of anchorIds) expect(sections).toContain(`id="${id}"`)
                 expect(read('app/(marketing)/solutions/[slug]/page.tsx')).not.toContain('#businesses')

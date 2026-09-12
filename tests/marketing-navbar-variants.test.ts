@@ -28,4 +28,12 @@ describe('marketing navbar landing variants', () => {
 		expect(mobileNav).toContain('href="/login?next=/onboarding"')
 		expect(mobileNav).toContain('href: `${homeHref}#pricing`')
 	})
+
+	it('keeps the desktop destination list aligned with the mobile navigation', () => {
+		expect(navbar).toContain("{ href: '/', id: 'home', label: copy.home }")
+		expect(navbar).toContain("{ href: '/docs', id: 'docs', label: t('docs') }")
+		expect(navbar).toContain("{ href: '/#pricing', id: 'pricing', label: t('pricing') }")
+		expect(navbar).not.toContain("{ href: '/blog', id: 'blog'")
+		expect(navbar).not.toContain("{ href: '/#solutions', id: 'solutions'")
+	})
 })

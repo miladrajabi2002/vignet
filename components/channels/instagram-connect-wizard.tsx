@@ -17,10 +17,13 @@ import {
   ShieldCheck,
   KeyRound,
   MessagesSquare,
+  Send,
   Unplug,
+  UserRoundPlus,
   X,
   type LucideIcon,
 } from 'lucide-react'
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_TELEGRAM_URL } from '@/lib/marketing/contact'
 
 /**
  * Instagram connection flow — platform-managed OAuth (the Vardast/ManyChat model).
@@ -61,11 +64,9 @@ export function InstagramConnectFlow({
   const [trustModalOpen, setTrustModalOpen] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  // VPN warning modal: BEFORE the OAuth flow starts, the operator must
-  // confirm their VPN is on. Instagram's OAuth + Graph servers are blocked
-  // from Iranian IPs without a VPN, so the flow will silently fail (the
-  // Instagram dialog page won't even load). The modal intercepts the
-  // "اتصال اینستاگرام" click and only proceeds once the user confirms.
+  // Pre-connect notice: while Meta's public review is pending, the Instagram
+  // account must be allow-listed under the app's roles/testers. The same modal
+  // also reminds Iranian operators to enable a VPN before OAuth starts.
   useEffect(() => {
     if (!vpnModalOpen && !trustModalOpen) return
 
@@ -115,13 +116,13 @@ export function InstagramConnectFlow({
     }
   }, [trustModalOpen, vpnModalOpen])
 
-  // Intercept the connect button: open the VPN modal first instead of
-  // starting OAuth directly. The actual OAuth start happens in `confirmVpn`.
+  // Intercept the connect button so the temporary Meta role requirement is
+  // understood before we start the external OAuth redirect.
   function onConnectClick() {
     setVpnModalOpen(true)
   }
 
-  // User confirmed VPN is on → close the modal and start the OAuth flow.
+  // User confirmed that the role step is complete and VPN is on.
   function confirmVpn() {
     setVpnModalOpen(false)
     void startOAuth()
@@ -225,6 +226,9 @@ export function InstagramConnectFlow({
           <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
             <p className="text-xs font-semibold text-[var(--text-primary)]">قبل از اتصال</p>
             <ul className="mt-3 space-y-2.5">
+              <PrereqItem icon={UserRoundPlus} tone="brand">
+                تا پایان بررسی عمومی اپ توسط Meta، نام کاربری پیج باید یک‌بار توسط پشتیبانی در <b>App Roles</b> ثبت شود.
+              </PrereqItem>
               <PrereqItem icon={CheckCircle2} tone="brand">
                 اکانت باید <b>Business یا Creator</b> باشد؛ اکانت شخصی را از بخش Account type and tools حرفه‌ای کنید.
               </PrereqItem>
@@ -273,7 +277,7 @@ export function InstagramConnectFlow({
             className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            {busy ? 'در حال انتقال به اینستاگرام…' : 'ادامه در Instagram'}
+            {busy ? 'در حال انتقال به اینستاگرام…' : 'بررسی شرایط و اتصال'}
           </button>
           <p className="mt-2 text-center text-[10px] leading-5 text-[var(--text-muted)]">
             رمز عبور را فقط در صفحه Instagram وارد می‌کنید؛ ویجنت آن را دریافت یا ذخیره نمی‌کند.
@@ -291,8 +295,7 @@ export function InstagramConnectFlow({
         </div>
       </div>
 
-      {/* VPN warning modal — shown when the user clicks "اتصال اینستاگرام".
-          Must be confirmed before the OAuth flow starts. */}
+      {/* Temporary Meta-review notice + VPN reminder, shown before OAuth. */}
       {vpnModalOpen && typeof document !== 'undefined'
         ? createPortal(
             <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="presentation">
@@ -307,7 +310,7 @@ export function InstagramConnectFlow({
             aria-modal="true"
             aria-labelledby="instagram-vpn-title"
             aria-describedby="instagram-vpn-description"
-            className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl"
+            className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl"
           >
             {/* Header strip */}
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--amber)]/10 px-5 py-3">
@@ -316,7 +319,7 @@ export function InstagramConnectFlow({
                   <ShieldAlert className="h-4 w-4" />
                 </div>
                 <h3 id="instagram-vpn-title" className="text-sm font-medium text-[var(--text-primary)]">
-                  قبل از اتصال، VPN خود را روشن کنید
+                  قبل از اتصال، یک مرحله تأیید Meta لازم است
                 </h3>
               </div>
               <button
@@ -330,37 +333,64 @@ export function InstagramConnectFlow({
             </div>
             {/* Body */}
             <div className="px-5 py-5">
-              <p id="instagram-vpn-description" className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                اتصال به اینستاگرام از سرورهای متا رد می‌شود که در ایران بدون VPN باز
-                نمی‌شوند. اگه VPN روشن نباشه، صفحه اینستاگرام بالا نمیاد. روشنش کن،
-                بعد ادامه بده.
+              <p id="instagram-vpn-description" className="text-sm leading-7 text-[var(--text-secondary)]">
+                به‌دلیل محدودیت‌های دسترسی منطقه‌ای و تا زمان تکمیل بررسی عمومی اپ ویجنت، Meta فقط به پیج‌هایی اجازه اتصال می‌دهد که موقتاً در بخش <b className="text-[var(--text-primary)]">App Roles / Testers</b> ثبت شده باشند.
               </p>
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                  اگر قبلاً VPN روشن کرده‌اید و صفحه اینستاگرام در مرورگر باز می‌شود،
-                  می‌توانید ادامه دهید.
-                </p>
+
+              <div className="mt-4 rounded-xl border border-emerald-600/20 bg-emerald-50 p-3.5">
+                <div className="flex items-start gap-2.5">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                  <div>
+                    <p className="text-xs font-bold text-emerald-900">این پیام نشانه مشکل امنیتی پیج شما نیست</p>
+                    <p className="mt-1 text-[11px] leading-6 text-emerald-900/75">
+                      این محدودیت مطابق فرایند دسترسی اپ‌های در حال بررسی Meta است. رمز عبور شما در اختیار ویجنت یا پشتیبانی قرار نمی‌گیرد و اتصال همچنان در صفحه رسمی Instagram انجام می‌شود.
+                    </p>
+                  </div>
+                </div>
               </div>
+
+              <ol className="mt-4 space-y-2" aria-label="مراحل آماده‌سازی اتصال اینستاگرام">
+                {[
+                  ['۱', `نام کاربری پیج را در تلگرام برای پشتیبانی بفرستید: ${SUPPORT_PHONE_DISPLAY}`],
+                  ['۲', 'پشتیبانی پیج را در نقش مجاز اپ Meta اضافه می‌کند؛ اگر دعوت نمایش داده شد، آن را در Instagram بپذیرید.'],
+                  ['۳', 'VPN را روشن کنید، برگردید و دکمه «پیج اضافه شده؛ اتصال» را بزنید.'],
+                ].map(([step, text]) => (
+                  <li key={step} className="flex items-start gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-black text-[10px] font-bold text-white">{step}</span>
+                    <span className="text-[11px] leading-6 text-[var(--text-secondary)]">{text}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+            <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <button
-                data-autofocus
                 type="button"
                 onClick={() => setVpnModalOpen(false)}
                 className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
               >
                 انصراف
               </button>
-              <button
-                type="button"
-                onClick={confirmVpn}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                روشنه
-              </button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <a
+                  data-autofocus
+                  href={SUPPORT_TELEGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                >
+                  <Send className="h-4 w-4" />
+                  پیام به پشتیبانی
+                </a>
+                <button
+                  type="button"
+                  onClick={confirmVpn}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  پیج اضافه شده؛ اتصال
+                </button>
+              </div>
             </div>
           </div>
             </div>,

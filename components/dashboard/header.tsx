@@ -10,6 +10,7 @@ import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner
 import { cn } from '@/lib/utils'
 import { PERIOD_DAYS } from '@/lib/billing/plans'
 import { ImprovementActivityIndicator } from '@/components/dashboard/improvement-activity-indicator'
+import { SupportButton } from '@/components/dashboard/support-button'
 
 const PLAN_PRESENTATION = {
   TRIAL: { fa: 'دوره آزمایشی', en: 'Trial', shortFa: 'آزمایشی', shortEn: 'Trial', icon: Hourglass },
@@ -275,6 +276,7 @@ export async function Header({
               nf={nf}
             />
           </div>
+          <SupportButton />
           <NotificationBell />
           <form action={logout}>
             <button
