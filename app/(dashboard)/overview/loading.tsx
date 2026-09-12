@@ -1,6 +1,5 @@
 import {
   ArrivalIntroSkeleton,
-  DashboardHeaderSkeleton,
   DashboardPanelSkeleton,
   IntelligenceCoreSkeleton,
   ModuleTileSkeleton,

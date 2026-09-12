@@ -2,13 +2,13 @@ import { prisma } from '@/lib/prisma'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export const AUDIT_RETENTION_DAYS = 30
-export const STORE_SYNC_SUCCESS_RETENTION_DAYS = 7
-export const STORE_SYNC_ERROR_RETENTION_DAYS = 30
+const AUDIT_RETENTION_DAYS = 30
+const STORE_SYNC_SUCCESS_RETENTION_DAYS = 7
+const STORE_SYNC_ERROR_RETENTION_DAYS = 30
 export const STORE_SYNC_LOGS_PER_INTEGRATION = 500
-export const ORPHAN_WORKSPACE_GRACE_DAYS = 7
+const ORPHAN_WORKSPACE_GRACE_DAYS = 7
 
-export interface CleanupResult {
+interface CleanupResult {
   otpLogs: number
   errorLogs: number
   syncLogsByAge: number

@@ -192,7 +192,7 @@ export function ConversationThread({
                         if (timer) clearTimeout(timer)
                         controller?.abort()
                 }
-        }, [conversationId, scrollToBottom])
+        }, [conversationId, scrollToBottom, router])
 
         // Merge server + polled + pending messages (all deduped by ID).
         // Order: server messages first, then polled (new from server), then
