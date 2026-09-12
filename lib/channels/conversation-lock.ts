@@ -14,8 +14,13 @@ import { prisma } from '@/lib/prisma'
 const DEFAULT_LEASE_MS = 45_000
 const DEFAULT_HEARTBEAT_MS = 10_000
 // One wait spans the full lease, so a crash is recoverable even on a queue
-// job's final configured attempt.
-const DEFAULT_WAIT_TIMEOUT_MS = 55_000
+// job's final configured attempt. A chat turn can legitimately hold the
+// conversation lease for one slow model call (60s provider timeout plus
+// persistence/delivery overhead ≈ 70s); the waiter must outlive that window.
+// At 55s a follow-up message arriving late in a slow turn failed with
+// LeaseBusy right before the lease was released, and short BullMQ backoffs
+// then burned the remaining attempts against the same busy lease.
+const DEFAULT_WAIT_TIMEOUT_MS = 85_000
 const DEFAULT_POLL_MS = 250
 
 export interface ConversationTurnLeaseInput {

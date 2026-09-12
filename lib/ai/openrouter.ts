@@ -29,14 +29,15 @@ function isRetryableProviderError(e: unknown): boolean {
  * response (ok OR non-retryable status). Throws the last network error when
  * every attempt fails.
  */
-export async function fetchWithProviderRetry(
+export async function fetchWithProviderRetry<T = Response>(
   url: string,
   init: RequestInit,
-  opts: { timeoutMs?: number } = {},
-): Promise<Response> {
+  opts: { timeoutMs?: number; parse?: (res: Response) => Promise<T> } = {},
+): Promise<T> {
   let lastError: unknown
   for (let attempt = 0; attempt <= PROVIDER_RETRY_ATTEMPTS; attempt++) {
     if (attempt > 0) await sleepMs(PROVIDER_RETRY_DELAY_MS)
+    let res: Response
     try {
       // A fresh AbortSignal per attempt: a signal shared across attempts
       // stays aborted after the first timeout, so every "retry" failed
@@ -44,11 +45,26 @@ export async function fetchWithProviderRetry(
       const attemptInit: RequestInit = opts.timeoutMs
         ? { ...init, signal: AbortSignal.timeout(opts.timeoutMs) }
         : init
-      const res = await fetch(url, attemptInit)
-      if (res.ok || !isRetryableProviderStatus(res.status)) return res
-      // Retryable status — drain the body so the socket is released, then retry.
+      res = await fetch(url, attemptInit)
+    } catch (e) {
+      if (!isRetryableProviderError(e)) throw e
+      lastError = e
+      continue
+    }
+    // Retryable status — drain the body so the socket is released, then retry.
+    if (!res.ok && isRetryableProviderStatus(res.status)) {
       await res.text().catch(() => undefined)
       lastError = new Error(`OPENROUTER_HTTP_${res.status}`)
+      continue
+    }
+    if (!opts.parse) return res as unknown as T
+    // Read the body INSIDE the attempt. A provider can answer 200 quickly and
+    // then stall the body (cold start, upstream queueing): the abort fires at
+    // timeoutMs after fetch() already resolved, so the TimeoutError used to
+    // surface OUTSIDE this loop and was never retried. Parsing here makes
+    // request+read one retryable unit.
+    try {
+      return await opts.parse(res)
     } catch (e) {
       if (!isRetryableProviderError(e)) throw e
       lastError = e
@@ -202,20 +218,24 @@ export async function chatCompletion(
 ): Promise<{ content: string; usage: ChatUsage; toolCalls: ChatToolCall[] }> {
   const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
   const runtime = await getPlatformCommercialConfig()
-  const res = await fetchWithProviderRetry(`${OPENROUTER_BASE}/chat/completions`, {
+  const json = await fetchWithProviderRetry(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: appHeaders(),
     body: JSON.stringify(requestBody(opts, false, runtime)),
   }, {
     // Per-attempt timeout: fetchWithProviderRetry builds a fresh signal for
-    // every attempt so a timed-out attempt is really retried.
+    // every attempt so a timed-out attempt is really retried. The body read
+    // also happens inside the retry loop, so a 200 whose body stalls past the
+    // timeout is retried instead of failing the customer's turn.
     timeoutMs: opts.task === 'learning-review' ? 120_000 : 60_000,
+    parse: async (res) => {
+      if (!res.ok) {
+        // Do not persist provider bodies: they may contain request fragments.
+        throw new Error(`OPENROUTER_CHAT_${res.status}`)
+      }
+      return asRecord(await res.json())
+    },
   })
-  if (!res.ok) {
-    // Do not persist provider bodies: they may contain request fragments.
-    throw new Error(`OPENROUTER_CHAT_${res.status}`)
-  }
-  const json = asRecord(await res.json())
   const message = asRecord(firstChoice(json).message)
   const rawToolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : []
   const toolCalls = rawToolCalls.flatMap((value): ChatToolCall[] => {

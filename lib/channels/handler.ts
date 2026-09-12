@@ -1998,7 +1998,13 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
         }
 
         // Process each tenant's slice of the batch independently so one tenant's
-        // failure never blocks another tenant's messages.
+        // failure never blocks another tenant's messages. Failures are still
+        // collected and rethrown at the end: swallowing them here marked the
+        // BullMQ job as successful, so the queue's attempts/backoff never ran
+        // and a transient failure (conversation lease busy, DB blip) silently
+        // lost the customer's message. Re-runs stay safe: per-message
+        // idempotency claims skip messages whose events already COMPLETED.
+        const groupFailures: unknown[] = []
         for (const { resolved, matchedId, entries: groupEntries } of Array.from(groups.values())) {
                 try {
                         const scopedBody = {
@@ -2010,6 +2016,13 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
                         captureError('webhook:INSTAGRAM:global', e, {
                                 metadata: { matchedId },
                         })
+                        groupFailures.push(e)
                 }
+        }
+        if (groupFailures.length === 1) throw groupFailures[0]
+        if (groupFailures.length > 1) {
+                throw new Error(
+                        `INSTAGRAM_GLOBAL_BATCH_FAILED: ${groupFailures.length}/${groups.size} channel groups failed`,
+                )
         }
 }
