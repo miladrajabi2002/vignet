@@ -1078,29 +1078,57 @@ export async function fetchCatalogProducts(
 
                 for (const term of terms) {
                         let matched = false
-                        if (searchable.name.includes(term)) {
-                                score += searchable.name === term ? 70 : 40
-                                matched = true
-                        }
-                        if (searchable.category.includes(term)) {
-                                score += searchable.category === term ? 45 : 30
-                                matched = true
-                        }
-                        if (searchable.sku.includes(term)) {
-                                score += 45
-                                matched = true
-                        }
-                        if (searchable.tags.includes(term)) {
-                                score += 18
-                                matched = true
-                        }
-                        if (searchable.attributes.includes(term)) {
-                                score += 12
-                                matched = true
-                        }
-                        if (searchable.description.includes(term)) {
-                                score += 7
-                                matched = true
+                        // Identifier-like terms (a bare product code such as
+                        // "0706") may only identify a row through its NAME
+                        // token or its SKU SUFFIX. Shop SKUs are prefix+code
+                        // («143» + «0706» = 1430706), so a free substring test
+                        // once let unrelated rows win fullTermMatch merely
+                        // because their SKUs CONTAINED the digits (1070611
+                        // contains «0706») and the exact single-code variant
+                        // vitrine silently degraded into a consultation.
+                        const digitTerm = /^\d{3,8}$/.test(term)
+                        if (digitTerm) {
+                                const nameToken = new RegExp(
+                                        `(?:^|[^\\p{L}\\p{N}])${term}(?=$|[^\\p{L}\\p{N}])`,
+                                        'u',
+                                )
+                                if (nameToken.test(searchable.name)) {
+                                        score += 40
+                                        matched = true
+                                }
+                                if (searchable.sku === term || searchable.sku.endsWith(term)) {
+                                        score += 45
+                                        matched = true
+                                }
+                                // A code mentioned in prose is weak ranking
+                                // evidence only — it never counts as coverage,
+                                // because mentioning ≠ being that product.
+                                if (searchable.description.includes(term)) score += 4
+                        } else {
+                                if (searchable.name.includes(term)) {
+                                        score += searchable.name === term ? 70 : 40
+                                        matched = true
+                                }
+                                if (searchable.category.includes(term)) {
+                                        score += searchable.category === term ? 45 : 30
+                                        matched = true
+                                }
+                                if (searchable.sku.includes(term)) {
+                                        score += 45
+                                        matched = true
+                                }
+                                if (searchable.tags.includes(term)) {
+                                        score += 18
+                                        matched = true
+                                }
+                                if (searchable.attributes.includes(term)) {
+                                        score += 12
+                                        matched = true
+                                }
+                                if (searchable.description.includes(term)) {
+                                        score += 7
+                                        matched = true
+                                }
                         }
                         if (matched) coverage += 1
                 }

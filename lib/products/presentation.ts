@@ -688,8 +688,12 @@ async function resolveVariantTarget(params: {
         active: true,
         OR: [
           ...(productIds.length ? [{ id: { in: productIds } }] : []),
+          // SKU semantics: a shop SKU is prefix+code (1430706 ↔ 0706), so a
+          // code RESOLVES to the rows whose SKU ends with it — a bare
+          // contains would also capture unrelated SKUs that merely embed
+          // the digits (1070611 contains «0706»).
           ...codes.flatMap((code) => [
-            { sku: { contains: code } },
+            { sku: { endsWith: code } },
             { name: { contains: code } },
           ]),
         ],
@@ -715,7 +719,7 @@ async function resolveVariantTarget(params: {
   const rowByCode = new Map<string, typeof rows[number]['product']>()
   for (const code of codes) {
     for (const { product } of rows) {
-      if (product.sku?.includes(code) || product.name.includes(code)) {
+      if (product.sku === code || product.sku?.endsWith(code) || product.name.includes(code)) {
         if (!rowByCode.has(code)) rowByCode.set(code, product)
       }
     }
