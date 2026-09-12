@@ -1326,6 +1326,18 @@ export async function processWebhookEvent(
   return 0
 }
 
+const WOO_RESOURCE_LIMIT_PATTERN = /^(?:PRODUCT_LIMIT|ORDER_LIMIT|CUSTOMER_LIMIT)(?::\d+)?$/
+
+/**
+ * Plan capacity is an expected business outcome, not an infrastructure error.
+ * Returning the canonical message lets webhook batches skip only the blocked
+ * create while continuing updates/deletes from the same delivery.
+ */
+export function wooResourceLimitMessage(error: unknown): string | null {
+  const message = errorMessage(error)
+  return WOO_RESOURCE_LIMIT_PATTERN.test(message) ? message : null
+}
+
 /** Process an already-authenticated durable delivery. Retrying is safe. */
 export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promise<void> {
   const delivery = await prisma.storeWebhookDelivery.findUnique({
@@ -1357,9 +1369,19 @@ export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promi
   try {
     const agentIds = await allAgentIds(integration.workspaceId)
     let count = 0
-    for (const event of job.events) count += await processWebhookEvent(integration, event, agentIds)
+    const resourceLimits = new Set<string>()
+    for (const event of job.events) {
+      try {
+        count += await processWebhookEvent(integration, event, agentIds)
+      } catch (error) {
+        const resourceLimit = wooResourceLimitMessage(error)
+        if (!resourceLimit) throw error
+        resourceLimits.add(resourceLimit)
+      }
+    }
     const now = new Date()
     const disconnected = job.events.some((event) => event.topic === 'connection.disconnected')
+    const resourceLimitMessage = [...resourceLimits].join(', ') || null
     await prisma.$transaction([
       prisma.storeWebhookDelivery.update({
         where: { id: delivery.id },
@@ -1370,21 +1392,30 @@ export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promi
         data: {
           lastWebhookAt: now,
           lastSyncAt: now,
-          lastSyncStatus: disconnected ? 'disconnected' : 'ok',
-          lastSyncError: null,
+          lastSyncStatus: disconnected
+            ? 'disconnected'
+            : resourceLimitMessage
+              ? 'error'
+              : 'ok',
+          lastSyncError: resourceLimitMessage,
           ...(job.pluginVersion ? { pluginVersion: job.pluginVersion } : {}),
         },
       }),
     ])
-    await writeSyncLog({
-      integrationId: integration.id,
-      workspaceId: integration.workspaceId,
-      direction: 'push',
-      entity: 'batch',
-      outcome: 'ok',
-      count,
-      message: `${job.events.length} event(s)`,
-    })
+    // Do not turn a known plan limit into an unbounded per-delivery log stream.
+    // StoreIntegration.lastSyncError is the single current-state marker shown
+    // to the owner; the delivery is complete and must not be retried.
+    if (!resourceLimitMessage) {
+      await writeSyncLog({
+        integrationId: integration.id,
+        workspaceId: integration.workspaceId,
+        direction: 'push',
+        entity: 'batch',
+        outcome: 'ok',
+        count,
+        message: `${job.events.length} event(s)`,
+      })
+    }
   } catch (error) {
     const message = errorMessage(error).slice(0, 1000)
     await Promise.all([

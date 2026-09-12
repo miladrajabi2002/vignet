@@ -9,6 +9,10 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const targetDistDir = process.env.VIGENT_NEXT_DIST_DIR || '.next'
 const targetPath = path.resolve(projectRoot, targetDistDir)
 
+// Never let a process-wide TLS bypass leak into build tools. Production env
+// validation still rejects the setting before deploy reaches this script.
+delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
+
 function activeProductionBuild() {
 	try {
 		const output = execFileSync('pm2', ['jlist'], {

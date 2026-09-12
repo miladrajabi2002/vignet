@@ -137,7 +137,9 @@ pm2_scripts_match_ecosystem() {
         const runningApps = JSON.parse(input);
         const matches = expectedApps.every(expected => {
           const current = runningApps.find(item => item.name === expected.name);
-          return current && path.resolve(current.pm2_env.pm_exec_path) === path.resolve(expected.script);
+          return current
+            && path.resolve(current.pm2_env.pm_exec_path) === path.resolve(expected.script)
+            && current.pm2_env.exec_interpreter === expected.interpreter;
         });
         process.exit(matches ? 0 : 1);
       } catch {

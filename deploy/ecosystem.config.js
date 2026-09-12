@@ -15,6 +15,7 @@ module.exports = {
       // Run Next directly. When PM2 manages `npm run start`, stopping npm can
       // leave its Next.js child alive and still listening on port 3003.
       script: require.resolve("next/dist/bin/next", { paths: [appRoot] }),
+      interpreter: process.execPath,
       args: ["start", "-H", "127.0.0.1", "-p", "3003"],
       cwd: appRoot,
       env: {
@@ -36,6 +37,7 @@ module.exports = {
     {
       name: "vignet-worker",
       script: require.resolve("tsx/cli", { paths: [appRoot] }),
+      interpreter: process.execPath,
       args: ["worker/index.ts"],
       cwd: appRoot,
       env: { NODE_ENV: "production", ...deploymentEnv },
@@ -53,6 +55,7 @@ module.exports = {
       // Studio is never exposed directly. nginx terminates TLS on :8443 and
       // validates the existing admin_session cookie before proxying here.
       script: require.resolve("prisma/build/index.js", { paths: [appRoot] }),
+      interpreter: process.execPath,
       args: [
         "studio",
         "--hostname",

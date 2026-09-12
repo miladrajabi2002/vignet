@@ -14,7 +14,7 @@
 
 ## پیش‌نیازها
 
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL 16 با extension `pgvector`
 - Redis
 - ذخیره‌سازی S3-سازگار (پیش‌فرض: MinIO خودمیزبان)

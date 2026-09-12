@@ -4,13 +4,13 @@
 #  این اسکریپت فقط یک‌بار روی سرور تازه اجرا می‌شود.
 #  - مقادیر را به‌صورت تعاملی از تو می‌پرسد
 #  - هر سرویس را اول چک می‌کند؛ اگر نصب بود رد می‌شود، اگر نبود نصب می‌کند
-#  نصب می‌کند: PostgreSQL 16 + pgvector, Redis, Node.js 20, PM2, MinIO
+#  نصب می‌کند: PostgreSQL 16 + pgvector, Redis, Node.js 22, PM2, MinIO
 # ============================================================================
 set -euo pipefail
 
 PG_VERSION="16"
-NODE_MAJOR="20"
-NODE_MIN_VERSION="20.19.0"
+NODE_MAJOR="22"
+NODE_MIN_VERSION="22.0.0"
 
 # apt update روی بعضی سرورها به‌خاطر مخزن‌های جانبی خراب (PPAها) خطا می‌دهد.
 # این تابع خطای آن مخزن‌ها را نادیده می‌گیرد تا نصب پکیج‌های ما متوقف نشود.
@@ -161,7 +161,7 @@ printf '\n# Vigent/BullMQ: never evict queue or idempotency keys.\nmaxmemory-pol
   | sudo tee -a /etc/redis/redis.conf >/dev/null
 sudo systemctl restart redis-server
 
-# ─── Node.js 20 ─────────────────────────────────────────────────────────────
+# ─── Node.js 22 ─────────────────────────────────────────────────────────────
 node_is_supported() {
   local current="$1"
   [ "$(printf '%s\n' "${NODE_MIN_VERSION}" "${current}" | sort -V | head -n1)" = "${NODE_MIN_VERSION}" ]
