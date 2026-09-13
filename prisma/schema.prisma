@@ -490,6 +490,9 @@ model KnowledgeBase {
   workspaceId          String
   name                 String
   type                 KBType
+  // Original editable text for TEXT sources. Chunks are retrieval artifacts
+  // and cannot reliably preserve the author's exact formatting.
+  sourceText           String?   @db.Text
   sourceUrl            String?
   fileKey              String?
   fileName             String?

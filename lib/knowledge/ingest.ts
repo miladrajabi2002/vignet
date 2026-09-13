@@ -9,7 +9,7 @@ import { dispatchNotification } from '@/lib/queue/jobs'
 
 export interface IngestionJobData {
   kbId: string
-  /** Inline text for TEXT/FAQ sources (not persisted on the KB row). */
+  /** Legacy/fallback payload; new TEXT sources persist their original text. */
   text?: string
 }
 
@@ -44,6 +44,7 @@ interface ResolvedSection {
 async function resolveSections(
   kb: {
     type: string
+    sourceText: string | null
     sourceUrl: string | null
     fileKey: string | null
   },
@@ -51,6 +52,7 @@ async function resolveSections(
 ): Promise<ResolvedSection[]> {
   switch (kb.type) {
     case 'TEXT':
+      return [{ text: (kb.sourceText ?? inlineText ?? '').trim() }]
     case 'FAQ':
       return [{ text: (inlineText ?? '').trim() }]
     case 'URL':

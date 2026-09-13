@@ -11,6 +11,7 @@ import { promptConfigSchema } from '@/lib/validations/agent'
 import { buildMessages } from '@/lib/ai/rag'
 import { BUSINESS_TYPES } from '@/lib/verticals/registry'
 import { responseEndingInstruction } from '@/lib/ai/response-policy'
+import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
 
 const oldStoredConfig: PromptConfig = {
   personality: 'You are a careful support agent.',
@@ -23,6 +24,12 @@ const oldStoredConfig: PromptConfig = {
 }
 
 describe('natural conversation prompt controls', () => {
+  it('accepts up to 60 must-do and must-not rules per scope list', () => {
+    const rules = Array.from({ length: PROMPT_SCOPE_RULE_LIMIT }, (_, index) => `rule ${index + 1}`)
+    expect(promptConfigSchema.safeParse({ doSay: rules, dontSay: rules }).success).toBe(true)
+    expect(promptConfigSchema.safeParse({ doSay: [...rules, 'one too many'] }).success).toBe(false)
+  })
+
   it('repairs shipped legacy discovery rules without changing custom copy or stored JSON', () => {
     const legacy = {
       ...oldStoredConfig,

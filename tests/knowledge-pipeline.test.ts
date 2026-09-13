@@ -6,6 +6,7 @@ import {
   MIN_VECTOR_SIMILARITY,
   rankRetrievedChunks,
 } from '@/lib/knowledge/ranking'
+import { reconstructKnowledgeSource } from '@/lib/knowledge/source-text'
 
 describe('knowledge pipeline primitives', () => {
   it('keeps every generic chunk within the configured budget', () => {
@@ -27,6 +28,18 @@ describe('knowledge pipeline primitives', () => {
     expect(chunks[0]).toContain('رایگان')
     expect(chunks[1]).toContain('زمان تحویل')
     expect(chunks[1]).toContain('دو روز')
+  })
+
+  it('reconstructs editable legacy text without duplicated chunk overlap', () => {
+    const createdAt = new Date('2026-09-13T00:00:00.000Z')
+    const prefix = 'الف'.repeat(180)
+    const overlap = prefix.slice(-150)
+    const chunks = [
+      { id: '1', createdAt, metadata: { generation: 'current' }, content: `[Source: راهنما | Type: TEXT]\n${prefix}` },
+      { id: '2', createdAt, metadata: { generation: 'current' }, content: `[Source: راهنما | Type: TEXT]\n${overlap}\n\nبخش دوم` },
+    ]
+
+    expect(reconstructKnowledgeSource(chunks)).toBe(`${prefix}\n\nبخش دوم`)
   })
 
   it('normalizes Persian variants and removes conversational filler from lexical search', () => {

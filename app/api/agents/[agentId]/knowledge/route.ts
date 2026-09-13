@@ -194,6 +194,7 @@ export async function POST(req: Request, props: Params) {
       workspaceId: user.workspaceId,
       name,
       type,
+      sourceText: type === 'TEXT' || type === 'FAQ' ? inlineText : undefined,
       sourceUrl,
       fileKey,
       fileName,

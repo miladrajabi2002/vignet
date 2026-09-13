@@ -31,6 +31,7 @@ import {
 import { fromLegacyBusinessKey, getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { NaturalConversationControls } from './natural-conversation-controls'
+import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
 
 const TOTAL = 3
 
@@ -125,8 +126,8 @@ function configFromDraft(role: RoleTemplate, draft: ConfigDraft): PromptConfig {
                         useCustomerName: draft.useCustomerName,
                         avoidRepeatedGreetings: draft.avoidRepeatedGreetings,
                 },
-                doSay: lines(draft.doSay),
-                dontSay: lines(draft.dontSay),
+                doSay: lines(draft.doSay).slice(0, PROMPT_SCOPE_RULE_LIMIT),
+                dontSay: lines(draft.dontSay).slice(0, PROMPT_SCOPE_RULE_LIMIT),
                 fallbackBehavior: draft.fallbackBehavior.trim(),
                 format: {
                         bold: draft.fmtBold,
@@ -528,8 +529,8 @@ export function AgentWizard({
                                                                                                 </LayerField>
                                                                                                 <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
                                                                                                         <div className="grid gap-3 sm:grid-cols-2">
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /></label>
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-rose-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[10px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-rose-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[10px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
                                                                                                         </div>
                                                                                                 </LayerField>
                                                                                                 <LayerField n={4} label={t('layerFallback')}>

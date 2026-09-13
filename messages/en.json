@@ -884,8 +884,8 @@
     "saving": "Saving…",
     "cancel": "Cancel",
     "invalidUrl": "Invalid web URL",
-    "contentEditPlaceholder": "Enter new content…",
-    "contentEditHint": "This will REPLACE the current content",
+    "contentEditPlaceholder": "Edit the knowledge text…",
+    "contentEditHint": "Edit the current text here. The knowledge will be processed again after saving.",
     "editFileHint": "Only the title is editable for PDF/CSV files. To change content, delete and re-upload the file."
   },
   "products": {

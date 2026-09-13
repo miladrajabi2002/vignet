@@ -194,10 +194,7 @@ export function KbManager({
       const data = (await res.json()) as { kb: KbItem & { sourceUrl?: string | null } }
       setEditUrl(data.kb.sourceUrl ?? '')
       setEditRefreshHours(item.refreshIntervalHours ?? 0)
-      // TEXT content is NOT stored on the KB row — it's chunked. For editing,
-      // we let the user replace the content entirely (not append). Show empty
-      // textarea with a hint that this will REPLACE the current content.
-      setEditContent('')
+      setEditContent(data.kb.content ?? '')
     } catch {
       setEditError(t('requestFailed'))
     } finally {

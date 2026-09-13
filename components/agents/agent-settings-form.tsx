@@ -33,6 +33,7 @@ import {
         type PromptQAPair,
 } from '@/lib/ai/prompt-builder'
 import { NaturalConversationControls } from '@/components/agent-builder/natural-conversation-controls'
+import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
 
 const EMPTY_CONFIG: PromptConfig = {
         personality: '',
@@ -702,6 +703,8 @@ function LayerEditor({
                                                 isFa ? 'مثلاً: اول نیاز مشتری را بپرس' : 'e.g. Ask the customer need first'
                                         }
                                         positive
+                                        limit={PROMPT_SCOPE_RULE_LIMIT}
+                                        isFa={isFa}
                                 />
                                 <ListEditor
                                         label={t('dontSayLabel')}
@@ -710,6 +713,8 @@ function LayerEditor({
                                         onChange={(items) => onChange({ ...config, dontSay: items })}
                                         placeholder={isFa ? 'مثلاً: قیمت را حدس نزن' : "e.g. Don't guess prices"}
                                         positive={false}
+                                        limit={PROMPT_SCOPE_RULE_LIMIT}
+                                        isFa={isFa}
                                 />
                         </div>
                 )
@@ -804,6 +809,8 @@ function ListEditor({
         onChange,
         placeholder,
         positive,
+        limit,
+        isFa,
 }: {
         label: string
         hint: string
@@ -811,11 +818,14 @@ function ListEditor({
         onChange: (items: string[]) => void
         placeholder: string
         positive: boolean
+        limit: number
+        isFa: boolean
 }) {
         const [draft, setDraft] = useState('')
+        const limitReached = items.length >= limit
         function add() {
                 const v = draft.trim()
-                if (!v) return
+                if (!v || limitReached) return
                 onChange([...items, v])
                 setDraft('')
         }
@@ -832,13 +842,15 @@ function ListEditor({
                                                 }
                                         }}
                                         placeholder={placeholder}
+                                        disabled={limitReached}
                                         className="input text-sm"
                                 />
                                 <button
                                         type="button"
                                         onClick={add}
-                                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                        aria-label="add"
+                                        disabled={limitReached || !draft.trim()}
+                                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label={isFa ? 'افزودن قانون' : 'Add rule'}
                                 >
                                         <Plus className="h-4 w-4" />
                                 </button>
@@ -866,7 +878,12 @@ function ListEditor({
                                         ))}
                                 </ul>
                         )}
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">{hint}</p>
+                        <div className="mt-1 flex items-start justify-between gap-3 text-xs text-[var(--text-muted)]">
+                                <p>{hint}</p>
+                                <span className="shrink-0 tabular-nums" aria-live="polite">
+                                        {items.length}/{limit}
+                                </span>
+                        </div>
                 </Field>
         )
 }

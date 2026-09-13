@@ -1,5 +1,9 @@
 import { z } from 'zod'
 import { MODEL_ALIASES } from '@/lib/ai/models'
+import {
+  PROMPT_SCOPE_RULE_LIMIT,
+  PROMPT_SCOPE_RULE_MAX_CHARS,
+} from '@/lib/agents/prompt-config-limits'
 
 // ── 6-LAYER PROMPT CONFIG (F1) ──────────────────────────────────────
 export const promptFormatSchema = z.object({
@@ -28,8 +32,14 @@ export const promptConversationSchema = z.object({
 export const promptConfigSchema = z.object({
   personality: z.string().max(2000).default(''),
   tone: z.string().max(2000).default(''),
-  doSay: z.array(z.string().max(500)).max(30).default([]),
-  dontSay: z.array(z.string().max(500)).max(30).default([]),
+  doSay: z
+    .array(z.string().max(PROMPT_SCOPE_RULE_MAX_CHARS))
+    .max(PROMPT_SCOPE_RULE_LIMIT)
+    .default([]),
+  dontSay: z
+    .array(z.string().max(PROMPT_SCOPE_RULE_MAX_CHARS))
+    .max(PROMPT_SCOPE_RULE_LIMIT)
+    .default([]),
   fallbackBehavior: z.string().max(2000).default(''),
   format: promptFormatSchema.default({
     bold: true,

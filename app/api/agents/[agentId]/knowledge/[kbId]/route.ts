@@ -9,6 +9,7 @@ import {
   readBoundedRequestBody,
   RequestBodyTooLargeError,
 } from '@/lib/security/request-body'
+import { reconstructKnowledgeSource } from '@/lib/knowledge/source-text'
 
 type Params = { params: Promise<{ agentId: string; kbId: string }> }
 
@@ -28,6 +29,7 @@ async function ownKb(workspaceId: string, agentId: string, kbId: string) {
       id: true,
       name: true,
       type: true,
+      sourceText: true,
       sourceUrl: true,
       refreshIntervalHours: true,
       status: true,
@@ -44,7 +46,27 @@ export async function GET(_req: Request, props: Params) {
   const kb = await ownKb(user.workspaceId, params.agentId, params.kbId)
   if (!kb) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-  return NextResponse.json({ kb })
+  let content = kb.sourceText
+  if (kb.type === 'TEXT' && content === null) {
+    const chunks = await prisma.knowledgeChunk.findMany({
+      where: { kbId: kb.id },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, content: true, metadata: true, createdAt: true },
+    })
+    content = reconstructKnowledgeSource(chunks)
+  }
+
+  return NextResponse.json({
+    kb: {
+      id: kb.id,
+      name: kb.name,
+      type: kb.type,
+      sourceUrl: kb.sourceUrl,
+      refreshIntervalHours: kb.refreshIntervalHours,
+      status: kb.status,
+      content,
+    },
+  })
 }
 
 /**
@@ -136,11 +158,13 @@ export async function PATCH(req: Request, props: Params) {
       data.refreshIntervalHours = refreshIntervalHours
     }
   }
-  // For TEXT, content is not stored on the KB row itself — it's chunked into
-  // KnowledgeChunk rows. We still mark the KB as PENDING so the UI shows a
-  // processing state, then dispatch re-ingestion with the new text.
+  const textChanged =
+    kb.type === 'TEXT' && inlineText !== undefined && inlineText !== kb.sourceText
+  if (textChanged) data.sourceText = inlineText
+
+  // Mark changed source content as pending while the derived chunks rebuild.
   const needsReingest =
-    (kb.type === 'TEXT' && inlineText !== undefined) ||
+    textChanged ||
     (kb.type === 'URL' && sourceUrl && sourceUrl !== kb.sourceUrl)
 
   if (needsReingest) {

@@ -20,6 +20,8 @@
  * with the runtime catalog block + retrieved RAG context + tone instruction.
  */
 
+import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
+
 export interface PromptFormatConfig {
   /** Allow **bold** markdown in replies. Default true. */
   bold: boolean
@@ -1220,13 +1222,13 @@ function makeRecommendedBusinessRole(businessType: BusinessType, specs: readonly
         // never discard the rules that make this template industry-specific.
         ...overlay.doSay,
         ...bases.flatMap((base) => base.config.doSay).filter(keepBaseLine),
-      ], 30),
+      ], PROMPT_SCOPE_RULE_LIMIT),
       dontSay: uniqueLines([
         'بین نقش‌های داخلی خودت تفکیک ایجاد نکن و مشتری را بی‌دلیل بین بخش‌ها جابه‌جا نکن',
         'مشتری‌ای که صریح درخواست دیدن محصول یا خدمت داده را سؤال‌پیچ نکن',
         ...overlay.dontSay,
         ...bases.flatMap((base) => base.config.dontSay).filter(keepBaseLine),
-      ], 30),
+      ], PROMPT_SCOPE_RULE_LIMIT),
       fallbackBehavior:
         'اگر پاسخ یا داده قطعی در دانش، کاتالوگ یا اطلاعات زنده نبود، چیزی حدس نزن. موضوع را کوتاه جمع‌بندی کن، فقط اطلاعات تماس ضروری را بگیر و با زمینه کامل به اپراتور تحویل بده.',
       format: { ...primary.config.format },

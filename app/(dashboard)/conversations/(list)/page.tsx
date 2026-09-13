@@ -151,10 +151,11 @@ export default async function ConversationsPage(props: {
                 prisma.conversation.findMany({
                         where,
                         orderBy: [
-                                // Handed-off conversations first (need attention), then by last message.
-                                { handedOff: 'desc' },
-                                { lastMessageAt: 'desc' },
+                                // The inbox is chronological. Operator handoffs remain available
+                                // through the dedicated status filter instead of pinning old threads.
+                                { lastMessageAt: { sort: 'desc', nulls: 'last' } },
                                 { createdAt: 'desc' },
+                                { id: 'desc' },
                         ],
                         skip: (page - 1) * PAGE_SIZE,
                         take: PAGE_SIZE + 1,

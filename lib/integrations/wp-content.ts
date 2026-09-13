@@ -76,7 +76,7 @@ async function upsertContent(
     const kb = existing
       ? await prisma.knowledgeBase.update({
           where: { id: existing.id },
-          data: { name, status: 'PENDING', errorMsg: null, lastIngestedAt: new Date() },
+          data: { name, sourceText: text, status: 'PENDING', errorMsg: null, lastIngestedAt: new Date() },
         })
       : await prisma.knowledgeBase.create({
           data: {
@@ -84,6 +84,7 @@ async function upsertContent(
             workspaceId,
             name,
             type: 'TEXT',
+            sourceText: text,
             sourceUrl: url,
             status: 'PENDING',
             lastIngestedAt: new Date(),
