@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   AlertTriangle, BookOpen, CheckCircle2, EyeOff, HeartHandshake, HelpCircle, Loader2,
-  Mic, Play, Radar, RotateCcw, Scale, ShieldCheck, Sparkles, Wrench,
+  Mic, Play, Radar, RotateCcw, Scale, ShieldCheck, ShoppingCart, Sparkles, Wrench,
 } from 'lucide-react'
 import { Badge, Card, EmptyState, Panel, StatCard, fa, fmtDate } from '@/app/admin/(dash)/ui'
 import { SKILL_REGISTRY, skillNameFa, type SkillKey } from '@/lib/skills/registry'
@@ -71,6 +71,7 @@ const SKILL_ICONS: Record<SkillKey, React.ComponentType<{ className?: string }>>
   'tone-coach': Mic,
   'knowledge-conflict': BookOpen,
   'preference-guard': HeartHandshake,
+  'funnel-guard': ShoppingCart,
 }
 
 const SEVERITY_LABEL: Record<string, string> = { HIGH: 'بحرانی', MEDIUM: 'مهم', LOW: 'کم' }

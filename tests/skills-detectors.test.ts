@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   candidateConflictPairs,
   claimedProductCount,
+  categorizeQuestion,
+  detectFunnelStalls,
   detectKnowledgeGaps,
   detectPostChanges,
   detectPreferenceViolations,
@@ -12,6 +14,8 @@ import {
   normalizeToneReview,
   parseFaNumber,
   parseModelJsonSafe,
+  sameQuestionCluster,
+  type FunnelConversationInput,
   type MetricWindow,
   type PostChangeInput,
   type ReceiptTurnInput,
@@ -364,6 +368,297 @@ describe('skills detectors — DEEP normalizers', () => {
     expect(pairs).toHaveLength(1)
     expect(pairs[0].aId).toBe('a')
     expect(pairs[0].bId).toBe('b')
+  })
+})
+
+describe('skills detectors — v1.1.0 upgrades (knowledge gap, tool failure, conflicts)', () => {
+  it('clusters the same unanswered question across conversations into a recurring gap', () => {
+    const result = detectKnowledgeGaps([{
+      agentId: AGENT.agentId,
+      workspaceId: AGENT.workspaceId,
+      unanswered: [
+        { messageId: 'u1', conversationId: 'c1', content: 'ساعت کاری شماره رو می دید؟', createdAt: new Date() },
+        { messageId: 'u2', conversationId: 'c2', content: 'ساعات کاری‌تون چیه؟', createdAt: new Date() },
+        { messageId: 'u3', conversationId: 'c3', content: 'قیمت ارسال چقدر می شه؟', createdAt: new Date() },
+      ],
+      pendingKnowledge: [],
+      unresolvedReviews: 0,
+    }])
+    const recurring = result.findings.find((f) => f.dedupeKey.startsWith('gap:recurring:'))
+    expect(recurring).toBeDefined()
+    expect((recurring!.evidence as { conversations: string[] }).conversations).toHaveLength(2)
+    expect(recurring!.severity).toBe('MEDIUM')
+    expect(recurring!.title).toContain('تماس و ساعات کاری')
+  })
+
+  it('escalates to HIGH when a recurring gap spans three conversations', () => {
+    const result = detectKnowledgeGaps([{
+      agentId: AGENT.agentId,
+      workspaceId: AGENT.workspaceId,
+      unanswered: [
+        { messageId: 'u1', conversationId: 'c1', content: 'مرجوعی دارید؟', createdAt: new Date() },
+        { messageId: 'u2', conversationId: 'c2', content: 'مرجوعی می کنید؟', createdAt: new Date() },
+        { messageId: 'u3', conversationId: 'c3', content: 'امکان مرجوعی هست؟', createdAt: new Date() },
+      ],
+      pendingKnowledge: [],
+      unresolvedReviews: 0,
+    }])
+    const recurring = result.findings.find((f) => f.dedupeKey.startsWith('gap:recurring:'))
+    expect(recurring).toBeDefined()
+    expect(recurring!.severity).toBe('HIGH')
+  })
+
+  it('classifies unanswered questions into business categories', () => {
+    expect(categorizeQuestion('هزینه ارسال چقدره؟').key).toBe('delivery')
+    expect(categorizeQuestion('قیمت نهایی می شه چند؟').key).toBe('price')
+    expect(categorizeQuestion('سایز ۴۴ دارید؟').key).toBe('sizing')
+    expect(categorizeQuestion('سلام حالتون چطوره؟').key).toBe('other')
+  })
+
+  it('marks a HIGH severity via the unanswered RATE on thin traffic', () => {
+    const result = detectKnowledgeGaps([{
+      agentId: AGENT.agentId,
+      workspaceId: AGENT.workspaceId,
+      totalUserMessages: 24,
+      unanswered: [
+        { messageId: 'u1', conversationId: 'c1', content: 'الف سوال؟', createdAt: new Date() },
+        { messageId: 'u2', conversationId: 'c2', content: 'دیگری سوال؟', createdAt: new Date() },
+        { messageId: 'u3', conversationId: 'c3', content: 'سومین سوال؟', createdAt: new Date() },
+      ],
+      pendingKnowledge: [],
+      unresolvedReviews: 0,
+    }])
+    expect(result.findings[0].severity).toBe('HIGH') // 3/24 = 12.5% unanswered
+  })
+
+  it('clusters near-identical questions but keeps different questions apart', () => {
+    expect(sameQuestionCluster('ساعت کاری شماره رو می دید؟', 'ساعات کاری‌تون چیه؟')).toBe(true)
+    expect(sameQuestionCluster('رنگ این شومیز چیه؟', 'ساعت کاری چند است؟')).toBe(false)
+  })
+
+  it('flags stock claims that were never grounded in catalog or knowledge', () => {
+    const result = detectToolFailures([AGENT], [
+      turn({
+        messageId: 'm30',
+        content: 'این محصول موجود است و می‌تونید سفارش بدید.',
+        receipts: [],
+        userContent: 'این کالا موجوده؟',
+      }),
+    ], [])
+    const finding = result.findings.find((f) => f.dedupeKey === 'tool:stockground:agent-1')
+    expect(finding).toBeDefined()
+    expect(finding!.severity).toBe('MEDIUM')
+  })
+
+  it('does not flag stock claims when the conversation consulted the catalog earlier', () => {
+    const result = detectToolFailures([AGENT], [
+      turn({ messageId: 'm31', content: 'سه مدل برات پیدا کردم', receipts: [{ kind: 'catalog_checked', count: 8 }] }),
+      turn({ messageId: 'm32', content: 'همه‌شون موجود هستند.', receipts: [] }),
+    ], [])
+    expect(result.findings.filter((f) => f.dedupeKey === 'tool:stockground:agent-1')).toHaveLength(0)
+    expect(result.clean).toContain('tool:stockground:agent-1')
+  })
+
+  it('flags promised handoffs that never happened', () => {
+    const result = detectToolFailures([AGENT], [
+      turn({
+        messageId: 'm40',
+        content: 'گفتگو را به اپراتور منتقل می‌کنم تا با شما تماس بگیرد.',
+        receipts: [],
+        userContent: 'با آدم واقعی حرف بزنم',
+      }),
+    ], [], { 'conv-1': false })
+    const finding = result.findings.find((f) => f.dedupeKey === 'tool:handoff:agent-1')
+    expect(finding).toBeDefined()
+    expect(finding!.severity).toBe('MEDIUM')
+  })
+
+  it('does not flag promised handoffs when the conversation WAS handed off', () => {
+    const result = detectToolFailures([AGENT], [
+      turn({ messageId: 'm41', content: 'کارشناس ما در تماس می‌شود.', receipts: [] }),
+    ], [], { 'conv-1': true })
+    expect(result.findings.filter((f) => f.dedupeKey === 'tool:handoff:agent-1')).toHaveLength(0)
+    expect(result.clean).toContain('tool:handoff:agent-1')
+  })
+
+  it('prioritizes numeric-mismatch knowledge pairs over vague topical pairs', () => {
+    const pairs = candidateConflictPairs([
+      { id: 'same-words', question: 'ارسال چند روزه است؟', answer: '۳ روز' },
+      { id: 'same-words-2', question: 'ارسال چند روزه است', answer: '۵ روز' },
+      { id: 'numeric-diff', question: 'هزینه ارسال به تهران؟', answer: '۴۵ هزار تومان' },
+      { id: 'numeric-diff-2', question: 'هزینه ارسال به تهران چقدر است؟', answer: '۶۰ هزار تومان' },
+    ], 2)
+    expect(pairs).toHaveLength(2)
+    // Both selected pairs should be numeric-mismatch pairs (score 3).
+    const numericPairIds = new Set(['numeric-diff', 'numeric-diff-2', 'same-words', 'same-words-2'])
+    for (const pair of pairs) expect(numericPairIds.has(pair.aId)).toBe(true)
+  })
+})
+
+describe('skills detectors — funnel guard (v1.0.0)', () => {
+  const t = (minutes: number) => new Date(`2026-09-10T12:${String(minutes).padStart(2, '0')}:00Z`)
+
+  function conversation(overrides: Partial<FunnelConversationInput> & Pick<FunnelConversationInput, 'conversationId' | 'messages'>): FunnelConversationInput {
+    return {
+      agentId: AGENT.agentId,
+      workspaceId: AGENT.workspaceId,
+      handedOff: false,
+      ...overrides,
+    }
+  }
+
+  it('flags a strong buy intent that got no link, card or handoff', () => {
+    const result = detectFunnelStalls([AGENT], [conversation({
+      conversationId: 'cv1',
+      messages: [
+        { messageId: 'm1', role: 'USER', createdAt: t(0), content: 'این شومیز رو برام ثبت کن' },
+        { messageId: 'm2', role: 'ASSISTANT', createdAt: t(1), content: 'فعلاً امکان ثبت سفارش در چت فعال نیست.', receipts: [] },
+      ],
+    })])
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0].skillKey).toBe('funnel-guard')
+    expect(result.findings[0].severity).toBe('MEDIUM') // 1 strong intent
+    expect(result.findings[0].diagnosis).toContain('برام ثبت کن')
+  })
+
+  it('treats a shared link after the intent as a funnel exit (no finding)', () => {
+    const result = detectFunnelStalls([AGENT], [conversation({
+      conversationId: 'cv2',
+      messages: [
+        { messageId: 'm1', role: 'USER', createdAt: t(0), content: 'می‌خوام بخرمش' },
+        { messageId: 'm2', role: 'ASSISTANT', createdAt: t(1), content: 'برای خرید از این لینک وارد شوید: https://shop.example.com/p/1', receipts: [{ kind: 'link_shared' }] },
+      ],
+    })])
+    expect(result.findings.filter((f) => f.dedupeKey === 'funnel:stall:agent-1')).toHaveLength(0)
+    expect(result.clean).toContain('funnel:stall:agent-1')
+  })
+
+  it('does not flag cards shown before the intent, only exits after it', () => {
+    const result = detectFunnelStalls([AGENT], [conversation({
+      conversationId: 'cv3',
+      messages: [
+        { messageId: 'm1', role: 'USER', createdAt: t(0), content: 'شومیز دارید؟' },
+        { messageId: 'm2', role: 'ASSISTANT', createdAt: t(1), content: 'این کارت‌ها را ببینید', receipts: [{ kind: 'products_presented', count: 3 }] },
+        { messageId: 'm3', role: 'USER', createdAt: t(2), content: 'قیمت نهایی چنده؟' },
+        { messageId: 'm4', role: 'ASSISTANT', createdAt: t(3), content: '۲۵۰ هزار تومان.', receipts: [] },
+      ],
+    })])
+    const finding = result.findings.find((f) => f.dedupeKey === 'funnel:stall:agent-1')
+    expect(finding).toBeDefined()
+    expect(finding!.severity).toBe('LOW') // 1 mild intent
+  })
+
+  it('skips handed-off conversations entirely', () => {
+    const result = detectFunnelStalls([AGENT], [conversation({
+      conversationId: 'cv4',
+      handedOff: true,
+      messages: [
+        { messageId: 'm1', role: 'USER', createdAt: t(0), content: 'می‌خوام بخرم' },
+        { messageId: 'm2', role: 'ASSISTANT', createdAt: t(1), content: 'انتقال می‌دهم به اپراتور', receipts: [] },
+      ],
+    })])
+    expect(result.findings.filter((f) => f.agentId === AGENT.agentId)).toHaveLength(0)
+  })
+
+  it('escalates to HIGH when two or more strong intents stalled', () => {
+    const result = detectFunnelStalls([AGENT], [
+      conversation({
+        conversationId: 'cv5',
+        messages: [{ messageId: 'm1', role: 'USER', createdAt: t(0), content: 'برام رزروش کن' }],
+      }),
+      conversation({
+        conversationId: 'cv6',
+        messages: [{ messageId: 'm2', role: 'USER', createdAt: t(2), content: 'می‌خوام سفارش ثبت کنم' }],
+      }),
+    ])
+    const finding = result.findings.find((f) => f.dedupeKey === 'funnel:stall:agent-1')
+    expect(finding).toBeDefined()
+    expect(finding!.severity).toBe('HIGH')
+    expect((finding!.evidence as { strongCount: number }).strongCount).toBe(2)
+  })
+
+  it('counts an operator reply after the intent as a funnel exit', () => {
+    const result = detectFunnelStalls([AGENT], [conversation({
+      conversationId: 'cv7',
+      messages: [
+        { messageId: 'm1', role: 'USER', createdAt: t(0), content: 'برام ثبتش کن' },
+        { messageId: 'm2', role: 'ASSISTANT', createdAt: t(1), content: 'سلام، اپراتور هستم؛ برای سفارش کمکتون می‌کنم.', receipts: [], operator: true },
+      ],
+    })])
+    expect(result.findings.filter((f) => f.dedupeKey === 'funnel:stall:agent-1')).toHaveLength(0)
+  })
+
+  it('ignores conversations without any buy intent', () => {
+    const result = detectFunnelStalls([AGENT], [conversation({
+      conversationId: 'cv8',
+      messages: [
+        { messageId: 'm1', role: 'USER', createdAt: t(0), content: 'رنگ‌بندی این مدل چیه؟' },
+        { messageId: 'm2', role: 'ASSISTANT', createdAt: t(1), content: 'مشکی و کرم داریم.', receipts: [{ kind: 'catalog_checked', count: 2 }] },
+      ],
+    })])
+    expect(result.clean).toContain('funnel:stall:agent-1')
+  })
+})
+
+describe('skills detectors — before/after funnel metrics (v1.1.0)', () => {
+  const window: MetricWindow = { reviews: 10, resolved: 8, userMessages: 60, unanswered: 6, assistantMessages: 60, modelErrors: 2, productCards: 30, orderLinks: 18 }
+
+  function change(overrides: Partial<PostChangeInput> & Pick<PostChangeInput, 'changeId' | 'before' | 'after'>): PostChangeInput {
+    return {
+      suggestionId: 'sg2', agentId: AGENT.agentId, workspaceId: AGENT.workspaceId, agentName: AGENT.agentName,
+      kind: 'BEHAVIOR', topicKey: 'لحن پاسخ', title: 'لحن گرم‌تر شد',
+      appliedAt: new Date('2026-09-01T00:00:00Z'),
+      reviewsAfter: [],
+      ...overrides,
+    }
+  }
+
+  it('reports an order-link rate drop after a change', () => {
+    const result = detectPostChanges([change({
+      changeId: 'ch6',
+      before: window,
+      after: { ...window, orderLinks: 0 },
+    })])
+    const finding = result.findings.find((f) => f.dedupeKey === 'ba:ch6:orderlink')
+    expect(finding).toBeDefined()
+    expect(finding!.severity).toBe('MEDIUM')
+    expect(finding!.title).toContain('نرخ ارسال لینک سفارش')
+  })
+
+  it('records a showcase-rate improvement as a resolved confirmation', () => {
+    const result = detectPostChanges([change({
+      changeId: 'ch7',
+      before: { ...window, productCards: 6 },
+      after: window,
+    })])
+    const finding = result.findings.find((f) => f.dedupeKey === 'ba:ch7:showcase')
+    expect(finding).toBeDefined()
+    expect(finding!.initialStatus).toBe('RESOLVED')
+  })
+
+  it('requires assistant volume before judging funnel metrics', () => {
+    const result = detectPostChanges([change({
+      changeId: 'ch8',
+      before: { ...window, assistantMessages: 10, orderLinks: 9 },
+      after: { ...window, assistantMessages: 10, orderLinks: 0 },
+    })])
+    expect(result.findings.find((f) => f.dedupeKey === 'ba:ch8:orderlink')).toBeUndefined()
+  })
+})
+
+describe('skills detectors — tone coach nextstep type (v1.1.0)', () => {
+  it('normalizes nextstep issues with the right label', () => {
+    const findings = normalizeToneReview({
+      issues: [
+        { type: 'nextstep', title: 'خرید بدون لینک', diagnosis: 'مشتری گفت می‌خواد بخرم اما پاسخ لینکی نداد.', messageIds: ['a1'], suggestion: 'همان جواب + لینک محصول.', severity: 'HIGH' },
+      ],
+    }, {
+      agentId: AGENT.agentId, workspaceId: AGENT.workspaceId, conversationId: 'cv1',
+      transcriptMessageIds: new Set(['a1']),
+    })
+    expect(findings).toHaveLength(1)
+    expect(findings[0].title).toContain('قدم بعدی')
+    expect(findings[0].severity).toBe('HIGH')
   })
 })
 

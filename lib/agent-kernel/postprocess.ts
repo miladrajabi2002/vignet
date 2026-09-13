@@ -1,11 +1,11 @@
 import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
-import { enforceActionCapabilities } from '@/lib/agent-kernel/skills/action-capabilities'
+import { enforceActionCapabilities, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 
 export interface AgentSkillPostprocessContext {
   /** Trusted rows selected by the scoped catalog repository for this turn. */
-  catalogProducts?: Array<{ name: string }>
+  catalogProducts?: Array<{ name: string; url?: string | null }>
   /** Current customer text is required for deterministic capability guards. */
   userMessage?: string
   isFa?: boolean
@@ -35,6 +35,18 @@ function ensureSingleProductIdentity(
   return `${name}: ${reply}`
 }
 
+/** First trusted catalog URL of this turn — used by the deterministic
+ *  order-request fallback so the customer is routed to the store page
+ *  instead of a dead end. */
+function orderUrlFromCatalog(context: AgentSkillPostprocessContext): string | null {
+  if (!context.catalogProducts?.length) return null
+  for (const product of context.catalogProducts) {
+    const url = safeOrderUrl(product?.url)
+    if (url) return url
+  }
+  return null
+}
+
 export function runAgentSkillPostprocessors(
   reply: string,
   plan: AgentSkillPlan,
@@ -46,6 +58,7 @@ export function runAgentSkillPostprocessors(
       reply: output,
       userMessage: context.userMessage,
       isFa: context.isFa ?? true,
+      orderUrl: orderUrlFromCatalog(context),
     })
   }
   if (hasAgentSkill(plan, 'visual-reference-grounding') && context.userMessage) {

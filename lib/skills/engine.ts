@@ -27,6 +27,7 @@ import { readCustomerAgentPreferences } from '@/lib/ai/customer-agent-preference
 import {
   candidateConflictPairs,
   conflictPrompt,
+  detectFunnelStalls,
   detectKnowledgeGaps,
   detectPostChanges,
   detectPreferenceViolations,
@@ -36,6 +37,8 @@ import {
   parseModelJsonSafe,
   toneReviewPrompt,
   type FindingDraft,
+  type FunnelConversationInput,
+  type FunnelMessageInput,
   type KnowledgeGapAgentInput,
   type MetricWindow,
   type PostChangeInput,
@@ -68,6 +71,8 @@ const MAX_UNANSWERED = 600
 const MAX_SUGGESTIONS = 200
 const MAX_EVIDENCE_ROWS = 3000
 const MAX_PREFERENCE_CONTACTS = 60
+const MAX_FUNNEL_CONVERSATIONS = 600
+const MAX_FUNNEL_MESSAGES = 6000
 const DEEP_MAX_AGENTS = 6
 const DEEP_TONE_CONVERSATIONS_PER_AGENT = 3
 const DEEP_TONE_TRANSCRIPT_MESSAGES = 16
@@ -248,6 +253,83 @@ async function unresolvedReviewCounts(since: Date): Promise<Map<string, number>>
   return new Map(rows.map((r) => [r.agentId, Number(r.n)]))
 }
 
+/** v1.1.0 (knowledge-gap) — today's USER message count per agent, the
+ *  denominator of the unanswered RATE. */
+async function userMessageCounts(since: Date): Promise<Map<string, number>> {
+  const rows = await prisma.$queryRaw<Array<{ agentId: string; n: bigint }>>`
+    SELECT c."agentId" AS "agentId", COUNT(*) AS n
+    FROM "Message" m
+    JOIN "Conversation" c ON c.id = m."conversationId"
+    JOIN "Workspace" w ON w.id = c."workspaceId"
+    WHERE m.role = 'USER' AND m."createdAt" > (${since} AT TIME ZONE 'UTC')
+      AND w."excludeFromAdminReports" = false
+    GROUP BY c."agentId"`
+  return new Map(rows.map((r) => [r.agentId, Number(r.n)]))
+}
+
+// ─── Funnel Guard data (v1.0.0) ─────────────────────────────────────────────────
+
+interface FunnelRow {
+  id: string
+  agentId: string
+  workspaceId: string
+  handedOff: boolean
+}
+
+interface FunnelMessageRow {
+  id: string
+  conversationId: string
+  role: string
+  createdAt: Date
+  content: string | null
+  receipts: unknown
+  operator: unknown
+}
+
+/** Today's conversations with their user/assistant messages, receipts and
+ *  operator flags — the funnel-guard input. Also powers the tool-failure
+ *  promised-handoff detection via the per-conversation handedOff state. */
+async function funnelConversations(since: Date): Promise<FunnelConversationInput[]> {
+  const conversations = await prisma.$queryRaw<FunnelRow[]>`
+    SELECT c.id, c."agentId", c."workspaceId", c."handedOff"
+    FROM "Conversation" c
+    JOIN "Workspace" w ON w.id = c."workspaceId"
+    WHERE c."lastMessageAt" > (${since} AT TIME ZONE 'UTC') AND c."deletedAt" IS NULL
+      AND w."excludeFromAdminReports" = false
+    ORDER BY c."lastMessageAt" DESC
+    LIMIT ${MAX_FUNNEL_CONVERSATIONS}`
+  if (!conversations.length) return []
+  const ids = conversations.map((c) => c.id)
+  const messages = await prisma.$queryRaw<FunnelMessageRow[]>`
+    SELECT m.id, m."conversationId", m.role, m."createdAt", LEFT(m.content, 600) AS content,
+           m.metadata->'vigentoReceipts' AS receipts, m.metadata->'operator' AS operator
+    FROM "Message" m
+    WHERE m."conversationId" IN (${Prisma.join(ids)}) AND m.role IN ('USER', 'ASSISTANT')
+      AND m."createdAt" > (${since} AT TIME ZONE 'UTC')
+    ORDER BY m."createdAt" ASC
+    LIMIT ${MAX_FUNNEL_MESSAGES}`
+  const byConversation = new Map<string, FunnelMessageInput[]>()
+  for (const message of messages) {
+    const list = byConversation.get(message.conversationId) ?? []
+    list.push({
+      messageId: message.id,
+      role: message.role === 'USER' ? 'USER' : 'ASSISTANT',
+      createdAt: message.createdAt,
+      content: message.content ?? '',
+      receipts: parseReceipts(message.receipts),
+      operator: message.operator === true,
+    })
+    byConversation.set(message.conversationId, list)
+  }
+  return conversations.map((conversation) => ({
+    conversationId: conversation.id,
+    agentId: conversation.agentId,
+    workspaceId: conversation.workspaceId,
+    handedOff: conversation.handedOff,
+    messages: byConversation.get(conversation.id) ?? [],
+  }))
+}
+
 interface EvidenceRow {
   reviewId: string
   conversationId: string
@@ -284,11 +366,14 @@ async function appliedChangesWithEvidence(since: Date) {
 }
 
 async function windowMetrics(agentId: string, from: Date, to: Date): Promise<MetricWindow> {
-  const [messageRow] = await prisma.$queryRaw<Array<{ userMessages: bigint; unanswered: bigint; assistantMessages: bigint; modelErrors: bigint }>>`
+  const [messageRow] = await prisma.$queryRaw<Array<{ userMessages: bigint; unanswered: bigint; assistantMessages: bigint; modelErrors: bigint; productCards: bigint; orderLinks: bigint }>>`
     SELECT COUNT(*) FILTER (WHERE m.role = 'USER') AS "userMessages",
            COUNT(*) FILTER (WHERE m.role = 'USER' AND m.unanswered) AS "unanswered",
            COUNT(*) FILTER (WHERE m.role = 'ASSISTANT') AS "assistantMessages",
-           COUNT(*) FILTER (WHERE m.role = 'ASSISTANT' AND m.metadata->'vigentoReceipts' @> '[{"kind":"model_error"}]') AS "modelErrors"
+           COUNT(*) FILTER (WHERE m.role = 'ASSISTANT' AND m.metadata->'vigentoReceipts' @> '[{"kind":"model_error"}]') AS "modelErrors",
+           (COUNT(*) FILTER (WHERE m.role = 'ASSISTANT' AND m.metadata->'vigentoReceipts' @> '[{"kind":"products_presented"}]')
+            + COUNT(*) FILTER (WHERE m.role = 'ASSISTANT' AND m.metadata->'vigentoReceipts' @> '[{"kind":"products_compared"}]')) AS "productCards",
+           COUNT(*) FILTER (WHERE m.role = 'ASSISTANT' AND m.metadata->'vigentoReceipts' @> '[{"kind":"link_shared"}]') AS "orderLinks"
     FROM "Message" m
     JOIN "Conversation" c ON c.id = m."conversationId"
     WHERE c."agentId" = ${agentId} AND m."createdAt" >= (${from} AT TIME ZONE 'UTC') AND m."createdAt" < (${to} AT TIME ZONE 'UTC')`
@@ -307,6 +392,8 @@ async function windowMetrics(agentId: string, from: Date, to: Date): Promise<Met
     unanswered: Number(messageRow?.unanswered ?? 0),
     assistantMessages: Number(messageRow?.assistantMessages ?? 0),
     modelErrors: Number(messageRow?.modelErrors ?? 0),
+    productCards: Number(messageRow?.productCards ?? 0),
+    orderLinks: Number(messageRow?.orderLinks ?? 0),
   }
 }
 
@@ -357,7 +444,7 @@ async function runFree(): Promise<RunStats> {
   // onward). Yesterday and older are finished — the agent changed too much
   // since then for their findings to still be actionable.
   const since = startOfToday()
-  const [agents, turns, unanswered, suggestions, unresolved, changesBundle, contacts] = await Promise.all([
+  const [agents, turns, unanswered, suggestions, unresolved, changesBundle, contacts, userTotals, funnels] = await Promise.all([
     activeAgents(since),
     receiptTurns(since),
     unansweredMessages(since),
@@ -365,14 +452,23 @@ async function runFree(): Promise<RunStats> {
     unresolvedReviewCounts(since),
     appliedChangesWithEvidence(since),
     preferenceContacts(since),
+    userMessageCounts(since),
+    funnelConversations(since),
   ])
   const agentById = new Map(agents.map((a) => [a.agentId, a]))
+  // Conversation-level handoff state shared by tool-failure (promised
+  // handoffs that never happened) and funnel-guard (handoff as a funnel exit).
+  const conversationHandedOff: Record<string, boolean> = {}
+  for (const conversation of funnels) {
+    conversationHandedOff[conversation.conversationId] = conversation.handedOff ?? false
+  }
 
   // ── Knowledge Gap Curator
   const gapAgents: KnowledgeGapAgentInput[] = agents.map((agent) => ({
     agentId: agent.agentId,
     workspaceId: agent.workspaceId,
     agentName: agent.name,
+    totalUserMessages: userTotals.get(agent.agentId) ?? 0,
     unanswered: unanswered
       .filter((u) => u.agentId === agent.agentId)
       .map((u) => ({ messageId: u.id, conversationId: u.conversationId, content: u.content ?? '', createdAt: u.createdAt })),
@@ -405,7 +501,7 @@ async function runFree(): Promise<RunStats> {
   }
   const gapResult = detectKnowledgeGaps(gapAgents)
 
-  // ── Tool Failure Investigator
+  // ── Tool Failure Investigator (v1.1.0: + stock-grounding + promised-handoff)
   const toolResult = detectToolFailures(
     agents.map((a) => ({ agentId: a.agentId, workspaceId: a.workspaceId, agentName: a.name })),
     turns,
@@ -419,6 +515,7 @@ async function runFree(): Promise<RunStats> {
         diagnosis: s.diagnosis,
         evidenceConversations: new Set(s.evidence.map((e) => e.review.conversationId)).size,
       })),
+    conversationHandedOff,
   )
 
   // ── Post-change Monitor + Before/After Evaluation
@@ -462,17 +559,27 @@ async function runFree(): Promise<RunStats> {
   // ── Customer Preference Guard
   const preferenceResult = detectPreferenceViolations(contacts)
 
+  // ── Funnel Guard (v1.0.0) — buy intents that never reached a link, card,
+  // operator, or handoff. Conversations whose agent is not in the active list
+  // are still scanned; their findings carry their own workspace/agent ids.
+  const funnelResult = detectFunnelStalls(
+    agents.map((a) => ({ agentId: a.agentId, workspaceId: a.workspaceId, agentName: a.name })),
+    funnels,
+  )
+
   const allFindings: FindingDraft[] = [
     ...gapResult.findings,
     ...toolResult.findings,
     ...postChangeResult.findings,
     ...preferenceResult.findings,
+    ...funnelResult.findings,
   ]
   const persist = await persistFindings(allFindings)
   let resolved = 0
   resolved += await markClean('knowledge-gap', gapResult.clean, gapResult.cleanNote ?? 'خودکار: همه پیام‌های امروز پاسخ گرفته‌اند')
   resolved += await markClean('tool-failure', toolResult.clean, toolResult.cleanNote ?? 'خودکار: خطای سرویس در مکالمات امروز دیده نشد')
   resolved += await markClean('post-change', postChangeResult.clean, postChangeResult.cleanNote ?? 'خودکار: پس از اصلاح، در مکالمات امروز تکرار نشد')
+  resolved += await markClean('funnel-guard', funnelResult.clean, funnelResult.cleanNote ?? 'خودکار: هر قصد خرید امروز به لینک، کارت یا اپراتور رسید')
   // Owner policy (2026-09-12): only today's conversations are reviewed, so an
   // OPEN finding that this pass did not re-observe (lastSeenAt still before
   // today's midnight) is finished and is auto-resolved instead of lingering on
@@ -484,7 +591,7 @@ async function runFree(): Promise<RunStats> {
   })
   resolved += stale.count
 
-  const conversationsScanned = new Set([...turns.map((t) => t.conversationId), ...unanswered.map((u) => u.conversationId)])
+  const conversationsScanned = new Set([...turns.map((t) => t.conversationId), ...unanswered.map((u) => u.conversationId), ...funnels.map((f) => f.conversationId)])
   return {
     ...persist,
     agentsScanned: agents.length,

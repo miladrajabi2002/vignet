@@ -3,6 +3,7 @@ import { buildMessages } from '@/lib/ai/rag'
 import { agentSkillTrace, hasAgentSkill } from '@/lib/agent-kernel/contracts'
 import { AGENT_KERNEL_VERSION, AGENT_SKILL_MANIFESTS, compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import { runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
+import { enforceActionCapabilities, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
 
 describe('internal agent skill kernel', () => {
   it('activates deterministic policy, context, action and postprocess skills per turn', () => {
@@ -103,5 +104,80 @@ describe('internal agent skill kernel', () => {
     const keys = AGENT_SKILL_MANIFESTS.map((skill) => skill.key)
     expect(new Set(keys).size).toBe(keys.length)
     expect(AGENT_SKILL_MANIFESTS.every((skill) => /^\d+\.\d+\.\d+$/.test(skill.version))).toBe(true)
+  })
+})
+
+describe('order-link fallback for unavailable in-chat purchases', () => {
+  it('routes the customer to the trusted product link when ordering in chat is requested', () => {
+    const orderRequest = 'برام ثبت کن این شومیز رو'
+    const out = enforceActionCapabilities({
+      reply: 'حتفاً الان ثبتش می‌کنم!',
+      userMessage: orderRequest,
+      isFa: true,
+      orderUrl: 'https://shop.example.com/product/shomiz-0788',
+    })
+    expect(out).toContain('https://shop.example.com/product/shomiz-0788')
+    expect(out).toContain('از این لینک وارد شوید')
+    expect(out).not.toContain('حتفاً')
+  })
+
+  it('offers the site/operator path when no trusted product link exists', () => {
+    const out = enforceActionCapabilities({
+      reply: 'می‌تونم براتون ثبتش کنم',
+      userMessage: 'می‌خوام از همین‌جا خرید کنم',
+      isFa: true,
+      orderUrl: null,
+    })
+    expect(out).toContain('صفحهٔ محصول در سایت فروشگاه')
+    expect(out).not.toContain('می‌تونم براتون')
+  })
+
+  it('fully replaces the reply with the order-link notice on an explicit order request', () => {
+    const out = enforceActionCapabilities({
+      reply: 'قیمت این محصول ۲۵۰ هزار تومان است. می‌تونم سفارش رو برات ثبت کنم.',
+      userMessage: 'سفارش رو نهایی کن',
+      isFa: true,
+      orderUrl: 'https://shop.example.com/p/1',
+    })
+    // The deterministic last line of defence replaces the whole reply when
+    // the user asked to place the order — checkout promises never survive.
+    expect(out).toContain('https://shop.example.com/p/1')
+    expect(out).not.toContain('می‌تونم سفارش رو برات ثبت کنم')
+  })
+
+  it('does not rewrite replies on read-only order tracking turns', () => {
+    const reply = 'سفارش ۱۲۳ شما ثبت شده و در حال پردازش است.'
+    const out = enforceActionCapabilities({
+      reply,
+      userMessage: 'وضعیت سفارشم چیه؟',
+      isFa: true,
+      orderUrl: null,
+    })
+    expect(out).toBe(reply)
+  })
+
+  it('validates order URLs strictly (http/https only)', () => {
+    expect(safeOrderUrl('https://shop.example.com/p/1')).toBe('https://shop.example.com/p/1')
+    expect(safeOrderUrl('javascript:alert(1)')).toBeNull()
+    expect(safeOrderUrl('//protocol-relative.example.com')).toBeNull()
+    expect(safeOrderUrl(null)).toBeNull()
+    expect(safeOrderUrl('  ')).toBeNull()
+  })
+
+  it('postprocess injects the catalog product link into the deterministic fallback', () => {
+    const plan = compileAgentSkillPlan({
+      language: 'fa',
+      userMessage: 'برام ثبت کن این رو',
+      history: [],
+      productTurn: true,
+      catalogAccessEnabled: true,
+    })
+    const out = runAgentSkillPostprocessors('می‌تونم همین‌جا برات ثبتش کنم!', plan, {
+      userMessage: 'برام ثبت کن این رو',
+      isFa: true,
+      catalogProducts: [{ name: 'شومیز روناز ۰۷۸۸', url: 'https://shop.example.com/p/0788' }],
+    })
+    expect(out).toContain('https://shop.example.com/p/0788')
+    expect(out).not.toContain('می‌تونم همین‌جا')
   })
 })

@@ -1,7 +1,7 @@
 /**
  * Admin-only improvement skills — registry.
  *
- * The seven post-hoc analysis skills that turn the improvement center into a
+ * The post-hoc analysis skills that turn the improvement center into a
  * measurable learning loop. This module is intentionally dependency-free so
  * both the server engine and the admin client components can import it.
  *
@@ -18,6 +18,7 @@ export type SkillKey =
   | 'tone-coach'
   | 'knowledge-conflict'
   | 'preference-guard'
+  | 'funnel-guard'
 
 /** FREE = deterministic database analysis (zero AI cost, scheduler-safe).
  *  DEEP = sampled LLM analysis paid from the platform AI budget, manual runs only. */
@@ -33,7 +34,7 @@ export interface SkillMeta {
   version: string
 }
 
-export const SKILLS_VERSION = '2026.09.11'
+export const SKILLS_VERSION = '2026.09.14'
 
 export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
   {
@@ -42,8 +43,8 @@ export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
     nameEn: 'Knowledge Gap Curator',
     cost: 'FREE',
     phase: 1,
-    descFa: 'پیام‌های مشتری که بدون پاسخ ماندند و موضوع‌های دانش‌نامه‌ای که ایجنت جوابشان را نمی‌داند را جمع می‌کند تا پاسخشان ثبت شود.',
-    version: '1.0.0',
+    descFa: 'پیام‌های مشتری که بدون پاسخ ماندند را خوشه‌بندی می‌کند؛ سوال‌های تکراری را با اولویت بالاتر جدا می‌کند و موضوع‌های دانش‌نامه‌ای که ایجنت جوابشان را نمی‌داند را برای ثبت پاسخ جمع می‌کند.',
+    version: '1.1.0',
   },
   {
     key: 'tool-failure',
@@ -51,8 +52,8 @@ export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
     nameEn: 'Tool Failure Investigator',
     cost: 'FREE',
     phase: 1,
-    descFa: 'خطاهای مدل، ادعای متن با تعداد کارت‌های ارسالی ناسازگار، و بررسی کاتالوگ بدون ارائه محصول را از رسیدهای پیام‌ها کشف می‌کند.',
-    version: '1.0.0',
+    descFa: 'خطاهای مدل، ادعای متن با تعداد کارت‌های ارسالی ناسازگار، بررسی کاتالوگ بدون ارائه محصول، ادعای موجودی بدون بررسی کاتالوگ و قول انتقال به اپراتور که هرگز اتفاق نیفتاد را از رسیدهای پیام‌ها کشف می‌کند.',
+    version: '1.1.0',
   },
   {
     key: 'post-change',
@@ -60,7 +61,16 @@ export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
     nameEn: 'Post-change Monitor',
     cost: 'FREE',
     phase: 1,
-    descFa: 'بعد از هر اصلاح اعمال‌شده، گفتگوهای بعدی را می‌سنجد؛ اگر همان مشکل تکرار شد هشدار رگرسیون می‌دهد و اگر پاک بود یافته را خودکار می‌بندد.',
+    descFa: 'بعد از هر اصلاح اعمال‌شده، گفتگوهای بعدی را می‌سنجد؛ اگر همان مشکل تکرار شد هشدار رگرسیون با نرخ تکرار می‌دهد و اگر پاک بود یافته را خودکار می‌بندد.',
+    version: '1.1.0',
+  },
+  {
+    key: 'funnel-guard',
+    nameFa: 'نگهبان قیف فروش',
+    nameEn: 'Funnel Guard',
+    cost: 'FREE',
+    phase: 1,
+    descFa: 'گفتگوهایی را ردیابی می‌کند که مشتری در آن‌ها قصد خرید یا ثبت سفارش نشان داد اما گفتگو بدون لینک محصول، کارت محصول یا انتقال به اپراتور تمام شد — یعنی سرنخ گرم، سرد شده است.',
     version: '1.0.0',
   },
   {
@@ -69,8 +79,8 @@ export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
     nameEn: 'Before/After Evaluation',
     cost: 'FREE',
     phase: 2,
-    descFa: 'نرخ حل گفتگو، بی‌پاسخی و خطای مدل را در ۷ روز قبل و بعد از هر تغییر می‌سنجد و افت یا بهبود واقعی را با عدد اعلام می‌کند.',
-    version: '1.0.0',
+    descFa: 'نرخ حل گفتگو، بی‌پاسخی، خطای مدل و پیشرفت قیف فروش (کارت و لینک ارسالی) را در ۷ روز قبل و بعد از هر تغییر می‌سنجد و افت یا بهبود واقعی را با عدد اعلام می‌کند.',
+    version: '1.1.0',
   },
   {
     key: 'tone-coach',
@@ -78,8 +88,8 @@ export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
     nameEn: 'Tone & Conversation Flow Coach',
     cost: 'DEEP',
     phase: 3,
-    descFa: 'نمونه‌ای از گفتگوهای اخیر را با هوش مصنوعی بررسی می‌کند؛ لحن سرد یا خشک و پرش‌های نامنظم گفتگو را با پیشنهاد بازنویسی گزارش می‌دهد.',
-    version: '1.0.0',
+    descFa: 'نمونه‌ای از گفتگوهای اخیر را با هوش مصنوعی بررسی می‌کند؛ لحن سرد یا خشک، پرش‌های نامنظم گفتگو و پاسخ‌های بدون قدم بعدی (مثل تمام‌کردن خرید بدون لینک) را با پیشنهاد بازنویسی گزارش می‌دهد.',
+    version: '1.1.0',
   },
   {
     key: 'knowledge-conflict',
@@ -87,8 +97,8 @@ export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
     nameEn: 'Knowledge Conflict Resolver',
     cost: 'DEEP',
     phase: 3,
-    descFa: 'مدخل‌های دانش‌نامه هر ایجنت را دوبه‌دو مقایسه می‌کند و جفت‌هایی که به یک سوال پاسخ‌های متفاوت می‌دهند را با نقل‌قول هر دو پاسخ گزارش می‌کند.',
-    version: '1.0.0',
+    descFa: 'مدخل‌های دانش‌نامه هر ایجنت را دوبه‌دو مقایسه می‌کند؛ جفت‌های مشکوک (پاسخ‌هایی با قیمت یا عدد متفاوت) را با اولویت به مدل می‌دهد و تناقض‌های واقعی را با نقل‌قول هر دو پاسخ گزارش می‌کند.',
+    version: '1.1.0',
   },
   {
     key: 'preference-guard',
