@@ -1,4 +1,4 @@
-import type { InboundMessage, MessengerAdapter, OutboundVoice, SendOptions } from '@/lib/channels/types'
+import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import {
         PRIVATE_REPLY_PREFIX,
@@ -653,26 +653,6 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 }),
                                 signal: AbortSignal.timeout(5_000),
                         })
-                },
-
-                async sendVoice(_chatId: string, _voice: OutboundVoice): Promise<void> {
-                        void _voice
-                        // Instagram DMs don't have a native "voice note" type distinct from
-                        // audio — both are sent as an `audio` attachment. We reuse the
-                        // sendAudio envelope (upload the raw bytes to S3 via the caller, then
-                        // send the URL as an audio attachment). The caller (handler.ts) is
-                        // responsible for producing an HTTPS URL Meta can fetch.
-                        if (_chatId.startsWith(COMMENT_PREFIX) || _chatId.startsWith(PRIVATE_REPLY_PREFIX)) return
-                        const h = await host()
-                        if (!h) return
-                        // Convert the raw audio buffer to a data URL is NOT viable (Meta
-                        // requires a public URL). The caller must have already uploaded the
-                        // audio and pass the URL in `voice.audio` as a UTF-8 string — but
-                        // since the OutboundVoice interface carries bytes, we instead expect
-                        // the caller to use sendAudio(url) directly for Instagram. This stub
-                        // is here so the shared inbound pipeline's `adapter.sendVoice` check
-                        // doesn't silently skip IG; in practice the handler prefers sendAudio.
-                        console.warn('[instagram] sendVoice called — use sendAudio(url) for Instagram DMs')
                 },
 
                 async getAvatarUrl(userId: string): Promise<string | null> {

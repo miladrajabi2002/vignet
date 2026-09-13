@@ -6,7 +6,6 @@ import type { StartChatParams } from '@/lib/ai/chat-types'
 import { notifyHandoff } from '@/lib/ai/handoff'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
-import { synthesizeSpeech } from '@/lib/voice/tts'
 import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
 import {
         getAdapter,
@@ -81,9 +80,7 @@ const AGENT_SELECT = {
         handoffEnabled: true,
         handoffMessage: true,
         handoffKeywords: true,
-        voiceEnabled: true,
         voiceInputEnabled: true,
-        ttsVoice: true,
         active: true,
         // ─ F1: layered prompt config
         promptConfig: true,
@@ -112,9 +109,7 @@ interface ResolvedChannel {
                 handoffEnabled: boolean
                 handoffMessage: string | null
                 handoffKeywords: string[]
-                voiceEnabled: boolean
                 voiceInputEnabled: boolean
-                ttsVoice: string
                 active: boolean
                 promptConfig: unknown
                 roleTemplate: string | null
@@ -782,14 +777,6 @@ async function processChannelInbound(
                                         await ensureDispatchStarted()
                                         await adapter.sendText(chatId, outboundText, opts)
                                 },
-                                ...(adapter.sendVoice
-                                        ? {
-                                                async sendVoice(chatId: string, voice: Parameters<NonNullable<MessengerAdapter['sendVoice']>>[1]) {
-                                                        await ensureDispatchStarted()
-                                                        await adapter.sendVoice!(chatId, voice)
-                                                },
-                                        }
-                                        : {}),
                                 ...(adapter.sendProductCard
                                         ? {
                                                 async sendProductCard(chatId: string, card: Parameters<NonNullable<MessengerAdapter['sendProductCard']>>[1]) {
@@ -1699,7 +1686,6 @@ async function processChannelInbound(
                                 showcasedProducts,
                                 cardLang,
                         )
-                        let spokenReply = parsedReply.text
                         const sendReplyText = async (replyText: string, quickReplies?: string[]) => {
                                 if (textStream) {
                                         const currentStream = textStream
@@ -1795,7 +1781,6 @@ async function processChannelInbound(
                                         const outboundText = [parsedReply.text, productFallback]
                                                 .filter(Boolean)
                                                 .join('\n\n')
-                                        spokenReply = outboundText
                                         await sendReplyText(outboundText || result.reply, settings.quickReplies)
                                 }
                         } catch (deliveryError) {
@@ -1816,23 +1801,6 @@ async function processChannelInbound(
                                                                 await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
                         }
 
-                        // Optional voice reply when the agent has TTS enabled.
-                        if (agent.voiceEnabled && deliveryAdapter.sendVoice && spokenReply) {
-                                try {
-                                        const speech = await synthesizeSpeech({
-                                                text: spokenReply || parsedReply.text,
-                                                workspaceId: agent.workspaceId,
-                                                voice: agent.ttsVoice,
-                                                // OpenRouter's dedicated TTS endpoint currently
-                                                // guarantees MP3/PCM. Telegram-like adapters send
-                                                // MP3 as an audio attachment rather than a voice note.
-                                                format: 'mp3',
-                                        })
-                                        await deliveryAdapter.sendVoice(msg.chatId, speech)
-                                } catch (e) {
-                                        console.error('[handler] voice reply failed:', e)
-                                }
-                        }
                         outcome = result.replayed ? 'AI_REPLY_RESUMED' : 'AI_REPLY_SENT'
                         })()
                         await eventGuard.assertActive()

@@ -2,7 +2,6 @@ import type { ChannelType } from '@prisma/client'
 import type {
   InboundMessage,
   MessengerAdapter,
-  OutboundVoice,
   ProductCard,
   SendOptions,
 } from '@/lib/channels/types'
@@ -278,28 +277,6 @@ export function createTelegramLikeAdapter(opts: {
           res.status,
           `${channel} sendChatAction failed (${res.status}): ${JSON.stringify(json)}`,
         )
-      }
-    },
-
-    async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {
-      const form = new FormData()
-      form.append('chat_id', chatId)
-      const isVoiceNote = voice.mime === 'audio/ogg' || voice.mime === 'audio/opus'
-      const field = isVoiceNote ? 'voice' : 'audio'
-      form.append(
-        field,
-        new Blob([new Uint8Array(voice.audio)], { type: voice.mime }),
-        isVoiceNote ? 'reply.ogg' : 'reply.mp3',
-      )
-      const method = isVoiceNote ? 'sendVoice' : 'sendAudio'
-      const res = await fetch(`${api}/${method}`, {
-        method: 'POST',
-        body: form,
-        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
-      })
-      if (!res.ok) {
-        // Fall back to nothing — caller will have already sent text.
-        console.error(`[${channel}] sendVoice failed:`, res.status)
       }
     },
 

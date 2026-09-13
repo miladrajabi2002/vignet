@@ -320,7 +320,6 @@
       "handoffKeywordsPlaceholder": "e.g. manager, complaint, human",
       "handoffKeywordsHint": "Comma-separated (up to 50 phrases) — if the user types any of these, the conversation is escalated to a human",
       "longChatAutoHandoffHint": "A conversation is also auto-escalated if it drags past the allowed message limit ({threshold} messages) — meaning the agent likely can't resolve it. The limit is set with the LONG_CHAT_THRESHOLD env var.",
-      "voiceEnabled": "Voice responses",
       "voiceInputEnabled": "Reply to customer voice messages",
       "voiceInputEnabledHint": "When disabled, a fixed no-cost reply asks the customer to send text.",
       "voiceInputEnabledActiveHint": "Enabled: customer audio is transcribed and answered. Transcription costs {price} toman per minute and is deducted based on the actual audio duration.",
@@ -419,7 +418,6 @@
       "noKey": "Reply credit is insufficient or the AI service is temporarily unavailable",
       "error": "Failed to get a response",
       "record": "Record voice",
-      "speak": "Read reply aloud",
       "rateGood": "Good response",
       "rateBad": "Poor response"
     },

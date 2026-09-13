@@ -10,7 +10,6 @@ import { ConversationBubble, ConversationText } from '@/components/chat/conversa
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
-import { SpeakButton } from '@/components/voice/audio-player'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
 // detail route so text chat becomes interactive before voice tooling arrives.
@@ -390,9 +389,6 @@ export function TestPlayground({
                                                                                 </div>
                                                                         )}
                                                                 </div>
-                                                                {m.role === 'assistant' && m.content && (
-                                                                        <SpeakButton text={m.content} label={t('speak')} />
-                                                                )}
                                                         </div>
                                                 )
                                         })

@@ -80,12 +80,6 @@ export interface InboundMessage {
   storyUrl?: string
 }
 
-/** Outbound voice payload (raw audio bytes + mime). */
-export interface OutboundVoice {
-  audio: Buffer
-  mime: string
-}
-
 /**
  * Optional extras for an outbound text reply. Adapters use what their platform
  * supports and silently ignore the rest, so callers can always pass them.
@@ -153,8 +147,6 @@ export interface MessengerAdapter {
   sendTyping?(chatId: string, signal?: AbortSignal): Promise<void>
   /** Explicitly clear a typing state when the provider supports it. */
   stopTyping?(chatId: string): Promise<void>
-  /** Send a voice reply. Optional — falls back to text when unsupported. */
-  sendVoice?(chatId: string, voice: OutboundVoice): Promise<void>
   /** Resolve a downloadable URL for an inbound voice file. Optional. */
   getVoiceUrl?(fileId: string): Promise<string | null>
   /**

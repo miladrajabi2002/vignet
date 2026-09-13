@@ -53,8 +53,6 @@ function channelRow(id: string, igUserId: string, workspaceId: string) {
       handoffEnabled: false,
       handoffMessage: null,
       handoffKeywords: [],
-      voiceEnabled: false,
-      ttsVoice: null,
       promptConfig: null,
       roleTemplate: null,
       requireCustomerInfo: false,

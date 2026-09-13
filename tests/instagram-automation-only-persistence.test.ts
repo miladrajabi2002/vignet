@@ -129,7 +129,6 @@ vi.mock('@/lib/crm/marketing-consent', () => ({
 vi.mock('@/lib/instagram/emoji', () => ({ isEmojiOnly: () => false }))
 vi.mock('@/lib/instagram/sender-profile', () => ({ fetchInstagramSenderProfile: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: mocks.transcribeAudio, downloadAudio: mocks.downloadAudio }))
-vi.mock('@/lib/voice/tts', () => ({ synthesizeSpeech: vi.fn() }))
 vi.mock('@/lib/ai/sales-intelligence', () => ({ refreshConversationSalesInsight: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn() }))
 vi.mock('@/lib/instagram/media', () => ({ sendProductCarousel: vi.fn() }))
@@ -181,9 +180,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
         handoffEnabled: false,
         handoffMessage: null,
         handoffKeywords: [],
-        voiceEnabled: false,
         voiceInputEnabled: true,
-        ttsVoice: 'alloy',
         active: true,
         promptConfig: null,
         roleTemplate: null,

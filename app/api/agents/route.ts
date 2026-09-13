@@ -102,9 +102,7 @@ export async function POST(req: Request) {
       temperature: AGENT_RESPONSE_TEMPERATURE,
       maxTokens: AGENT_MAX_RESPONSE_TOKENS,
       language: data.language ?? 'fa',
-      voiceEnabled: data.voiceEnabled ?? false,
       voiceInputEnabled: data.voiceInputEnabled ?? true,
-      ttsVoice: data.ttsVoice,
       welcomeMessage: data.welcomeMessage,
       fallbackMessage: data.fallbackMessage,
       // Smart handoff is a safety/default capability. Clients may still

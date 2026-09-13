@@ -118,9 +118,6 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
           <Field label="تعرفه هر دقیقه تبدیل ویس" hint="پیش‌فرض: ۱۰ تومان در دقیقه؛ معادل ۱۰۰ تومان برای ۱۰ دقیقه">
             <MoneyInput value={toToman(value.sttPricePerMinuteIRR)} onChange={(raw) => setNumber(['sttPricePerMinuteIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
           </Field>
-          <Field label="مدل تبدیل متن به صدا" hint="OpenRouter provider slug">
-            <input dir="ltr" value={value.ttsModel} onChange={(event) => setField('ttsModel', event.target.value)} className="admin-input" />
-          </Field>
           <Field label="اولویت انتخاب Provider" hint="در تمام درخواست‌های OpenRouter">
             <MaterialSelect value={value.providerSort} onValueChange={(next) => setField('providerSort', next as PlatformCommercialConfig['providerSort'])} ariaLabel="اولویت انتخاب Provider" buttonClassName="admin-input" options={[{ value: 'price', label: 'کمترین قیمت' }, { value: 'latency', label: 'کمترین تأخیر' }, { value: 'throughput', label: 'بیشترین توان پردازش' }]} />
           </Field>

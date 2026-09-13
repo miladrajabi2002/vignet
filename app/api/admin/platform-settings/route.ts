@@ -25,7 +25,6 @@ const planSchema = z.object({
 const schema = z.object({
   sttModel: z.literal(PLATFORM_STT_MODEL),
   sttPricePerMinuteIRR: positiveInt,
-  ttsModel: z.string().trim().min(3).max(180),
   providerSort: z.enum(['price', 'latency', 'throughput']),
   zeroDataRetention: z.boolean(),
   replyPricesIRR: z.object({
