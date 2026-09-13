@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 import { knowledgeRequestErrorMessageKey } from '@/lib/knowledge/request-error'
+import { UploadDropzone, uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 
 type KbStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'ERROR'
 
@@ -56,7 +57,6 @@ export function KbManager({
   const [content, setContent] = useState('')
   const [url, setUrl] = useState('')
   const [refreshHours, setRefreshHours] = useState<number>(24)
-  const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -66,7 +66,6 @@ export function KbManager({
   const [editRefreshHours, setEditRefreshHours] = useState<number>(24)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
   const sessionRedirectingRef = useRef(false)
 
   function redirectAfterUnauthorized() {
@@ -140,14 +139,8 @@ export function KbManager({
     try {
       let res: Response
       if (mode === 'file') {
-        if (!file) return
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('name', name || file.name)
-        res = await fetch(`/api/agents/${agentId}/knowledge`, {
-          method: 'POST',
-          body: fd,
-        })
+        // Handled by the UploadDropzone queue above; kept as a no-op guard.
+        return
       } else {
         res = await fetch(`/api/agents/${agentId}/knowledge`, {
           method: 'POST',
@@ -172,8 +165,6 @@ export function KbManager({
       setName('')
       setContent('')
       setUrl('')
-      setFile(null)
-      if (fileRef.current) fileRef.current.value = ''
       router.refresh()
     } catch {
       setError(t('requestFailed'))
@@ -286,9 +277,11 @@ export function KbManager({
     },
   ]
 
+  // File mode uploads directly through the dropzone queue (per-file progress
+  // + retry), so the explicit Add button only applies to text/url modes.
   const canSubmit =
     !submitting &&
-    (mode === 'text' ? content.trim() : mode === 'url' ? url.trim() : !!file)
+    (mode === 'text' ? content.trim() : mode === 'url' ? url.trim() : false)
 
   return (
     <div className="space-y-6">
@@ -460,25 +453,44 @@ export function KbManager({
             )}
             {mode === 'file' && (
               <div>
-                <label
-                  htmlFor="knowledge-file"
-                  className="mb-1.5 block text-xs font-semibold text-[var(--text-primary)]"
-                >
+                <span className="mb-1.5 block text-xs font-semibold text-[var(--text-primary)]">
                   {t('tabFile')}
-                </label>
-                <div className="rounded-2xl border border-dashed border-black/[0.12] bg-black/[0.018] p-4 transition-colors focus-within:border-black/30 focus-within:bg-white">
-                  <input
-                    id="knowledge-file"
-                    ref={fileRef}
-                    type="file"
-                    accept=".pdf,.csv"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    className="block min-h-11 w-full text-sm text-[var(--text-secondary)] file:me-3 file:min-h-11 file:cursor-pointer file:rounded-xl file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                  />
-                  <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                    {t('fileHint')}
-                  </p>
-                </div>
+                </span>
+                {/* Drag-and-drop queue with real per-file progress, retry and
+                    independent uploads — replacing the single plain file input. */}
+                <UploadDropzone
+                  accept=".pdf,.csv"
+                  multiple
+                  locale={locale}
+                  upload={async (file, onProgress) => {
+                    const fd = new FormData()
+                    fd.append('file', file)
+                    fd.append('name', file.name)
+                    try {
+                      const { response, status } = await uploadFileWithProgress(
+                        `/api/agents/${agentId}/knowledge`,
+                        fd,
+                        onProgress,
+                      )
+                      if (status === 401) redirectAfterUnauthorized()
+                      return response
+                    } catch (error) {
+                      // Surface a localized, per-file reason — never a raw code.
+                      const code = error instanceof Error ? error.message : 'UNKNOWN'
+                      throw new Error(t(knowledgeRequestErrorMessageKey(0, code)))
+                    }
+                  }}
+                  onFileUploaded={() => router.refresh()}
+                  labels={{
+                    dropHint: locale === 'fa' ? 'فایل را اینجا رها کنید' : 'Drop files here',
+                    formatsHint: t('fileHint'),
+                    browse: locale === 'fa' ? 'انتخاب فایل' : 'Browse files',
+                    retry: t('retry'),
+                    remove: locale === 'fa' ? 'حذف' : 'Remove',
+                    failed: t('requestFailed'),
+                    region: t('tabFile'),
+                  }}
+                />
               </div>
             )}
 

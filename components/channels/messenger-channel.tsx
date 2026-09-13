@@ -530,10 +530,12 @@ export function MessengerChannel({
                 <button
                   onClick={connect}
                   disabled={busy || !isComplete(type, values)}
+                  aria-busy={busy || undefined}
+                  title={!isComplete(type, values) ? t('incompleteFormHint') : undefined}
                   className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {t('connectConfirm')}
+                  {busy ? t('connecting') : t('connectConfirm')}
                 </button>
               </div>
             </>

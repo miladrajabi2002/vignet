@@ -35,14 +35,14 @@ export default function OverviewLoading() {
         <OutcomeCardSkeleton delay={-330} />
       </section>
 
-      {/* ── Trend chart + recent cases (stacked, matching the page grid) ── */}
-      <section className="grid min-w-0 gap-4">
-        <DashboardPanelSkeleton chartHeight={200} />
+      {/* ── Trend chart + recent cases (same 2-col grid as the page at xl) ── */}
+      <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <DashboardPanelSkeleton chartHeight={220} />
         <DashboardPanelSkeleton
           delay={-130}
           bodyClassName="divide-y divide-[var(--border-subtle)] -mx-5 sm:-mx-6"
         >
-          <div className="px-8">
+          <div className="px-5 sm:px-6">
             <div className="divide-y divide-[var(--border-subtle)]">
               {Array.from({ length: 4 }).map((_, index) => (
                 <RecentCaseRowSkeleton key={index} delay={-index * 110} />

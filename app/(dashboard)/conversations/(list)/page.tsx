@@ -14,7 +14,7 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import {
         conversationsDailyByWorkspace,
 } from '@/lib/dashboard/charts'
-import { relativeTime } from '@/lib/format'
+import { smartTime, formatDateTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
 import {
         contactDisplayName,
@@ -509,7 +509,7 @@ export default async function ConversationsPage(props: {
                                                                         avatarSrc={channelAvatarSrc}
                                                                         channelHandle={channelHandle}
                                                                         sourceLabel={sourceLabel}
-                                                                        relativeTimeLabel={relativeTime(when, locale)}
+                                                                        relativeTimeLabel={smartTime(when, locale)}
                                                                         messageCountLabel={`${c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} ${isFa ? 'پیام' : 'messages'}`}
                                                                         channel={c.channel}
                                                                         status={displayStatus}
@@ -541,8 +541,8 @@ export default async function ConversationsPage(props: {
                                                                         <ContactAvatar src={channelAvatarSrc} alt={who} />
                                                                         <div className="min-w-0 flex-1">
                                                                                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                                                                        <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">{who}</span>
-                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]">@{channelHandle}</span>}
+                                                                                        <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]" title={who}>{who}</span>
+                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
                                                                                         {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
                                                                                 </div>
                                                                                 <div className="mt-1 flex min-w-0 items-center gap-1.5">
@@ -555,14 +555,14 @@ export default async function ConversationsPage(props: {
                                                                                                         {reactionEmoji}
                                                                                                 </span>
                                                                                         )}
-                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="min-w-0 flex-1 truncate text-start text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
+                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="min-w-0 flex-1 truncate text-start text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]" title={last ? stripProductTokens(last.content) : c.agent.name}>{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
                                                                                 </div>
                                                                         </div>
                                                                         <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
                                                                                 <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />
                                                                                 <ChannelBadge type={c.channel} />
                                                                                 {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
-                                                                                <span>{relativeTime(when, locale)}</span>
+                                                                                <span className="tabular-nums" title={formatDateTime(when, locale)}>{smartTime(when, locale)}</span>
                                                                                 <span className="tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
                                                                         </span>
                                                                 </Link>

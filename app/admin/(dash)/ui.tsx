@@ -332,7 +332,11 @@ export function TableShell({
   minWidth?: number;
 }) {
   return (
-    <div className="admin-table-shell spatial-surface overflow-x-auto rounded-[1.5rem] [scrollbar-width:thin]">
+    // The shell scrolls on both axes and caps its height, so the sticky
+    // thead (globals.css .admin-table-shell table thead) actually engages
+    // while long user/payment tables scroll — instead of being inert behind
+    // an overflow-x-only ancestor.
+    <div className="admin-table-shell spatial-surface max-h-[min(70dvh,44rem)] overflow-auto overscroll-contain rounded-[1.5rem] [scrollbar-width:thin]">
       <table className="w-full" style={{ minWidth }}>
         {children}
       </table>
@@ -381,9 +385,34 @@ export function PageHeader({
    *  mirrors the user-dashboard PageHeader pattern. */
   icon?: React.ComponentType<{ className?: string }>;
 }) {
-  void breadcrumbs;
   return (
     <header className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <nav aria-label="breadcrumb" className="mb-3">
+          <ol className="flex flex-wrap items-center gap-1 text-[11px] text-zinc-400">
+            {breadcrumbs.map((crumb, index) => {
+              const last = index === breadcrumbs.length - 1;
+              return (
+                <li key={`${crumb.label}-${index}`} className="flex items-center gap-1">
+                  {crumb.href && !last ? (
+                    <Link
+                      href={crumb.href}
+                      className="rounded-md px-1 py-0.5 transition-colors hover:text-zinc-700 hover:underline"
+                    >
+                      {crumb.label}
+                    </Link>
+                  ) : (
+                    <span aria-current={last ? "page" : undefined} className={last ? "font-semibold text-zinc-600" : "px-1"}>
+                      {crumb.label}
+                    </span>
+                  )}
+                  {!last && <ChevronLeft aria-hidden className="h-3 w-3 text-zinc-300" />}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {Icon && (

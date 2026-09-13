@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale } from 'next-intl'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 export interface DonutSlice {
@@ -19,10 +20,12 @@ const SHADES = [
 ]
 
 export function ChannelDonut({ data }: { data: DonutSlice[] }) {
+  const locale = useLocale()
+  const numberLocale = locale === 'fa' ? 'fa-IR' : 'en-US'
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="flex items-center gap-6">
+    <div className="flex items-center gap-6" role="img" aria-label={data.map((d) => `${d.label}: ${d.value.toLocaleString(numberLocale)}`).join('، ')}>
       <div className="relative h-[180px] w-[180px] shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -34,6 +37,7 @@ export function ChannelDonut({ data }: { data: DonutSlice[] }) {
               outerRadius={84}
               paddingAngle={2}
               stroke="none"
+              isAnimationActive={false}
             >
               {data.map((_, i) => (
                 <Cell key={i} fill={SHADES[i % SHADES.length]} />
@@ -49,15 +53,15 @@ export function ChannelDonut({ data }: { data: DonutSlice[] }) {
                 fontFamily: 'IRANSansWeb',
               }}
               formatter={(value, name) => [
-                Number(value ?? 0).toLocaleString('fa-IR'),
+                Number(value ?? 0).toLocaleString(numberLocale),
                 String(name ?? ''),
               ]}
             />
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-light text-[var(--text-primary)]">
-            {total}
+          <span className="text-2xl font-light tabular-nums text-[var(--text-primary)]" title={total.toLocaleString(numberLocale)}>
+            {total.toLocaleString(numberLocale)}
           </span>
         </div>
       </div>
@@ -72,7 +76,7 @@ export function ChannelDonut({ data }: { data: DonutSlice[] }) {
             <span className="flex-1 truncate text-[var(--text-secondary)]">
               {d.label}
             </span>
-            <span className="text-[var(--text-primary)]">{d.value}</span>
+            <span className="tabular-nums text-[var(--text-primary)]">{d.value.toLocaleString(numberLocale)}</span>
           </li>
         ))}
       </ul>

@@ -27,8 +27,8 @@ export function DashboardBarList({
       {data.map((d, i) => (
         <li key={i}>
           <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-            <span className="truncate text-[var(--text-secondary)]">{d.label}</span>
-            <span className="shrink-0 font-semibold text-[var(--text-primary)]">
+            <span className="truncate text-[var(--text-secondary)]" title={d.label}>{d.label}</span>
+            <span className="shrink-0 tabular-nums font-semibold text-[var(--text-primary)]" title={formatValue ? formatValue(d.value) : d.value.toLocaleString('fa-IR')}>
               {formatValue ? formatValue(d.value) : d.value.toLocaleString('fa-IR')}
             </span>
           </div>

@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, Search, SlidersHorizontal, Users, X } from 'lucide-react'
 import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
-import { relativeTime } from '@/lib/format'
+import { smartTime, formatDateTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
 import { displayPhone } from '@/lib/phone'
 import { cn } from '@/lib/utils'
@@ -713,7 +713,7 @@ function ListView({
                                                                                 </div>
                                                                                 <div>
                                                                                         <span className="block text-[10px] text-[var(--text-muted)]">{t('latestActivity')}</span>
-                                                                                        <span className="mt-1 block truncate font-semibold text-[var(--text-primary)]">{relativeTime(c.lastActivity, locale)}</span>
+                                                                                        <span className="mt-1 block truncate font-semibold tabular-nums text-[var(--text-primary)]" title={formatDateTime(c.lastActivity, locale)}>{smartTime(c.lastActivity, locale)}</span>
                                                                                 </div>
                                                                         </div>
 
@@ -781,7 +781,7 @@ function ListView({
                                                         />
                                                         <div className="min-w-0 flex-1">
                                                                 <div className="flex flex-wrap items-center gap-2">
-                                                                        <span className="truncate text-sm font-medium text-[var(--text-primary)]">{rowDisplayName(c, t('anonymous'))}</span>
+                                                                        <span className="truncate text-sm font-medium text-[var(--text-primary)]" title={rowDisplayName(c, t('anonymous'))}>{rowDisplayName(c, t('anonymous'))}</span>
                                                                         {c.channels.map((ch) => {
                                                                                 const handle = c.channelUsernames?.[ch]
                                                                                 return (
@@ -793,8 +793,8 @@ function ListView({
                                                                         })}
                                                                         <SourceTagBadges tags={c.tags} />
                                                                 </div>
-                                                                <p className="truncate text-xs text-[var(--text-secondary)]">
-                                                                        {c.conversationCount} {t('conversations')} · {t('lastSeen')} {relativeTime(c.lastActivity, locale)}
+                                                                <p className="truncate text-xs tabular-nums text-[var(--text-secondary)]" title={`${rowDisplayName(c, t('anonymous'))} — ${c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} ${t('conversations')}`}>
+                                                                        {c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} {t('conversations')} · {t('lastSeen')} <span className="tabular-nums" title={formatDateTime(c.lastActivity, locale)}>{smartTime(c.lastActivity, locale)}</span>
                                                                 </p>
                                                                 {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-600">{t('marketingConsent')}</span>}
                                                         </div>

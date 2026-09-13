@@ -20,6 +20,7 @@ import { displayPhone } from '@/lib/phone'
 import { contactDisplayName } from '@/lib/crm/display'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { CopyButton } from '@/components/ui/copy-button'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { SalesInsightBadge, SalesInsightCard } from '@/components/crm/sales-insight'
 import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
@@ -196,17 +197,29 @@ export default async function ConversationThreadPage(props: {
                                                         <SalesInsightBadge insight={displayedSalesInsight} locale={locale} compactOnMobile />
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                                                        <span>{conversation.agent.name}</span>
+                                                        <span className="max-w-[16rem] truncate" title={conversation.agent.name}>{conversation.agent.name}</span>
                                                         {contactHandle && (
                                                                 <span dir="ltr" className="inline-flex items-center gap-1">
                                                                         @
-                                                                        {contactHandle}
+                                                                        <span className="align-middle">{contactHandle}</span>
+                                                                        <CopyButton
+                                                                                value={contactHandle}
+                                                                                label={t('copy')}
+                                                                                copiedLabel={t('copied')}
+                                                                                className="!min-h-6 !min-w-6 !rounded-lg !border-transparent !px-1 !bg-transparent hover:!bg-[var(--bg-hover)]"
+                                                                        />
                                                                 </span>
                                                         )}
                                                         {conversation.contact?.phone && (
                                                                 <span dir="ltr" className="inline-flex items-center gap-1">
                                                                         <Phone className="h-3 w-3" />
-                                                                        {displayPhone(conversation.contact.phone)}
+                                                                        <span className="align-middle">{displayPhone(conversation.contact.phone)}</span>
+                                                                        <CopyButton
+                                                                                value={conversation.contact.phone}
+                                                                                label={t('copy')}
+                                                                                copiedLabel={t('copied')}
+                                                                                className="!min-h-6 !min-w-6 !rounded-lg !border-transparent !px-1 !bg-transparent hover:!bg-[var(--bg-hover)]"
+                                                                        />
                                                                 </span>
                                                         )}
                                                 </div>

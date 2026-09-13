@@ -13,7 +13,13 @@ describe('improvement center interaction contract', () => {
   })
 
   it('uses a touch-friendly range and removes duplicate conversation navigation', () => {
-    expect(source).toContain('type="range" min={10} max={500} step={5}')
+    // The count control is now the shared Slider primitive (44px hit area,
+    // filled track, floating value) — assert its wiring instead of a bare
+    // native input string.
+    expect(source).toContain("import { Slider } from '@/components/ui/slider'")
+    expect(source).toMatch(/<Slider[^>]*min=\{10\}/)
+    expect(source).toMatch(/max=\{500\}/)
+    expect(source).toMatch(/step=\{5\}/)
     expect(source).toContain("['suggestions', 'history'] as const")
     expect(source).not.toContain('analysis-panel-conversations')
     expect(source).not.toContain('تحلیل دوبارهٔ گفتگوی بدون تغییر')

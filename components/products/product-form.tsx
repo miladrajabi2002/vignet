@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, ImagePlus, Layers, Loader2, Plus, Star, X } from 'lucide-react'
+import { ArrowRight, Layers, Loader2, Plus, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { UploadDropzone, uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 
 export interface CategoryOption {
   id: string
@@ -92,9 +94,12 @@ export function ProductForm({
       active: true,
     },
   )
+  const [initialSnapshot] = useState(() => JSON.stringify(initial ?? null))
+  const formDirty = useMemo(() => JSON.stringify(form) !== initialSnapshot, [form, initialSnapshot])
+  // Warn before leaving with unsaved product edits.
+  useUnsavedChangesGuard(formDirty)
+
   const [imageUrl, setImageUrl] = useState('')
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [imageError, setImageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -102,29 +107,6 @@ export function ProductForm({
   const set = <K extends keyof ProductFormData>(k: K, v: ProductFormData[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
 
-  async function uploadImages(files: FileList | null) {
-    if (!files?.length || form.images.length >= 10) return
-    setUploadingImage(true)
-    setImageError(null)
-    const available = 10 - form.images.length
-    const nextUrls: string[] = []
-    try {
-      for (const file of Array.from(files).slice(0, available)) {
-        const body = new FormData()
-        body.set('file', file)
-        const response = await fetch('/api/uploads/products', { method: 'POST', body })
-        if (!response.ok) throw new Error('UPLOAD_FAILED')
-        const data = await response.json() as { url?: string }
-        if (!data.url) throw new Error('UPLOAD_FAILED')
-        nextUrls.push(data.url)
-      }
-      setForm((current) => ({ ...current, images: [...current.images, ...nextUrls].slice(0, 10) }))
-    } catch {
-      setImageError(t('imageUploadFailed'))
-    } finally {
-      setUploadingImage(false)
-    }
-  }
 
   async function submit() {
     setSubmitting(true)
@@ -289,24 +271,34 @@ export function ProductForm({
           </div>
         )}
 
-        <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-muted)]/60 p-4">
-          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white transition-opacity hover:opacity-90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
-            {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-            {t('uploadImages')}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              multiple
-              disabled={uploadingImage || form.images.length >= 10}
-              className="sr-only"
-              onChange={(event) => {
-                void uploadImages(event.target.files)
-                event.target.value = ''
-              }}
-            />
-          </label>
-          <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{t('imageHelp')}</p>
-        </div>
+        {/* Drag-and-drop image queue: real per-file progress, retry from the
+            same file after a failure, and independent uploads — one failing
+            image never discards the rest of the batch. */}
+        <UploadDropzone<{ url?: string }>
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          multiple
+          maxFiles={Math.max(0, 10 - form.images.length)}
+          upload={async (file, onProgress) => {
+            const body = new FormData()
+            body.set('file', file)
+            const { response, status } = await uploadFileWithProgress('/api/uploads/products', body, onProgress)
+            if (status === 401) throw new Error(t('imageUploadFailed'))
+            const data = response as { url?: string } | null
+            if (!data?.url) throw new Error(t('imageUploadFailed'))
+            return data
+          }}
+          onFileUploaded={(_item, result) => {
+            if (result.url) setForm((current) => ({ ...current, images: [...current.images, result.url!].slice(0, 10) }))
+          }}
+          labels={{
+            dropHint: t('dropImagesHere'),
+            formatsHint: t('imageHelp'),
+            browse: t('uploadImages'),
+            retry: t('retryUpload'),
+            remove: t('removeImage'),
+            failed: t('imageUploadFailed'),
+          }}
+        />
 
         <div className="mt-3 flex gap-2">
           <input aria-label={t('imageUrl')} dir="ltr" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t('imageUrl')} className="input font-mono text-sm" />
@@ -325,7 +317,6 @@ export function ProductForm({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        {imageError && <p role="alert" className="mt-2 text-sm text-danger">{imageError}</p>}
       </Field>
 
       {/* Attributes */}

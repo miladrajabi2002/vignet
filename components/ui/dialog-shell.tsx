@@ -91,7 +91,7 @@ export function DialogShell({
         transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
       >
         <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] bg-white/95 p-4 pt-6 backdrop-blur sm:p-5">
-          <span aria-hidden="true" className="absolute start-1/2 top-2 h-1.5 w-11 -translate-x-1/2 rounded-full bg-black/15 sm:hidden" />
+          <span aria-hidden="true" className="absolute start-1/2 top-2 h-1.5 w-11 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-black/15 sm:hidden" />
           <div>
             <h2 id={titleId} className="text-base font-bold tracking-tight text-[var(--text-primary)]">{title}</h2>
             {subtitle && <p id={subtitleId} className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{subtitle}</p>}

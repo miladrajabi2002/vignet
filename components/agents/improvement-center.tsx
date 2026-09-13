@@ -33,6 +33,7 @@ import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ConversationCardSkeleton, HistoryCardSkeleton, ReviewCardSkeleton, SuggestionCardSkeleton, Skeleton } from '@/components/ui/skeleton'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
@@ -762,7 +763,17 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       {selection.mode === 'latest' && (
         <section className={`${surface} space-y-4 md:space-y-2 md:p-4`}>
           <div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-bold">{t('تعداد گفتگوها', 'Conversation count')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('فقط گفتگوهای تازه یا دارای پیام جدید انتخاب می‌شوند.', 'Only new or updated conversations are selected.')}</p></div><output htmlFor="improvement-count" className="min-w-14 rounded-xl bg-black px-3 py-2 text-center text-lg font-black tabular-nums text-white">{number(selection.count)}</output></div>
-          <label className="block"><span className="sr-only">{t('تعداد گفتگو برای تحلیل', 'Number of conversations to analyze')}</span><input id="improvement-count" type="range" min={10} max={500} step={5} className="h-11 w-full cursor-pointer accent-black touch-pan-x md:h-8" value={selection.count} onChange={(event) => updateSelection({ count: Number(event.target.value) })} /><span className="flex justify-between text-[10px] font-semibold text-[var(--text-muted)]" aria-hidden="true"><span>{number(10)}</span><span>{number(500)}</span></span></label>
+          <Slider
+            id="improvement-count"
+            aria-label={t('تعداد گفتگو برای تحلیل', 'Number of conversations to analyze')}
+            min={10}
+            max={500}
+            step={5}
+            value={selection.count}
+            onChange={(count) => updateSelection({ count })}
+            formatValue={number}
+            ticks={[10, 500]}
+          />
           <div className="grid grid-cols-4 gap-2">{[25, 50, 100, 200].map((count) => <button key={count} type="button" className={cn('min-h-11 rounded-xl border px-1 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 active:scale-[0.97] motion-reduce:transition-none md:min-h-9', selection.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => updateSelection({ count })}>{number(count)}</button>)}</div>
         </section>
       )}

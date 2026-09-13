@@ -15,13 +15,16 @@ export function LanguageSwitcher({ className }: { className?: string }) {
 
     try {
       const pathname = window.location.pathname
+      const search = window.location.search
+      const hash = window.location.hash
       const onEnPrefix = pathname === '/en' || pathname.startsWith('/en/')
 
       if (next === 'en' && !onEnPrefix) {
         // English gets a shareable, indexable URL prefix. Middleware rewrites
         // /en/<path> to <path> with an English locale override and persists
-        // the locale cookie — no separate API call needed.
-        window.location.assign(`/en${pathname === '/' ? '' : pathname}`)
+        // the locale cookie — no separate API call needed. Query params and
+        // hash survive the switch (e.g. /login?next=/onboarding).
+        window.location.assign(`/en${pathname === '/' ? '' : pathname}${search}${hash}`)
         return
       }
 
@@ -32,7 +35,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ locale: 'fa' }),
         })
-        window.location.assign(pathname.slice(3) || '/')
+        window.location.assign(`${pathname.slice(3) || '/'}${search}${hash}`)
         return
       }
 
@@ -60,7 +63,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       type="button"
       onClick={toggle}
       disabled={isPending}
-      aria-label="Switch language"
+      aria-label={locale === 'fa' ? 'تغییر زبان' : 'Switch language'}
       className={cn(
         'inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-2.5 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-50',
         className,

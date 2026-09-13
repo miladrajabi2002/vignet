@@ -192,6 +192,9 @@ export function AgentSettingsForm({
         const [deleteOpen, setDeleteOpen] = useState(false)
         const [deleting, setDeleting] = useState(false)
         const [deleteError, setDeleteError] = useState<string | null>(null)
+        // Danger-zone friction: the destructive button stays inert until the
+        // user types the agent's exact name — more danger, more confirmation.
+        const [deleteConfirmName, setDeleteConfirmName] = useState('')
         const reduceMotion = useReducedMotion()
         const deleteDialogRef = useRef<HTMLDivElement | null>(null)
         const cancelDeleteRef = useRef<HTMLButtonElement | null>(null)
@@ -476,7 +479,7 @@ export function AgentSettingsForm({
                                         </div>
                                         <button
                                                 type="button"
-                                                onClick={() => setDeleteOpen(true)}
+                                                onClick={() => { setDeleteConfirmName(''); setDeleteOpen(true) }}
                                                 className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-danger/30 bg-danger/5 px-4 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
                                         >
                                                 <Trash2 className="h-4 w-4" />
@@ -573,6 +576,21 @@ export function AgentSettingsForm({
                                                                         <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
                                                                                 {tf('deletePermanentHint')}
                                                                         </p>
+                                                                        <label className="mt-4 block text-start">
+                                                                                <span className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                        {locale === 'fa' ? 'برای تأیید، نام ایجنت را دقیقاً بنویسید:' : 'Type the agent name to confirm:'}
+                                                                                </span>
+                                                                                <input
+                                                                                        dir="auto"
+                                                                                        value={deleteConfirmName}
+                                                                                        onChange={(e) => setDeleteConfirmName(e.target.value)}
+                                                                                        disabled={deleting}
+                                                                                        autoComplete="off"
+                                                                                        spellCheck={false}
+                                                                                        className="input mt-1.5 font-mono text-sm"
+                                                                                        placeholder={agent.name}
+                                                                                />
+                                                                        </label>
                                                                         {deleteError && (
                                                                                 <p role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-start text-sm text-red-700">
                                                                                         {deleteError}
@@ -593,7 +611,8 @@ export function AgentSettingsForm({
                                                                         <button
                                                                                 type="button"
                                                                                 onClick={remove}
-                                                                                disabled={deleting}
+                                                                                disabled={deleting || deleteConfirmName.trim() !== agent.name.trim()}
+                                                                                title={deleteConfirmName.trim() !== agent.name.trim() ? (locale === 'fa' ? 'نام ایجنت را دقیقاً وارد کنید تا دکمه فعال شود' : 'Type the exact agent name to enable this button') : undefined}
                                                                                 className="inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                                                                         >
                                                                                 {deleting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}

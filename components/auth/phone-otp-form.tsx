@@ -160,9 +160,14 @@ export function PhoneOtpForm({
         if (!res.ok) {
           setError(data.error ?? 'INVALID_CODE')
           setShakeKey((k) => k + 1)
-          setCode(Array(OTP_LENGTH).fill(''))
-          setCodeVerified(false)
-          setTimeout(() => otpRefs.current[0]?.focus(), 0)
+          // Only wipe the typed digits when the code itself is wrong. On
+          // generic/network failures keep what the user typed so a retry
+          // never forces them to re-enter the same code (never start over).
+          if ((data.error ?? 'INVALID_CODE') === 'INVALID_CODE') {
+            setCode(Array(OTP_LENGTH).fill(''))
+            setCodeVerified(false)
+            setTimeout(() => otpRefs.current[0]?.focus(), 0)
+          }
           return
         }
 
@@ -330,7 +335,7 @@ export function PhoneOtpForm({
                 setCodeVerified(false)
                 submittingRef.current = false
               }}
-			  className="mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:mb-4"
+                          className="mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:mb-4"
             >
               <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
               {t('changeNumber')}
@@ -423,7 +428,7 @@ export function PhoneOtpForm({
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                  aria-label={`digit ${i + 1}`}
+                  aria-label={t('digitLabel', { n: i + 1 })}
                   className={`h-12 w-[clamp(2.35rem,11vw,3rem)] rounded-xl border text-center font-mono text-xl outline-none transition-[border-color,background-color,box-shadow] sm:h-14 sm:rounded-2xl sm:text-2xl ${
                     success || codeVerified
                       ? 'border-success text-success'
@@ -437,8 +442,10 @@ export function PhoneOtpForm({
               ))}
             </motion.div>
 
-            {/* Status line: verifying spinner → success check → error */}
-            <div className="mt-3 flex min-h-6 items-center justify-center text-sm sm:mt-4">
+            {/* Status line: verifying spinner → success check → error.
+                role=status + aria-live announce the transitions for screen
+                readers; the icon swap alone is silent. */}
+            <div className="mt-3 flex min-h-6 items-center justify-center text-sm sm:mt-4" role="status" aria-live="polite">
               <AnimatePresence mode="wait">
                 {success ? (
                   <motion.span
@@ -469,6 +476,7 @@ export function PhoneOtpForm({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="text-danger"
+                    role="alert"
                   >
                     {errorText(error)}
                   </motion.span>
@@ -519,7 +527,7 @@ export function PhoneOtpForm({
                 <button
                   onClick={requestOtp}
                   disabled={loading || success}
-                  className="text-[var(--text-secondary)] underline-offset-4 transition-colors hover:text-[var(--text-primary)] hover:underline"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium text-[var(--text-secondary)] underline-offset-4 transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] hover:underline disabled:opacity-50"
                 >
                   {t('resend')}
                 </button>

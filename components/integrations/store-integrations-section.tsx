@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 /**
  * Integrations page — "WordPress/WooCommerce" section.
@@ -64,6 +65,8 @@ export function StoreIntegrationsSection({
     const [showForm, setShowForm] = useState(false)
     const [syncingId, setSyncingId] = useState<string | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [togglingId, setTogglingId] = useState<string | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<StoreIntegrationItem | null>(null)
     const [notice, setNotice] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
 
     // Auto-poll when not connected.
@@ -140,20 +143,48 @@ export function StoreIntegrationsSection({
     }
 
     async function toggleActive(integration: StoreIntegrationItem) {
-        await fetch(`/api/integrations/${integration.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ active: !integration.active }),
-        })
-        router.refresh()
+        if (togglingId) return
+        setTogglingId(integration.id)
+        setNotice(null)
+        // Optimistic flip — connection toggling is low-risk and instantly
+        // reversible, so the UI reacts first and rolls back on failure.
+        const nextActive = !integration.active
+        setIntegrations((prev) =>
+            prev.map((item) => (item.id === integration.id ? { ...item, active: nextActive } : item)),
+        )
+        try {
+            const res = await fetch(`/api/integrations/${integration.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: nextActive }),
+            })
+            if (!res.ok) throw new Error('toggle failed')
+            router.refresh()
+        } catch {
+            setIntegrations((prev) =>
+                prev.map((item) => (item.id === integration.id ? { ...item, active: integration.active } : item)),
+            )
+            setNotice({
+                type: 'err',
+                msg: nextActive
+                    ? 'فعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.'
+                    : 'غیرفعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.',
+            })
+        } finally {
+            setTogglingId(null)
+        }
     }
 
     async function remove(integration: StoreIntegrationItem) {
-        if (!confirm('این اتصال حذف شود؟')) return
         setDeletingId(integration.id)
         try {
-            await fetch(`/api/integrations/${integration.id}`, { method: 'DELETE' })
+            const res = await fetch(`/api/integrations/${integration.id}`, { method: 'DELETE' })
+            if (!res.ok) throw new Error('delete failed')
+            setDeleteTarget(null)
             router.refresh()
+        } catch {
+            setDeleteTarget(null)
+            setNotice({ type: 'err', msg: 'حذف اتصال انجام نشد؛ دوباره تلاش کنید.' })
         } finally {
             setDeletingId(null)
         }
@@ -234,9 +265,10 @@ export function StoreIntegrationsSection({
                     integration={integration}
                     syncing={syncingId === integration.id}
                     deleting={deletingId === integration.id}
+                    toggling={togglingId === integration.id}
                     onSync={() => syncNow(integration)}
                     onToggle={() => toggleActive(integration)}
-                    onDelete={() => remove(integration)}
+                    onDelete={() => setDeleteTarget(integration)}
                     planLimits={planLimits}
                 />
             ))}
@@ -255,6 +287,23 @@ export function StoreIntegrationsSection({
                     </Link>
                 </div>
             </div>
+
+            {/* Branded confirm for removing a store connection (replaces the
+                native confirm(): focus trap, Esc, scroll lock, focus return). */}
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                title="حذف اتصال سایت"
+                description={
+                    deleteTarget
+                        ? `اتصال به ${deleteTarget.storeUrl} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.`
+                        : undefined
+                }
+                confirmLabel="حذف اتصال"
+                tone="danger"
+                busy={deletingId !== null}
+                onConfirm={() => deleteTarget && remove(deleteTarget)}
+                onClose={() => { if (deletingId === null) setDeleteTarget(null) }}
+            />
         </div>
     )
 }
@@ -316,6 +365,7 @@ function IntegrationCard({
     integration,
     syncing,
     deleting,
+    toggling,
     onSync,
     onToggle,
     onDelete,
@@ -324,6 +374,7 @@ function IntegrationCard({
     integration: StoreIntegrationItem
     syncing: boolean
     deleting: boolean
+    toggling: boolean
     onSync: () => void
     onToggle: () => void
     onDelete: () => void
@@ -371,8 +422,8 @@ function IntegrationCard({
                                 {statusLabel}
                             </span>
                             {isPluginConfigured && (
-                                <span className="text-xs text-[var(--text-muted)]">
-                                    {integration._count.orders} سفارش · {integration._count.syncLogs} رویداد اخیر
+                                <span className="text-xs tabular-nums text-[var(--text-muted)]">
+                                    {integration._count.orders.toLocaleString('fa-IR')} سفارش · {integration._count.syncLogs.toLocaleString('fa-IR')} رویداد اخیر
                                 </span>
                             )}
                         </div>
@@ -392,8 +443,11 @@ function IntegrationCard({
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                        disabled={toggling}
+                        aria-busy={toggling || undefined}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
+                        {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                         {integration.active ? 'غیرفعال' : 'فعال'}
                     </button>
                     <button

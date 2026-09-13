@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale } from 'next-intl'
 import { RadialBar, RadialBarChart, ResponsiveContainer, PolarAngleAxis } from 'recharts'
 
 /**
@@ -15,6 +16,8 @@ export function SatisfactionGauge({
   count: number
   label: string
 }) {
+  const locale = useLocale()
+  const numberLocale = locale === 'fa' ? 'fa-IR' : 'en-US'
   const score = value ?? 0
   const pct = Math.max(0, Math.min(100, (score / 5) * 100))
   const data = [{ name: 'csat', value: pct, fill: 'rgb(var(--ink-rgb))' }]
@@ -34,15 +37,16 @@ export function SatisfactionGauge({
             background={{ fill: 'rgba(var(--ink-rgb),0.06)' }}
             dataKey="value"
             cornerRadius={8}
+            isAnimationActive={false}
           />
         </RadialBarChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-light text-[var(--text-primary)]">
-          {value ? value.toFixed(1) : '—'}
+        <span className="text-3xl font-light tabular-nums text-[var(--text-primary)]">
+          {value ? value.toLocaleString(numberLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}
         </span>
-        <span className="text-xs text-[var(--text-secondary)]">
-          {count} {label}
+        <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+          {count.toLocaleString(numberLocale)} {label}
         </span>
       </div>
     </div>

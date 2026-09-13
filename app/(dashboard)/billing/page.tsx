@@ -154,15 +154,15 @@ export default async function BillingPage(
         <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-3">
           <div className="rounded-xl bg-[var(--bg-muted)] p-3">
             <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p>
-            <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
           </div>
           <div className="rounded-xl bg-[var(--bg-muted)] p-3">
             <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
-            <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
           </div>
           <div className="rounded-xl bg-[var(--bg-muted)] p-3">
             <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p>
-            <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
           </div>
         </div>
       </section>
@@ -237,7 +237,7 @@ export default async function BillingPage(
                   )}
                 </div>
                 <div className="mt-3">
-                  <span className="text-2xl font-bold text-[var(--text-primary)]">
+                  <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">
                     {nf.format(def.priceIRR / 10)}
                   </span>
                   <span className="ms-1 text-xs text-[var(--text-muted)]">

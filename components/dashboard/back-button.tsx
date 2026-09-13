@@ -1,4 +1,6 @@
-import Link from 'next/link'
+'use client'
+
+import { useRouter } from 'next/navigation'
 import { ChevronLeft, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -16,13 +18,16 @@ import { cn } from '@/lib/utils'
  *  - Tactile micro-interactions: hover lifts the surface + darkens text; active
  *    scales down 2.5% (matches the existing `.spatial-press` feel).
  *
- * Usage (drop-in replacement for the old bare `<Link>` back buttons):
+ * Behaviour — "scroll is state":
+ *  When the user arrived here through an in-app navigation (list → detail),
+ *  clicking back performs a real history back so Next.js restores the exact
+ *  scroll position of the list they came from. Deep links (no in-app history)
+ *  fall back to a plain push of `href`.
+ *
+ * Usage:
  *
  *   <BackButton href="/agents" label={t('title')} />
  *   <BackButton href="/products" label="محصولات" icon={Package} />
- *
- * The component is intentionally a server component (no 'use client') — it's
- * a pure styled <Link> with no hooks, so it works everywhere.
  */
 export function BackButton({
   href,
@@ -36,9 +41,25 @@ export function BackButton({
   icon?: LucideIcon
   className?: string
 }) {
+  const router = useRouter()
+
+  function handleBack() {
+    // `idx` is the Next.js App Router history index. idx > 0 means this page
+    // was reached through an in-app navigation, so a real `back()` restores
+    // the previous page (and its scroll position). Direct loads / deep links
+    // have no in-app history to return to — push the fallback href instead.
+    const idx = window.history.state?.idx
+    if (typeof idx === 'number' && idx > 0) {
+      router.back()
+    } else {
+      router.push(href)
+    }
+  }
+
   return (
-    <Link
-      href={href}
+    <button
+      type="button"
+      onClick={handleBack}
       className={cn(
         'group/back inline-flex items-center gap-1.5 rounded-full',
         'border border-black/[0.06] bg-white/70 backdrop-blur-xl',
@@ -60,6 +81,6 @@ export function BackButton({
         <ChevronLeft className="h-4 w-4 shrink-0 transition-transform duration-150 rtl:rotate-180 rtl:group-hover/back:translate-x-0.5 group-hover/back:-translate-x-0.5" />
       )}
       <span className="max-w-[12rem] truncate">{label}</span>
-    </Link>
+    </button>
   )
 }

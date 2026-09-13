@@ -89,6 +89,13 @@ export default async function DashboardLayout({
   return (
     <ScopedIntlProvider messagePaths={DASHBOARD_CLIENT_MESSAGE_PATHS}>
     <div className="dashboard-canvas flex min-h-dvh bg-[var(--bg-base)]">
+      {/* Keyboard users can jump past the sidebar/header chrome in one Tab. */}
+      <a
+        href="#dashboard-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:inset-x-0 focus:top-2 focus:z-[80] focus:m-auto focus:block focus:w-fit focus:rounded-xl focus:bg-black focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+      >
+        پرش به محتوای اصلی
+      </a>
       <Sidebar businessType={workspace?.businessType} services={businessProfile?.services} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
@@ -117,7 +124,7 @@ export default async function DashboardLayout({
           businessType={workspace?.businessType}
           services={businessProfile?.services ?? []}
         />
-        <main className="dashboard-shell-content flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:pt-5 md:pb-10">
+        <main id="dashboard-main" tabIndex={-1} className="dashboard-shell-content flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:pt-5 md:pb-10 focus:outline-none">
           <div className="dashboard-main">{children}</div>
         </main>
         <BackToTop />

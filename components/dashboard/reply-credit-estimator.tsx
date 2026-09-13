@@ -70,10 +70,10 @@ export function ReplyCreditEstimator({
               <Sparkles className="h-3 w-3 text-[var(--text-muted)]" />
               <span className="truncate text-xs font-medium text-[var(--text-primary)]">{item.name}</span>
             </div>
-            <span className="text-[11px] text-[var(--text-muted)]">
+            <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
               {nf.format(item.price / 10)} {fa ? 'تومان / پاسخ' : 'toman / reply'}
             </span>
-            <span className="mt-0.5 text-base font-bold text-[var(--text-primary)]">
+            <span className="mt-0.5 text-base font-bold tabular-nums text-[var(--text-primary)]" title={nf.format(item.replies)}>
               ≈ {nf.format(item.replies)}
             </span>
           </div>

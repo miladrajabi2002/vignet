@@ -22,6 +22,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <ScopedIntlProvider messagePaths={ADMIN_CLIENT_MESSAGE_PATHS}>
     <div dir="rtl" className="admin-root dashboard-canvas flex min-h-dvh bg-[var(--bg-base)] font-fa text-[var(--text-primary)]">
+        {/* Keyboard users can jump past the admin sidebar/header chrome. */}
+        <a
+          href="#admin-main"
+          className="sr-only focus:not-sr-only focus:fixed focus:inset-x-0 focus:top-2 focus:z-[80] focus:m-auto focus:block focus:w-fit focus:rounded-xl focus:bg-black focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          پرش به محتوای اصلی
+        </a>
         <aside className="spatial-surface sticky top-3 m-3 me-0 hidden h-[calc(100dvh-1.5rem)] w-[17rem] shrink-0 flex-col overflow-hidden rounded-[1.75rem] p-3 md:flex">
           <div className="pb-3">
             <BrandHeader />
@@ -61,7 +68,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
           </header>
 
-          <main className="flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10">
+          <main id="admin-main" tabIndex={-1} className="flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10 focus:outline-none">
             <div className="dashboard-main mx-auto w-full md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]">{children}</div>
           </main>
         </div>

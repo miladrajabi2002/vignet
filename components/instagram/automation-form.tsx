@@ -10,6 +10,7 @@ import {
         type UIEvent,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import {
@@ -233,6 +234,13 @@ export function AutomationForm({
 }) {
         const router = useRouter()
         const [form, setForm] = useState<FormState>(() => toFormState(initial, type))
+        const [initialForm] = useState<FormState>(() => toFormState(initial, type))
+        const formDirty = useMemo(
+                () => JSON.stringify(form) !== JSON.stringify(initialForm),
+                [form, initialForm],
+        )
+        // Warn before the tab is closed/reloaded with unsaved scenario edits.
+        useUnsavedChangesGuard(formDirty)
         const [keywordInput, setKeywordInput] = useState('')
         const [busy, setBusy] = useState(false)
         const [error, setError] = useState<string | null>(null)

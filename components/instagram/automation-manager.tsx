@@ -1,31 +1,30 @@
 'use client'
 
-import { useMemo, useState, useRef } from 'react'
-import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useMemo, useState } from 'react'
+import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
 import { useRouter } from 'next/navigation'
 import {
-        MessageCircle,
-        MessageSquare,
-        Circle,
-        Plus,
-        Loader2,
-        Bot,
-        Shield,
-        Zap,
-        Settings2,
-        Save,
-        X,
-        ChevronDown,
-        Camera,
-        Check,
-        Heart,
-        Trash2,
-        type LucideIcon,
+    MessageCircle,
+    MessageSquare,
+    Circle,
+    Plus,
+    Loader2,
+    Bot,
+    Shield,
+    Zap,
+    Settings2,
+    Save,
+    X,
+    ChevronDown,
+    Camera,
+    Check,
+    Heart,
+    type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Switch } from '@/components/ui/switch'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useTranslations, useLocale } from 'next-intl'
 import {
         type Automation,
@@ -88,9 +87,6 @@ export function InstagramAutomationManager({
         const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
         const [deleting, setDeleting] = useState(false)
         const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-        const reduceMotion = useReducedMotion()
-        const deleteDialogRef = useRef<HTMLDivElement | null>(null)
-        const cancelDeleteRef = useRef<HTMLButtonElement | null>(null)
 
         const byType = useMemo(() => {
                 const map: Record<AutomationType, Automation[]> = {
@@ -289,71 +285,19 @@ export function InstagramAutomationManager({
                                 </div>
                         </section>
 
-                        {/* Delete confirmation dialog — uses the same portal + motion + backdrop-blur
-                            pattern as the product/conversation delete dialogs so the visual layering
-                            (z-index, blur strength, animation) stays consistent across the app. */}
-                        {typeof document !== 'undefined' && createPortal(
-                                <AnimatePresence>
-                                        {deleteTarget && (
-                                                <motion.div
-                                                        className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4 backdrop-blur-md"
-                                                        initial={reduceMotion ? false : { opacity: 0 }}
-                                                        animate={{ opacity: 1 }}
-                                                        exit={{ opacity: 0 }}
-                                                        transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
-                                                        onMouseDown={(event) => {
-                                                                if (event.target === event.currentTarget && !deleting) setDeleteTarget(null)
-                                                        }}
-                                                >
-                                                        <motion.div
-                                                                ref={deleteDialogRef}
-                                                                role="dialog"
-                                                                aria-modal="true"
-                                                                aria-label={t('manager.deleteConfirmAria')}
-                                                                className="w-full max-w-[27rem] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
-                                                                initial={reduceMotion ? false : { opacity: 0, scale: 0.96, y: 12 }}
-                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                                                                transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
-                                                        >
-                                                                <div className="p-6 pb-5 text-center sm:text-start">
-                                                                        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:mx-0">
-                                                                                <Trash2 className="h-5 w-5" aria-hidden="true" />
-                                                                        </span>
-                                                                        <h2 className="mt-4 text-lg font-bold tracking-tight text-[var(--text-primary)]">
-                                                                                {t('manager.deleteTitle')}
-                                                                        </h2>
-                                                                        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                                                                                {t('manager.deleteConfirmBody', { name: deleteTarget.name })}
-                                                                        </p>
-                                                                </div>
-
-                                                                <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/60 p-4 sm:flex-row sm:justify-end">
-                                                                        <button
-                                                                                ref={cancelDeleteRef}
-                                                                                type="button"
-                                                                                onClick={() => setDeleteTarget(null)}
-                                                                                disabled={deleting}
-                                                                                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] disabled:opacity-50"
-                                                                        >
-                                                                                {t('manager.cancel')}
-                                                                        </button>
-                                                                        <button
-                                                                                type="button"
-                                                                                onClick={confirmDelete}
-                                                                                disabled={deleting}
-                                                                                className="inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                        >
-                                                                                {deleting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                                                                                {t('manager.delete')}
-                                                                        </button>
-                                                                </div>
-                                                        </motion.div>
-                                                </motion.div>
-                                        )}
-                                </AnimatePresence>,
-                                document.body,
-                        )}
+                        {/* Delete confirmation — shared ConfirmDialog primitive gives us
+                            focus trap, Esc-to-close, scroll lock and focus restore for free. */}
+                        <ConfirmDialog
+                                open={deleteTarget !== null}
+                                title={t('manager.deleteTitle')}
+                                description={deleteTarget ? t('manager.deleteConfirmBody', { name: deleteTarget.name }) : undefined}
+                                confirmLabel={t('manager.delete')}
+                                cancelLabel={t('manager.cancel')}
+                                tone="danger"
+                                busy={deleting}
+                                onConfirm={confirmDelete}
+                                onClose={() => { if (!deleting) setDeleteTarget(null) }}
+                        />
 
                         {/* Toast */}
                         {toast && (
@@ -396,6 +340,8 @@ function ChannelSettingsCard({
         const [settingsTab, setSettingsTab] = useState<'dm' | 'story' | 'comment' | 'reaction'>('dm')
 
         const dirty = JSON.stringify(draft) !== JSON.stringify(settings)
+        // Warn before leaving with unsaved IG settings edits.
+        useUnsavedChangesGuard(dirty)
 
         function set<K extends keyof InstagramAutomationSettings>(
                 k: K,

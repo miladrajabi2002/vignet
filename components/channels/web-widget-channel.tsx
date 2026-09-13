@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
+import { Slider } from '@/components/ui/slider'
 import { useTranslations, useLocale } from 'next-intl'
 import {
         Globe,
@@ -76,6 +78,13 @@ export function WebWidgetChannel({
         const initial = normalizeWidgetSettings(config)
         const [settings, setSettings] = useState<WidgetSettings>(initial)
         const [domainsText, setDomainsText] = useState(initial.allowedDomains.join('\n'))
+
+        // Warn before leaving with unsaved widget settings edits.
+        const settingsDirty = useMemo(
+                () => JSON.stringify(settings) !== JSON.stringify(initial) || domainsText !== initial.allowedDomains.join('\n'),
+                [settings, domainsText, initial],
+        )
+        useUnsavedChangesGuard(settingsDirty)
 
         const snippet = `<script src="${baseUrl}/widget/loader.js" data-agent-id="${agentId}"></script>`
 
@@ -439,14 +448,14 @@ export function WebWidgetChannel({
                                                                                 label={`${t('corners')} · ${settings.cornerRadius || settings.corners === 'soft' ? settings.cornerRadius || 17 : settings.corners === 'round' ? 20 : settings.corners === 'sharp' ? 9 : 17}px`}
                                                                         >
                                                                                 <div className="space-y-2">
-                                                                                        <input
-                                                                                                type="range"
+                                                                                        <Slider
+                                                                                                aria-label={t('corners')}
                                                                                                 min={0}
                                                                                                 max={30}
                                                                                                 step={1}
                                                                                                 value={settings.cornerRadius}
-                                                                                                onChange={(e) => patch({ cornerRadius: Number(e.target.value) })}
-                                                                                                className="w-full accent-[var(--white)]"
+                                                                                                onChange={(cornerRadius) => patch({ cornerRadius })}
+                                                                                                formatValue={(v) => `${v}px`}
                                                                                         />
                                                                                         <div className="flex items-center gap-1.5">
                                                                                                 <RotateCw className="h-3 w-3 text-[var(--text-muted)]" />
@@ -497,16 +506,14 @@ export function WebWidgetChannel({
                                                                                 <Field
                                                                                         label={`${t('autoGreetDelayLabel')} · ${(settings.autoGreetDelayMs / 1000).toFixed(1)}s`}
                                                                                 >
-                                                                                        <input
-                                                                                                type="range"
+                                                                                        <Slider
+                                                                                                aria-label={t('autoGreetDelayLabel')}
                                                                                                 min={1000}
                                                                                                 max={15000}
                                                                                                 step={500}
                                                                                                 value={settings.autoGreetDelayMs}
-                                                                                                onChange={(e) =>
-                                                                                                        patch({ autoGreetDelayMs: Number(e.target.value) })
-                                                                                                }
-                                                                                                className="w-full accent-[var(--white)]"
+                                                                                                onChange={(autoGreetDelayMs) => patch({ autoGreetDelayMs })}
+                                                                                                formatValue={(v) => `${(v / 1000).toFixed(1)}s`}
                                                                                         />
                                                                                 </Field>
                                                                         )}

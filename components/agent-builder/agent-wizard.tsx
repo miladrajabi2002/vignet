@@ -687,7 +687,7 @@ export function AgentWizard({
                                         </motion.div>
                                 </AnimatePresence>
 
-                                {error && <p className="mt-4 text-sm text-danger">{tA('emptyDesc')}</p>}
+                                {error && <p className="mt-4 text-sm text-danger" role="alert">{tA('createFailed')}</p>}
 
                                 <div className="mt-8 flex items-center justify-between">
                                         {step === 0 && onboardingMode ? (

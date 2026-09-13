@@ -124,7 +124,7 @@ export async function PricingSection() {
                                                                                 style={recommended ? undefined : { boxShadow: 'var(--shadow-sm)' }}
                                                         >
                                                                                 {recommended ? (
-                                                                                        <span className="absolute start-1/2 top-0 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white">
+                                                                                        <span className="absolute start-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white">
                                                                                                 {locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'}
                                                                                         </span>
                                                                                 ) : null}

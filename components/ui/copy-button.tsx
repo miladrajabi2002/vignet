@@ -35,8 +35,11 @@ export function CopyButton({
       input.style.opacity = '0'
       document.body.appendChild(input)
       input.select()
-      document.execCommand('copy')
+      // Only claim success when a copy actually happened — never announce
+      // "copied" if the fallback silently failed (screen-reader honesty).
+      const copiedViaFallback = document.execCommand('copy')
       input.remove()
+      if (!copiedViaFallback) return
     }
     setCopied(true)
   }
@@ -60,6 +63,10 @@ export function CopyButton({
         <Copy className="h-4 w-4" aria-hidden="true" />
       )}
       {showLabel && <span>{accessibleLabel}</span>}
+      {/* Announce the copy result to assistive tech; icon swaps alone are silent. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {copied ? copiedLabel : ''}
+      </span>
     </button>
   )
 }
