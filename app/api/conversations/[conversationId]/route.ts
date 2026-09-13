@@ -100,28 +100,23 @@ export async function DELETE(_req: Request, props: Params) {
   })
   if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
+  // SOFT delete (deletedAt stamp) — same as the bulk route. The message
+  // history and everything attached to the thread stay intact, so the
+  // «بازگردانی» (undo) snackbar shown right after the delete can bring the
+  // whole conversation back within the window. The worker's purge sweeper
+  // physically removes rows (and their messages) after 7 days.
   try {
-    await prisma.$transaction(async (tx) => {
-      // UsageLog intentionally keeps its historical billing data, but must no
-      // longer point at a conversation that is about to be removed.
-      await tx.usageLog.updateMany({
-        where: { conversationId: conversation.id },
-        data: { conversationId: null },
-      })
-      await tx.message.deleteMany({ where: { conversationId: conversation.id } })
-      await tx.handoffAlert.deleteMany({ where: { conversationId: conversation.id } })
-
-      // Keep the workspace predicate on the destructive query as a final
-      // authorization guard (and make a concurrent deletion harmless).
-      // Raw SQL on purpose: this route already destroys the messages and
-      // detaches billing rows, so it must be a REAL delete — the soft-delete
-      // extension would otherwise trash the row while its history is gone.
-      const deleted = await tx.$executeRaw`
-        DELETE FROM "Conversation"
-        WHERE "id" = ${conversation.id} AND "workspaceId" = ${user.workspaceId}
-      `
-      if (deleted !== 1) throw new Error('CONVERSATION_DELETE_RACE')
+    // Soft delete must be explicit inside the guard: the root-client
+    // auto-conversion does not apply here.
+    const deleted = await prisma.conversation.updateMany({
+      where: {
+        id: conversation.id,
+        workspaceId: user.workspaceId,
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
     })
+    if (deleted.count !== 1) throw new Error('CONVERSATION_DELETE_RACE')
   } catch (error) {
     console.error('Failed to delete conversation', {
       conversationId: conversation.id,
@@ -131,5 +126,5 @@ export async function DELETE(_req: Request, props: Params) {
     return NextResponse.json({ error: 'DELETE_FAILED' }, { status: 500 })
   }
 
-  return new NextResponse(null, { status: 204 })
+  return NextResponse.json({ ok: true, deleted: 1, ids: [conversation.id] })
 }

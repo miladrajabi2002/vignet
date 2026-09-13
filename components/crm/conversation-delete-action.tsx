@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Loader2, Trash2 } from 'lucide-react'
+import { queueUndo } from '@/lib/undo-queue'
 
 export function ConversationDeleteAction({
   conversationId,
@@ -13,6 +14,7 @@ export function ConversationDeleteAction({
   conversationId: string
 }) {
   const t = useTranslations('conversations')
+  const locale = useLocale()
   const router = useRouter()
   const reduceMotion = useReducedMotion()
   const [showDialog, setShowDialog] = useState(false)
@@ -80,7 +82,11 @@ export function ConversationDeleteAction({
       })
       if (response.ok) {
         setShowDialog(false)
+        // Queue the global «بازگردانی» toast BEFORE navigating back to the
+        // inbox — the toast lives in the dashboard layout and survives it.
+        queueUndo('conversation', [conversationId], locale === 'en' ? 'conversation' : 'گفتگو')
         router.replace('/conversations')
+        router.refresh()
         return
       }
       setError(t('deleteFailed'))

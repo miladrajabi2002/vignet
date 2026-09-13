@@ -1717,6 +1717,25 @@ html[dir='rtl'] .blog-content td {
         to { transform: scaleX(0); }
 }
 
+/* Indeterminate slide used while a restore request is in flight. */
+@keyframes undo-indeterminate {
+        0% { transform: translateX(-150%); }
+        100% { transform: translateX(450%); }
+}
+html[dir='rtl'] .undo-indeterminate {
+        animation-name: undo-indeterminate-rtl;
+}
+@keyframes undo-indeterminate-rtl {
+        0% { transform: translateX(150%); }
+        100% { transform: translateX(-450%); }
+}
+.undo-indeterminate {
+        animation: undo-indeterminate 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+        .undo-indeterminate { animation: none; }
+}
+
 /* ── Settings search anchor flash ──────────────────────────────────────────
    Brief highlight ring when a search result jumps to a settings section. */
 @keyframes settings-target-flash {

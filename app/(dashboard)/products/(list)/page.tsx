@@ -202,6 +202,7 @@ export default async function ProductsPage(
               countEndpoint="/api/products/bulk"
               deleteEndpoint="/api/products/bulk"
               restoreEndpoint="/api/products/bulk/restore"
+              undoKind="product"
               entityLabel={fa ? 'محصولات' : 'products'}
               entitySingularLabel={fa ? 'محصول' : 'product'}
               buttonLabel={fa ? 'حذف همه محصولات' : 'Delete all'}
@@ -278,11 +279,7 @@ export default async function ProductsPage(
             defaultStock={stock}
             totalResults={totalProducts}
           />
-          <ProductGrid
-            products={pageProducts}
-            totalResults={totalProducts}
-            filters={{ q, categoryId, stock }}
-          />
+          <ProductGrid products={pageProducts} />
           <Pagination
             page={page}
             totalPages={totalPages}

@@ -23,8 +23,7 @@ import {
 } from '@/components/crm/live-arrivals'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
-import { fetchAllResultIds, SelectionBar, SelectionHeader } from '@/components/ui/selection-bar'
-import { useTableSelection } from '@/lib/hooks/use-table-selection'
+import { UNDO_RESTORED_EVENT } from '@/lib/undo-queue'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { ContactDetailSheet } from '@/components/crm/contact-detail-sheet'
 import { ContactQuickAdd } from '@/components/crm/contact-quick-add'
@@ -131,6 +130,7 @@ export function ContactsView({
         const [channelFilter, setChannelFilter] = useState<ChannelType | ''>(initialChannelFilter)
         const [tagFilter, setTagFilter] = useState(initialTagFilter)
         const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+        const [selected, setSelected] = useState<Set<string>>(() => new Set())
         const filterTriggerRef = useRef<HTMLButtonElement>(null)
         const detailTriggerRef = useRef<HTMLElement | null>(null)
         const detailOpenedLocallyRef = useRef(false)
@@ -138,6 +138,16 @@ export function ContactsView({
         useEffect(() => {
                 setRows(initial)
         }, [initial])
+
+        // When a deleted selection is restored via the global undo toast the
+        // row ids are stale — drop the local selection.
+        useEffect(() => {
+                function onRestored() {
+                        setSelected(new Set())
+                }
+                window.addEventListener(UNDO_RESTORED_EVENT, onRestored)
+                return () => window.removeEventListener(UNDO_RESTORED_EVENT, onRestored)
+        }, [])
 
         useEffect(() => {
                 setQuery(serverQuery)
@@ -196,31 +206,8 @@ export function ContactsView({
                 })
         }, [rows, stageFilter, channelFilter, tagFilter])
 
-        // ── Row selection: tri-state header + Shift+Click ranges + select-all-N.
-        // `visibleIds` tracks the filtered page so shift ranges match what the
-        // user actually sees.
-        const selection = useTableSelection(filtered.map((row) => row.id))
-        const selected = selection.selected
-        const [loadingAll, setLoadingAll] = useState(false)
-
-        // Select every id matching the SERVER-applied filters (what
-        // totalResults counts) — not the mid-debounce local state.
-        async function handleSelectAllResults() {
-                setLoadingAll(true)
-                try {
-                        const params = new URLSearchParams()
-                        if (serverQuery.trim()) params.set('q', serverQuery.trim())
-                        if (initialStageFilter) params.set('stage', initialStageFilter)
-                        if (initialChannelFilter) params.set('channel', initialChannelFilter)
-                        if (initialTagFilter) params.set('tag', initialTagFilter)
-                        const ids = await fetchAllResultIds('/api/contacts/ids', params)
-                        selection.setSelectedIds(ids)
-                } catch {
-                        // Best effort — the button stays available for a retry.
-                } finally {
-                        setLoadingAll(false)
-                }
-        }
+        // ── Row selection: simple Set — plain checkboxes, no shift/ranges.
+        // (Reverted from the tri-state experiment per user request.)
 
         const selectedPreview = detailContactId
                 ? rows.find((row) => row.id === detailContactId)
@@ -263,8 +250,13 @@ export function ContactsView({
 
         const hasFilters = Boolean(query || stageFilter || channelFilter || tagFilter)
 
-        function toggleSelected(id: string, shiftKey?: boolean) {
-                selection.toggle(id, { shiftKey })
+        function toggleSelected(id: string) {
+                setSelected((current) => {
+                        const next = new Set(current)
+                        if (next.has(id)) next.delete(id)
+                        else next.add(id)
+                        return next
+                })
         }
 
         function clearFilters() {
@@ -272,7 +264,7 @@ export function ContactsView({
                 setStageFilter('')
                 setChannelFilter('')
                 setTagFilter('')
-                selection.clear()
+                setSelected(new Set())
                 router.push('/contacts')
         }
 
@@ -359,8 +351,8 @@ export function ContactsView({
                                                                 ? 'گفتگوهای مشتریان حفظ می‌شوند؛ با حذف یا بازگردانی، لینک گفتگوها هم به همان شکل برمی‌گردد.'
                                                                 : 'Conversations are preserved; restoring also brings their links back.'}
                                                         compactOnMobile
-                                                        onDeleted={() => selection.clear()}
-                                                        onRestored={() => selection.clear()}
+                                                        undoKind="contact"
+                                                        onDeleted={() => setSelected(new Set())}
                                                 />
                                                 <CampaignLaunchButton
                                                         audience={campaignAudience}
@@ -510,6 +502,7 @@ export function ContactsView({
                                 <span className="inline-flex items-center gap-1.5" aria-live="polite"><Filter className="h-3.5 w-3.5" />{locale === 'fa' ? `${visibleResultCount.toLocaleString('fa-IR')} نتیجه` : `${visibleResultCount} results`}</span>
                                 <div className="flex flex-wrap items-center gap-2">
                                         <LiveArrivalStatus resource="contacts" locale={locale} />
+                                        {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-11 rounded-xl px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
                                 </div>
                         </div>
 
@@ -519,27 +512,7 @@ export function ContactsView({
                                         <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
                                 </div>
                         ) : view === 'list' ? (
-                                <div className="space-y-3">
-                                        <SelectionHeader
-                                                locale={locale}
-                                                triState={selection.triState}
-                                                onToggleVisible={selection.toggleVisible}
-                                                visibleCount={filtered.length}
-                                                entityLabel={locale === 'fa' ? 'مشتری' : 'contact'}
-                                        />
-                                                                                        <SelectionBar
-                                                hidden={selected.size === 0}
-                                                        locale={locale}
-                                                        selectedCount={selected.size}
-                                                        visibleCount={filtered.length}
-                                                        totalResults={filtersMatchServer ? totalResults : filtered.length}
-                                                        loadingAll={loadingAll}
-                                                        allResultsSelected={selected.size >= (filtersMatchServer ? totalResults : filtered.length)}
-                                                        onSelectAllResults={handleSelectAllResults}
-                                                        onClear={selection.clear}
-                                                />
                                         <ListView rows={filtered} locale={locale} onMove={move} selected={selected} onToggleSelected={toggleSelected} onOpenContact={openContactDetails} />
-                                </div>
                         ) : (
                                 <PipelineView rows={filtered} onMove={move} />
                         )}
@@ -689,7 +662,7 @@ function ListView({
         locale: 'fa' | 'en'
         onMove: (id: string, s: Stage) => void
         selected: Set<string>
-        onToggleSelected: (id: string, shiftKey?: boolean) => void
+        onToggleSelected: (id: string) => void
         onOpenContact: (id: string, trigger: HTMLElement) => void
 }) {
         const t = useTranslations('contacts')
@@ -774,7 +747,7 @@ function ListView({
                                                                                 <input
                                                                                         type="checkbox"
                                                                                         checked={selected.has(c.id)}
-                                                                                        onChange={(event) => onToggleSelected(c.id, (event.nativeEvent as MouseEvent).shiftKey)}
+                                                                                        onChange={() => onToggleSelected(c.id)}
                                                                                         onClick={(event) => event.stopPropagation()}
                                                                                         className="h-4 w-4 accent-black"
                                                                                         aria-label={`${t('selectCustomer')}: ${name}`}
@@ -809,7 +782,7 @@ function ListView({
                                                         <input
                                                                 type="checkbox"
                                                                 checked={selected.has(c.id)}
-                                                                onChange={(event) => onToggleSelected(c.id, (event.nativeEvent as MouseEvent).shiftKey)}
+                                                                onChange={() => onToggleSelected(c.id)}
                                                                 className="h-4 w-4 accent-black"
                                                                 aria-label={`${t('selectCustomer')}: ${rowDisplayName(c, t('anonymous'))}`}
                                                         />

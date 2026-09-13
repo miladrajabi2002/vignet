@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Loader2, Trash2 } from 'lucide-react'
+import { queueUndo } from '@/lib/undo-queue'
 
 export function ContactDeleteAction({
   contactId,
@@ -15,6 +16,7 @@ export function ContactDeleteAction({
   returnTo?: string
 }) {
   const t = useTranslations('contacts.detail')
+  const locale = useLocale()
   const router = useRouter()
   const reduceMotion = useReducedMotion()
   const [showDialog, setShowDialog] = useState(false)
@@ -93,6 +95,9 @@ export function ContactDeleteAction({
       })
       if (response.ok) {
         setShowDialog(false)
+        // Queue the global «بازگردانی» toast BEFORE navigating — it lives in
+        // the dashboard layout, so it is already waiting on the list page.
+        queueUndo('contact', [contactId], locale === 'en' ? 'customer' : 'مشتری')
         router.replace(returnTo)
         router.refresh()
         return

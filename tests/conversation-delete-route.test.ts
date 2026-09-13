@@ -1,27 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
-  const tx = {
-    usageLog: { updateMany: vi.fn() },
-    message: { deleteMany: vi.fn() },
-    handoffAlert: { deleteMany: vi.fn() },
-    // The route deletes the conversation row via raw SQL so the soft-delete
-    // extension cannot turn it into a trash stamp (its history is gone).
-    $executeRaw: vi.fn(),
-  }
   return {
     getCurrentUser: vi.fn(),
     findFirst: vi.fn(),
-    transaction: vi.fn(),
-    tx,
+    // The DELETE handler soft-deletes via prisma.conversation.updateMany —
+    // no transaction, no raw SQL: messages/history must survive so the undo
+    // snackbar can restore the whole thread.
+    updateMany: vi.fn(),
   }
 })
 
 vi.mock('@/lib/session', () => ({ getCurrentUser: mocks.getCurrentUser }))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    conversation: { findFirst: mocks.findFirst },
-    $transaction: mocks.transaction,
+    conversation: { findFirst: mocks.findFirst, updateMany: mocks.updateMany },
+    $transaction: vi.fn(),
   },
 }))
 vi.mock('@/lib/queue/jobs', () => ({ dispatchSummary: vi.fn() }))
@@ -36,11 +30,7 @@ describe('DELETE /api/conversations/:conversationId', () => {
     vi.clearAllMocks()
     mocks.getCurrentUser.mockResolvedValue({ workspaceId: 'workspace-1' })
     mocks.findFirst.mockResolvedValue({ id: 'conversation-1' })
-    mocks.tx.usageLog.updateMany.mockResolvedValue({ count: 2 })
-    mocks.tx.message.deleteMany.mockResolvedValue({ count: 3 })
-    mocks.tx.handoffAlert.deleteMany.mockResolvedValue({ count: 1 })
-    mocks.tx.$executeRaw.mockResolvedValue(1)
-    mocks.transaction.mockImplementation(async (callback) => callback(mocks.tx))
+    mocks.updateMany.mockResolvedValue({ count: 1 })
   })
 
   it('rejects unauthenticated requests', async () => {
@@ -50,7 +40,7 @@ describe('DELETE /api/conversations/:conversationId', () => {
 
     expect(response.status).toBe(401)
     expect(mocks.findFirst).not.toHaveBeenCalled()
-    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.updateMany).not.toHaveBeenCalled()
   })
 
   it('does not expose or delete a conversation outside the workspace', async () => {
@@ -63,35 +53,32 @@ describe('DELETE /api/conversations/:conversationId', () => {
       where: { id: 'conversation-1', workspaceId: 'workspace-1' },
       select: { id: true },
     })
-    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.updateMany).not.toHaveBeenCalled()
   })
 
-  it('clears references and deletes dependants transactionally before the conversation', async () => {
+  it('soft-deletes with a deletedAt stamp (history survives for undo) and returns the id', async () => {
     const response = await DELETE(new Request('http://localhost'), props)
 
-    expect(response.status).toBe(204)
-    expect(await response.text()).toBe('')
-    expect(mocks.tx.usageLog.updateMany).toHaveBeenCalledWith({
-      where: { conversationId: 'conversation-1' },
-      data: { conversationId: null },
+    expect(response.status).toBe(200)
+    expect(mocks.updateMany).toHaveBeenCalledTimes(1)
+    expect(mocks.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'conversation-1',
+        workspaceId: 'workspace-1',
+        deletedAt: null,
+      },
+      data: { deletedAt: expect.any(Date) },
     })
-    expect(mocks.tx.message.deleteMany).toHaveBeenCalledWith({
-      where: { conversationId: 'conversation-1' },
-    })
-    expect(mocks.tx.handoffAlert.deleteMany).toHaveBeenCalledWith({
-      where: { conversationId: 'conversation-1' },
-    })
-    expect(mocks.tx.$executeRaw).toHaveBeenCalledTimes(1)
-    expect(mocks.tx.$executeRaw.mock.calls[0][0].join('')).toContain('DELETE FROM "Conversation"')
 
-    expect(mocks.tx.usageLog.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.tx.message.deleteMany.mock.invocationCallOrder[0],
-    )
-    expect(mocks.tx.message.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.tx.handoffAlert.deleteMany.mock.invocationCallOrder[0],
-    )
-    expect(mocks.tx.handoffAlert.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.tx.$executeRaw.mock.invocationCallOrder[0],
-    )
+    const body = await response.json()
+    expect(body).toEqual({ ok: true, deleted: 1, ids: ['conversation-1'] })
+  })
+
+  it('fails loudly when the row was already trashed by a concurrent delete', async () => {
+    mocks.updateMany.mockResolvedValue({ count: 0 })
+
+    const response = await DELETE(new Request('http://localhost'), props)
+
+    expect(response.status).toBe(500)
   })
 })

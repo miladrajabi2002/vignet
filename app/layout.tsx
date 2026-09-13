@@ -6,6 +6,7 @@ import { getLocale } from 'next-intl/server'
 import { Providers } from '@/components/providers'
 import { dirForLocale, type Locale } from '@/lib/locale'
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery'
+import { ServiceWorkerRegister } from '@/components/system/service-worker-register'
 import '@doranjs/ui/styles.css'
 import '@doranjs/react/styles.css'
 import 'react-day-picker/style.css'
@@ -15,14 +16,14 @@ const geistSans = localFont({
         src: './fonts/GeistVF.woff',
         variable: '--font-display',
         weight: '100 900',
-		preload: false,
+                preload: false,
 })
 
 const geistMono = localFont({
         src: './fonts/GeistMonoVF.woff',
         variable: '--font-mono',
         weight: '100 900',
-		preload: false,
+                preload: false,
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
@@ -31,57 +32,63 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
 // @font-face in globals.css is discovered only after CSS download+parse,
 // which used to leave Persian text on a fallback font for the first paint.
 for (const font of [
-	'/fonts/IRANSansWeb.woff2',
-	'/fonts/IRANSansWeb_Medium.woff2',
-	'/fonts/IRANSansWeb_Bold.woff2',
+        '/fonts/IRANSansWeb.woff2',
+        '/fonts/IRANSansWeb_Medium.woff2',
+        '/fonts/IRANSansWeb_Bold.woff2',
 ]) {
-	ReactDOM.preload(font, { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' })
+        ReactDOM.preload(font, { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' })
 }
 
 export const viewport: Viewport = {
-	width: 'device-width',
-	initialScale: 1,
-	viewportFit: 'cover',
+        width: 'device-width',
+        initialScale: 1,
+        viewportFit: 'cover',
+        themeColor: '#ffffff',
 }
 
 const ROOT_METADATA_COPY = {
-	fa: {
-		title: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
-		description: 'با ویجنت فروش و پشتیبانی مشتری را در اینستاگرام، تلگرام، بله، روبیکا و سایت از یک داشبورد هوشمند مدیریت کنید.',
-		openGraphDescription: 'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
-	},
-	en: {
-		title: 'Vigent — AI Sales and Customer Support Agent',
-		description: 'Manage sales and customer support across Instagram, Telegram, Bale, Rubika and your website from one intelligent dashboard.',
-		openGraphDescription: 'Bring customer sales and support across every channel into one intelligent business dashboard.',
-	},
+        fa: {
+                title: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
+                description: 'با ویجنت فروش و پشتیبانی مشتری را در اینستاگرام، تلگرام، بله، روبیکا و سایت از یک داشبورد هوشمند مدیریت کنید.',
+                openGraphDescription: 'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
+        },
+        en: {
+                title: 'Vigent — AI Sales and Customer Support Agent',
+                description: 'Manage sales and customer support across Instagram, Telegram, Bale, Rubika and your website from one intelligent dashboard.',
+                openGraphDescription: 'Bring customer sales and support across every channel into one intelligent business dashboard.',
+        },
 } as const
 
 export async function generateMetadata(): Promise<Metadata> {
-	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-	const copy = ROOT_METADATA_COPY[locale]
+        const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+        const copy = ROOT_METADATA_COPY[locale]
 
-	return {
+        return {
         metadataBase: new URL(siteUrl),
         title: {
-			default: copy.title,
+                        default: copy.title,
                 template: '%s — Vigent',
         },
-		description: copy.description,
+                description: copy.description,
         applicationName: 'Vigent',
         openGraph: {
                 type: 'website',
                 siteName: 'Vigent',
-			title: copy.title,
-			description: copy.openGraphDescription,
+                        title: copy.title,
+                        description: copy.openGraphDescription,
         },
         twitter: {
                 card: 'summary_large_image',
-			title: copy.title,
-			description: copy.openGraphDescription,
+                        title: copy.title,
+                        description: copy.openGraphDescription,
         },
         robots: { index: true, follow: true },
         manifest: '/site.webmanifest',
+        appleWebApp: {
+                capable: true,
+                statusBarStyle: 'default',
+                title: 'Vigent',
+        },
         icons: {
                 icon: [
                         { url: '/favicon.ico', sizes: 'any' },
@@ -90,7 +97,7 @@ export async function generateMetadata(): Promise<Metadata> {
                 ],
                 apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
         },
-	}
+        }
 }
 
 export default async function RootLayout({
@@ -104,10 +111,11 @@ export default async function RootLayout({
                         lang={locale}
                         dir={dir}
                         suppressHydrationWarning
-						className={`${geistSans.variable} ${geistMono.variable}`}
+                                                className={`${geistSans.variable} ${geistMono.variable}`}
                 >
                         <body className="antialiased">
                                 <ChunkLoadRecovery />
+                                <ServiceWorkerRegister />
                                 <Providers>
                                         {/* Route layouts provide only the messages their Client Components use. */}
                                         <NextIntlClientProvider locale={locale} messages={{}}>

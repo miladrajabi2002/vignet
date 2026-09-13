@@ -16,7 +16,6 @@ export function MobileOrderCard({
   dateTitle,
   detailsLabel,
   closeLabel,
-  leading,
   children,
 }: {
   orderNumber: string
@@ -29,8 +28,6 @@ export function MobileOrderCard({
   dateTitle: string
   detailsLabel: string
   closeLabel: string
-  /** Optional leading slot — e.g. the row-selection checkbox. */
-  leading?: ReactNode
   children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -39,12 +36,6 @@ export function MobileOrderCard({
   return (
     <>
       <article className="spatial-surface overflow-hidden rounded-[1.35rem] !bg-white">
-        <div className={cn('flex', leading ? 'items-stretch' : undefined)}>
-          {leading && (
-            <div className="flex shrink-0 items-center justify-center ps-1.5">
-              {leading}
-            </div>
-          )}
         <button
           ref={triggerRef}
           type="button"
@@ -52,10 +43,7 @@ export function MobileOrderCard({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={`${detailsLabel}: #${orderNumber}`}
-          className={cn(
-            'spatial-press block w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60',
-            leading && 'min-w-0 flex-1',
-          )}
+          className="spatial-press block w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
         >
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
@@ -87,7 +75,6 @@ export function MobileOrderCard({
             <ChevronLeft className="mt-1 h-4 w-4 shrink-0 text-[var(--text-hint)] ltr:rotate-180" aria-hidden="true" />
           </div>
         </button>
-        </div>
       </article>
 
       <MobileBottomSheet

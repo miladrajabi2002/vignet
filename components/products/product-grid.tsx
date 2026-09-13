@@ -5,15 +5,12 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check, Package, Pencil, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
+import { Package, Pencil, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
-import { UndoSnackbar, type UndoPhase } from '@/components/ui/undo-snackbar'
-import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
-import { fetchAllResultIds, SelectionBar, SelectionHeader } from '@/components/ui/selection-bar'
-import { useTableSelection } from '@/lib/hooks/use-table-selection'
+import { queueUndo } from '@/lib/undo-queue'
 
 export interface ProductCard {
   id: string
@@ -27,23 +24,7 @@ export interface ProductCard {
   category: { name: string } | null
 }
 
-export interface ProductSelectionFilters {
-  q: string
-  categoryId: string
-  stock: string
-}
-
-export function ProductGrid({
-  products,
-  totalResults,
-  filters,
-}: {
-  products: ProductCard[]
-  /** Server count of every product matching the current filters. */
-  totalResults: number
-  /** Current list filters — fed to /api/products/ids for select-all-N. */
-  filters: ProductSelectionFilters
-}) {
+export function ProductGrid({ products }: { products: ProductCard[] }) {
   const t = useTranslations('products')
   const locale = useLocale()
   const router = useRouter()
@@ -51,26 +32,6 @@ export function ProductGrid({
 
   const fmt = (n: number) =>
     n.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')
-
-  // ── Row selection (tri-state + shift-click + select-all-N) ──
-  const selection = useTableSelection(products.map((p) => p.id))
-  const [loadingAll, setLoadingAll] = useState(false)
-
-  async function handleSelectAllResults() {
-    setLoadingAll(true)
-    try {
-      const params = new URLSearchParams()
-      if (filters.q) params.set('q', filters.q)
-      if (filters.categoryId) params.set('categoryId', filters.categoryId)
-      if (filters.stock) params.set('stock', filters.stock)
-      const ids = await fetchAllResultIds('/api/products/ids', params)
-      selection.setSelectedIds(ids)
-    } catch {
-      // Best effort — the button stays available for a retry.
-    } finally {
-      setLoadingAll(false)
-    }
-  }
 
   // ── Delete dialog state (mirrors the conversation delete pattern) ──
   const [deleteTarget, setDeleteTarget] = useState<ProductCard | null>(null)
@@ -82,14 +43,8 @@ export function ProductGrid({
   const deletingRef = useRef(false)
   const reduceMotion = useReducedMotion()
 
-  // ── Undo snackbar state ──
-  // The DELETE route soft-deletes and returns the id; within the next few
-  // seconds the snackbar can restore it via /api/products/bulk/restore —
-  // which keeps the id, category and source-integration links intact (unlike
-  // the old snapshot-recreate flow).
-  const [undoPhase, setUndoPhase] = useState<UndoPhase | null>(null)
-  const [undoTarget, setUndoTarget] = useState<{ id: string; name: string } | null>(null)
-
+  // Undo: after a successful single delete we queue the global
+  // «بازگردانی» snackbar (dashboard layout) — it survives navigation.
   deletingRef.current = deleting
 
   useEffect(() => {
@@ -145,8 +100,7 @@ export function ProductGrid({
       if (res.ok) {
         setDeleteTarget(null)
         router.refresh()
-        setUndoTarget({ id: target.id, name: target.name })
-        setUndoPhase('undo')
+        queueUndo('product', [target.id], locale !== 'en' ? 'محصول' : 'product')
         return
       }
       setDeleteError(t('deleteFailed'))
@@ -157,31 +111,6 @@ export function ProductGrid({
     }
   }
 
-  async function performUndo() {
-    if (!undoTarget) {
-      setUndoPhase(null)
-      return
-    }
-    setUndoPhase('restoring')
-    try {
-      const res = await fetch('/api/products/bulk/restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [undoTarget.id] }),
-      })
-      if (!res.ok) throw new Error('RESTORE_FAILED')
-      setUndoPhase('restored')
-      router.refresh()
-    } catch {
-      setUndoPhase('error')
-    }
-  }
-
-  function dismissUndo() {
-    setUndoPhase(null)
-    setUndoTarget(null)
-  }
-
   function openDelete(p: ProductCard, btn: HTMLButtonElement) {
     deleteTriggerRef.current = btn
     setDeleteError(null)
@@ -190,45 +119,7 @@ export function ProductGrid({
 
   return (
     <>
-      <div className="space-y-3">
-        <SelectionHeader
-          locale={fa ? 'fa' : 'en'}
-          triState={selection.triState}
-          onToggleVisible={selection.toggleVisible}
-          visibleCount={products.length}
-          entityLabel={fa ? 'محصول' : 'product'}
-        />
-        <SelectionBar
-          hidden={selection.selectedCount === 0}
-            locale={fa ? 'fa' : 'en'}
-            selectedCount={selection.selectedCount}
-            visibleCount={products.length}
-            totalResults={totalResults}
-            loadingAll={loadingAll}
-            allResultsSelected={selection.selectedCount >= totalResults}
-            onSelectAllResults={handleSelectAllResults}
-            onClear={selection.clear}
-          >
-            <BulkDeleteButton
-              countEndpoint="/api/products/bulk"
-              deleteEndpoint="/api/products/bulk"
-              restoreEndpoint="/api/products/bulk/restore"
-              entityLabel={fa ? 'محصول' : 'product'}
-              entitySingularLabel={fa ? 'محصول' : 'product'}
-              buttonLabel={fa
-                ? `حذف ${selection.selectedCount.toLocaleString('fa-IR')} محصول`
-                : `Delete ${selection.selectedCount} products`}
-              dialogTitle={fa
-                ? `حذف ${selection.selectedCount.toLocaleString('fa-IR')} محصول؟`
-                : `Delete ${selection.selectedCount} products?`}
-              countOverride={selection.selectedCount}
-              deleteBody={{ ids: [...selection.selected] }}
-              compactOnMobile
-              onDeleted={selection.clear}
-              onRestored={selection.clear}
-            />
-          </SelectionBar>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
           const stockLabel =
             p.stock === null
@@ -246,47 +137,9 @@ export function ProductGrid({
             <Link
               key={p.id}
               href={`/products/${p.id}`}
-              className={cn(
-                'spatial-surface group flex flex-col overflow-hidden rounded-[1.5rem] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2',
-                selection.isSelected(p.id) && 'border-[var(--text-primary)]/45 shadow-[0_0_0_2px_var(--text-primary)]/12',
-              )}
+              className="spatial-surface group flex flex-col overflow-hidden rounded-[1.5rem] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
             >
               <div className="relative aspect-video bg-[var(--bg-muted)]">
-                {/* Selection checkbox — start corner (stock badge is on the end). */}
-                <span
-                  role="checkbox"
-                  aria-checked={selection.isSelected(p.id)}
-                  aria-label={`${fa ? 'انتخاب' : 'Select'}: ${p.name}`}
-                  tabIndex={0}
-                  onClick={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    selection.toggle(p.id, { shiftKey: event.shiftKey })
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === ' ' || event.key === 'Enter') {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      selection.toggle(p.id)
-                    }
-                  }}
-                  className={cn(
-                    'absolute start-2 top-2 z-10 grid h-11 w-11 cursor-pointer place-items-center rounded-xl bg-white/85 backdrop-blur transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)]',
-                    selection.isSelected(p.id) ? 'text-[var(--text-primary)]' : 'text-black/35 hover:text-black/70',
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'grid h-[1.15rem] w-[1.15rem] place-items-center rounded-[0.4rem] border transition-colors',
-                      selection.isSelected(p.id)
-                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]'
-                        : 'border-black/25 bg-white',
-                    )}
-                  >
-                    {selection.isSelected(p.id) && <Check className="h-3 w-3" strokeWidth={3.5} />}
-                  </span>
-                </span>
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.images[0]} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
@@ -351,7 +204,6 @@ export function ProductGrid({
             </Link>
           )
         })}
-        </div>
       </div>
 
       {/* Delete confirmation dialog — same pattern as conversation delete */}
@@ -425,16 +277,6 @@ export function ProductGrid({
         document.body,
       )}
 
-      {/* Undo snackbar — the shared bottom bar with countdown + restore. */}
-      <UndoSnackbar
-        phase={undoPhase}
-        count={1}
-        entityLabel={locale !== 'en' ? 'محصول' : 'product'}
-        locale={locale !== 'en' ? 'fa' : 'en'}
-        durationMs={9_000}
-        onUndo={performUndo}
-        onDismiss={dismissUndo}
-      />
     </>
   )
 }

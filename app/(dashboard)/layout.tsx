@@ -13,6 +13,8 @@ import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
 import { BackToTop } from '@/components/marketing/back-to-top'
+import { GlobalUndoToast } from '@/components/ui/global-undo-toast'
+import { ScrollRestoration } from '@/components/dashboard/scroll-restoration'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -128,6 +130,11 @@ export default async function DashboardLayout({
           <div className="dashboard-main">{children}</div>
         </main>
         <BackToTop />
+        {/* Undo offers for every delete (single + bulk) — lives here so it
+            survives navigation. Scroll restore brings list pages back to the
+            user's exact position on back navigation. */}
+        <GlobalUndoToast />
+        <ScrollRestoration />
       </div>
     </div>
     </ScopedIntlProvider>

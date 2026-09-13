@@ -6,16 +6,15 @@
  * supplied selection.
  *
  * Shows a confirm dialog with the actual count of records that will be
- * deleted (fetched from a count endpoint), then sends DELETE to the
- * matching API route. The route soft-deletes the rows and returns their ids,
- * which feed the «بازگردانی» (undo) snackbar for a few seconds afterwards
- * (requires `restoreEndpoint`). Trashed rows are purged by the worker after
- * 7 days.
+ * deleted (fetched from a count endpoint), then sends DELETE to the matching
+ * API route. The route soft-deletes the rows and returns their ids, which
+ * are queued for the global «بازگردانی» (undo) snackbar (requires
+ * `restoreEndpoint` + `undoKind`). Trashed rows are purged by the worker
+ * after 7 days.
  *
- * After a successful deletion, calls router.refresh() to reload the
- * current page's server component data. If the caller needs custom
- * post-delete behavior (e.g. navigate to a different URL), pass an
- * `onDeleted` callback.
+ * After a successful deletion, calls router.refresh() to reload the current
+ * page's server component data. If the caller needs custom post-delete
+ * behavior (e.g. navigate to a different URL), pass an `onDeleted` callback.
  *
  * ⚠️ Security: the API route is workspace-scoped, so even if a user
  * tampers with the request, they can only delete records in their own
@@ -23,12 +22,12 @@
  * is the real security gate; this button is just UX.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { Trash2, AlertTriangle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { UndoSnackbar, type UndoPhase } from '@/components/ui/undo-snackbar'
+import { queueUndo, type UndoKind } from '@/lib/undo-queue'
 
 interface BulkDeleteButtonProps {
   /** Endpoint that returns { count: number } — used to show the actual
@@ -38,6 +37,8 @@ interface BulkDeleteButtonProps {
   deleteEndpoint: string
   /** POST endpoint that restores the soft-deleted ids (undo). */
   restoreEndpoint?: string
+  /** Which soft-deleted entity this button trashes — feeds the undo queue. */
+  undoKind?: UndoKind
   /** Human label for what's being deleted, e.g. "محصولات". */
   entityLabel: string
   /** Singular human label used in the undo snackbar, e.g. "محصول". */
@@ -48,28 +49,22 @@ interface BulkDeleteButtonProps {
   countOverride?: number
   /** Optional JSON body sent with the DELETE request. */
   deleteBody?: unknown
-  /** Optional: title for the confirm dialog (defaults to «حذف همه ${entityLabel}»).
-   *  Set this when the button label is not "حذف همه" — e.g. the
-   *  "delete cancelled orders" button should have dialogTitle="حذف سفارش‌های
-   *  لغو شده" instead of "حذف همه سفارش‌های لغو شده". */
+  /** Optional: title for the confirm dialog (defaults to «حذف همه ${entityLabel}»). */
   dialogTitle?: string
   /** Optional: extra warning text shown under the count. */
   extraWarning?: string
   /** Called after a successful deletion — usually to navigate or
    *  clear local state. router.refresh() is always called automatically. */
   onDeleted?: () => void
-  /** Called after a successful undo — usually to clear local selection. */
-  onRestored?: () => void
   /** Use an icon-only trigger on narrow screens to keep action rails on one row. */
   compactOnMobile?: boolean
 }
-
-const UNDO_DURATION_MS = 9_000
 
 export function BulkDeleteButton({
   countEndpoint,
   deleteEndpoint,
   restoreEndpoint,
+  undoKind,
   entityLabel,
   entitySingularLabel,
   buttonLabel = 'حذف همه',
@@ -78,7 +73,6 @@ export function BulkDeleteButton({
   dialogTitle,
   extraWarning,
   onDeleted,
-  onRestored,
   compactOnMobile = false,
 }: BulkDeleteButtonProps) {
   const router = useRouter()
@@ -89,11 +83,6 @@ export function BulkDeleteButton({
   const [error, setError] = useState<string | null>(null)
   const [count, setCount] = useState<number | null>(null)
   const [countLoading, setCountLoading] = useState(false)
-
-  // ── Undo snackbar state ──
-  const [undoPhase, setUndoPhase] = useState<UndoPhase | null>(null)
-  const [undoIds, setUndoIds] = useState<string[]>([])
-  const undoSnapshotRef = useRef<{ count: number }>({ count: 0 })
 
   // When the dialog opens, fetch the actual record count so the user
   // sees «۱۲۳ محصول حذف می‌شود» instead of a generic warning. This
@@ -114,32 +103,6 @@ export function BulkDeleteButton({
       .catch(() => setCount(0))
       .finally(() => setCountLoading(false))
   }, [open, countEndpoint, countOverride])
-
-  function dismissUndo() {
-    setUndoPhase(null)
-    setUndoIds([])
-  }
-
-  async function performUndo() {
-    if (!restoreEndpoint || undoIds.length === 0) {
-      dismissUndo()
-      return
-    }
-    setUndoPhase('restoring')
-    try {
-      const res = await fetch(restoreEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: undoIds }),
-      })
-      if (!res.ok) throw new Error('RESTORE_FAILED')
-      setUndoPhase('restored')
-      router.refresh()
-      onRestored?.()
-    } catch {
-      setUndoPhase('error')
-    }
-  }
 
   async function handleConfirm() {
     setBusy(true)
@@ -164,11 +127,11 @@ export function BulkDeleteButton({
       // records disappear from the list without a manual F5.
       router.refresh()
       onDeleted?.()
-      // Offer undo when the route reported which ids it trashed.
-      if (restoreEndpoint && Array.isArray(body.ids) && body.ids.length > 0) {
-        undoSnapshotRef.current = { count: body.ids.length }
-        setUndoIds(body.ids as string[])
-        setUndoPhase('undo')
+      // Offer undo when the route reported which ids it trashed — the
+      // GLOBAL toast (dashboard layout) renders the snackbar, so it
+      // survives navigation and reloads.
+      if (restoreEndpoint && undoKind && Array.isArray(body.ids) && body.ids.length > 0) {
+        queueUndo(undoKind, body.ids as string[], entitySingularLabel ?? entityLabel)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'خطای ناشناخته')
@@ -229,18 +192,6 @@ export function BulkDeleteButton({
           if (!busy) setOpen(false)
         }}
       />
-
-      {restoreEndpoint && (
-        <UndoSnackbar
-          phase={undoPhase}
-          count={undoSnapshotRef.current.count}
-          entityLabel={entitySingularLabel ?? entityLabel}
-          locale={fa ? 'fa' : 'en'}
-          durationMs={UNDO_DURATION_MS}
-          onUndo={performUndo}
-          onDismiss={dismissUndo}
-        />
-      )}
     </>
   )
 }
