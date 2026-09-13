@@ -137,7 +137,11 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
                         }).catch(() => [])
                 : []
         // Preserve the order from solution.relatedArticles for editorial intent.
-        const orderedArticles = relatedArticles
+        // Guard on solution.relatedArticles itself: the English catalog entries do
+        // not declare relatedArticles (the blog is fa-only), and the previous
+        // `relatedArticles ? …` test treated the empty DB fallback array as truthy,
+        // then called .map() on undefined and 500'd every /en/solutions/* page.
+        const orderedArticles = solution.relatedArticles?.length
                 ? solution.relatedArticles!
                                 .map((slug) => relatedArticles.find((p) => p.slug === slug))
                                 .filter((p): p is NonNullable<typeof p> => Boolean(p))
