@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { isAdminAuthed } from '@/lib/admin/auth'
 import {
   getPlatformCommercialConfig,
+  PLATFORM_STT_MODEL,
   updatePlatformCommercialConfig,
 } from '@/lib/platform/commercial-config'
 
@@ -22,7 +23,8 @@ const planSchema = z.object({
 })
 
 const schema = z.object({
-  sttModel: z.string().trim().min(3).max(180),
+  sttModel: z.literal(PLATFORM_STT_MODEL),
+  sttPricePerMinuteIRR: positiveInt,
   ttsModel: z.string().trim().min(3).max(180),
   providerSort: z.enum(['price', 'latency', 'throughput']),
   zeroDataRetention: z.boolean(),

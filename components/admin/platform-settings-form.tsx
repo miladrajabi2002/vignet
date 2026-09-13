@@ -9,6 +9,7 @@ import { MaterialSelect } from '@/components/ui/material-select'
 type NumberPath =
   | ['trialCreditIRR']
   | ['financeUsdToIRR']
+  | ['sttPricePerMinuteIRR']
   | ['replyPricesIRR', keyof PlatformCommercialConfig['replyPricesIRR']]
   | ['plans', keyof PlatformCommercialConfig['plans'], keyof PlatformCommercialConfig['plans']['TRIAL']]
 
@@ -56,6 +57,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
     setValue((current) => {
       if (path[0] === 'trialCreditIRR') return { ...current, trialCreditIRR: parsed }
       if (path[0] === 'financeUsdToIRR') return { ...current, financeUsdToIRR: empty ? null : parsed }
+      if (path[0] === 'sttPricePerMinuteIRR') return { ...current, sttPricePerMinuteIRR: parsed }
       if (path[0] === 'replyPricesIRR') {
         return { ...current, replyPricesIRR: { ...current.replyPricesIRR, [path[1]]: parsed } }
       }
@@ -108,8 +110,13 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
           </button>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-          <Field label="مدل تبدیل صدا به متن" hint="OpenRouter provider slug">
-            <input dir="ltr" value={value.sttModel} onChange={(event) => setField('sttModel', event.target.value)} className="admin-input" />
+          <div className="rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
+            <span className="text-sm font-bold text-black">مدل تبدیل صدا به متن</span>
+            <code dir="ltr" className="mt-2 block break-all text-left text-xs font-semibold text-black/65">{value.sttModel}</code>
+            <span className="mt-1 block text-[11px] leading-5 text-black/45">مدل ثابت و چندزبانه از طریق OpenRouter</span>
+          </div>
+          <Field label="تعرفه هر دقیقه تبدیل ویس" hint="پیش‌فرض: ۱۰ تومان در دقیقه؛ معادل ۱۰۰ تومان برای ۱۰ دقیقه">
+            <MoneyInput value={toToman(value.sttPricePerMinuteIRR)} onChange={(raw) => setNumber(['sttPricePerMinuteIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
           </Field>
           <Field label="مدل تبدیل متن به صدا" hint="OpenRouter provider slug">
             <input dir="ltr" value={value.ttsModel} onChange={(event) => setField('ttsModel', event.target.value)} className="admin-input" />

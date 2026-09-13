@@ -34,6 +34,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ text })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'STT_FAILED'
+    if (msg === 'NO_CREDIT') {
+      return NextResponse.json({ error: 'NO_CREDIT' }, { status: 402 })
+    }
     if (msg === 'PLATFORM_AI_NOT_CONFIGURED') {
       return NextResponse.json({ error: 'AI_UNAVAILABLE' }, { status: 503 })
     }

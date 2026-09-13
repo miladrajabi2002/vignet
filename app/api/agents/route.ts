@@ -103,6 +103,7 @@ export async function POST(req: Request) {
       maxTokens: AGENT_MAX_RESPONSE_TOKENS,
       language: data.language ?? 'fa',
       voiceEnabled: data.voiceEnabled ?? false,
+      voiceInputEnabled: data.voiceInputEnabled ?? true,
       ttsVoice: data.ttsVoice,
       welcomeMessage: data.welcomeMessage,
       fallbackMessage: data.fallbackMessage,

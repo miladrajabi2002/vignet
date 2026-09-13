@@ -41,6 +41,27 @@ describe('instagram inbound normalization', () => {
     })
   })
 
+  it('normalizes an audio attachment with its downloadable CDN URL', () => {
+    const [message] = adapter.parseUpdate({
+      entry: [{ id: 'self', messaging: [{
+        sender: { id: 'customer' },
+        message: {
+          mid: 'mid.voice.1',
+          attachments: [{ type: 'audio', payload: { url: 'https://cdn.example/voice.mp4' } }],
+        },
+      }] }],
+    })
+
+    expect(message).toMatchObject({
+      kind: 'DM',
+      text: '',
+      hasMedia: true,
+      mediaKind: 'audio',
+      mediaUrl: 'https://cdn.example/voice.mp4',
+      platformMessageId: 'mid.voice.1',
+    })
+  })
+
 	it('normalizes react and ignores unreact webhook events', () => {
 		const messages = adapter.parseUpdate({ entry: [{ id: 'self', messaging: [
 			{ sender: { id: 'customer' }, reaction: { mid: 'mid.original', action: 'react', reaction: 'love', emoji: '❤️' } },

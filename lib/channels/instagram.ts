@@ -276,8 +276,8 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 // Mark them so the shared handler answers with the configurable
                                                 // fixed reply BEFORE any AI turn (the model never sees the
                                                 // placeholder and never guesses the content). IG voice notes are
-                                                // `audio` attachments — the IG adapter has no voice-URL fetcher,
-                                                // so they take the same honest fixed reply.
+                                                // `audio` attachments; the shared handler downloads their CDN URL
+                                                // for STT only when voice input is enabled for the agent.
                                                 const mediaAttachment = m.message?.attachments?.find((a) => {
                                                         const t = a?.type
                                                         return t === 'image' || t === 'video' || t === 'sticker'

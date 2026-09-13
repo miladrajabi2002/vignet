@@ -193,6 +193,7 @@ model Agent {
   maxTokens               Int      @default(600)
   language                String   @default("fa")
   voiceEnabled            Boolean  @default(false)
+  voiceInputEnabled       Boolean  @default(true)
   ttsVoice                String   @default("alloy")
   avatar                  String?
   welcomeMessage          String?
@@ -856,6 +857,7 @@ model UsageLog {
   completionTokens  Int         @default(0)
   reasoningTokens   Int         @default(0)
   cachedTokens      Int         @default(0)
+  audioSeconds      Float?
   model             String?
   providerRequestId String?
   cost              Float?
@@ -1064,6 +1066,7 @@ model PlatformAiSettings {
   ttsModel          String   @default("openai/gpt-4o-mini-tts-2025-12-15")
   providerSort      String   @default("price")
   zeroDataRetention Boolean  @default(true)
+  sttPricePerMinuteIRR Int   @default(100)
   replyPricesIRR    Json     @default("{}")
   trialCreditIRR    Int      @default(100000)
   planConfig        Json     @default("{}")

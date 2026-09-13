@@ -82,6 +82,7 @@ const AGENT_SELECT = {
         handoffMessage: true,
         handoffKeywords: true,
         voiceEnabled: true,
+        voiceInputEnabled: true,
         ttsVoice: true,
         active: true,
         // ─ F1: layered prompt config
@@ -112,6 +113,7 @@ interface ResolvedChannel {
                 handoffMessage: string | null
                 handoffKeywords: string[]
                 voiceEnabled: boolean
+                voiceInputEnabled: boolean
                 ttsVoice: string
                 active: boolean
                 promptConfig: unknown
@@ -266,29 +268,54 @@ async function getContactName(contactId: string | null): Promise<string | null> 
         return c?.name ?? null
 }
 
-/** Resolve message text, transcribing a voice note when present. */
+type ResolvedInboundText = {
+        text: string
+        audioTranscribed: boolean
+        sttError?: 'NO_CREDIT'
+}
+
+function isInboundAudio(msg: InboundMessage): boolean {
+        return Boolean(msg.voiceFileId) || msg.mediaKind === 'voice' || msg.mediaKind === 'audio'
+}
+
+/** Resolve message text, transcribing Telegram/Bale ids or Instagram audio URLs. */
 async function resolveText(
         agentWorkspaceId: string,
+        agentId: string,
         adapter: MessengerAdapter,
         msg: InboundMessage,
-): Promise<string> {
-        if (msg.text) return msg.text
-        if (msg.voiceFileId && adapter.getVoiceUrl) {
-                try {
-                        const url = await adapter.getVoiceUrl(msg.voiceFileId)
-                        if (!url) return ''
-                        const dl = await downloadAudio(url)
-                        if (!dl) return ''
-                        return await transcribeAudio({
-                                audio: dl.audio,
-                                mime: dl.mime,
-                                workspaceId: agentWorkspaceId,
-                        })
-                } catch (e) {
-                        console.error('[handler] voice transcription failed:', e)
+        idempotencyKey: string,
+): Promise<ResolvedInboundText> {
+        const caption = msg.text.trim()
+        if (!isInboundAudio(msg)) return { text: caption, audioTranscribed: false }
+
+        try {
+                const url = msg.mediaUrl
+                        || (msg.voiceFileId && adapter.getVoiceUrl
+                                ? await adapter.getVoiceUrl(msg.voiceFileId)
+                                : null)
+                if (!url) return { text: caption, audioTranscribed: false }
+                const dl = await downloadAudio(url)
+                if (!dl) return { text: caption, audioTranscribed: false }
+                const transcript = await transcribeAudio({
+                        audio: dl.audio,
+                        mime: dl.mime,
+                        workspaceId: agentWorkspaceId,
+                        agentId,
+                        idempotencyKey: `stt:inbound:${idempotencyKey}`,
+                })
+                if (!transcript) return { text: caption, audioTranscribed: false }
+                return {
+                        text: caption ? `${caption}\n\n[متن پیام صوتی]\n${transcript}` : transcript,
+                        audioTranscribed: true,
                 }
+        } catch (e) {
+                if (e instanceof Error && e.message === 'NO_CREDIT') {
+                        return { text: caption, audioTranscribed: false, sttError: 'NO_CREDIT' }
+                }
+                console.error('[handler] voice transcription failed:', e)
         }
-        return ''
+        return { text: caption, audioTranscribed: false }
 }
 
 /** Build the ChatAgent payload handed to the AI engine. */
@@ -803,24 +830,35 @@ async function processChannelInbound(
                                         ? instagramPolicy?.storyReplyPolicy
                                         : instagramPolicy?.dmReplyPolicy
                         const automationOnly = effectiveInstagramPolicy === 'AUTOMATION_ONLY'
+                        const voiceInputDisabled = isInboundAudio(msg) && !agent.voiceInputEnabled
                         // Automation-only routing uses the received message, never AI transcription.
-                        let text = automationOnly ? msg.text : await resolveText(agent.workspaceId, adapter, msg)
+                        const resolvedText = voiceInputDisabled || automationOnly
+                                ? { text: msg.text.trim(), audioTranscribed: false }
+                                : await resolveText(agent.workspaceId, agent.id, adapter, msg, eventLease.id)
+                        let text = resolvedText.text
                         // ─ A13: media-only inbound (photo/video/voice/sticker/file
                         // with no usable text). The customer must still get an
                         // honest fixed answer instead of silence, and the LLM must
                         // never see a media placeholder as a question. Flag it
                         // here; the fixed reply is sent right after the inbound is
                         // persisted and ownership gates are checked.
-                        const mediaOnlyInbound = !text && (msg.hasMedia || Boolean(msg.voiceFileId))
+                        const mediaOnlyInbound = !voiceInputDisabled
+                                && !text
+                                && (msg.hasMedia || Boolean(msg.voiceFileId))
                         if (mediaOnlyInbound) text = mediaPlaceholderText(msg)
+                        if (voiceInputDisabled && !text) text = mediaPlaceholderText(msg)
                         if (!text) return
 
-                        const inboundMetadata = inboundMessageMetadata(type, msg)
+                        const inboundMetadata = inboundMessageMetadata(type, msg, {
+                                audioTranscribed: resolvedText.audioTranscribed,
+                        })
                         // Verified channel media on this turn (trusted payload only,
                         // never inferred from the customer's prose) — feeds the
                         // visual-reference grounding skill and its deterministic guard.
                         const inboundMediaKind: StartChatParams['inboundMediaKind'] =
-                                msg.voiceFileId && !msg.mediaKind ? 'voice' : msg.mediaKind
+                                resolvedText.audioTranscribed
+                                        ? undefined
+                                        : msg.voiceFileId && !msg.mediaKind ? 'voice' : msg.mediaKind
 
                         let scenarioHandled = false
                         let reactionClassInput = false
@@ -838,7 +876,7 @@ async function processChannelInbound(
                                 // effects, including threads previously handed to an operator.
                                 // Only explicitly configured replies, scenarios and follow-gates
                                 // may enter the conversation pipeline.
-                                if (automationOnly && !fixedInstagramReply) {
+                                if (automationOnly && !voiceInputDisabled && !fixedInstagramReply) {
                                         const automationWillHandle = await willInstagramAutomationHandle({
                                                 agentId: agent.id,
                                                 channelId,
@@ -856,7 +894,7 @@ async function processChannelInbound(
                                 // a contact/conversation consisting only of the
                                 // ignored keyword. Messages in an existing thread
                                 // are retained as part of that real history.
-                                if (!fixedInstagramReply) {
+                                if (!voiceInputDisabled && !fixedInstagramReply) {
                                         const silentlyIgnored = await willInstagramAutomationSilentlyIgnore({
                                                 agentId: agent.id,
                                                 channelId,
@@ -1024,6 +1062,73 @@ async function processChannelInbound(
                                         console.error('[handler] waiting-message gate failed:', e)
                                 }
                                 outcome = 'OPERATOR_OWNED'
+                                return
+                        }
+
+                        // Per-agent voice-input gate. It runs after persistence and
+                        // operator ownership, but before media handoff, automation or
+                        // AI. This path has no STT/LLM cost and does not hand the
+                        // conversation off merely because voice understanding is off.
+                        if (voiceInputDisabled) {
+                                const disabledText = await fixedReplyForWorkspace(
+                                        'voiceInputDisabledMessage',
+                                        agent.workspaceId,
+                                )
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        disabledText,
+                                        eventLease.id,
+                                )
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, disabledText)
+                                outcome = 'VOICE_INPUT_DISABLED'
+                                return
+                        }
+
+                        // STT has its own duration-based wallet charge. Treat an
+                        // exhausted wallet exactly like the chat-credit gate so a
+                        // voice message never turns into a misleading media error.
+                        if (resolvedText.sttError === 'NO_CREDIT') {
+                                const quotaText = await fixedReplyForWorkspace(
+                                        'quotaExhaustedMessage',
+                                        agent.workspaceId,
+                                )
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        quotaText,
+                                        eventLease.id,
+                                )
+                                await prisma.conversation.updateMany({
+                                        where: { id: persistedInbound.conversationId },
+                                        data: { handedOff: true, status: 'HANDED_OFF' },
+                                }).catch(() => {})
+                                await notifyHandoff({
+                                        workspaceId: agent.workspaceId,
+                                        conversationId: persistedInbound.conversationId,
+                                        agentId: agent.id,
+                                        agentName: agent.name,
+                                        channel: type,
+                                        contactId,
+                                        contactName,
+                                        contactPhone: null,
+                                        reason: 'اعتبار تبدیل پیام صوتی به متن تمام شده است',
+                                        summary: text,
+                                }).catch(() => {})
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, quotaText)
+                                outcome = 'STT_NO_CREDIT'
                                 return
                         }
 

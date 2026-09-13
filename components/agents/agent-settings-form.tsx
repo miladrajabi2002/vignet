@@ -60,6 +60,7 @@ export interface AgentSettingsData {
         handoffMessage: string | null
         handoffKeywords: string[]
         active: boolean
+        voiceInputEnabled: boolean
         // ─ F1: layered prompt
         promptConfig: PromptConfig | null
         roleTemplate: string | null
@@ -83,6 +84,7 @@ export function AgentSettingsForm({
                 trialModel: ModelAlias
                 creditBalanceIRR: number
                 replyPricesIRR: Record<ModelAlias, number>
+                sttPricePerMinuteIRR: number
         }
 }) {
         const tw = useTranslations('agents.wizard')
@@ -103,6 +105,7 @@ export function AgentSettingsForm({
                 handoffMessage: agent.handoffMessage ?? '',
                 handoffKeywords: agent.handoffKeywords.join(', '),
                 active: agent.active,
+                voiceInputEnabled: agent.voiceInputEnabled,
         })
 
         const [promptConfig, setPromptConfig] = useState<NormalizedPromptConfig>(
@@ -333,6 +336,22 @@ export function AgentSettingsForm({
                                         />
                                         <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
                                                 {tf('agentActiveHint')}
+                                        </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+                                        <Toggle
+                                                label={tf('voiceInputEnabled')}
+                                                checked={form.voiceInputEnabled}
+                                                onChange={(v) => set('voiceInputEnabled', v)}
+                                        />
+                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+                                                {form.voiceInputEnabled
+                                                        ? tf('voiceInputEnabledActiveHint', {
+                                                                price: new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+                                                                        .format(modelPolicy.sttPricePerMinuteIRR / 10),
+                                                        })
+                                                        : tf('voiceInputEnabledHint')}
                                         </p>
                                 </div>
 
@@ -1011,7 +1030,9 @@ function Toggle({
                 <button
                         type="button"
                         onClick={() => onChange(!checked)}
-                        className="flex w-full items-center justify-between"
+                        role="switch"
+                        aria-checked={checked}
+                        className="flex min-h-11 w-full items-center justify-between gap-4 rounded-xl text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
                 >
                         <span
                                 className={`text-sm ${checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}

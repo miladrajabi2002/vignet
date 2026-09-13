@@ -1,13 +1,10 @@
-import { prisma } from '@/lib/prisma'
+import { randomUUID } from 'node:crypto'
 import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
-import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { captureSttCredit, ensureSttCreditAvailable } from '@/lib/billing/stt-credits'
+import { getPlatformCommercialConfig, PLATFORM_STT_MODEL } from '@/lib/platform/commercial-config'
 import { safeHttpGet } from '@/lib/security/safe-http'
 
-/**
- * Speech-to-text via Vigent's platform-managed OpenRouter account.
- * OpenAI-compatible audio/transcriptions endpoint.
- */
-const DEFAULT_STT_MODEL = 'openai/whisper-large-v3-turbo'
+/** Multilingual speech-to-text through the platform OpenRouter account. */
 
 function audioFormat(input: TranscribeInput): string {
   const mime = input.mime.toLowerCase()
@@ -25,17 +22,20 @@ export interface TranscribeInput {
   mime: string
   filename?: string
   workspaceId: string
+  agentId?: string
+  conversationId?: string | null
+  idempotencyKey?: string
   language?: string
 }
 
 export async function transcribeAudio(
   input: TranscribeInput,
 ): Promise<string> {
+  const runtime = await getPlatformCommercialConfig()
+  const idempotencyKey = input.idempotencyKey ?? `stt:${randomUUID()}`
+  await ensureSttCreditAvailable(input.workspaceId, idempotencyKey)
   const key = getPlatformOpenRouterKey()
   if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
-
-  const runtime = await getPlatformCommercialConfig()
-  const model = runtime.sttModel || DEFAULT_STT_MODEL
 
   const res = await fetch(`${OPENROUTER_BASE}/audio/transcriptions`, {
     method: 'POST',
@@ -46,7 +46,7 @@ export async function transcribeAudio(
       'X-Title': 'Vigent',
     },
     body: JSON.stringify({
-      model,
+      model: PLATFORM_STT_MODEL,
       input_audio: {
         data: input.audio.toString('base64'),
         format: audioFormat(input),
@@ -69,24 +69,26 @@ export async function transcribeAudio(
       cost?: number
       input_tokens?: number
       output_tokens?: number
+      seconds?: number
     }
   }
 
   const rawCost = Number(json.usage?.cost)
+  const audioSeconds = Number(json.usage?.seconds)
   const generationId = res.headers.get('x-generation-id') || json.id || null
-  prisma.usageLog
-    .create({
-      data: {
-        workspaceId: input.workspaceId,
-        type: 'STT',
-        model,
-        promptTokens: Number(json.usage?.input_tokens) || 0,
-        completionTokens: Number(json.usage?.output_tokens) || 0,
-        providerRequestId: generationId,
-        cost: Number.isFinite(rawCost) ? rawCost : null,
-      },
-    })
-    .catch(() => {})
+  await captureSttCredit({
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    conversationId: input.conversationId,
+    model: PLATFORM_STT_MODEL,
+    audioSeconds,
+    pricePerMinuteIRR: runtime.sttPricePerMinuteIRR,
+    providerRequestId: generationId,
+    providerCostUSD: Number.isFinite(rawCost) ? rawCost : null,
+    promptTokens: Number(json.usage?.input_tokens) || 0,
+    completionTokens: Number(json.usage?.output_tokens) || 0,
+    idempotencyKey,
+  })
 
   return (json.text ?? '').trim()
 }

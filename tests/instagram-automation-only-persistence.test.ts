@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   parseUpdate: vi.fn(),
   sendText: vi.fn(),
+  getVoiceUrl: vi.fn(),
   transcribeAudio: vi.fn(),
+  downloadAudio: vi.fn(),
   isMarketingOptOutMessage: vi.fn(),
   fixedReply: vi.fn(),
   resolveInboundContact: vi.fn(),
@@ -80,6 +82,7 @@ vi.mock('@/lib/channels/registry', () => ({
   getAdapter: () => ({
     parseUpdate: mocks.parseUpdate,
     sendText: mocks.sendText,
+    getVoiceUrl: mocks.getVoiceUrl,
   }),
 }))
 vi.mock('@/lib/channels/config', () => ({
@@ -125,7 +128,7 @@ vi.mock('@/lib/crm/marketing-consent', () => ({
 }))
 vi.mock('@/lib/instagram/emoji', () => ({ isEmojiOnly: () => false }))
 vi.mock('@/lib/instagram/sender-profile', () => ({ fetchInstagramSenderProfile: vi.fn().mockResolvedValue(null) }))
-vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: mocks.transcribeAudio, downloadAudio: vi.fn() }))
+vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: mocks.transcribeAudio, downloadAudio: mocks.downloadAudio }))
 vi.mock('@/lib/voice/tts', () => ({ synthesizeSpeech: vi.fn() }))
 vi.mock('@/lib/ai/sales-intelligence', () => ({ refreshConversationSalesInsight: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn() }))
@@ -179,6 +182,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
         handoffMessage: null,
         handoffKeywords: [],
         voiceEnabled: false,
+        voiceInputEnabled: true,
         ttsVoice: 'alloy',
         active: true,
         promptConfig: null,
@@ -211,6 +215,8 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     mocks.conversationFindFirst.mockResolvedValue(null)
     mocks.willAutomationHandle.mockResolvedValue(false)
     mocks.willAutomationSilentlyIgnore.mockResolvedValue(false)
+    mocks.runAutomation.mockResolvedValue({ handled: false, replied: false })
+    mocks.shouldAgentReply.mockResolvedValue(false)
     mocks.markEffectsCommitted.mockResolvedValue(undefined)
     mocks.completeInboundEvent.mockResolvedValue(undefined)
     mocks.conversationUpdate.mockResolvedValue({})
@@ -368,6 +374,84 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.fixedReply).not.toHaveBeenCalled()
     expect(mocks.sendText).not.toHaveBeenCalled()
     expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('asks for text without STT, AI or handoff when voice input is disabled', async () => {
+    const channel = await mocks.agentChannelFindFirst()
+    mocks.agentChannelFindFirst.mockResolvedValue({
+      ...channel,
+      agent: { ...channel.agent, voiceInputEnabled: false },
+    })
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true, mediaKind: 'audio', mediaUrl: 'https://cdn.example/voice.mp4',
+    }])
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.downloadAudio).not.toHaveBeenCalled()
+    expect(mocks.transcribeAudio).not.toHaveBeenCalled()
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.fixedReply).toHaveBeenCalledWith('voiceInputDisabledMessage', 'workspace-1')
+    expect(mocks.sendText).toHaveBeenCalledWith('sender-1', 'متن پیش‌فرض', undefined)
+    expect(mocks.conversationUpdateMany).not.toHaveBeenCalled()
+    expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ result: { outcome: 'VOICE_INPUT_DISABLED' } }),
+    )
+  })
+
+  it.each(['TELEGRAM', 'BALE'] as const)(
+    'uses the fixed no-cost response for disabled %s voice input',
+    async (channel) => {
+      const resolvedChannel = await mocks.agentChannelFindFirst()
+      mocks.agentChannelFindFirst.mockResolvedValue({
+        ...resolvedChannel,
+        agent: { ...resolvedChannel.agent, voiceInputEnabled: false },
+      })
+      mocks.parseUpdate.mockReturnValue([{
+        platformMessageId: 'message-1', senderId: 'sender-1', chatId: 'sender-1',
+        text: '', hasMedia: true, mediaKind: 'voice', voiceFileId: 'voice-file-1',
+      }])
+
+      await handleInbound(channel, 'webhook-token', {})
+
+      expect(mocks.getVoiceUrl).not.toHaveBeenCalled()
+      expect(mocks.downloadAudio).not.toHaveBeenCalled()
+      expect(mocks.transcribeAudio).not.toHaveBeenCalled()
+      expect(mocks.generateReply).not.toHaveBeenCalled()
+      expect(mocks.fixedReply).toHaveBeenCalledWith('voiceInputDisabledMessage', 'workspace-1')
+      expect(mocks.sendText).toHaveBeenCalledWith('sender-1', 'متن پیش‌فرض', undefined)
+      expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+    },
+  )
+
+  it('transcribes an Instagram audio URL when the regular agent owns the DM', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true, mediaKind: 'audio', mediaUrl: 'https://cdn.example/voice.mp4',
+    }])
+    mocks.loadAutomationPolicy.mockResolvedValue({
+      ...automationOnlyPolicy, dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+    })
+    mocks.downloadAudio.mockResolvedValue({ audio: Buffer.from('audio'), mime: 'audio/mp4' })
+    mocks.transcribeAudio.mockResolvedValue('قیمت این محصول چقدر است؟')
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.downloadAudio).toHaveBeenCalledWith('https://cdn.example/voice.mp4')
+    expect(mocks.transcribeAudio).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 'workspace-1',
+      agentId: 'agent-1',
+      idempotencyKey: 'stt:inbound:event-1',
+      mime: 'audio/mp4',
+    }))
+    expect(mocks.transcribeAudio.mock.calls[0][0]).not.toHaveProperty('language')
+    expect(mocks.shouldAgentReply).toHaveBeenCalledWith(expect.objectContaining({
+      text: 'قیمت این محصول چقدر است؟',
+    }))
+    expect(mocks.fixedReply).not.toHaveBeenCalled()
+    expect(mocks.notifyHandoff).not.toHaveBeenCalled()
   })
 
   it.each(['DM', 'COMMENT', 'STORY_REPLY'] as const)('still executes a configured %s scenario without the default agent', async (kind) => {

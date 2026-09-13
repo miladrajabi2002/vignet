@@ -1,0 +1,2 @@
+ALTER TABLE "Agent"
+ADD COLUMN "voiceInputEnabled" BOOLEAN NOT NULL DEFAULT false;

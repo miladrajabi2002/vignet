@@ -8,11 +8,12 @@ import {
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 export async function AgentConfiguration({ agentId, section }: { agentId: string; section: 'general' | 'behavior' }) {
   const user = await requireUser()
 
-  const [agent, workspace, platformPolicy] = await Promise.all([
+  const [agent, workspace, platformPolicy, commercialPolicy] = await Promise.all([
     prisma.agent.findFirst({
     where: { id: agentId, workspaceId: user.workspaceId },
     }),
@@ -21,6 +22,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
       select: { plan: true, aiCreditBalanceIRR: true },
     }),
     getPlatformAiConfig(),
+    getPlatformCommercialConfig(),
   ])
   if (!agent) notFound()
 
@@ -35,6 +37,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
           trialModel: platformPolicy.trialModel,
           creditBalanceIRR: workspace?.aiCreditBalanceIRR ?? 0,
           replyPricesIRR: await getEffectivePlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
+          sttPricePerMinuteIRR: commercialPolicy.sttPricePerMinuteIRR,
         }}
         agent={{
           id: agent.id,
@@ -49,6 +52,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
           handoffMessage: agent.handoffMessage,
           handoffKeywords: agent.handoffKeywords,
           active: agent.active,
+          voiceInputEnabled: agent.voiceInputEnabled,
           // ─ F1: layered prompt
           promptConfig: agent.promptConfig as AgentSettingsData['promptConfig'],
           roleTemplate: agent.roleTemplate,

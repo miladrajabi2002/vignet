@@ -18,6 +18,9 @@ export const DEFAULT_QUOTA_EXHAUSTED_MESSAGE =
 export const DEFAULT_MEDIA_UNSUPPORTED_MESSAGE =
         'عکس یا فایل شما دریافت شد. چون ایجنت نمی‌تواند محتوایش را با اطمینان بررسی کند، گفتگو را همراه با همین پیام برای اپراتور فرستادم تا پیگیری کند'
 
+export const DEFAULT_VOICE_INPUT_DISABLED_MESSAGE =
+        'فعلاً امکان پاسخ‌گویی به پیام صوتی فعال نیست. لطفاً پیام‌تان را به‌صورت متنی بفرستید'
+
 export const DEFAULT_WAITING_FOR_OPERATOR_MESSAGE =
         'لطفاً کمی صبر کنید، همکار ما به‌زودی پاسخ می‌دهد'
 
@@ -27,9 +30,10 @@ export const WAITING_MESSAGE_MIN_INTERVAL_MS = 60_000
 type FixedReplyKey =
         | 'quotaExhaustedMessage'
         | 'mediaUnsupportedMessage'
+        | 'voiceInputDisabledMessage'
         | 'waitingForOperatorMessage'
 
-const ENV_OVERRIDES: Record<FixedReplyKey, string | undefined> = {
+const ENV_OVERRIDES: Partial<Record<FixedReplyKey, string | undefined>> = {
         quotaExhaustedMessage: process.env.VIGENT_QUOTA_EXHAUSTED_MESSAGE,
         mediaUnsupportedMessage: process.env.VIGENT_MEDIA_UNSUPPORTED_MESSAGE,
         waitingForOperatorMessage: process.env.VIGENT_WAITING_FOR_OPERATOR_MESSAGE,
@@ -38,6 +42,7 @@ const ENV_OVERRIDES: Record<FixedReplyKey, string | undefined> = {
 const DEFAULTS: Record<FixedReplyKey, string> = {
         quotaExhaustedMessage: DEFAULT_QUOTA_EXHAUSTED_MESSAGE,
         mediaUnsupportedMessage: DEFAULT_MEDIA_UNSUPPORTED_MESSAGE,
+        voiceInputDisabledMessage: DEFAULT_VOICE_INPUT_DISABLED_MESSAGE,
         waitingForOperatorMessage: DEFAULT_WAITING_FOR_OPERATOR_MESSAGE,
 }
 
