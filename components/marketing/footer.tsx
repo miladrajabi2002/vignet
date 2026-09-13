@@ -21,7 +21,7 @@ const COPY = {
                 // Order must track solutionHrefs below — these labels previously pointed at
                 // the wrong pages ("خدمات و رزرو" opened the support page, "پشتیبانی مشتری"
                 // opened the chatbot page).
-                solutionLinks: ['اینستاگرام', 'فروشگاه آنلاین', 'پشتیبانی مشتری', 'چت‌بات فارسی', 'ووکامرس'],
+                solutionLinks: ['صندوق یکپارچه', 'اینستاگرام', 'فروشگاه آنلاین', 'پشتیبانی مشتری', 'چت‌بات فارسی', 'ووکامرس', 'همه راهکارها'],
                 resourceLinks: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
                 status: 'همه سرویس‌ها فعال',
                 made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
@@ -38,7 +38,7 @@ const COPY = {
                 solutionsTitle: 'Solutions',
                 resourcesTitle: 'Learn',
                 productLinks: ['Connections', 'Features', 'Vigento AI', 'Pricing'],
-                solutionLinks: ['Instagram', 'Online stores', 'Customer support', 'Persian AI chatbot', 'WooCommerce'],
+                solutionLinks: ['Unified inbox', 'Instagram', 'Online stores', 'Customer support', 'Persian AI chatbot', 'WooCommerce', 'All solutions'],
                 resourceLinks: ['Documentation', 'Blog', 'Service status'],
                 status: 'All services operational',
                 made: 'Built for Iranian businesses',
@@ -53,7 +53,7 @@ export function Footer() {
         const t = useTranslations('marketing.footer')
         const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
         const productHrefs = ['/#product', '/#solutions', '/#vigento', '/pricing']
-        const solutionHrefs = ['/solutions/instagram', '/solutions/ecommerce-ai', '/solutions/customer-support-ai', '/solutions/persian-ai-chatbot', '/solutions/woocommerce']
+        const solutionHrefs = ['/solutions/unified-inbox', '/solutions/instagram', '/solutions/ecommerce-ai', '/solutions/customer-support-ai', '/solutions/persian-ai-chatbot', '/solutions/woocommerce', '/solutions']
         const resourceHrefs = ['/docs', '/blog', '/status']
 
         return (

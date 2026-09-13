@@ -80,6 +80,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 },
         ]
 
+        // The bilingual solutions hub: /solutions (fa) and /en/solutions (en)
+        // share one route via the middleware rewrite and resolve per request,
+        // so both URLs are legitimate, indexable entries.
+        entries.push({
+                url: `${base}/solutions`,
+                lastModified: new Date(),
+                changeFrequency: 'monthly',
+                priority: 0.9,
+        })
+        entries.push({
+                url: `${base}/en/solutions`,
+                lastModified: new Date(),
+                changeFrequency: 'monthly',
+                priority: 0.9,
+        })
+
         for (const s of SOLUTIONS) {
                 entries.push({
                         url: `${base}/solutions/${s.slug}`,

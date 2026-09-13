@@ -4,6 +4,35 @@ import type { Solution } from '@/lib/marketing/solutions'
  * language switch never breaks inbound links or campaign URLs. */
 export const SOLUTIONS_EN: Solution[] = [
   {
+    slug: 'unified-inbox',
+    metaTitle: 'Unified Inbox for Instagram, Telegram, Bale, Rubika and Your Website | Vigent',
+    metaDescription: 'Instagram DMs, Telegram, Bale, Rubika and your website widget in one shared inbox — with an AI agent, an integrated CRM and WordPress/WooCommerce sync.',
+    keywords: ['unified inbox', 'omnichannel inbox', 'Instagram Telegram inbox', 'manage DMs in one place', 'integrated CRM', 'WooCommerce Instagram integration', 'website chat widget'],
+    serviceType: 'Omnichannel unified inbox with an AI agent',
+    title: 'Every business message, in one inbox',
+    subtitle: 'Connect Instagram DMs, Telegram, Bale, Rubika and your website widget to a single AI agent, then manage every conversation from one page: read incoming messages, reply in place, and see each contact\u2019s full record right beside the thread.',
+    benefits: [
+      { title: 'All channels side by side, nothing lost', desc: 'Instagram, Telegram, Bale, Rubika, the web widget and dedicated chat links arrive in one list — no more jumping between apps or missing unanswered messages.' },
+      { title: 'The agent answers, you supervise', desc: 'The AI agent replies using your products and business knowledge; whenever you want, you take over the thread and write yourself — sensitive cases are handed to an operator with a complete summary.' },
+      { title: 'An integrated CRM on the same page', desc: 'Name, contact details, channels, conversation history, orders and notes for every contact appear next to the messages — a complete record per customer.' },
+      { title: 'WordPress and WooCommerce connection', desc: 'The official Vigent plugin synchronizes products, prices and stock; send a product card and read order status without leaving the conversation.' },
+    ],
+    steps: [
+      'Create an agent and add your products, services and business knowledge.',
+      'Connect your channels — Instagram, Telegram, Bale, Rubika and the website widget — and install the Vigent plugin if you run a WordPress store.',
+      'Handle every conversation from one page: the agent replies automatically while you review the important ones and step in when needed.',
+    ],
+    faq: [
+      { q: 'How do all messages end up together?', a: 'Each channel connects to the agent and its messages arrive in the dashboard\u2019s unified inbox; the originating channel is visible on every conversation, and each contact\u2019s history is unified across channels.' },
+      { q: 'What if I want to answer myself?', a: 'You can take over the conversation at any moment and reply directly. While you are active in the thread the agent steps aside, and it can resume afterwards.' },
+      { q: 'What about my WooCommerce store and customer records?', a: 'The official plugin synchronizes products and orders so the agent answers from real prices and stock; the contact record builds itself from the very first message and stays editable.' },
+    ],
+    relatedArticles: [
+      'unified-inbox-instagram-whatsapp-telegram',
+      'woocommerce-ai-sales-automation',
+    ],
+  },
+  {
     slug: 'persian-ai-chatbot',
     metaTitle: 'Persian AI Chatbot for Websites and Social Channels | Vigent',
     metaDescription: 'Build a Persian AI chatbot grounded in your business data. Answer customers, recommend products, capture leads, and hand important conversations to your team.',

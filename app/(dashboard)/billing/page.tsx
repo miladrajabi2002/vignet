@@ -255,8 +255,8 @@ export default async function BillingPage(
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                     {locale === 'fa'
-                      ? `${nf.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه در هر پرداخت موفق`
-                      : `${nf.format(def.includedCreditIRR / 10)} toman included credit per successful payment`}
+                      ? `${nf.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه، فقط در اولین خرید اشتراک`
+                      : `${nf.format(def.includedCreditIRR / 10)} toman gift credit on your first subscription purchase only`}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />

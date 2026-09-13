@@ -34,7 +34,7 @@ const COPY = {
                 appDescription: 'ایجنت هوشمند فروش و پشتیبانی فارسی برای اینستاگرام، تلگرام، بله، روبیکا و وب‌سایت — با یک ماه شروع رایگان.',
                 offerName: (plan: string) => `پلن ${plan}`,
                 offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>
-                        `اشتراک ماهانه پلن ${plan} ویجنت (${priceToman} تومان در ماه) با ${creditToman} تومان اعتبار پاسخ هدیه و تا ${channels} اتصال کانال فعال.`,
+                        `اشتراک ماهانه پلن ${plan} ویجنت (${priceToman} تومان در ماه) با ${creditToman} تومان اعتبار پاسخ هدیه در اولین خرید و تا ${channels} اتصال کانال فعال.`,
                 breadcrumbHome: 'ویجنت',
                 breadcrumbCurrent: 'تعرفه‌ها و پلن‌ها',
         },
@@ -59,7 +59,7 @@ const COPY = {
                 appDescription: 'Persian AI sales and support agent for Instagram, Telegram, Bale, Rubika and the web — with a free first month.',
                 offerName: (plan: string) => `${plan} plan`,
                 offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>
-                        `Vigent ${plan} monthly subscription (${priceToman} toman/month) with ${creditToman} toman of included reply credit and up to ${channels} active channel connections.`,
+                        `Vigent ${plan} monthly subscription (${priceToman} toman/month) with ${creditToman} toman of gift reply credit on the first purchase and up to ${channels} active channel connections.`,
                 breadcrumbHome: 'Vigent',
                 breadcrumbCurrent: 'Pricing',
         },

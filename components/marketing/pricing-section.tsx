@@ -36,8 +36,8 @@ export async function PricingSection() {
                         features: [
                                 locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`,
                                 locale === 'fa'
-                                        ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه؛ حدود ${number.format(includedReplies)} پاسخ سریع`
-                                        : `${number.format(def.includedCreditIRR / 10)} toman included credit; about ${number.format(includedReplies)} fast replies`,
+                                        ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه در اولین خرید؛ حدود ${number.format(includedReplies)} پاسخ سریع`
+                                        : `${number.format(def.includedCreditIRR / 10)} toman gift credit on your first purchase; about ${number.format(includedReplies)} fast replies`,
                                 t('channelLimit', { count: number.format(def.maxChannels) }),
                                 locale === 'fa' ? `تا ${number.format(def.maxProducts)} محصول` : `Up to ${number.format(def.maxProducts)} products`,
                                 locale === 'fa' ? `تا ${number.format(def.maxOrders)} سفارش` : `Up to ${number.format(def.maxOrders)} orders`,
@@ -138,8 +138,8 @@ export async function PricingSection() {
                                                                         <Feature>{locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`}</Feature>
                                                                         <Feature>
                                                                                 {locale === 'fa'
-                                                                                        ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه؛ حدود ${number.format(includedReplies)} پاسخ سریع`
-                                                                                        : `${number.format(def.includedCreditIRR / 10)} toman included credit; about ${number.format(includedReplies)} fast replies`}
+                                                                                        ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه در اولین خرید؛ حدود ${number.format(includedReplies)} پاسخ سریع`
+                                                                                        : `${number.format(def.includedCreditIRR / 10)} toman gift credit on your first purchase; about ${number.format(includedReplies)} fast replies`}
                                                                         </Feature>
                                                                         <Feature>{t('channelLimit', { count: number.format(def.maxChannels) })}</Feature>
                                                                         <Feature>{locale === 'fa' ? `تا ${number.format(def.maxProducts)} محصول` : `Up to ${number.format(def.maxProducts)} products`}</Feature>
