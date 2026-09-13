@@ -94,7 +94,7 @@ function formatValue(v: number, kind: FormatKind = 'number'): string {
   const n = Number(v) || 0
   switch (kind) {
     case 'irr': {
-      const toman = n / 10
+      const toman = Math.trunc(n / 10)
       return `${toman.toLocaleString('fa-IR')} تومان`
     }
     case 'usd':
@@ -111,7 +111,7 @@ function formatValue(v: number, kind: FormatKind = 'number'): string {
         : toman.toLocaleString('fa-IR')
     }
     case 'toman': {
-      const toman = n / 10
+      const toman = Math.trunc(n / 10)
       return toman.toLocaleString('fa-IR')
     }
     case 'token':
@@ -460,27 +460,13 @@ export function NetRevenueChart({
     gross: d.grossIRR,
   }))
 
-  const totals = data.reduce(
-    (acc, d) => {
-      acc.gross += d.grossIRR
-      acc.cost += d.costIRR
-      acc.net += d.netIRR
-      return acc
-    },
-    { gross: 0, cost: 0, net: 0 },
-  )
+  const grossTotal = data.reduce((total, day) => total + day.grossIRR, 0)
 
   return (
     <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
-        </div>
-        <div className="flex flex-col items-end gap-0.5">
-          <span className="text-[11px] text-zinc-400">سود خالص دوره</span>
-          <span className="text-sm font-bold text-zinc-900">{formatValue(totals.net, 'irr')}</span>
-        </div>
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-zinc-600">
@@ -493,7 +479,7 @@ export function NetRevenueChart({
           هزینه OpenRouter
         </span>
         <span className="text-zinc-400">
-          مجموع اعتبار کسر شده: {formatValue(totals.gross, 'irr')}
+          مجموع اعتبار کسر شده: {formatValue(grossTotal, 'irr')}
         </span>
       </div>
 
@@ -514,6 +500,7 @@ export function NetRevenueChart({
               axisLine={false}
               tickLine={false}
               width={72}
+              tickMargin={24}
               allowDecimals={false}
               tickFormatter={(v: number) => formatValue(v, 'toman')}
             />

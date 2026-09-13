@@ -105,9 +105,14 @@ pm2_process_env_value() {
   ' "${service}" "${key}"
 }
 
+is_versioned_build_dir() {
+  local dist_dir="$1"
+  [[ "${dist_dir}" =~ ^\.next-builds/([0-9a-f]{40}(-[0-9]+-[0-9]+)?|manual-edit-[0-9]+-[0-9]+)$ ]]
+}
+
 validate_dist_dir() {
   local dist_dir="$1"
-  if [ "${dist_dir}" = ".next" ] || [[ "${dist_dir}" =~ ^\.next-builds/[0-9a-f]{40}(-[0-9]+-[0-9]+)?$ ]]; then
+  if [ "${dist_dir}" = ".next" ] || is_versioned_build_dir "${dist_dir}"; then
     return 0
   fi
   echo "ERROR: unsafe Next.js dist directory: ${dist_dir}" >&2
@@ -116,7 +121,7 @@ validate_dist_dir() {
 
 remove_versioned_build_dir() {
   local dist_dir="$1"
-  if ! [[ "${dist_dir}" =~ ^\.next-builds/[0-9a-f]{40}(-[0-9]+-[0-9]+)?$ ]]; then
+  if ! is_versioned_build_dir "${dist_dir}"; then
     echo "ERROR: refusing to remove unsafe build directory: ${dist_dir}" >&2
     return 1
   fi

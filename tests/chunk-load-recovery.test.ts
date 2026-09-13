@@ -31,6 +31,7 @@ describe('Next.js chunk load recovery', () => {
     expect(deploy).toContain('export VIGENT_NEXT_DIST_DIR=".next-builds/${VIGENT_DEPLOYMENT_ID}-$(date +%s)-$$"')
     expect(deploy).toContain('cp -an "${active_dist_dir}/static/." "${VIGENT_NEXT_DIST_DIR}/static/"')
     expect(deploy).toContain('export VIGENT_NEXT_DIST_DIR="${active_dist_dir}"')
+    expect(deploy).toContain('manual-edit-[0-9]+-[0-9]+')
     expect(nextConfig).toContain("distDir: process.env.VIGENT_NEXT_DIST_DIR || '.next'")
     expect(buildGuard).toContain('refusing to overwrite the live Next.js build')
     expect(layout).toContain('<ChunkLoadRecovery />')

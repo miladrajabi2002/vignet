@@ -9,6 +9,8 @@ import {
   CircleDollarSign,
   PlugZap,
   UserPlus,
+  ChevronLeft,
+  Clock3,
 } from 'lucide-react'
 import {
   PageHeader,
@@ -18,7 +20,6 @@ import {
   fa,
 } from './ui'
 import {
-  TrendChart,
   DonutChart,
   MonthlyBarChart,
   NetRevenueChart,
@@ -114,7 +115,6 @@ export default async function AdminOverviewPage(
     revenueKPIs,
     finance,
     workspaceCount,
-    userCount,
     conversationsToday,
     errors24h,
     plans,
@@ -129,7 +129,6 @@ export default async function AdminOverviewPage(
     getRevenueKPIs(),
     getFinanceSummary(),
     prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
-    prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h }, level: 'error' }] } }),
     planDistribution(),
@@ -264,66 +263,80 @@ export default async function AdminOverviewPage(
       <div className="grid gap-4 lg:grid-cols-2">
         <section
           aria-labelledby="active-users-title"
-          className="spatial-surface rounded-[1.5rem] p-5 sm:p-6"
+          className="spatial-surface flex h-full min-w-0 flex-col overflow-hidden rounded-[1.5rem]"
         >
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
+          <div className="flex items-start justify-between gap-4 border-b border-zinc-100 bg-zinc-50/60 px-5 py-5 sm:px-6">
+            <div className="min-w-0">
               <h3 id="active-users-title" className="text-sm font-semibold text-zinc-900">
                 کاربران فعال
               </h3>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                ۵ کاربر برتر بر اساس تعداد مکالمه — ۳۰ روز اخیر
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                برترین کاربران بر اساس تعداد مکالمه در ۳۰ روز اخیر
               </p>
             </div>
             <Link
               href="/admin/users"
-              className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
+              className="group inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 text-[11px] font-semibold text-zinc-600 shadow-sm transition-[border-color,color,box-shadow] hover:border-zinc-300 hover:text-zinc-950 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2"
             >
               همه کاربران
+              <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
             </Link>
           </div>
 
           {activeUsersList.length === 0 ? (
-            <div className="py-8 text-center text-xs text-zinc-400">
+            <div className="flex flex-1 items-center justify-center px-5 py-12 text-center text-xs text-zinc-400">
               در ۳۰ روز اخیر مکالمه‌ای ثبت نشده است.
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-100">
-              {activeUsersList.map((user, index) => (
-                <li key={user.userId}>
-                  <Link
-                    href={`/admin/users/${user.userId}`}
-                    className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-zinc-50 first:pt-0 last:pb-0"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-bold text-zinc-700">
-                      {fa(index + 1)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-zinc-900">
-                          {user.name || user.phone}
+            <ul className="flex flex-1 flex-col divide-y divide-zinc-100 px-3 py-2" aria-label="رتبه‌بندی کاربران فعال">
+              {activeUsersList.map((user, index) => {
+                const displayName = user.name || user.phone
+                const showWorkspace = user.workspaceName !== displayName
+
+                return (
+                  <li key={user.userId} className="flex min-h-[4.25rem] flex-1 items-stretch">
+                    <Link
+                      href={`/admin/users/${user.userId}`}
+                      className="group grid w-full grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-900/60"
+                    >
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold tabular-nums ${index === 0 ? 'bg-zinc-900 text-white shadow-sm' : 'border border-zinc-200 bg-white text-zinc-600'}`}>
+                        {fa(index + 1)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-semibold text-zinc-900">
+                            {displayName}
+                          </span>
+                          <span className="shrink-0 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200/70">
+                            {PLAN_LABEL[user.plan] ?? user.plan}
+                          </span>
+                        </div>
+                        {(showWorkspace || user.name) && (
+                          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-zinc-500">
+                            {showWorkspace && (
+                              <>
+                                <span className="truncate">{user.workspaceName}</span>
+                                {user.name && <span className="text-zinc-300">·</span>}
+                              </>
+                            )}
+                            {user.name && <bdi dir="ltr" className="shrink-0 tabular-nums text-zinc-400">{user.phone}</bdi>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex min-w-[5.5rem] shrink-0 flex-col items-end gap-1">
+                        <span className="inline-flex items-baseline gap-1 text-zinc-900">
+                          <strong className="text-sm font-bold tabular-nums">{fa(user.conversationCount)}</strong>
+                          <span className="text-[10px] font-medium text-zinc-500">مکالمه</span>
                         </span>
-                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
-                          {PLAN_LABEL[user.plan] ?? user.plan}
+                        <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400" title="آخرین فعالیت">
+                          <Clock3 className="h-3 w-3" aria-hidden="true" />
+                          {relativeFromNow(user.lastActivityAt)}
                         </span>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-500">
-                        <span className="truncate">{user.workspaceName}</span>
-                        <span className="text-zinc-300">·</span>
-                        <span className="shrink-0" dir="ltr">{user.phone}</span>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-0.5">
-                      <span className="text-sm font-bold text-zinc-900">
-                        {fa(user.conversationCount)}
-                      </span>
-                      <span className="text-[10px] text-zinc-400">
-                        {relativeFromNow(user.lastActivityAt)}
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>
