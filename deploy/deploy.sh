@@ -108,11 +108,11 @@ pm2_process_env_value() {
 is_versioned_build_dir() {
   local dist_dir="$1"
   # Current releases use the full 40-character commit id. Older deploys used
-  # git's abbreviated (7–12 character) id, and may still be the live rollback
-  # artifact when this script is upgraded. Accept that legacy basename only
-  # when it also has the numeric timestamp/PID suffix; slashes, traversal and
+  # git's abbreviated id or a `build-<timestamp>-<pid>` basename, and may still
+  # be a live rollback artifact when this script is upgraded. Accept those
+  # legacy basenames only with their numeric suffix; slashes, traversal and
   # arbitrary names remain rejected.
-  [[ "${dist_dir}" =~ ^\.next-builds/([0-9a-f]{40}|[0-9a-f]{7,40}-[0-9]+-[0-9]+|manual-edit-[0-9]+-[0-9]+)$ ]]
+  [[ "${dist_dir}" =~ ^\.next-builds/([0-9a-f]{40}|[0-9a-f]{7,40}-[0-9]+-[0-9]+|(manual-edit|build)-[0-9]+-[0-9]+)$ ]]
 }
 
 validate_dist_dir() {
