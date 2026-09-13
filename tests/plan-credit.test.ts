@@ -34,7 +34,7 @@ describe('included plan credit grant', () => {
           return { aiCreditBalanceIRR: balanceIRR }
         }),
       },
-    } as unknown as Prisma.TransactionClient
+    } as unknown as import('@/lib/prisma').Tx
 
     const params = { paymentId: 'pay_1', workspaceId: 'ws_1', plan: 'STARTER' as const }
     const first = await grantIncludedPlanCredit(tx, params)

@@ -482,6 +482,7 @@ export function OperatorChannelSetup({
 
           <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="rounded-[1.4rem] border border-black/[0.065] bg-white/70 p-4 shadow-[0_18px_55px_-46px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:p-5">
+            <div id="settings-operator-health" className="scroll-mt-28">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -562,8 +563,9 @@ export function OperatorChannelSetup({
                 </div>
               )}
             </div>
+            </div>
 
-            <div className="rounded-[1.4rem] border border-black/[0.065] bg-white/70 p-4 shadow-[0_18px_55px_-46px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:p-5">
+            <div id="settings-operator-controls" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-white/70 p-4 shadow-[0_18px_55px_-46px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:p-5">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-[var(--text-secondary)]" />
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('کنترل‌های مدیریتی', 'Management controls')}</h3>
@@ -628,7 +630,7 @@ export function OperatorChannelSetup({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[1.4rem] border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
+            <div id="settings-operator-commands" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Command className="h-4 w-4" /></span>
                 <div>
@@ -654,7 +656,7 @@ export function OperatorChannelSetup({
               </div>
             </div>
 
-            <div className="rounded-[1.4rem] border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
+            <div id="settings-operator-connection" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
               <div className="flex items-center gap-2">
                 <Clock3 className="h-4 w-4 text-[var(--text-secondary)]" />
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('جزئیات اتصال', 'Connection details')}</h3>
@@ -709,7 +711,7 @@ export function OperatorChannelSetup({
         </div>
       ) : (
         <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[1.4rem] border border-black/[0.065] bg-white/75 p-4 sm:p-5">
+          <div id="settings-operator-bot" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-white/75 p-4 sm:p-5">
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black/[0.045] text-[var(--text-secondary)]"><KeyRound className="h-4 w-4" /></span>
               <div>
@@ -743,7 +745,7 @@ export function OperatorChannelSetup({
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[1.4rem] border border-black/[0.065] bg-black/[0.025] p-5">
+          <div id="settings-operator-benefits" className="relative scroll-mt-28 overflow-hidden rounded-[1.4rem] border border-black/[0.065] bg-black/[0.025] p-5">
             <div className="absolute -end-14 -top-14 h-36 w-36 rounded-full bg-sky-200/35 blur-3xl" />
             <div className="relative">
               <div className="flex items-center gap-2"><MessageSquareText className="h-4 w-4 text-[var(--text-secondary)]" /><h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('بعد از اتصال چه دارید؟', 'What you get after connecting')}</h3></div>

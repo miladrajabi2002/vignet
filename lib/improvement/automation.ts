@@ -19,6 +19,7 @@ export async function sweepImprovement() {
       const candidates = await prisma.$queryRaw<Array<{ id: string }>>`
         SELECT c.id FROM "Conversation" c
         WHERE c."agentId" = ${agent.id} AND c."workspaceId" = ${agent.workspaceId}
+          AND c."deletedAt" IS NULL
           AND c."lastMessageAt" IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM "ImprovementReview" r JOIN "ImprovementRun" j ON j.id = r."runId"
             WHERE r."conversationId" = c.id AND r.status = 'DONE' AND j."createdAt" >= c."lastMessageAt")

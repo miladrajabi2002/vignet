@@ -27,10 +27,11 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
       channels: { select: { id: true, type: true, active: true, lastInboundAt: true } },
       knowledgeBases: { select: { id: true, name: true, status: true, updatedAt: true } },
       conversations: {
+        where: { deletedAt: null },
         orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }], take: 8,
         select: { id: true, status: true, channel: true, messageCount: true, lastMessageAt: true, createdAt: true, contact: { select: { name: true, phone: true } } },
       },
-      _count: { select: { conversations: true, knowledgeBases: true, channels: true } },
+      _count: { select: { conversations: { where: { deletedAt: null } }, knowledgeBases: true, channels: true } },
     },
   })
   if (!agent) notFound()
@@ -38,7 +39,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
   const [dailyRows, usage] = await Promise.all([
     prisma.$queryRaw<{ d: string; c: bigint }[]>`
       SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE 'Asia/Tehran'), 'YYYY-MM-DD') AS d, count(*) AS c
-      FROM "Conversation" WHERE "agentId" = ${agentId} AND "createdAt" >= ${new Date(Date.now() - 7 * 86_400_000)}
+      FROM "Conversation" WHERE "agentId" = ${agentId} AND "createdAt" >= ${new Date(Date.now() - 7 * 86_400_000)} AND "deletedAt" IS NULL
       GROUP BY 1 ORDER BY 1`,
     prisma.usageLog.aggregate({ where: { agentId, date: { gte: since }, status: 'CAPTURED' }, _sum: { chargedIRR: true, cost: true }, _count: { _all: true } }),
   ])

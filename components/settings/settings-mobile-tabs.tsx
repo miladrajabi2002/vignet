@@ -1,8 +1,9 @@
 'use client'
 
-import { type KeyboardEvent, type ReactNode, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
 import { Building2, Headphones, Mail, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SettingsSearch, type SettingsSearchItem } from '@/components/settings/settings-search'
 
 type SettingsTab = 'business' | 'operator' | 'reports'
 
@@ -12,15 +13,21 @@ export function SettingsMobileTabs({
   reports,
   labels,
   navigationLabel,
+  searchIndex,
+  locale,
 }: {
   business: ReactNode
   operator: ReactNode
   reports: ReactNode
   labels: Record<SettingsTab, string>
   navigationLabel: string
+  /** Searchable sections — built by the page, locale-aware. */
+  searchIndex: SettingsSearchItem[]
+  locale: 'fa' | 'en'
 }) {
   const [active, setActive] = useState<SettingsTab>('business')
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const fa = locale !== 'en'
   const tabs: Array<{ key: SettingsTab; icon: LucideIcon; content: ReactNode }> = [
     { key: 'business', icon: Building2, content: business },
     { key: 'operator', icon: Headphones, content: operator },
@@ -40,8 +47,25 @@ export function SettingsMobileTabs({
     tabRefs.current[next]?.focus()
   }
 
+  // Search jump: activate the result's tab, then scroll to the section and
+  // flash it once the tab's content is actually visible.
+  const handleJump = useCallback((item: SettingsSearchItem) => {
+    setActive(item.tab)
+    window.setTimeout(() => {
+      const el = document.getElementById(item.id)
+      if (!el) return
+      el.scrollIntoView({ block: 'start', behavior: fa ? 'auto' : 'smooth' })
+      el.classList.remove('settings-target-flash')
+      // Restart the animation.
+      void el.offsetWidth
+      el.classList.add('settings-target-flash')
+    }, 80)
+  }, [fa])
+
   return (
     <div className="space-y-6">
+      <SettingsSearch items={searchIndex} locale={locale} onJump={handleJump} />
+
       <div className="sticky top-[5.25rem] z-30 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl md:hidden">
         <div role="tablist" aria-label={navigationLabel} className="grid grid-cols-3 gap-1">
           {tabs.map(({ key, icon: Icon }, index) => (

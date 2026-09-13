@@ -6,7 +6,6 @@ import type { ChannelType, ConvStatus, Prisma } from '@prisma/client'
 import { MessagesSquare, Clock, Filter, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { ChannelBadge } from '@/components/crm/channel-badge'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { ConversationFilters } from '@/components/dashboard/conversation-filters'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
@@ -14,7 +13,6 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import {
         conversationsDailyByWorkspace,
 } from '@/lib/dashboard/charts'
-import { smartTime, formatDateTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
 import {
         contactDisplayName,
@@ -22,7 +20,6 @@ import {
         channelAvatarFor,
 } from '@/lib/crm/display'
 import { Pagination } from '@/components/ui/pagination'
-import { cn } from '@/lib/utils'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardDonut } from '@/components/dashboard/donut'
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -31,12 +28,9 @@ import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
-import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
-import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
 import { SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
-import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import {
         LiveArrivalItem,
@@ -44,7 +38,7 @@ import {
         LiveArrivalStatus,
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
-import { MobileConversationCard } from '@/components/crm/mobile-conversation-card'
+import { ConversationInbox } from '@/components/crm/conversation-inbox'
 
 const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -215,12 +209,12 @@ export default async function ConversationsPage(props: {
                         _count: { _all: true },
                 }),
                 prisma.agent.findMany({
-                        where: { workspaceId: user.workspaceId, conversations: { some: {} } },
+                        where: { workspaceId: user.workspaceId, conversations: { some: { deletedAt: null } } },
                         orderBy: { name: 'asc' },
                         select: {
                                 id: true,
                                 name: true,
-                                _count: { select: { conversations: true } },
+                                _count: { select: { conversations: { where: { deletedAt: null } } } },
                         },
                 }),
                 prisma.conversation.findMany({
@@ -375,12 +369,14 @@ export default async function ConversationsPage(props: {
                                                 <BulkDeleteButton
                                                         countEndpoint="/api/conversations/bulk"
                                                         deleteEndpoint="/api/conversations/bulk"
+                                                        restoreEndpoint="/api/conversations/bulk/restore"
                                                         entityLabel={isFa ? 'گفتگو' : 'conversation'}
+                                                        entitySingularLabel={isFa ? 'گفتگو' : 'conversation'}
                                                         buttonLabel={isFa ? 'حذف همه گفتگوها' : 'Delete all'}
                                                         compactOnMobile
                                                         extraWarning={isFa
-                                                                ? 'تاریخچه پیام‌ها (شامل متن چت) برای همیشه از بین می‌رود. اطلاعات مشتریان حفظ می‌شود.'
-                                                                : 'Message history (including chat content) is permanently destroyed. Customer info is preserved.'}
+                                                                ? 'تاریخچه پیام‌ها حذف می‌شود اما بلافاصله بعد از حذف، چند ثانیه فرصت «بازگردانی» کامل خواهید داشت. اطلاعات مشتریان حفظ می‌شود.'
+                                                                : 'Message history is removed, but you get a few seconds to fully undo right after the delete. Customer info is preserved.'}
                                                 />
                                         </>
                                 }
@@ -500,75 +496,36 @@ export default async function ConversationsPage(props: {
                                                         </div>
                                                         <LiveArrivalStatus resource="conversations" locale={locale} />
                                                 </div>
-
-                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
-                                                        <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
-                                                                <MobileConversationCard
-                                                                        conversationId={c.id}
-                                                                        who={who}
-                                                                        avatarSrc={channelAvatarSrc}
-                                                                        channelHandle={channelHandle}
-                                                                        sourceLabel={sourceLabel}
-                                                                        relativeTimeLabel={smartTime(when, locale)}
-                                                                        messageCountLabel={`${c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} ${isFa ? 'پیام' : 'messages'}`}
-                                                                        channel={c.channel}
-                                                                        status={displayStatus}
-                                                                        statusLabel={statusLabel}
-                                                                        attention={attention}
-                                                                        locale={locale}
-                                                                        lastMessage={last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
-                                                                        reactionEmoji={reactionEmoji}
-                                                                />
-                                                        </LiveArrivalItem>
-                                                ))}
                                         </div>
 
-                                        <div className="spatial-surface hidden min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem] md:block">
-                                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
-                                                        <div className="min-w-0">
-                                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
-                                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${matchedCount.toLocaleString('fa-IR')} گفتگوی منطبق از ${totalCount.toLocaleString('fa-IR')} پرونده` : `${matchedCount} matching conversations out of ${totalCount}`}</p>
-                                                        </div>
-                                                        <LiveArrivalStatus resource="conversations" locale={locale} />
-                                                </div>
-                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
-                                                        <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
-                                                                <Link
-                                                                        href={`/conversations/${c.id}`}
-                                                                        dir={isFa ? 'rtl' : 'ltr'}
-                                                                        className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5', attention && 'bg-amber-500/5')}
-                                                                >
-                                                                        <ContactAvatar src={channelAvatarSrc} alt={who} />
-                                                                        <div className="min-w-0 flex-1">
-                                                                                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                                                                        <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]" title={who}>{who}</span>
-                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
-                                                                                        {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
-                                                                                </div>
-                                                                                <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                                                                                        {reactionEmoji && (
-                                                                                                <span
-                                                                                                        dir="ltr"
-                                                                                                        className="emoji-glyph inline-flex h-5 shrink-0 items-center rounded-full border border-black/[0.08] bg-white px-1.5 text-[13px] leading-none shadow-sm"
-                                                                                                        aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}
-                                                                                                >
-                                                                                                        {reactionEmoji}
-                                                                                                </span>
-                                                                                        )}
-                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="min-w-0 flex-1 truncate text-start text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]" title={last ? stripProductTokens(last.content) : c.agent.name}>{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
-                                                                                </div>
-                                                                        </div>
-                                                                        <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
-                                                                                <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />
-                                                                                <ChannelBadge type={c.channel} />
-                                                                                {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
-                                                                                <span className="tabular-nums" title={formatDateTime(when, locale)}>{smartTime(when, locale)}</span>
-                                                                                <span className="tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
-                                                                        </span>
-                                                                </Link>
-                                                        </LiveArrivalItem>
-                                                ))}
-                                        </div>
+                                        <ConversationInbox
+                                                items={inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => ({
+                                                        id: c.id,
+                                                        who,
+                                                        avatarSrc: channelAvatarSrc,
+                                                        channelHandle,
+                                                        sourceLabel,
+                                                        when: when.toISOString(),
+                                                        messageCount: c.messageCount,
+                                                        channel: c.channel,
+                                                        status: displayStatus,
+                                                        statusLabel,
+                                                        attention,
+                                                        lastMessage: last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name,
+                                                        reactionEmoji,
+                                                        salesInsight: c.salesInsight
+                                                                ? { leadType: c.salesInsight.leadType as 'UNCLEAR' | 'INFORMATION_SEEKER' | 'BUYER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER', buyerProbability: c.salesInsight.buyerProbability }
+                                                                : null,
+                                                }))}
+                                                totalResults={matchedCount}
+                                                filters={{
+                                                        channel: channelFilter ?? '',
+                                                        status: statusFilter ?? '',
+                                                        agent: agentFilter ?? '',
+                                                        sales: salesFilter ?? '',
+                                                        q: query ?? '',
+                                                }}
+                                        />
                                 </div>
                         )}
 

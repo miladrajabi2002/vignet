@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   contactFindFirst: vi.fn(),
   transaction: vi.fn(),
   conversationUpdateMany: vi.fn(),
-  contactDeleteMany: vi.fn(),
+  contactUpdateMany: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({ getCurrentUser: mocks.getCurrentUser }))
@@ -106,11 +106,11 @@ describe('DELETE /api/contacts/:contactId', () => {
       marketingOptIn: false,
     })
     mocks.conversationUpdateMany.mockResolvedValue({ count: 2 })
-    mocks.contactDeleteMany.mockResolvedValue({ count: 1 })
+    mocks.contactUpdateMany.mockResolvedValue({ count: 1 })
     mocks.transaction.mockImplementation(async (callback) =>
       callback({
         conversation: { updateMany: mocks.conversationUpdateMany },
-        contact: { deleteMany: mocks.contactDeleteMany },
+        contact: { updateMany: mocks.contactUpdateMany },
       }),
     )
   })
@@ -141,13 +141,16 @@ describe('DELETE /api/contacts/:contactId', () => {
       where: { contactId: 'contact-1', workspaceId: 'workspace-1' },
       data: { contactId: null },
     })
-    expect(mocks.contactDeleteMany).toHaveBeenCalledWith({
-      where: { id: 'contact-1', workspaceId: 'workspace-1' },
+    // The route soft-deletes (deletedAt stamp) directly on the transaction —
+    // the global extension conversion must not be relied on inside $transaction.
+    expect(mocks.contactUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'contact-1', workspaceId: 'workspace-1', deletedAt: null },
+      data: { deletedAt: expect.any(Date) },
     })
   })
 
   it('returns a controlled failure when a concurrent delete wins', async () => {
-    mocks.contactDeleteMany.mockResolvedValue({ count: 0 })
+    mocks.contactUpdateMany.mockResolvedValue({ count: 0 })
 
     const response = await DELETE(
       new Request('http://localhost/api/contacts/contact-1', { method: 'DELETE' }),

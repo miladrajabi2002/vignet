@@ -21,7 +21,7 @@ export async function GET() {
     where: { workspaceId: user.workspaceId },
     orderBy: { createdAt: 'desc' },
     include: {
-      _count: { select: { conversations: true, channels: true } },
+      _count: { select: { conversations: { where: { deletedAt: null } }, channels: true } },
     },
   })
   return NextResponse.json({ agents })

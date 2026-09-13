@@ -330,25 +330,62 @@ async function persistInboundOnly(args: {
         created: boolean
 }> {
         const persisted = await prisma.$transaction(async (tx) => {
-                const conversation = await tx.conversation.upsert({
+                // Soft-delete-aware get-or-create (plain `upsert` cannot use the
+                // partial unique index as an ON CONFLICT arbiter). FindFirst is
+                // filtered to live rows by the soft-delete extension; a trashed
+                // twin is ignored on purpose — a thread that became active again
+                // after a delete starts FRESH, like every major messenger.
+                // The create can still race a concurrent insert for the same
+                // thread (P2002); retry once via the now-existing live row.
+                let conversation = await tx.conversation.findFirst({
                         where: {
-                                agentId_channel_externalId: {
-                                        agentId: args.agentId,
-                                        channel: args.channel,
-                                        externalId: args.externalId,
-                                },
-                        },
-                        create: {
-                                workspaceId: args.workspaceId,
                                 agentId: args.agentId,
-                                contactId: args.contactId,
                                 channel: args.channel,
                                 externalId: args.externalId,
-                                customerInfoState: 'skipped',
                         },
-                        update: { contactId: args.contactId },
                         select: { id: true, status: true, handedOff: true },
                 })
+                if (!conversation) {
+                        try {
+                                conversation = await tx.conversation.create({
+                                        data: {
+                                                workspaceId: args.workspaceId,
+                                                agentId: args.agentId,
+                                                contactId: args.contactId,
+                                                channel: args.channel,
+                                                externalId: args.externalId,
+                                                customerInfoState: 'skipped',
+                                        },
+                                        select: { id: true, status: true, handedOff: true },
+                                })
+                        } catch (error) {
+                                const code = (error as { code?: string }).code
+                                if (code !== 'P2002') throw error
+                                const existing = await tx.conversation.findFirst({
+                                        where: {
+                                                agentId: args.agentId,
+                                                channel: args.channel,
+                                                externalId: args.externalId,
+                                        },
+                                        select: { id: true, status: true, handedOff: true },
+                                })
+                                if (!existing) throw error
+                                conversation = existing
+                        }
+                }
+                if (conversation.status === 'RESOLVED' && !conversation.handedOff) {
+                        await tx.conversation.update({
+                                where: { id: conversation.id },
+                                data: { status: 'OPEN', contactId: args.contactId },
+                                select: { id: true },
+                        })
+                } else if (args.contactId !== undefined) {
+                        await tx.conversation.update({
+                                where: { id: conversation.id },
+                                data: { contactId: args.contactId },
+                                select: { id: true },
+                        })
+                }
                 let created = true
                 let messageId: string
                 if (args.inboundEventId) {

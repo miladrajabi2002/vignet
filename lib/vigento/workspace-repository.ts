@@ -81,7 +81,7 @@ export class WorkspaceVigentoRepository {
         updatedAt: true,
         _count: {
           select: {
-            conversations: { where: { createdAt: { gte: since } } },
+            conversations: { where: { createdAt: { gte: since }, deletedAt: null } },
             catalogItems: true,
             knowledgeBases: { where: { status: 'READY' } },
             channels: { where: { active: true } },
@@ -148,7 +148,7 @@ export class WorkspaceVigentoRepository {
         instagramUsername: true,
         lastActivityAt: true,
         stage: true,
-        _count: { select: { conversations: true, appointments: true } },
+        _count: { select: { conversations: { where: { deletedAt: null } }, appointments: true } },
       },
     })
     return rows.map((row) => ({

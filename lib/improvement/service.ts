@@ -86,9 +86,12 @@ export async function improvementOverview(workspaceId: string, agentId: string, 
     JOIN "ImprovementChange" change ON change."suggestionId" = s.id AND change."revertedAt" IS NULL
     LEFT JOIN "ImprovementRun" run ON run."agentId" = s."agentId" AND run."workspaceId" = s."workspaceId" AND run."createdAt" > change."createdAt"
     LEFT JOIN "ImprovementReview" r ON r."runId" = run.id AND r.status = 'DONE'
+      AND EXISTS (SELECT 1 FROM "Conversation" cv WHERE cv.id = r."conversationId" AND cv."deletedAt" IS NULL)
     WHERE s."workspaceId" = ${workspaceId} AND s."agentId" = ${agentId} AND s.status = 'APPLIED'
     GROUP BY s.id` : []
-  const evidenceCounts = suggestions.length ? await prisma.$queryRaw<Array<{ id: string; conversations: bigint }>>`SELECT e."suggestionId" AS id, COUNT(DISTINCT r."conversationId") AS conversations FROM "ImprovementEvidence" e JOIN "ImprovementReview" r ON r.id = e."reviewId" WHERE e."suggestionId" IN (${Prisma.join(suggestions.map((s) => s.id))}) GROUP BY e."suggestionId"` : []
+  const evidenceCounts = suggestions.length ? await prisma.$queryRaw<Array<{ id: string; conversations: bigint }>>`SELECT e."suggestionId" AS id, COUNT(DISTINCT r."conversationId") AS conversations FROM "ImprovementEvidence" e JOIN "ImprovementReview" r ON r.id = e."reviewId"
+      AND EXISTS (SELECT 1 FROM "Conversation" cv WHERE cv.id = r."conversationId" AND cv."deletedAt" IS NULL)
+    WHERE e."suggestionId" IN (${Prisma.join(suggestions.map((s) => s.id))}) GROUP BY e."suggestionId"` : []
   const runIds = [...new Set([...runs.map((run) => run.id), ...(activeRun ? [activeRun.id] : [])])]
   const usage = runIds.length ? await prisma.$queryRaw<Array<{ runId: string; chargedIRR: bigint; requestCount: bigint }>>`
     SELECT run.id AS "runId", COALESCE(SUM(log."chargedIRR"), 0) AS "chargedIRR", COUNT(log.id) AS "requestCount"

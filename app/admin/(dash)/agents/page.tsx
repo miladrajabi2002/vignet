@@ -37,7 +37,7 @@ export default async function AdminAgentsPage({ searchParams }: { searchParams: 
           updatedAt: true,
           workspace: { select: { name: true } },
           _count: {
-            select: { conversations: true, channels: true, knowledgeBases: true },
+            select: { conversations: { where: { deletedAt: null } }, channels: true, knowledgeBases: true },
           },
         },
       }),

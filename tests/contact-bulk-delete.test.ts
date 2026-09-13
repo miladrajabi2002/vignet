@@ -32,22 +32,30 @@ describe('DELETE /api/contacts/bulk', () => {
     mocks.contactDeleteMany.mockResolvedValue({ count: 2 })
   })
 
-  it('deletes only selected contacts in the authenticated workspace', async () => {
+  it('soft-deletes only selected contacts in the authenticated workspace', async () => {
+    // The route resolves live targets first (workspace-scoped, already-trashed
+    // rows excluded by the soft-delete extension), then trashes exactly those.
+    mocks.contactFindMany.mockResolvedValue([{ id: 'contact-1' }, { id: 'contact-2' }])
+
     const response = await DELETE(new Request('http://localhost/api/contacts/bulk', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ['contact-1', 'contact-2'] }),
+      body: JSON.stringify({ ids: ['contact-1', 'contact-2', 'contact-trashed'] }),
     }))
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ ok: true, deleted: 2 })
-    expect(mocks.contactDeleteMany).toHaveBeenCalledWith({
+    // Trashed ids are returned so the client can offer «بازگردانی» (undo).
+    expect(await response.json()).toEqual({ ok: true, deleted: 2, ids: ['contact-1', 'contact-2'] })
+    expect(mocks.contactFindMany).toHaveBeenCalledWith({
       where: {
         workspaceId: 'workspace-1',
-        id: { in: ['contact-1', 'contact-2'] },
+        id: { in: ['contact-1', 'contact-2', 'contact-trashed'] },
       },
+      select: { id: true },
     })
-    expect(mocks.contactFindMany).not.toHaveBeenCalled()
+    expect(mocks.contactDeleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['contact-1', 'contact-2'] } },
+    })
   })
 
   it('rejects an empty selection instead of falling back to deleting all contacts', async () => {

@@ -78,14 +78,15 @@ describe('omnichannel CRM user-visible contract', () => {
 
   it('uses a real mobile inbox with cards, sheet filters, and detail tabs', () => {
     const list = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const inbox = source('components/crm/conversation-inbox.tsx')
     const filters = source('components/dashboard/conversation-filters.tsx')
     const detailLayout = source('components/crm/conversation-mobile-layout.tsx')
     const mobileNav = source('components/dashboard/mobile-nav.tsx')
 
     expect(list).toContain('sticky top-[5.35rem]')
-    expect(list).toContain('key={`mobile-${c.id}`}')
-    expect(list).toContain('key={`desktop-${c.id}`}')
-    expect(list).toContain('<ConversationStatusBadge')
+    expect(inbox).toContain('key={`mobile-${item.id}`}')
+    expect(inbox).toContain('key={`desktop-${item.id}`}')
+    expect(inbox).toContain('<ConversationStatusBadge')
     expect(list).toContain('prisma.conversation.count({ where })')
     expect(filters).toContain('<MobileBottomSheet')
     expect(filters).toContain('activeFacetCount')
@@ -103,11 +104,11 @@ describe('omnichannel CRM user-visible contract', () => {
 describe('CRM avatar and customer deletion contract', () => {
   it('uses the internal Instagram avatar proxy and puts channel identity in the trailing column', () => {
     const contacts = source('app/(dashboard)/contacts/(list)/page.tsx')
-    const conversations = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const conversations = source('components/crm/conversation-inbox.tsx')
     const avatar = source('components/crm/contact-avatar.tsx')
 
     expect(contacts).toContain('contactAvatarSrc({')
-    expect(conversations).toContain('<ContactAvatar src={channelAvatarSrc} alt={who} />')
+    expect(conversations).toContain('<ContactAvatar src={item.avatarSrc} alt={item.who} />')
     expect(conversations).toContain('<ConversationStatusBadge')
     expect(avatar).toContain('setUsingFallback(true)')
     expect(avatar).toContain('setBroken(true)')
@@ -141,13 +142,14 @@ describe('CRM avatar and customer deletion contract', () => {
 
 describe('conversation sales intelligence UI contract', () => {
   it('surfaces classification, probability, filtering, and historical backfill', () => {
-    const list = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const page = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const list = source('components/crm/conversation-inbox.tsx')
     const detail = source('app/(dashboard)/conversations/[conversationId]/page.tsx')
     const filter = source('components/dashboard/conversation-filters.tsx')
     const backfill = source('components/crm/sales-insight-backfill.tsx')
 
-    expect(list).toContain('<SalesInsightBadge insight={c.salesInsight}')
-    expect(list).toContain("'HIGH_INTENT'")
+    expect(list).toContain('<SalesInsightBadge insight={item.salesInsight}')
+    expect(page).toContain("'HIGH_INTENT'")
     expect(filter).toContain('activeSales')
     expect(detail).toContain('<SalesInsightCard insight={displayedSalesInsight}')
     expect(detail).toContain('analyzeSalesConversation({')

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
@@ -10,25 +11,13 @@ export const dynamic = 'force-dynamic'
  *
  * GET  → returns { count } for the confirm dialog.
  *
- * DELETE → wipes ALL Conversation rows in the workspace. Cascades:
- *   • Message → onDelete: Cascade (chat history is destroyed)
- *   • HandoffAlert → onDelete: Cascade
- *   • ConversationSalesInsight → onDelete: Cascade
- *   • ConversationTurnLease → onDelete: Cascade (we own the conversation)
- *
- * ⚠️ This is the most destructive of the four bulk-delete operations.
- * Unlike contacts (which preserve chat history via SetNull), deleting
- * a conversation also destroys every message in it. The confirm dialog
- * warns the user about this explicitly.
- *
- * The Contact records themselves are NOT touched — a customer who
- * messaged us before will still appear in the contacts list, just
- * without their chat history.
- *
- * Deleted in batches of 500 (not 1000) because conversations carry
- * more cascade work per row — Messages + HandoffAlerts + Insights all
- * need to be deleted too, and 500 keeps each batch's transaction size
- * bounded.
+ * DELETE → soft-deletes ALL Conversation rows in the workspace and returns
+ * the trashed ids for the undo snackbar. Because the soft-delete extension
+ * replaces the row removal with a `deletedAt` stamp, the Message/HandoffAlert/
+ * SalesInsight cascades never fire — chat history survives untouched and the
+ * «بازگردانی» (undo) endpoint brings everything back within the window. The
+ * worker's purge sweeper physically removes rows (and their messages) after
+ * 7 days.
  */
 
 const BATCH_SIZE = 500
@@ -40,28 +29,45 @@ export async function GET() {
   return NextResponse.json({ count })
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
     return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
   }
 
-  let deleted = 0
+  // Scoped mode: when the body supplies ids, ONLY those conversations are
+  // trashed (the selection bar on the conversations page). Without a body the
+  // delete covers the whole workspace (the «حذف همه» button).
+  const contentType = request.headers.get('content-type') ?? ''
+  let scopedIds: string[] | null = null
+  if (contentType.includes('application/json')) {
+    const parsed = z
+      .object({ ids: z.array(z.string().min(1).max(64)).min(1).max(20_000) })
+      .safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
+    }
+    scopedIds = parsed.data.ids
+  }
+
+  const ids: string[] = []
   let batch = 0
   do {
-    const ids = await prisma.conversation.findMany({
-      where: { workspaceId: user.workspaceId },
+    const rows = await prisma.conversation.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        ...(scopedIds ? { id: { in: scopedIds } } : {}),
+      },
       select: { id: true },
       take: BATCH_SIZE,
     })
-    if (ids.length === 0) break
-    const result = await prisma.conversation.deleteMany({
-      where: { id: { in: ids.map((r) => r.id) } },
-    })
-    deleted += result.count
-    batch = ids.length
+    if (rows.length === 0) break
+    const batchIds = rows.map((r) => r.id)
+    await prisma.conversation.deleteMany({ where: { id: { in: batchIds } } })
+    ids.push(...batchIds)
+    batch = rows.length
   } while (batch === BATCH_SIZE)
 
-  return NextResponse.json({ ok: true, deleted })
+  return NextResponse.json({ ok: true, deleted: ids.length, ids })
 }

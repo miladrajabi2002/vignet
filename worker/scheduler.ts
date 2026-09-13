@@ -25,6 +25,7 @@ import { sweepChannelHealth } from '@/lib/channels/health'
 import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
 import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-outbox'
 import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
+import { purgeSoftDeleted } from '@/lib/maintenance/soft-delete-purge'
 
 /**
  * Lightweight in-process scheduler for the background worker. Uses plain
@@ -47,6 +48,7 @@ const STALE_HOURS = 24
 const BATCH = 100
 const ADMIN_COMMERCIAL_SMS_SWEEP_INTERVAL_MS = 5 * 60_000
 const SKILLS_SWEEP_INTERVAL_MS = 6 * HOUR_MS
+const SOFT_DELETE_PURGE_INTERVAL_MS = 6 * HOUR_MS
 
 async function sweepStaleConversations(): Promise<void> {
         const cutoff = new Date(Date.now() - STALE_HOURS * HOUR_MS)
@@ -848,6 +850,13 @@ export function startScheduler(): () => void {
         const initialSkills = setTimeout(runSkillsSweep, 4 * 60_000)
         const skillsInterval = setInterval(runSkillsSweep, SKILLS_SWEEP_INTERVAL_MS)
 
+        // ─ Soft-delete retention: physically remove rows that were trashed
+        // more than 7 days ago (bulk-delete undo window is long over). Runs
+        // every 6 hours; first run a few minutes after boot.
+        const runSoftDeletePurge = () => purgeSoftDeleted().catch((e) => console.error('[scheduler] soft-delete purge failed:', e))
+        const initialSoftDeletePurge = setTimeout(runSoftDeletePurge, 6 * 60_000)
+        const softDeletePurgeInterval = setInterval(runSoftDeletePurge, SOFT_DELETE_PURGE_INTERVAL_MS)
+
         return () => {
                 clearTimeout(initialImprovement)
                 clearInterval(improvementInterval)
@@ -877,5 +886,7 @@ export function startScheduler(): () => void {
                 clearInterval(channelHealthInterval)
                 clearTimeout(initialSkills)
                 clearInterval(skillsInterval)
+                clearTimeout(initialSoftDeletePurge)
+                clearInterval(softDeletePurgeInterval)
         }
 }

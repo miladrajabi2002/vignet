@@ -11,28 +11,20 @@ export const dynamic = 'force-dynamic'
  *
  * GET  → returns { count } for the confirm dialog.
  *
- * DELETE → deletes the supplied contact ids, or all Contact rows when no JSON
- * body is supplied. Every delete remains scoped to the current workspace.
- * Cascades:
- *   • Conversation.contactId has onDelete: SetNull — so conversations
- *     are preserved, but their contactId is set to NULL. This means
- *     chat history is NOT lost; it just becomes "anonymous" until a
- *     new contact is matched to the conversation.
- *   • CampaignRecipient has onDelete: Cascade — campaign sends to
- *     deleted contacts are removed automatically.
- *   • Appointment has onDelete: Cascade — appointments with deleted
- *     contacts are removed automatically.
+ * DELETE → soft-deletes the supplied contact ids, or all Contact rows when no
+ * JSON body is supplied. Every delete remains scoped to the current workspace.
+ * The response contains the ids that were trashed — the UI feeds them to the
+ * /restore endpoint for the «بازگردانی» (undo) snackbar. Rows are physically
+ * removed by the worker's purge sweeper after 7 days.
  *
- * We deliberately DO NOT touch Conversations, Messages, or
- * Appointments directly here. The cascade / set-null behavior above
- * is the desired semantic: deleting a customer should NOT delete
- * their support history.
- *
- * Deleted in batches of 1000 to stay under Postgres' parameter limit.
+ * Because rows are only trashed, the "conversations become anonymous" cascade
+ * (Contact→Conversation SetNull) never fires — restoring a contact brings its
+ * conversation links back exactly as they were.
  */
 
 const BATCH_SIZE = 1000
-const deleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1).max(BATCH_SIZE) })
+const MAX_DELETE_IDS = 20_000
+const deleteSchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).max(MAX_DELETE_IDS) })
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -55,30 +47,37 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
     }
 
-    const result = await prisma.contact.deleteMany({
+    // Only ids that currently belong to a LIVE row in this workspace get
+    // trashed — the soft-delete extension hides already-trashed rows from
+    // this findMany, so re-deleting trash is a no-op.
+    const targets = await prisma.contact.findMany({
       where: {
         workspaceId: user.workspaceId,
         id: { in: parsed.data.ids },
       },
+      select: { id: true },
     })
-    return NextResponse.json({ ok: true, deleted: result.count })
+    const ids = targets.map((row) => row.id)
+    if (ids.length > 0) {
+      await prisma.contact.deleteMany({ where: { id: { in: ids } } })
+    }
+    return NextResponse.json({ ok: true, deleted: ids.length, ids })
   }
 
-  let deleted = 0
+  const ids: string[] = []
   let batch = 0
   do {
-    const ids = await prisma.contact.findMany({
+    const rows = await prisma.contact.findMany({
       where: { workspaceId: user.workspaceId },
       select: { id: true },
       take: BATCH_SIZE,
     })
-    if (ids.length === 0) break
-    const result = await prisma.contact.deleteMany({
-      where: { id: { in: ids.map((r) => r.id) } },
-    })
-    deleted += result.count
-    batch = ids.length
+    if (rows.length === 0) break
+    const batchIds = rows.map((r) => r.id)
+    await prisma.contact.deleteMany({ where: { id: { in: batchIds } } })
+    ids.push(...batchIds)
+    batch = rows.length
   } while (batch === BATCH_SIZE)
 
-  return NextResponse.json({ ok: true, deleted })
+  return NextResponse.json({ ok: true, deleted: ids.length, ids })
 }

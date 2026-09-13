@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
-      deleteMany: vi.fn(),
+      updateMany: vi.fn(),
     },
     conversation: { updateMany: vi.fn(), update: vi.fn() },
     appointment: { updateMany: vi.fn() },
@@ -71,7 +71,7 @@ describe('cross-channel contact identity merge', () => {
     mocks.tx.storeOrder.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.instagramFollowGate.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.contact.update.mockResolvedValue({})
-    mocks.tx.contact.deleteMany.mockResolvedValue({ count: 1 })
+    mocks.tx.contact.updateMany.mockResolvedValue({ count: 1 })
   })
 
   it('merges legacy phone spellings and moves conversations to the oldest contact', async () => {
@@ -106,8 +106,9 @@ describe('cross-channel contact identity merge', () => {
       where: { contactId: 'contact-new' },
       data: { contactId: 'contact-old' },
     })
-    expect(mocks.tx.contact.deleteMany).toHaveBeenCalledWith({
+    expect(mocks.tx.contact.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['contact-new'] } },
+      data: { deletedAt: expect.any(Date) },
     })
     expect(mocks.tx.contact.update).toHaveBeenLastCalledWith(expect.objectContaining({
       where: { id: 'contact-old' },

@@ -5,11 +5,15 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Package, Pencil, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, Undo2, X } from 'lucide-react'
+import { Check, Package, Pencil, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { UndoSnackbar, type UndoPhase } from '@/components/ui/undo-snackbar'
+import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { fetchAllResultIds, SelectionBar, SelectionHeader } from '@/components/ui/selection-bar'
+import { useTableSelection } from '@/lib/hooks/use-table-selection'
 
 export interface ProductCard {
   id: string
@@ -23,13 +27,50 @@ export interface ProductCard {
   category: { name: string } | null
 }
 
-export function ProductGrid({ products }: { products: ProductCard[] }) {
+export interface ProductSelectionFilters {
+  q: string
+  categoryId: string
+  stock: string
+}
+
+export function ProductGrid({
+  products,
+  totalResults,
+  filters,
+}: {
+  products: ProductCard[]
+  /** Server count of every product matching the current filters. */
+  totalResults: number
+  /** Current list filters — fed to /api/products/ids for select-all-N. */
+  filters: ProductSelectionFilters
+}) {
   const t = useTranslations('products')
   const locale = useLocale()
   const router = useRouter()
+  const fa = locale !== 'en'
 
   const fmt = (n: number) =>
     n.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')
+
+  // ── Row selection (tri-state + shift-click + select-all-N) ──
+  const selection = useTableSelection(products.map((p) => p.id))
+  const [loadingAll, setLoadingAll] = useState(false)
+
+  async function handleSelectAllResults() {
+    setLoadingAll(true)
+    try {
+      const params = new URLSearchParams()
+      if (filters.q) params.set('q', filters.q)
+      if (filters.categoryId) params.set('categoryId', filters.categoryId)
+      if (filters.stock) params.set('stock', filters.stock)
+      const ids = await fetchAllResultIds('/api/products/ids', params)
+      selection.setSelectedIds(ids)
+    } catch {
+      // Best effort — the button stays available for a retry.
+    } finally {
+      setLoadingAll(false)
+    }
+  }
 
   // ── Delete dialog state (mirrors the conversation delete pattern) ──
   const [deleteTarget, setDeleteTarget] = useState<ProductCard | null>(null)
@@ -41,28 +82,13 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
   const deletingRef = useRef(false)
   const reduceMotion = useReducedMotion()
 
-  // ── Undo toast state ──
-  // After a successful delete we show a toast for 6 seconds. Clicking "Undo"
-  // recreates the product via POST /api/products with the cached snapshot.
-  // The toast auto-dismisses after the timeout; if the user navigates away
-  // the snapshot is dropped (no stale state).
-  const [undoToast, setUndoToast] = useState<{
-    name: string
-    snapshot: {
-      name: string
-      description?: string
-      price?: number | null
-      comparePrice?: number | null
-      sku?: string
-      stock?: number | null
-      images: string[]
-      attributes?: Record<string, string>
-      tags: string[]
-      active: boolean
-    }
-  } | null>(null)
-  const [undoing, setUndoing] = useState(false)
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ── Undo snackbar state ──
+  // The DELETE route soft-deletes and returns the id; within the next few
+  // seconds the snackbar can restore it via /api/products/bulk/restore —
+  // which keeps the id, category and source-integration links intact (unlike
+  // the old snapshot-recreate flow).
+  const [undoPhase, setUndoPhase] = useState<UndoPhase | null>(null)
+  const [undoTarget, setUndoTarget] = useState<{ id: string; name: string } | null>(null)
 
   deletingRef.current = deleting
 
@@ -109,14 +135,6 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
     }
   }, [deleteTarget])
 
-  // Cleanup the undo timer when the toast is dismissed or the component
-  // unmounts — otherwise a stale timer could fire after navigation.
-  useEffect(() => {
-    return () => {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    }
-  }, [])
-
   async function confirmDelete() {
     if (!deleteTarget || deleting) return
     setDeleting(true)
@@ -127,26 +145,8 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
       if (res.ok) {
         setDeleteTarget(null)
         router.refresh()
-        // Show the undo toast. We cache a snapshot of the product's fields
-        // so the user can restore it within the next 6 seconds.
-        setUndoToast({
-          name: target.name,
-          snapshot: {
-            name: target.name,
-            price: target.price,
-            comparePrice: target.comparePrice,
-            stock: target.stock,
-            images: target.images,
-            tags: [],
-            active: target.active,
-          },
-        })
-        // Auto-dismiss after 6 seconds. We keep the ref so we can cancel
-        // early if the user clicks "Undo" or closes the toast manually.
-        undoTimerRef.current = setTimeout(() => {
-          setUndoToast(null)
-          undoTimerRef.current = null
-        }, 6000)
+        setUndoTarget({ id: target.id, name: target.name })
+        setUndoPhase('undo')
         return
       }
       setDeleteError(t('deleteFailed'))
@@ -158,39 +158,28 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
   }
 
   async function performUndo() {
-    if (!undoToast || undoing) return
-    setUndoing(true)
+    if (!undoTarget) {
+      setUndoPhase(null)
+      return
+    }
+    setUndoPhase('restoring')
     try {
-      // Recreate the product with the cached snapshot. The server assigns a
-      // new id — we can't reuse the old one because the row is gone.
-      const res = await fetch('/api/products', {
+      const res = await fetch('/api/products/bulk/restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(undoToast.snapshot),
+        body: JSON.stringify({ ids: [undoTarget.id] }),
       })
-      if (res.ok) {
-        // Clear the toast + cancel the auto-dismiss timer.
-        if (undoTimerRef.current) {
-          clearTimeout(undoTimerRef.current)
-          undoTimerRef.current = null
-        }
-        setUndoToast(null)
-        router.refresh()
-      }
+      if (!res.ok) throw new Error('RESTORE_FAILED')
+      setUndoPhase('restored')
+      router.refresh()
     } catch {
-      // Best-effort — if the recreate fails, leave the toast so the user
-      // can try again or dismiss manually.
-    } finally {
-      setUndoing(false)
+      setUndoPhase('error')
     }
   }
 
   function dismissUndo() {
-    if (undoTimerRef.current) {
-      clearTimeout(undoTimerRef.current)
-      undoTimerRef.current = null
-    }
-    setUndoToast(null)
+    setUndoPhase(null)
+    setUndoTarget(null)
   }
 
   function openDelete(p: ProductCard, btn: HTMLButtonElement) {
@@ -201,7 +190,45 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="space-y-3">
+        <SelectionHeader
+          locale={fa ? 'fa' : 'en'}
+          triState={selection.triState}
+          onToggleVisible={selection.toggleVisible}
+          visibleCount={products.length}
+          entityLabel={fa ? 'محصول' : 'product'}
+        />
+        <SelectionBar
+          hidden={selection.selectedCount === 0}
+            locale={fa ? 'fa' : 'en'}
+            selectedCount={selection.selectedCount}
+            visibleCount={products.length}
+            totalResults={totalResults}
+            loadingAll={loadingAll}
+            allResultsSelected={selection.selectedCount >= totalResults}
+            onSelectAllResults={handleSelectAllResults}
+            onClear={selection.clear}
+          >
+            <BulkDeleteButton
+              countEndpoint="/api/products/bulk"
+              deleteEndpoint="/api/products/bulk"
+              restoreEndpoint="/api/products/bulk/restore"
+              entityLabel={fa ? 'محصول' : 'product'}
+              entitySingularLabel={fa ? 'محصول' : 'product'}
+              buttonLabel={fa
+                ? `حذف ${selection.selectedCount.toLocaleString('fa-IR')} محصول`
+                : `Delete ${selection.selectedCount} products`}
+              dialogTitle={fa
+                ? `حذف ${selection.selectedCount.toLocaleString('fa-IR')} محصول؟`
+                : `Delete ${selection.selectedCount} products?`}
+              countOverride={selection.selectedCount}
+              deleteBody={{ ids: [...selection.selected] }}
+              compactOnMobile
+              onDeleted={selection.clear}
+              onRestored={selection.clear}
+            />
+          </SelectionBar>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
           const stockLabel =
             p.stock === null
@@ -219,9 +246,47 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
             <Link
               key={p.id}
               href={`/products/${p.id}`}
-              className="spatial-surface group flex flex-col overflow-hidden rounded-[1.5rem] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
+              className={cn(
+                'spatial-surface group flex flex-col overflow-hidden rounded-[1.5rem] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2',
+                selection.isSelected(p.id) && 'border-[var(--text-primary)]/45 shadow-[0_0_0_2px_var(--text-primary)]/12',
+              )}
             >
               <div className="relative aspect-video bg-[var(--bg-muted)]">
+                {/* Selection checkbox — start corner (stock badge is on the end). */}
+                <span
+                  role="checkbox"
+                  aria-checked={selection.isSelected(p.id)}
+                  aria-label={`${fa ? 'انتخاب' : 'Select'}: ${p.name}`}
+                  tabIndex={0}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    selection.toggle(p.id, { shiftKey: event.shiftKey })
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === ' ' || event.key === 'Enter') {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      selection.toggle(p.id)
+                    }
+                  }}
+                  className={cn(
+                    'absolute start-2 top-2 z-10 grid h-11 w-11 cursor-pointer place-items-center rounded-xl bg-white/85 backdrop-blur transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)]',
+                    selection.isSelected(p.id) ? 'text-[var(--text-primary)]' : 'text-black/35 hover:text-black/70',
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'grid h-[1.15rem] w-[1.15rem] place-items-center rounded-[0.4rem] border transition-colors',
+                      selection.isSelected(p.id)
+                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]'
+                        : 'border-black/25 bg-white',
+                    )}
+                  >
+                    {selection.isSelected(p.id) && <Check className="h-3 w-3" strokeWidth={3.5} />}
+                  </span>
+                </span>
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.images[0]} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
@@ -286,6 +351,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
             </Link>
           )
         })}
+        </div>
       </div>
 
       {/* Delete confirmation dialog — same pattern as conversation delete */}
@@ -359,51 +425,16 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
         document.body,
       )}
 
-      {/* Undo toast — shown for 6s after a successful delete. Uses the same
-          portal + framer-motion pattern as the delete dialog so the styling
-          stays consistent. */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {undoToast && (
-            <motion.div
-              className="fixed left-1/2 z-[100] -translate-x-1/2 px-4 [bottom:calc(6rem+env(safe-area-inset-bottom))] md:bottom-4"
-              initial={reduceMotion ? false : { opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? undefined : { opacity: 0, y: 20 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
-                <div className="flex-1 text-sm">
-                  <span className="font-medium text-[var(--text-primary)]">
-                    {t('deleted', { name: undoToast.name })}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={performUndo}
-                  disabled={undoing}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-1.5 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
-                  {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
-                  {t('undo')}
-                </button>
-                <button
-                  type="button"
-                  onClick={dismissUndo}
-                  disabled={undoing}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
-                  aria-label={t('dismissUndo')}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body,
-      )}
+      {/* Undo snackbar — the shared bottom bar with countdown + restore. */}
+      <UndoSnackbar
+        phase={undoPhase}
+        count={1}
+        entityLabel={locale !== 'en' ? 'محصول' : 'product'}
+        locale={locale !== 'en' ? 'fa' : 'en'}
+        durationMs={9_000}
+        onUndo={performUndo}
+        onDismiss={dismissUndo}
+      />
     </>
   )
 }

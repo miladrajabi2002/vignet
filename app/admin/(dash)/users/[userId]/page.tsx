@@ -230,10 +230,10 @@ export default async function AdminUserDetailPage(
           _count: {
             select: {
               agents: true,
-              conversations: true,
+              conversations: { where: { deletedAt: null } },
               payments: true,
-              products: true,
-              contacts: true,
+              products: { where: { deletedAt: null } },
+              contacts: { where: { deletedAt: null } },
             },
           },
         },

@@ -1,11 +1,11 @@
 import type { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/prisma'
+import { prisma, type Tx } from '@/lib/prisma'
 
 /** Acquire multiple identity locks in a stable order to avoid deadlocks. */
 export async function withContactIdentityLocks<T>(
   workspaceId: string,
   identities: string[],
-  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+  operation: (tx: Tx) => Promise<T>,
 ): Promise<T> {
   const lockKeys = [...new Set(identities)]
     .sort()

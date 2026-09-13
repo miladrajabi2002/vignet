@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/prisma'
+import { prisma, type Tx } from '@/lib/prisma'
 import {
   buildAvailableSlots,
   inspectRequestedSlot,
@@ -142,7 +142,7 @@ interface BookResult {
 }
 
 async function findAppointmentWithRelations(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   id: string,
 ) {
   return tx.appointment.findUniqueOrThrow({
@@ -155,7 +155,7 @@ async function findAppointmentWithRelations(
 }
 
 async function bookInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   workspaceId: string,
   input: AppointmentCreateInput,
   customerLimit: number,

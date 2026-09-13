@@ -41,7 +41,7 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
   }
 
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.75rem]">
+    <section id="settings-weekly-report" className="spatial-surface scroll-mt-28 overflow-hidden rounded-[1.75rem]">
       <div className="grid lg:grid-cols-[1fr_17rem]">
         <div className="p-5 sm:p-6">
           <div className="flex items-start gap-4">

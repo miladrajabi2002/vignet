@@ -87,7 +87,7 @@ export async function conversationsDaily(days = 14): Promise<DailyPoint[]> {
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
-    WHERE "createdAt" >= ${since}
+    WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
@@ -284,7 +284,7 @@ export async function conversationsDailyByAgent(
            to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Conversation"
-    WHERE "createdAt" >= ${since}
+    WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1, 2
     ORDER BY 1, 2
@@ -327,7 +327,7 @@ export async function conversationsDailyByWorkspace(
            to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Conversation"
-    WHERE "createdAt" >= ${since}
+    WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1, 2
     ORDER BY 1, 2

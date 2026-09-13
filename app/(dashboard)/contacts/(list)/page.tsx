@@ -127,7 +127,7 @@ export default async function ContactsPage(
         instagramUsername: true,
         instagramAvatarUrl: true,
         marketingOptIn: true,
-        _count: { select: { conversations: true } },
+        _count: { select: { conversations: { where: { deletedAt: null } } } },
       },
     }),
     prisma.contact.count({ where: { workspaceId: user.workspaceId } }),

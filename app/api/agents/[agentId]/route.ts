@@ -37,7 +37,7 @@ export async function GET(_req: Request, props: Params) {
           healthError: true,
         },
       },
-      _count: { select: { conversations: true, knowledgeBases: true, catalogItems: true } },
+      _count: { select: { conversations: { where: { deletedAt: null } }, knowledgeBases: true, catalogItems: true } },
     },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })

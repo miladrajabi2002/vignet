@@ -1708,3 +1708,25 @@ html[dir='rtl'] .blog-content th,
 html[dir='rtl'] .blog-content td {
         text-align: start;
 }
+
+/* ── Undo snackbar countdown ──────────────────────────────────────────────
+   The bulk-delete undo bar runs this bar down so the auto-dismiss is
+   visible and predictable. transform-origin is set inline per direction. */
+@keyframes undo-countdown {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+}
+
+/* ── Settings search anchor flash ──────────────────────────────────────────
+   Brief highlight ring when a search result jumps to a settings section. */
+@keyframes settings-target-flash {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+        18% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.35); }
+        60% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18); }
+}
+.settings-target-flash {
+        animation: settings-target-flash 1.6s ease-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+        .settings-target-flash { animation: none; }
+}

@@ -444,6 +444,10 @@ model Product {
   externalUrl         String? // canonical product URL on the source store (WooCommerce permalink, etc.) — used for the "View product" button in Instagram product cards
   active              Boolean   @default(true)
   embeddingUpdatedAt  DateTime? // track when last embedded into vector store
+  // ── Soft delete (undo support). NULL = live row; a timestamp = trashed.
+  // Trashed rows are hidden by the global Prisma extension in lib/prisma.ts
+  // and permanently purged by the worker after SOFT_DELETE_RETENTION_DAYS.
+  deletedAt          DateTime?
   queryCount          Int       @default(0) // how many times AI retrieved this product
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -618,6 +622,8 @@ model Contact {
   marketingOptIn     Boolean   @default(false)
   marketingOptInAt   DateTime?
   marketingOptOutAt  DateTime?
+  // ── Soft delete (undo support). See Product.deletedAt for the full story.
+  deletedAt          DateTime?
 
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversations      Conversation[]
@@ -651,6 +657,12 @@ model Conversation {
   // Snapshot boundary of the latest successful conversation-quality review.
   // A later lastMessageAt makes the conversation eligible for analysis again.
   lastImprovementReviewAt DateTime?
+  // ── Soft delete (undo support). The unique index on (agentId, channel,
+  //   externalId) is recreated as a PARTIAL index (WHERE "deletedAt" IS NULL)
+  //   in migration 20260913090100 — soft-deleted rows no longer block a live
+  //   conversation with the same thread key. Do NOT run `prisma db push` or
+  //   `migrate dev` blindly: the schema DSL cannot express partial indexes.
+  deletedAt               DateTime?
   // ─ F3: customer identification state. 'pending' until the contact has given
   //   their name+phone; 'collected' once captured. 'skipped' for channels where
   //   the platform identity is already trusted (messenger bots).
@@ -1477,6 +1489,8 @@ model StoreOrder {
   shippingDate    String? // Jalali or Gregorian, passed through as-is
   trackingLink    String? // e.g. https://tracking.post.ir/?id=1234567890123
   shippingNote    String?   @db.Text // extra description from the store
+  // ── Soft delete (undo support). See Product.deletedAt for the full story.
+  deletedAt       DateTime?
   // ISO date strings from the store
   orderDate       DateTime?
   updatedAt       DateTime?

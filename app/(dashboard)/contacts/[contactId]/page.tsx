@@ -29,6 +29,7 @@ export default async function ContactDetailPage(
     where: { id: params.contactId, workspaceId: user.workspaceId },
     include: {
       conversations: {
+        where: { deletedAt: null },
         orderBy: { lastMessageAt: 'desc' },
         take: 50,
         select: {

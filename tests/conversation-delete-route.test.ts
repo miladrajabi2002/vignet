@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => {
     usageLog: { updateMany: vi.fn() },
     message: { deleteMany: vi.fn() },
     handoffAlert: { deleteMany: vi.fn() },
-    conversation: { deleteMany: vi.fn() },
+    // The route deletes the conversation row via raw SQL so the soft-delete
+    // extension cannot turn it into a trash stamp (its history is gone).
+    $executeRaw: vi.fn(),
   }
   return {
     getCurrentUser: vi.fn(),
@@ -37,7 +39,7 @@ describe('DELETE /api/conversations/:conversationId', () => {
     mocks.tx.usageLog.updateMany.mockResolvedValue({ count: 2 })
     mocks.tx.message.deleteMany.mockResolvedValue({ count: 3 })
     mocks.tx.handoffAlert.deleteMany.mockResolvedValue({ count: 1 })
-    mocks.tx.conversation.deleteMany.mockResolvedValue({ count: 1 })
+    mocks.tx.$executeRaw.mockResolvedValue(1)
     mocks.transaction.mockImplementation(async (callback) => callback(mocks.tx))
   })
 
@@ -79,9 +81,8 @@ describe('DELETE /api/conversations/:conversationId', () => {
     expect(mocks.tx.handoffAlert.deleteMany).toHaveBeenCalledWith({
       where: { conversationId: 'conversation-1' },
     })
-    expect(mocks.tx.conversation.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'conversation-1', workspaceId: 'workspace-1' },
-    })
+    expect(mocks.tx.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(mocks.tx.$executeRaw.mock.calls[0][0].join('')).toContain('DELETE FROM "Conversation"')
 
     expect(mocks.tx.usageLog.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.tx.message.deleteMany.mock.invocationCallOrder[0],
@@ -90,7 +91,7 @@ describe('DELETE /api/conversations/:conversationId', () => {
       mocks.tx.handoffAlert.deleteMany.mock.invocationCallOrder[0],
     )
     expect(mocks.tx.handoffAlert.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.tx.conversation.deleteMany.mock.invocationCallOrder[0],
+      mocks.tx.$executeRaw.mock.invocationCallOrder[0],
     )
   })
 })

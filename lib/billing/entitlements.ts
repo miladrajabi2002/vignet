@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { prisma, type Tx } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
 import { getEffectivePlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
 import {
@@ -47,7 +47,7 @@ export class WorkspaceResourceLimitError extends Error {
 }
 
 async function resourceCount(
-  client: Pick<Prisma.TransactionClient, 'product' | 'storeOrder' | 'contact'>,
+  client: Pick<Tx, 'product' | 'storeOrder' | 'contact'>,
   workspaceId: string,
   resource: WorkspaceResource,
 ): Promise<number> {
@@ -96,7 +96,7 @@ export async function checkWorkspaceResourceCreateAllowed(
 
 /** Re-check under the caller's transaction/lock before inserting a new row. */
 export async function assertWorkspaceResourceCapacity(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   workspaceId: string,
   resource: WorkspaceResource,
   limit: number,
@@ -262,7 +262,7 @@ type SubscriptionActivation = {
 }
 
 async function persistSubscription(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   params: SubscriptionActivation,
 ): Promise<{ currentPeriodEnd: Date; renewed: boolean }> {
   const { workspaceId, plan, monthlyPrice, currency } = params

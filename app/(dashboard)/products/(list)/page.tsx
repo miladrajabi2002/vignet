@@ -111,7 +111,7 @@ export default async function ProductsPage(
         lastSyncAt: true,
         lastSyncStatus: true,
         lastSyncError: true,
-        _count: { select: { orders: true, syncLogs: true } },
+        _count: { select: { orders: { where: { deletedAt: null } }, syncLogs: true } },
       },
     }),
     checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
@@ -201,7 +201,9 @@ export default async function ProductsPage(
             <BulkDeleteButton
               countEndpoint="/api/products/bulk"
               deleteEndpoint="/api/products/bulk"
+              restoreEndpoint="/api/products/bulk/restore"
               entityLabel={fa ? 'محصولات' : 'products'}
+              entitySingularLabel={fa ? 'محصول' : 'product'}
               buttonLabel={fa ? 'حذف همه محصولات' : 'Delete all'}
               compactOnMobile
             />
@@ -276,7 +278,11 @@ export default async function ProductsPage(
             defaultStock={stock}
             totalResults={totalProducts}
           />
-          <ProductGrid products={pageProducts} />
+          <ProductGrid
+            products={pageProducts}
+            totalResults={totalProducts}
+            filters={{ q, categoryId, stock }}
+          />
           <Pagination
             page={page}
             totalPages={totalPages}

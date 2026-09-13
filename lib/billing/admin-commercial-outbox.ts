@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { captureError } from '@/lib/errors/capture'
-import { prisma } from '@/lib/prisma'
+import { prisma, type Tx } from '@/lib/prisma'
 import {
   notifyAdminCommercialEvent,
   type AdminCommercialEvent,
@@ -17,7 +17,7 @@ const RETRY_DELAYS_MS = [
 
 /** Persisted in the same transaction as the payment claim, closing the crash gap. */
 export async function enqueueAdminCommercialSms(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   event: AdminCommercialEvent,
 ): Promise<void> {
   await tx.adminCommercialSmsOutbox.create({

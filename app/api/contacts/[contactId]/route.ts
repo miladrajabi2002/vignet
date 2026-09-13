@@ -128,8 +128,13 @@ export async function DELETE(_req: Request, props: Params) {
 
       // deleteMany keeps the tenant predicate on the destructive statement and
       // makes a concurrent delete harmless instead of crossing workspace scope.
-      const deleted = await tx.contact.deleteMany({
-        where: { id: params.contactId, workspaceId: user.workspaceId },
+      // Soft delete (deletedAt stamp) done explicitly ON the transaction so the
+      // detach + trash commit or roll back atomically — the global extension
+      // conversion runs on the root client and must not be relied on inside a
+      // $transaction callback.
+      const deleted = await tx.contact.updateMany({
+        where: { id: params.contactId, workspaceId: user.workspaceId, deletedAt: null },
+        data: { deletedAt: new Date() },
       })
       if (deleted.count !== 1) throw new Error('CONTACT_DELETE_RACE')
 

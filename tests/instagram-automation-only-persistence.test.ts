@@ -226,7 +226,10 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
       typeof fn === 'function'
         ? fn({
             conversation: {
-              upsert: vi.fn().mockResolvedValue({ id: 'conversation-1', status: 'OPEN', handedOff: false }),
+              // persistInboundOnly resolves get-or-create manually (upsert
+              // cannot use the partial unique index as an ON CONFLICT arbiter).
+              findFirst: vi.fn().mockResolvedValue({ id: 'conversation-1', status: 'OPEN', handedOff: false }),
+              create: vi.fn().mockResolvedValue({ id: 'conversation-1', status: 'OPEN', handedOff: false }),
               update: vi.fn().mockResolvedValue({}),
             },
             message: {

@@ -215,7 +215,7 @@ export function BusinessProfileStep({
     : ['Type', 'Name & services', 'Review']
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white" style={{ boxShadow: 'var(--shadow-card)' }}>
+    <section id="settings-business-profile" className="scroll-mt-28 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white" style={{ boxShadow: 'var(--shadow-card)' }}>
       {/* Progress bar — 3 sub-steps */}
       <div className="border-b border-[var(--border-subtle)] px-6 py-4">
         <div className="flex items-center justify-between gap-3">

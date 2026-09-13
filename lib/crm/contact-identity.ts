@@ -1,3 +1,4 @@
+import { type Tx } from '@/lib/prisma'
 import type { ChannelType, Prisma } from '@prisma/client'
 import { withContactIdentityLocks } from '@/lib/crm/contact-identity-lock'
 import {
@@ -68,7 +69,7 @@ const contactSelect = {
 } satisfies Prisma.ContactSelect
 
 async function readContactRows(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   workspaceId: string,
   ids: string[],
 ) {
@@ -104,7 +105,7 @@ function firstValue<K extends keyof ContactRow>(rows: ContactRow[], key: K): Con
 }
 
 async function moveCampaignRecipients(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   survivorId: string,
   duplicateId: string,
 ) {
@@ -133,7 +134,7 @@ async function moveCampaignRecipients(
  * campaign/booking/order references. The oldest row survives for stable URLs.
  */
 async function mergeContacts(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   workspaceId: string,
   ids: string[],
   canonicalPhone: string | null,
@@ -194,7 +195,13 @@ async function mergeContacts(
       ...consent,
     },
   })
-  await tx.contact.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } })
+  // Soft-delete the duplicates explicitly on the transaction (the global
+  // soft-delete extension converts root-level deletes only — inside a
+  // $transaction callback the trash stamp must join this transaction).
+  await tx.contact.updateMany({
+    where: { id: { in: duplicates.map((row) => row.id) } },
+    data: { deletedAt: new Date() },
+  })
   const [merged] = await readContactRows(tx, workspaceId, [survivor.id])
   return merged
 }

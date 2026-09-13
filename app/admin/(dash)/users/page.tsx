@@ -120,7 +120,7 @@ export default async function AdminUsersPage(
                   },
                 },
               },
-              _count: { select: { agents: true, conversations: true, payments: true, products: true } },
+              _count: { select: { agents: true, conversations: { where: { deletedAt: null } }, payments: true, products: { where: { deletedAt: null } } } },
             },
           },
         },

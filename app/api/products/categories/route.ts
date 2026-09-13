@@ -11,7 +11,7 @@ export async function GET() {
   const categories = await prisma.productCategory.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-    include: { _count: { select: { products: true } } },
+    include: { _count: { select: { products: { where: { deletedAt: null } } } } },
   })
   return NextResponse.json({ categories })
 }

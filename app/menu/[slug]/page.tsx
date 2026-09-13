@@ -25,7 +25,7 @@ export default async function PublicMenuPage({ params }: Props) {
     select: {
       name: true,
       products: {
-        where: { active: true },
+        where: { active: true, deletedAt: null },
         orderBy: [{ category: { sortOrder: 'asc' } }, { createdAt: 'desc' }],
         include: { category: { select: { name: true } } },
       },

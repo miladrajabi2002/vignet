@@ -32,7 +32,7 @@ export default async function AgentsPage() {
                                 language: true,
                                 _count: {
                                         select: {
-                                                conversations: true,
+                                                conversations: { where: { deletedAt: null } },
                                                 channels: true,
                                                 catalogItems: true,
                                                 knowledgeBases: true,

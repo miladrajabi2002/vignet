@@ -79,7 +79,7 @@ export default async function IntegrationsPage() {
                                         createdAt: true,
                                 },
                         },
-                        _count: { select: { orders: true, syncLogs: true } },
+                        _count: { select: { orders: { where: { deletedAt: null } }, syncLogs: true } },
                 },
         })
 

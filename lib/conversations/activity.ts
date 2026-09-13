@@ -1,3 +1,4 @@
+import { type Tx } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 
 /**
@@ -133,7 +134,7 @@ export function metadataWithReceipts(
 
 /** Append a centered timeline event to the existing conversation message log. */
 export async function recordConversationActivity(
-  tx: Pick<Prisma.TransactionClient, 'message'>,
+  tx: Pick<Tx, 'message'>,
   conversationId: string,
   activity: ConversationTimelineActivity,
 ): Promise<void> {

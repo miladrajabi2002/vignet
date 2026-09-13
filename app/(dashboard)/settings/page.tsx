@@ -100,6 +100,30 @@ export default async function SettingsPage() {
           operator: locale === 'fa' ? 'اپراتور' : 'Operator',
           reports: locale === 'fa' ? 'گزارش‌ها' : 'Reports',
         }}
+        locale={locale}
+        searchIndex={locale === 'fa'
+          ? [
+            { id: 'settings-business-profile', tab: 'business', tabLabel: 'کسب‌وکار', label: 'پروفایل و نوع کسب‌وکار', keywords: ['نوع کسب و کار', 'پروفایل', 'مغازه', 'کلینیک', 'آژانس', 'خدمات', 'رسته', 'حوزه', 'business type', 'profile', 'vertical'] },
+            { id: 'telegram-operator', tab: 'operator', tabLabel: 'اپراتور', label: 'اتصال اپراتور تلگرام', keywords: ['اپراتور', 'تلگرام', 'بات', 'وبهوک', 'توکن', 'ارجاع', 'operator', 'telegram', 'bot', 'webhook', 'token', 'handoff'] },
+            { id: 'settings-operator-health', tab: 'operator', tabLabel: 'اپراتور', label: 'سلامت و آمادگی سرویس', keywords: ['سلامت', 'وضعیت', 'بررسی', 'اتصال', 'health', 'status', 'check'] },
+            { id: 'settings-operator-controls', tab: 'operator', tabLabel: 'اپراتور', label: 'کنترل‌های مدیریتی', keywords: ['کنترل', 'مدیریت', 'فعال', 'غیرفعال', 'هشدار', 'controls', 'management', 'alerts'] },
+            { id: 'settings-operator-commands', tab: 'operator', tabLabel: 'اپراتور', label: 'مرکز فرمان داخل تلگرام', keywords: ['فرمان', 'دکمه', 'دستور', 'command', 'inline', 'buttons'] },
+            { id: 'settings-operator-connection', tab: 'operator', tabLabel: 'اپراتور', label: 'جزئیات اتصال', keywords: ['جزئیات', 'آخرین ارجاع', 'صف', 'connection', 'details', 'queue'] },
+            { id: 'settings-operator-bot', tab: 'operator', tabLabel: 'اپراتور', label: 'اتصال امن بات', keywords: ['توکن', 'امنیت', 'رمز', 'بات', 'token', 'secure', 'bot'] },
+            { id: 'settings-operator-benefits', tab: 'operator', tabLabel: 'اپراتور', label: 'بعد از اتصال چه دارید؟', keywords: ['مزیت', 'امکانات', 'benefits', 'features'] },
+            { id: 'settings-weekly-report', tab: 'reports', tabLabel: 'گزارش‌ها', label: 'گزارش هفتگی ایمیلی', keywords: ['گزارش', 'ایمیل', 'هفتگی', 'weekly', 'report', 'email'] },
+          ]
+          : [
+            { id: 'settings-business-profile', tab: 'business', tabLabel: 'Business', label: 'Business profile & type', keywords: ['type', 'profile', 'vertical', 'shop', 'clinic', 'agency'] },
+            { id: 'telegram-operator', tab: 'operator', tabLabel: 'Operator', label: 'Telegram operator connection', keywords: ['operator', 'telegram', 'bot', 'webhook', 'token', 'handoff'] },
+            { id: 'settings-operator-health', tab: 'operator', tabLabel: 'Operator', label: 'Service health and readiness', keywords: ['health', 'status', 'check', 'connection'] },
+            { id: 'settings-operator-controls', tab: 'operator', tabLabel: 'Operator', label: 'Management controls', keywords: ['controls', 'management', 'alerts'] },
+            { id: 'settings-operator-commands', tab: 'operator', tabLabel: 'Operator', label: 'Telegram command center', keywords: ['command', 'inline', 'buttons'] },
+            { id: 'settings-operator-connection', tab: 'operator', tabLabel: 'Operator', label: 'Connection details', keywords: ['connection', 'details', 'queue'] },
+            { id: 'settings-operator-bot', tab: 'operator', tabLabel: 'Operator', label: 'Secure bot connection', keywords: ['token', 'secure', 'bot'] },
+            { id: 'settings-operator-benefits', tab: 'operator', tabLabel: 'Operator', label: 'What you get after connecting', keywords: ['benefits', 'features'] },
+            { id: 'settings-weekly-report', tab: 'reports', tabLabel: 'Reports', label: 'Weekly email report', keywords: ['weekly', 'report', 'email'] },
+          ]}
         business={workspace ? (
           <BusinessProfileStep
             workspaceName={workspace.name}

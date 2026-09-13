@@ -100,7 +100,7 @@ export async function resolveCampaignAudience(
       marketingOptIn: true,
       marketingOptOutAt: true,
       conversations: {
-        where: { externalId: { not: null } },
+        where: { externalId: { not: null }, deletedAt: null },
         orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
         take: 10,
         select: {

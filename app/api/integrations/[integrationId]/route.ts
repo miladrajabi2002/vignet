@@ -65,7 +65,7 @@ export async function GET(_req: Request, props: Params) {
 					createdAt: true,
 				},
 			},
-			_count: { select: { orders: true, syncLogs: true } },
+			_count: { select: { orders: { where: { deletedAt: null } }, syncLogs: true } },
 		},
 	})
     if (!integration) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })

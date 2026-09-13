@@ -38,7 +38,7 @@ export default async function AdminSkillsPage() {
       const [conversationRow] = await prisma.$queryRaw<Array<{ conversations: bigint }>>`
         SELECT COUNT(*) AS conversations FROM "Conversation" c
         JOIN "Workspace" w ON w.id = c."workspaceId"
-        WHERE c."lastMessageAt" > now() - interval '7 days' AND w."excludeFromAdminReports" = false`
+        WHERE c."lastMessageAt" > now() - interval '7 days' AND c."deletedAt" IS NULL AND w."excludeFromAdminReports" = false`
       const outcomeRows = await prisma.$queryRaw<Array<{ outcome: string; n: bigint }>>`
         SELECT r.result->>'outcome' AS outcome, COUNT(*) AS n
         FROM "ImprovementReview" r

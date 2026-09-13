@@ -113,10 +113,14 @@ export async function DELETE(_req: Request, props: Params) {
 
       // Keep the workspace predicate on the destructive query as a final
       // authorization guard (and make a concurrent deletion harmless).
-      const deleted = await tx.conversation.deleteMany({
-        where: { id: conversation.id, workspaceId: user.workspaceId },
-      })
-      if (deleted.count !== 1) throw new Error('CONVERSATION_DELETE_RACE')
+      // Raw SQL on purpose: this route already destroys the messages and
+      // detaches billing rows, so it must be a REAL delete — the soft-delete
+      // extension would otherwise trash the row while its history is gone.
+      const deleted = await tx.$executeRaw`
+        DELETE FROM "Conversation"
+        WHERE "id" = ${conversation.id} AND "workspaceId" = ${user.workspaceId}
+      `
+      if (deleted !== 1) throw new Error('CONVERSATION_DELETE_RACE')
     })
   } catch (error) {
     console.error('Failed to delete conversation', {

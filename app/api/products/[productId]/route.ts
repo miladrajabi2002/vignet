@@ -113,5 +113,8 @@ export async function DELETE(_req: Request, props: Params) {
     deleted: true,
   })
 
-  return NextResponse.json({ ok: true })
+  // The id lets the client wire its undo snackbar to the restore endpoint
+  // instead of recreating the product from a field snapshot — restoring keeps
+  // the id, category and source-integration links intact.
+  return NextResponse.json({ ok: true, id: params.productId })
 }

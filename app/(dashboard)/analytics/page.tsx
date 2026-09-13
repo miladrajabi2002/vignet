@@ -78,7 +78,7 @@ export default async function AnalyticsPage() {
         id: true,
         name: true,
         roleTemplate: true,
-        _count: { select: { conversations: { where: { createdAt: { gte: since } } } } },
+        _count: { select: { conversations: { where: { createdAt: { gte: since }, deletedAt: null } } } },
       },
       orderBy: { conversations: { _count: 'desc' } },
       take: 6,

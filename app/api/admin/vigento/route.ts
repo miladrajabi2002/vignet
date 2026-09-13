@@ -69,7 +69,7 @@ async function platformSummary(days: number) {
     prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: since } } }),
     prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } } }),
-    prisma.message.count({ where: { conversation: ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } } }),
+    prisma.message.count({ where: { conversation: { ...ADMIN_VISIBLE_RELATED_WHERE, deletedAt: null }, createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'RESOLVED', createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'HANDED_OFF' } }),
     prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since }, level: 'error' }] } }),
@@ -108,7 +108,7 @@ async function findWorkspaces(query: string) {
     },
     take: 6,
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, plan: true, businessType: true, aiCreditBalanceIRR: true, owner: { select: { name: true, phone: true } }, _count: { select: { agents: true, conversations: true, contacts: true } } },
+    select: { id: true, name: true, plan: true, businessType: true, aiCreditBalanceIRR: true, owner: { select: { name: true, phone: true } }, _count: { select: { agents: true, conversations: { where: { deletedAt: null } }, contacts: { where: { deletedAt: null } } } } },
   })
   return rows.map((row) => ({ ...row, creditToman: Math.round(row.aiCreditBalanceIRR / 10), aiCreditBalanceIRR: undefined }))
 }
@@ -219,7 +219,7 @@ async function findAgents(query: string) {
     where: { AND: [ADMIN_VISIBLE_RELATED_WHERE], OR: [{ id: normalized }, { name: { contains: normalized, mode: 'insensitive' } }, { workspace: { name: { contains: normalized, mode: 'insensitive' } } }] },
     take: 8,
     orderBy: { updatedAt: 'desc' },
-    select: { id: true, name: true, active: true, model: true, updatedAt: true, workspace: { select: { id: true, name: true } }, _count: { select: { channels: true, conversations: true } } },
+    select: { id: true, name: true, active: true, model: true, updatedAt: true, workspace: { select: { id: true, name: true } }, _count: { select: { channels: true, conversations: { where: { deletedAt: null } } } } },
   })
 }
 

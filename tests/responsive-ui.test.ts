@@ -53,7 +53,7 @@ describe('shared adaptive mobile UI contract', () => {
   })
 
   it('aligns orders with the shared commerce and customer mobile patterns', () => {
-    const orders = source('app/(dashboard)/products/orders/page.tsx')
+    const orders = source('components/products/orders-workspace.tsx')
     const mobileOrder = source('components/products/mobile-order-card.tsx')
     const search = source('components/products/orders-search-form.tsx')
     const tabs = source('components/products/commerce-tabs.tsx')
@@ -72,18 +72,18 @@ describe('shared adaptive mobile UI contract', () => {
   })
 
   it('keeps fixed feedback and actions above the mobile bottom navigation', () => {
-    const productGrid = source('components/products/product-grid.tsx')
+    const undoSnackbar = source('components/ui/undo-snackbar.tsx')
     const automationForm = source('components/instagram/automation-form.tsx')
     const automationManager = source('components/instagram/automation-manager.tsx')
 
-    expect(productGrid).toContain('[bottom:calc(6rem+env(safe-area-inset-bottom))]')
+    expect(undoSnackbar).toContain('[bottom:calc(6rem+env(safe-area-inset-bottom))]')
     expect(automationForm).toContain('[bottom:calc(6rem+env(safe-area-inset-bottom))]')
     expect(automationManager).toContain('[bottom:calc(6rem+env(safe-area-inset-bottom))]')
   })
 
   it('pairs every data-dense desktop table with a dedicated mobile card view', () => {
     const pairedViews = [
-      'app/(dashboard)/products/orders/page.tsx',
+      'components/products/orders-workspace.tsx',
       'app/admin/(dash)/users/page.tsx',
       'app/admin/(dash)/payments/page.tsx',
       'app/admin/(dash)/conversations/page.tsx',
@@ -141,7 +141,7 @@ describe('shared adaptive mobile UI contract', () => {
   })
 
   it('opens a compact mobile conversation preview before entering the thread', () => {
-    const page = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const page = source('components/crm/conversation-inbox.tsx')
     const card = source('components/crm/mobile-conversation-card.tsx')
     const filters = source('components/dashboard/conversation-filters.tsx')
 

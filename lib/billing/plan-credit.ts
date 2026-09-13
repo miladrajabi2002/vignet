@@ -1,3 +1,4 @@
+import { type Tx } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 import { getPlanDefs, type PaidPlan } from '@/lib/billing/plans'
 
@@ -18,7 +19,7 @@ export function planCreditGrantKey(paymentId: string): string {
  * same transaction that claims the subscription payment.
  */
 export async function grantIncludedPlanCredit(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   params: { paymentId: string; workspaceId: string; plan: PaidPlan; amountIRR?: number },
 ): Promise<PlanCreditGrantResult> {
   const grantKey = planCreditGrantKey(params.paymentId)
