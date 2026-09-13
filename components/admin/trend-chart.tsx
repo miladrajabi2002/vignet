@@ -87,7 +87,7 @@ export const CHART_COLORS = [
  * is serializable and can be safely passed from a Server Component to this
  * Client Component. Next.js forbids passing functions across the RSC border.
  */
-export type FormatKind = 'number' | 'irr' | 'rial' | 'usd' | 'compact-irr' | 'token'
+export type FormatKind = 'number' | 'irr' | 'rial' | 'usd' | 'compact-irr' | 'toman' | 'token'
 
 /** Internal value formatter — keeps all Persian/IRR/USD logic in one place. */
 function formatValue(v: number, kind: FormatKind = 'number'): string {
@@ -109,6 +109,10 @@ function formatValue(v: number, kind: FormatKind = 'number'): string {
       return toman >= 1_000_000
         ? `${(toman / 1_000_000).toLocaleString('fa-IR')} م`
         : toman.toLocaleString('fa-IR')
+    }
+    case 'toman': {
+      const toman = n / 10
+      return toman.toLocaleString('fa-IR')
     }
     case 'token':
       return `${n.toLocaleString('fa-IR')} توکن`
@@ -414,6 +418,135 @@ export function MonthlyBarChart({
               labelFormatter={formatMonthTick}
             />
             <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+// ─── NET REVENUE CHART (credit charged vs OpenRouter cost vs net) ────
+//
+// Two stacked bars per day:
+//   • bottom (dark)  = net revenue (after OpenRouter cost)
+//   • top (light)    = OpenRouter cost
+//   • bar total       = gross credit charged to users
+// Hover tooltip shows gross, cost, and net separately so the unit
+// economics are obvious. Values are in IRR but rendered as Toman.
+
+export interface NetRevenueDay {
+  day: string
+  grossIRR: number
+  costIRR: number
+  netIRR: number
+}
+
+export function NetRevenueChart({
+  title,
+  subtitle,
+  data,
+  height = 240,
+}: {
+  title: string
+  subtitle?: string
+  data: NetRevenueDay[]
+  height?: number
+}) {
+  // Compose a chart-friendly payload: stack net + cost = gross visually.
+  const chartData = data.map((d) => ({
+    day: d.day,
+    net: Math.max(0, d.netIRR),
+    cost: d.costIRR,
+    gross: d.grossIRR,
+  }))
+
+  const totals = data.reduce(
+    (acc, d) => {
+      acc.gross += d.grossIRR
+      acc.cost += d.costIRR
+      acc.net += d.netIRR
+      return acc
+    },
+    { gross: 0, cost: 0, net: 0 },
+  )
+
+  return (
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
+        </div>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="text-[11px] text-zinc-400">سود خالص دوره</span>
+          <span className="text-sm font-bold text-zinc-900">{formatValue(totals.net, 'irr')}</span>
+        </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-zinc-600">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-zinc-900" />
+          سود خالص (پس از کسر هزینه AI)
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-zinc-300" />
+          هزینه OpenRouter
+        </span>
+        <span className="text-zinc-400">
+          مجموع اعتبار کسر شده: {formatValue(totals.gross, 'irr')}
+        </span>
+      </div>
+
+      <div style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 14, left: 4 }}>
+            <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
+            <XAxis
+              dataKey="day"
+              tick={AXIS}
+              axisLine={false}
+              tickLine={false}
+              interval="preserveStartEnd"
+              tickFormatter={formatDayTick}
+            />
+            <YAxis
+              tick={AXIS}
+              axisLine={false}
+              tickLine={false}
+              width={72}
+              allowDecimals={false}
+              tickFormatter={(v: number) => formatValue(v, 'toman')}
+            />
+            <Tooltip
+              {...TOOLTIP}
+              cursor={{ fill: '#f4f4f5' }}
+              formatter={(value, name) => {
+                const labels: Record<string, string> = {
+                  net: 'سود خالص',
+                  cost: 'هزینه OpenRouter',
+                  gross: 'اعتبار کسر شده (ناخالص)',
+                }
+                return [formatValue(Number(value), 'irr'), labels[String(name)] ?? name]
+              }}
+              labelFormatter={formatDayTick}
+            />
+            {/* Stacked bars: net (bottom, dark) + cost (top, light) = gross visually */}
+            <Bar
+              dataKey="net"
+              stackId="rev"
+              fill="#18181b"
+              radius={[0, 0, 0, 0]}
+              isAnimationActive={false}
+              barSize={26}
+            />
+            <Bar
+              dataKey="cost"
+              stackId="rev"
+              fill="#d4d4d8"
+              radius={[5, 5, 0, 0]}
+              isAnimationActive={false}
+              barSize={26}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { readPageToken } from '@/lib/instagram/config'
 import { GRAPH_BASE } from '@/lib/instagram/oauth'
-import { captureError } from '@/lib/errors/capture'
+import { captureError, captureWarning } from '@/lib/errors/capture'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import { BUCKETS, fileExists, isStorageConfigured, uploadFile } from '@/lib/storage'
 import { cleanDescriptionForChat } from '@/lib/products/description'
@@ -445,9 +445,9 @@ async function uploadMediaAttachment(
         mediaUrl: string,
         type: 'image' | 'video' | 'audio',
         prepared: PreparedMedia,
-): Promise<string | null> {
+): Promise<{ id: string | null; error: string | null }> {
         const mediaBuf = prepared.body
-        if (mediaBuf.byteLength === 0) return null
+        if (mediaBuf.byteLength === 0) return { id: null, error: 'empty body' }
         console.log(`[ig-media] downloaded ${mediaBuf.byteLength} bytes from ${mediaUrl}`)
 
         // Derive the multipart filename from the trusted response MIME, never
@@ -508,17 +508,17 @@ async function uploadMediaAttachment(
                 )
                 const text = await res.text().catch(() => '')
                 if (!res.ok) {
-                        console.warn(
-                                `[ig-media] message_attachments failed (${res.status}): ${text.slice(0, 300)}`,
-                        )
-                        return null
+                        const reason = `HTTP ${res.status}: ${text.slice(0, 300)}`
+                        console.warn(`[ig-media] message_attachments failed: ${reason}`)
+                        return { id: null, error: reason }
                 }
                 const json = JSON.parse(text) as { attachment_id?: string }
                 console.log(`[ig-media] ✓ uploaded ${type}, attachment_id=${json.attachment_id}`)
-                return json.attachment_id ?? null
+                return { id: json.attachment_id ?? null, error: null }
         } catch (e) {
-                console.warn(`[ig-media] message_attachments error: ${(e as Error).message}`)
-                return null
+                const reason = (e as Error).message
+                console.warn(`[ig-media] message_attachments error: ${reason}`)
+                return { id: null, error: reason }
         }
 }
 
@@ -537,14 +537,16 @@ async function sendMediaTwoStep(
         type: 'image' | 'video' | 'audio',
         prepared: PreparedMedia,
         caption?: string,
+        workspaceId?: string,
 ): Promise<void> {
         // Strategy 1: Two-step (upload → attachment_id → send)
-        const attachmentId = await uploadMediaAttachment(token, mediaUrl, type, prepared)
-        if (attachmentId) {
+        const uploaded = await uploadMediaAttachment(token, mediaUrl, type, prepared)
+        let strategy1Error: string | null = uploaded.error
+        if (uploaded.id) {
                 const message: Record<string, unknown> = {
                         attachment: {
                                 type,
-                                payload: { attachment_id: attachmentId },
+                                payload: { attachment_id: uploaded.id },
                         },
                 }
                 if (caption && type === 'image') message.text = caption
@@ -566,9 +568,18 @@ async function sendMediaTwoStep(
                         return
                 }
                 const errText = await res.text().catch(() => '')
+                strategy1Error = `two-step send HTTP ${res.status}: ${errText.slice(0, 300)}`
                 console.warn(
                         `[ig-media] two-step send failed (${res.status}): ${errText.slice(0, 300)} — falling back to URL`,
                 )
+        } else if (strategy1Error) {
+                // uploadMediaAttachment already captured the reason; surface it to
+                // the operator via the ErrorLog so future "Upload failed" errors
+                // include BOTH the multipart-upload reason and the URL-fetch reason.
+                captureWarning('instagram:media:uploadAttachment', strategy1Error, {
+                        workspaceId,
+                        metadata: { chatId, mediaUrl, type, reason: strategy1Error },
+                })
         }
 
         // Strategy 2: URL payload (fallback)
@@ -593,7 +604,19 @@ async function sendMediaTwoStep(
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
         })
-        await throwIfError(res, `send${type.charAt(0).toUpperCase()}${type.slice(1)}`, mediaUrl)
+        try {
+                await throwIfError(res, `send${type.charAt(0).toUpperCase()}${type.slice(1)}`, mediaUrl)
+        } catch (e) {
+                // Annotate the URL-payload failure with the Strategy 1 reason so the
+                // operator sees WHY the fallback was needed in the first place.
+                // Without this, a Strategy 2 "Upload failed" looks like the only
+                // problem even when the real root cause was a Strategy 1 multipart
+                // failure (token issue, format rejection, etc.).
+                if (strategy1Error) {
+                        ;(e as Error).message += ` [استراتژی ۱ (multipart upload) نیز شکست خورد: ${strategy1Error}]`
+                }
+                throw e
+        }
 }
 
 /**
@@ -605,12 +628,13 @@ export async function sendImage(
         chatId: string,
         imageUrl: string,
         caption?: string,
+        workspaceId?: string,
 ): Promise<void> {
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendImage: missing access token')
 
         const prepared = await preflightMedia(imageUrl, 'IMAGE')
-        await sendMediaTwoStep(token, chatId, imageUrl, 'image', prepared, caption)
+        await sendMediaTwoStep(token, chatId, imageUrl, 'image', prepared, caption, workspaceId)
 }
 
 /**
@@ -621,12 +645,13 @@ export async function sendAudio(
         channelConfig: Prisma.JsonValue,
         chatId: string,
         audioUrl: string,
+        workspaceId?: string,
 ): Promise<void> {
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendAudio: missing access token')
 
         const prepared = await preflightMedia(audioUrl, 'AUDIO')
-        await sendMediaTwoStep(token, chatId, audioUrl, 'audio', prepared)
+        await sendMediaTwoStep(token, chatId, audioUrl, 'audio', prepared, undefined, workspaceId)
 }
 
 /**
@@ -637,12 +662,13 @@ export async function sendVideo(
         channelConfig: Prisma.JsonValue,
         chatId: string,
         videoUrl: string,
+        workspaceId?: string,
 ): Promise<void> {
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendVideo: missing access token')
 
         const prepared = await preflightMedia(videoUrl, 'VIDEO')
-        await sendMediaTwoStep(token, chatId, videoUrl, 'video', prepared)
+        await sendMediaTwoStep(token, chatId, videoUrl, 'video', prepared, undefined, workspaceId)
 }
 
 /**
@@ -956,19 +982,20 @@ export async function sendRichEntry(
                                                 chatId,
                                                 entry.mediaUrl,
                                                 entry.text,
+                                                workspaceId,
                                         )
                                 }
                                 break
                         case 'AUDIO':
                                 if (entry.mediaUrl) {
                                         assertPublicHttps(entry.mediaUrl, 'AUDIO')
-                                        await sendAudio(channelConfig, chatId, entry.mediaUrl)
+                                        await sendAudio(channelConfig, chatId, entry.mediaUrl, workspaceId)
                                 }
                                 break
                         case 'VIDEO':
                                 if (entry.mediaUrl) {
                                         assertPublicHttps(entry.mediaUrl, 'VIDEO')
-                                        await sendVideo(channelConfig, chatId, entry.mediaUrl)
+                                        await sendVideo(channelConfig, chatId, entry.mediaUrl, workspaceId)
                                 }
                                 break
                         case 'QUICK_REPLY': {

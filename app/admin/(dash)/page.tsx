@@ -6,7 +6,6 @@ import {
   TrendingUp,
   AlertTriangle,
   Activity,
-  BrainCircuit,
   CircleDollarSign,
   PlugZap,
   UserPlus,
@@ -21,8 +20,8 @@ import {
 import {
   TrendChart,
   DonutChart,
-  ActivationFunnel,
   MonthlyBarChart,
+  NetRevenueChart,
 } from '@/components/admin/trend-chart'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
@@ -38,6 +37,8 @@ import {
   connectionsDaily,
   revenueIRRMonthly,
   planDistribution,
+  revenueNetDaily,
+  topActiveUsers,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs, getFinanceSummary } from '@/lib/admin/revenue'
 import { getAiOverview } from '@/lib/admin/ai-usage'
@@ -55,6 +56,28 @@ function parseRange(value: string | undefined): RangeKind {
   if (value === '30d') return '30d'
   if (value === 'monthly') return 'monthly'
   return '7d'
+}
+
+/** Relative "last seen" label, e.g. "۳ ساعت پیش", "۲ روز پیش". */
+function relativeFromNow(date: Date | null): string {
+  if (!date) return '—'
+  const diffMs = Date.now() - date.getTime()
+  const minutes = Math.floor(diffMs / 60_000)
+  if (minutes < 1) return 'همین الان'
+  if (minutes < 60) return `${fa(minutes)} دقیقه پیش`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${fa(hours)} ساعت پیش`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${fa(days)} روز پیش`
+  const months = Math.floor(days / 30)
+  return `${fa(months)} ماه پیش`
+}
+
+const PLAN_LABEL: Record<string, string> = {
+  TRIAL: 'آزمایشی',
+  STARTER: 'استارتر',
+  PRO: 'حرفه‌ای',
+  BUSINESS: 'سازمانی',
 }
 
 export default async function AdminOverviewPage(
@@ -75,15 +98,16 @@ export default async function AdminOverviewPage(
     : {}
 
   // Range-dependent series — only fetch what the selected range needs.
+  // The revenue chart now uses the credit-based net revenue series.
   const rangeSeriesPromise =
     range === 'monthly'
-      ? Promise.resolve(revenueIRRMonthly(12)).then((m) => ({ monthly: m, daily: null as null }))
+      ? Promise.resolve(revenueIRRMonthly(12)).then((m) => ({ monthly: m, daily: null as null, netRev: [] as Awaited<ReturnType<typeof revenueNetDaily>> }))
       : Promise.all([
-          revenueIRRDaily(days),
-          newUsersDaily(days),
-        ]).then(([rev, users]) => ({
+          revenueNetDaily(days),
+        ]).then(([netRev]) => ({
           monthly: null as null,
-          daily: { rev, users },
+          daily: { rev: netRev, users: [] as Awaited<ReturnType<typeof newUsersDaily>> },
+          netRev,
         }))
 
   const [
@@ -97,10 +121,8 @@ export default async function AdminOverviewPage(
     rangeSeries,
     kpiTrends,
     aiOverview,
-    activation,
-    activeUsers,
+    activeUsersList,
     newUsersToday,
-    revenueToday,
     channelHealth,
     responseHealth,
   ] = await Promise.all([
@@ -126,22 +148,9 @@ export default async function AdminOverviewPage(
       rev, conv, users, err, pays, ai, conns,
     })),
     getAiOverview(30),
-    Promise.all([
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: true } }),
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, agents: { some: {} } } }),
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, agents: { some: { knowledgeBases: { some: { status: 'READY' } } } } } }),
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, agents: { some: { channels: { some: { active: true } } } } } }),
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, conversations: { some: {} } } }),
-    ]).then(([onboarded, agentBuilt, knowledgeReady, channelConnected, firstConversation]) => ({
-      onboarded,
-      agentBuilt,
-      knowledgeReady,
-      channelConnected,
-      firstConversation,
-    })),
-    prisma.user.count({ where: { AND: [ADMIN_VISIBLE_USER_WHERE, { workspace: { conversations: { some: { createdAt: { gte: since30d } } } } }] } }),
+    // Top 5 active users by conversation count in the last 30 days.
+    topActiveUsers(5, 30),
     prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startToday } } }),
-    prisma.payment.aggregate({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'IRR', paidAt: { gte: startToday } }, _sum: { amount: true } }),
     Promise.all([
       prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE } }),
       prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE, active: true } }),
@@ -175,12 +184,13 @@ export default async function AdminOverviewPage(
         <h2 id="executive-pulse-title" className="sr-only">شاخص‌های کلیدی</h2>
         <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard
-          label="درآمد امروز"
-          value={fmtIRR(revenueToday._sum.amount ?? 0)}
+          label="میانگین کسر هر پاسخ"
+          value={fmtIRR(aiOverview.requests > 0 ? Math.round(aiOverview.chargedIRR / aiOverview.requests) : 0)}
+          sub={`${fa(aiOverview.requests)} پاسخ موفق — ۳۰ روز`}
           icon={<Wallet className="h-5 w-5" />}
           tone="success"
-          series={kpiTrends.rev.map((point) => point.value)}
-          seriesLabels={kpiTrends.rev.map((point) => point.day)}
+          series={kpiTrends.ai.map((point) => point.value)}
+          seriesLabels={kpiTrends.ai.map((point) => point.day)}
           seriesValueFormat="irr"
         />
         <StatCard
@@ -203,13 +213,14 @@ export default async function AdminOverviewPage(
           seriesLabels={kpiTrends.pays.map((point) => point.day)}
         />
         <StatCard
-          label="کاربران فعال ۳۰ روزه"
-          value={activeUsers}
-          sub={`از ${fa(userCount)} کاربر کل`}
-          icon={<Activity className="h-5 w-5" />}
-          tone="info"
-          series={kpiTrends.users.map((point) => point.value)}
-          seriesLabels={kpiTrends.users.map((point) => point.day)}
+          label="هزینه OpenRouter"
+          value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`}
+          sub={`${fa(aiOverview.pricedRequests)} لاگ دارای هزینه — ۳۰ روز`}
+          icon={<CircleDollarSign className="h-5 w-5" />}
+          tone="warning"
+          series={kpiTrends.ai.map((point) => point.value)}
+          seriesLabels={kpiTrends.ai.map((point) => point.day)}
+          seriesValueFormat="irr"
         />
         <StatCard
           label="کاربر جدید امروز"
@@ -249,71 +260,74 @@ export default async function AdminOverviewPage(
         </div>
       </section>
 
-      {/* ─── Platform AI spend ─────────────────────────────────── */}
-      <section aria-labelledby="ai-overview-title">
-        <div className="mb-3 flex items-center gap-2">
-          <BrainCircuit className="h-4 w-4 text-zinc-600" aria-hidden="true" />
-          <h2 id="ai-overview-title" className="text-sm font-semibold text-zinc-900">
-            مصرف هوش مصنوعی — ۳۰ روز اخیر
-          </h2>
-          <Link
-            href="/admin/ai"
-            className="ms-auto inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-          >
-            مدیریت و جزئیات
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-4 min-[1380px]:grid-cols-4">
-          <StatCard
-            label="هزینه واقعی OpenRouter"
-            value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`}
-            sub={`${fa(aiOverview.pricedRequests)} لاگ دارای هزینه`}
-            icon={<CircleDollarSign className="h-5 w-5" />}
-            series={kpiTrends.ai.map((point) => point.value)}
-            seriesLabels={kpiTrends.ai.map((point) => point.day)}
-            seriesValueFormat="irr"
-          />
-          <StatCard
-            label="کسر از اعتبار کاربران"
-            value={fmtIRR(aiOverview.chargedIRR)}
-            sub={`${fa(aiOverview.requests)} پاسخ موفق`}
-            icon={<Wallet className="h-5 w-5" />}
-            tone="success"
-            series={kpiTrends.ai.map((point) => point.value)}
-            seriesLabels={kpiTrends.ai.map((point) => point.day)}
-            seriesValueFormat="irr"
-          />
-          <StatCard
-            label="میانگین کسر هر پاسخ"
-            value={fmtIRR(aiOverview.requests > 0 ? Math.round(aiOverview.chargedIRR / aiOverview.requests) : 0)}
-            sub="بر اساس پاسخ‌های موفق ثبت‌شده"
-            icon={<Activity className="h-5 w-5" />}
-            tone="warning"
-            series={kpiTrends.ai.map((point) => point.value)}
-            seriesLabels={kpiTrends.ai.map((point) => point.day)}
-            seriesValueFormat="irr"
-          />
-          <StatCard
-            label="پوشش ثبت هزینه"
-            value={`${fa(aiOverview.requests > 0 ? Math.round((aiOverview.pricedRequests / aiOverview.requests) * 100) : 0)}٪`}
-            sub="سهم پاسخ‌های دارای cost واقعی"
-            icon={<BrainCircuit className="h-5 w-5" />}
-            tone={aiOverview.requests === 0 || aiOverview.pricedRequests / aiOverview.requests >= 0.95 ? 'success' : 'warning'}
-            series={kpiTrends.ai.map((point) => point.value)}
-            seriesLabels={kpiTrends.ai.map((point) => point.day)}
-            seriesValueFormat="irr"
-          />
-        </div>
-      </section>
-
+      {/* ─── Active users list (replaces business activation funnel) ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ActivationFunnel title="قیف فعال‌سازی کسب‌وکارها" subtitle="از تکمیل راه‌اندازی تا اولین گفتگو" total={workspaceCount} data={[
-          { label: 'راه‌اندازی', value: activation.onboarded },
-          { label: 'ساخت ایجنت', value: activation.agentBuilt },
-          { label: 'دانش آماده', value: activation.knowledgeReady },
-          { label: 'اتصال کانال', value: activation.channelConnected },
-          { label: 'اولین گفتگو', value: activation.firstConversation },
-        ]} />
+        <section
+          aria-labelledby="active-users-title"
+          className="spatial-surface rounded-[1.5rem] p-5 sm:p-6"
+        >
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h3 id="active-users-title" className="text-sm font-semibold text-zinc-900">
+                کاربران فعال
+              </h3>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                ۵ کاربر برتر بر اساس تعداد مکالمه — ۳۰ روز اخیر
+              </p>
+            </div>
+            <Link
+              href="/admin/users"
+              className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
+            >
+              همه کاربران
+            </Link>
+          </div>
+
+          {activeUsersList.length === 0 ? (
+            <div className="py-8 text-center text-xs text-zinc-400">
+              در ۳۰ روز اخیر مکالمه‌ای ثبت نشده است.
+            </div>
+          ) : (
+            <ul className="divide-y divide-zinc-100">
+              {activeUsersList.map((user, index) => (
+                <li key={user.userId}>
+                  <Link
+                    href={`/admin/users/${user.userId}`}
+                    className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-zinc-50 first:pt-0 last:pb-0"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-bold text-zinc-700">
+                      {fa(index + 1)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-zinc-900">
+                          {user.name || user.phone}
+                        </span>
+                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                          {PLAN_LABEL[user.plan] ?? user.plan}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-500">
+                        <span className="truncate">{user.workspaceName}</span>
+                        <span className="text-zinc-300">·</span>
+                        <span className="shrink-0" dir="ltr">{user.phone}</span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-0.5">
+                      <span className="text-sm font-bold text-zinc-900">
+                        {fa(user.conversationCount)}
+                      </span>
+                      <span className="text-[10px] text-zinc-400">
+                        {relativeFromNow(user.lastActivityAt)}
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <DonutChart
           title="توزیع پلن‌ها"
           subtitle="ترکیب فعلی کسب‌وکارها"
@@ -323,9 +337,7 @@ export default async function AdminOverviewPage(
         />
       </div>
 
-      <TrendChart title="گفتگوهای ۷ روز اخیر" subtitle="روند روزانه گفتگوهای جدید پلتفرم" data={kpiTrends.conv} color="#18181b" variant="bar" height={180} />
-
-      {/* ─── Charts row 1 ───────────────────────────────────────── */}
+      {/* ─── Charts row: net revenue + conversations side by side ─── */}
       {range === 'monthly' && rangeSeries.monthly ? (
         <MonthlyBarChart
           title="درآمد ماهانه (تومان)"
@@ -337,25 +349,19 @@ export default async function AdminOverviewPage(
         />
       ) : rangeSeries.daily ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          {/* Revenue chart — uses the EXACT same DashboardPanel + ConversationChart
-              pattern as the user dashboard /overview page, so it looks identical.
-              Data is converted from admin DailyPoint[] ({day, value}) to
-              TrendPoint[] ({label, value}). */}
-          <DashboardPanel
+          <NetRevenueChart
             title={`درآمد ${fa(days)} روز اخیر (تومان)`}
-            subtitle={fmtIRR(rangeSeries.daily.rev.reduce((s, p) => s + p.value, 0))}
+            data={rangeSeries.netRev}
+            height={240}
+          />
+          <DashboardPanel
+            title={`گفتگوهای ${fa(days)} روز اخیر`}
+            subtitle="روند روزانه گفتگوهای جدید پلتفرم"
           >
             <ConversationChart
-              data={rangeSeries.daily.rev.map((p) => ({ label: p.day, value: p.value }) as TrendPoint)}
+              data={kpiTrends.conv.map((p) => ({ label: p.day, value: p.value }) as TrendPoint)}
             />
           </DashboardPanel>
-          <TrendChart
-            title={`ثبت‌نام کاربران ${fa(days)} روز اخیر`}
-            data={rangeSeries.daily.users}
-            color="#18181b"
-            variant="bar"
-            format="number"
-          />
         </div>
       ) : null}
 

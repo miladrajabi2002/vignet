@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import { ADMIN_VISIBLE_WORKSPACE_WHERE, adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 export interface DailyPoint {
         day: string // Persian label, e.g. "۲۱ تیر"
@@ -449,4 +450,144 @@ export async function paymentsDailyByWorkspace(
                 }
         }
         return out
+}
+
+// ─── NET REVENUE (credit-based, minus OpenRouter cost) ──────────────
+//
+// The user-facing "revenue" on this platform is the credit deducted from
+// each workspace's wallet when an AI reply is sent (UsageLog.chargedIRR).
+// That gross number is reduced by the real provider cost (UsageLog.cost in
+// USD, converted to IRR with the platform rate) to get the true daily net
+// revenue. Showing gross vs net side-by-side makes the unit economics
+// visible at a glance.
+
+export interface NetRevenuePoint {
+        /** Persian day label, e.g. "۲۱ تیر" */
+        day: string
+        /** Credit charged to users, gross (IRR) */
+        grossIRR: number
+        /** OpenRouter cost in IRR (USD × platform rate) */
+        costIRR: number
+        /** Net revenue = gross − cost (IRR) */
+        netIRR: number
+}
+
+/**
+ * Daily net revenue = sum(chargedIRR) − sum(cost USD × usdToIrrRate).
+ * Returns a continuous N-day series aligned to the dashboard timezone.
+ */
+export async function revenueNetDaily(days = 7): Promise<NetRevenuePoint[]> {
+        const since = new Date(Date.now() - days * 86_400_000)
+
+        // Resolve USD→IRR rate from platform commercial config (DB override)
+        // falling back to FINANCE_USD_TO_IRR env var. When neither is set we
+        // can't compute a meaningful net, so we report cost as 0 and surface
+        // only the gross number — better than silently using a wrong rate.
+        const commercialConfig = await getPlatformCommercialConfig()
+        const usdToIrr =
+                (commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
+                        ? commercialConfig.financeUsdToIRR
+                        : null) ??
+                (Number(process.env.FINANCE_USD_TO_IRR) > 0
+                        ? Math.round(Number(process.env.FINANCE_USD_TO_IRR))
+                        : 0)
+
+        const rows = await prisma.$queryRaw<{ d: string; gross: bigint; costUSD: number | null }[]>`
+    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           COALESCE(sum("chargedIRR"), 0) AS gross,
+           COALESCE(sum("cost"), 0)    AS "costUSD"
+    FROM "UsageLog"
+    WHERE "date" >= ${since}
+      AND "status" = 'CAPTURED'
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
+    GROUP BY 1
+    ORDER BY 1
+  `
+
+        const byKey = new Map<string, { gross: number; costUSD: number }>()
+        for (const r of rows) {
+                byKey.set(r.d, { gross: Number(r.gross ?? 0), costUSD: Number(r.costUSD ?? 0) })
+        }
+
+        const out: NetRevenuePoint[] = []
+        const now = Date.now()
+        for (let i = days - 1; i >= 0; i -= 1) {
+                const d = new Date(now - i * 86_400_000)
+                const key = tzDayKey(d)
+                const v = byKey.get(key)
+                const gross = v?.gross ?? 0
+                const costIRR = Math.round((v?.costUSD ?? 0) * usdToIrr)
+                out.push({
+                        day: label(d),
+                        grossIRR: gross,
+                        costIRR,
+                        netIRR: gross - costIRR,
+                })
+        }
+        return out
+}
+
+// ─── TOP ACTIVE USERS ──────────────────────────────────────────────
+//
+// "Active" = the user's workspace had at least one conversation in the
+// last N days. We rank by conversation count so the busiest business
+// owners surface to the top of the admin overview.
+
+export interface ActiveUserRow {
+        userId: string
+        name: string | null
+        phone: string
+        workspaceId: string
+        workspaceName: string
+        plan: string
+        conversationCount: number
+        lastActivityAt: Date | null
+}
+
+/**
+ * Top N active users by conversation volume in their workspace over the
+ * last `days` days. Excludes admin-hidden workspaces. Returns at most
+ * `limit` rows, ordered by conversation count desc then recency desc.
+ */
+export async function topActiveUsers(limit = 5, days = 30): Promise<ActiveUserRow[]> {
+        const since = new Date(Date.now() - days * 86_400_000)
+        const rows = await prisma.$queryRaw<{
+                userId: string
+                name: string | null
+                phone: string
+                workspaceId: string
+                workspaceName: string
+                plan: string
+                conversationCount: bigint
+                lastActivityAt: Date | null
+        }[]>`
+    SELECT u."id"          AS "userId",
+           u."name"         AS "name",
+           u."phone"        AS "phone",
+           u."workspaceId"  AS "workspaceId",
+           w."name"         AS "workspaceName",
+           w."plan"::text   AS "plan",
+           COUNT(c."id")    AS "conversationCount",
+           MAX(c."createdAt") AS "lastActivityAt"
+    FROM "User" u
+    JOIN "Workspace" w
+      ON w."id" = u."workspaceId"
+     AND w."excludeFromAdminReports" = false
+    JOIN "Conversation" c
+      ON c."workspaceId" = u."workspaceId"
+     AND c."createdAt" >= ${since}
+    GROUP BY u."id", u."name", u."phone", u."workspaceId", w."name", w."plan"
+    ORDER BY "conversationCount" DESC, "lastActivityAt" DESC
+    LIMIT ${limit}
+  `
+        return rows.map((r) => ({
+                userId: r.userId,
+                name: r.name,
+                phone: r.phone,
+                workspaceId: r.workspaceId,
+                workspaceName: r.workspaceName,
+                plan: r.plan,
+                conversationCount: Number(r.conversationCount),
+                lastActivityAt: r.lastActivityAt,
+        }))
 }
