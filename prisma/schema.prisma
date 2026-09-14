@@ -194,6 +194,9 @@ model Agent {
   language                String   @default("fa")
   voiceEnabled            Boolean  @default(false)
   voiceInputEnabled       Boolean  @default(true)
+  // ─ A15: inbound photo understanding (machine-vision). Billed per analysed
+  //   image; deliberately OFF by default — businesses opt in per agent.
+  imageInputEnabled       Boolean  @default(false)
   ttsVoice                String   @default("alloy")
   avatar                  String?
   welcomeMessage          String?
@@ -1068,6 +1071,7 @@ model PlatformAiSettings {
   providerSort      String   @default("price")
   zeroDataRetention Boolean  @default(true)
   sttPricePerMinuteIRR Int   @default(100)
+  visionPricePerImageIRR Int  @default(800)
   replyPricesIRR    Json     @default("{}")
   trialCreditIRR    Int      @default(100000)
   planConfig        Json     @default("{}")

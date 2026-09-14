@@ -4,6 +4,7 @@ import { isAdminAuthed } from '@/lib/admin/auth'
 import {
   getPlatformCommercialConfig,
   PLATFORM_STT_MODEL,
+  PLATFORM_VISION_MODEL,
   updatePlatformCommercialConfig,
 } from '@/lib/platform/commercial-config'
 
@@ -25,6 +26,8 @@ const planSchema = z.object({
 const schema = z.object({
   sttModel: z.literal(PLATFORM_STT_MODEL),
   sttPricePerMinuteIRR: positiveInt,
+  visionModel: z.literal(PLATFORM_VISION_MODEL),
+  visionPricePerImageIRR: positiveInt,
   providerSort: z.enum(['price', 'latency', 'throughput']),
   zeroDataRetention: z.boolean(),
   replyPricesIRR: z.object({

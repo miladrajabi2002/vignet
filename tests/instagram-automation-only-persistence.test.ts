@@ -181,6 +181,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
         handoffMessage: null,
         handoffKeywords: [],
         voiceInputEnabled: true,
+        imageInputEnabled: false,
         active: true,
         promptConfig: null,
         roleTemplate: null,

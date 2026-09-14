@@ -103,6 +103,8 @@ export async function POST(req: Request) {
       maxTokens: AGENT_MAX_RESPONSE_TOKENS,
       language: data.language ?? 'fa',
       voiceInputEnabled: data.voiceInputEnabled ?? true,
+      // A15: billed per analysed image — opt-in only, never on by default.
+      imageInputEnabled: data.imageInputEnabled ?? false,
       welcomeMessage: data.welcomeMessage,
       fallbackMessage: data.fallbackMessage,
       // Smart handoff is a safety/default capability. Clients may still

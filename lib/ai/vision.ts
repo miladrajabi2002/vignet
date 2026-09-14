@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { OPENROUTER_BASE, fetchWithProviderRetry, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { ensureVisionCreditAvailable, captureVisionCredit } from '@/lib/billing/vision-credits'
+import { getPlatformCommercialConfig, PLATFORM_VISION_MODEL } from '@/lib/platform/commercial-config'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import type { InboundMessage } from '@/lib/channels/types'
 
@@ -20,9 +21,8 @@ import type { InboundMessage } from '@/lib/channels/types'
  * account on empty wallets.
  */
 
-export const PLATFORM_VISION_MODEL =
-  process.env.OPENROUTER_VISION_MODEL?.trim() || 'google/gemini-3.1-flash-lite'
-
+/** Legacy env-only default kept for tests; runtime pricing now flows from
+ *  the platform commercial config (admin-editable, A15). */
 export const VISION_PRICE_PER_IMAGE_IRR = positiveEnv('AI_VISION_PRICE_PER_IMAGE_IRR', 800)
 
 function positiveEnv(name: string, fallback: number): number {
@@ -119,6 +119,11 @@ export async function describeImage(input: DescribeImageInput): Promise<Describe
   const idempotencyKey = input.idempotencyKey ?? `vision:${randomUUID()}`
   const key = getPlatformOpenRouterKey()
   if (!key) return { status: 'failed' }
+  // A15: the per-image tariff is admin-editable in the platform commercial
+  // settings; fall back to the env-backed default when the settings row is
+  // unavailable (e.g. tests) so the charge never silently becomes free.
+  const runtime = await getPlatformCommercialConfig().catch(() => null)
+  const pricePerImageIRR = runtime?.visionPricePerImageIRR ?? VISION_PRICE_PER_IMAGE_IRR
   try {
     await ensureVisionCreditAvailable(input.workspaceId, idempotencyKey)
   } catch (e) {
@@ -187,7 +192,7 @@ export async function describeImage(input: DescribeImageInput): Promise<Describe
       workspaceId: input.workspaceId,
       agentId: input.agentId,
       model: PLATFORM_VISION_MODEL,
-      pricePerImageIRR: VISION_PRICE_PER_IMAGE_IRR,
+      pricePerImageIRR,
       providerRequestId: typeof json.id === 'string' ? json.id : null,
       providerCostUSD: Number.isFinite(rawCost) ? rawCost : null,
       promptTokens: Number(usage.prompt_tokens) || 0,

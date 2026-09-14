@@ -38,6 +38,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
           creditBalanceIRR: workspace?.aiCreditBalanceIRR ?? 0,
           replyPricesIRR: await getEffectivePlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
           sttPricePerMinuteIRR: commercialPolicy.sttPricePerMinuteIRR,
+          visionPricePerImageIRR: commercialPolicy.visionPricePerImageIRR,
         }}
         agent={{
           id: agent.id,
@@ -53,6 +54,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
           handoffKeywords: agent.handoffKeywords,
           active: agent.active,
           voiceInputEnabled: agent.voiceInputEnabled,
+          imageInputEnabled: agent.imageInputEnabled,
           // ─ F1: layered prompt
           promptConfig: agent.promptConfig as AgentSettingsData['promptConfig'],
           roleTemplate: agent.roleTemplate,

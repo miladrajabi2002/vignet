@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
 import { getAdapter } from '@/lib/channels/registry'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { readPageToken } from '@/lib/instagram/config'
+import { resolveInstagramHost } from '@/lib/channels/instagram'
+import type { Prisma } from '@prisma/client'
 
 type Params = { params: Promise<{ conversationId: string; messageId: string }> }
 
@@ -20,6 +23,14 @@ export const runtime = 'nodejs'
  * operator opens the conversation, this route resolves the reference live and
  * streams the bytes through with workspace-scoped authorization and the same
  * SSRF/DNS-pinning protections used by the avatar proxies.
+ *
+ * A15: Instagram CDN signatures eventually expire. When the stored URL no
+ * longer serves the bytes, the route asks the Graph API for a FRESH CDN URL
+ * (`GET /{platformMessageId}?fields=attachments` returns image_data/video_data
+ * URLs) and retries — so old photos keep rendering in the dashboard without
+ * ever storing the file. Meta does not return audio attachments on retrieval,
+ * so voice notes rely on the stored URL plus the STT transcript that is
+ * already part of the message text.
  */
 
 const ALLOWED_MEDIA_CONTENT_TYPES = [
@@ -30,11 +41,13 @@ const ALLOWED_MEDIA_CONTENT_TYPES = [
 ]
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024
 const FETCH_TIMEOUT_MS = 20_000
+const GRAPH_TIMEOUT_MS = 12_000
 
 interface InboundMediaReference {
   mediaKind?: string
   mediaUrl?: string
   mediaFileId?: string
+  platformMessageId?: string
 }
 
 function readInboundMedia(metadata: unknown): InboundMediaReference | null {
@@ -48,6 +61,9 @@ function readInboundMedia(metadata: unknown): InboundMediaReference | null {
       ? row.mediaUrl
       : undefined,
     mediaFileId: typeof row.mediaFileId === 'string' && row.mediaFileId ? row.mediaFileId : undefined,
+    platformMessageId: typeof row.platformMessageId === 'string' && row.platformMessageId
+      ? row.platformMessageId
+      : undefined,
   }
 }
 
@@ -76,6 +92,76 @@ function mediaResponse(bytes: Uint8Array, contentType: string) {
       Vary: 'Cookie',
     },
   })
+}
+
+async function fetchMediaBytes(targetUrl: string) {
+  try {
+    const response = await safeHttpGet(targetUrl, {
+      allowedContentTypes: ALLOWED_MEDIA_CONTENT_TYPES,
+      maxBytes: MAX_MEDIA_BYTES,
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxRedirects: 2,
+    })
+    if (response.status !== 200 || response.body.length === 0) return null
+    const contentType = String(response.headers['content-type'] ?? 'application/octet-stream')
+    return { body: response.body, contentType }
+  } catch {
+    // Expired Instagram CDN URLs, revoked Telegram files, content-type
+    // mismatches and blocked targets all land here.
+    return null
+  }
+}
+
+/** Ask Instagram for a fresh CDN URL for a photo/video message. */
+async function resolveFreshInstagramMediaUrl(
+  agentId: string,
+  platformMessageId: string,
+): Promise<string | null> {
+  const channelRow = await prisma.agentChannel.findFirst({
+    where: { agentId, type: 'INSTAGRAM', active: true },
+    select: { config: true },
+  })
+  const token = channelRow ? readPageToken(channelRow.config) : null
+  if (!token) return null
+  const host = await resolveInstagramHost(token)
+  if (!host) return null
+  try {
+    const res = await fetch(
+      `${host.base}/${encodeURIComponent(platformMessageId)}?fields=attachments`,
+      {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
+      },
+    )
+    if (!res.ok) return null
+    const json = (await res.json().catch(() => null)) as {
+      attachments?: { data?: Array<{ image_data?: { url?: string }; video_data?: { url?: string } }> }
+    } | null
+    const attachment = json?.attachments?.data?.[0]
+    const fresh = attachment?.image_data?.url ?? attachment?.video_data?.url
+    return typeof fresh === 'string' && fresh.startsWith('https://') ? fresh : null
+  } catch {
+    return null
+  }
+}
+
+/** Best-effort refresh of the stored channel reference for later views. */
+async function persistFreshMediaUrl(messageId: string, metadata: unknown, freshUrl: string) {
+  try {
+    const next = JSON.parse(JSON.stringify(metadata ?? {})) as Record<string, unknown>
+    const inbound = (next.vigentoInbound && typeof next.vigentoInbound === 'object')
+      ? (next.vigentoInbound as Record<string, unknown>)
+      : {}
+    inbound.mediaUrl = freshUrl
+    next.vigentoInbound = inbound
+    await prisma.message.update({
+      where: { id: messageId },
+      data: { metadata: next as Prisma.InputJsonObject },
+    })
+  } catch {
+    // A metadata refresh failure must never break the media response.
+  }
 }
 
 export async function GET(_req: Request, props: Params) {
@@ -129,22 +215,24 @@ export async function GET(_req: Request, props: Params) {
 
   if (!targetUrl) return unavailable(404, 'MEDIA_UNAVAILABLE')
 
-  try {
-    const response = await safeHttpGet(targetUrl, {
-      allowedContentTypes: ALLOWED_MEDIA_CONTENT_TYPES,
-      maxBytes: MAX_MEDIA_BYTES,
-      timeoutMs: FETCH_TIMEOUT_MS,
-      maxRedirects: 2,
-    })
-    if (response.status !== 200 || response.body.length === 0) {
-      return unavailable(404, 'MEDIA_UNAVAILABLE')
+  let served = await fetchMediaBytes(targetUrl)
+
+  // ─ A15 fallback: an expired Instagram CDN signature is not the end of the
+  // line for photos/videos. The Graph message endpoint can re-issue a fresh
+  // URL on demand, keeping the dashboard preview alive without storing bytes.
+  if (!served && message.conversation.channel === 'INSTAGRAM' && media.platformMessageId) {
+    const freshUrl = await resolveFreshInstagramMediaUrl(
+      message.conversation.agentId,
+      media.platformMessageId,
+    )
+    if (freshUrl && freshUrl !== targetUrl) {
+      served = await fetchMediaBytes(freshUrl)
+      if (served) {
+        await persistFreshMediaUrl(message.id, message.metadata, freshUrl)
+      }
     }
-    const contentType = String(response.headers['content-type'] ?? 'application/octet-stream')
-    return mediaResponse(response.body, contentType)
-  } catch {
-    // Expired Instagram CDN URLs, revoked Telegram files, content-type
-    // mismatches and blocked targets all land here: the UI renders its
-    // placeholder chip via <img>/<video> onError.
-    return unavailable(404, 'MEDIA_UNAVAILABLE')
   }
+
+  if (!served) return unavailable(404, 'MEDIA_UNAVAILABLE')
+  return mediaResponse(served.body, served.contentType)
 }

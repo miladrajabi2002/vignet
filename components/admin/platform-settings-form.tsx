@@ -10,6 +10,7 @@ type NumberPath =
   | ['trialCreditIRR']
   | ['financeUsdToIRR']
   | ['sttPricePerMinuteIRR']
+  | ['visionPricePerImageIRR']
   | ['replyPricesIRR', keyof PlatformCommercialConfig['replyPricesIRR']]
   | ['plans', keyof PlatformCommercialConfig['plans'], keyof PlatformCommercialConfig['plans']['TRIAL']]
 
@@ -58,6 +59,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       if (path[0] === 'trialCreditIRR') return { ...current, trialCreditIRR: parsed }
       if (path[0] === 'financeUsdToIRR') return { ...current, financeUsdToIRR: empty ? null : parsed }
       if (path[0] === 'sttPricePerMinuteIRR') return { ...current, sttPricePerMinuteIRR: parsed }
+      if (path[0] === 'visionPricePerImageIRR') return { ...current, visionPricePerImageIRR: parsed }
       if (path[0] === 'replyPricesIRR') {
         return { ...current, replyPricesIRR: { ...current.replyPricesIRR, [path[1]]: parsed } }
       }
@@ -115,8 +117,16 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             <code dir="ltr" className="mt-2 block break-all text-left text-xs font-semibold text-black/65">{value.sttModel}</code>
             <span className="mt-1 block text-[11px] leading-5 text-black/45">مدل ثابت و چندزبانه از طریق OpenRouter</span>
           </div>
+          <div className="rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
+            <span className="text-sm font-bold text-black">مدل توصیف عکس مشتری</span>
+            <code dir="ltr" className="mt-2 block break-all text-left text-xs font-semibold text-black/65">{value.visionModel}</code>
+            <span className="mt-1 block text-[11px] leading-5 text-black/45">مدل ثابت بینایی؛ فقط وقتی «توصیف عکس» برای ایجنت روشن باشد مصرف می‌شود</span>
+          </div>
           <Field label="تعرفه هر دقیقه تبدیل ویس" hint="پیش‌فرض: ۱۰ تومان در دقیقه؛ معادل ۱۰۰ تومان برای ۱۰ دقیقه">
             <MoneyInput value={toToman(value.sttPricePerMinuteIRR)} onChange={(raw) => setNumber(['sttPricePerMinuteIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
+          </Field>
+          <Field label="تعرفه هر عکس توصیف‌شده" hint="پیش‌فرض: ۸۰ تومان برای هر عکس؛ فقط ایجنت‌های با توصیف عکس روشن">
+            <MoneyInput value={toToman(value.visionPricePerImageIRR)} onChange={(raw) => setNumber(['visionPricePerImageIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
           </Field>
           <Field label="اولویت انتخاب Provider" hint="در تمام درخواست‌های OpenRouter">
             <MaterialSelect value={value.providerSort} onValueChange={(next) => setField('providerSort', next as PlatformCommercialConfig['providerSort'])} ariaLabel="اولویت انتخاب Provider" buttonClassName="admin-input" options={[{ value: 'price', label: 'کمترین قیمت' }, { value: 'latency', label: 'کمترین تأخیر' }, { value: 'throughput', label: 'بیشترین توان پردازش' }]} />

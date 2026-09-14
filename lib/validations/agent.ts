@@ -121,6 +121,7 @@ export const agentCreateSchema = z.object({
   model: z.enum(MODEL_ALIASES).nullable().optional(),
   language: z.enum(['fa', 'en']).optional(),
   voiceInputEnabled: z.boolean().optional(),
+  imageInputEnabled: z.boolean().optional(),
   welcomeMessage: z.string().max(500).optional(),
   fallbackMessage: z.string().max(500).optional(),
   handoffEnabled: z.boolean().optional(),

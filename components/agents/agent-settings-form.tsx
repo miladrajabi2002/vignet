@@ -61,6 +61,7 @@ export interface AgentSettingsData {
         handoffKeywords: string[]
         active: boolean
         voiceInputEnabled: boolean
+        imageInputEnabled: boolean
         // ─ F1: layered prompt
         promptConfig: PromptConfig | null
         roleTemplate: string | null
@@ -85,6 +86,7 @@ export function AgentSettingsForm({
                 creditBalanceIRR: number
                 replyPricesIRR: Record<ModelAlias, number>
                 sttPricePerMinuteIRR: number
+                visionPricePerImageIRR: number
         }
 }) {
         const tw = useTranslations('agents.wizard')
@@ -106,6 +108,7 @@ export function AgentSettingsForm({
                 handoffKeywords: agent.handoffKeywords.join(', '),
                 active: agent.active,
                 voiceInputEnabled: agent.voiceInputEnabled,
+                imageInputEnabled: agent.imageInputEnabled,
         })
 
         const [promptConfig, setPromptConfig] = useState<NormalizedPromptConfig>(
@@ -352,6 +355,22 @@ export function AgentSettingsForm({
                                                                         .format(modelPolicy.sttPricePerMinuteIRR / 10),
                                                         })
                                                         : tf('voiceInputEnabledHint')}
+                                        </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+                                        <Toggle
+                                                label={tf('imageInputEnabled')}
+                                                checked={form.imageInputEnabled}
+                                                onChange={(v) => set('imageInputEnabled', v)}
+                                        />
+                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+                                                {form.imageInputEnabled
+                                                        ? tf('imageInputEnabledActiveHint', {
+                                                                price: new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+                                                                        .format(modelPolicy.visionPricePerImageIRR / 10),
+                                                        })
+                                                        : tf('imageInputEnabledHint')}
                                         </p>
                                 </div>
 

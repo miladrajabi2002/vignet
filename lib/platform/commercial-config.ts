@@ -4,6 +4,10 @@ import type { ModelAlias } from '@/lib/ai/models'
 
 export const PLATFORM_STT_MODEL = 'openai/whisper-large-v3-turbo'
 
+/** Pinned vision model for inbound photo understanding (A15 admin surface). */
+export const PLATFORM_VISION_MODEL =
+  process.env.OPENROUTER_VISION_MODEL?.trim() || 'google/gemini-3.1-flash-lite'
+
 export type ManagedPlanConfig = {
   priceIRR: number
   priceUSD: number
@@ -18,6 +22,8 @@ export type ManagedPlanConfig = {
 export type PlatformCommercialConfig = {
   sttModel: string
   sttPricePerMinuteIRR: number
+  visionModel: string
+  visionPricePerImageIRR: number
   providerSort: 'price' | 'latency' | 'throughput'
   zeroDataRetention: boolean
   replyPricesIRR: Record<ModelAlias, number>
@@ -47,6 +53,8 @@ function fallbackConfig(): PlatformCommercialConfig {
   return {
     sttModel: PLATFORM_STT_MODEL,
     sttPricePerMinuteIRR: 100,
+    visionModel: PLATFORM_VISION_MODEL,
+    visionPricePerImageIRR: positiveEnv('AI_VISION_PRICE_PER_IMAGE_IRR', 800),
     providerSort: (['price', 'latency', 'throughput'].includes(process.env.OPENROUTER_PROVIDER_SORT || '')
       ? process.env.OPENROUTER_PROVIDER_SORT
       : 'price') as PlatformCommercialConfig['providerSort'],
@@ -157,6 +165,8 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
       // STT is intentionally pinned to one multilingual, economical model.
       sttModel: PLATFORM_STT_MODEL,
       sttPricePerMinuteIRR: safePositive(row.sttPricePerMinuteIRR, fallback.sttPricePerMinuteIRR),
+      visionModel: PLATFORM_VISION_MODEL,
+      visionPricePerImageIRR: safePositive(row.visionPricePerImageIRR, fallback.visionPricePerImageIRR),
       providerSort: ['price', 'latency', 'throughput'].includes(row.providerSort)
         ? row.providerSort as PlatformCommercialConfig['providerSort']
         : fallback.providerSort,
@@ -186,6 +196,7 @@ export async function updatePlatformCommercialConfig(
       id: 'primary',
       sttModel: PLATFORM_STT_MODEL,
       sttPricePerMinuteIRR: input.sttPricePerMinuteIRR,
+      visionPricePerImageIRR: input.visionPricePerImageIRR,
       providerSort: input.providerSort,
       zeroDataRetention: input.zeroDataRetention,
       replyPricesIRR: input.replyPricesIRR,
@@ -196,6 +207,7 @@ export async function updatePlatformCommercialConfig(
     update: {
       sttModel: PLATFORM_STT_MODEL,
       sttPricePerMinuteIRR: input.sttPricePerMinuteIRR,
+      visionPricePerImageIRR: input.visionPricePerImageIRR,
       providerSort: input.providerSort,
       zeroDataRetention: input.zeroDataRetention,
       replyPricesIRR: input.replyPricesIRR,

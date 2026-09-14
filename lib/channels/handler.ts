@@ -6,7 +6,7 @@ import type { StartChatParams } from '@/lib/ai/chat-types'
 import { notifyHandoff } from '@/lib/ai/handoff'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
-import { understandInboundImage } from '@/lib/ai/vision'
+import { isInboundImage, understandInboundImage } from '@/lib/ai/vision'
 import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
 import {
         getAdapter,
@@ -82,6 +82,7 @@ const AGENT_SELECT = {
         handoffMessage: true,
         handoffKeywords: true,
         voiceInputEnabled: true,
+        imageInputEnabled: true,
         active: true,
         // ─ F1: layered prompt config
         promptConfig: true,
@@ -111,6 +112,7 @@ interface ResolvedChannel {
                 handoffMessage: string | null
                 handoffKeywords: string[]
                 voiceInputEnabled: boolean
+                imageInputEnabled: boolean
                 active: boolean
                 promptConfig: unknown
                 roleTemplate: string | null
@@ -819,6 +821,10 @@ async function processChannelInbound(
                                         : instagramPolicy?.dmReplyPolicy
                         const automationOnly = effectiveInstagramPolicy === 'AUTOMATION_ONLY'
                         const voiceInputDisabled = isInboundAudio(msg) && !agent.voiceInputEnabled
+                        // A15: photo understanding is a billed, per-agent opt-in
+                        // (default off). When disabled the turn keeps the honest
+                        // media-handoff behaviour — exactly like voice input off.
+                        const imageInputDisabled = isInboundImage(msg) && !agent.imageInputEnabled
                         // Automation-only routing uses the received message, never AI transcription.
                         const resolvedText = voiceInputDisabled || automationOnly
                                 ? { text: msg.text.trim(), audioTranscribed: false }
@@ -831,7 +837,7 @@ async function processChannelInbound(
                         // and get matched against the catalog instead of degrading
                         // to the media handoff. Mirrors the STT path: wallet-gated,
                         // billed per image, graceful fallback when the model fails.
-                        const imageUnderstanding = voiceInputDisabled || automationOnly
+                        const imageUnderstanding = voiceInputDisabled || imageInputDisabled || automationOnly
                                 ? null
                                 : await understandInboundImage({
                                         msg,
