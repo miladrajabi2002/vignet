@@ -54,7 +54,7 @@ import {
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import { refreshConversationSalesInsight } from '@/lib/ai/sales-intelligence'
-import { detectTurnLanguage } from '@/lib/ai/turn-language'
+import { detectSttLanguageHint, detectTurnLanguage } from '@/lib/ai/turn-language'
 import { sendProductCarousel } from '@/lib/instagram/media'
 import {
         formatProductFallback,
@@ -280,6 +280,7 @@ function isInboundAudio(msg: InboundMessage): boolean {
 async function resolveText(
         agentWorkspaceId: string,
         agentId: string,
+        channel: MessengerType,
         adapter: MessengerAdapter,
         msg: InboundMessage,
         idempotencyKey: string,
@@ -295,12 +296,48 @@ async function resolveText(
                 if (!url) return { text: caption, audioTranscribed: false }
                 const dl = await downloadAudio(url)
                 if (!dl) return { text: caption, audioTranscribed: false }
+
+                // A first-message voice note stays on provider auto-detection.
+                // Once this customer has written text, use their latest real
+                // text language as a hint. Exclude earlier audio/media rows so
+                // an incorrect transcript cannot poison later recognition.
+                const priorConversation = await prisma.conversation.findFirst({
+                        where: {
+                                agentId,
+                                channel,
+                                externalId: msg.chatId,
+                        },
+                        select: {
+                                messages: {
+                                        where: { role: 'USER' },
+                                        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                                        take: 12,
+                                        select: { content: true, metadata: true },
+                                },
+                        },
+                })
+                const priorText = (priorConversation?.messages ?? [])
+                        .filter((message) => {
+                                const metadata = message.metadata
+                                if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return true
+                                const source = (metadata as Record<string, unknown>).vigentoInbound
+                                if (!source || typeof source !== 'object' || Array.isArray(source)) return true
+                                const mediaKind = (source as Record<string, unknown>).mediaKind
+                                return mediaKind !== 'voice' && mediaKind !== 'audio'
+                        })
+                        .reverse()
+                        .map((message) => ({ role: 'user' as const, content: message.content }))
+                // A caption accompanying this voice note is customer-authored
+                // text and therefore the strongest available language signal.
+                if (caption) priorText.push({ role: 'user', content: caption })
+                const language = detectSttLanguageHint(priorText)
                 const transcript = await transcribeAudio({
                         audio: dl.audio,
                         mime: dl.mime,
                         workspaceId: agentWorkspaceId,
                         agentId,
                         idempotencyKey: `stt:inbound:${idempotencyKey}`,
+                        ...(language ? { language } : {}),
                 })
                 if (!transcript) return { text: caption, audioTranscribed: false }
                 return {
@@ -828,7 +865,7 @@ async function processChannelInbound(
                         // Automation-only routing uses the received message, never AI transcription.
                         const resolvedText = voiceInputDisabled || automationOnly
                                 ? { text: msg.text.trim(), audioTranscribed: false }
-                                : await resolveText(agent.workspaceId, agent.id, adapter, msg, eventLease.id)
+                                : await resolveText(agent.workspaceId, agent.id, type, adapter, msg, eventLease.id)
                         let text = resolvedText.text
                         // ─ A14: inbound photo understanding. Download the attached
                         // photo and describe it with the platform vision model, then

@@ -26,12 +26,15 @@ export function VoiceRecorder({
   disabled,
   label,
   vad = false,
+  language,
 }: {
   onTranscript: (text: string) => void
   onError?: (code: string) => void
   disabled?: boolean
   label?: string
   vad?: boolean
+  /** ISO-639-1 hint inferred by the parent; omit to keep STT on auto. */
+  language?: string
 }) {
   const [state, setState] = useState<'idle' | 'recording' | 'busy'>('idle')
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -103,6 +106,7 @@ export function VoiceRecorder({
     try {
       const form = new FormData()
       form.append('audio', blob, filename)
+      if (language) form.append('language', language)
       const res = await fetch('/api/voice/stt', { method: 'POST', body: form })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {

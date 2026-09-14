@@ -452,6 +452,26 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.notifyHandoff).not.toHaveBeenCalled()
   })
 
+  it('hints Persian from prior customer text when transcribing a later voice note', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true, mediaKind: 'audio', mediaUrl: 'https://cdn.example/voice.mp4',
+    }])
+    mocks.loadAutomationPolicy.mockResolvedValue({
+      ...automationOnlyPolicy, dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+    })
+    mocks.conversationFindFirst.mockResolvedValue({
+      id: 'conversation-1',
+      messages: [{ content: 'سلام، قیمت این محصول چنده؟', metadata: { vigentoInbound: { kind: 'DM' } } }],
+    })
+    mocks.downloadAudio.mockResolvedValue({ audio: Buffer.from('audio'), mime: 'audio/mp4' })
+    mocks.transcribeAudio.mockResolvedValue('موجوده؟')
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.transcribeAudio).toHaveBeenCalledWith(expect.objectContaining({ language: 'fa' }))
+  })
+
   it.each(['DM', 'COMMENT', 'STORY_REPLY'] as const)('still executes a configured %s scenario without the default agent', async (kind) => {
     mocks.parseUpdate.mockReturnValue([{
       kind, platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1', text: 'سویشرت',

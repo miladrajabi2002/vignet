@@ -24,12 +24,17 @@ export async function POST(req: Request) {
   }
 
   const audio = Buffer.from(await file.arrayBuffer())
+  const rawLanguage = form?.get('language')
+  const language = typeof rawLanguage === 'string' && /^[a-z]{2}$/i.test(rawLanguage)
+    ? rawLanguage.toLowerCase()
+    : undefined
   try {
     const text = await transcribeAudio({
       audio,
       mime: file.type || 'audio/webm',
       filename: 'recording.webm',
       workspaceId: user.workspaceId,
+      language,
     })
     return NextResponse.json({ text })
   } catch (e) {

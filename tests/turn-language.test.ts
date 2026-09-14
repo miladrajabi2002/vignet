@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectTurnLanguage, numberLocale } from '@/lib/ai/turn-language'
+import { detectSttLanguageHint, detectTurnLanguage, numberLocale } from '@/lib/ai/turn-language'
 import { languageMirroringInstruction } from '@/lib/agent-kernel/skills/language-mirroring'
 import { agentSkillTrace } from '@/lib/agent-kernel/contracts'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
@@ -70,6 +70,19 @@ describe('turn language detection — script and function-word evidence', () => 
     expect(numberLocale('ar')).toBe('ar-EG')
     expect(numberLocale('en')).toBe('en-US')
     expect((1498000).toLocaleString(numberLocale('fa'))).toContain('۴۹۸')
+  })
+})
+
+describe('STT language hints', () => {
+  it('keeps provider auto-detection for a voice-first conversation', () => {
+    expect(detectSttLanguageHint([])).toBeUndefined()
+    expect(detectSttLanguageHint([{ role: 'assistant', content: 'سلام، خوش آمدید' }])).toBeUndefined()
+  })
+
+  it('uses the latest customer text language', () => {
+    expect(detectSttLanguageHint([user('سلام، قیمت چنده؟')])).toBe('fa')
+    expect(detectSttLanguageHint([user('Hi, is this available?')])).toBe('en')
+    expect(detectSttLanguageHint([user('سلام'), user('مرحبا، هل هذا متوفر؟')])).toBe('ar')
   })
 })
 

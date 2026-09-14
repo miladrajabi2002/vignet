@@ -24,7 +24,7 @@ const oldStoredConfig: PromptConfig = {
 }
 
 describe('natural conversation prompt controls', () => {
-  it('accepts up to 60 must-do and must-not rules per scope list', () => {
+  it('accepts up to 100 must-do and must-not rules per scope list (200 total)', () => {
     const rules = Array.from({ length: PROMPT_SCOPE_RULE_LIMIT }, (_, index) => `rule ${index + 1}`)
     expect(promptConfigSchema.safeParse({ doSay: rules, dontSay: rules }).success).toBe(true)
     expect(promptConfigSchema.safeParse({ doSay: [...rules, 'one too many'] }).success).toBe(false)

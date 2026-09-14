@@ -137,6 +137,26 @@ export function detectTurnLanguage(message: string, history: ChatMessage[] = [])
   return 'fa'
 }
 
+/**
+ * Infer an ISO language hint for speech recognition from prior customer text.
+ *
+ * Unlike `detectTurnLanguage`, this deliberately has no Persian fallback: an
+ * empty/voice-first conversation must leave STT language detection on auto.
+ * Callers should exclude generated transcripts and media placeholders so one
+ * bad transcription cannot become the hint for the next voice note.
+ */
+export function detectSttLanguageHint(history: ChatMessage[] = []): TurnLanguage | undefined {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const item = history[index]
+    if (item.role !== 'user') continue
+    const content = (item.content ?? '').trim()
+    if (!content) continue
+    const letters = content.replace(/[^\p{L}]/gu, '')
+    if (letters.length >= 2) return classifyLetteredText(content)
+  }
+  return undefined
+}
+
 /** Locale used for number formatting in deterministic replies. */
 export function numberLocale(lang: TurnLanguage): string {
   if (lang === 'en') return 'en-US'
