@@ -28,7 +28,6 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
   const t = useTranslations('products')
   const locale = useLocale()
   const router = useRouter()
-  const fa = locale !== 'en'
 
   const fmt = (n: number) =>
     n.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')

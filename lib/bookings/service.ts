@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client'
 import { prisma, type Tx } from '@/lib/prisma'
 import {
   buildAvailableSlots,

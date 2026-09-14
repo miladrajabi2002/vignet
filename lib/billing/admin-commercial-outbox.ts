@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client'
 import { captureError } from '@/lib/errors/capture'
 import { prisma, type Tx } from '@/lib/prisma'
 import {

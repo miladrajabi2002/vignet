@@ -1,5 +1,4 @@
 import { type Tx } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
 import { getPlanDefs, type PaidPlan } from '@/lib/billing/plans'
 
 export type PlanCreditGrantResult = {

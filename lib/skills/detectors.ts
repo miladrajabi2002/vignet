@@ -1265,5 +1265,12 @@ export function candidateConflictPairs(
   return pairs
     .sort((x, y) => y.score - x.score)
     .slice(0, cap)
-    .map(({ score: _score, ...pair }) => pair)
+    .map((p) => ({
+      aId: p.aId,
+      bId: p.bId,
+      questionA: p.questionA,
+      answerA: p.answerA,
+      questionB: p.questionB,
+      answerB: p.answerB,
+    }))
 }

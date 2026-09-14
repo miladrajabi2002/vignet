@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client'
 import { prisma, type Tx } from '@/lib/prisma'
 
 /** Acquire multiple identity locks in a stable order to avoid deadlocks. */
