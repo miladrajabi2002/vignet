@@ -3,6 +3,19 @@ import http from 'node:http'
 import https from 'node:https'
 import net from 'node:net'
 
+/**
+ * Default browser-like User-Agent for every safeHttpGet/safeHttpPost request.
+ *
+ * Meta/Instagram CDN hosts (lookaside.fbsbx.com and friends) answer UA-less
+ * requests with a 302 to an HTML «unsupported browser» page instead of the
+ * actual bytes. That silently broke two flows: voice-note STT downloads
+ * (the transcript came back empty and the turn degraded to a media handoff)
+ * and the dashboard media proxy (customer photos rendered as broken images).
+ * Callers can still override the header per-request via options.headers.
+ */
+const DEFAULT_USER_AGENT =
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+
 const DEFAULT_TIMEOUT_MS = 15_000
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024
 const DEFAULT_MAX_REDIRECTS = 3
@@ -89,6 +102,13 @@ function hostnameWithoutBrackets(hostname: string): string {
   return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname
 }
 
+/** True when the caller supplied its own User-Agent header. */
+function hasOwnUserAgent(headers?: Record<string, string>): boolean {
+  if (!headers) return false
+  const lookup = (key: string) => Object.keys(headers).find((name) => name.toLowerCase() === key)
+  return Boolean(lookup('user-agent'))
+}
+
 async function resolvePublicAddress(hostname: string): Promise<{ address: string; family: 4 | 6 }> {
   const records = await dns.lookup(hostname, { all: true, verbatim: true })
   if (!records.length || records.some((record) => isBlockedIp(record.address))) {
@@ -160,6 +180,7 @@ async function request(
         headers: {
           Host: url.host,
           Accept: '*/*',
+          ...(hasOwnUserAgent(options.headers) ? {} : { 'User-Agent': DEFAULT_USER_AGENT }),
           ...(requestBody ? { 'Content-Length': String(requestBody.length) } : {}),
           ...options.headers,
         },

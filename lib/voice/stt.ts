@@ -102,7 +102,11 @@ export async function downloadAudio(
       timeoutMs: 20_000,
       maxBytes: 25 * 1024 * 1024,
       maxRedirects: 2,
-      allowedContentTypes: ['audio/', 'application/octet-stream'],
+      // Instagram voice notes are delivered as an m4a track inside a
+      // video/mp4 container — allow it or every IG voice note fails the
+      // content-type gate before STT ever runs. transcribeAudio's
+      // audioFormat() already maps 'video/mp4' → 'mp4'.
+      allowedContentTypes: ['audio/', 'application/octet-stream', 'video/mp4'],
     })
     if (res.status < 200 || res.status >= 300) return null
     const mime = String(res.headers['content-type'] ?? 'audio/ogg')

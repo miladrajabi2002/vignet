@@ -29,13 +29,15 @@ export type InboundSource = {
   mediaUrl?: string
   mediaFileId?: string
   audioTranscribed?: boolean
+  /** True when the attached photo was analysed by the vision model (A14). */
+  imageAnalyzed?: boolean
 }
 
 /** Stable metadata written on every messenger USER message. */
 export function inboundMessageMetadata(
   channel: ChannelType,
   message: InboundMessage,
-  options?: { audioTranscribed?: boolean },
+  options?: { audioTranscribed?: boolean; imageAnalyzed?: boolean },
 ): Prisma.InputJsonObject {
   const source: Record<string, Prisma.InputJsonValue> = {
     channel,
@@ -57,6 +59,7 @@ export function inboundMessageMetadata(
   const mediaFileId = message.mediaFileId ?? message.voiceFileId
   if (mediaFileId) source.mediaFileId = mediaFileId
   if (options?.audioTranscribed) source.audioTranscribed = true
+  if (options?.imageAnalyzed) source.imageAnalyzed = true
   return { vigentoInbound: source as Prisma.InputJsonObject }
 }
 

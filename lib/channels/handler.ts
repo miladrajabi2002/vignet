@@ -6,6 +6,7 @@ import type { StartChatParams } from '@/lib/ai/chat-types'
 import { notifyHandoff } from '@/lib/ai/handoff'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
+import { understandInboundImage } from '@/lib/ai/vision'
 import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
 import {
         getAdapter,
@@ -823,6 +824,27 @@ async function processChannelInbound(
                                 ? { text: msg.text.trim(), audioTranscribed: false }
                                 : await resolveText(agent.workspaceId, agent.id, adapter, msg, eventLease.id)
                         let text = resolvedText.text
+                        // ─ A14: inbound photo understanding. Download the attached
+                        // photo and describe it with the platform vision model, then
+                        // attach the description to this turn's text. Photo-only
+                        // turns («اینو داری؟» + عکس) now flow into the normal AI turn
+                        // and get matched against the catalog instead of degrading
+                        // to the media handoff. Mirrors the STT path: wallet-gated,
+                        // billed per image, graceful fallback when the model fails.
+                        const imageUnderstanding = voiceInputDisabled || automationOnly
+                                ? null
+                                : await understandInboundImage({
+                                        msg,
+                                        language: agent.language,
+                                        workspaceId: agent.workspaceId,
+                                        agentId: agent.id,
+                                        getVoiceUrl: adapter.getVoiceUrl,
+                                        idempotencyKey: eventLease.id,
+                                })
+                        const visionNoCredit = imageUnderstanding?.kind === 'no_credit'
+                        if (imageUnderstanding?.kind === 'described') {
+                                text = text ? `${text}\n\n${imageUnderstanding.label}` : imageUnderstanding.label
+                        }
                         // ─ A13: media-only inbound (photo/video/voice/sticker/file
                         // with no usable text). The customer must still get an
                         // honest fixed answer instead of silence, and the LLM must
@@ -838,12 +860,15 @@ async function processChannelInbound(
 
                         const inboundMetadata = inboundMessageMetadata(type, msg, {
                                 audioTranscribed: resolvedText.audioTranscribed,
+                                imageAnalyzed: imageUnderstanding?.kind === 'described',
                         })
                         // Verified channel media on this turn (trusted payload only,
                         // never inferred from the customer's prose) — feeds the
                         // visual-reference grounding skill and its deterministic guard.
+                        // A described image (like a transcribed voice note) already has
+                        // its content in the text, so the blind-media guard must NOT run.
                         const inboundMediaKind: StartChatParams['inboundMediaKind'] =
-                                resolvedText.audioTranscribed
+                                resolvedText.audioTranscribed || imageUnderstanding?.kind === 'described'
                                         ? undefined
                                         : msg.voiceFileId && !msg.mediaKind ? 'voice' : msg.mediaKind
 
@@ -1116,6 +1141,47 @@ async function processChannelInbound(
                                 }
                                 await deliveryAdapter.sendText(msg.chatId, quotaText)
                                 outcome = 'STT_NO_CREDIT'
+                                return
+                        }
+
+                        // ─ A14: photo understanding has its own per-image wallet
+                        // charge; an exhausted wallet mirrors the STT quota path so
+                        // a customer photo never turns into a misleading media error.
+                        if (visionNoCredit) {
+                                const quotaText = await fixedReplyForWorkspace(
+                                        'quotaExhaustedMessage',
+                                        agent.workspaceId,
+                                )
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        quotaText,
+                                        eventLease.id,
+                                )
+                                await prisma.conversation.updateMany({
+                                        where: { id: persistedInbound.conversationId },
+                                        data: { handedOff: true, status: 'HANDED_OFF' },
+                                }).catch(() => {})
+                                await notifyHandoff({
+                                        workspaceId: agent.workspaceId,
+                                        conversationId: persistedInbound.conversationId,
+                                        agentId: agent.id,
+                                        agentName: agent.name,
+                                        channel: type,
+                                        contactId,
+                                        contactName,
+                                        contactPhone: null,
+                                        reason: 'اعتبار تحلیل تصویر تمام شده است',
+                                        summary: text,
+                                }).catch(() => {})
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, quotaText)
+                                outcome = 'VISION_NO_CREDIT'
                                 return
                         }
 

@@ -755,3 +755,51 @@ bun run db:migrate   # یا npx prisma migrate deploy
 
 ### اجرا و اعتبارسنجی
 - tsc بدون خطا؛ ۶۹۹ تست + ۵ تست DB پاس؛ بیلد پروداکشن و ری‌استارت pm2 سالم (health 200)؛ کامیت‌های c9b7b3168 تا 1eff2e6d3؛ تگ v3.7.
+
+
+---
+
+## فاز A14 — بینایی ماشین برای عکس‌های مشتری + رفع ریشه‌ای STT ویس اینستاگرام — ۱۴ سپتامبر ۲۰۲۶
+
+### مشکل (گفتگو cmu0hl4fp000heo8fmvk0ekkh و ۲۰+ مورد مشابه)
+۱) ویس مشتری در دایرکت اینستاگرام هرگز تبدیل به متن نمی‌شد و گفتگو بی‌پاسخ یا هندآف می‌شد. ۲) عکس محصول («اینو داری؟» + عکس) همیشه به پیام ثابت «ایجنت نمی‌تواند محتوایش را بررسی کند» + هندآف اپراتور ختم می‌شد — مدل هیچ‌وقت محتوای عکس را نمی‌دید.
+
+### ریشه‌یابی (تست زنده روی CDN واقعی متا)
+- **CDN متا (lookaside.fbsbx.com) درخواست‌های بدون User-Agent را با 302 به facebook.com/unsupportedbrowser رد می‌کند.** safeHttpGet هیچ UA نمی‌فرستاد ⇒ دانلود ویس برای STT و پروکسی رسانه داشبورد همیشه شکست می‌خورد.
+- **ویس اینستاگرام با Content-Type ‏`video/mp4`** سرو می‌شود (m4a داخل کانتینر mp4) اما `downloadAudio` فقط `audio/` و `application/octet-stream` را قبول می‌کرد ⇒ گیت Content-Type قبل از STT رد می‌کرد.
+
+### رفع‌ها
+
+#### `lib/security/safe-http.ts`
+- هدر پیش‌فرض User-Agent مرورگریمانند برای همه safeHttpGet/safeHttpPost (با امکان override توسط caller). رفع هم‌زمان: دانلود ویس IG برای STT، پروکسی رسانه داشبورد (media route) و همه دانلودهای CDN متا.
+
+#### `lib/voice/stt.ts`
+- `downloadAudio` حالا `video/mp4` را هم می‌پذیرد (نگاشت فرمت در transcribeAudio از قبل mp4 را پوشش می‌داد).
+
+#### `lib/ai/vision.ts` (جدید — A14)
+- `understandInboundImage`: حل کامل عکس ورودی — resolve URL (CDN اینستاگرام یا getFile تلگرام/بیل) → دانلود → توصیف با مدل بینایی پلتفرم (`OPENROUTER_VISION_MODEL`، پیش‌فرض google/gemini-3.1-flash-lite) → برچسب `[محتوای تصویر ارسالی مشتری — توصیف معتبر بینایی ماشین]` به متن نوبت.
+- پرامپت دوزبانه (fa/en) محصول‌محور: نوع محصول، رنگ/طرح/جنس، متن/برند/کد قابل‌مشاهده — بدون حدس. توصیف به ۷۰۰ کاراکتر محدود می‌شود.
+- هرگز throw نمی‌کند: `no_credit` → مسیر سهمیه؛ `failed` (URL منقضی/۴۰۳/خطای مدل) → همان هندآف صادقانه قبلی. مطابق الگوی STT.
+
+#### `lib/billing/vision-credits.ts` (جدید)
+- بیلینگ per-image مطابق الگوی STT: `ensureVisionCreditAvailable` (گیت کیف پول قبل از فراخوانی مدل) + `captureVisionCredit` (کسر اتمیک + UsageLog نوع VISION + ردیف WalletLedger، idempotent با انکر لجر inbound).
+- قیمت پیش‌فرض ۸۰۰ ریال/عکس (`AI_VISION_PRICE_PER_IMAGE_IRR`).
+
+#### `prisma/schema.prisma` + `prisma/migrations/20260914210000_add_vision_log_type/` (جدید)
+- مقدار enum جدید `LogType.VISION` (ALTER TYPE؛ اعمال‌شده روی پروڈ).
+
+#### `lib/channels/handler.ts`
+- بعد از resolveText (STT)، عکس‌های photo-only و captioned با understandInboundImage تحلیل می‌شوند؛ توصیف به متن نوبت می‌چسبد (مثل transcript ویس).
+- عکسِ توصیف‌شده دیگر mediaOnlyInbound/هندآف نیست و وارد نوبت عادی AI می‌شود ⇒ تطبیق با کاتالوگ، کارت محصول و لینک سفارش (همان مسیر خرید فاز قبل) کار می‌کند.
+- `inboundMediaKind` برای عکس توصیف‌شده undefined می‌شود (مثل ویس transcript-شده) تا گارد «نمی‌توانم ببینم» اسکیل visual-reference مسیر پاسخ را قفل نکند.
+- شاخه `VISION_NO_CREDIT`: پیام سهمیه + هندآف + آلارم اپراتور، قرینه STT_NO_CREDIT.
+- automationOnly و voiceInputDisabled از تحلیل تصویر عبور می‌کنند (هیچ هزینه‌ای بدون نوبت AI صرف نمی‌شود).
+
+#### `lib/conversations/source.ts`
+- فلاگ `imageAnalyzed` در متادیتای vigentoInbound پیام USER (قرینه audioTranscribed).
+
+### اعتبارسنجی (همه روی دیتای واقعی)
+- **تست زنده STT**: ویس واقعی همان گفتگو دانلود و رونویسی شد (whisper-large-v3-turbo) + شارژ STT ثبت شد.
+- **تست زنده VLM**: عکس واقعی مشتری (چرخ جلوی اسکوتر، رینگ طلایی) دانلود و دقیق توصیف شد + شارژ VISION ثبت شد (هزینه پلتفرم $0.000456).
+- **E2E وب‌هوک امضاشده**: پیام photo-only واقعی از طریق صف BullMQ پردازش شد — پیام USER با توصیف بینایی ذخیره شد، نوبت AI اجرا شد. سناریوی URL منقضی (403) بدون کرش و بدون شارژ graceful degrade کرد؛ سناریوی گفتگوی اپراتور-دار، پیام انتظار داد. داده تست پاک شد.
+- tsc بدون خطا؛ ۱۰۴۱ تست پاس؛ بیلد پروداکشن (۹۰/۹۰ صفحه)؛ ری‌استارت vignet-web/vignet-worker سالم (health 200).
