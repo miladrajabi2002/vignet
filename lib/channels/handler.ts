@@ -281,7 +281,6 @@ async function resolveText(
         adapter: MessengerAdapter,
         msg: InboundMessage,
         idempotencyKey: string,
-        agentLanguage?: string,
 ): Promise<ResolvedInboundText> {
         const caption = msg.text.trim()
         if (!isInboundAudio(msg)) return { text: caption, audioTranscribed: false }
@@ -300,9 +299,6 @@ async function resolveText(
                         workspaceId: agentWorkspaceId,
                         agentId,
                         idempotencyKey: `stt:inbound:${idempotencyKey}`,
-                        // Language hint measurably improves Persian accuracy on
-                        // whisper-large-v3-turbo (Agent.language is 'fa'/'en').
-                        language: agentLanguage,
                 })
                 if (!transcript) return { text: caption, audioTranscribed: false }
                 return {
@@ -826,7 +822,7 @@ async function processChannelInbound(
                         // Automation-only routing uses the received message, never AI transcription.
                         const resolvedText = voiceInputDisabled || automationOnly
                                 ? { text: msg.text.trim(), audioTranscribed: false }
-                                : await resolveText(agent.workspaceId, agent.id, adapter, msg, eventLease.id, agent.language)
+                                : await resolveText(agent.workspaceId, agent.id, adapter, msg, eventLease.id)
                         let text = resolvedText.text
                         // ─ A14: inbound photo understanding. Download the attached
                         // photo and describe it with the platform vision model, then
