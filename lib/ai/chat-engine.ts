@@ -68,6 +68,8 @@ import {
         AGENT_RESPONSE_TEMPERATURE,
 } from '@/lib/ai/agent-runtime'
 import { loadCustomerChannelContext } from '@/lib/ai/customer-channel-context'
+import { buildPlatformContextBlock } from '@/lib/ai/platform-context'
+import { readInboundSource } from '@/lib/conversations/source'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -184,8 +186,12 @@ function buildSystemPrompt(params: {
         customerPreferences?: CustomerAgentPreference[]
         /** Language of the customer's current turn (kernel mirrors it). */
         turnLanguage?: TurnLanguage
+        /** Channel the customer is currently talking on (TELEGRAM / WHATSAPP / ...). */
+        channel: ChannelType
+        /** Channel-native origin (DM / COMMENT / STORY_REPLY / ...) when known. */
+        inboundSource?: Prisma.InputJsonValue | null
 }): string {
-        const { agent, customerInfoState, contactName, customerPreferences = [], turnLanguage } = params
+        const { agent, customerInfoState, contactName, customerPreferences = [], turnLanguage, channel, inboundSource } = params
 
         // 1. Resolve the layered/role prompt, with the legacy prompt as fallback.
         let base = resolveSystemPrompt({
@@ -210,6 +216,17 @@ function buildSystemPrompt(params: {
         // Explicit per-customer interaction preferences are isolated in CRM
         // metadata and subordinate to business facts, tools and safety rules.
         base += customerPreferenceInstruction((turnLanguage ?? agent.language) === 'en' ? 'en' : 'fa', customerPreferences)
+
+        // Platform-awareness block: tells the agent which surface it is on
+        // (Telegram / WhatsApp / Instagram DM / public comment / story reply /
+        // web widget / chat link / API). The block is appended last so it
+        // cannot override evidence, scope or safety rules — it only shapes
+        // formatting, length and CTA guidance for the active channel.
+        base += '\n\n' + buildPlatformContextBlock({
+                channel,
+                source: readInboundSource(inboundSource ?? null),
+                turnLanguage: turnLanguage ?? (agent.language === 'en' ? 'en' : 'fa') as TurnLanguage,
+        })
 
         return base
 }
@@ -589,6 +606,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                 contactName: resolvedContactName,
                 customerPreferences,
                 turnLanguage: turnLang,
+                channel: params.channel,
+                inboundSource: params.inboundMetadata ?? null,
         })
 
         const reserved = await reserveChatCredit({
