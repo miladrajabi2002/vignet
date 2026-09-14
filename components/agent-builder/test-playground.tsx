@@ -10,7 +10,6 @@ import { ConversationBubble, ConversationText } from '@/components/chat/conversa
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
-import { detectSttLanguageHint } from '@/lib/ai/turn-language'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
 // detail route so text chat becomes interactive before voice tooling arrives.
@@ -462,7 +461,6 @@ export function TestPlayground({
                                                         vad
                                                         disabled={streaming}
                                                         label={t('record')}
-                                                        language={detectSttLanguageHint(messages)}
                                                         onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
                                                         onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
                                                 />
