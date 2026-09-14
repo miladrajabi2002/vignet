@@ -11,6 +11,10 @@ export interface AgentSkillPostprocessContext {
   isFa?: boolean
   /** Verified channel media on this turn, when the platform payload proves one. */
   inboundMediaKind?: string
+  /** True when this turn's context carries a <verified_order> block (real
+   *  order-number-scoped store data). Keeps grounded order-status replies
+   *  alive while fabricated «سفارش ثبت شد» claims are replaced. */
+  hasGroundedOrder?: boolean
 }
 
 function normalizeIdentity(value: string): string {
@@ -59,6 +63,7 @@ export function runAgentSkillPostprocessors(
       userMessage: context.userMessage,
       isFa: context.isFa ?? true,
       orderUrl: orderUrlFromCatalog(context),
+      hasGroundedOrder: context.hasGroundedOrder ?? false,
     })
   }
   if (hasAgentSkill(plan, 'visual-reference-grounding') && context.userMessage) {

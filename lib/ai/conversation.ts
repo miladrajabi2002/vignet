@@ -135,9 +135,13 @@ const SHOPPING_NEED_RE =
 /** Attribute-only messages are common replies to product ads and DMs. */
 const PRODUCT_ATTRIBUTE_RE =
         /(?:جنس(?:\s+کار)?|پارچه|متریال|رنگ|سایز(?:بندی)?|اندازه|قد(?:\s*کار)?|دور\s*(?:سینه|کمر|باسن)|فری\s*سایز|برند|مدل|طرح|fabric|material|colou?r|size|length|chest|waist|fit)\s*[:：-]?\s*[\p{L}\p{N}]/iu
-/** Obvious non-shopping needs must not pull arbitrary semantic product hits. */
+/** Obvious non-shopping needs must not pull arbitrary semantic product hits.
+ *  «لینک» belongs here: link/payment requests («لینک پرداخت رو بفرست»)
+ *  are follow-ups about the product under discussion, never a fresh catalog
+ *  browse — without this gate SHOWCASE_COMMAND_RE's «ارسال» + prior product
+ *  terms fired the deterministic vitrine with random «related» items. */
 const NON_PRODUCT_NEED_RE =
-        /(?:پشتیبانی|اپراتور|آدرس|نشانی|شماره\s*(?:تماس|تلفن|موبایل|کارت)|کارت\s*به\s*کارت|استخدام|شغل|همکاری|نمایندگی|کسی|شخص|پیج|اینستاگرام|ورود|حساب|رمز|خطا|مشکل\s*(?:فنی|سیستم)|support|operator|address|phone|job|career|person|login|account|password)/iu
+        /(?:پشتیبانی|اپراتور|آدرس|نشانی|شماره\s*(?:تماس|تلفن|موبایل|کارت)|کارت\s*به\s*کارت|استخدام|شغل|همکاری|نمایندگی|کسی|شخص|پیج|اینستاگرام|ورود|حساب|رمز|خطا|مشکل\s*(?:فنی|سیستم)|لینک|support|operator|address|phone|job|career|person|login|account|password|payment\s+link)/iu
 const GENERIC_HELP_RE = /(?:راهنمایی|کمک|guidance|help)/iu
 const INFORMATION_SEEKING_RE =
         /(?:می\s*خوام\s*(?:بدونم|بپرسم)|می\s*خواستم\s*بدونم|سوال\s*دارم|i\s+want\s+to\s+(?:know|ask))/iu
@@ -168,7 +172,7 @@ const ASSISTANT_OFFER_RE = new RegExp(
 const RESET_CONTEXT_RE =
         /(?:بی\s*خیال|فراموش\s*(?:کن|کنید|کنین)|از\s*اول\s*(?:شروع|بپرس)|درخواست\s*جدید|موضوع\s*جدید|never\s*mind|forget\s+(?:it|that|the\s+previous)|start\s*over|new\s*(?:request|topic))/i
 const PRODUCT_CONTEXT_FOLLOWUP_RE =
-        /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا)|اون\s*(?:یکی|دوتا)?|آن\s*(?:یکی|دوتا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|بهتره|بهتر\s+است|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|cheaper|better\s+quality)/iu
+        /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا|مدل|محصول|کالا|قطعه|یکی)|اون\s*(?:یکی|دوتا|مدل|محصول|کالا|قطعه)?|آن\s*(?:یکی|دوتا|مدل|محصول|کالا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب|مدل)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|بهتره|بهتر\s+است|لینک(?:\s*(?:پرداخت|خرید|سفارش))?(?:ش|شو|اش)?|پرداخت(?:ش|شو)?\s*(?:رو|را)|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|cheaper|better\s+quality|this\s+(?:model|item|product)|the\s+link|payment\s+link)/iu
 const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موجودی|out\s+of\s+stock|sold\s+out)/i
 // Match Persian «دارید/دارین/داری…» as a complete token. The previous loose
 // substring also matched the negated «نداری» in sentences such as «اگر اطلاعات
@@ -277,7 +281,7 @@ const PRICE_VALUE_RE = /(?:قیمت|تومان|تومن|ریال|هزار|میل
 // because sizes answer in prose; a size vitrine would show identical photos.
 const VARIANT_PLURAL_RE = /(?:طرح|تنوع|رنگ\s*بندی|رنگبندی|رنگ)\s*ها(?:ی|یی|م|ش|تون|مون|شون)?/iu
 const VARIANT_BROWSE_CUE_RE =
-        /(?:دیگه|دیگر|دیگش|بقیه|همه|کاتالوگ|عکس|عکسا|لیست|فهرست|بفرست|می\s*فرست|میفرست|ببینم|نشون|نشان|نمایش|بده|دارین|دارید|ندارین|ندارید|چیه|چی\s*هست)/iu
+        /(?:دیگه|دیگر|دیگش|بقیه|همه|کاتالوگ|عکس|عکسا|لیست|فهرست|بفرست|می\s*فرست|میفرست|ببینم|نشون|نشان|نمایش|بده|دارین|دارید|ندارین|ندارید|چیه|چی\s*هست|موجود(?:ه|ین)?|هست(?:ن)?|داره|are\s+there|available)/iu
 const VARIANT_PLURAL_EN_RE = /\b(?:designs|colors|colours|variants|variations|patterns)\b/iu
 const VARIANT_BROWSE_CUE_EN_RE =
         /(?:other|more|all|rest|show|send|list|catalog|photos|see|view)/iu

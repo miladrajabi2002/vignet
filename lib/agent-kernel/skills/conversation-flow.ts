@@ -1,9 +1,9 @@
 import type { ChatMessage } from '@/lib/ai/openrouter'
 
-export const CONVERSATION_FLOW_SKILL_VERSION = '1.1.0'
+export const CONVERSATION_FLOW_SKILL_VERSION = '1.2.0'
 
 const BARE_GREETING = /^(?:(?:سلام|درود|وقت(?:تون|تان)?\s*(?:بخیر|خوش)|صبح\s*بخیر|عصر\s*بخیر|شب\s*بخیر|hi|hello|hey|good\s+(?:morning|afternoon|evening))[\s!,.،؟?]*)+$/i
-const CONTEXT_REFERENCE = /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا)|اون\s*(?:یکی|دوتا)?|آن\s*(?:یکی|دوتا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them)/iu
+const CONTEXT_REFERENCE = /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا|مدل|محصول|کالا|قطعه|یکی)|اون\s*(?:یکی|دوتا|مدل|محصول|کالا|قطعه)?|آن\s*(?:یکی|دوتا|مدل|محصول|کالا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|لینک(?:ش|شو|اش)?(?:\s*(?:پرداخت|خرید|سفارش))?|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب|مدل)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|this\s+(?:model|item|product)|the\s+link)/iu
 
 export function conversationFlowInstruction(params: {
   isFa: boolean

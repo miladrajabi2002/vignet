@@ -48,6 +48,18 @@ for i in $(seq 1 20); do
   if [ "${CODE}" = "200" ]; then
     echo "==> HEALTHY (HTTP ${CODE})"
     echo "DEPLOY_OK dist=${VIGENT_NEXT_DIST_DIR}"
+    # Prune superseded build directories (~800 MB each). The new active build
+    # already retained the previous release's static chunks (copied above), so
+    # old dist dirs are dead weight that would otherwise fill the disk within
+    # a dozen deploys. Compare basenames, NOT paths, to avoid prefix mismatch.
+    CURRENT_DIST_BASE="$(basename "${VIGENT_NEXT_DIST_DIR}")"
+    for d in .next-builds/*/; do
+      d_base="$(basename "${d}")"
+      if [ "${d_base}" != "${CURRENT_DIST_BASE}" ]; then
+        echo "==> Pruning old build: ${d_base}"
+        rm -rf "${d}"
+      fi
+    done
     exit 0
   fi
   echo "    attempt ${i}: HTTP ${CODE}"

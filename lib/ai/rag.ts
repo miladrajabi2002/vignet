@@ -266,6 +266,8 @@ export function buildMessages(params: {
     requestNewTopic: boolean
     requestedCount: number
     inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
+    variantBrowse?: boolean
+    variantPick?: boolean
   }
   /** Store category names shown on browse turns so the overview is factual. */
   catalogCategories?: string[]
@@ -300,6 +302,17 @@ export function buildMessages(params: {
     params.userMessage,
   )
   const serviceBlock = buildServiceBlock(params.catalogServices ?? [], isFa)
+
+  // Variant turns (رنگ‌ها/طرح‌های همون محصول) — the plan already resolved the
+  // target product from history into this turn's catalog rows, so the model
+  // must NOT re-ask "which model?" when the customer says «این مدل چه رنگ‌هایی
+  // موجوده؟» — the referent IS the single product in the catalog block.
+  const variantTurnInstruction =
+    params.productRequest && (params.productRequest.variantBrowse || params.productRequest.variantPick)
+      ? isFa
+        ? '\n\nنوبت تنوع‌های همان محصول: مشتری دربارهٔ رنگ/طرح/سایزهای همان محصولی می‌پرسد که در نتیجهٔ کاتالوگ همین نوبت آمده است. مرجع «این مدل/همین/اون» همان محصول این نتیجه است؛ فهرست تنوع‌ها، رنگ‌های موجود و موجودی هر کدام را فقط از فیلد «تنوع‌ها» همان ردیف بخوان و مستقیم جواب بده. دوباره نپرس منظورتان کدام مدل است و محصول جدیدی وارد گفتگو نکن.'
+        : "\n\nVariant turn for the same product: the customer is asking about the colors/patterns/sizes of THE product in this turn's catalog result. The referent for \"this model/the same one\" is exactly that product; read the variant list, available colors and per-variant stock only from that row's Variants field and answer directly. Do not re-ask which model they mean and do not introduce another product."
+      : ''
 
   const directProductInstruction = params.productRequest?.explicitShowcase
     ? isFa
@@ -355,7 +368,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${variantTurnInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
   }
 
   return [

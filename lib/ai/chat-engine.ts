@@ -452,6 +452,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                   closingReply: string | null
                   /** Reply locale detected from the customer's message. */
                   turnLang: TurnLanguage
+                  /** Order-context block built for this turn — non-empty strings
+                   *  other than <verified_order> are instruction-only guards. */
+                  orderContext: string
           }
 > {
         const { workspaceId, agent, message } = params
@@ -657,6 +660,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 messages: [], retrievedChunks: [], catalogProducts: [], productRequest, skillPlan,
                                 canBypassDeterministicReply: freshState !== 'pending', closingReply,
                                 turnLang,
+                                orderContext: '',
                         }
                 }
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
@@ -757,6 +761,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         canBypassDeterministicReply: freshState !== 'pending',
                         closingReply: null,
                         turnLang,
+                        orderContext,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -983,6 +988,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 canBypassDeterministicReply,
                 closingReply,
                 turnLang,
+                orderContext,
         } = prep
 
         const encoder = new TextEncoder()
@@ -1224,6 +1230,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 userMessage: message,
                                 isFa: turnLang !== 'en',
                                 inboundMediaKind: params.inboundMediaKind,
+                                hasGroundedOrder: orderContext.includes('<verified_order>'),
                         })
                         send({ type: 'replace', text: full })
 
@@ -1320,6 +1327,7 @@ export async function generateReply(
                 canBypassDeterministicReply,
                 closingReply,
                 turnLang,
+                orderContext,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -1520,6 +1528,7 @@ export async function generateReply(
                 userMessage: message,
                 isFa: turnLang !== 'en',
                 inboundMediaKind: params.inboundMediaKind,
+                hasGroundedOrder: orderContext.includes('<verified_order>'),
         })
 
         let persistedMessageId: string | undefined

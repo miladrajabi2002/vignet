@@ -145,15 +145,26 @@ describe('order-link fallback for unavailable in-chat purchases', () => {
     expect(out).not.toContain('می‌تونم سفارش رو برات ثبت کنم')
   })
 
-  it('does not rewrite replies on read-only order tracking turns', () => {
+  it('does not rewrite grounded order-tracking replies (verified order present)', () => {
     const reply = 'سفارش ۱۲۳ شما ثبت شده و در حال پردازش است.'
     const out = enforceActionCapabilities({
       reply,
       userMessage: 'وضعیت سفارشم چیه؟',
       isFa: true,
       orderUrl: null,
+      hasGroundedOrder: true,
     })
     expect(out).toBe(reply)
+  })
+
+  it('rewrites a fabricated order-status claim when no verified order is in context', () => {
+    const out = enforceActionCapabilities({
+      reply: 'سفارش ۱۲۳ شما ثبت شده و در حال پردازش است.',
+      userMessage: 'وضعیت سفارشم چیه؟',
+      isFa: true,
+      orderUrl: null,
+    })
+    expect(out).toContain('امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست')
   })
 
   it('validates order URLs strictly (http/https only)', () => {
