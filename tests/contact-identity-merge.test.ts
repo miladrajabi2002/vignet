@@ -118,4 +118,36 @@ describe('cross-channel contact identity merge', () => {
       }),
     }))
   })
+
+  it('treats canonical phone as primary even when a channel account id changed', async () => {
+    const oldest = contact('contact-old', '2026-01-01T00:00:00.000Z', '09128352271', {
+      telegramId: 'telegram-old',
+    })
+    const newest = contact('contact-new', '2026-02-01T00:00:00.000Z', '+989128352271', {
+      telegramId: 'telegram-new',
+    })
+    const merged = { ...oldest, phone: '09128352271', telegramId: 'telegram-new' }
+
+    mocks.tx.contact.findMany
+      .mockResolvedValueOnce([{ id: oldest.id }, { id: newest.id }])
+      .mockResolvedValueOnce([oldest, newest])
+      .mockResolvedValueOnce([merged])
+
+    const id = await resolveInboundContact({
+      workspaceId: 'workspace-1',
+      channel: 'TELEGRAM',
+      senderId: 'telegram-new',
+      senderPhone: '09128352271',
+    })
+
+    expect(id).toBe('contact-old')
+    expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith({
+      where: { contactId: 'contact-new' },
+      data: { contactId: 'contact-old' },
+    })
+    expect(mocks.tx.contact.update).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { id: 'contact-old' },
+      data: expect.objectContaining({ telegramId: 'telegram-new', phone: '09128352271' }),
+    }))
+  })
 })

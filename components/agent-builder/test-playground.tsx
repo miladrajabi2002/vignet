@@ -10,6 +10,7 @@ import { ConversationBubble, ConversationText } from '@/components/chat/conversa
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
+import { detectSttLanguageHint } from '@/lib/ai/turn-language'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
 // detail route so text chat becomes interactive before voice tooling arrives.
@@ -50,6 +51,24 @@ export function TestPlayground({
         const scrollRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<ChatComposerHandle>(null)
         const isAtBottomRef = useRef(true)
+        const storageKey = `vigent:test-conversation:${agentId}`
+
+        // Messenger threads have a durable platform externalId. Keep the test
+        // playground equally continuous across a page refresh within this tab;
+        // only the explicit "new conversation" action clears the thread.
+        useEffect(() => {
+                let savedConversationId: string | null = null
+                try {
+                        savedConversationId = window.sessionStorage.getItem(storageKey)
+                } catch {
+                        // Privacy modes can disable storage; the in-memory ref
+                        // still preserves continuity while the page stays open.
+                }
+                if (!savedConversationId) return
+                conversationId.current = savedConversationId
+                setMessages([])
+                setActiveConversationId(savedConversationId)
+        }, [storageKey])
 
         // Track whether the owner is parked at the bottom. When they scroll up to
         // re-read an answer, streaming deltas must NOT yank them back down.
@@ -188,6 +207,9 @@ export function TestPlayground({
                                                         if (evt.type === 'meta') {
                                                                 conversationId.current = evt.conversationId
                                                                 setActiveConversationId(evt.conversationId)
+                                                                try {
+                                                                        window.sessionStorage.setItem(storageKey, evt.conversationId)
+                                                                } catch {}
                                                 } else if (evt.type === 'delta') {
                                                         setMessages((m) => {
                                                                 const next = [...m]
@@ -234,6 +256,9 @@ export function TestPlayground({
                 if (streaming) return
                 conversationId.current = undefined
                 setActiveConversationId(null)
+                try {
+                        window.sessionStorage.removeItem(storageKey)
+                } catch {}
                 setMessages(welcomeMessage ? [{ role: 'assistant', content: welcomeMessage }] : [])
                 setInput('')
                 setError(null)
@@ -437,6 +462,7 @@ export function TestPlayground({
                                                         vad
                                                         disabled={streaming}
                                                         label={t('record')}
+                                                        language={detectSttLanguageHint(messages)}
                                                         onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
                                                         onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
                                                 />

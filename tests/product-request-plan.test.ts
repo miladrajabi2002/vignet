@@ -133,6 +133,20 @@ describe('product request planning', () => {
     expect(oversized.requestedCount).toBe(10)
   })
 
+  it('keeps catalog grounding for pronoun-based comparison follow-ups', () => {
+    const history = [
+      user('برای پذیرایی کوچیک، جلومبلی نقش بهتره یا نگار؟'),
+      assistant('برای فضای کوچک نقش جمع‌وجورتر است؛ نگار صفحه بزرگ‌تری دارد.'),
+    ]
+
+    for (const message of ['کدومش ارزون‌تره؟', 'کیفیتشون چطوره؟', 'این دوتا چه فرقی دارن؟']) {
+      const plan = planProductRequest(message, history)
+      expect(plan.isProductTurn, message).toBe(true)
+      expect(plan.searchTerms, message).toEqual(expect.arrayContaining(['جلومبلی', 'نقش', 'نگار']))
+      expect(plan.resetProductContext, message).toBe(false)
+    }
+  })
+
   it('keeps a generic available-products request broad when embeddings are unavailable', () => {
     const plan = planProductRequest('۵ تا از محصولات موجودتون رو بفرستین', [])
 

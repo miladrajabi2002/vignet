@@ -87,6 +87,7 @@ export async function createHandoffAlert(ctx: HandoffContext): Promise<string | 
                         summary = (
                                 await ensureConversationSummary(ctx.conversationId, {
                                         preferAi: false,
+                                        replaceExisting: true,
                                 })
                         ).summary
                 }

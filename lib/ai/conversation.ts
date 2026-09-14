@@ -117,6 +117,13 @@ const PRODUCT_INTENT_RE =
         new RegExp(`(?:${PRODUCT_NOUNS}|قیمت|موجود|خرید|product|catalog|price|buy|shop|in\\s*stock|available)`, 'i')
 const PRODUCT_SUBJECT_RE =
         new RegExp(`(?:${PRODUCT_NOUNS}|product|catalog|shop)`, 'i')
+// Used only to decide whether a history-dependent follow-up explicitly names a
+// fresh product. Unlike PRODUCT_SUBJECT_RE, boundaries keep «کیف» from matching
+// inside the attribute «کیفیتشون».
+const EXPLICIT_PRODUCT_SUBJECT_RE = new RegExp(
+        `(?:^|[^\\p{L}\\p{N}_])(?:${PRODUCT_NOUNS}|product|catalog|shop)(?=$|[^\\p{L}\\p{N}_])`,
+        'iu',
+)
 /**
  * Natural shopping language often contains no catalog noun at all:
  * «دنبال جنس بابوس هستم», «یه چیز خنک می‌خوام», or "looking for linen".
@@ -160,6 +167,8 @@ const ASSISTANT_OFFER_RE = new RegExp(
 )
 const RESET_CONTEXT_RE =
         /(?:بی\s*خیال|فراموش\s*(?:کن|کنید|کنین)|از\s*اول\s*(?:شروع|بپرس)|درخواست\s*جدید|موضوع\s*جدید|never\s*mind|forget\s+(?:it|that|the\s+previous)|start\s*over|new\s*(?:request|topic))/i
+const PRODUCT_CONTEXT_FOLLOWUP_RE =
+        /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا)|اون\s*(?:یکی|دوتا)?|آن\s*(?:یکی|دوتا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|بهتره|بهتر\s+است|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|cheaper|better\s+quality)/iu
 const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موجودی|out\s+of\s+stock|sold\s+out)/i
 // Match Persian «دارید/دارین/داری…» as a complete token. The previous loose
 // substring also matched the negated «نداری» in sentences such as «اگر اطلاعات
@@ -698,14 +707,27 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // only a reset with no product/browse content asks for a fresh prompt.
         const requestNewTopic =
                 resetRequested && !explicitShowcase && !browseQuery && !directProductSignal && !variantPick
+        const contextualProductFollowUp =
+                priorProductSignal && PRODUCT_CONTEXT_FOLLOWUP_RE.test(normalized)
         const isProductTurn =
                 !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
-                (directProductSignal || browseQuery || explicitShowcase || variantBrowse || variantPick)
+                (directProductSignal || contextualProductFollowUp || browseQuery || explicitShowcase || variantBrowse || variantPick)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.
         let searchTerms = isProductTurn ? (affirmativeFollowUp ? [] : currentTerms) : []
 
         if (isProductTurn && searchTerms.length === 0 && !resetRequested) searchTerms = priorProductTerms
+        // A pronoun-only comparison follow-up often leaves generic adjective
+        // fragments behind ("کدومش ارزون تره" -> کدومش/ارزون/تره). Searching
+        // the catalog with those fragments can retrieve an unrelated product.
+        // Unless this turn names a fresh product/code, anchor retrieval to the
+        // nearest prior product terms instead.
+        if (
+                contextualProductFollowUp && priorProductTerms.length > 0 &&
+                !EXPLICIT_PRODUCT_SUBJECT_RE.test(normalized) && !productCodeSignal
+        ) {
+                searchTerms = priorProductTerms
+        }
 
         // Variant turns are about the product already under discussion; plural
         // variant nouns («طرح‌ها») and bare variant values («شکلاتی», «07») alone

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConversationMemory, Prisma } from '@prisma/client'
-import { loadConversationHistory, isConversationMemory, HISTORY_TOKEN_BUDGET, estimateHistoryTokens } from '@/lib/ai/conversation-memory'
+import { loadConversationHistory, isConversationMemory, HISTORY_TOKEN_BUDGET, RECENT_HISTORY_LIMIT, estimateHistoryTokens } from '@/lib/ai/conversation-memory'
 import { historyForProductTurn, planProductRequest } from '@/lib/ai/conversation'
 import { loadConversationSession } from '@/lib/conversations/session-store'
 
@@ -128,7 +128,7 @@ describe('adaptive session memory', () => {
   })
 
   it('creates headroom at the message safety cap instead of summarizing each new tiny message', async () => {
-    append(64)
+    append(RECENT_HISTORY_LIMIT)
     await loadConversationHistory('thread')
     const calls = mocks.completion.mock.calls.length
     expect(calls).toBeGreaterThan(0)

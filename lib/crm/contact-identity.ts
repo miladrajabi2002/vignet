@@ -138,20 +138,16 @@ async function mergeContacts(
   workspaceId: string,
   ids: string[],
   canonicalPhone: string | null,
-  preferredId?: string | null,
 ): Promise<ContactRow> {
   const rows = await readContactRows(tx, workspaceId, [...new Set(ids)])
   if (rows.length === 0) throw new Error('CONTACT_IDENTITY_NOT_FOUND')
   if (rows.length === 1) return rows[0]
 
-  const channelKeys = ['telegramId', 'whatsappId', 'instagramId', 'rubikaId', 'baleId'] as const
-  const hasChannelConflict = channelKeys.some((key) => (
-    new Set(rows.map((row) => row[key]).filter((value): value is string => Boolean(value))).size > 1
-  ))
-  if (hasChannelConflict) {
-    return rows.find((row) => row.id === preferredId) ?? rows[0]
-  }
-
+  // A canonical phone is the workspace's primary customer identity. Different
+  // platform ids (including an account replacement on one channel) therefore
+  // do not prevent a merge; all conversations move to the same CRM customer.
+  // The currently observed channel id is written after this merge and becomes
+  // the active routing identity for that channel.
   const survivor = rows[0]
   const duplicates = rows.slice(1)
   for (const duplicate of duplicates) {
@@ -263,13 +259,11 @@ export async function resolveInboundContact(params: {
       })
       contactId = created.id
     } else {
-      const channelCandidate = candidates.find((candidate) => candidate[idField] === params.senderId)
       const merged = await mergeContacts(
         tx,
         params.workspaceId,
         candidates.map((candidate) => candidate.id),
         canonicalPhone,
-        channelCandidate?.id,
       )
       contactId = merged.id
       await tx.contact.update({
@@ -341,7 +335,6 @@ export async function applyContactIdentity(params: {
         params.workspaceId,
         candidates.map((candidate) => candidate.id),
         canonicalPhone,
-        params.contactId,
       )
       contactId = merged.id
       await tx.contact.update({

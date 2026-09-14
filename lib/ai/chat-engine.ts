@@ -67,6 +67,7 @@ import {
         AGENT_MAX_RESPONSE_TOKENS,
         AGENT_RESPONSE_TEMPERATURE,
 } from '@/lib/ai/agent-runtime'
+import { loadCustomerChannelContext } from '@/lib/ai/customer-channel-context'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -559,9 +560,29 @@ async function prepareTurn(params: StartChatParams): Promise<
                 loadHistory(conversationId, params.inboundEventId),
                 fetchCatalogServices(workspaceId),
         ])
+        const crossChannelContext = await loadCustomerChannelContext({
+                        workspaceId,
+                        agentId: agent.id,
+                        contactId,
+                        conversationId,
+                        currentChannel: params.channel,
+                        userMessage: message,
+                        hasLocalHistory: history.some((item) => item.role === 'user' || item.role === 'assistant'),
+                }).catch((error) => {
+                        // Omnichannel recall is an enhancement, never a reason to
+                        // drop the customer's current turn during a transient DB
+                        // failure. The active conversation history still loads.
+                        captureError('chat-engine:cross-channel-context', error, {
+                                workspaceId,
+                                metadata: { agentId: agent.id, conversationId, contactId },
+                        })
+                        return { modelHistory: [], planningHistory: [] }
+                })
+        const planningHistory = [...crossChannelContext.planningHistory, ...history]
+        const modelHistory = [...crossChannelContext.modelHistory, ...history]
         // Language mirroring: the reply locale comes from what the customer
         // actually wrote THIS turn — never from a pinned agent locale.
-        const turnLang = detectTurnLanguage(message, history)
+        const turnLang = detectTurnLanguage(message, planningHistory)
         const finalSystemPrompt = buildSystemPrompt({
                 agent,
                 customerInfoState: freshState,
@@ -596,13 +617,13 @@ async function prepareTurn(params: StartChatParams): Promise<
                 bumpContactActivity(conversationId)
 
         // Retrieve context and build the prompt.
-                const productRequest = planProductRequest(message, history)
+                const productRequest = planProductRequest(message, planningHistory)
                 const closingReply = closingReplyText(message, history, turnLang)
                 if (closingReply) {
                         const skillPlan = compileAgentSkillPlan({
                                 language: turnLang,
                                 userMessage: message,
-                                history,
+                                history: modelHistory,
                                 deterministicClosing: true,
                                 identificationPending: freshState === 'pending' && agent.requireCustomerInfo,
                                 hasCustomerPreferences: customerPreferences.length > 0,
@@ -660,11 +681,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 ? fetchCatalogCategories(agent.id).catch(() => [] as string[])
                                 : Promise.resolve([] as string[]),
                 ])
-                const turnHistory = historyForProductTurn(history, productRequest)
+                const turnHistory = historyForProductTurn(modelHistory, productRequest)
+                const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
                 const skillPlan = compileAgentSkillPlan({
                         language: turnLang,
                         userMessage: message,
-                        history: turnHistory,
+                        history: turnPlanningHistory,
                         // Verified channel media on this turn (never inferred from prose).
                         inboundMediaKind: params.inboundMediaKind,
                         hasKnowledgeContext: Boolean(contextText),
@@ -672,7 +694,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         catalogAccessEnabled: agent.productAccessEnabled,
                         orderTurn: Boolean(orderContext),
                         bookingTurn: hasBookingIntent([
-                                ...history,
+                                ...planningHistory,
                                 { role: 'user', content: message },
                         ]),
                         identificationPending: freshState === 'pending' && agent.requireCustomerInfo,

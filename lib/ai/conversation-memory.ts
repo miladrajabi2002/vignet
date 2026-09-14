@@ -9,9 +9,19 @@ import { loadConversationSession, sessionMessageWhere } from '@/lib/conversation
 // Soft, model-independent estimates: UTF-8 bytes / 3 handles Persian more
 // conservatively than the English-only characters / 4 rule. Provider usage
 // remains the source of truth. Message count is only a database safety cap.
-export const HISTORY_TOKEN_BUDGET = 2_400
-export const RECENT_TOKEN_TARGET = 1_200
-export const RECENT_HISTORY_LIMIT = 64
+function boundedInteger(name: string, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? '', 10)
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback
+}
+
+export const HISTORY_TOKEN_BUDGET = boundedInteger('AI_HISTORY_TOKEN_BUDGET', 3_000, 800, 12_000)
+export const RECENT_TOKEN_TARGET = boundedInteger(
+  'AI_HISTORY_RECENT_TOKEN_TARGET',
+  1_600,
+  400,
+  HISTORY_TOKEN_BUDGET,
+)
+export const RECENT_HISTORY_LIMIT = boundedInteger('AI_HISTORY_MESSAGE_LIMIT', 80, 16, 200)
 const SCAN_BATCH = 24
 const TRANSCRIPT_CHARS = 12_000
 const SUMMARY_CHARS = 2_200

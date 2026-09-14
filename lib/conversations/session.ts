@@ -1,6 +1,11 @@
 // Shared by model context and both inbox timelines. System activity does not
 // keep a dialogue alive; a returning customer starts the next session.
-export const CONVERSATION_IDLE_HOURS = 48
+function configuredIdleHours(): number {
+  const parsed = Number.parseInt(process.env.AI_CONVERSATION_IDLE_HOURS ?? '', 10)
+  return Number.isFinite(parsed) ? Math.min(720, Math.max(1, parsed)) : 48
+}
+
+export const CONVERSATION_IDLE_HOURS = configuredIdleHours()
 export const CONVERSATION_IDLE_MS = CONVERSATION_IDLE_HOURS * 60 * 60 * 1000
 
 export type SessionMessage = { id: string; role: string; createdAt: Date | string }

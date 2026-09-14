@@ -79,10 +79,11 @@ export async function PATCH(req: Request, props: Params) {
     return conversation
   })
 
-  // When a conversation is freshly resolved and has no summary, generate one.
+  // Refresh on every transition to resolved. A conversation can reopen and
+  // receive new messages; reusing its older summary would hide the new intent.
   const becameResolved =
     parsed.data.status === 'RESOLVED' && existing.status !== 'RESOLVED'
-  if (becameResolved && !existing.summary) {
+  if (becameResolved) {
     await dispatchSummary({ conversationId: conversation.id })
   }
 
