@@ -3,6 +3,10 @@ import { retrieveChunks, type RetrievedChunk } from '@/lib/knowledge/vector-stor
 import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { AgentSkillPlan } from '@/lib/agent-kernel/contracts'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
+import {
+  conversationStateInstruction,
+  type ConversationWorkingState,
+} from '@/lib/ai/conversation-state'
 
 export interface RagContext {
   contextText: string
@@ -279,6 +283,8 @@ export function buildMessages(params: {
   richCards?: boolean
   /** Precompiled by the chat kernel so activation and trace use one plan. */
   skillPlan?: AgentSkillPlan
+  /** Domain-neutral working state shared by preview and every channel. */
+  conversationState?: ConversationWorkingState | null
 }): ChatMessage[] {
   // Persian instruction blocks serve every non-English locale (including
   // Arabic turns): the kernel's language-mirroring rule owns the OUTPUT
@@ -293,6 +299,7 @@ export function buildMessages(params: {
     catalogAccessEnabled: params.catalogAccessEnabled !== false,
     orderTurn: Boolean(params.orderContext),
     richProductCards: Boolean(params.richCards),
+    hasConversationState: Boolean(params.conversationState?.activeGoal || params.conversationState?.lastAnswer),
   })
 
   const catalogBlock = buildCatalogBlock(
@@ -368,7 +375,10 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${variantTurnInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
+    // Keep the stable agent/rule prefix ahead of per-turn state. Providers can
+    // cache the long stable prefix even though working memory changes on every
+    // message, reducing latency and input cost for large configured prompts.
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${variantTurnInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
   }
 
   return [

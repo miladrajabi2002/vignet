@@ -7,6 +7,7 @@ export type AgentSkillKey =
   | 'language-mirroring'
   | 'response-style'
   | 'conversation-flow'
+  | 'conversation-state'
   | 'evidence-grounding'
   | 'action-capability-boundaries'
   | 'visual-reference-grounding'
@@ -44,6 +45,8 @@ export interface AgentSkillPlanInput {
   salesIntelligenceEnabled?: boolean
   richProductCards?: boolean
   deterministicClosing?: boolean
+  /** A structured active goal/slot state is available for this turn. */
+  hasConversationState?: boolean
   /** Verified media on the current inbound event, never inferred from prose. */
   inboundMediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
 }

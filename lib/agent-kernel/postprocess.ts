@@ -2,6 +2,8 @@ import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
 import { enforceActionCapabilities, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
+import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/conversation-state'
+import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 
 export interface AgentSkillPostprocessContext {
   /** Trusted rows selected by the scoped catalog repository for this turn. */
@@ -15,6 +17,10 @@ export interface AgentSkillPostprocessContext {
    *  order-number-scoped store data). Keeps grounded order-status replies
    *  alive while fabricated «سفارش ثبت شد» claims are replaced. */
   hasGroundedOrder?: boolean
+  /** Structured current-session state used only by conservative continuity guards. */
+  conversationState?: ConversationWorkingState | null
+  /** Mutable per-turn trace sink owned by the caller. */
+  continuityGuardCodes?: string[]
 }
 
 function normalizeIdentity(value: string): string {
@@ -73,6 +79,15 @@ export function runAgentSkillPostprocessors(
       inboundMediaKind: context.inboundMediaKind,
       isFa: context.isFa ?? true,
     })
+  }
+  if (hasAgentSkill(plan, 'conversation-state') && context.conversationState) {
+    const guarded = enforceConversationContinuity({
+      reply: output,
+      state: context.conversationState,
+      isFa: context.isFa ?? true,
+    })
+    output = guarded.reply
+    context.continuityGuardCodes?.push(...guarded.codes)
   }
   if (hasAgentSkill(plan, 'product-consultation')) {
     output = ensureSingleProductIdentity(output, context)

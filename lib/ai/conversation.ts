@@ -134,7 +134,7 @@ const SHOPPING_NEED_RE =
         /(?:دنبال(?:ش|شون|شان)?|می\s*(?:خوام|خواهم|گردم|پسندم)|نیاز\s*(?:دارم|داریم|داره|هست)|لازم\s*(?:دارم|داریم|داره)|قصد\s*(?:خرید|تهیه)|می\s*(?:خرم|خریم)|looking\s+for|searching\s+for|i\s+(?:need|want)|need\s+something|want\s+something)/iu
 /** Attribute-only messages are common replies to product ads and DMs. */
 const PRODUCT_ATTRIBUTE_RE =
-        /(?:جنس(?:\s+کار)?|پارچه|متریال|رنگ|سایز(?:بندی)?|اندازه|قد(?:\s*کار)?|دور\s*(?:سینه|کمر|باسن)|فری\s*سایز|برند|مدل|طرح|fabric|material|colou?r|size|length|chest|waist|fit)\s*[:：-]?\s*[\p{L}\p{N}]/iu
+        /(?:(?:جنس(?:\s+کار)?|پارچه|متریال|رنگ|سایز(?:بندی)?|اندازه|قد(?:\s*کار)?|دور\s*(?:سینه|کمر|باسن)|فری\s*سایز|برند|مدل|طرح)|(?<![a-z])(?:fabric|material|colou?r|size|length|chest|waist|fit)(?![a-z]))\s*[:：-]?\s*[\p{L}\p{N}]/iu
 /** Obvious non-shopping needs must not pull arbitrary semantic product hits.
  *  «لینک» belongs here: link/payment requests («لینک پرداخت رو بفرست»)
  *  are follow-ups about the product under discussion, never a fresh catalog
@@ -338,7 +338,8 @@ const PRODUCT_STOP_WORDS = new Set([
         'رو', 'را', 'از', 'به', 'برای', 'با', 'و', 'یا', 'که', 'تو', 'توی', 'این', 'اون', 'آن',
         'من', 'ما', 'شما', 'یه', 'یک', 'تا', 'بدون', 'هیچ', 'سوال', 'سؤالی', 'سوالی', 'اضافی', 'فعلا',
         'فعلاً', 'دیگه', 'دیگر', 'جدید', 'خوب', 'بهترین', 'هر', 'چی', 'هایی', 'های', 'ها',
-        'میخوام', 'می‌خوام', 'میخواهم', 'می‌خواهم', 'میخواد', 'می‌خواد', 'ببینم', 'ببین',
+        'میخوام', 'می‌خوام', 'میخواستم', 'می‌خواستم', 'میخواهم', 'می‌خواهم', 'میخواد', 'می‌خواد',
+        'خوام', 'خواستم', 'خواهم', 'خواستیم', 'ببینم', 'ببین',
         'موجودتون', 'موجودتان', 'محصولاتتون', 'محصولاتتان', 'محصولامون', 'محصولاتون', 'مشخصات',
         // Identifier labels describe the following value; they are not useful
         // catalog terms on their own ("کد 0742" must search for 0742, not کد).
@@ -381,7 +382,7 @@ function normalizePersianText(value: string): string {
                 .trim()
 }
 
-function extractProductTerms(value: string): string[] {
+export function extractProductTerms(value: string): string[] {
         const normalized = normalizePersianText(value)
         // Plain counts ("۵ تا محصول") are not search terms, but measurements
         // and sizes are essential catalog evidence. Product identifiers also
@@ -482,7 +483,7 @@ function explicitRequestedCount(normalized: string): number | null {
 // Question-shaped, priced, counted, coded, attribute and policy/order turns
 // stay on the richer consultation path.
 const VITRIN_EXCLUDE_RE =
-        /(?:چند|چنده|چندتا|چرا|کجا|کجاست|چطور|چجوری|ایا|آیا|کدوم|کدام|قیمت|تومن|تومان|ریال|سفارش|پیگیری|رهگیری|مرسوله|ارسال|باربری|اسنپ|تی\s*پاکس|چاپار|گارانتی|ضمانت|مرجوع|تعویض|بازگشت|قسط|اقساط|فاکتور|تخفیف|هدیه|پرداخت|می\s*خواستم|خریدم|خریده|دوست|قشنگ|خوشگل|زشت|دیدم|دیدید|گرفتم|موند|مونده|تموم|رسید|اومد|برگشت|برگردون|گم|شکست|پاره|اندازه|جنس|پارچه|سایزبندی|میشه|می\s*تونم|میتونین|می\s*تونین|ممنون|مرسی|تشکر|عالی|راهنمایی|کمک|مشکل|سوال|سؤال|نظر|فرستادم|گذاشتین|موجودیت|باقی|تمام|شده|price|cost|order|shipping|deliver|refund|return|track|when|why)/iu
+        /(?:چند|چنده|چندتا|چرا|کجا|کجاست|چطور|چجوری|ایا|آیا|کدوم|کدام|قیمت|تومن|تومان|ریال|سفارش|پیگیری|رهگیری|مرسوله|ارسال|باربری|اسنپ|تی\s*پاکس|چاپار|گارانتی|ضمانت|مرجوع|تعویض|بازگشت|قسط|اقساط|فاکتور|تخفیف|هدیه|پرداخت|می\s*خواستم|برای|مناسب|خریدم|خریده|دوست|قشنگ|خوشگل|زشت|دیدم|دیدید|گرفتم|موند|مونده|تموم|رسید|اومد|برگشت|برگردون|گم|شکست|پاره|اندازه|جنس|پارچه|سایزبندی|میشه|می\s*تونم|میتونین|می\s*تونین|ممنون|مرسی|تشکر|عالی|راهنمایی|کمک|مشکل|سوال|سؤال|نظر|فرستادم|گذاشتین|موجودیت|باقی|تمام|شده|price|cost|order|shipping|deliver|refund|return|track|when|why|suitable\s+for)/iu
 /** Trailing availability tail of a bare vitrin phrase («شومیز دارین؟»). */
 const VITRIN_TRAILING_RE =
         /\s*(?:دار(?:ی|ید|ین|ن)|موجود(?:ه|ین|ید|ن)?|هست(?:ین|ید)?)[\s؟?!.،,]*$/iu
@@ -759,11 +760,36 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         ? 'AVAILABLE'
                         : 'ANY'
 
+        // Showing products and abandoning the old subject are separate actions.
+        // Previously every explicit showcase cleared history, so the natural
+        // refinement «میخوام برای مبل سبز مناسب باشه» lost «جلومبلی». Only an
+        // explicitly named, genuinely different product/code creates a catalog
+        // boundary; «همه رو نشون بده» and same-subject requests keep context.
+        const currentSubjectTerms = currentTerms.filter((term) => PRODUCT_SUBJECT_RE.test(term))
+        const priorSubjectTerms = priorProductTerms.filter((term) => PRODUCT_SUBJECT_RE.test(term))
+        const currentIdentityTerms = productCodeSignal
+                ? currentTerms.filter((term) => /^\d{3,8}$/u.test(term))
+                : currentSubjectTerms
+        const priorIdentityTerms = currentIdentityTerms.length > 0 && currentSubjectTerms.length === 0
+                ? priorProductTerms.filter((term) => /^\d{3,8}$/u.test(term))
+                : priorSubjectTerms
+        const relatedToPriorSubject = currentIdentityTerms.some((current) =>
+                priorIdentityTerms.some((prior) =>
+                        current === prior ||
+                        (current.length >= 3 && prior.includes(current)) ||
+                        (prior.length >= 3 && current.includes(prior)),
+                ),
+        )
+        const explicitlyNamesProduct = EXPLICIT_PRODUCT_SUBJECT_RE.test(normalized) || productCodeSignal
+        const startsDifferentProduct =
+                priorProductSignal && explicitlyNamesProduct &&
+                currentTerms.length > 0 && priorProductTerms.length > 0 && !relatedToPriorSubject
+
         return {
                 isProductTurn,
                 explicitShowcase,
                 discoveryBrowse,
-                resetProductContext: resetRequested || explicitShowcase,
+                resetProductContext: resetRequested || startsDifferentProduct,
                 requestNewTopic,
                 requestedCount:
                         explicitCount ?? (explicitShowcase || variantBrowse ? MAX_SHOWCASE_PRODUCTS : discoveryBrowse ? 6 : 5),
@@ -1007,6 +1033,135 @@ function searchableProductText(product: {
                 tags: normalizePersianText(product.tags.join(' ')).toLocaleLowerCase('fa'),
                 attributes: normalizePersianText(facetAttributes).toLocaleLowerCase('fa'),
                 category: normalizePersianText(product.category?.name ?? '').toLocaleLowerCase('fa'),
+        }
+}
+
+export interface AssignedCatalogReference {
+        productIds: string[]
+        searchTerms: string[]
+        match: 'EXACT' | 'PARTIAL'
+}
+
+/**
+ * Catalog-backed escape hatch for product names outside the global vocabulary
+ * (for example «پاف ۹۰ شهداد» or a store-specific handmade item). This probe is
+ * deliberately lexical and name/category/SKU-only: a coincidental word in a
+ * long description must not turn a general support question into shopping.
+ */
+export async function findAssignedCatalogReference(
+        agentId: string,
+        message: string,
+): Promise<AssignedCatalogReference | null> {
+        const normalized = normalizePersianText(message)
+        if (!normalized || normalized.length > 180 || RESET_CONTEXT_RE.test(normalized)) return null
+        if (ORDER_ONLY_RE.test(normalized) || SERVICE_ONLY_RE.test(normalized)
+                || NON_PRODUCT_NEED_RE.test(normalized) || isShippingPolicyQuestion(normalized)) return null
+        const nameNumbers = !PRICE_VALUE_RE.test(normalized) && !NON_CATALOG_CODE_RE.test(normalized)
+                ? normalized.split(/[^\p{L}\p{N}_-]+/u).filter((token) => /^\d{1,8}$/.test(token))
+                : []
+        const searchTerms = [...new Set([...extractProductTerms(normalized), ...nameNumbers])].slice(0, 6)
+        if (!searchTerms.length) return null
+        const lexicalFilters: Prisma.ProductWhereInput[] = searchTerms.flatMap((term) =>
+                catalogTermVariants(term).flatMap((variant) => [
+                        { name: { contains: variant, mode: 'insensitive' as const } },
+                        { sku: { contains: variant, mode: 'insensitive' as const } },
+                        { tags: { has: variant } },
+                        { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+                ]),
+        )
+        const rows = await prisma.product.findMany({
+                where: {
+                        active: true,
+                        catalogItems: { some: { agentId } },
+                        OR: lexicalFilters,
+                },
+                take: 40,
+                select: {
+                        id: true,
+                        name: true,
+                        sku: true,
+                        tags: true,
+                        category: { select: { name: true } },
+                },
+        })
+        const ranked = rows.map((row) => {
+                const identityFields = [row.name, row.sku ?? '']
+                        .map((value) => normalizePersianText(value).toLocaleLowerCase('fa'))
+                const categoryField = normalizePersianText(row.category?.name ?? '').toLocaleLowerCase('fa')
+                const canonicalFields = [...identityFields, categoryField]
+                const descriptiveFields = [row.tags.join(' ')]
+                        .map((value) => normalizePersianText(value).toLocaleLowerCase('fa'))
+                const termMatches = (term: string, fields: string[]) => {
+                        const variants = catalogTermVariants(term)
+                        if (/^\d+$/.test(term)) {
+                                return fields.some((field) => variants.some((variant) =>
+                                        new RegExp(`(?:^|[^\\d])${variant}(?=$|[^\\d])`, 'u').test(field),
+                                ))
+                        }
+                        return fields.some((field) => variants.some((variant) => field.includes(variant)))
+                }
+                const coverage = searchTerms.filter((term) => {
+                        if (/^\d+$/.test(term)) {
+                                // «90» must not match «190», and mutable tags do
+                                // not prove an identifier/size belongs to a row.
+                                return termMatches(term, identityFields)
+                        }
+                        return termMatches(term, [...canonicalFields, ...descriptiveFields])
+                }).length
+                const canonicalCoverage = searchTerms.filter((term) =>
+                        termMatches(term, /^\d+$/.test(term) ? identityFields : canonicalFields),
+                ).length
+                const categorySubject = searchTerms.length === 1 && catalogTermVariants(searchTerms[0])
+                        .some((variant) => categoryField === variant || categoryField.startsWith(`${variant} `))
+                return { id: row.id, coverage, canonicalCoverage, categorySubject }
+        }).sort((a, b) => b.coverage - a.coverage)
+        let exact = ranked.filter((row) =>
+                row.coverage === searchTerms.length && row.canonicalCoverage >= 1,
+        )
+        if (searchTerms.length === 1 && exact.length > 1) {
+                // A single open-ended adjective/tag (for example «سبز») can
+                // match many product names and is not enough to invent a new
+                // subject. An exact category remains a valid broad request.
+                exact = exact.filter((row) => row.categorySubject)
+        }
+        if (exact.length) {
+                return { productIds: exact.slice(0, 10).map((row) => row.id), searchTerms, match: 'EXACT' }
+        }
+        if (searchTerms.length === 1) return null
+        // An unavailable size/design can still be an unmistakable product
+        // request. Require two matched name/category terms when the message has
+        // several terms; a one-word phrase must match that one catalog term.
+        const minimumCoverage = Math.min(2, searchTerms.length)
+        const partial = ranked.filter((row) => row.coverage >= minimumCoverage && row.canonicalCoverage >= 1)
+        if (!partial.length) return null
+        return { productIds: partial.slice(0, 10).map((row) => row.id), searchTerms, match: 'PARTIAL' }
+}
+
+/** Upgrade an otherwise unknown short phrase after the assigned catalog proves it. */
+export function productRequestFromCatalogReference(
+        plan: ProductRequestPlan,
+        message: string,
+        reference: AssignedCatalogReference,
+): ProductRequestPlan {
+        const normalized = normalizePersianText(message)
+        const consultation = /(?:قیمت|چند|چقدر|موجود|جنس|رنگ|سایز|اندازه|مناسب|برای|چطور|چجوری|چرا|price|cost|stock|size|color|colour|how|why|[؟?])/iu.test(normalized)
+        // A partial match proves the subject but not the exact requested
+        // variant. Keep it conversational so alternatives are not presented
+        // as if they were an exact catalog match.
+        const explicitShowcase = plan.isProductTurn
+                ? plan.explicitShowcase
+                : reference.match === 'EXACT' && !consultation
+                        && normalized.split(/\s+/u).filter(Boolean).length <= 6
+        return {
+                ...plan,
+                isProductTurn: true,
+                explicitShowcase,
+                discoveryBrowse: false,
+                resetProductContext: false,
+                requestNewTopic: false,
+                requestedCount: explicitShowcase ? MAX_SHOWCASE_PRODUCTS : plan.requestedCount,
+                searchTerms: reference.searchTerms,
+                inventoryMode: explicitShowcase ? 'AVAILABLE' : plan.inventoryMode,
         }
 }
 

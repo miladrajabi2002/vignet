@@ -7,7 +7,7 @@ import { EVIDENCE_GROUNDING_SKILL_VERSION, evidenceGroundingInstruction } from '
 import { ACTION_CAPABILITY_SKILL_VERSION, actionCapabilityInstruction } from '@/lib/agent-kernel/skills/action-capabilities'
 import { needsVisualReferenceSkill, VISUAL_REFERENCE_SKILL_VERSION, visualReferenceInstruction } from '@/lib/agent-kernel/skills/visual-reference'
 
-export const AGENT_KERNEL_VERSION = '2026.09.14'
+export const AGENT_KERNEL_VERSION = '2026.09.15-state.1'
 
 const manifests = {
   security: { key: 'security-boundaries', version: '1.0.0', phase: 'policy', priority: 1000, description: 'Immutable safety and instruction hierarchy.' },
@@ -15,6 +15,7 @@ const manifests = {
   capabilities: { key: 'action-capability-boundaries', version: ACTION_CAPABILITY_SKILL_VERSION, phase: 'policy', priority: 925, description: 'Prevent claims about actions the runtime cannot execute.' },
   evidence: { key: 'evidence-grounding', version: EVIDENCE_GROUNDING_SKILL_VERSION, phase: 'policy', priority: 900, description: 'Ground business claims and action outcomes in trusted evidence.' },
   visualReference: { key: 'visual-reference-grounding', version: VISUAL_REFERENCE_SKILL_VERSION, phase: 'policy', priority: 875, description: 'Distinguish verified inbound media from references to earlier outbound cards.' },
+  state: { key: 'conversation-state', version: '1.0.0', phase: 'context', priority: 850, description: 'Resolve the active goal, explicit customer constraints and the last answered question.' },
   flow: { key: 'conversation-flow', version: CONVERSATION_FLOW_SKILL_VERSION, phase: 'policy', priority: 800, description: 'Preserve continuity and ask only necessary questions.' },
   style: { key: 'response-style', version: RESPONSE_STYLE_SKILL_VERSION, phase: 'policy', priority: 700, description: 'Apply the configured natural response style.' },
   knowledge: { key: 'knowledge-retrieval', version: '1.0.0', phase: 'context', priority: 600, description: 'Use workspace- and agent-scoped knowledge.' },
@@ -41,6 +42,7 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
     manifests.capabilities,
     manifests.evidence,
     needsVisualReferenceSkill(input) ? manifests.visualReference : null,
+    input.hasConversationState ? manifests.state : null,
     manifests.flow,
     manifests.style,
     !input.deterministicClosing && input.hasKnowledgeContext ? manifests.knowledge : null,

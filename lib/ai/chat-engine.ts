@@ -20,9 +20,11 @@ import {
         fetchCatalogCategories,
         fetchCatalogProducts,
         fetchCatalogServices,
+        findAssignedCatalogReference,
         historyForProductTurn,
         isHumanOwnedConversation,
         planProductRequest,
+        productRequestFromCatalogReference,
         showcaseSubjectPhrase,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
@@ -70,6 +72,22 @@ import {
 import { loadCustomerChannelContext } from '@/lib/ai/customer-channel-context'
 import { buildPlatformContextBlock } from '@/lib/ai/platform-context'
 import { readInboundSource } from '@/lib/conversations/source'
+import {
+        advanceConversationWorkingState,
+        buildConversationStateTrace,
+        createEmptyConversationWorkingState,
+        contextualizeProductRequest,
+        enrichConversationStateWithCatalog,
+        loadConversationWorkingState,
+        observeAssistantTurn,
+        persistConversationWorkingState,
+        promoteConversationStateToProduct,
+        startCatalogProductGoal,
+        type ConversationStateTrace,
+        type ConversationWorkingState,
+} from '@/lib/ai/conversation-state'
+
+const CATALOG_REFINEMENT_CUE_RE = /(?:برای|مناسب|رنگ|سایز|اندازه|قد|جنس|پارچه|متریال|سبک|بودجه|قیمت|موجود|مدرن|کلاسیک|مینیمال|مشکی|سفید|سبز|آبی|قرمز|زرد|صورتی|بنفش|طوسی|کرم|قهوه\s*ای|for|suitable|colou?r|size|material|style|budget|price|stock)/iu
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -380,9 +398,11 @@ async function persistInboundTurnMessage(
         params: StartChatParams,
         conversationId: string,
         incrementConversation: boolean,
-): Promise<boolean> {
+): Promise<{ created: boolean; id: string; createdAt: Date }> {
         return prisma.$transaction(async (tx) => {
                 let created = true
+                let id: string
+                let createdAt: Date
                 if (params.inboundEventId) {
                         const result = await tx.message.createMany({
                                 data: [{
@@ -398,21 +418,33 @@ async function persistInboundTurnMessage(
                         if (!created) {
                                 const existing = await tx.message.findUnique({
                                         where: { inboundEventId: params.inboundEventId },
-                                        select: { conversationId: true },
+                                        select: { id: true, conversationId: true, createdAt: true },
                                 })
                                 if (!existing || existing.conversationId !== conversationId) {
                                         throw new Error('Inbound event is linked to a different conversation')
                                 }
+                                id = existing.id
+                                createdAt = existing.createdAt
+                        } else {
+                                const inserted = await tx.message.findUniqueOrThrow({
+                                        where: { inboundEventId: params.inboundEventId },
+                                        select: { id: true, createdAt: true },
+                                })
+                                id = inserted.id
+                                createdAt = inserted.createdAt
                         }
                 } else {
-                        await tx.message.create({
+                        const inserted = await tx.message.create({
                                 data: {
                                         conversationId,
                                         role: 'USER',
                                         content: params.message,
                                         metadata: params.inboundMetadata,
                                 },
+                                select: { id: true, createdAt: true },
                         })
+                        id = inserted.id
+                        createdAt = inserted.createdAt
                 }
 
                 if (created && incrementConversation) {
@@ -421,7 +453,7 @@ async function persistInboundTurnMessage(
                                 data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
                         })
                 }
-                return created
+                return { created, id, createdAt }
         })
 }
 
@@ -455,6 +487,10 @@ async function prepareTurn(params: StartChatParams): Promise<
                   /** Order-context block built for this turn — non-empty strings
                    *  other than <verified_order> are instruction-only guards. */
                   orderContext: string
+                  /** Structured current-session context used by every channel. */
+                  workingState: ConversationWorkingState
+                  stateExpectedRevision: number | null
+                  stateTrace: ConversationStateTrace
           }
 > {
         const { workspaceId, agent, message } = params
@@ -576,9 +612,21 @@ async function prepareTurn(params: StartChatParams): Promise<
         // one is digits-only («0788»). Loading here (before the credit
         // reservation) keeps the same error semantics: a history failure
         // surfaces without ever holding a reservation.
-        const [history, catalogServices] = await Promise.all([
+        const [history, catalogServices, loadedState] = await Promise.all([
                 loadHistory(conversationId, params.inboundEventId),
                 fetchCatalogServices(workspaceId),
+                loadConversationWorkingState(conversationId, params.inboundEventId).catch((error) => {
+                        // State is a reconstructable transcript cache. A missing
+                        // migration/transient read must never suppress a reply.
+                        captureError('chat-engine:conversation-state-load', error, {
+                                workspaceId,
+                                metadata: { agentId: agent.id, conversationId },
+                        })
+                        return {
+                                state: createEmptyConversationWorkingState(),
+                                expectedRevision: null,
+                        }
+                }),
         ])
         const crossChannelContext = await loadCustomerChannelContext({
                         workspaceId,
@@ -632,14 +680,24 @@ async function prepareTurn(params: StartChatParams): Promise<
         try {
         // Persist the incoming user message (or reuse the event-anchored row
         // that the durable channel handler committed before automation).
-                await persistInboundTurnMessage(params, conversationId, false)
+                const inbound = await persistInboundTurnMessage(params, conversationId, false)
         // Every inbound turn (widget, chat-link, and messengers) keeps the
         // contact's denormalized last-activity fresh. Messenger inbound is also
         // bumped in upsertContact; the duplicate is harmless.
                 bumpContactActivity(conversationId)
 
         // Retrieve context and build the prompt.
-                const productRequest = planProductRequest(message, planningHistory)
+                const rawProductRequest = planProductRequest(message, planningHistory)
+                let workingState = advanceConversationWorkingState({
+                        state: loadedState.state,
+                        sessionStartId: loadedState.state.sessionStartId || inbound.id,
+                        message,
+                        messageId: inbound.id,
+                        createdAt: inbound.createdAt,
+                        productPlan: rawProductRequest,
+                        knownServiceNames: catalogServices.map((service) => service.name),
+                })
+                let productRequest = contextualizeProductRequest(rawProductRequest, workingState)
                 const closingReply = closingReplyText(message, history, turnLang)
                 if (closingReply) {
                         const skillPlan = compileAgentSkillPlan({
@@ -650,6 +708,16 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 identificationPending: freshState === 'pending' && agent.requireCustomerInfo,
                                 hasCustomerPreferences: customerPreferences.length > 0,
                                 handoffEnabled: agent.handoffEnabled,
+                                hasConversationState: Boolean(workingState.activeGoal || workingState.lastAnswer),
+                        })
+                        const stateTrace = buildConversationStateTrace({
+                                state: workingState,
+                                historyLoaded: modelHistory.filter((item) => item.role !== 'system').length,
+                                historySent: modelHistory.filter((item) => item.role !== 'system').length,
+                                resetReason: rawProductRequest.requestNewTopic
+                                        ? 'EXPLICIT_RESET'
+                                        : rawProductRequest.resetProductContext ? 'NEW_PRODUCT_SUBJECT' : null,
+                                retrievalQuery: '',
                         })
                         // A pure closing needs neither embedding/catalog retrieval
                         // nor an LLM call. The normal ownership, handoff, persistence
@@ -661,6 +729,89 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 canBypassDeterministicReply: freshState !== 'pending', closingReply,
                                 turnLang,
                                 orderContext: '',
+                                workingState,
+                                stateExpectedRevision: loadedState.expectedRevision,
+                                stateTrace,
+                        }
+                }
+                let catalogReference: Awaited<ReturnType<typeof findAssignedCatalogReference>> = null
+                let catalogStartedNewGoal = false
+                const stateRelation = workingState.lastTurn?.relation
+                const shortBareCatalogCandidate = Boolean(
+                        stateRelation && ['REFINEMENT', 'CORRECTION'].includes(stateRelation) &&
+                        message.trim().split(/\s+/u).length <= 6 &&
+                        !CATALOG_REFINEMENT_CUE_RE.test(message),
+                )
+                const shouldProbeCatalog = Boolean(
+                        agent.productAccessEnabled && stateRelation && (
+                                stateRelation === 'NEW_GOAL' ||
+                                shortBareCatalogCandidate ||
+                                (!productRequest.isProductTurn && workingState.lastTurn?.intent === 'GENERAL'
+                                        && ['REFINEMENT', 'REFERENCE', 'ANSWER'].includes(stateRelation))
+                        ),
+                )
+                if (shouldProbeCatalog) {
+                        const probeMessages = [...new Set([
+                                message,
+                                workingState.activeGoal?.label ?? '',
+                        ].filter(Boolean))]
+                        let referenceMessage = message
+                        for (const probeMessage of probeMessages) {
+                                catalogReference = await findAssignedCatalogReference(agent.id, probeMessage).catch((error) => {
+                                        captureError('chat-engine:catalog-reference-probe', error, {
+                                                workspaceId,
+                                                metadata: { agentId: agent.id, conversationId },
+                                        })
+                                        return null
+                                })
+                                if (catalogReference) {
+                                        referenceMessage = probeMessage
+                                        break
+                                }
+                        }
+                        if (catalogReference) {
+                                productRequest = productRequestFromCatalogReference(
+                                        productRequest,
+                                        referenceMessage,
+                                        catalogReference,
+                                )
+                                // A catalog match recovered from the saved goal
+                                // anchors this follow-up; it does not turn the
+                                // customer's refinement into a fresh vitrine.
+                                if (referenceMessage !== message) {
+                                        productRequest = {
+                                                ...productRequest,
+                                                explicitShowcase: false,
+                                                inventoryMode: 'ANY',
+                                        }
+                                }
+                                const replacesExistingGoal = referenceMessage === message
+                                        && Boolean(loadedState.state.activeGoal)
+                                        && (stateRelation === 'CORRECTION' || (
+                                                stateRelation === 'REFINEMENT'
+                                                && catalogReference.searchTerms.length >= 2
+                                                && !CATALOG_REFINEMENT_CUE_RE.test(message)
+                                        ))
+                                if (replacesExistingGoal) {
+                                        workingState = startCatalogProductGoal(
+                                                workingState,
+                                                message,
+                                                inbound.id,
+                                                catalogReference.searchTerms,
+                                                catalogReference.productIds,
+                                                catalogReference.match === 'EXACT',
+                                        )
+                                        productRequest = { ...productRequest, resetProductContext: true }
+                                        catalogStartedNewGoal = true
+                                } else {
+                                        workingState = promoteConversationStateToProduct(
+                                                workingState,
+                                                catalogReference.searchTerms,
+                                                catalogReference.productIds,
+                                                catalogReference.match === 'EXACT',
+                                        )
+                                }
+                                productRequest = contextualizeProductRequest(productRequest, workingState)
                         }
                 }
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
@@ -679,14 +830,17 @@ async function prepareTurn(params: StartChatParams): Promise<
                 })
                 bumpProductQueries(workspaceId, chunks)
 
-                const productIds = chunks
+                const productIds = [...new Set([
+                        ...(catalogReference?.productIds ?? []),
+                        ...chunks
                         .map((chunk) => {
                                 const metadata = chunk.metadata
                                 return metadata && typeof metadata === 'object' && 'productId' in metadata
                                         ? String((metadata as Record<string, unknown>).productId)
                                         : null
                         })
-                        .filter((id): id is string => !!id)
+                        .filter((id): id is string => !!id),
+                ])]
 
                 const [catalogProducts, orderContext, catalogCategories] = await Promise.all([
                         agent.productAccessEnabled
@@ -704,6 +858,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 ? fetchCatalogCategories(agent.id).catch(() => [] as string[])
                                 : Promise.resolve([] as string[]),
                 ])
+                workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
                 const turnHistory = historyForProductTurn(modelHistory, productRequest)
                 const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
                 const skillPlan = compileAgentSkillPlan({
@@ -725,6 +880,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         handoffEnabled: agent.handoffEnabled,
                         salesIntelligenceEnabled: true,
                         richProductCards: agent.productAccessEnabled && params.channel !== 'API',
+                        hasConversationState: Boolean(workingState.activeGoal || workingState.lastAnswer),
                 })
 
                 const messages = buildMessages({
@@ -743,6 +899,19 @@ async function prepareTurn(params: StartChatParams): Promise<
                         // resolve markers against trusted DB rows before sending.
                         richCards: agent.productAccessEnabled && params.channel !== 'API',
                         skillPlan,
+                        conversationState: workingState,
+                })
+
+                const stateTrace = buildConversationStateTrace({
+                        state: workingState,
+                        historyLoaded: modelHistory.filter((item) => item.role !== 'system').length,
+                        historySent: turnHistory.filter((item) => item.role !== 'system').length,
+                        resetReason: rawProductRequest.requestNewTopic
+                                ? 'EXPLICIT_RESET'
+                                : rawProductRequest.resetProductContext || catalogStartedNewGoal
+                                        ? 'NEW_PRODUCT_SUBJECT'
+                                        : null,
+                        retrievalQuery,
                 })
 
                 return {
@@ -762,6 +931,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                         closingReply: null,
                         turnLang,
                         orderContext,
+                        workingState,
+                        stateExpectedRevision: loadedState.expectedRevision,
+                        stateTrace,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -885,6 +1057,9 @@ async function persistAssistantTurn(params: {
          * turn must not claim "checked N sources" receipts.
          */
         serviceError?: boolean
+        workingState: ConversationWorkingState
+        stateExpectedRevision: number | null
+        stateTrace: ConversationStateTrace
 }): Promise<{ messageId: string }> {
         const unanswered = detectUnanswered(params.reply, params.agent.fallbackMessage)
         const receipts = buildTurnReceipts(
@@ -904,10 +1079,12 @@ async function persistAssistantTurn(params: {
                         {
                                 ...(unanswered ? { question: params.userMessage } : {}),
                                 agentSkillTrace: agentSkillTrace(params.skillPlan) as unknown as Prisma.InputJsonObject,
+                                conversationStateTrace: params.stateTrace as unknown as Prisma.InputJsonObject,
                         },
                 )
                 let created = true
                 let messageId: string
+                let messageCreatedAt: Date
                 if (params.inboundEventId) {
                         const inserted = await tx.message.createMany({
                                 data: [{
@@ -921,14 +1098,15 @@ async function persistAssistantTurn(params: {
                                 skipDuplicates: true,
                         })
                         created = inserted.count === 1
-                        const row = await tx.message.findUniqueOrThrow({
-                                where: { resultForInboundEventId: params.inboundEventId },
-                                select: { id: true, conversationId: true },
+                                const row = await tx.message.findUniqueOrThrow({
+                                        where: { resultForInboundEventId: params.inboundEventId },
+                                        select: { id: true, conversationId: true, createdAt: true },
                         })
                         if (row.conversationId !== params.conversationId) {
                                 throw new Error('Inbound event result is linked to a different conversation')
                         }
-                        messageId = row.id
+                                messageId = row.id
+                                messageCreatedAt = row.createdAt
                 } else {
                         const row = await tx.message.create({
                                 data: {
@@ -938,9 +1116,10 @@ async function persistAssistantTurn(params: {
                                         unanswered,
                                         metadata,
                                 },
-                                select: { id: true },
+                                select: { id: true, createdAt: true },
                         })
                         messageId = row.id
+                        messageCreatedAt = row.createdAt
                 }
                 if (created) {
                         await tx.conversation.update({
@@ -953,11 +1132,29 @@ async function persistAssistantTurn(params: {
                                 },
                         })
                 }
-                return { messageId, created }
+                return { messageId, messageCreatedAt, created }
         })
         // Keep the contact's denormalized last-activity fresh for the CRM list.
         bumpContactActivity(params.conversationId)
         if (saved.created) await syncOnboarding(params.workspaceId)
+        const completedState = observeAssistantTurn(
+                params.workingState,
+                params.reply,
+                saved.messageId,
+                saved.messageCreatedAt,
+        )
+        await persistConversationWorkingState({
+                conversationId: params.conversationId,
+                state: completedState,
+                expectedRevision: params.stateExpectedRevision,
+        }).catch((error) => {
+                // The transcript remains authoritative; the next turn replays
+                // any missed messages and heals this derived snapshot.
+                captureError('chat-engine:conversation-state-persist', error, {
+                        workspaceId: params.workspaceId,
+                        metadata: { agentId: params.agent.id, conversationId: params.conversationId },
+                })
+        })
         return { messageId: saved.messageId }
 }
 
@@ -989,6 +1186,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 closingReply,
                 turnLang,
                 orderContext,
+                workingState,
+                stateExpectedRevision,
+                stateTrace,
         } = prep
 
         const encoder = new TextEncoder()
@@ -1084,6 +1284,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                         retrievedChunks,
                                                         extraReceipts: [],
                                                         skillPlan,
+                                                        workingState,
+                                                        stateExpectedRevision,
+                                                        stateTrace,
                                                         inboundEventId: params.inboundEventId,
                                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                                 })
@@ -1225,12 +1428,15 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         }
 
                         // A5: canonical chat style — drop trailing periods on short Persian prose.
+                        const continuityGuardCodes: string[] = []
                         full = runAgentSkillPostprocessors(full, skillPlan, {
                                 catalogProducts: providerFailed ? [] : catalogProducts,
                                 userMessage: message,
                                 isFa: turnLang !== 'en',
                                 inboundMediaKind: params.inboundMediaKind,
                                 hasGroundedOrder: orderContext.includes('<verified_order>'),
+                                conversationState: workingState,
+                                continuityGuardCodes,
                         })
                         send({ type: 'replace', text: full })
 
@@ -1246,6 +1452,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         retrievedChunks,
                                         extraReceipts,
                                         skillPlan,
+                                        workingState,
+                                        stateExpectedRevision,
+                                        stateTrace: { ...stateTrace, guardCodes: continuityGuardCodes },
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                         serviceError: providerFailed,
@@ -1328,6 +1537,9 @@ export async function generateReply(
                 closingReply,
                 turnLang,
                 orderContext,
+                workingState,
+                stateExpectedRevision,
+                stateTrace,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -1384,6 +1596,9 @@ export async function generateReply(
                                         retrievedChunks,
                                         extraReceipts: [],
                                         skillPlan,
+                                        workingState,
+                                        stateExpectedRevision,
+                                        stateTrace,
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
@@ -1523,12 +1738,15 @@ export async function generateReply(
         }
 
         // A5: canonical chat style — drop trailing periods on short Persian prose.
+        const continuityGuardCodes: string[] = []
         reply = runAgentSkillPostprocessors(reply, skillPlan, {
                 catalogProducts: providerFailed ? [] : catalogProducts,
                 userMessage: message,
                 isFa: turnLang !== 'en',
                 inboundMediaKind: params.inboundMediaKind,
                 hasGroundedOrder: orderContext.includes('<verified_order>'),
+                conversationState: workingState,
+                continuityGuardCodes,
         })
 
         let persistedMessageId: string | undefined
@@ -1543,6 +1761,9 @@ export async function generateReply(
                         retrievedChunks,
                         extraReceipts,
                         skillPlan,
+                        workingState,
+                        stateExpectedRevision,
+                        stateTrace: { ...stateTrace, guardCodes: continuityGuardCodes },
                         inboundEventId: params.inboundEventId,
                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                         serviceError: providerFailed,

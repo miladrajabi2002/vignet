@@ -690,6 +690,7 @@ model Conversation {
   handoffAlerts      HandoffAlert[]
   salesInsight       ConversationSalesInsight?
   memory             ConversationMemory?
+  workingState       ConversationState?
   improvementReviews ImprovementReview[]
   skillFindings       SkillFinding[]
 
@@ -716,6 +717,23 @@ model ConversationMemory {
   conversationId String   @id
   sessionStartId String
   summary        String   @db.Text
+  throughId      String
+  throughAt      DateTime
+  revision       Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// Live, structured state for the current dialogue session. Unlike the rolling
+// ConversationMemory summary, this stores the active goal, explicit customer
+// constraints, the last assistant question and trusted entity IDs. The JSON is
+// versioned in application code so vertical-specific slots do not require a
+// schema migration.
+model ConversationState {
+  conversationId String   @id
+  sessionStartId String
+  state          Json
   throughId      String
   throughAt      DateTime
   revision       Int      @default(0)
