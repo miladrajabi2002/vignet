@@ -5,10 +5,10 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-	// Production deploys build into a release-specific directory. The running
-	// server keeps reading its own immutable build until PM2 is restarted with
-	// the new directory, so `next build` can never remove live CSS/JS chunks.
-	distDir: process.env.VIGENT_NEXT_DIST_DIR || '.next',
+        // Production deploys build into a release-specific directory. The running
+        // server keeps reading its own immutable build until PM2 is restarted with
+        // the new directory, so `next build` can never remove live CSS/JS chunks.
+        distDir: process.env.VIGENT_NEXT_DIST_DIR || '.next',
         // Appended to asset URLs so proxies and long-lived browser tabs never mix
         // files from two production releases. deploy/deploy.sh supplies the commit.
         deploymentId: process.env.VIGENT_DEPLOYMENT_ID,
@@ -117,6 +117,17 @@ const nextConfig = {
                                 source: '/fonts/:path*',
                                 headers: [
                                         { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+                                ],
+                        },
+                        // Uploaded media (blog covers, product & instagram images).
+                        // Every file name is a unique timestamp+uuid — content is
+                        // immutable, so browsers and proxies can cache for a year.
+                        // Without this rule a 1-2 MB blog PNG was re-downloaded
+                        // (max-age=0 revalidation) on every single page view.
+                        {
+                                source: '/uploads/:path*',
+                                headers: [
+                                        { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
                                 ],
                         },
                         // Brand SVGs and static logos.

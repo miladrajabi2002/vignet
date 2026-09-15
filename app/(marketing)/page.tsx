@@ -49,13 +49,18 @@ export async function generateMetadata(): Promise<Metadata> {
 	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 	const copy = HOME_METADATA_COPY[locale]
 
+	// The English homepage is a real URL (/en via middleware rewrite), so its
+	// canonical must point at ITSELF - a hardcoded root canonical told
+	// crawlers the entire English page was a duplicate of the Persian one.
+	const canonicalUrl = locale === 'en' ? `${SITE_URL}/en` : SITE_URL
+
 	return {
 		title: { absolute: copy.title },
 		description: copy.description,
 		applicationName: 'Vigent',
 		category: 'business software',
 		alternates: {
-			canonical: SITE_URL,
+			canonical: canonicalUrl,
 			// Real English URLs now exist (/en via middleware rewrite), so
 			// hreflang alternates are sound; crawlers pick the right locale.
 			languages: {
@@ -66,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
 		},
 		openGraph: {
 			type: 'website',
-			url: SITE_URL,
+			url: canonicalUrl,
 			siteName: 'Vigent',
 			locale: locale === 'fa' ? 'fa_IR' : 'en_US',
 			alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR'],
