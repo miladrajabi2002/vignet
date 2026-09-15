@@ -46,7 +46,7 @@ describe('STT wallet charging', () => {
   it('atomically debits the proportional charge and records duration', async () => {
     const result = await captureSttCredit({
       workspaceId: 'workspace-1', agentId: 'agent-1',
-      model: 'openai/whisper-large-v3-turbo', audioSeconds: 600,
+      model: 'microsoft/mai-transcribe-2', audioSeconds: 600,
       pricePerMinuteIRR: 100, providerRequestId: 'generation-1',
       providerCostUSD: 0.03, idempotencyKey: 'stt:event-1',
     })
@@ -69,7 +69,7 @@ describe('STT wallet charging', () => {
     mocks.txWorkspaceFind.mockResolvedValue({ aiCreditBalanceIRR: 950 })
 
     const result = await captureSttCredit({
-      workspaceId: 'workspace-1', model: 'openai/whisper-large-v3-turbo',
+      workspaceId: 'workspace-1', model: 'microsoft/mai-transcribe-2',
       audioSeconds: 30, pricePerMinuteIRR: 100, idempotencyKey: 'stt:event-1',
     })
 
