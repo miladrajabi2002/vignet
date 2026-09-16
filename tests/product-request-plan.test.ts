@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@/lib/ai/openrouter'
-import { historyForProductTurn, planProductRequest } from '@/lib/ai/conversation'
+import { historyForProductTurn, planProductRequest, structuredProductDetailReply } from '@/lib/ai/conversation'
 
 const user = (content: string): ChatMessage => ({ role: 'user', content })
 const assistant = (content: string): ChatMessage => ({ role: 'assistant', content })
@@ -145,6 +145,36 @@ describe('product request planning', () => {
       expect(plan.searchTerms, message).toEqual(expect.arrayContaining(['جلومبلی', 'نقش', 'نگار']))
       expect(plan.resetProductContext, message).toBe(false)
     }
+  })
+
+  it('anchors colloquial fabric follow-ups to the previously named product', () => {
+    const history = [
+      user('پیراهن شراره طرح شش'),
+      assistant('طرح 10 و طرح 11 موجود هستند.'),
+      user('مدونا عکسشون نیست'),
+      assistant('می‌تونم مشخصات دقیق‌تر این دو طرح رو بفرستم.'),
+      user('بله'),
+      assistant('مشخصات دو طرح موجود از پیراهن شراره را فرستادم.'),
+    ]
+
+    for (const message of ['پارچش چه پارچه ای', 'پارچه‌اش چیه؟', 'پارچه اش از چیه؟', 'از چه نوع پارچه‌ایه؟']) {
+      const plan = planProductRequest(message, history)
+      expect(plan.isProductTurn, message).toBe(true)
+      expect(plan.searchTerms, message).toEqual(expect.arrayContaining(['پیراهن', 'شراره']))
+      expect(plan.searchTerms, message).not.toEqual(expect.arrayContaining(['پارچش', 'ای', 'شش']))
+      expect(plan.requestedCount, message).toBe(1)
+      expect(plan.includeProductCards, message).toBe(false)
+      expect(plan.detailField, message).toBe('MATERIAL')
+      expect(plan.resetProductContext, message).toBe(false)
+    }
+  })
+
+  it('answers a structured material fact without relying on stale assistant prose', () => {
+    expect(structuredProductDetailReply({
+      product: { name: 'پیراهن شراره 0054', attributes: { 'جنس': 'حریر' } },
+      field: 'MATERIAL',
+      language: 'fa',
+    })).toBe('طبق مشخصات ثبت‌شدهٔ کاتالوگ، جنس پارچهٔ **پیراهن شراره 0054**، **حریر** است')
   })
 
   it('keeps a generic available-products request broad when embeddings are unavailable', () => {

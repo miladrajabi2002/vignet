@@ -6,6 +6,7 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 import {
+  fetchCatalogProducts,
   findAssignedCatalogReference,
   planProductRequest,
   productRequestFromCatalogReference,
@@ -168,6 +169,39 @@ describe('assigned-catalog entity recognition', () => {
       }),
       take: 40,
     }))
+  })
+
+  it('keeps a rare exact-name candidate ahead of a capped broad category pool', async () => {
+    const product = (id: string, name: string, description = '') => ({
+      id,
+      name,
+      description,
+      price: 100,
+      stock: null,
+      images: [],
+      externalUrl: null,
+      sku: null,
+      tags: [],
+      attributes: {},
+      queryCount: 0,
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+      category: { name: 'پیراهن' },
+    })
+    mocks.findProducts
+      // Priority lane: the rare identity term «شراره».
+      .mockResolvedValueOnce([product('target', 'پیراهن شراره 0054', 'جنس حریر')])
+      // Broad lane: imagine the first 160 popular «پیراهن» rows omitted it.
+      .mockResolvedValueOnce([product('popular', 'پیراهن دیگر')])
+
+    const history = [
+      { role: 'user' as const, content: 'پیراهن شراره طرح شش' },
+      { role: 'assistant' as const, content: 'طرح 10 و 11 موجودند.' },
+    ]
+    const plan = planProductRequest('پارچش چه پارچه ای', history)
+    const results = await fetchCatalogProducts('agent-1', [], plan)
+
+    expect(results.map((item) => item.id)).toEqual(['target'])
+    expect(mocks.findProducts).toHaveBeenCalledTimes(2)
   })
 
   it.each([

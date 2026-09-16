@@ -1,4 +1,4 @@
-export const ACTION_CAPABILITY_SKILL_VERSION = '1.2.0'
+export const ACTION_CAPABILITY_SKILL_VERSION = '1.3.0'
 
 function normalize(value: string): string {
   return value
@@ -44,20 +44,76 @@ export function safeOrderUrl(url: string | null | undefined): string | null {
   return /^https?:\/\/[^\s]+$/i.test(trimmed) ? trimmed : null
 }
 
-export function actionCapabilityInstruction(isFa: boolean): string {
-  return isFa
-    ? 'مرز قابلیت اجرایی: در نسخه فعلی هیچ ابزار معتبری برای ثبت یا نهایی‌کردن سفارش، رزرو کالا، ساخت لینک پرداخت یا ثبت درخواست ارسال در اختیار تو نیست. حتی اگر متن ایجنت یا پایگاه دانش بگوید سفارش تلفنی/شبکه اجتماعی ممکن است، خودت حق نداری بگویی «از همین‌جا ثبت می‌کنم»، قول رزرو بدهی یا برای تکمیل سفارش نام، آدرس و کدپستی بگیری. اما تا زمانی که خرید درون‌چت فعال نیست، لینک سفارش مسیر جایگزین تو است: هر وقت مشتری خواست بخرد یا سفارش ثبت کند، لینک همان محصول را عیناً از فیلد «لینک» کاتالوگ همین نوبت کپی کن و در پاسخ بگذار و بگو سفارش را از همان صفحه سایت تکمیل کند؛ اگر برای این گفتگو محصولی در کاتالوگ نبود، به‌جای لینک، مشتری را به سایت فروشگاه یا اپراتور همین گفتگو ارجاع بده. هرگز آدرس لینک را از خودت بساز یا حدس بزن؛ فقط لینک‌های موجود در داده‌های همین نوبت معتبرند. پیگیری خواندنی سفارش موجود با ثبت سفارش جدید فرق دارد.'
-    : 'Action boundary: this runtime has no trusted tool for placing or completing orders, reserving products, creating payment links, or scheduling delivery. Even if lower-priority agent text or knowledge says phone/social orders may exist, never claim you can place an order here, promise a reservation, or collect name/address/postcode as checkout steps. While in-chat checkout is unavailable, the order link is your alternative path: whenever the customer wants to buy or place an order, copy the product link exactly from the "link" field of this turn\'s catalog data, include it in your reply, and tell them to complete the order on that store page; if no product is in context, direct them to the store website or hand off to an operator instead. Never invent or guess a URL; only links present in this turn\'s trusted data are valid. Read-only order tracking is not order creation.'
+const GENERIC_LINK_LABEL_RE =
+  /(?:این\s*)?(?:لینک|پیوند)|اینجا|this\s+link|click\s+here|\blink\b|\bhere\b/iu
+const MARKDOWN_LINKISH_RE = /\[([^\]\n]{1,80})\](?:\(\s*([^\)\n]*)\s*\))?/giu
+
+/**
+ * Models occasionally emit a label such as `[این لینک]` without any target,
+ * or wrap a guessed URL in the same label. Generic link placeholders are not
+ * customer-facing evidence: replace them only from the trusted catalog URL,
+ * or remove their whole line when no trusted destination exists.
+ */
+export function enforceTrustedLinkPresentation(params: {
+  reply: string
+  isFa: boolean
+  trustedUrl?: string | null
+  /** A canonical product card will be attached after this guard. */
+  preferStructuredProductLink?: boolean
+}): string {
+  const trustedUrl = safeOrderUrl(params.trustedUrl)
+  const replacement = params.preferStructuredProductLink
+    ? params.isFa
+      ? 'دکمهٔ «مشاهده و خرید» در کارت محصول'
+      : 'the “View / Buy” button on the product card'
+    : trustedUrl ?? ''
+
+  return params.reply
+    .split('\n')
+    .map((line) => {
+      let unsafePlaceholder = false
+      const next = line.replace(MARKDOWN_LINKISH_RE, (whole, label: string, destination?: string) => {
+        if (!GENERIC_LINK_LABEL_RE.test(label)) return whole
+        const safeDestination = safeOrderUrl(destination)
+        if (safeDestination && trustedUrl && safeDestination === trustedUrl) {
+          unsafePlaceholder = true
+          return replacement
+        }
+        // A missing, malformed, model-invented or off-catalog destination is
+        // never exposed. The trusted URL/card is the only allowed replacement.
+        unsafePlaceholder = true
+        return replacement
+      })
+      return unsafePlaceholder && !trustedUrl ? '' : next
+    })
+    .filter((line, index, lines) => line.trim() || (index > 0 && lines[index - 1]?.trim()))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
-function unavailableReply(isFa: boolean, orderUrl: string | null): string {
+export function actionCapabilityInstruction(isFa: boolean): string {
+  return isFa
+    ? 'مرز قابلیت اجرایی: در نسخه فعلی هیچ ابزار معتبری برای ثبت یا نهایی‌کردن سفارش، رزرو کالا، ساخت لینک پرداخت یا ثبت درخواست ارسال در اختیار تو نیست. حتی اگر متن ایجنت یا پایگاه دانش بگوید سفارش تلفنی/شبکه اجتماعی ممکن است، خودت حق نداری بگویی «از همین‌جا ثبت می‌کنم»، قول رزرو بدهی یا برای تکمیل سفارش نام، آدرس و کدپستی بگیری. تا زمانی که خرید درون‌چت فعال نیست، صفحهٔ همان محصول در کاتالوگ مسیر جایگزین است: فقط وقتی محصول دقیق این نوبت و URL معتبرش در کاتالوگ وجود دارد، بگو مشتری از دکمهٔ «مشاهده و خرید» کارت محصول وارد سایت شود؛ خودت Markdown ناقصی مثل [این لینک] نساز و URL را حدس نزن. اگر محصول یا URL معتبر نداریم، هیچ لینکی وعده نده و مشتری را به سایت فروشگاه یا اپراتور همین گفتگو ارجاع بده. پیگیری خواندنی سفارش موجود با ثبت سفارش جدید فرق دارد.'
+    : 'Action boundary: this runtime has no trusted tool for placing or completing orders, reserving products, creating payment links, or scheduling delivery. Even if lower-priority agent text or knowledge says phone/social orders may exist, never claim you can place an order here, promise a reservation, or collect name/address/postcode as checkout steps. While in-chat checkout is unavailable, the exact catalog product page is the alternative path: only when this turn has one resolved product with a valid catalog URL, tell the customer to use the product card\'s “View / Buy” button; never emit incomplete Markdown such as [this link] or guess a URL. If no resolved product or trusted URL exists, promise no link and direct the customer to the store site or an operator. Read-only order tracking is not order creation.'
+}
+
+function unavailableReply(
+  isFa: boolean,
+  orderUrl: string | null,
+  preferStructuredProductLink = false,
+): string {
   if (isFa) {
     return orderUrl
-      ? `فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای خرید، از این لینک وارد شوید و سفارش را در سایت تکمیل کنید: ${orderUrl}\nاگر سفارش در سایت برایتان ممکن نبود، می‌توانم موضوع را برای اپراتور همین گفتگو منتقل کنم`
+      ? preferStructuredProductLink
+        ? 'فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای خرید، روی دکمهٔ «مشاهده و خرید» در کارت محصول بزنید و سفارش را در سایت تکمیل کنید. اگر سفارش در سایت برایتان ممکن نبود، می‌توانم موضوع را برای اپراتور همین گفتگو منتقل کنم'
+        : `فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای خرید، از این لینک وارد شوید و سفارش را در سایت تکمیل کنید: ${orderUrl}\nاگر سفارش در سایت برایتان ممکن نبود، می‌توانم موضوع را برای اپراتور همین گفتگو منتقل کنم`
       : 'فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای سفارش، صفحهٔ محصول در سایت فروشگاه یا تماس با فروشگاه مسیر درست است؛ اگر لینک محصول را می‌خواهید یا سایت برایتان قابل استفاده نیست، بگویید تا موضوع را برای اپراتور همین گفتگو منتقل کنم'
   }
   return orderUrl
-    ? `Placing an order inside this chat is not currently available. To buy, use this link and complete the order on the site: ${orderUrl}\nIf that does not work for you, I can hand this over to an operator here`
+    ? preferStructuredProductLink
+      ? 'Placing an order inside this chat is not currently available. To buy, use the “View / Buy” button on the product card and complete the order on the site. If that does not work for you, I can hand this over to an operator here'
+      : `Placing an order inside this chat is not currently available. To buy, use this link and complete the order on the site: ${orderUrl}\nIf that does not work for you, I can hand this over to an operator here`
     : 'Placing an order inside this chat is not currently available. To order, use the product page on the store website or contact the store; if you would like the product link or cannot use the website, tell me and I will hand this over to an operator here'
 }
 
@@ -74,14 +130,23 @@ export function enforceActionCapabilities(params: {
   isFa: boolean
   /** Trusted product/store URL selected from this turn's catalog rows. */
   orderUrl?: string | null
+  /** True only when the presentation layer will append a trusted product card
+   *  carrying the same URL as a native channel button. */
+  preferStructuredProductLink?: boolean
   /** True only when this turn's context contains a <verified_order> block —
    *  real, order-number-scoped store data. Otherwise any completed-order
    *  claim in the reply is fabricated and is replaced deterministically. */
   hasGroundedOrder?: boolean
 }): string {
   const orderUrl = safeOrderUrl(params.orderUrl)
+  const reply = enforceTrustedLinkPresentation({
+    reply: params.reply,
+    isFa: params.isFa,
+    trustedUrl: orderUrl,
+    preferStructuredProductLink: params.preferStructuredProductLink,
+  })
   if (isUnsupportedOrderCreationRequest(params.userMessage)) {
-    return unavailableReply(params.isFa, orderUrl)
+    return unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
   }
 
   const splitReply = (text: string): string[] =>
@@ -94,20 +159,20 @@ export function enforceActionCapabilities(params: {
   // when the request itself looked innocent — the model may "confirm" an
   // order after a bare «بله» acceptance. Verified order-tracking turns are
   // exempt: their status statements are grounded in store data.
-  if (!params.hasGroundedOrder && FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalize(params.reply))) {
-    const safeParts = splitReply(params.reply).filter(
+  if (!params.hasGroundedOrder && FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalize(reply))) {
+    const safeParts = splitReply(reply).filter(
       (part) => !FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalize(part)),
     )
-    const notice = unavailableReply(params.isFa, orderUrl)
+    const notice = unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
     return [...safeParts, notice].filter((part, index, all) => all.indexOf(part) === index).join('\n\n')
   }
 
-  if (!UNSUPPORTED_ACTION_CLAIM_RE.test(normalize(params.reply))) return params.reply
+  if (!UNSUPPORTED_ACTION_CLAIM_RE.test(normalize(reply))) return reply
 
-  const safeParts = splitReply(params.reply).filter(
+  const safeParts = splitReply(reply).filter(
     (part) => !UNSUPPORTED_ACTION_CLAIM_RE.test(normalize(part)),
   )
 
-  const notice = unavailableReply(params.isFa, orderUrl)
+  const notice = unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
   return [...safeParts, notice].filter((part, index, all) => all.indexOf(part) === index).join('\n\n')
 }

@@ -39,6 +39,14 @@ export interface ProductRequestPlan {
         /** Recommendations normally exclude stock=0. Product.stock=null means available/unlimited. */
         inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
         /**
+         * Whether this turn may render rich product cards. Focused follow-up
+         * questions about one already established product (for example
+         * «پارچه‌اش چیه؟») need a direct text answer, not another catalog card.
+         */
+        includeProductCards: boolean
+        /** A focused structured fact that can be answered without an LLM. */
+        detailField: 'MATERIAL' | null
+        /**
          * The customer referenced an identifier-like product code (a bare
          * leading-zero SKU such as «۰۷۸۸», or a «کد 0742»-style label). When
          * the catalog search then finds a row covering every search term, that
@@ -173,6 +181,14 @@ const RESET_CONTEXT_RE =
         /(?:بی\s*خیال|فراموش\s*(?:کن|کنید|کنین)|از\s*اول\s*(?:شروع|بپرس)|درخواست\s*جدید|موضوع\s*جدید|never\s*mind|forget\s+(?:it|that|the\s+previous)|start\s*over|new\s*(?:request|topic))/i
 const PRODUCT_CONTEXT_FOLLOWUP_RE =
         /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا|مدل|محصول|کالا|قطعه|یکی)|اون\s*(?:یکی|دوتا|مدل|محصول|کالا|قطعه)?|آن\s*(?:یکی|دوتا|مدل|محصول|کالا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب|مدل)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|بهتره|بهتر\s+است|لینک(?:\s*(?:پرداخت|خرید|سفارش))?(?:ش|شو|اش)?|پرداخت(?:ش|شو)?\s*(?:رو|را)|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|cheaper|better\s+quality|this\s+(?:model|item|product)|the\s+link|payment\s+link)/iu
+// A singular detail question points back to the product already under
+// discussion. Keep common colloquial spellings too: customers routinely type
+// «پارچش» for «پارچه‌اش», and treating that typo as a fresh
+// catalog keyword can surface a semantically similar but unrelated item.
+const SINGULAR_PRODUCT_DETAIL_FOLLOWUP_RE =
+        /(?:پارچش|پارچه\s*(?:ا)?ش|(?:قیمت|کیفیت|جنس|رنگ|سایز|مدل)\s*(?:ا)?ش(?!ون|ان)|(?:از\s+)?چه\s+(?:نوع\s+)?پارچه\s*ای)/iu
+const MATERIAL_DETAIL_FOLLOWUP_RE =
+        /(?:پارچش|پارچه\s*(?:ا)?ش|جنس\s*(?:ا)?ش(?!ون|ان)|(?:از\s+)?چه\s+(?:نوع\s+)?پارچه\s*ای)/iu
 const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موجودی|out\s+of\s+stock|sold\s+out)/i
 // Match Persian «دارید/دارین/داری…» as a complete token. The previous loose
 // substring also matched the negated «نداری» in sentences such as «اگر اطلاعات
@@ -334,6 +350,7 @@ const PRODUCT_STOP_WORDS = new Set([
         'موجود', 'موجوده', 'موجودند', 'موجودن', 'موجودی', 'ناموجود', 'خرید', 'فروش', 'بفرست', 'بفرستید', 'بفرستین', 'ارسال',
         'نشون', 'نشان', 'نمایش', 'بده', 'بدین', 'بدهید', 'معرفی', 'پیشنهاد', 'لیست', 'فهرست',
         'گزینه', 'گزینه‌ها', 'مورد', 'عدد', 'هرچی', 'هرچه', 'همه', 'تمام', 'چند', 'چندتا',
+        'چنده', 'چقدر',
         'دارم', 'داری', 'دارید', 'دارین', 'دارن', 'داریدش', 'دارینش', 'هست', 'هستش', 'هستند',
         'رو', 'را', 'از', 'به', 'برای', 'با', 'و', 'یا', 'که', 'تو', 'توی', 'این', 'اون', 'آن',
         'من', 'ما', 'شما', 'یه', 'یک', 'تا', 'بدون', 'هیچ', 'سوال', 'سؤالی', 'سوالی', 'اضافی', 'فعلا',
@@ -562,6 +579,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         )
 
         let priorProductTerms: string[] = []
+        let priorVariantHint: string | null = null
         // A prior browse turn ("what do you have?") counts as product context
         // even when it produced no search terms — it lets a follow-up such as
         // "show all" or a bare "yes" complete the browse into a showcase.
@@ -601,6 +619,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         if (!previousHasProductSignal) continue
                         priorProductSignal = true
                         priorProductTerms = previousTerms
+                        priorVariantHint = extractVariantHint(previousContent)
                         if (priorProductTerms.length) break
                 }
         }
@@ -712,8 +731,12 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // only a reset with no product/browse content asks for a fresh prompt.
         const requestNewTopic =
                 resetRequested && !explicitShowcase && !browseQuery && !directProductSignal && !variantPick
+        const singularProductDetailFollowUp =
+                priorProductSignal && SINGULAR_PRODUCT_DETAIL_FOLLOWUP_RE.test(normalized)
         const contextualProductFollowUp =
-                priorProductSignal && PRODUCT_CONTEXT_FOLLOWUP_RE.test(normalized)
+                priorProductSignal && (
+                        PRODUCT_CONTEXT_FOLLOWUP_RE.test(normalized) || singularProductDetailFollowUp
+                )
         const isProductTurn =
                 !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
                 (directProductSignal || contextualProductFollowUp || browseQuery || explicitShowcase || variantBrowse || variantPick)
@@ -731,7 +754,15 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 contextualProductFollowUp && priorProductTerms.length > 0 &&
                 !EXPLICIT_PRODUCT_SUBJECT_RE.test(normalized) && !productCodeSignal
         ) {
-                searchTerms = priorProductTerms
+                // The variant remains available inside the selected parent
+                // row, but it is not part of the product's identity. Carrying
+                // «شش» from «طرح شش» into a later material question made
+                // the fail-closed matcher require an irrelevant word that the
+                // row stores as «طرح 06». Anchor the lookup to the parent
+                // product and let its trusted variations answer variant facts.
+                searchTerms = singularProductDetailFollowUp && priorVariantHint
+                        ? priorProductTerms.filter((term) => term !== priorVariantHint)
+                        : priorProductTerms
         }
 
         // Variant turns are about the product already under discussion; plural
@@ -792,9 +823,24 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 resetProductContext: resetRequested || startsDifferentProduct,
                 requestNewTopic,
                 requestedCount:
-                        explicitCount ?? (explicitShowcase || variantBrowse ? MAX_SHOWCASE_PRODUCTS : discoveryBrowse ? 6 : 5),
+                        explicitCount ?? (
+                                explicitShowcase || variantBrowse
+                                        ? MAX_SHOWCASE_PRODUCTS
+                                        : discoveryBrowse
+                                                ? 6
+                                                // A singular attribute question is about one
+                                                // established product. Returning one best row
+                                                // prevents unrelated catalog cards from leaking
+                                                // into a focused answer such as «پارچش چیه؟».
+                                                : singularProductDetailFollowUp ? 1 : 5
+                        ),
                 searchTerms,
                 inventoryMode,
+                includeProductCards: !singularProductDetailFollowUp,
+                detailField:
+                        singularProductDetailFollowUp && MATERIAL_DETAIL_FOLLOWUP_RE.test(normalized)
+                                ? 'MATERIAL'
+                                : null,
                 // The customer named an identifier-like SKU; used to guarantee
                 // the exact catalog match is presented as a product card.
                 codeIdentified: productCodeSignal,
@@ -804,6 +850,39 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 variantTargetRefs,
                 codeVariantVitrine,
         }
+}
+
+/**
+ * Return a catalog-grounded answer for facts represented by structured product
+ * attributes. Structured fields are preferred over prose/history because they
+ * come directly from the store's current product attributes and are far less
+ * likely to contain stale model-authored claims.
+ */
+export function structuredProductDetailReply(params: {
+        product: Pick<CatalogProduct, 'name' | 'attributes'>
+        field: ProductRequestPlan['detailField']
+        language: string
+}): string | null {
+        if (params.field !== 'MATERIAL') return null
+        if (!params.product.attributes || typeof params.product.attributes !== 'object'
+                || Array.isArray(params.product.attributes)) return null
+        const materialKeys = new Set(['جنس', 'جنس پارچه', 'پارچه', 'material', 'fabric'])
+        const entry = Object.entries(params.product.attributes as Record<string, unknown>)
+                .find(([rawKey, rawValue]) => {
+                        const key = normalizePersianText(rawKey).toLocaleLowerCase('fa')
+                        return materialKeys.has(key) && (
+                                typeof rawValue === 'string' || typeof rawValue === 'number'
+                        )
+                })
+        const material = entry ? String(entry[1]).trim().slice(0, 120) : ''
+        if (!material) return null
+        if (params.language === 'en') {
+                return `According to the catalog specifications, **${params.product.name}** is made from **${material}**.`
+        }
+        if (params.language === 'ar') {
+                return `وفقًا لمواصفات الكتالوج، خامة **${params.product.name}** هي **${material}**.`
+        }
+        return `طبق مشخصات ثبت‌شدهٔ کاتالوگ، جنس پارچهٔ **${params.product.name}**، **${material}** است`
 }
 
 /**
@@ -1200,6 +1279,22 @@ export async function fetchCatalogProducts(
                         { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
                 ]),
         )
+        // The broadest term in a multi-term request can match hundreds of
+        // rows (for example «پیراهن» in a fashion catalog). A fixed
+        // candidate cap ordered by popularity can then discard the exact,
+        // rarer name match («شراره») before in-memory ranking even
+        // sees it. Fetch semantic IDs and non-subject identity terms in a
+        // small priority lane, then merge them with the broad pool.
+        const identityTerms = terms.filter((term) => !PRODUCT_SUBJECT_RE.test(term))
+        const identityLexicalFilters: Prisma.ProductWhereInput[] = identityTerms.flatMap((term) =>
+                catalogTermVariants(term).flatMap((variant) => [
+                        { name: { contains: variant, mode: 'insensitive' as const } },
+                        { description: { contains: variant, mode: 'insensitive' as const } },
+                        { sku: { contains: variant, mode: 'insensitive' as const } },
+                        { tags: { has: variant } },
+                        { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+                ]),
+        )
         // A broad request with no meaningful term must search the whole active
         // assigned catalog. Restricting it to the handful of semantic chunks
         // would recreate the "only one product" failure.
@@ -1215,7 +1310,40 @@ export async function fetchCatalogProducts(
                         ? { stock: 0 }
                         : {}
 
-        const rows = await prisma.product.findMany({
+        const rowSelect = {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                stock: true,
+                images: true,
+                externalUrl: true,
+                sku: true,
+                tags: true,
+                attributes: true,
+                queryCount: true,
+                updatedAt: true,
+                category: { select: { name: true } },
+        } satisfies Prisma.ProductSelect
+        const baseWhere: Prisma.ProductWhereInput = {
+                active: true,
+                catalogItems: { some: { agentId } },
+                AND: [availabilityFilter],
+        }
+        const priorityFilters: Prisma.ProductWhereInput[] = [
+                ...(rankedIds.length ? [{ id: { in: rankedIds } }] : []),
+                ...identityLexicalFilters,
+        ]
+        const [priorityRows, broadRows] = await Promise.all([
+                priorityFilters.length
+                        ? prisma.product.findMany({
+                                where: { ...baseWhere, AND: [availabilityFilter, { OR: priorityFilters }] },
+                                take: 80,
+                                orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
+                                select: rowSelect,
+                        })
+                        : Promise.resolve([]),
+                prisma.product.findMany({
                 where: {
                         active: true,
                         catalogItems: { some: { agentId } },
@@ -1228,21 +1356,14 @@ export async function fetchCatalogProducts(
                 // candidate pool makes ranking reliable even for 500+ products.
                 take: 160,
                 orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
-                select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        price: true,
-                        stock: true,
-                        images: true,
-                        externalUrl: true,
-                        sku: true,
-                        tags: true,
-                        attributes: true,
-                        queryCount: true,
-                        updatedAt: true,
-                        category: { select: { name: true } },
-                },
+                select: rowSelect,
+        }),
+        ])
+        const seenProductIds = new Set<string>()
+        const rows = [...priorityRows, ...broadRows].filter((product) => {
+                if (seenProductIds.has(product.id)) return false
+                seenProductIds.add(product.id)
+                return true
         })
 
         const semanticRank = new Map(rankedIds.map((id, index) => [id, index]))
@@ -1252,9 +1373,15 @@ export async function fetchCatalogProducts(
         // (including the code) is part of the row. The presentation layer
         // attaches that row's product card even on consultation turns.
         const identifyByFullCoverage = plan.codeIdentified && terms.length > 0
+        const subjectTerms = terms.filter((term) => PRODUCT_SUBJECT_RE.test(term))
+        const canonicalTokenMatch = (field: string, term: string): boolean => {
+                const normalizedField = ` ${field.replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()} `
+                return normalizedField.includes(` ${term} `)
+        }
         const ranked = rows.map((product) => {
                 const searchable = searchableProductText(product)
                 let coverage = 0
+                let subjectCoverage = 0
                 let score = 0
 
                 for (const term of terms) {
@@ -1311,6 +1438,12 @@ export async function fetchCatalogProducts(
                                         matched = true
                                 }
                         }
+                        if (
+                                subjectTerms.includes(term) &&
+                                (canonicalTokenMatch(searchable.name, term) || canonicalTokenMatch(searchable.category, term))
+                        ) {
+                                subjectCoverage += 1
+                        }
                         if (matched) coverage += 1
                 }
 
@@ -1320,7 +1453,7 @@ export async function fetchCatalogProducts(
                 if (product.stock == null || product.stock > 0) score += 5
                 score += Math.min(3, Math.log2(product.queryCount + 1))
 
-                return { product, coverage, score }
+                return { product, coverage, subjectCoverage, score }
         })
 
         ranked.sort((left, right) => {
@@ -1329,7 +1462,29 @@ export async function fetchCatalogProducts(
                 return right.product.updatedAt.getTime() - left.product.updatedAt.getTime()
         })
 
-        return ranked.slice(0, Math.min(MAX_SHOWCASE_PRODUCTS, plan.requestedCount)).map(({ product, coverage }) => ({
+        // Concrete product searches fail closed. Semantic neighbours remain
+        // useful for open-ended needs («یه چیز خنک»), but they must never be
+        // presented as the requested catalog item. Every requested subject
+        // noun must occur in the canonical name/category and every modifier
+        // must be evidenced by the same row. This prevents a set whose long
+        // description mentions trousers from becoming «شلوار پلنگی».
+        const requiresGroundedMatch = terms.length > 0 && (
+                plan.explicitShowcase || plan.codeIdentified || subjectTerms.length > 0
+        )
+        const eligible = requiresGroundedMatch
+                ? ranked.filter((item) =>
+                        item.coverage === terms.length &&
+                        item.subjectCoverage === subjectTerms.length,
+                )
+                : ranked
+        const selected = eligible.slice(0, Math.min(MAX_SHOWCASE_PRODUCTS, plan.requestedCount))
+        // A unique, fully grounded multi-term match identifies the exact row
+        // even without a SKU. Price/size/link follow-ups can therefore attach
+        // its canonical card and URL, while broad one-word category searches
+        // remain ordinary multi-product browsing.
+        const uniquelyIdentified = selected.length === 1 && terms.length > 1
+
+        return selected.map(({ product, coverage, subjectCoverage }) => ({
                 id: product.id,
                 name: product.name,
                 description: product.description,
@@ -1340,7 +1495,10 @@ export async function fetchCatalogProducts(
                 url: product.externalUrl,
                 attributes: product.attributes,
                 tags: product.tags,
-                fullTermMatch: identifyByFullCoverage && coverage === terms.length,
+                fullTermMatch:
+                        coverage === terms.length &&
+                        subjectCoverage === subjectTerms.length &&
+                        (identifyByFullCoverage || uniquelyIdentified),
         }))
 }
 

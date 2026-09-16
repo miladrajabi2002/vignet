@@ -17,6 +17,9 @@ export interface AgentSkillPostprocessContext {
    *  order-number-scoped store data). Keeps grounded order-status replies
    *  alive while fabricated «سفارش ثبت شد» claims are replaced. */
   hasGroundedOrder?: boolean
+  /** The presentation layer will append a trusted product card whose native
+   *  CTA opens the same catalog URL. */
+  preferStructuredProductLink?: boolean
   /** Structured current-session state used only by conservative continuity guards. */
   conversationState?: ConversationWorkingState | null
   /** Mutable per-turn trace sink owned by the caller. */
@@ -49,12 +52,10 @@ function ensureSingleProductIdentity(
  *  order-request fallback so the customer is routed to the store page
  *  instead of a dead end. */
 function orderUrlFromCatalog(context: AgentSkillPostprocessContext): string | null {
-  if (!context.catalogProducts?.length) return null
-  for (const product of context.catalogProducts) {
-    const url = safeOrderUrl(product?.url)
-    if (url) return url
-  }
-  return null
+  // Never pick an arbitrary URL from a recommendation list. A checkout CTA
+  // is safe only when the turn has resolved exactly one product.
+  if (context.catalogProducts?.length !== 1) return null
+  return safeOrderUrl(context.catalogProducts[0]?.url)
 }
 
 export function runAgentSkillPostprocessors(
@@ -70,6 +71,7 @@ export function runAgentSkillPostprocessors(
       isFa: context.isFa ?? true,
       orderUrl: orderUrlFromCatalog(context),
       hasGroundedOrder: context.hasGroundedOrder ?? false,
+      preferStructuredProductLink: context.preferStructuredProductLink ?? false,
     })
   }
   if (hasAgentSkill(plan, 'visual-reference-grounding') && context.userMessage) {

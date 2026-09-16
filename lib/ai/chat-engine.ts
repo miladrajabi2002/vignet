@@ -26,6 +26,7 @@ import {
         planProductRequest,
         productRequestFromCatalogReference,
         showcaseSubjectPhrase,
+        structuredProductDetailReply,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
 import type { CatalogProduct } from '@/lib/ai/rag'
@@ -256,6 +257,18 @@ function defaultProviderFailureText(lang: TurnLanguage): string {
         return 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
 }
 
+/** A catalog miss is resolved before the model can invent a product, price or
+ * link. This wording is deliberately reusable across retail verticals. */
+export function catalogNoMatchReply(lang: TurnLanguage): string {
+        if (lang === 'ar') {
+                return 'لم أجد منتجًا يطابق هذه المواصفات في الكتالوج الحالي، لذلك لا أستطيع تأكيد السعر أو التوفر أو رابط الشراء. أرسل اسم المنتج أو رمزه لأتحقق بدقة أكبر.'
+        }
+        if (lang === 'en') {
+                return 'I could not find a product matching those details in the current catalog, so I cannot confirm a price, availability, or purchase link. Send the product name or code and I will check more precisely.'
+        }
+        return 'محصولی مطابق این مشخصات در کاتالوگ فعلی پیدا نکردم؛ بنابراین نمی‌توانم قیمت، موجودی یا لینک خریدی را تأیید کنم. نام یا کد محصول را بفرستید تا دقیق‌تر بررسی کنم.'
+}
+
 function appendSalesGuidance(
         messages: ReturnType<typeof buildMessages>,
         guidance: string,
@@ -278,8 +291,21 @@ async function buildDeterministicTurnReply(params: {
         lang?: TurnLanguage
 }): Promise<string | null> {
         if (params.closingReply) return params.closingReply
-        if (!params.canBypass || params.channel === 'API') return null
+        if (!params.canBypass) return null
         const lang = params.lang ?? 'fa'
+        if (
+                params.agent.productAccessEnabled &&
+                params.productRequest.detailField &&
+                params.catalogProducts.length === 1
+        ) {
+                const detailReply = structuredProductDetailReply({
+                        product: params.catalogProducts[0],
+                        field: params.productRequest.detailField,
+                        language: lang,
+                })
+                if (detailReply) return detailReply
+        }
+        if (params.channel === 'API') return null
         if (params.productRequest.requestNewTopic) {
                 if (lang === 'ar') return 'حسنًا، لقد تركت الموضوع السابق جانبًا.'
                 return lang === 'en'
@@ -371,6 +397,9 @@ async function buildDeterministicTurnReply(params: {
                         // card in the showcase/consultation below is the right
                         // presentation for a variation-less product.
                 }
+        }
+        if (params.productRequest.isProductTurn && params.catalogProducts.length === 0) {
+                return catalogNoMatchReply(lang)
         }
         if (!params.productRequest.explicitShowcase) return null
 
@@ -879,7 +908,10 @@ async function prepareTurn(params: StartChatParams): Promise<
                         hasCustomerPreferences: customerPreferences.length > 0,
                         handoffEnabled: agent.handoffEnabled,
                         salesIntelligenceEnabled: true,
-                        richProductCards: agent.productAccessEnabled && params.channel !== 'API',
+                        richProductCards:
+                                agent.productAccessEnabled &&
+                                params.channel !== 'API' &&
+                                productRequest.includeProductCards,
                         hasConversationState: Boolean(workingState.activeGoal || workingState.lastAnswer),
                 })
 
@@ -897,7 +929,10 @@ async function prepareTurn(params: StartChatParams): Promise<
                         catalogCategories,
                         // Web surfaces render cards directly; messenger channels
                         // resolve markers against trusted DB rows before sending.
-                        richCards: agent.productAccessEnabled && params.channel !== 'API',
+                        richCards:
+                                agent.productAccessEnabled &&
+                                params.channel !== 'API' &&
+                                productRequest.includeProductCards,
                         skillPlan,
                         conversationState: workingState,
                 })
@@ -1381,39 +1416,63 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 send({ type: 'error', error: 'EMPTY_RESPONSE' })
                         }
 
+                        const identifiedProductIds = catalogProducts
+                                .filter((product) => product.fullTermMatch)
+                                .map((product) => product.id)
+                        const groundedPostprocessProducts = providerFailed
+                                ? []
+                                : identifiedProductIds.length === 1
+                                        ? catalogProducts.filter((product) => product.id === identifiedProductIds[0])
+                                        : catalogProducts
+
+                        // Capability and continuity guards run first. Card
+                        // hydration then appends the canonical product/button,
+                        // so a rewritten checkout promise cannot discard it.
+                        const continuityGuardCodes: string[] = []
+                        full = runAgentSkillPostprocessors(full, skillPlan, {
+                                catalogProducts: groundedPostprocessProducts,
+                                userMessage: message,
+                                isFa: turnLang !== 'en',
+                                inboundMediaKind: params.inboundMediaKind,
+                                hasGroundedOrder: orderContext.includes('<verified_order>'),
+                                preferStructuredProductLink:
+                                        params.channel !== 'API' &&
+                                        productRequest.includeProductCards &&
+                                        identifiedProductIds.length === 1,
+                                conversationState: workingState,
+                                continuityGuardCodes,
+                        })
+
                         if (
                                 hasAgentSkill(skillPlan, 'product-card-hydration') &&
                                 agent.productAccessEnabled &&
                                 params.channel !== 'API' &&
+                                productRequest.includeProductCards &&
                                 (!providerFailed || productRequest.explicitShowcase)
                         ) {
                                 try {
-                                                        const trustedReply = await buildTrustedProductReply({
+                                        full = await buildTrustedProductReply({
                                                 raw: full,
                                                 workspaceId,
                                                 agentId: agent.id,
                                                 lang: turnLang,
                                                 preferredProductIds: catalogProducts.map((product) => product.id),
-                                                identifiedProductIds: catalogProducts
-                                                        .filter((product) => product.fullTermMatch)
-                                                        .map((product) => product.id),
+                                                identifiedProductIds,
                                                 forceShowcase: productRequest.explicitShowcase,
                                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
                                                 identifiedVariantHint: productRequest.variantHint,
                                         })
-                                        if (trustedReply !== full) {
-                                                full = trustedReply
-                                                send({ type: 'replace', text: full })
-                                        }
                                 } catch (error) {
                                         console.error('[chat-engine] product-card hydration failed:', error)
-                                        const cleanReply = parseProductDirectives(full).text
-                                        if (cleanReply !== full) {
-                                                full = cleanReply
-                                                send({ type: 'replace', text: full })
-                                        }
+                                        full = parseProductDirectives(full).text
                                 }
+                        } else if (!productRequest.includeProductCards) {
+                                // A focused detail follow-up should stay a concise text
+                                // answer even if the provider copied a stale marker from
+                                // history. Never expose model-authored product directives.
+                                full = parseProductDirectives(full).text
                         }
+                        send({ type: 'replace', text: full })
 
                         if (providerFailed) {
                                 await releaseChatCredit(reservation, 'Provider stream failed').catch(() => {})
@@ -1426,19 +1485,6 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 // A16: post-capture trial quota milestones (80% warning).
                                 void processTrialQuotaAlert({ workspaceId }).catch(() => {})
                         }
-
-                        // A5: canonical chat style — drop trailing periods on short Persian prose.
-                        const continuityGuardCodes: string[] = []
-                        full = runAgentSkillPostprocessors(full, skillPlan, {
-                                catalogProducts: providerFailed ? [] : catalogProducts,
-                                userMessage: message,
-                                isFa: turnLang !== 'en',
-                                inboundMediaKind: params.inboundMediaKind,
-                                hasGroundedOrder: orderContext.includes('<verified_order>'),
-                                conversationState: workingState,
-                                continuityGuardCodes,
-                        })
-                        send({ type: 'replace', text: full })
 
                         // Persist assistant reply and update conversation counters.
                         try {
@@ -1696,6 +1742,32 @@ export async function generateReply(
                 reply = agent.fallbackMessage || defaultProviderFailureText(turnLang)
         }
 
+        const identifiedProductIds = catalogProducts
+                .filter((product) => product.fullTermMatch)
+                .map((product) => product.id)
+        const groundedPostprocessProducts = providerFailed
+                ? []
+                : identifiedProductIds.length === 1
+                        ? catalogProducts.filter((product) => product.id === identifiedProductIds[0])
+                        : catalogProducts
+
+        // Safety and continuity run before presentation so a deterministic
+        // rewrite cannot remove the trusted card/button appended below.
+        const continuityGuardCodes: string[] = []
+        reply = runAgentSkillPostprocessors(reply, skillPlan, {
+                catalogProducts: groundedPostprocessProducts,
+                userMessage: message,
+                isFa: turnLang !== 'en',
+                inboundMediaKind: params.inboundMediaKind,
+                hasGroundedOrder: orderContext.includes('<verified_order>'),
+                preferStructuredProductLink:
+                        params.channel !== 'API' &&
+                        productRequest.includeProductCards &&
+                        identifiedProductIds.length === 1,
+                conversationState: workingState,
+                continuityGuardCodes,
+        })
+
         // Canonicalize markers for every public messenger before persistence
         // and return. Text, carousel and conversation UIs now share the exact
         // same trusted DB result-set; model-authored ids/prices never leak.
@@ -1703,6 +1775,7 @@ export async function generateReply(
                 hasAgentSkill(skillPlan, 'product-card-hydration') &&
                 agent.productAccessEnabled &&
                 params.channel !== 'API' &&
+                productRequest.includeProductCards &&
                 (!providerFailed || productRequest.explicitShowcase)
         ) {
                 try {
@@ -1712,9 +1785,7 @@ export async function generateReply(
                                 agentId: agent.id,
                                 lang: turnLang,
                                 preferredProductIds: catalogProducts.map((product) => product.id),
-                                identifiedProductIds: catalogProducts
-                                        .filter((product) => product.fullTermMatch)
-                                        .map((product) => product.id),
+                                identifiedProductIds,
                                 forceShowcase: productRequest.explicitShowcase,
                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
                                 identifiedVariantHint: productRequest.variantHint,
@@ -1723,6 +1794,10 @@ export async function generateReply(
                         console.error('[chat-engine] product-card hydration failed:', error)
                         reply = parseProductDirectives(reply).text
                 }
+        } else if (!productRequest.includeProductCards) {
+                // See the streaming path above: simple specification answers
+                // must not turn into unsolicited catalog cards.
+                reply = parseProductDirectives(reply).text
         }
 
         if (providerFailed) {
@@ -1736,18 +1811,6 @@ export async function generateReply(
                 // A16: post-capture trial quota milestones (80% warning).
                 void processTrialQuotaAlert({ workspaceId }).catch(() => {})
         }
-
-        // A5: canonical chat style — drop trailing periods on short Persian prose.
-        const continuityGuardCodes: string[] = []
-        reply = runAgentSkillPostprocessors(reply, skillPlan, {
-                catalogProducts: providerFailed ? [] : catalogProducts,
-                userMessage: message,
-                isFa: turnLang !== 'en',
-                inboundMediaKind: params.inboundMediaKind,
-                hasGroundedOrder: orderContext.includes('<verified_order>'),
-                conversationState: workingState,
-                continuityGuardCodes,
-        })
 
         let persistedMessageId: string | undefined
         try {
