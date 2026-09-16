@@ -112,7 +112,7 @@ const STRUCTURED_DATA_COPY = {
 			'رزرو و نوبت‌دهی بدون تداخل',
 			'تحویل گفتگو به اپراتور همراه خلاصه',
 		],
-		offer: 'یک ماه استفاده رایگان همراه اعتبار اولیه پیام؛ اتوماسیون ثابت اینستاگرام رایگان است',
+		offer: 'یک ماه دورهٔ آزمایشی همراه اعتبار اولیه پیام؛ اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند',
 	},
 	en: {
 		alternateName: 'Vigent AI',
@@ -125,7 +125,7 @@ const STRUCTURED_DATA_COPY = {
 			'Conflict-free booking and appointment scheduling',
 			'Human handoff with an automatic conversation summary',
 		],
-		offer: 'One month free with initial AI reply credit; deterministic Instagram automation remains free.',
+		offer: 'One-month trial with initial AI reply credit; deterministic Instagram automation uses no credit while access is active.',
 	},
 } as const
 

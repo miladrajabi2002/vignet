@@ -15,7 +15,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
 	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 	const fa = locale === 'fa'
 	const points = fa
-		? ['یک ماه استفاده رایگان', 'اتوماسیون ثابت اینستاگرام رایگان', 'هزینهٔ شفاف هر درخواست موفق AI']
+		? ['یک ماه دورهٔ آزمایشی', 'اتوماسیون اینستاگرام بدون کسر اعتبار', 'هزینهٔ شفاف هر درخواست موفق AI']
 		: ['One month free', 'Free deterministic Instagram automation', 'Transparent pricing per successful AI request']
 
 	return (

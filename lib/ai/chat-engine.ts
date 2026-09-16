@@ -560,8 +560,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 }
         }
 
-        // Plan gate: expired trial/subscription or exhausted monthly quota.
-        // Instagram automation is free — IG-channel conversations are exempt.
+        // Plan gate: every channel requires an active trial/subscription.
+        // Deterministic Instagram automations bypass this AI path and consume no
+        // reply credit, but their runtime is gated separately by the channel handler.
         const gate = await checkChatAllowed(workspaceId, params.channel)
         if (!gate.allowed) {
                 await persistGatedInbound()

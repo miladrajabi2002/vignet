@@ -78,6 +78,9 @@ export function InstagramAutomationManager({
         const t = useTranslations('instagram')
         const locale = useLocale()
         const numLocale = locale === 'fa' ? 'fa-IR' : 'en-US'
+        const subscriptionRequired = locale === 'fa'
+                ? 'برای استفاده از اتوماسیون اینستاگرام، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+                : 'An active trial or subscription is required for Instagram automation.'
         const router = useRouter()
         const [automations, setAutomations] = useState<Automation[]>(initialAutomations)
         const [settings, setSettings] = useState<InstagramAutomationSettings>(
@@ -113,7 +116,9 @@ export function InstagramAutomationManager({
                         body: JSON.stringify(patch),
                 })
                 const data = await res.json().catch(() => ({}))
-                if (!res.ok || !data.automation) throw new Error('PATCH_FAILED')
+                if (!res.ok || !data.automation) {
+                        throw new Error(data.error === 'PLAN_BLOCKED' ? 'PLAN_BLOCKED' : 'PATCH_FAILED')
+                }
                 return data.automation as Automation
         }
 
@@ -123,11 +128,13 @@ export function InstagramAutomationManager({
                 )
                 try {
                         await patchAutomation(a.id, { active: next })
-                } catch {
+                } catch (error) {
                         setAutomations((arr) =>
                                 arr.map((x) => (x.id === a.id ? { ...x, active: a.active } : x)),
                         )
-                        flash('err', t('manager.toggleFailToast'))
+                        flash('err', error instanceof Error && error.message === 'PLAN_BLOCKED'
+                                ? subscriptionRequired
+                                : t('manager.toggleFailToast'))
                 }
         }
 
@@ -162,11 +169,14 @@ export function InstagramAutomationManager({
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(next),
                         })
-                        if (!res.ok) throw new Error('SETTINGS_FAILED')
+                        const data = await res.json().catch(() => ({}))
+                        if (!res.ok) throw new Error(data.error === 'PLAN_BLOCKED' ? 'PLAN_BLOCKED' : 'SETTINGS_FAILED')
                         setSettings(next)
                         flash('ok', t('manager.settingsOkToast'))
-                } catch {
-                        flash('err', t('manager.settingsFailToast'))
+                } catch (error) {
+                        flash('err', error instanceof Error && error.message === 'PLAN_BLOCKED'
+                                ? subscriptionRequired
+                                : t('manager.settingsFailToast'))
                         throw new Error('SETTINGS_FAILED')
                 }
         }

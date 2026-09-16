@@ -110,12 +110,11 @@ export default async function AdminUsersPage(
               agents: {
                 select: {
                   _count: { select: { knowledgeBases: true, channels: true } },
-                  // Active paid-quota channels per agent — mirrors
+                  // Active quota channels per agent — mirrors
                   // getActiveChannelConnectionCount (CHAT_LINK is counted via
-                  // the ChatLink model; INSTAGRAM is free and never consumes
-                  // the connection quota).
+                  // the ChatLink model).
                   channels: {
-                    where: { active: true, type: { notIn: ['CHAT_LINK', 'INSTAGRAM'] } },
+                    where: { active: true, type: { not: 'CHAT_LINK' } },
                     select: { id: true },
                   },
                 },

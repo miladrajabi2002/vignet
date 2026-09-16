@@ -5,6 +5,7 @@ import type { ChatAgent } from '@/lib/ai/chat-engine'
 import { generateReply } from '@/lib/ai/chat-engine'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { captureError } from '@/lib/errors/capture'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { instagramPrivateReplyTarget } from '@/lib/instagram/private-reply'
 import {
         sendImage,
@@ -1162,20 +1163,20 @@ function scheduleFollowUp(
     1,
     action.followUpDelayMin ?? 60,
   ) * 60 * 1000
-  setTimeout(() => {
-    adapter
-      .sendText(target, action.followUpMessage!, {
+  setTimeout(async () => {
+    try {
+      const access = await checkWorkspaceActive(agent.workspaceId)
+      if (!access.allowed) return
+      await adapter.sendText(target, action.followUpMessage!, {
         quickReplies: undefined,
       })
-      .catch((e) =>
-        console.error('[instagram] follow-up send failed:', e),
-      )
-    void prisma.conversation
-      .updateMany({
+      await prisma.conversation.updateMany({
         where: { agentId: agent.id, externalId: target },
         data: { lastMessageAt: new Date() },
       })
-      .catch(() => undefined)
+    } catch (e) {
+      console.error('[instagram] follow-up send failed:', e)
+    }
   }, delayMs)
 }
 

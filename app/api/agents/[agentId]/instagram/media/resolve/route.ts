@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/session'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { readIgUserId, readPageToken } from '@/lib/instagram/config'
 import { resolveInstagramHost } from '@/lib/channels/instagram'
 import {
@@ -26,6 +27,9 @@ interface MediaPage {
 export async function POST(req: Request, props: Params) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
 
   const body = requestSchema.safeParse(await req.json().catch(() => null))
   if (!body.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })

@@ -298,7 +298,9 @@ export function AutomationForm({
                                 error?: string
                         }
                         if (!response.ok || !Array.isArray(data.ids) || data.ids.length === 0) {
-                                const text = data.error === 'MEDIA_NOT_FOUND'
+                                const text = data.error === 'PLAN_BLOCKED'
+                                        ? 'برای استفاده از اتوماسیون اینستاگرام، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+                                        : data.error === 'MEDIA_NOT_FOUND'
                                         ? 'این پست در پیج متصل پیدا نشد؛ مطمئن شوید لینک متعلق به همین پیج است.'
                                         : data.error === 'IG_RECONNECT_REQUIRED'
                                                 ? 'برای استخراج شناسه، اتصال اینستاگرام را یک‌بار تازه‌سازی کنید.'
@@ -584,7 +586,9 @@ export function AutomationForm({
                                 const data = await res.json().catch(() => ({}))
                                 if (!res.ok || !data.automation) {
                                         setError(
-                                                data?.error === 'IG_NOT_CONNECTED'
+                                                data?.error === 'PLAN_BLOCKED'
+                                                        ? 'برای استفاده از اتوماسیون اینستاگرام، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+                                                        : data?.error === 'IG_NOT_CONNECTED'
                                                         ? 'اینستاگرام متصل نیست.'
                                                         : data?.details
                                                                 ? 'ذخیره ناموفق بود. ورودی‌ها را بررسی کنید.'
@@ -601,7 +605,9 @@ export function AutomationForm({
                                 })
                                 const data = await res.json().catch(() => ({}))
                                 if (!res.ok || !data.automation) {
-                                        setError('ذخیره ناموفق بود.')
+                                        setError(data?.error === 'PLAN_BLOCKED'
+                                                ? 'برای استفاده از اتوماسیون اینستاگرام، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+                                                : 'ذخیره ناموفق بود.')
                                         return
                                 }
                                 router.push('/instagram')
@@ -1675,7 +1681,9 @@ function MessageCard({
                                 error?: string
                         }
                         if (!res.ok || !data.files?.[0]?.url) {
-                                setVoiceError(data?.error || 'آپلود صوت ناموفق بود.')
+                                setVoiceError(data?.error === 'PLAN_BLOCKED'
+                                        ? 'برای آپلود رسانهٔ اتوماسیون، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+                                        : data?.error || 'آپلود صوت ناموفق بود.')
                                 return
                         }
                         onUpdate({ mediaUrl: data.files[0].url })

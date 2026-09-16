@@ -66,6 +66,7 @@ import {
         WAITING_MESSAGE_MIN_INTERVAL_MS,
 } from '@/lib/channels/fixed-replies'
 import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { notifyWorkspace } from '@/lib/notifications/create'
 
 const AGENT_SELECT = {
@@ -859,6 +860,10 @@ async function processChannelInbound(
                         const instagramPolicy = type === 'INSTAGRAM'
                                 ? await loadAutomationPolicy(agent.id, resolved.config)
                                 : null
+                        const instagramAccess = type === 'INSTAGRAM'
+                                ? await checkWorkspaceActive(agent.workspaceId)
+                                : null
+                        const instagramSubscriptionBlocked = instagramAccess?.allowed === false
                         const effectiveInstagramPolicy = msg.kind === 'COMMENT'
                                 ? instagramPolicy?.commentReplyPolicy
                                 : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
@@ -871,7 +876,7 @@ async function processChannelInbound(
                         // media-handoff behaviour — exactly like voice input off.
                         const imageInputDisabled = isInboundImage(msg) && !agent.imageInputEnabled
                         // Automation-only routing uses the received message, never AI transcription.
-                        const resolvedText = voiceInputDisabled || automationOnly
+                        const resolvedText = voiceInputDisabled || automationOnly || instagramSubscriptionBlocked
                                 ? { text: msg.text.trim(), audioTranscribed: false }
                                 : await resolveText(agent.workspaceId, agent.id, type, adapter, msg, eventLease.id)
                         let text = resolvedText.text
@@ -882,7 +887,7 @@ async function processChannelInbound(
                         // and get matched against the catalog instead of degrading
                         // to the media handoff. Mirrors the STT path: wallet-gated,
                         // billed per image, graceful fallback when the model fails.
-                        const imageUnderstanding = voiceInputDisabled || imageInputDisabled || automationOnly
+                        const imageUnderstanding = voiceInputDisabled || imageInputDisabled || automationOnly || instagramSubscriptionBlocked
                                 ? null
                                 : await understandInboundImage({
                                         msg,
@@ -926,7 +931,7 @@ async function processChannelInbound(
                         let scenarioHandled = false
                         let reactionClassInput = false
                         let fixedInstagramReply: string | null = null
-                        if (instagramPolicy) {
+                        if (instagramPolicy && !instagramSubscriptionBlocked) {
                                 reactionClassInput = msg.kind === 'REACTION' || msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
                                 fixedInstagramReply = reactionClassInput
                                         ? msg.kind === 'STORY_REACTION' && instagramPolicy.storyReactionReplyEnabled
@@ -1062,6 +1067,16 @@ async function processChannelInbound(
                         escalationConversationId = persistedInbound.conversationId
                         inboundMessageId = persistedInbound.messageId
                         outcome = 'INBOUND_PERSISTED'
+
+                        // Instagram's deterministic scenarios do not reserve or
+                        // capture AI credit, but the channel is still a subscribed
+                        // platform feature. Persist the customer message for the
+                        // inbox, then stop before any fixed reply, scenario, media
+                        // analysis or delayed follow-up can be dispatched.
+                        if (instagramAccess && !instagramAccess.allowed) {
+                                outcome = `PLAN_BLOCKED_${instagramAccess.reason}`
+                                return
+                        }
 
                         // Human ownership is the earliest reply-policy gate. In
                         // particular, Instagram scenarios used to run before

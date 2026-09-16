@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('@/lib/session', () => ({ getCurrentUser: mocks.getCurrentUser }))
+vi.mock('@/lib/billing/entitlements', () => ({
+  checkWorkspaceActive: vi.fn(async () => ({ allowed: true, plan: 'STARTER' })),
+}))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     agent: { findFirst: mocks.agentFindFirst },

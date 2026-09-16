@@ -68,7 +68,7 @@ export async function PricingSection() {
                                 <div className="mx-auto mt-9 hidden max-w-3xl gap-3 sm:grid sm:grid-cols-2">
                                         <div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
                                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><InstagramIcon className="h-4 w-4" /></span>
-                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'اتوماسیون ثابت اینستاگرام رایگان' : 'Deterministic Instagram automation is free'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'تا وقتی پاسخ به AI نیاز ندارد، از اعتبار شما چیزی کم نمی‌شود' : 'When a reply does not need AI, no credit is deducted'}</p></div>
+                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'اتوماسیون ثابت اینستاگرام بدون کسر اعتبار' : 'Instagram automation uses no AI credit'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'در طول اشتراک یا دورهٔ آزمایشی فعال، سناریوهای بدون AI اعتبار مصرف نمی‌کنند' : 'During an active subscription or trial, non-AI scenarios consume no credit'}</p></div>
                                         </div>
                                         <div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
                                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><MessageSquareText className="h-4 w-4" /></span>

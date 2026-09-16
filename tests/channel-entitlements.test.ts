@@ -53,6 +53,7 @@ vi.mock('@/lib/billing/plan-credit', () => ({
 }))
 
 import {
+  checkChatAllowed,
   checkChannelConnectAllowed,
   checkWorkspaceResourceCreateAllowed,
 } from '@/lib/billing/entitlements'
@@ -128,6 +129,41 @@ describe('channel-based plan entitlements', () => {
       agentId: 'agent-1',
       type: 'BALE',
     })).resolves.toEqual({ allowed: false, reason: 'CHANNEL_LIMIT' })
+  })
+
+  it('counts Instagram as a regular channel and blocks a new connection at the limit', async () => {
+    mocks.agentChannelCount.mockResolvedValue(2)
+
+    await expect(checkChannelConnectAllowed('ws-1', {
+      kind: 'AGENT_CHANNEL',
+      agentId: 'agent-1',
+      type: 'INSTAGRAM',
+    })).resolves.toEqual({ allowed: false, reason: 'CHANNEL_LIMIT' })
+
+    expect(mocks.agentChannelCount).toHaveBeenCalledWith({
+      where: {
+        active: true,
+        type: { not: 'CHAT_LINK' },
+        agent: { workspaceId: 'ws-1' },
+      },
+    })
+  })
+
+  it('requires active workspace access for Instagram chat and connection', async () => {
+    mocks.workspaceFindUnique.mockResolvedValue({
+      plan: 'TRIAL',
+      trialEndsAt: new Date(Date.now() - 86_400_000),
+    })
+
+    await expect(checkChatAllowed('ws-1', 'INSTAGRAM')).resolves.toEqual({
+      allowed: false,
+      reason: 'TRIAL_EXPIRED',
+    })
+    await expect(checkChannelConnectAllowed('ws-1', {
+      kind: 'AGENT_CHANNEL',
+      agentId: 'agent-1',
+      type: 'INSTAGRAM',
+    })).resolves.toEqual({ allowed: false, reason: 'TRIAL_EXPIRED' })
   })
 
   it('allows reconfiguring an existing active connection even at the limit', async () => {

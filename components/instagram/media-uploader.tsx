@@ -247,7 +247,11 @@ export function MediaUploader({
                                         let msg = 'آپلود ناموفق بود.'
                                         try {
                                                 const data = JSON.parse(xhr.responseText) as UploadResponse
-                                                if (data?.error) msg = data.error
+                                                if (data?.error === 'PLAN_BLOCKED') {
+                                                        msg = 'برای آپلود رسانهٔ اتوماسیون، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+                                                } else if (data?.error) {
+                                                        msg = data.error
+                                                }
                                         } catch {
                                                 /* ignore */
                                         }

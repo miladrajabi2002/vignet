@@ -487,8 +487,8 @@ export function PricingSection({ locale, plans, className, inverse = false, id =
 				<RevealBlock className="mx-auto mt-6 max-w-2xl text-center">
 					<p className={cn('text-[11px] leading-7', inverse ? 'text-white/40' : 'text-black/45')}>
 						{fa
-							? 'اعتبار هوش مصنوعی از اشتراک جداست و منقضی نمی‌شود؛ هر پاسخ، تحلیل یا تست موفق به قیمت مدل انتخابی محاسبه می‌شود. اتوماسیون ثابت اینستاگرام رایگان است.'
-							: 'AI credit is separate from the subscription and never expires; every successful reply, analysis, or test is charged at the selected model price. Deterministic Instagram automation is free.'}
+							? 'اعتبار هوش مصنوعی از اشتراک جداست و منقضی نمی‌شود؛ هر پاسخ، تحلیل یا تست موفق به قیمت مدل انتخابی محاسبه می‌شود. اتوماسیون ثابت اینستاگرام در طول اشتراک فعال اعتبار مصرف نمی‌کند.'
+							: 'AI credit is separate from the subscription and never expires; every successful reply, analysis, or test is charged at the selected model price. Deterministic Instagram automation uses no credit while the subscription is active.'}
 					</p>
 				</RevealBlock>
 			</div>

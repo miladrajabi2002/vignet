@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { writeFile, mkdir, readFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
@@ -209,9 +210,11 @@ export async function POST(req: Request) {
         if (!user) {
                 return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
         }
-        // NOTE: no plan/subscription gate here — Instagram automation is free.
-        // Abuse is bounded by the hourly rate limit below plus the daily byte
-        // quotas (INSTAGRAM_UPLOAD_DAILY_BYTES / _GLOBAL_DAILY_BYTES).
+        if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+                return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+        }
+        // Abuse is additionally bounded by the hourly rate limit below plus
+        // the daily byte quotas (INSTAGRAM_UPLOAD_DAILY_BYTES / _GLOBAL_DAILY_BYTES).
         if (!(await rateLimit(`instagram-upload:${user.workspaceId}`, 12, 3600, { failClosed: true }))) {
                 return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
         }

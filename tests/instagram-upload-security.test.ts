@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   rateLimit: vi.fn(),
   rateLimitCost: vi.fn(),
+  checkWorkspaceActive: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({
@@ -14,7 +15,7 @@ vi.mock('@/lib/session', () => ({
   })),
 }))
 vi.mock('@/lib/billing/entitlements', () => ({
-  checkWorkspaceActive: vi.fn(async () => ({ allowed: true })),
+  checkWorkspaceActive: mocks.checkWorkspaceActive,
 }))
 vi.mock('@/lib/ratelimit', () => ({
   rateLimit: mocks.rateLimit,
@@ -32,9 +33,20 @@ function uploadRequest(file: File): Request {
 beforeEach(() => {
   mocks.rateLimit.mockReset().mockResolvedValue(true)
   mocks.rateLimitCost.mockReset().mockResolvedValue(true)
+  mocks.checkWorkspaceActive.mockReset().mockResolvedValue({ allowed: true, plan: 'STARTER' })
 })
 
 describe('Instagram upload abuse boundaries', () => {
+  it('requires an active trial or subscription before accepting automation media', async () => {
+    mocks.checkWorkspaceActive.mockResolvedValue({ allowed: false, reason: 'SUBSCRIPTION_EXPIRED' })
+
+    const response = await POST(uploadRequest(new File(['png'], 'x.png', { type: 'image/png' })))
+
+    expect(response.status).toBe(402)
+    await expect(response.json()).resolves.toEqual({ error: 'PLAN_BLOCKED' })
+    expect(mocks.rateLimit).not.toHaveBeenCalled()
+  })
+
   it('rejects broad MIME-prefix bypasses such as SVG', async () => {
     const response = await POST(
       uploadRequest(new File(['<svg/>'], 'payload.svg', { type: 'image/svg+xml' })),

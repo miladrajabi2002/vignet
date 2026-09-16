@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   completeInboundEvent: vi.fn(),
   notifyHandoff: vi.fn(),
   notifyWorkspace: vi.fn(),
+  checkWorkspaceActive: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -65,6 +66,9 @@ vi.mock('@/lib/notifications/create', () => ({ notifyWorkspace: mocks.notifyWork
 vi.mock('@/lib/billing/trial-quota-alert', () => ({
   processTrialQuotaAlert: vi.fn(),
   isCreditExhausted: vi.fn(),
+}))
+vi.mock('@/lib/billing/entitlements', () => ({
+  checkWorkspaceActive: mocks.checkWorkspaceActive,
 }))
 vi.mock('@/lib/channels/fixed-replies', () => ({
   fixedReplyForWorkspace: mocks.fixedReply,
@@ -162,6 +166,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.isMarketingOptOutMessage.mockReturnValue(false)
+    mocks.checkWorkspaceActive.mockResolvedValue({ allowed: true, plan: 'STARTER' })
     mocks.fixedReply.mockResolvedValue('متن پیش‌فرض')
     mocks.agentChannelFindFirst.mockResolvedValue({
       id: 'channel-1',
@@ -305,6 +310,26 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.notifyHandoff).not.toHaveBeenCalled()
     expect(mocks.generateReply).not.toHaveBeenCalled()
     expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('persists an inbound message but never runs automation when access has expired', async () => {
+    mocks.checkWorkspaceActive.mockResolvedValue({ allowed: false, reason: 'SUBSCRIPTION_EXPIRED' })
+    mocks.willAutomationHandle.mockResolvedValue(true)
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.resolveInboundContact).toHaveBeenCalledOnce()
+    expect(mocks.transaction).toHaveBeenCalled()
+    expect(mocks.willAutomationHandle).not.toHaveBeenCalled()
+    expect(mocks.runAutomation).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        result: { outcome: 'PLAN_BLOCKED_SUBSCRIPTION_EXPIRED' },
+      }),
+    )
   })
 
   it('does not let an opt-out phrase trigger an unconfigured reply or conversation', async () => {

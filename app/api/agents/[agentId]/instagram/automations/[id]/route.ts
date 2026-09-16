@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,6 +92,9 @@ export async function PATCH(req: Request, props: Params) {
 
   const row = await owns(user, params.agentId, params.id)
   if (!row) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
 
   const json = await req.json().catch(() => null)
   const parsed = updateSchema.safeParse(json)

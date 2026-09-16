@@ -50,7 +50,7 @@ const SOLUTION_META_EN: typeof SOLUTION_META = {
 const PAGE_COPY = {
         fa: {
                 breadcrumb: 'مسیر صفحه', brand: 'ویجنت', solutions: 'راهکارها', start: 'شروع رایگان — یک ماه', vigento: 'آشنایی با ویجنتو',
-                trust: 'یک ماه رایگان · اتوماسیون ثابت اینستاگرام رایگان · هزینهٔ شفاف هر درخواست موفق AI', automation: 'اتوماسیون', automationValue: 'کارهای ثابت اینستاگرام رایگان', aiReplies: 'درخواست هوشمند', aiRepliesValue: 'کسر اعتبار به قیمت مدل پس از موفقیت',
+                trust: 'یک ماه دورهٔ آزمایشی · اتوماسیون اینستاگرام بدون کسر اعتبار · هزینهٔ شفاف هر درخواست موفق AI', automation: 'اتوماسیون', automationValue: 'بدون کسر اعتبار با اشتراک فعال', aiReplies: 'درخواست هوشمند', aiRepliesValue: 'کسر اعتبار به قیمت مدل پس از موفقیت',
                 agent: 'ایجنت ویجنت', online: 'آنلاین و آماده پاسخ', result: 'پاسخ دقیق و نتیجه گفتگو ثبت شد', does: 'کاری که برای شما انجام می‌دهد', doesTitle: 'از سؤال تکراری تا کاری که واقعاً باید انجام شود',
                 setup: 'راه‌اندازی', setupTitle: 'سه قدم تا اولین پاسخ واقعی', minutes: 'چند دقیقه', faq: 'سؤال‌های متداول', faqTitle: 'قبل از شروع، شفاف بدانید', faqDesc: 'اگر پاسخ دیگری لازم دارید، مستندات را ببینید یا از ویجت همین صفحه بپرسید.',
                 related: 'راهکارهای مرتبط ویجنت', relatedTitle: 'مسیر بعدی را بر اساس کانال یا نیازتان انتخاب کنید', all: 'مشاهده همه راهکارها', view: 'مشاهده راهکار',
@@ -58,7 +58,7 @@ const PAGE_COPY = {
         },
         en: {
                 breadcrumb: 'Breadcrumb', brand: 'Vigent', solutions: 'Solutions', start: 'Start free — one month', vigento: 'Meet Vigento',
-                trust: 'One month free · Fixed Instagram automations are free · Transparent pricing per successful AI request', automation: 'Automation', automationValue: 'Fixed Instagram actions stay free', aiReplies: 'AI requests', aiRepliesValue: 'Model-priced credit is captured only after success',
+                trust: 'One-month trial · Instagram automation uses no AI credit · Transparent pricing per successful AI request', automation: 'Automation', automationValue: 'No credit used with an active subscription', aiReplies: 'AI requests', aiRepliesValue: 'Model-priced credit is captured only after success',
                 agent: 'Vigent agent', online: 'Online and ready', result: 'Accurate reply and conversation outcome recorded', does: 'What it does for you', doesTitle: 'From a repeat question to the next useful action',
                 setup: 'Setup', setupTitle: 'Three steps to your first real reply', minutes: 'A few minutes', faq: 'Frequently asked questions', faqTitle: 'Know what to expect before you start', faqDesc: 'For anything else, browse the documentation or ask the widget on this page.',
                 related: 'Related Vigent solutions', relatedTitle: 'Choose the next path by channel or business need', all: 'See all solutions', view: 'View solution',

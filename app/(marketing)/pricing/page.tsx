@@ -25,7 +25,7 @@ const COPY = {
                 assurances: [
                         { title: 'یک ماه شروع رایگان', text: 'فرصت کافی برای راه‌اندازی و ارزیابی جریان واقعی کسب‌وکار.' },
                         { title: 'مصرف شفاف اعتبار', text: 'اعتبار هوش مصنوعی فقط مطابق مصرف ثبت‌شده در داشبورد محاسبه می‌شود.' },
-                        { title: 'بدون هزینه پاسخ ناموفق', text: 'پاسخ ناموفق هزینه‌ای ندارد و اتوماسیون ثابت اینستاگرام رایگان است.' },
+                        { title: 'بدون کسر اعتبار اتوماسیون', text: 'اتوماسیون ثابت اینستاگرام در دورهٔ آزمایشی یا اشتراک فعال اعتبار مصرف نمی‌کند و پاسخ ناموفق هم هزینه‌ای ندارد.' },
                 ],
                 faqEyebrow: 'سؤال‌های متداول',
                 faqH2: 'قبل از انتخاب پلن، شفاف بدانید',
@@ -50,7 +50,7 @@ const COPY = {
                 assurances: [
                         { title: 'One month free to start', text: 'Enough time to set up and evaluate against your real business flow.' },
                         { title: 'Transparent credit usage', text: 'AI credit is billed exactly as the usage recorded in your dashboard.' },
-                        { title: 'No charge for failed replies', text: 'Failed replies cost nothing, and deterministic Instagram automation is free.' },
+                        { title: 'No automation credit charge', text: 'During an active trial or subscription, deterministic Instagram automation uses no credit, and failed replies cost nothing.' },
                 ],
                 faqEyebrow: 'Frequently asked questions',
                 faqH2: 'Know exactly what you get before choosing',
@@ -74,7 +74,7 @@ const PRICING_FAQ = {
         fa: [
                 {
                         q: 'هزینه پاسخ‌های هوش مصنوعی چطور محاسبه می‌شود؟',
-                        a: 'اعتبار پاسخ به‌صورت پیش‌پرداخت شارژ می‌شود و فقط بعد از هر پاسخ موفق هوش مصنوعی، به اندازه همان پاسخ از اعتبار کم می‌شود. پاسخ ناموفق هیچ هزینه‌ای ندارد و اتوماسیون‌های ثابت اینستاگرام (مثل پاسخ خودکار به کامنت و استوری) کاملاً رایگان هستند. گزارش مصرف هم به‌صورت شفاف در داشبورد قابل مشاهده است.',
+                        a: 'اعتبار پاسخ به‌صورت پیش‌پرداخت شارژ می‌شود و فقط بعد از هر پاسخ موفق هوش مصنوعی، به اندازه همان پاسخ از اعتبار کم می‌شود. پاسخ ناموفق هزینه‌ای ندارد و اتوماسیون‌های ثابت اینستاگرام (مثل پاسخ خودکار به کامنت و استوری) در دورهٔ آزمایشی یا اشتراک فعال اعتبار مصرف نمی‌کنند. گزارش مصرف هم به‌صورت شفاف در داشبورد قابل مشاهده است.',
                 },
                 {
                         q: 'ویجنت از چه کانال‌هایی پشتیبانی می‌کند؟',
@@ -100,7 +100,7 @@ const PRICING_FAQ = {
         en: [
                 {
                         q: 'How are AI reply costs calculated?',
-                        a: 'AI credit is prepaid. Every successful AI request—reply, conversation analysis, or response test—is charged at the selected model price. Failed reservations are refunded, and deterministic Instagram automations such as fixed comment and story replies remain free. Usage is itemized in your dashboard.',
+                        a: 'AI credit is prepaid. Every successful AI request—reply, conversation analysis, or response test—is charged at the selected model price. Failed reservations are refunded, and deterministic Instagram automations such as fixed comment and story replies use no credit during an active trial or subscription. Usage is itemized in your dashboard.',
                 },
                 {
                         q: 'Which channels does Vigent support?',

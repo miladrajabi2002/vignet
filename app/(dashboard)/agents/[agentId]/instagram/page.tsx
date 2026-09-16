@@ -136,7 +136,7 @@ async function InstagramAutomationContent({
                                                         اتصال اینستاگرام
                                                 </h1>
                                                 <p className="text-xs text-[var(--text-secondary)]">
-                                                        اتوماسیون اینستاگرام ویجنت رایگان است — فقط اکانت خود را وصل کنید.
+                                                        اتوماسیون اینستاگرام با اشتراک فعال، بدون کسر اعتبار اجرا می‌شود.
                                                 </p>
                                         </div>
                                 </div>

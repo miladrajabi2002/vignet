@@ -95,7 +95,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		compareLabel: 'نسخه‌های پیشنهادی صفحهٔ اصلی',
 		proofs: [
 			'راه‌اندازی بدون کدنویسی',
-			'اتوماسیون ثابت اینستاگرام رایگان',
+			'اتوماسیون اینستاگرام بدون کسر اعتبار',
 			'هزینهٔ شفاف هر درخواست موفق AI',
 			'تحویل گفتگو به انسان با خلاصه کامل',
 			'درک پیام صوتی فارسی',
@@ -229,7 +229,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 			{
 				question: 'هزینهٔ درخواست‌های هوش مصنوعی چطور حساب می‌شود؟',
 				answer:
-					'اشتراک هزینهٔ پلتفرم و اتصال‌هاست. هر پاسخ، تحلیل گفتگو یا تست پاسخِ موفق با قیمت مدل انتخابی از اعتبار پیش‌پرداخت کم می‌شود؛ رزرو درخواست ناموفق کامل برمی‌گردد و اعتبار منقضی نمی‌شود. اتوماسیون ثابت اینستاگرام هم اعتبار مصرف نمی‌کند.',
+					'اشتراک هزینهٔ پلتفرم و اتصال‌هاست. هر پاسخ، تحلیل گفتگو یا تست پاسخِ موفق با قیمت مدل انتخابی از اعتبار پیش‌پرداخت کم می‌شود؛ رزرو درخواست ناموفق کامل برمی‌گردد و اعتبار منقضی نمی‌شود. اتوماسیون ثابت اینستاگرام در طول اشتراک یا دورهٔ آزمایشی فعال اعتبار مصرف نمی‌کند.',
 			},
 			{
 				question: 'کدام کانال‌ها پشتیبانی می‌شوند؟',
@@ -462,7 +462,7 @@ export const COMMON_COPY: Record<HomeLocale, LocalizedCopy> = {
 		faqs: [
 			{ question: 'Do I need technical skills?', answer: 'No. The guided flow is made for business owners: pick your business type, add information and connect a channel step by step. Setup usually takes under 10 minutes.' },
 			{ question: 'What if the agent does not know an answer?', answer: 'It hands the conversation to a person with a full summary, and logs the question in the Learning Center with a suggested answer. You approve it once — the agent knows it forever.' },
-			{ question: 'How is AI usage charged?', answer: 'The subscription covers the platform and connections. Each successful AI request—reply, analysis, or test—is charged at the selected model price; failed reservations are refunded and credit never expires. Deterministic Instagram automation uses no credit.' },
+			{ question: 'How is AI usage charged?', answer: 'The subscription covers the platform and connections. Each successful AI request—reply, analysis, or test—is charged at the selected model price; failed reservations are refunded and credit never expires. Deterministic Instagram automation uses no credit while the subscription or trial is active.' },
 			{ question: 'Which channels are supported?', answer: 'Instagram (DM, comments, stories), Telegram, Bale, Rubika, a web widget for any site and a dedicated chat-link for your bio. The WordPress/WooCommerce plugin syncs products and orders.' },
 			{ question: 'Does it understand Persian voice messages?', answer: 'Yes. Customers can send voice notes and the agent understands and answers them. The tone is configurable — from casual to fully formal.' },
 			{ question: 'Is the free period really one month?', answer: 'Yes. Your first sign-in starts 30 days with core features, starter reply credit and one active connection.' },

@@ -115,12 +115,12 @@ export default async function BillingPage(
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-bold text-[var(--text-primary)]">
-            {locale === 'fa' ? 'اتوماسیون اینستاگرام رایگان است' : 'Instagram automation is free'}
+            {locale === 'fa' ? 'اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند' : 'Instagram automation uses no AI credit'}
           </h2>
           <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
             {locale === 'fa'
-              ? 'پاسخ‌های ثابت، کلیدواژه‌ها، کامنت و سناریوهای بدون AI هزینه‌ای ندارند. هر درخواست موفق هوش مصنوعی—پاسخ، تحلیل گفتگو یا تست پاسخ—با قیمت مدل انتخابی از اعتبار کم می‌شود.'
-              : 'Static replies, keywords, comments and non-AI scenarios cost nothing. Each successful AI request—reply, conversation analysis, or response test—is charged at the selected model price.'}
+              ? 'پاسخ‌های ثابت، کلیدواژه‌ها، کامنت و سناریوهای بدون AI در طول دورهٔ آزمایشی یا اشتراک فعال از اعتبار کم نمی‌کنند. هر درخواست موفق هوش مصنوعی—پاسخ، تحلیل گفتگو یا تست پاسخ—با قیمت مدل انتخابی از اعتبار کم می‌شود.'
+              : 'Static replies, keywords, comments and non-AI scenarios consume no credit during an active trial or subscription. Each successful AI request—reply, conversation analysis, or response test—is charged at the selected model price.'}
           </p>
         </div>
         <span className="inline-flex min-h-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[11px] font-bold text-[var(--text-primary)]">
