@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   ensureSttCreditAvailable: vi.fn(),
   getOpenRouterKey: vi.fn(),
   getCommercialConfig: vi.fn(),
+  normalizeAudio: vi.fn(),
 }))
 
 vi.mock('@/lib/billing/stt-credits', () => ({
@@ -20,6 +21,9 @@ vi.mock('@/lib/platform/commercial-config', () => ({
   getPlatformCommercialConfig: mocks.getCommercialConfig,
 }))
 vi.mock('@/lib/security/safe-http', () => ({ safeHttpGet: vi.fn() }))
+vi.mock('@/lib/voice/audio-normalize', () => ({
+  normalizeAudioForTranscription: mocks.normalizeAudio,
+}))
 
 import { transcribeAudio } from '@/lib/voice/stt'
 
@@ -34,11 +38,16 @@ describe('OpenRouter speech-to-text', () => {
     })
     mocks.ensureSttCreditAvailable.mockResolvedValue(undefined)
     mocks.captureSttCredit.mockResolvedValue({ chargeIRR: 25, balanceAfterIRR: 975 })
+    mocks.normalizeAudio.mockImplementation(async (audio: Buffer) => ({
+      audio,
+      format: 'mp3',
+      converted: true,
+    }))
   })
 
   afterEach(() => vi.unstubAllGlobals())
 
-  it('uses only the pinned multilingual Whisper model and bills reported seconds', async () => {
+  it('uses only the pinned multilingual STT model and bills reported seconds', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       id: 'generation-1',
       text: 'سلام، قیمت این محصول چقدر است؟',
@@ -48,7 +57,7 @@ describe('OpenRouter speech-to-text', () => {
 
     const text = await transcribeAudio({
       audio: Buffer.from('audio-bytes'),
-      mime: 'audio/ogg',
+      mime: 'video/mp4',
       workspaceId: 'workspace-1',
       agentId: 'agent-1',
       idempotencyKey: 'stt:event-1',
@@ -61,11 +70,12 @@ describe('OpenRouter speech-to-text', () => {
     const body = JSON.parse(String(init.body))
     expect(body).toEqual(expect.objectContaining({
       model: 'microsoft/mai-transcribe-2',
-      input_audio: expect.objectContaining({ format: 'ogg' }),
+      input_audio: expect.objectContaining({ format: 'mp3' }),
       provider: { data_collection: 'deny', zdr: true },
     }))
     expect(body).not.toHaveProperty('language')
     expect(mocks.ensureSttCreditAvailable).toHaveBeenCalledWith('workspace-1', 'stt:event-1')
+    expect(mocks.normalizeAudio).toHaveBeenCalledWith(Buffer.from('audio-bytes'))
     expect(mocks.captureSttCredit).toHaveBeenCalledWith(expect.objectContaining({
       workspaceId: 'workspace-1',
       agentId: 'agent-1',

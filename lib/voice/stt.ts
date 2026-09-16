@@ -3,19 +3,9 @@ import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { captureSttCredit, ensureSttCreditAvailable } from '@/lib/billing/stt-credits'
 import { getPlatformCommercialConfig, PLATFORM_STT_MODEL } from '@/lib/platform/commercial-config'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { normalizeAudioForTranscription } from '@/lib/voice/audio-normalize'
 
 /** Multilingual speech-to-text through the platform OpenRouter account. */
-
-function audioFormat(input: TranscribeInput): string {
-  const mime = input.mime.toLowerCase()
-  if (mime.includes('wav')) return 'wav'
-  if (mime.includes('mpeg') || mime.includes('mp3')) return 'mp3'
-  if (mime.includes('mp4') || mime.includes('m4a')) return 'mp4'
-  if (mime.includes('flac')) return 'flac'
-  if (mime.includes('ogg')) return 'ogg'
-  if (mime.includes('aac')) return 'aac'
-  return 'webm'
-}
 
 export interface TranscribeInput {
   audio: Buffer
@@ -36,6 +26,7 @@ export async function transcribeAudio(
   await ensureSttCreditAvailable(input.workspaceId, idempotencyKey)
   const key = getPlatformOpenRouterKey()
   if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
+  const normalized = await normalizeAudioForTranscription(input.audio)
 
   const res = await fetch(`${OPENROUTER_BASE}/audio/transcriptions`, {
     method: 'POST',
@@ -48,8 +39,8 @@ export async function transcribeAudio(
     body: JSON.stringify({
       model: PLATFORM_STT_MODEL,
       input_audio: {
-        data: input.audio.toString('base64'),
-        format: audioFormat(input),
+        data: normalized.audio.toString('base64'),
+        format: normalized.format,
       },
       ...(input.language ? { language: input.language } : {}),
       provider: {
@@ -60,7 +51,10 @@ export async function transcribeAudio(
     signal: AbortSignal.timeout(90_000),
   })
   if (!res.ok) {
-    throw new Error(`OPENROUTER_STT_${res.status}`)
+    const detail = (await res.text().catch(() => '')).trim().slice(0, 1_000)
+    throw new Error(`OPENROUTER_STT_${res.status}`, {
+      cause: detail || 'OpenRouter returned an empty error response',
+    })
   }
   const json = (await res.json()) as {
     id?: string
@@ -102,10 +96,9 @@ export async function downloadAudio(
       timeoutMs: 20_000,
       maxBytes: 25 * 1024 * 1024,
       maxRedirects: 2,
-      // Instagram voice notes are delivered as an m4a track inside a
-      // video/mp4 container — allow it or every IG voice note fails the
-      // content-type gate before STT ever runs. transcribeAudio's
-      // audioFormat() already maps 'video/mp4' → 'mp4'.
+      // Instagram voice notes are commonly delivered as an m4a track inside a
+      // video/mp4 container. The transcription path normalizes unsupported
+      // containers before sending them to the pinned STT model.
       allowedContentTypes: ['audio/', 'application/octet-stream', 'video/mp4'],
     })
     if (res.status < 200 || res.status >= 300) return null

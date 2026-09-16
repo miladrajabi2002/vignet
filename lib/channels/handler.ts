@@ -348,7 +348,15 @@ async function resolveText(
                 if (e instanceof Error && e.message === 'NO_CREDIT') {
                         return { text: caption, audioTranscribed: false, sttError: 'NO_CREDIT' }
                 }
-                console.error('[handler] voice transcription failed:', e)
+                captureError('channel:voice-transcription', e, {
+                        workspaceId: agentWorkspaceId,
+                        metadata: {
+                                agentId,
+                                channel,
+                                mediaKind: msg.mediaKind ?? (msg.voiceFileId ? 'voice' : null),
+                                inboundEventId: idempotencyKey,
+                        },
+                })
         }
         return { text: caption, audioTranscribed: false }
 }

@@ -159,7 +159,7 @@ const nextConfig = {
   // On the client, vad-web is already loaded via next/dynamic + { ssr: false }
   // so it only lands in the browser bundle at runtime — exactly where the
   // WASM runtime belongs.
-  serverExternalPackages: ['onnxruntime-web', '@ricky0123/vad-web'],
+  serverExternalPackages: ['onnxruntime-web', '@ricky0123/vad-web', 'ffmpeg-static'],
   images: {
     remotePatterns: [
       // Supabase Storage signed URLs (product images, avatars)
@@ -186,7 +186,7 @@ const nextConfig = {
       // Belt-and-suspenders: mark both packages as external on the server
       // build so they are never bundled server-side.
       if (!config.externals) config.externals = []
-      config.externals.push('onnxruntime-web', '@ricky0123/vad-web')
+      config.externals.push('onnxruntime-web', '@ricky0123/vad-web', 'ffmpeg-static')
     }
     return config
   },
