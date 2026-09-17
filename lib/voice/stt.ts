@@ -96,9 +96,8 @@ export async function downloadAudio(
       timeoutMs: 20_000,
       maxBytes: 25 * 1024 * 1024,
       maxRedirects: 2,
-      // Instagram voice notes are commonly delivered as an m4a track inside a
-      // video/mp4 container. The transcription path normalizes unsupported
-      // containers before sending them to the pinned STT model.
+      // Trust the bytes rather than this header: channel CDNs sometimes label
+      // M4A or Ogg voice notes as video/mp4 or application/octet-stream.
       allowedContentTypes: ['audio/', 'application/octet-stream', 'video/mp4'],
     })
     if (res.status < 200 || res.status >= 300) return null

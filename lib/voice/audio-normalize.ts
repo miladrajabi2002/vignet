@@ -3,15 +3,14 @@ import ffmpegPath from 'ffmpeg-static'
 
 export type TranscriptionAudio = {
   audio: Buffer
-  format: 'wav' | 'mp3' | 'flac'
-  converted: boolean
+  format: 'wav' | 'mp3' | 'flac' | 'mp4' | 'ogg' | 'webm'
 }
 
 const CONVERSION_TIMEOUT_MS = 30_000
 const MAX_CONVERTED_BYTES = 50 * 1024 * 1024
 const MAX_ERROR_TEXT = 4_000
 
-/** Detect formats that MAI-Transcribe accepts without relying on CDN MIME labels. */
+/** Detect GPT Transcribe formats from bytes instead of unreliable CDN MIME labels. */
 export function supportedAudioFormat(audio: Buffer): TranscriptionAudio['format'] | null {
   if (audio.length >= 12
     && audio.subarray(0, 4).toString('ascii') === 'RIFF'
@@ -23,21 +22,27 @@ export function supportedAudioFormat(audio: Buffer): TranscriptionAudio['format'
     && (audio[1] & 0xe0) === 0xe0
     && audio[1] !== 0xf1
     && audio[1] !== 0xf9) return 'mp3'
+  if (audio.length >= 12 && audio.subarray(4, 8).toString('ascii') === 'ftyp') return 'mp4'
+  if (audio.length >= 4 && audio.subarray(0, 4).toString('ascii') === 'OggS') return 'ogg'
+  if (audio.length >= 4
+    && audio[0] === 0x1a
+    && audio[1] === 0x45
+    && audio[2] === 0xdf
+    && audio[3] === 0xa3) return 'webm'
   return null
 }
 
 /**
- * MAI-Transcribe's Azure backend accepts WAV, MP3 and FLAC. Instagram commonly
- * sends AAC in an MP4/M4A container (and sometimes Ogg bytes behind a video/mp4
- * header), so normalize every unsupported container to a compact 16 kHz mono
- * MP3 before upload. Keeping ffmpeg in an npm dependency makes worker hosts
- * independent of a system-level ffmpeg installation.
+ * GPT Transcribe accepts the common channel containers directly, including
+ * MP4/M4A, Ogg and WebM. Preserve those original bytes to avoid a lossy and
+ * CPU-heavy re-encode. Keep ffmpeg only as a fallback for raw AAC, malformed
+ * labels and uncommon containers.
  */
 export async function normalizeAudioForTranscription(
   audio: Buffer,
 ): Promise<TranscriptionAudio> {
   const directFormat = supportedAudioFormat(audio)
-  if (directFormat) return { audio, format: directFormat, converted: false }
+  if (directFormat) return { audio, format: directFormat }
   const binaryPath = ffmpegPath
   if (!binaryPath) throw new Error('STT_FFMPEG_UNAVAILABLE')
 
@@ -95,7 +100,7 @@ export async function normalizeAudioForTranscription(
         reject(new Error('STT_AUDIO_CONVERSION_FAILED', { cause: detail || `ffmpeg exit ${code}` }))
         return
       }
-      resolve({ audio: Buffer.concat(output), format: 'mp3', converted: true })
+      resolve({ audio: Buffer.concat(output), format: 'mp3' })
     })
     // ffmpeg may close stdin early for malformed input; the process close event
     // above carries the useful diagnostic and owns promise settlement.

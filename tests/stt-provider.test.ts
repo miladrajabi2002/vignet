@@ -41,7 +41,6 @@ describe('OpenRouter speech-to-text', () => {
     mocks.normalizeAudio.mockImplementation(async (audio: Buffer) => ({
       audio,
       format: 'mp3',
-      converted: true,
     }))
   })
 

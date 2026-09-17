@@ -25,12 +25,25 @@ describe('STT audio normalization', () => {
     expect(supportedAudioFormat(pcmWav())).toBe('wav')
     expect(supportedAudioFormat(Buffer.from('fLaCdata'))).toBe('flac')
     expect(supportedAudioFormat(Buffer.from('ID3data'))).toBe('mp3')
-    expect(supportedAudioFormat(Buffer.from('OggSdata'))).toBeNull()
+    expect(supportedAudioFormat(Buffer.from('OggSdata'))).toBe('ogg')
+    expect(supportedAudioFormat(Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x01]))).toBe('webm')
+
+    const mp4 = Buffer.alloc(16)
+    mp4.writeUInt32BE(16, 0)
+    mp4.write('ftyp', 4)
+    mp4.write('M4A ', 8)
+    expect(supportedAudioFormat(mp4)).toBe('mp4')
   })
 
   it('does not re-encode an already supported WAV input', async () => {
     const input = pcmWav()
     const result = await normalizeAudioForTranscription(input)
-    expect(result).toEqual({ audio: input, format: 'wav', converted: false })
+    expect(result).toEqual({ audio: input, format: 'wav' })
+  })
+
+  it('passes an Ogg voice note through without lossy transcoding', async () => {
+    const input = Buffer.from('OggSvoice-note')
+    const result = await normalizeAudioForTranscription(input)
+    expect(result).toEqual({ audio: input, format: 'ogg' })
   })
 })
