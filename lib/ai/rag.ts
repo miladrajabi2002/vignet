@@ -7,6 +7,7 @@ import {
   conversationStateInstruction,
   type ConversationWorkingState,
 } from '@/lib/ai/conversation-state'
+import { PRODUCT_SUBJECT_RE } from '@/lib/ai/conversation'
 
 export interface RagContext {
   contextText: string
@@ -120,7 +121,7 @@ function buildCatalogBlock(
     // An empty *relevant* result is different from an empty global catalog.
     // Keep generic turns lean, but explicitly prevent invention when this turn
     // asked for a product and retrieval found no matching assigned item.
-    if (!CATALOG_QUERY_INTENT.test(userMessage)) return ''
+    if (!CATALOG_QUERY_INTENT.test(userMessage) && !PRODUCT_SUBJECT_RE.test(userMessage)) return ''
     return isFa
       ? '\n\nمحصول منطبق و قابل‌اعتمادی برای این درخواست پیدا نشد. نام، قیمت، موجودی یا مشخصات محصولی را حدس نزن و کوتاه بگو محصول منطبق در کاتالوگ فعلی پیدا نشد.'
       : '\n\nNo trusted matching product was found for this request. Do not invent a product, price, stock level, or specifications; briefly say no matching catalog item was found.'

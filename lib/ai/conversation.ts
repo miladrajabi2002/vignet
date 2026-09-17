@@ -36,6 +36,14 @@ export interface ProductRequestPlan {
         requestedCount: number
         /** Product terms normalized for deterministic lexical search. */
         searchTerms: string[]
+        /**
+         * Non-attribute terms named by THIS message («میز»، «تلویزیون» from
+         * «میز تلویزیون ۱۶۰ می‌خوام»). Numbers and رنگ/طرح/سایز/جنس/مدل/کد-labelled
+         * values describe the CURRENT product and never prove a subject switch.
+         * The durable state engine uses them to restart a stale product goal
+         * (میز عسلی → میز تلویزیون) instead of accumulating anchors forever.
+         */
+        subjectSwitchTerms?: string[]
         /** Recommendations normally exclude stock=0. Product.stock=null means available/unlimited. */
         inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
         /**
@@ -117,13 +125,16 @@ const PRODUCT_NOUNS =
         '|عطر|آرایش|کرم|لاک|لوسیون|شامپو|ضد\\s*آفتاب' +
         '|گوشی|موبایل|لپ\\s*تاپ|تبلت|هندزفری|هدست|ایرباد|پاوربانک|شارژر' +
         '|فرش|قالی|مبل|مبلمان|پرده|روتختی|رو\\s*تختی|تشک|لحاف|پتو|بالش|لوستر|آباژور|ظروف|ست\\s*صبحانه' +
+        // «میز» is the head noun of a whole furniture family (میز تلویزیون، میز
+        // عسلی، میز جلو مبلی…). The lookahead keeps «میزان/میزبان/میزگرد» out.
+        '|میز(?!ان|بان|گرد)' +
         '|شکلات|کیک|شیرینی|قهوه|چای|عسل|خرما|آجیل|زعفران|برنج|روغن|خشکبار' +
         '|اسباب\\s*بازی|کتاب|دفتر|مداد|خودکار' +
         '|دوچرخه|اسکوتر|گلدان|اکسسوری'
 
 const PRODUCT_INTENT_RE =
         new RegExp(`(?:${PRODUCT_NOUNS}|قیمت|موجود|خرید|product|catalog|price|buy|shop|in\\s*stock|available)`, 'i')
-const PRODUCT_SUBJECT_RE =
+export const PRODUCT_SUBJECT_RE =
         new RegExp(`(?:${PRODUCT_NOUNS}|product|catalog|shop)`, 'i')
 // Used only to decide whether a history-dependent follow-up explicitly names a
 // fresh product. Unlike PRODUCT_SUBJECT_RE, boundaries keep «کیف» from matching
@@ -414,18 +425,33 @@ export function extractProductTerms(value: string): string[] {
         const nonCatalogCode = NON_CATALOG_CODE_RE.test(normalized)
         const priceValue = PRICE_VALUE_RE.test(normalized)
         const availabilityQuestion = AVAILABLE_RE.test(normalized)
-        const tokens = normalized
+        const subjectSizedNumberContext = PRODUCT_SUBJECT_RE.test(normalized)
+        const counterNouns = new Set([
+                'تا', 'عدد', 'مورد', 'کالا', 'گزینه', 'دونه', 'product', 'products', 'item', 'items',
+        ])
+        const rawTokens = normalized
                 .toLocaleLowerCase('fa')
                 .split(/[^\p{L}\p{N}_-]+/u)
                 .map((token) => token.trim().replace(/^-+|-+$/g, ''))
-                .filter((token) => {
+        const tokens = rawTokens
+                .filter((token, index) => {
                         if (token.length < 2) return false
                         if (!/^\d+$/.test(token)) return true
                         if (numericAttributeContext) return true
                         if (explicitProductCode === token) return true
                         if (nonCatalogCode || priceValue) return false
                         if (bareProductCode && /^0\d{2,7}$/.test(token)) return true
-                        return availabilityQuestion && /^\d{3,8}$/.test(token)
+                        if (availabilityQuestion && /^\d{3,8}$/.test(token)) return true
+                        // «میز تلویزیون ۱۶۰» — a short size-like number attached to a
+                        // named product subject is essential catalog evidence, while
+                        // counts («۲ تا شلوار») stay presentation-only. A counter noun
+                        // right after the number keeps it a plain count.
+                        if (
+                                subjectSizedNumberContext
+                                && /^\d{2,4}$/.test(token)
+                                && !counterNouns.has(rawTokens[index + 1] ?? '')
+                        ) return true
+                        return false
                 })
 
         const terms: string[] = []
@@ -816,7 +842,22 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 priorProductSignal && explicitlyNamesProduct &&
                 currentTerms.length > 0 && priorProductTerms.length > 0 && !relatedToPriorSubject
 
+        // Non-attribute terms named by this very message. A sibling product family
+        // («میز تلویزیون» after a «میز عسلی» goal) shares the head noun but names a
+        // different subject; the state engine needs this signal to restart the goal.
+        // Numbers, رنگ/طرح/سایز/…-labelled values and bare color adjectives describe
+        // the CURRENT product («برای مبل سبز» is a constraint, never a new subject)
+        // and must not trigger a goal restart.
+        const escapeTerm = (term: string) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const attributeLabelled = (term: string) =>
+                new RegExp(`(?:رنگ|طرح|سایز|اندازه|جنس|مدل|کد|برند)\\s+${escapeTerm(term)}`).test(normalized)
+        const colorAdjective = /^(?:مشکی|سفید|سبز|آبی|قرمز|زرد|صورتی|بنفش|طوسی|کرم|قهوه(?:\s*ای)?|دودی|خاکستری|سرمه(?:\s*ای)?|فیروزه(?:\s*ای)?|نارنجی|زیتونی|گلبهی|سرخابی|لیمویی|یاسی|شکلاتی|زغالی|گردویی|بلوطی|افرایی|برنزی|طلایی|نقره(?:\s*ای)?|کرمی|گنجشکی)$/iu
+        const subjectSwitchTerms = isProductTurn && (explicitlyNamesProduct || productCodeSignal)
+                ? currentTerms.filter((term) => !/^\d+$/.test(term) && !attributeLabelled(term) && !colorAdjective.test(term))
+                : []
+
         return {
+                subjectSwitchTerms,
                 isProductTurn,
                 explicitShowcase,
                 discoveryBrowse,

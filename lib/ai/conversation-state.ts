@@ -120,6 +120,7 @@ type ProductPlanLike = Pick<
   | 'requestNewTopic'
   | 'requestedCount'
   | 'searchTerms'
+  | 'subjectSwitchTerms'
   | 'inventoryMode'
   | 'codeIdentified'
   | 'variantBrowse'
@@ -479,7 +480,27 @@ function shouldReplaceGoal(
   if (productPlan?.resetProductContext && productPlan.isProductTurn) return true
   if (intent === 'BUSINESS_INFO') return false
   if (intent === 'GENERAL') return false
-  if (intent === state.activeGoal.intent) return false
+  if (intent === state.activeGoal.intent) {
+    // «میز تلویزیون ۱۶۰ می‌خوام» after a «میز عسلی» goal: sibling product
+    // families share the head noun but name a DIFFERENT subject. Fresh
+    // non-attribute terms that the current anchors do not carry prove a real
+    // product switch, so the goal and anchors must restart — accumulating
+    // them forever once made every later catalog search fail closed with
+    // «محصول پیدا نشد» even though the product existed in the catalog.
+    if (intent === 'PRODUCT' && productPlan?.isProductTurn) {
+      const freshSubjectTerms = (productPlan.subjectSwitchTerms ?? [])
+        .filter((term) => term.length >= 3)
+      if (freshSubjectTerms.length > 0 && state.searchAnchors.length > 0) {
+        const carriesNewSubject = freshSubjectTerms.some((term) =>
+          !state.searchAnchors.some((anchor) =>
+            anchor === term
+            || (anchor.length >= 3 && term.includes(anchor))
+            || (term.length >= 3 && anchor.includes(term))))
+        if (carriesNewSubject) return true
+      }
+    }
+    return false
+  }
   // A strong task transition is a new active objective. A later side policy
   // question deliberately does not erase the shopping/service objective.
   return ['ORDER', 'BOOKING', 'SERVICE', 'SUPPORT', 'PRODUCT'].includes(intent)
@@ -595,8 +616,11 @@ export function advanceConversationWorkingState(params: {
     }
     Object.assign(next.slots, explicitSlots(message, params.messageId))
     if (next.activeGoal?.intent === 'PRODUCT' && params.productPlan?.isProductTurn) {
+      // Current-subject-first: activeSubject (anchors[0]) must track what the
+      // customer is asking about right now, and stale anchors must never evict
+      // the live terms from the bounded window.
       next.searchAnchors = uniqueBounded(
-        [...next.searchAnchors, ...params.productPlan.searchTerms],
+        [...params.productPlan.searchTerms, ...next.searchAnchors],
         MAX_ANCHORS,
       )
     }
@@ -763,7 +787,17 @@ export function contextualizeProductRequest(
   if (!['PRODUCT', 'GENERAL'].includes(turn.intent)) return plan
   if (!['ANSWER', 'REFINEMENT', 'REFERENCE', 'CORRECTION'].includes(turn.relation)) return plan
 
-  const searchTerms = uniqueBounded([...termsFromState(state), ...plan.searchTerms], MAX_ANCHORS)
+  // Current-first merge: the live message's own terms must never be evicted
+  // by stale goal anchors. State anchors once came first and filled the whole
+  // bounded window, silently discarding the current terms («میز تلویزیون»
+  // searched as «فرق جلومبلی نقش نگار…») so every later catalog search failed
+  // closed. A genuine subject switch never reaches this merge: the state
+  // engine already restarted the goal (NEW_GOAL) and this function returns
+  // the plan untouched.
+  const searchTerms = uniqueBounded(
+    [...plan.searchTerms, ...termsFromState(state)],
+    MAX_ANCHORS,
+  )
   return {
     ...plan,
     isProductTurn: true,

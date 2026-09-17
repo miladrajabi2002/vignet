@@ -289,6 +289,8 @@ async function buildDeterministicTurnReply(params: {
         closingReply: string | null
         /** Reply locale detected from the customer's current message. */
         lang?: TurnLanguage
+        /** Non-product knowledge (دانشنامه) was retrieved for this turn. */
+        hasKnowledgeContext?: boolean
 }): Promise<string | null> {
         if (params.closingReply) return params.closingReply
         if (!params.canBypass) return null
@@ -399,7 +401,14 @@ async function buildDeterministicTurnReply(params: {
                 }
         }
         if (params.productRequest.isProductTurn && params.catalogProducts.length === 0) {
-                return catalogNoMatchReply(lang)
+                // A strict catalog miss is only final when the knowledge base has
+                // nothing relevant either. When product knowledge/specs (دانشنامه
+                // محصول و مشخصات فنی) were retrieved, the model answers from them —
+                // the catalog stays responsible for cards and purchase links, and
+                // the anti-invention rules still apply. This keeps «میز تلویزیون
+                // ۱۶۰» answerable when the lexical matcher misses but the knowledge
+                // base knows the product.
+                if (!params.hasKnowledgeContext) return catalogNoMatchReply(lang)
         }
         if (!params.productRequest.explicitShowcase) return null
 
@@ -1303,6 +1312,10 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         canBypass: canBypassDeterministicReply,
                                         closingReply,
                                         lang: turnLang,
+                                        hasKnowledgeContext: retrievedChunks.some((chunk) => {
+                                                const metadata = chunk.metadata
+                                                return !(metadata && typeof metadata === 'object' && 'productId' in metadata)
+                                        }),
                                 })
                                 if (deterministicReply) {
                                         // No model call and therefore no AI charge. The DB
@@ -1627,6 +1640,10 @@ export async function generateReply(
                         canBypass: canBypassDeterministicReply,
                         closingReply,
                         lang: turnLang,
+                        hasKnowledgeContext: retrievedChunks.some((chunk) => {
+                                const metadata = chunk.metadata
+                                return !(metadata && typeof metadata === 'object' && 'productId' in metadata)
+                        }),
                 })
                 if (deterministicReply) {
                         await options.onGenerationStart?.()
