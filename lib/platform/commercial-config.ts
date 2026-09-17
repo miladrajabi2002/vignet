@@ -2,7 +2,7 @@ import type { Plan } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { ModelAlias } from '@/lib/ai/models'
 
-export const PLATFORM_STT_MODEL = 'microsoft/mai-transcribe-2'
+export const PLATFORM_STT_MODEL = 'openai/gpt-transcribe'
 
 /** Pinned vision model for inbound photo understanding (A15 admin surface). */
 export const PLATFORM_VISION_MODEL =

@@ -17,7 +17,7 @@ vi.mock('@/lib/ai/openrouter', () => ({
   getPlatformOpenRouterKey: mocks.getOpenRouterKey,
 }))
 vi.mock('@/lib/platform/commercial-config', () => ({
-  PLATFORM_STT_MODEL: 'microsoft/mai-transcribe-2',
+  PLATFORM_STT_MODEL: 'openai/gpt-transcribe',
   getPlatformCommercialConfig: mocks.getCommercialConfig,
 }))
 vi.mock('@/lib/security/safe-http', () => ({ safeHttpGet: vi.fn() }))
@@ -69,7 +69,7 @@ describe('OpenRouter speech-to-text', () => {
     expect(init.headers).toEqual(expect.objectContaining({ Authorization: 'Bearer test-openrouter-key' }))
     const body = JSON.parse(String(init.body))
     expect(body).toEqual(expect.objectContaining({
-      model: 'microsoft/mai-transcribe-2',
+      model: 'openai/gpt-transcribe',
       input_audio: expect.objectContaining({ format: 'mp3' }),
       provider: { data_collection: 'deny', zdr: true },
     }))
@@ -79,7 +79,7 @@ describe('OpenRouter speech-to-text', () => {
     expect(mocks.captureSttCredit).toHaveBeenCalledWith(expect.objectContaining({
       workspaceId: 'workspace-1',
       agentId: 'agent-1',
-      model: 'microsoft/mai-transcribe-2',
+      model: 'openai/gpt-transcribe',
       audioSeconds: 15,
       pricePerMinuteIRR: 100,
       providerRequestId: 'generation-1',
