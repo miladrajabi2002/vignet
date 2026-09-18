@@ -27,8 +27,10 @@ import {
         productRequestFromCatalogReference,
         showcaseSubjectPhrase,
         structuredProductDetailReply,
+        extractProductTerms,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
+import { getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
 import type { CatalogProduct } from '@/lib/ai/rag'
 import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from '@/lib/ai/handoff'
 import { syncOnboarding } from '@/lib/onboarding'
@@ -408,7 +410,12 @@ async function buildDeterministicTurnReply(params: {
                 // the anti-invention rules still apply. This keeps «میز تلویزیون
                 // ۱۶۰» answerable when the lexical matcher misses but the knowledge
                 // base knows the product.
-                if (!params.hasKnowledgeContext) return catalogNoMatchReply(lang)
+                // A semantically promoted turn (catalog proven via vector recall)
+                // already carries real catalog evidence, so a grounded-fetch miss
+                // means presentation filtering — never a hard «not found».
+                if (!params.hasKnowledgeContext && !params.productRequest.semanticTurn) {
+                        return catalogNoMatchReply(lang)
+                }
         }
         if (!params.productRequest.explicitShowcase) return null
 
@@ -726,7 +733,16 @@ async function prepareTurn(params: StartChatParams): Promise<
                 bumpContactActivity(conversationId)
 
         // Retrieve context and build the prompt.
-                const rawProductRequest = planProductRequest(message, planningHistory)
+        // ── Catalog lexicon (data-driven intent) ──────────────────────────
+        // The tenant's own catalog vocabulary replaces hard-coded vertical
+        // nouns as the PRIMARY intent signal for new products. Loaded before
+        // planning; fails open (null) so a cache hiccup degrades to legacy
+        // behaviour instead of breaking the turn.
+        const catalogLexicon = agent.productAccessEnabled
+                ? await getAgentCatalogLexicon(agent.id).catch(() => null)
+                : null
+        const corpusTokens = catalogLexicon?.identityTokens ?? undefined
+        const rawProductRequest = planProductRequest(message, planningHistory, corpusTokens)
                 let workingState = advanceConversationWorkingState({
                         state: loadedState.state,
                         sessionStartId: loadedState.state.sessionStartId || inbound.id,
@@ -853,6 +869,20 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 productRequest = contextualizeProductRequest(productRequest, workingState)
                         }
                 }
+                // ── Semantic catalog probe ────────────────────────────────
+                // When the vocabulary layer (global nouns + catalog lexicon)
+                // still did not flag a product turn, the vector index gets the
+                // last word: product chunks stay eligible for retrieval, and a
+                // STRONG similarity hit promotes the turn to a product consult.
+                // This is what makes brand-new products work on day one — the
+                // embedding of the customer's phrasing meets the embedding of
+                // the product's own text, with zero per-vertical code.
+                const semanticProbeAllowed = Boolean(
+                        agent.productAccessEnabled &&
+                        !productRequest.isProductTurn &&
+                        !productRequest.requestNewTopic &&
+                        message.trim().length >= 4,
+                )
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
                         ? productRequest.searchTerms.join(' ')
                         : message
@@ -862,28 +892,59 @@ async function prepareTurn(params: StartChatParams): Promise<
                         query: retrievalQuery,
                         limit: agent.productAccessEnabled && productRequest.isProductTurn
                                 ? Math.min(24, Math.max(12, productRequest.requestedCount * 2))
-                                : 3,
-                        includeProductCatalog: agent.productAccessEnabled && productRequest.isProductTurn,
+                                : semanticProbeAllowed ? 6 : 3,
+                        includeProductCatalog: agent.productAccessEnabled && (productRequest.isProductTurn || semanticProbeAllowed),
                         excludeProductContentFromText: true,
                         contextTextLimit: 4,
                 })
                 bumpProductQueries(workspaceId, chunks)
+
+                // Promote a non-product turn to a product consult when a product
+                // chunk is a STRONG semantic match. 0.45 sits clearly above the
+                // 0.3 relevance gate: weak look-alikes (a clock question against a
+                // furniture catalog at ~0.34) must not drag random products into
+                // the reply, while real paraphrases (0.45+) prove intent.
+                const SEMANTIC_PRODUCT_PROMOTION_SIM = 0.45
+                if (semanticProbeAllowed) {
+                        const strongProductChunks = chunks.filter((chunk) => {
+                                const metadata = chunk.metadata
+                                return metadata && typeof metadata === 'object' && 'productId' in metadata
+                                        && chunk.similarity >= SEMANTIC_PRODUCT_PROMOTION_SIM
+                        })
+                        if (strongProductChunks.length > 0) {
+                                productRequest = {
+                                        ...productRequest,
+                                        isProductTurn: true,
+                                        explicitShowcase: false,
+                                        discoveryBrowse: false,
+                                        resetProductContext: false,
+                                        requestNewTopic: false,
+                                        searchTerms: extractProductTerms(message),
+                                        inventoryMode: 'ANY',
+                                        semanticTurn: true,
+                                }
+                        }
+                }
 
                 const productIds = [...new Set([
                         ...(catalogReference?.productIds ?? []),
                         ...chunks
                         .map((chunk) => {
                                 const metadata = chunk.metadata
-                                return metadata && typeof metadata === 'object' && 'productId' in metadata
-                                        ? String((metadata as Record<string, unknown>).productId)
-                                        : null
+                                if (!(metadata && typeof metadata === 'object' && 'productId' in metadata)) return null
+                                // D3 guard: a product chunk is trusted recall evidence only
+                                // when it is a STRONG vector hit or carried a lexical rank —
+                                // weak vector-only neighbours (similarity 0.3–0.45) routinely
+                                // surfaced irrelevant products on out-of-domain questions.
+                                if (chunk.similarity < 0.45 && chunk.lexicalRank == null) return null
+                                return String((metadata as Record<string, unknown>).productId)
                         })
                         .filter((id): id is string => !!id),
                 ])]
 
                 const [catalogProducts, orderContext, catalogCategories] = await Promise.all([
                         agent.productAccessEnabled
-                                ? fetchCatalogProducts(agent.id, productIds, productRequest)
+                                ? fetchCatalogProducts(agent.id, productIds, productRequest, corpusTokens)
                                 : Promise.resolve([]),
                         buildOrderContext({
                                 workspaceId,

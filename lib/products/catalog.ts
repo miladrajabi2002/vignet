@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { embedText } from '@/lib/ai/embeddings'
 import { insertChunk, deleteChunksForProduct } from '@/lib/knowledge/vector-store'
 import { cleanDescriptionForChat } from '@/lib/products/description'
+import { invalidateAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
 
 export interface ProductEmbedJobData {
   productId: string
@@ -152,6 +153,8 @@ export async function processProductEmbed(
   if (data.deleted) {
     for (const agentId of agentIds) {
       await deleteChunksForProduct(agentId, data.productId)
+      // Keep the data-driven intent lexicon in sync with catalog deletions.
+      invalidateAgentCatalogLexicon(agentId)
     }
     // WooCommerce deletions are soft deletes, so mark cleanup completion. If
     // enqueue/processing fails this remains null and the durable delivery retry
@@ -193,6 +196,8 @@ export async function processProductEmbed(
       metadata: { productId: product.id, sku: product.sku, price: product.price },
       embedding,
     })
+    // Product names/categories/tags may have changed — refresh the lexicon.
+    invalidateAgentCatalogLexicon(agentId)
   }
 
   await prisma.product.update({
