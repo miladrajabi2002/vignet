@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import { embedText } from '@/lib/ai/embeddings'
 import { insertChunk, deleteChunksForProduct } from '@/lib/knowledge/vector-store'
 import { cleanDescriptionForChat } from '@/lib/products/description'
-import { invalidateAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
 
 export interface ProductEmbedJobData {
   productId: string
@@ -117,65 +116,6 @@ export function buildProductText(p: ProductWithCategory): string {
   return lines.join('\n').trim()
 }
 
-/**
- * Compact identity representation of a product — the SEMANTIC INDEX v2.
- *
- * The full-text chunk (buildProductText) carries the whole description, so a
- * name/attribute-style query («رنگ گردویی», «میز ۱۶۰») competes against
- * paragraph noise in the vector space. This second, deliberately tiny doc
- * carries ONLY the fields that identify the product: name, category, SKU,
- * tags, public attribute values and variation values. It is stored as a
- * separate chunk with metadata kind='identity' and gives lexical + vector
- * retrieval a dense, noise-free target for exactly the queries customers
- * actually type. Both chunks share the productId metadata, so recall,
- * grounding and presentation are unchanged — the identity chunk can only
- * IMPROVE which products get recalled, never what the prompt claims.
- */
-export function buildProductIdentityText(p: ProductWithCategory): string {
-        const publicAttrs: Record<string, unknown> = {}
-        if (p.attributes && typeof p.attributes === 'object' && !Array.isArray(p.attributes)) {
-                for (const [k, v] of Object.entries(p.attributes as Record<string, unknown>)) {
-                        if (k === '_variations') continue
-                        publicAttrs[k] = v
-                }
-        }
-        const attrValueLines = Object.entries(publicAttrs)
-                .map(([key, value]) => {
-                        const values = Array.isArray(value) ? value : [value]
-                        const rendered = values.map((v) => String(v)).filter(Boolean).join('، ')
-                        return rendered ? `${key}: ${rendered}` : ''
-                })
-                .filter(Boolean)
-
-        const variations = extractVariations(p.attributes)
-        const variationValueLines: string[] = []
-        if (variations) {
-                const seen = new Set<string>()
-                for (const v of variations.slice(0, 60)) {
-                        const attrs = v.attributes
-                        if (attrs && typeof attrs === 'object' && !Array.isArray(attrs)) {
-                                for (const [key, value] of Object.entries(attrs as Record<string, unknown>)) {
-                                        const rendered = `${key}: ${String(value)}`
-                                        if (rendered && !seen.has(rendered)) {
-                                                seen.add(rendered)
-                                                variationValueLines.push(rendered)
-                                        }
-                                }
-                        }
-                }
-        }
-
-        const lines = [
-                `نام محصول: ${p.name}`,
-                p.category ? `دسته: ${p.category.name}` : '',
-                p.sku ? `کد: ${p.sku}` : '',
-                p.tags.length ? `تگ‌ها: ${p.tags.join('، ')}` : '',
-                ...attrValueLines,
-                ...variationValueLines,
-        ].filter(Boolean)
-        return lines.join('\n')
-}
-
 /** Get (or create) the auto-managed PRODUCT_CATALOG knowledge base for an agent. */
 async function getOrCreateProductKB(agentId: string, workspaceId: string) {
   const existing = await prisma.knowledgeBase.findFirst({
@@ -212,8 +152,6 @@ export async function processProductEmbed(
   if (data.deleted) {
     for (const agentId of agentIds) {
       await deleteChunksForProduct(agentId, data.productId)
-      // Keep the data-driven intent lexicon in sync with catalog deletions.
-      invalidateAgentCatalogLexicon(agentId)
     }
     // WooCommerce deletions are soft deletes, so mark cleanup completion. If
     // enqueue/processing fails this remains null and the durable delivery retry
@@ -232,7 +170,6 @@ export async function processProductEmbed(
   if (!product) return
 
   const text = buildProductText(product)
-  const identityText = buildProductIdentityText(product)
   if (agentIds.length === 0) {
     await prisma.product.update({
       where: { id: product.id },
@@ -241,16 +178,9 @@ export async function processProductEmbed(
     return
   }
   // The product representation is identical for every assigned agent. Generate
-  // the vectors once, then reuse them in each agent-scoped chunk; this avoids one
+  // the vector once, then reuse it in each agent-scoped chunk; this avoids one
   // paid embedding request per agent during large catalog syncs.
   const embedding = await embedText(text, product.workspaceId)
-  // Semantic index v2: a second, compact identity embedding (name/category/
-  // tags/SKU/attribute values). One extra embedding per product change —
-  // ~$0.00001 — and recall for name/attribute queries stops competing with
-  // description noise.
-  const identityEmbedding = identityText && identityText !== text
-    ? await embedText(identityText, product.workspaceId)
-    : null
 
   for (const agentId of agentIds) {
     const kb = await getOrCreateProductKB(agentId, product.workspaceId)
@@ -263,18 +193,6 @@ export async function processProductEmbed(
       metadata: { productId: product.id, sku: product.sku, price: product.price },
       embedding,
     })
-    if (identityEmbedding) {
-      await insertChunk({
-        kbId: kb.id,
-        agentId,
-        workspaceId: product.workspaceId,
-        content: identityText,
-        metadata: { productId: product.id, kind: 'identity', sku: product.sku },
-        embedding: identityEmbedding,
-      })
-    }
-    // Product names/categories/tags may have changed — refresh the lexicon.
-    invalidateAgentCatalogLexicon(agentId)
   }
 
   await prisma.product.update({

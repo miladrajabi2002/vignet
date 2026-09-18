@@ -107,32 +107,6 @@ export interface ProductRequestPlan {
          * own routing and never fire this flag.
          */
         codeVariantVitrine: boolean
-        /**
-         * Terms of THIS message that hit the agent's own catalog lexicon
-         * (tokens derived from assigned product names/categories/tags/SKUs —
-         * see lib/ai/catalog-lexicon.ts). They prove product intent for
-         * verticals outside the global PRODUCT_NOUNS list («پاف», «قابلمه»…)
-         * and act as subject nouns for grounded catalog matching, without
-         * any per-vertical code changes.
-         */
-        corpusSubjectTerms?: string[]
-        /**
-         * This turn was promoted to a product consult by SEMANTIC catalog
-         * recall (a strong vector hit against a product chunk) rather than
-         * by the global vocabulary or the catalog lexicon. Grounding stays
-         * honest (no fullTermMatch) and the canned no-match reply must not
-         * fire — the turn already carries real catalog evidence.
-         */
-        semanticTurn?: boolean
-        /**
-         * This turn was routed (or its search terms were rebuilt) by the
-         * LLM TURN ANALYZER (lib/ai/turn-analyzer.ts) — the gated rescue
-         * layer for phrasings every deterministic matcher misses. Analyzer
-         * turns keep honest grounding: if the catalog search then finds no
-         * rows, the fail-closed «not found» reply still applies — the
-         * analyzer may route, but never invent products.
-         */
-        analyzerTurn?: boolean
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -381,7 +355,7 @@ function extractVariantHint(normalized: string): string | null {
         return null
 }
 
-export const PRODUCT_STOP_WORDS = new Set([
+const PRODUCT_STOP_WORDS = new Set([
         'سلام', 'درود', 'لطفا', 'لطفاً', 'خواهشاً', 'میشه', 'می‌شه', 'میتونی', 'می‌تونی',
         'محصول', 'محصولات', 'کالا', 'کالاها', 'کاتالوگ', 'فروشگاه', 'قیمت', 'قیمتها', 'قیمت‌ها',
         'موجود', 'موجوده', 'موجودند', 'موجودن', 'موجودی', 'ناموجود', 'خرید', 'فروش', 'بفرست', 'بفرستید', 'بفرستین', 'ارسال',
@@ -409,19 +383,6 @@ export const PRODUCT_STOP_WORDS = new Set([
         'چیز', 'چیزی', 'چیا', 'چه', 'می', 'فروشید', 'فروشی', 'میفروشید', 'میفروشی', 'بفروشید',
         // Greetings must never become catalog search terms («سلام وقت بخیر»).
         'وقت', 'بخیر', 'صبح', 'عصر', 'شب', 'ظهر', 'خسته', 'نباشید', 'خداقوت',
-        // Colloquial motion/request verbs are never product identity, yet they
-        // routinely leak into search terms («میز عسلی اومدید؟» → «اومدید» became
-        // a term, full-coverage grounding then found 0 rows and the bot replied
-        // «not found» even though the item exists). Verbs are vertical-agnostic,
-        // so this list is safe to keep static, unlike product nouns.
-        'اومدید', 'اومده', 'اومدن', 'اومدی', 'اومدین', 'اومدیون', 'اومدی',
-        'میاد', 'میای', 'میام', 'میره', 'میرید', 'میرین', 'میری', 'میرم',
-        'رفتین', 'رفتی', 'رفتید', 'رفتم', 'بیاید', 'بیاین', 'بییام', 'بیا',
-        'داشتین', 'داشتید', 'داشتن', 'میادش', 'اومدهست',
-        'دیدین', 'دیدید', 'دیدی', 'گفتین', 'گفتید', 'گفتی',
-        'میدید', 'میدین', 'میدی', 'میدیون', 'بدید', 'بدین', 'بده',
-        // Generic availability/arrival phrasing that is conversational, not a term.
-        'موجودن', 'موجودتون', 'موجودیتون', 'موجودی',
         'hi', 'hello', 'good', 'morning', 'evening',
         // Affirmatives/acknowledgements must never become catalog search terms.
         'آره', 'اره', 'بله', 'باشه', 'اوکی', 'اکی', 'حتما', 'حتماً', 'بفرما', 'بفرمایید', 'ممنون',
@@ -437,7 +398,7 @@ export const PRODUCT_STOP_WORDS = new Set([
         'length', 'chest', 'waist', 'fit', 'made',
 ])
 
-export function normalizePersianText(value: string): string {
+function normalizePersianText(value: string): string {
         return value
                 .normalize('NFKC')
                 .replace(/ي/g, 'ی')
@@ -448,30 +409,6 @@ export function normalizePersianText(value: string): string {
                 .replace(/\s+/g, ' ')
                 .trim()
 }
-
-/**
- * Tokenize catalog identity text (product names, categories, tags, SKUs)
- * into the SAME normalized token space extractProductTerms produces for
- * customer messages, so lexicon lookups and search terms line up exactly.
- * Persian plural suffixes are stripped generously (both base and singular
- * forms are emitted) because catalog names arrive in both shapes.
- */
-export function tokenizeCatalogText(value: string): string[] {
-        const tokens: string[] = []
-        for (const token of normalizePersianText(value).toLocaleLowerCase('fa').split(/[^\p{L}\p{N}_-]+/u)) {
-                const clean = token.trim().replace(/^-+|-+$/g, '')
-                if (clean.length < 2) continue
-                tokens.push(clean)
-                if (clean.length > 4) {
-                        const singular = clean.replace(/(?:هایی|های|ها)$/u, '')
-                        if (singular.length >= 2 && singular !== clean) tokens.push(singular)
-                }
-        }
-        return tokens
-}
-
-/** Alias kept for callers that prefer the identity-text wording. */
-export { tokenizeCatalogText as tokenizeCatalogIdentityText }
 
 export function extractProductTerms(value: string): string[] {
         const normalized = normalizePersianText(value)
@@ -627,35 +564,15 @@ function isBareVitrinPhrase(normalized: string, terms: string[]): boolean {
  * follow-up only says "send five", the closest earlier user product terms are
  * carried forward; assistant claims are never used as search input.
  */
-export function planProductRequest(
-        message: string,
-        history: ChatMessage[],
-        /**
-         * Optional catalog lexicon of the CURRENT agent (identity tokens of
-         * its assigned products — see lib/ai/catalog-lexicon.ts). Makes intent
-         * detection data-driven: any term the tenant's own catalog names is
-         * product-intent evidence, covering new verticals with zero code change.
-         */
-        corpusTokens?: ReadonlySet<string>,
-): ProductRequestPlan {
+export function planProductRequest(message: string, history: ChatMessage[]): ProductRequestPlan {
         const normalized = normalizePersianText(message)
         const resetRequested = RESET_CONTEXT_RE.test(normalized)
         const orderOnly = ORDER_ONLY_RE.test(normalized)
-        const currentTerms = extractProductTerms(normalized)
-        // ── Corpus-derived product intent ──────────────────────────────
-        // A term that the agent's own catalog carries in its identity fields
-        // (name/category/tags/SKU) proves this turn is about that tenant's
-        // products even when the global PRODUCT_NOUNS list has never heard of
-        // the vertical («پاف مراکشی اومده؟», «قابلمه ضدخش دارین؟»).
-        const corpusSubjectTerms = corpusTokens
-                ? currentTerms.filter((term) => corpusTokens.has(term))
-                : []
-        const corpusSubjectSignal = corpusSubjectTerms.length > 0
         // A strong courier/shipping signal overrides the generic product-subject
         // guard: «فروشگاه با اسنپ هم ارسال می‌کنه؟» must stay a policy question.
         const policyOnly = isShippingPolicyQuestion(normalized)
                 || STRONG_BUSINESS_POLICY_RE.test(normalized)
-                || (BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized) && !corpusSubjectSignal)
+                || (BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized))
         const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)
@@ -664,6 +581,7 @@ export function planProductRequest(
         const productCodeSignal = !nonCatalogCode && (
                 PRODUCT_CODE_RE.test(normalized) || BARE_PRODUCT_CODE_RE.test(normalized)
         )
+        const currentTerms = extractProductTerms(normalized)
         const shoppingNeedSignal =
                 SHOPPING_NEED_RE.test(normalized) &&
                 (!NON_PRODUCT_NEED_RE.test(normalized) || productKeywordSignal || attributeSignal) &&
@@ -671,9 +589,8 @@ export function planProductRequest(
                 (!GENERIC_HELP_RE.test(normalized) || currentTerms.length > 0 || productKeywordSignal || attributeSignal)
         // Availability verbs such as «دارید» are useful for named-product
         // queries, but are not product intent when the user explicitly asks
-        // about services, appointments or bookings. A corpus hit overrides the
-        // service guard when the sentence names one of the tenant's products.
-        const serviceOnly = SERVICE_ONLY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized) && !corpusSubjectSignal
+        // about services, appointments or bookings.
+        const serviceOnly = SERVICE_ONLY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
         // «شماره تماس فروشگاه چیه؟» / «پشتیبانی آنلاین دارین؟» name the shop or
         // an availability verb but are non-shopping needs: the NON_PRODUCT gate
         // keeps them out of catalog retrieval. Product codes stay above the gate
@@ -683,7 +600,6 @@ export function planProductRequest(
                 productCodeSignal ||
                 (!nonProductNeed && (
                         productKeywordSignal ||
-                        corpusSubjectSignal ||
                         (!serviceOnly && (AVAILABLE_RE.test(normalized) || shoppingNeedSignal || attributeSignal))
                 ))
         )
@@ -921,7 +837,7 @@ export function planProductRequest(
                         (prior.length >= 3 && current.includes(prior)),
                 ),
         )
-        const explicitlyNamesProduct = EXPLICIT_PRODUCT_SUBJECT_RE.test(normalized) || productCodeSignal || corpusSubjectSignal
+        const explicitlyNamesProduct = EXPLICIT_PRODUCT_SUBJECT_RE.test(normalized) || productCodeSignal
         const startsDifferentProduct =
                 priorProductSignal && explicitlyNamesProduct &&
                 currentTerms.length > 0 && priorProductTerms.length > 0 && !relatedToPriorSubject
@@ -942,7 +858,6 @@ export function planProductRequest(
 
         return {
                 subjectSwitchTerms,
-                corpusSubjectTerms,
                 isProductTurn,
                 explicitShowcase,
                 discoveryBrowse,
@@ -1386,15 +1301,11 @@ function catalogTermVariants(term: string): string[] {
  * a deterministic DB lexical pass guarantees that broad category/name queries
  * (for example "all available shirts") can return every requested slot rather
  * than whichever few chunks happened to win vector search.
- *
- * `corpusTokens` (the agent's catalog lexicon) extends which terms count as
- * SUBJECT terms, so tenant-specific nouns ground the same way global ones do.
  */
 export async function fetchCatalogProducts(
         agentId: string,
         productIds: string[],
         plan: ProductRequestPlan,
-        corpusTokens?: ReadonlySet<string>,
 ): Promise<CatalogProduct[]> {
         if (!plan.isProductTurn) return []
 
@@ -1503,13 +1414,7 @@ export async function fetchCatalogProducts(
         // (including the code) is part of the row. The presentation layer
         // attaches that row's product card even on consultation turns.
         const identifyByFullCoverage = plan.codeIdentified && terms.length > 0
-        // Subject terms: global retail nouns PLUS the tenant's own catalog
-        // vocabulary, so «پاف» grounds exactly like «شلوار» on the tenant that
-        // actually sells پاف. Without this, corpus-named products could be
-        // presented without full-term grounding.
-        const subjectTerms = terms.filter((term) =>
-                PRODUCT_SUBJECT_RE.test(term) || (corpusTokens?.has(term) ?? false),
-        )
+        const subjectTerms = terms.filter((term) => PRODUCT_SUBJECT_RE.test(term))
         const canonicalTokenMatch = (field: string, term: string): boolean => {
                 const normalizedField = ` ${field.replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()} `
                 return normalizedField.includes(` ${term} `)
@@ -1519,11 +1424,8 @@ export async function fetchCatalogProducts(
                 let coverage = 0
                 let subjectCoverage = 0
                 let score = 0
-                // Per-term match bookkeeping for the adaptive subset retry.
-                const matchedTerms: boolean[] = terms.map(() => false)
-                const subjectMatchedTerms: boolean[] = terms.map(() => false)
 
-                terms.forEach((term, termIndex) => {
+                for (const term of terms) {
                         let matched = false
                         // Identifier-like terms (a bare product code such as
                         // "0706") may only identify a row through its NAME
@@ -1577,19 +1479,14 @@ export async function fetchCatalogProducts(
                                         matched = true
                                 }
                         }
-                        const isSubjectTerm = subjectTerms.includes(term)
                         if (
-                                isSubjectTerm &&
+                                subjectTerms.includes(term) &&
                                 (canonicalTokenMatch(searchable.name, term) || canonicalTokenMatch(searchable.category, term))
                         ) {
                                 subjectCoverage += 1
-                                subjectMatchedTerms[termIndex] = true
                         }
-                        if (matched) {
-                                coverage += 1
-                                matchedTerms[termIndex] = true
-                        }
-                })
+                        if (matched) coverage += 1
+                }
 
                 if (phrase && searchable.name.includes(phrase)) score += 60
                 const vectorRank = semanticRank.get(product.id)
@@ -1597,7 +1494,7 @@ export async function fetchCatalogProducts(
                 if (product.stock == null || product.stock > 0) score += 5
                 score += Math.min(3, Math.log2(product.queryCount + 1))
 
-                return { product, coverage, subjectCoverage, score, matchedTerms, subjectMatchedTerms }
+                return { product, coverage, subjectCoverage, score }
         })
 
         ranked.sort((left, right) => {
@@ -1621,81 +1518,12 @@ export async function fetchCatalogProducts(
                         item.subjectCoverage === subjectTerms.length,
                 )
                 : ranked
-        // ─── Adaptive subset retry ──────────────────────────────────────────────
-        // A grounded search that found NOTHING while a lexical/semantic
-        // candidate pool exists is usually conversational noise attached to a
-        // real product request («پاف بالشتی برای هدیه می‌خوام» — «هدیه» matches
-        // OTHER products' descriptions but not the پاف بالشتی rows; «رومیزی میز
-        // غذاخوری» — «میز» is context, not a second subject). The fix is a
-        // best-consistent-subset search: find the LARGEST subset of the
-        // requested terms that at least one candidate row covers COMPLETELY
-        // (with canonical subject matching for subject terms). Rows covering
-        // that subset are honest near-matches — presented as a consult, never
-        // as the exact item (fullTermMatch stays fail-closed on the ORIGINAL
-        // term set), so cards/links/prices can never claim a dropped attribute.
-        // Subsets without any subject/corpus anchor are rejected, so a lone
-        // description word can never stand in for the requested product.
-        let relaxedRows: typeof ranked | null = null
-        if (requiresGroundedMatch && eligible.length === 0 && ranked.length > 0 && terms.length > 1) {
-                const subjectCount = (subset: number[]) =>
-                        subset.filter((i) => subjectTerms.includes(terms[i])).length
-                const corpusCount = (subset: number[]) =>
-                        subset.filter((i) => corpusTokens?.has(terms[i])).length
-                const rowCoversSubset = (item: (typeof ranked)[number], subset: number[]) =>
-                        subset.every((i) => item.matchedTerms[i]) &&
-                        subset.every((i) => !subjectTerms.includes(terms[i]) || item.subjectMatchedTerms[i])
-                function keyComparison(a: number[], b: number[]): number {
-                        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-                                const av = a[i] ?? 0
-                                const bv = b[i] ?? 0
-                                if (av !== bv) return av - bv
-                        }
-                        return 0
-                }
-                // Pick the covering subset that keeps the strongest anchors:
-                // subject/corpus terms first, then the best row evidence (row
-                // score already blends name-match weight, vector rank and
-                // popularity), then sheer subset size. This keeps semantic
-                // recall pointing at the RIGHT product family («رومیزی میز
-                // غذاخوری» must answer with رومیزی rows, not dining sets that
-                // merely mention میز+غذاخوری in their category/description).
-                let bestSubset: { rows: typeof ranked; key: number[] } | null = null
-                const total = 1 << terms.length
-                for (let mask = 1; mask < total - 1; mask++) {
-                        const subset: number[] = []
-                        for (let i = 0; i < terms.length; i++) if (mask & (1 << i)) subset.push(i)
-                        if (subjectCount(subset) === 0 && corpusCount(subset) === 0) continue
-                        const covering = ranked.filter((item) => rowCoversSubset(item, subset))
-                        if (covering.length === 0) continue
-                        // Semantic endorsement: relaxation is only honest when
-                        // the turn's own recall evidence (vector chunks / the
-                        // lexical catalog reference) points at the rows we are
-                        // about to keep. Without it, dropping a real catalog
-                        // attribute («شلوار پلنگی» → showing plain شلوار rows)
-                        // would present a variant the customer never asked for.
-                        if (rankedIds.length > 0 && !covering.some((item) => semanticRank.has(item.product.id))) continue
-                        const key = [
-                                subjectCount(subset),
-                                corpusCount(subset),
-                                Math.max(...covering.map((item) => item.score)),
-                                subset.length,
-                        ]
-                        if (!bestSubset || keyComparison(key, bestSubset.key) > 0) {
-                                bestSubset = { rows: covering, key }
-                        }
-                }
-                if (bestSubset) relaxedRows = bestSubset.rows
-        }
-        const relaxed = relaxedRows != null
-        const finalEligible = relaxedRows ?? eligible
-        const selected = finalEligible.slice(0, Math.min(MAX_SHOWCASE_PRODUCTS, plan.requestedCount))
+        const selected = eligible.slice(0, Math.min(MAX_SHOWCASE_PRODUCTS, plan.requestedCount))
         // A unique, fully grounded multi-term match identifies the exact row
         // even without a SKU. Price/size/link follow-ups can therefore attach
         // its canonical card and URL, while broad one-word category searches
-        // remain ordinary multi-product browsing. A relaxed (adaptive) match
-        // NEVER counts as unique identification — some requested term was
-        // dropped, so the row is a close alternative, not the named item.
-        const uniquelyIdentified = !relaxed && selected.length === 1 && terms.length > 1
+        // remain ordinary multi-product browsing.
+        const uniquelyIdentified = selected.length === 1 && terms.length > 1
 
         return selected.map(({ product, coverage, subjectCoverage }) => ({
                 id: product.id,
@@ -1708,7 +1536,7 @@ export async function fetchCatalogProducts(
                 url: product.externalUrl,
                 attributes: product.attributes,
                 tags: product.tags,
-                fullTermMatch: !relaxed &&
+                fullTermMatch:
                         coverage === terms.length &&
                         subjectCoverage === subjectTerms.length &&
                         (identifyByFullCoverage || uniquelyIdentified),

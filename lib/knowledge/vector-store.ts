@@ -200,14 +200,24 @@ export async function retrieveChunks(params: {
   return rankRetrievedChunks(rows, limit)
 }
 
-/** Delete all chunks for a given product (used when a product changes/deletes). */
+/**
+ * Delete chunks for a given product (used when a product changes/deletes).
+ * Pass `kind` to remove only one representation ('identity' or the default
+ * full-text chunk) — used by the identity backfill to rebuild compact
+ * identity chunks without touching the existing full-text embeddings.
+ */
 export async function deleteChunksForProduct(
   agentId: string,
   productId: string,
+  kind?: 'identity',
 ): Promise<void> {
+  const kindFilter = kind
+    ? Prisma.sql`AND kc.metadata ->> 'kind' = ${kind}`
+    : Prisma.empty
   await prisma.$executeRaw`
-    DELETE FROM "KnowledgeChunk"
-    WHERE "agentId" = ${agentId}
-      AND metadata ->> 'productId' = ${productId}
+    DELETE FROM "KnowledgeChunk" kc
+    WHERE kc."agentId" = ${agentId}
+      AND kc.metadata ->> 'productId' = ${productId}
+      ${kindFilter}
   `
 }

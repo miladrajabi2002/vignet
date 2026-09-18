@@ -27,11 +27,8 @@ import {
         productRequestFromCatalogReference,
         showcaseSubjectPhrase,
         structuredProductDetailReply,
-        extractProductTerms,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
-import { getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
-import { analyzerGate, analyzeTurn, analyzerSearchTerms } from '@/lib/ai/turn-analyzer'
 import type { CatalogProduct } from '@/lib/ai/rag'
 import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from '@/lib/ai/handoff'
 import { syncOnboarding } from '@/lib/onboarding'
@@ -411,12 +408,7 @@ async function buildDeterministicTurnReply(params: {
                 // the anti-invention rules still apply. This keeps «میز تلویزیون
                 // ۱۶۰» answerable when the lexical matcher misses but the knowledge
                 // base knows the product.
-                // A semantically promoted turn (catalog proven via vector recall)
-                // already carries real catalog evidence, so a grounded-fetch miss
-                // means presentation filtering — never a hard «not found».
-                if (!params.hasKnowledgeContext && !params.productRequest.semanticTurn) {
-                        return catalogNoMatchReply(lang)
-                }
+                if (!params.hasKnowledgeContext) return catalogNoMatchReply(lang)
         }
         if (!params.productRequest.explicitShowcase) return null
 
@@ -537,8 +529,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                   workingState: ConversationWorkingState
                   stateExpectedRevision: number | null
                   stateTrace: ConversationStateTrace
-                  /** The LLM turn analyzer's rescue verdict asked for a human. */
-                  analyzerHandoffSignal: boolean
           }
 > {
         const { workspaceId, agent, message } = params
@@ -736,16 +726,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 bumpContactActivity(conversationId)
 
         // Retrieve context and build the prompt.
-        // ── Catalog lexicon (data-driven intent) ──────────────────────────
-        // The tenant's own catalog vocabulary replaces hard-coded vertical
-        // nouns as the PRIMARY intent signal for new products. Loaded before
-        // planning; fails open (null) so a cache hiccup degrades to legacy
-        // behaviour instead of breaking the turn.
-        const catalogLexicon = agent.productAccessEnabled
-                ? await getAgentCatalogLexicon(agent.id).catch(() => null)
-                : null
-        const corpusTokens = catalogLexicon?.identityTokens ?? undefined
-        const rawProductRequest = planProductRequest(message, planningHistory, corpusTokens)
+                const rawProductRequest = planProductRequest(message, planningHistory)
                 let workingState = advanceConversationWorkingState({
                         state: loadedState.state,
                         sessionStartId: loadedState.state.sessionStartId || inbound.id,
@@ -790,7 +771,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 workingState,
                                 stateExpectedRevision: loadedState.expectedRevision,
                                 stateTrace,
-                                analyzerHandoffSignal: false,
                         }
                 }
                 let catalogReference: Awaited<ReturnType<typeof findAssignedCatalogReference>> = null
@@ -873,49 +853,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 productRequest = contextualizeProductRequest(productRequest, workingState)
                         }
                 }
-                // ── Semantic catalog probe ────────────────────────────────
-                // When the vocabulary layer (global nouns + catalog lexicon)
-                // still did not flag a product turn, the vector index gets the
-                // last word: product chunks stay eligible for retrieval, and a
-                // STRONG similarity hit promotes the turn to a product consult.
-                // This is what makes brand-new products work on day one — the
-                // embedding of the customer's phrasing meets the embedding of
-                // the product's own text, with zero per-vertical code.
-                const semanticProbeAllowed = Boolean(
-                        agent.productAccessEnabled &&
-                        !productRequest.isProductTurn &&
-                        !productRequest.requestNewTopic &&
-                        message.trim().length >= 4,
-                )
-                // ── LLM turn analyzer — TERM_BUILD phase ─────────────────────
-                // A routed product turn that carries ZERO search terms has
-                // nothing to retrieve or ground with («هموناش رو بفرست»);
-                // one gated fast-model call rebuilds the terms. Fail-open by
-                // construction: a null analysis leaves the turn untouched.
-                if (
-                        analyzerGate({
-                                message,
-                                plan: productRequest,
-                                productAccessEnabled: agent.productAccessEnabled,
-                        }) === 'TERM_BUILD'
-                ) {
-                        const termAnalysis = await analyzeTurn({
-                                workspaceId,
-                                agentId: agent.id,
-                                conversationId,
-                                message,
-                                history: modelHistory.slice(-6),
-                                corpusTokens,
-                                phase: 'TERM_BUILD',
-                        }).catch(() => null)
-                        if (termAnalysis?.intent === 'product' && termAnalysis.productKeywords.length > 0) {
-                                productRequest = {
-                                        ...productRequest,
-                                        searchTerms: analyzerSearchTerms(termAnalysis, message),
-                                        analyzerTurn: true,
-                                }
-                        }
-                }
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
                         ? productRequest.searchTerms.join(' ')
                         : message
@@ -925,107 +862,28 @@ async function prepareTurn(params: StartChatParams): Promise<
                         query: retrievalQuery,
                         limit: agent.productAccessEnabled && productRequest.isProductTurn
                                 ? Math.min(24, Math.max(12, productRequest.requestedCount * 2))
-                                : semanticProbeAllowed ? 6 : 3,
-                        includeProductCatalog: agent.productAccessEnabled && (productRequest.isProductTurn || semanticProbeAllowed),
+                                : 3,
+                        includeProductCatalog: agent.productAccessEnabled && productRequest.isProductTurn,
                         excludeProductContentFromText: true,
                         contextTextLimit: 4,
                 })
                 bumpProductQueries(workspaceId, chunks)
-
-                // Promote a non-product turn to a product consult when a product
-                // chunk is a STRONG semantic match. 0.45 sits clearly above the
-                // 0.3 relevance gate: weak look-alikes (a clock question against a
-                // furniture catalog at ~0.34) must not drag random products into
-                // the reply, while real paraphrases (0.45+) prove intent.
-                const SEMANTIC_PRODUCT_PROMOTION_SIM = 0.45
-                if (semanticProbeAllowed) {
-                        const strongProductChunks = chunks.filter((chunk) => {
-                                const metadata = chunk.metadata
-                                return metadata && typeof metadata === 'object' && 'productId' in metadata
-                                        && chunk.similarity >= SEMANTIC_PRODUCT_PROMOTION_SIM
-                        })
-                        if (strongProductChunks.length > 0) {
-                                productRequest = {
-                                        ...productRequest,
-                                        isProductTurn: true,
-                                        explicitShowcase: false,
-                                        discoveryBrowse: false,
-                                        resetProductContext: false,
-                                        requestNewTopic: false,
-                                        searchTerms: extractProductTerms(message),
-                                        inventoryMode: 'ANY',
-                                        semanticTurn: true,
-                                }
-                        }
-                }
-
-                // ── LLM turn analyzer — RESCUE phase ──────────────────────
-                // Retrieval returned nothing trusted and no deterministic
-                // layer promoted the turn: without help the reply model
-                // free-wheels with zero context — the worst-quality corner of
-                // the product. One gated fast-model call decides what the
-                // customer meant. A product verdict seeds a lexical catalog
-                // search (fetchCatalogProducts grounds on terms, not chunk
-                // ids); a handoff verdict strengthens the operator escalation
-                // check downstream. Honest fail-closed: if the seeded catalog
-                // search finds nothing, the regular «پیدا نکردم» reply still
-                // applies — the analyzer may route, never invent products.
-                let analyzerHandoffSignal = false
-                if (
-                        analyzerGate({
-                                message,
-                                plan: productRequest,
-                                productAccessEnabled: agent.productAccessEnabled,
-                                retrievedChunkCount: chunks.length,
-                        }) === 'RESCUE'
-                ) {
-                        const rescue = await analyzeTurn({
-                                workspaceId,
-                                agentId: agent.id,
-                                conversationId,
-                                message,
-                                history: modelHistory.slice(-6),
-                                corpusTokens,
-                                phase: 'RESCUE',
-                        }).catch(() => null)
-                        if (rescue) {
-                                if (rescue.intent === 'product' && rescue.productKeywords.length > 0) {
-                                        productRequest = {
-                                                ...productRequest,
-                                                isProductTurn: true,
-                                                explicitShowcase: false,
-                                                discoveryBrowse: false,
-                                                resetProductContext: false,
-                                                requestNewTopic: false,
-                                                searchTerms: analyzerSearchTerms(rescue, message),
-                                                inventoryMode: 'ANY',
-                                                analyzerTurn: true,
-                                        }
-                                } else if (rescue.handoffUrgent) {
-                                        analyzerHandoffSignal = true
-                                }
-                        }
-                }
 
                 const productIds = [...new Set([
                         ...(catalogReference?.productIds ?? []),
                         ...chunks
                         .map((chunk) => {
                                 const metadata = chunk.metadata
-                                if (!(metadata && typeof metadata === 'object' && 'productId' in metadata)) return null
-                                // D3 guard: a product chunk is trusted recall evidence only
-                                // when it is a STRONG vector hit or carried a lexical rank —
-                                // weak vector-only neighbours (similarity 0.3–0.45) routinely
-                                // surfaced irrelevant products on out-of-domain questions.
-                                if (chunk.similarity < 0.45 && chunk.lexicalRank == null) return null
-                                return String((metadata as Record<string, unknown>).productId)
+                                return metadata && typeof metadata === 'object' && 'productId' in metadata
+                                        ? String((metadata as Record<string, unknown>).productId)
+                                        : null
                         })
                         .filter((id): id is string => !!id),
                 ])]
 
                 const [catalogProducts, orderContext, catalogCategories] = await Promise.all([
                         agent.productAccessEnabled
-                                ? fetchCatalogProducts(agent.id, productIds, productRequest, corpusTokens)
+                                ? fetchCatalogProducts(agent.id, productIds, productRequest)
                                 : Promise.resolve([]),
                         buildOrderContext({
                                 workspaceId,
@@ -1121,7 +979,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                         workingState,
                         stateExpectedRevision: loadedState.expectedRevision,
                         stateTrace,
-                        analyzerHandoffSignal,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -1377,7 +1234,6 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 workingState,
                 stateExpectedRevision,
                 stateTrace,
-                analyzerHandoffSignal,
         } = prep
 
         const encoder = new TextEncoder()
@@ -1422,19 +1278,6 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 send({ type: 'error', error: 'PREPARATION_FAILED' })
                                 closeStream()
                                 return
-                        }
-                        // The turn analyzer's rescue verdict escalates to a human
-                        // even when the keyword/policy layers saw nothing.
-                        if (!handoffCheck.handoff && analyzerHandoffSignal && agent.handoffEnabled) {
-                                handoffCheck = {
-                                        ...handoffCheck,
-                                        handoff: true,
-                                        recommended: true,
-                                        code: 'MANUAL',
-                                        reasonCodes: [...handoffCheck.reasonCodes, 'MANUAL'],
-                                        reason: handoffCheck.reason || 'مشتری به پیگیری انسانی نیاز دارد',
-                                        priority: 'high',
-                                }
                         }
                         if (handoffCheck.handoff) {
                                 await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
@@ -1757,7 +1600,6 @@ export async function generateReply(
                 workingState,
                 stateExpectedRevision,
                 stateTrace,
-                analyzerHandoffSignal,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -1767,19 +1609,6 @@ export async function generateReply(
         } catch (error) {
                 await releaseChatCredit(reservation, 'Handoff policy check failed').catch(() => {})
                 throw error
-        }
-        // The turn analyzer's rescue verdict escalates to a human even when
-        // the keyword/policy layers saw nothing.
-        if (!handoffCheck.handoff && analyzerHandoffSignal && agent.handoffEnabled) {
-                handoffCheck = {
-                        ...handoffCheck,
-                        handoff: true,
-                        recommended: true,
-                        code: 'MANUAL',
-                        reasonCodes: [...handoffCheck.reasonCodes, 'MANUAL'],
-                        reason: handoffCheck.reason || 'مشتری به پیگیری انسانی نیاز دارد',
-                        priority: 'high',
-                }
         }
         if (handoffCheck.handoff) {
                 await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
