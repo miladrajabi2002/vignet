@@ -133,6 +133,31 @@ export interface ProductRequestPlan {
          * analyzer may route, but never invent products.
          */
         analyzerTurn?: boolean
+        /**
+         * Decor advice on the customer's OWN furniture ("مبل کرم دارم، چه
+         * طرحی پیشنهاد میدی؟") is a knowledge-base consultation, never a
+         * catalog search: grounding [مبل, کرم] only ever finds nothing and the
+         * turn used to die as "کرم پیدا نکردم" even though the tenant has a
+         * dedicated design-recommendation document keyed by sofa color.
+         */
+        advisoryConsult?: boolean
+        /**
+         * A comparative-choice follow-up ("کدومش ارزون‌تره؟") about the pair
+         * the customer has been discussing. Grounding must cover BOTH sides
+         * of the pair — a single term-set can only cover one side (or rows
+         * whose design name contains both terms, e.g. "طرح نقش جهان") — so
+         * the reply can compare real per-side prices instead of inventing
+         * equality from whichever rows a one-sided search happened to return.
+         */
+        comparisonConsult?: boolean
+        /**
+         * The message is an anaphoric reference ("این مدل …") but the
+         * conversation never identified a product (no cards sent, no model
+         * named). The turn stays a knowledge-base consultation that asks the
+         * customer WHICH product they mean — a random catalog row must never
+         * be injected as if it were the referent.
+         */
+        anaphoraConsult?: boolean
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -217,7 +242,45 @@ const ASSISTANT_OFFER_RE = new RegExp(
 const RESET_CONTEXT_RE =
         /(?:بی\s*خیال|فراموش\s*(?:کن|کنید|کنین)|از\s*اول\s*(?:شروع|بپرس)|درخواست\s*جدید|موضوع\s*جدید|never\s*mind|forget\s+(?:it|that|the\s+previous)|start\s*over|new\s*(?:request|topic))/i
 const PRODUCT_CONTEXT_FOLLOWUP_RE =
-        /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا|مدل|محصول|کالا|قطعه|یکی)|اون\s*(?:یکی|دوتا|مدل|محصول|کالا|قطعه)?|آن\s*(?:یکی|دوتا|مدل|محصول|کالا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب|مدل)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|بهتره|بهتر\s+است|لینک(?:\s*(?:پرداخت|خرید|سفارش))?(?:ش|شو|اش)?|پرداخت(?:ش|شو)?\s*(?:رو|را)|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|cheaper|better\s+quality|this\s+(?:model|item|product)|the\s+link|payment\s+link)/iu
+        /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا|مدل|محصول|کالا|قطعه|یکی)|اون\s*(?:یکی|دوتا|مدل|محصول|کالا|قطعه)?|آن\s*(?:یکی|دوتا|مدل|محصول|کالا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب|مدل)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|بهتر(?:ه|\s+است|\s*باشه|\s*بشه)|لینک(?:\s*(?:پرداخت|خرید|سفارش))?(?:ش|شو|اش)?|پرداخت(?:ش|شو)?\s*(?:رو|را)|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|cheaper|better\s+quality|this\s+(?:model|item|product)|the\s+link|payment\s+link)/iu
+/**
+ * Comparative-choice questions ("کدومش ارزون‌تره؟", "بین نقش و نگار کدوم
+ * بهتره؟"). The pair being compared lives in recent user messages — including
+ * "بین X و Y" statements that carry no shopping verb at all and therefore
+ * never qualified as product context for the term-carry loop.
+ */
+const COMPARISON_QUESTION_RE =
+        /(?:کدوم(?:ش|م|ون|ن)?|کدام(?:ش|م|ن)?)[^\n]{0,40}(?:ارزون|ارزان|گران|گرون|بهتر|مناسب|فرق)|(?:ارزون|ارزان|گران|گرون)\s*تر|فرقش(?:ون)?|مقایسه|(?:کدوم|کدام)\s*(?:ارزون|ارزان|گران|گرون|بهتر)/iu
+/** "بین X و Y" / "از X یا Y" statements name both sides of a comparison. */
+const COMPARISON_PAIR_RE = /(?:بین|از)\s+[\p{L}\p{N}]+\s*(?:[\p{L}\p{N}]+\s*)?و\s+[\p{L}\p{N}]+/iu
+/**
+ * First-person possession of an item the customer ALREADY owns ("مبل کرم
+ * دارم" — "دارم", not the store-facing "دارید") combined with an advice
+ * request ("چه طرحی پیشنهاد میدی؟") is decor consultation. The store does not
+ * sell the customer's own sofa; routing it to catalog search can only ever
+ * produce "چیزی پیدا نکردم".
+ */
+const POSSESSION_RE = /(?:^|[^\p{L}\p{N}_])دار(?:م|یم)(?=$|[^\p{L}\p{N}_])/iu
+const ADVICE_REQUEST_RE =
+        /(?:پیشنهاد(?:ی|هایی)?\s*(?:میدی|می\s*دی|بدی|بده|دارید|دارین|چیه|ای|هست)|(?:چه|کدام|کدوم)\s*(?:طرح|رنگ|مدل|سبک|گزینه)(?:ی)?\s*(?:بهتره|مناسب(?:تر)?|پیشنهاد|میدی|می\s*دی|باید|بگیرم)|کمک(?:م)?\s*(?:می\s*)?کن|راهنمای(?:یم)?\s*(?:می\s*)?کن|مشاوره(?:ی)?\s*(?:میدی|می\s*دی|بده|می\s*خوام)|recommend|suggest)/iu
+/** Any buying/lookup intent keeps the turn on the product path. */
+const BUY_INTENT_RE =
+        /(?:قیمت|چنده|چقدر|موجود|ناموجود|می\s*خوام|میخوام|بخرم|بخریم|سفارش|لینک|عکس|بفرست|نشون|سایز|اندازه|تعداد|دارین|دارید|هستین)/iu
+/**
+ * Lead-time / fulfilment-duration questions ("آماده‌سازی و ارسالش چقدر طول
+ * می‌کشه؟") are shipping-policy knowledge — even mid-order, when the message
+ * also carries the city and the payment method the operator asked for. A
+ * product goal must never turn this answer into a catalog search.
+ */
+const LEAD_TIME_QUESTION_RE =
+        /(?:آ?ماده\s*سازی|زمان\s*(?:آماده|ارسال|تحویل|تولید|سفارش)|چقدر\s*طول|طول\s*(?:می\s*)?کشه|میکشه|چند\s*(?:روز|هفته|ماه)|کی\s*(?:میره|می\s*ره|میرسه|می\s*رسه|تحویل)|lead\s*time|how\s+long|delivery\s+time)/iu
+/**
+ * Anaphoric references that need a product referent ("این مدل …؟"). When no
+ * product was ever identified in the conversation, the turn is a
+ * clarification ask, never a random catalog hit.
+ */
+export const UNRESOLVED_ANAPHORA_RE =
+        /(?:^|[\s،,])(?:این|اون|آن|همین|همون)\s*(?:مدل|محصول|کالا|قطعه|یکی|دوتا|دو\s*تا)|(?:^|[\s،,])(?:مدل|محصول|کالا|قطعه)(?:ش|شون|مون)(?=$|[\s،,.؟?])/iu
 // A singular detail question points back to the product already under
 // discussion. Keep common colloquial spellings too: customers routinely type
 // «پارچش» for «پارچه‌اش», and treating that typo as a fresh
@@ -332,7 +395,7 @@ const PRICE_VALUE_RE = /(?:قیمت|تومان|تومن|ریال|هزار|میل
 // ask to browse them. «مدل» is intentionally excluded — «مدل‌های دیگه» usually
 // means OTHER products, not other variants of this one. «سایز» is excluded
 // because sizes answer in prose; a size vitrine would show identical photos.
-const VARIANT_PLURAL_RE = /(?:طرح|تنوع|رنگ\s*بندی|رنگبندی|رنگ)\s*ها(?:ی|یی|م|ش|تون|مون|شون)?/iu
+const VARIANT_PLURAL_RE = /(?:طرح|تنوع|رنگ\s*بندی|رنگبندی|رنگ)\s*(?:ها(?:ی|یی|م|ش|تون|مون|شون)?|ات|اش|اتو)/iu
 const VARIANT_BROWSE_CUE_RE =
         /(?:دیگه|دیگر|دیگش|بقیه|همه|کاتالوگ|عکس|عکسا|لیست|فهرست|بفرست|می\s*فرست|میفرست|ببینم|نشون|نشان|نمایش|بده|دارین|دارید|ندارین|ندارید|چیه|چی\s*هست|موجود(?:ه|ین)?|هست(?:ن)?|داره|are\s+there|available)/iu
 const VARIANT_PLURAL_EN_RE = /\b(?:designs|colors|colours|variants|variations|patterns)\b/iu
@@ -341,7 +404,7 @@ const VARIANT_BROWSE_CUE_EN_RE =
 /** Product ids inside [[product:{…}]] markers of an assistant reply. */
 const MARKER_PRODUCT_ID_RE = /\[\[product:\s*\{[\s\S]*?"id"\s*:\s*"([^"]+)"/g
 
-function extractMarkerProductIds(content: string): string[] {
+export function extractMarkerProductIds(content: string): string[] {
         const ids: string[] = []
         MARKER_PRODUCT_ID_RE.lastIndex = 0
         let match: RegExpExecArray | null
@@ -383,6 +446,11 @@ function extractVariantHint(normalized: string): string | null {
 
 export const PRODUCT_STOP_WORDS = new Set([
         'سلام', 'درود', 'لطفا', 'لطفاً', 'خواهشاً', 'میشه', 'می‌شه', 'میتونی', 'می‌تونی',
+        // Copulas, thinking-aloud verbs and opinion adverbs leak into carried
+        // search terms ("مدل نگار به نظرم خیلی ساده‌ست" once grounded ست-پذیرایی
+        // rows because "ساده‌ست" tokenized into ساده + the enclitic ست).
+        'است', 'بود', 'بودن', 'فکر', 'کنم', 'کنیم', 'نظر', 'نظرم', 'خیلی', 'بین', 'باشه',
+        'بهتر', 'بهتره', 'بهتری', 'بدتر', 'ساده‌تر',
         'محصول', 'محصولات', 'کالا', 'کالاها', 'کاتالوگ', 'فروشگاه', 'قیمت', 'قیمتها', 'قیمت‌ها',
         'موجود', 'موجوده', 'موجودند', 'موجودن', 'موجودی', 'ناموجود', 'خرید', 'فروش', 'بفرست', 'بفرستید', 'بفرستین', 'ارسال',
         'نشون', 'نشان', 'نمایش', 'بده', 'بدین', 'بدهید', 'معرفی', 'پیشنهاد', 'لیست', 'فهرست',
@@ -442,6 +510,12 @@ export function normalizePersianText(value: string): string {
                 .normalize('NFKC')
                 .replace(/ي/g, 'ی')
                 .replace(/ك/g, 'ک')
+                // A ZWNJ-attached «ست» is always the copula enclitic
+                // ("ساده‌ست" = "is simple"), never the set noun that STARTS
+                // product names such as «ست پذیرایی». Strip it before the
+                // ZWNJ→space split, or it leaks into search terms and pulls
+                // set-products into single-item comparisons.
+                .replace(/\u200cست(?=\s|$|[.!?؟،؛:;,])/gu, '')
                 .replace(/[\u200c\u200d]/g, ' ')
                 .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
                 .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
@@ -473,7 +547,10 @@ export function tokenizeCatalogText(value: string): string[] {
 /** Alias kept for callers that prefer the identity-text wording. */
 export { tokenizeCatalogText as tokenizeCatalogIdentityText }
 
-export function extractProductTerms(value: string): string[] {
+export function extractProductTerms(
+        value: string,
+        options?: { sizeNumbersAllowed?: boolean },
+): string[] {
         const normalized = normalizePersianText(value)
         // Plain counts ("۵ تا محصول") are not search terms, but measurements
         // and sizes are essential catalog evidence. Product identifiers also
@@ -514,6 +591,12 @@ export function extractProductTerms(value: string): string[] {
                                 && /^\d{2,4}$/.test(token)
                                 && !counterNouns.has(rawTokens[index + 1] ?? '')
                         ) return true
+                        // A comparative follow-up («فکر کنم ۱۹۰ بهتر باشه»)
+                        // carries no subject noun of its own — the subject
+                        // lives in the conversation history. When the caller
+                        // proved that context, a bare size-like number is
+                        // essential catalog evidence, not a count.
+                        if (options?.sizeNumbersAllowed && /^\d{2,4}$/.test(token)) return true
                         return false
                 })
 
@@ -537,9 +620,17 @@ export function extractProductTerms(value: string): string[] {
                 )
                         ? possessiveCandidate
                         : token
-                const singular = withoutPossessive.length > 4
-                        ? withoutPossessive.replace(/(?:هایی|های|ها)$/u, '')
-                        : withoutPossessive
+                // «طرحات / رنگات» — the colloquial possessive plural
+                // (طرح + ات) of variant nouns. The generic suffix stripper
+                // below only knows های/ها; without this, «طرحات چیه» kept
+                // "طرحات" as an opaque term instead of the variant noun.
+                const colloquialVariantPlural = /^(?:طرح|رنگ|مدل|سایز|تنوع)ات$/u.test(withoutPossessive)
+                        ? withoutPossessive.replace(/ات$/u, '')
+                        : null
+                const singular = colloquialVariantPlural
+                        ?? (withoutPossessive.length > 4
+                                ? withoutPossessive.replace(/(?:هایی|های|ها)$/u, '')
+                                : withoutPossessive)
                 const term = singular.length >= 2 ? singular : token
                 if (!PRODUCT_STOP_WORDS.has(term) && !terms.includes(term)) terms.push(term)
                 if (terms.length >= 6) break
@@ -641,7 +732,75 @@ export function planProductRequest(
         const normalized = normalizePersianText(message)
         const resetRequested = RESET_CONTEXT_RE.test(normalized)
         const orderOnly = ORDER_ONLY_RE.test(normalized)
-        const currentTerms = extractProductTerms(normalized)
+        let priorProductTerms: string[] = []
+        let priorVariantHint: string | null = null
+        // A prior browse turn ("what do you have?") counts as product context
+        // even when it produced no search terms — it lets a follow-up such as
+        // "show all" or a bare "yes" complete the browse into a showcase.
+        let priorProductSignal = false
+        if (!resetRequested) {
+                for (let index = history.length - 1; index >= 0; index -= 1) {
+                        const previous = history[index]
+                        if (previous.role !== 'user') continue
+                        // Normalize like the current turn: ZWNJ («چی می‌فروشید»)
+                        // must not hide a prior browse signal from the regexes.
+                        const previousContent = normalizePersianText(previous.content ?? '')
+                        if (RESET_CONTEXT_RE.test(previousContent)) break
+                        const previousProductKeyword = PRODUCT_INTENT_RE.test(previousContent)
+                        const previousAttributeSignal = PRODUCT_ATTRIBUTE_RE.test(previousContent)
+                        const previousProductCodeSignal =
+                                PRODUCT_CODE_RE.test(previousContent) || BARE_PRODUCT_CODE_RE.test(previousContent)
+                        const previousNonCatalogCode =
+                                NON_CATALOG_CODE_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent)
+                        let previousTerms = extractProductTerms(previousContent)
+                        if (previousTerms.length === 0 && PRODUCT_CONTEXT_FOLLOWUP_RE.test(previousContent)) {
+                                // A bare follow-up («فکر کنم ۱۹۰ بهتر باشه»)
+                                // owns only a size number; keep it so later
+                                // turns inherit the NEW size, not the old one.
+                                previousTerms = extractProductTerms(previousContent, { sizeNumbersAllowed: true })
+                        }
+                        const previousShoppingNeed =
+                                SHOPPING_NEED_RE.test(previousContent) &&
+                                (!NON_PRODUCT_NEED_RE.test(previousContent) || previousProductKeyword || previousAttributeSignal) &&
+                                (!INFORMATION_SEEKING_RE.test(previousContent) || previousProductKeyword || previousAttributeSignal) &&
+                                (!GENERIC_HELP_RE.test(previousContent) || previousTerms.length > 0 || previousProductKeyword || previousAttributeSignal)
+                        const previousIsNonProduct =
+                                ORDER_ONLY_RE.test(previousContent) ||
+                                previousNonCatalogCode ||
+                                (SERVICE_ONLY_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent))
+                        if (previousIsNonProduct) continue
+                        const previousHasProductSignal =
+                                previousProductKeyword ||
+                                previousProductCodeSignal ||
+                                AVAILABLE_RE.test(previousContent) ||
+                                BROWSE_QUERY_RE.test(previousContent) ||
+                                previousAttributeSignal ||
+                                previousShoppingNeed ||
+                                // A follow-up or a "بین X و Y" comparison statement
+                                // is product context even without a shopping verb:
+                                // "فکر کنم ۱۹۰ بهتر باشه" and "بین نقش و نگار کدوم
+                                // برای من بهتره؟" must carry their terms forward —
+                                // they were skipped here, which is how comparison
+                                // questions lost one side of the pair.
+                                PRODUCT_CONTEXT_FOLLOWUP_RE.test(previousContent) ||
+                                COMPARISON_PAIR_RE.test(previousContent)
+                        if (!previousHasProductSignal) continue
+                        priorProductSignal = true
+                        priorProductTerms = previousTerms
+                        priorVariantHint = extractVariantHint(previousContent)
+                        if (priorProductTerms.length) break
+                }
+        }
+
+        // A comparative/possessive follow-up has no subject noun of its own:
+        // when the carried context proves a product subject, bare size-like
+        // numbers in THIS message («فکر کنم ۱۹۰ بهتر باشه») must survive term
+        // extraction — they are the customer moving to another size of the
+        // SAME family, and dropping them grounded the old size forever.
+        const currentTerms = extractProductTerms(normalized, {
+                sizeNumbersAllowed: priorProductTerms.some((term) =>
+                        PRODUCT_SUBJECT_RE.test(term) || (corpusTokens?.has(term) ?? false)),
+        })
         // ── Corpus-derived product intent ──────────────────────────────
         // A term that the agent's own catalog carries in its identity fields
         // (name/category/tags/SKU) proves this turn is about that tenant's
@@ -653,9 +812,20 @@ export function planProductRequest(
         const corpusSubjectSignal = corpusSubjectTerms.length > 0
         // A strong courier/shipping signal overrides the generic product-subject
         // guard: «فروشگاه با اسنپ هم ارسال می‌کنه؟» must stay a policy question.
+        // Lead-time questions ("آماده‌سازی و ارسالش چقدر طول می‌کشه؟") are strong
+        // policy too: even mid-order, when the message carries the city and
+        // payment method the operator just asked for, catalog grounding would
+        // only ever fail closed and destroy the order context.
         const policyOnly = isShippingPolicyQuestion(normalized)
                 || STRONG_BUSINESS_POLICY_RE.test(normalized)
+                || LEAD_TIME_QUESTION_RE.test(normalized)
                 || (BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized) && !corpusSubjectSignal)
+        // Decor advice on the customer's OWN furniture ("مبل کرم دارم، چه طرحی
+        // پیشنهاد میدی؟") is a knowledge-base consultation, not a catalog
+        // search: the store doesn't sell the customer's own sofa.
+        const advisoryConsult = POSSESSION_RE.test(normalized)
+                && ADVICE_REQUEST_RE.test(normalized)
+                && !BUY_INTENT_RE.test(normalized)
         const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)
@@ -679,7 +849,7 @@ export function planProductRequest(
         // keeps them out of catalog retrieval. Product codes stay above the gate
         // because a real SKU is unambiguous catalog evidence.
         const nonProductNeed = NON_PRODUCT_NEED_RE.test(normalized)
-        const directProductSignal = !policyOnly && !nonCatalogCode && (
+        const directProductSignal = !policyOnly && !nonCatalogCode && !advisoryConsult && (
                 productCodeSignal ||
                 (!nonProductNeed && (
                         productKeywordSignal ||
@@ -687,52 +857,6 @@ export function planProductRequest(
                         (!serviceOnly && (AVAILABLE_RE.test(normalized) || shoppingNeedSignal || attributeSignal))
                 ))
         )
-
-        let priorProductTerms: string[] = []
-        let priorVariantHint: string | null = null
-        // A prior browse turn ("what do you have?") counts as product context
-        // even when it produced no search terms — it lets a follow-up such as
-        // "show all" or a bare "yes" complete the browse into a showcase.
-        let priorProductSignal = false
-        if (!resetRequested) {
-                for (let index = history.length - 1; index >= 0; index -= 1) {
-                        const previous = history[index]
-                        if (previous.role !== 'user') continue
-                        // Normalize like the current turn: ZWNJ («چی می‌فروشید»)
-                        // must not hide a prior browse signal from the regexes.
-                        const previousContent = normalizePersianText(previous.content ?? '')
-                        if (RESET_CONTEXT_RE.test(previousContent)) break
-                        const previousProductKeyword = PRODUCT_INTENT_RE.test(previousContent)
-                        const previousAttributeSignal = PRODUCT_ATTRIBUTE_RE.test(previousContent)
-                        const previousProductCodeSignal =
-                                PRODUCT_CODE_RE.test(previousContent) || BARE_PRODUCT_CODE_RE.test(previousContent)
-                        const previousNonCatalogCode =
-                                NON_CATALOG_CODE_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent)
-                        const previousTerms = extractProductTerms(previousContent)
-                        const previousShoppingNeed =
-                                SHOPPING_NEED_RE.test(previousContent) &&
-                                (!NON_PRODUCT_NEED_RE.test(previousContent) || previousProductKeyword || previousAttributeSignal) &&
-                                (!INFORMATION_SEEKING_RE.test(previousContent) || previousProductKeyword || previousAttributeSignal) &&
-                                (!GENERIC_HELP_RE.test(previousContent) || previousTerms.length > 0 || previousProductKeyword || previousAttributeSignal)
-                        const previousIsNonProduct =
-                                ORDER_ONLY_RE.test(previousContent) ||
-                                previousNonCatalogCode ||
-                                (SERVICE_ONLY_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent))
-                        if (previousIsNonProduct) continue
-                        const previousHasProductSignal =
-                                previousProductKeyword ||
-                                previousProductCodeSignal ||
-                                AVAILABLE_RE.test(previousContent) ||
-                                BROWSE_QUERY_RE.test(previousContent) ||
-                                previousAttributeSignal ||
-                                previousShoppingNeed
-                        if (!previousHasProductSignal) continue
-                        priorProductSignal = true
-                        priorProductTerms = previousTerms
-                        priorVariantHint = extractVariantHint(previousContent)
-                        if (priorProductTerms.length) break
-                }
-        }
 
         // A bare "yes / show me" is only a showcase acceptance when the agent
         // itself just offered to show products — a bare "بله" answering "shall I
@@ -847,8 +971,12 @@ export function planProductRequest(
                 priorProductSignal && (
                         PRODUCT_CONTEXT_FOLLOWUP_RE.test(normalized) || singularProductDetailFollowUp
                 )
+        // A comparative-choice follow-up ("کدومش ارزون‌تره؟") grounds BOTH sides
+        // of the pair the recent messages name — see fetchCatalogProducts's
+        // comparison branch.
+        const comparisonConsult = contextualProductFollowUp && COMPARISON_QUESTION_RE.test(normalized)
         const isProductTurn =
-                !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
+                !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode && !advisoryConsult &&
                 (directProductSignal || contextualProductFollowUp || browseQuery || explicitShowcase || variantBrowse || variantPick)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.
@@ -870,9 +998,23 @@ export function planProductRequest(
                 // the fail-closed matcher require an irrelevant word that the
                 // row stores as «طرح 06». Anchor the lookup to the parent
                 // product and let its trusted variations answer variant facts.
-                searchTerms = singularProductDetailFollowUp && priorVariantHint
+                //
+                // A fresh size-like number in THIS message ("فکر کنم ۱۹۰ بهتر
+                // باشه" after a ۱۶۰ goal) is the customer moving within the
+                // same family: it must REPLACE the older carried size, not be
+                // dropped by it — otherwise every later design/price turn for
+                // the new size silently grounds the OLD size's rows.
+                const freshSizeTerms = currentTerms.filter((term) =>
+                        /^\d{2,4}$/.test(term) && !priorProductTerms.includes(term))
+                const basePriorTerms = singularProductDetailFollowUp && priorVariantHint
                         ? priorProductTerms.filter((term) => term !== priorVariantHint)
                         : priorProductTerms
+                searchTerms = freshSizeTerms.length > 0
+                        ? [...new Set([
+                                ...freshSizeTerms,
+                                ...basePriorTerms.filter((term) => !/^\d{2,4}$/.test(term)),
+                        ])].slice(0, 6)
+                        : basePriorTerms
         }
 
         // Variant turns are about the product already under discussion; plural
@@ -954,6 +1096,9 @@ export function planProductRequest(
                                         ? MAX_SHOWCASE_PRODUCTS
                                         : discoveryBrowse
                                                 ? 6
+                                                // A comparison consult presents both sides of
+                                                // the pair: two rows per side is plenty.
+                                                : comparisonConsult ? 4
                                                 // A singular attribute question is about one
                                                 // established product. Returning one best row
                                                 // prevents unrelated catalog cards from leaking
@@ -975,6 +1120,8 @@ export function planProductRequest(
                 variantPick,
                 variantTargetRefs,
                 codeVariantVitrine,
+                advisoryConsult,
+                comparisonConsult,
         }
 }
 
@@ -1395,6 +1542,13 @@ export async function fetchCatalogProducts(
         productIds: string[],
         plan: ProductRequestPlan,
         corpusTokens?: ReadonlySet<string>,
+        /**
+         * Products the conversation already grounded in earlier turns (state
+         * candidateEntityIds). Comparison consults family-lock both sides of
+         * the pair to the family of these rows, so «کدومش ارزون‌تره؟» between
+         * two جلومبلی models can never answer with TV-table or set prices.
+         */
+        priorCandidateIds: string[] = [],
 ): Promise<CatalogProduct[]> {
         if (!plan.isProductTurn) return []
 
@@ -1606,6 +1760,115 @@ export async function fetchCatalogProducts(
                 return right.product.updatedAt.getTime() - left.product.updatedAt.getTime()
         })
 
+        // ─── Comparison consult grounding ────────────────────────────────────
+        // «کدومش ارزون‌تره؟» compares the two models the customer has been
+        // discussing (searchTerms carried both sides). A single term-set can
+        // only ground ONE side — or worse, rows whose design name contains
+        // both terms («طرح نقش جهان») — which is how the model once claimed
+        // both sides share one price. Instead: bucket rows per subject term
+        // against the MODEL name (product name minus the «طرح …» design
+        // tail) so design tokens never masquerade as model subjects, then
+        // pick an ANCHOR side (the one the conversation already grounded) and
+        // mirror every other side by the anchor's family tokens — an
+        // apples-to-apples same-family pair whose prices can honestly be
+        // compared. fullTermMatch stays false — consult, never identification.
+        if (plan.comparisonConsult && subjectTerms.length >= 2) {
+                const priorIdSet = new Set(priorCandidateIds)
+                const modelName = (name: string) => {
+                        const cut = name.search(/(?:^|\s)طرح\s+\S/u)
+                        return cut === -1 ? name : name.slice(0, cut)
+                }
+                const modelTokens = (name: string) =>
+                        modelName(name)
+                                .replace(/[^\p{L}\p{N}]+/gu, ' ')
+                                .split(/\s+/u)
+                                .filter((token) => token.length > 1)
+                const nonSubjectTokens = (name: string) => new Set(
+                        modelTokens(name).filter((token) => !subjectTerms.includes(token)),
+                )
+                const overlapCount = (name: string, reference: Set<string>) => {
+                        let overlap = 0
+                        for (const token of nonSubjectTokens(name)) if (reference.has(token)) overlap += 1
+                        return overlap
+                }
+                const recalled = (item: (typeof ranked)[number]) =>
+                        semanticRank.has(item.product.id) || priorIdSet.has(item.product.id)
+                const rankBy = (bucket: (typeof ranked)[number][], reference: Set<string> | null) =>
+                        [...bucket].sort((left, right) => {
+                                const recallDelta = Number(recalled(right)) - Number(recalled(left))
+                                if (recallDelta !== 0) return recallDelta
+                                if (reference) {
+                                        const familyDelta = overlapCount(right.product.name, reference) - overlapCount(left.product.name, reference)
+                                        if (familyDelta !== 0) return familyDelta
+                                }
+                                return right.score - left.score
+                        })
+                const buckets = new Map<string, (typeof ranked)[number][]>()
+                for (const term of subjectTerms.slice(0, 4)) {
+                        const bucket = ranked.filter((item) => modelTokens(item.product.name).includes(term))
+                        if (bucket.length) buckets.set(term, bucket)
+                }
+                if (buckets.size >= 2) {
+                        // 1) Anchor side: the subject whose bucket holds the strongest
+                        // recalled/known row — the side the conversation grounded first.
+                        let anchorTerm: string | null = null
+                        let anchorBest: (typeof ranked)[number] | null = null
+                        for (const [term, bucket] of buckets) {
+                                const best = rankBy(bucket, null)[0]
+                                if (!anchorBest || (recalled(best) && !recalled(anchorBest))) {
+                                        anchorTerm = term
+                                        anchorBest = best
+                                }
+                        }
+                        if (anchorTerm && anchorBest) {
+                                const picked: (typeof ranked)[number][] = [anchorBest]
+                                // 2) Mirror sides: rows of every OTHER subject that share
+                                // the anchor's family tokens (same میز/جلومبلی/آکام/چوب
+                                // head nouns) — the honest comparison counterpart.
+                                let mirror: (typeof ranked)[number] | null = null
+                                for (const [term, bucket] of buckets) {
+                                        if (term === anchorTerm) continue
+                                        const anchorFamily = nonSubjectTokens(anchorBest.product.name)
+                                        const rankedBucket = rankBy(bucket, anchorFamily)
+                                        if (rankedBucket[0]) {
+                                                if (!mirror) mirror = rankedBucket[0]
+                                                picked.push(rankedBucket[0])
+                                        }
+                                        if (rankedBucket[1]) picked.push(rankedBucket[1])
+                                }
+                                // 3) One more anchor-side row, family-locked to the mirror.
+                                if (mirror) {
+                                        const mirrorFamily = nonSubjectTokens(mirror.product.name)
+                                        const anchorExtra = rankBy(buckets.get(anchorTerm) ?? [], mirrorFamily)
+                                                .find((item) => item !== anchorBest)
+                                        if (anchorExtra) picked.push(anchorExtra)
+                                }
+                                const seenIds = new Set<string>()
+                                const comparisonRows = picked.filter((item) => {
+                                        if (seenIds.has(item.product.id)) return false
+                                        seenIds.add(item.product.id)
+                                        return true
+                                }).slice(0, 4)
+                                if (comparisonRows.length >= 2) {
+                                        return comparisonRows.map(({ product }) => ({
+                                                id: product.id,
+                                                name: product.name,
+                                                description: product.description,
+                                                price: product.price,
+                                                stock: product.stock,
+                                                category: product.category?.name ?? null,
+                                                image: product.images[0] ?? null,
+                                                url: product.externalUrl,
+                                                attributes: product.attributes,
+                                                tags: product.tags,
+                                                fullTermMatch: false,
+                                        }))
+                                }
+                        }
+                }
+                // No pair grounded: fall through to the ordinary fail-closed path.
+        }
+
         // Concrete product searches fail closed. Semantic neighbours remain
         // useful for open-ended needs («یه چیز خنک»), but they must never be
         // presented as the requested catalog item. Every requested subject
@@ -1713,6 +1976,123 @@ export async function fetchCatalogProducts(
                         subjectCoverage === subjectTerms.length &&
                         (identifyByFullCoverage || uniquelyIdentified),
         }))
+}
+
+/**
+ * Deterministic family-level variant enumeration («طرحات چیه؟»).
+ *
+ * When the customer asks which designs a product FAMILY comes in, the answer
+ * must be COMPLETE: every active catalog row matching the family's anchor
+ * terms (family nouns + size), not a summary of whichever rows won vector
+ * search — «طرحات میز تلویزیون ۱۹۰ چیه؟» once listed four designs (three of
+ * the wrong size, one borrowed from a knowledge doc) although eleven rows
+ * exist. Rows whose names carry no «طرح …» pattern, or which carry internal
+ * `_variations` (a single variable product), return null so the existing
+ * variant-vitrine / consult flow stays in charge.
+ */
+export async function buildFamilyEnumerationReply(params: {
+        workspaceId: string
+        agentId: string
+        lang: 'fa' | 'en' | 'ar'
+        searchTerms: string[]
+        corpusTokens?: ReadonlySet<string>
+}): Promise<string | null> {
+        const familyTerms = params.searchTerms
+                .map((term) => term.trim())
+                .filter((term) => term.length >= 2 && (
+                        PRODUCT_SUBJECT_RE.test(term)
+                        || /^\d{2,4}$/.test(term)
+                        || (params.corpusTokens?.has(term) ?? false)
+                ))
+                .slice(0, 4)
+        if (familyTerms.length === 0) return null
+        const rows = await prisma.product.findMany({
+                where: {
+                        active: true,
+                        catalogItems: { some: { agentId: params.agentId } },
+                        AND: familyTerms.map((term) => ({
+                                OR: catalogTermVariants(term).map((variant) => ({
+                                        name: { contains: variant, mode: 'insensitive' as const },
+                                })),
+                        })),
+                },
+                select: { name: true, price: true, stock: true, attributes: true },
+                orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
+                take: 80,
+        })
+        if (rows.length < 2) return null
+        // Note: rows may still carry internal `_variations` — in catalogs like
+        // آکام چوب those are the WOOD-COLOR dimension while the designs live in
+        // the sibling rows' names («طرح ایوان», «طرح سلین», …). A single
+        // variation-bearing product (designs inside one row) yields <2 rows or
+        // <2 name-level designs and falls through to its own variant vitrine.
+        // Distinct design values from the family rows' names («طرح ایوان –
+        // سایز ۱۹۰» → «ایوان»). Boundary words never join the captured value.
+        const DESIGN_NAME_RE =
+                /(?:^|\s)طرح\s+([\p{L}\p{N}]+(?:\s+(?!سایز|اندازه|کد|مدل|رنگ|مجموعه|عددی|تومن|تومان)[\p{L}\p{N}]+)?)/gu
+        const designs: string[] = []
+        const seenDesigns = new Set<string>()
+        const prices: number[] = []
+        for (const row of rows) {
+                DESIGN_NAME_RE.lastIndex = 0
+                const match = DESIGN_NAME_RE.exec(row.name)
+                const design = match?.[1]?.trim()
+                if (design && !seenDesigns.has(design)) {
+                        seenDesigns.add(design)
+                        designs.push(design)
+                }
+                if (typeof row.price === 'number' && row.price > 0) prices.push(row.price)
+        }
+        if (designs.length < 2) return null
+        // Shared wood/color options, when the family rows carry them.
+        const colors = new Set<string>()
+        const decodeKey = (key: string) => {
+                try { return decodeURIComponent(key) } catch { return key }
+        }
+        for (const row of rows) {
+                const attrs = row.attributes as Record<string, unknown> | null
+                if (!attrs || typeof attrs !== 'object') continue
+                for (const [key, value] of Object.entries(attrs)) {
+                        if (key === '_variations' || !decodeKey(key).includes('رنگ')) continue
+                        const values = Array.isArray(value) ? value : [value]
+                        for (const item of values) {
+                                if (typeof item !== 'string' || !item.trim()) continue
+                                // WooCommerce option lists arrive both as arrays and as one
+                                // comma-joined string («افرا, بلوط, گردویی»).
+                                for (const part of item.split(/[،,]/u)) {
+                                        const color = part.trim()
+                                        if (color) colors.add(color)
+                                }
+                        }
+                }
+        }
+        const subjectPhrase = [
+                ...familyTerms.filter((term) => !/^\d{2,4}$/.test(term)),
+                ...familyTerms.filter((term) => /^\d{2,4}$/.test(term)).map((term) => `سایز ${term}`),
+        ].join(' ')
+        const formatToman = (price: number) =>
+                price.toLocaleString('en-US')
+                        .replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])
+                        .replace(/,/g, '،')
+        const distinctPrices = [...new Set(prices)]
+        const priceLine = distinctPrices.length === 1
+                ? `قیمت هر کدوم ${formatToman(distinctPrices[0])} تومان است`
+                : distinctPrices.length > 1
+                        ? `قیمت‌ها از ${formatToman(Math.min(...distinctPrices))} تا ${formatToman(Math.max(...distinctPrices))} تومان متغیر است`
+                        : ''
+        const colorLine = colors.size >= 2
+                ? ` و در رنگ‌های ${[...colors].join('، ')} قابل سفارش`
+                : ''
+        if (params.lang === 'en') {
+                const designList = designs.join(', ')
+                const enPrice = distinctPrices.length === 1
+                        ? `each priced at ${distinctPrices[0].toLocaleString('en-US')} toman`
+                        : distinctPrices.length > 1
+                                ? `prices range from ${Math.min(...distinctPrices).toLocaleString('en-US')} to ${Math.max(...distinctPrices).toLocaleString('en-US')} toman`
+                                : ''
+                return `Available designs for ${subjectPhrase}: ${designList} (${designs.length} designs)${enPrice ? `, ${enPrice}` : ''}. Which design would you like?`
+        }
+        return `طرح‌های موجود ${subjectPhrase}: ${designs.join('، ')} (${designs.length} طرح). ${priceLine}${colorLine}. کدام طرح را می‌پسندید؟`
 }
 
 /**

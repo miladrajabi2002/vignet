@@ -152,16 +152,21 @@ const REFERENCE_RE = /(?:کدومش|کدامش|این\s*(?:مدل|محصول|م�
 const ORDER_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|تحویل\s*سفارش|کد\s*پیگیری|order|tracking|shipment)/iu
 const BOOKING_RE = /(?:نوبت|رزرو|وقت\s*(?:بگیر|می\s*خوا|خالی|آزاد|مشاوره|ویزیت|بد[هی]|دهی)|appointment|booking|reserve)/iu
 const SERVICE_RE = /(?:خدمت|خدمات|سرویس|مشاوره|تعمیر|نصب|آموزش|دوره|کلاس|کاشت|ترمیم|مانیکور|پدیکور|فیشیال|ماساژ|ویزیت|درمان|طراحی|حسابداری|حقوقی|service|consultation|repair|installation|course|class|treatment|design|accounting|legal)/iu
-const BUSINESS_INFO_RE = /(?:آدرس|نشانی|ساعت\s*کاری|شماره\s*(?:تماس|تلفن)|ارسال\s*رایگان|هزینه\s*ارسال|روش\s*پرداخت|گارانتی|مرجوعی|address|business\s*hours|phone|shipping|payment\s*method|warranty|return\s*policy)/iu
+const BUSINESS_INFO_RE = /(?:آدرس|نشانی|ساعت\s*کاری|شماره\s*(?:تماس|تلفن)|ارسال\s*رایگان|هزینه\s*ارسال|روش\s*پرداخت|گارانتی|مرجوعی|آ?ماده\s*سازی|زمان\s*(?:آماده|ارسال|تحویل|تولید)|چقدر\s*طول|طول\s*(?:می\s*)?کشه|میکشه|چند\s*(?:روز|هفته)|address|business\s*hours|phone|shipping|payment\s*method|warranty|return\s*policy|lead\s*time|delivery\s*time)/iu
 const SUPPORT_RE = /(?:مشکل|خراب|شکست|پاره|کار\s*نمی|خطا|ارور|بازگشت\s*وجه|مرجوع|پشتیبانی|problem|broken|error|refund|support)/iu
 const SHOPPING_RE = /(?:محصول|کالا|خرید|قیمت|موجود|مدل|رنگ|سایز|جنس|پارچه|می\s*(?:خوام|خواهم)|میخوام|دنبال|لازم\s*دارم|product|catalog|price|buy|in\s*stock|looking\s+for|i\s+(?:want|need))/iu
 
 const SLOT_PATTERNS: Array<[string, RegExp]> = [
   ['style', /(?:مدرن|کلاسیک|مینیمال|سنتی|اسپرت|رسمی|کژوال|modern|classic|minimal|traditional|sporty|formal|casual)/iu],
   ['color', /(?:مشکی|سفید|سبز|آبی|ابی|قرمز|زرد|صورتی|بنفش|نارنجی|طوسی|خاکستری|کرم|قهوه\s*ای|طلایی|نقره\s*ای|black|white|green|blue|red|yellow|pink|purple|orange|gray|grey|cream|brown|gold|silver)/iu],
-  ['size', /(?:سایز|اندازه|ابعاد|متراژ|قد|دور\s*(?:سینه|کمر|باسن)|size|dimensions?|measurement|length|area)/iu],
+  ['size', /(?:سایز|اندازه|ابعاد|متراژ|(?:^|[^\p{L}\p{N}])قد(?:$|[^\p{L}\p{N}])|دور\s*(?:سینه|کمر|باسن)|size|dimensions?|measurement|length|area)/iu],
   ['budget', /(?:بودجه|تومان|تومن|ریال|میلیارد|میلیون|هزار|budget|price\s*range|billion|million|dollar|usd)/iu],
   ['location', /(?:شهر|منطقه|محله|استان|آدرس|تهران|کرج|مشهد|شیراز|اصفهان|تبریز|قم|location|city|district|address)/iu],
+  // Payment method is order-intake information the operator explicitly asks
+  // for («شهر مقصد و روش پرداخت (نقدی یا اعتباری) رو بگید»). Capturing it as
+  // a slot keeps the reply from re-asking and keeps the collected state
+  // visible to the model on later turns.
+  ['payment', /(?:نقدی|قسطی|اقساط|اعتباری|اسنپ\s*پی|دیجی\s*پی|کارت\s*به\s*کارت|پرداخت\s*(?:نقدی|قسطی|آنلاین|اعتباری)|cash|installment)/iu],
   ['date', /(?:امروز|فردا|پس\s*فردا|شنبه|یکشنبه|دوشنبه|سه\s*شنبه|چهارشنبه|پنجشنبه|جمعه|تاریخ|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|date)/iu],
   ['time', /(?:صبح|ظهر|عصر|شب|ساعت|بازه\s*زمانی|morning|afternoon|evening|night|time)/iu],
   ['quantity', /(?:تعداد|عدد|دونه|چند\s*تا|quantity|pieces?|items?)/iu],
@@ -179,6 +184,7 @@ const QUESTION_SLOT_PATTERNS: Array<[string, RegExp]> = [
   ['budget', /(?:بودجه|حدود\s*قیمت|چقدر\s*هزینه|budget|price\s*range)/iu],
   ['size', /(?:چه\s*سایز|سایز|اندازه|ابعاد|متراژ|(?:^|[^\p{L}])قد(?:$|[^\p{L}])|size|dimensions?|measurement)/iu],
   ['location', /(?:کدام\s*شهر|کدوم\s*شهر|شهر|منطقه|محله|آدرس|where|location|city|district)/iu],
+  ['payment', /(?:روش\s*پرداخت|نقدی|قسطی|چطور\s*پرداخت|payment\s*method|pay)/iu],
   ['date', /(?:چه\s*روز|کدام\s*روز|کدوم\s*روز|تاریخ|روز|when|date|day)/iu],
   ['time', /(?:چه\s*ساعت|ساعت|صبح|عصر|بازه|what\s*time|time)/iu],
   ['quantity', /(?:چند\s*(?:تا|عدد|دونه|نفر)|تعداد|how\s+many|quantity)/iu],
@@ -193,6 +199,9 @@ const ANCHOR_STOP_WORDS = new Set([
   'سلام', 'لطفا', 'لطفاً', 'میخوام', 'می', 'خوام', 'خواستم', 'میخواستم', 'می‌خواستم', 'دنبال', 'هستم',
   'برای', 'مناسب', 'باشه', 'باشد', 'دارین', 'دارید', 'داری', 'دارم', 'هست', 'یه', 'یک', 'رو', 'را',
   'به', 'از', 'با', 'و', 'یا', 'که', 'این', 'اون', 'همون', 'چی', 'چه', 'کدوم', 'لطفاً',
+  // Copulas, thinking-aloud verbs and opinion adverbs ("مدل نگار به نظرم
+  // خیلی ساده‌ست") must not survive into goal anchors.
+  'است', 'بود', 'بودن', 'فکر', 'کنم', 'کنیم', 'نظر', 'نظرم', 'خیلی', 'بین', 'بهتر', 'بهتره',
   'i', 'want', 'need', 'am', 'looking', 'for', 'the', 'a', 'an', 'please', 'this', 'that',
 ])
 
@@ -201,6 +210,11 @@ function normalize(value: string): string {
     .normalize('NFKC')
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
+    // A ZWNJ-attached «ست» is the copula enclitic ("ساده‌ست" = "is simple"),
+    // never the set noun that starts product names such as «ست پذیرایی».
+    // Strip it before the ZWNJ→space split so goal anchors never carry the
+    // enclitic as a fake search term.
+    .replace(/\u200cست(?=\s|$|[.!?؟،؛:;,])/gu, '')
     .replace(/[\u200c\u200d]/g, ' ')
     .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
@@ -221,6 +235,19 @@ function uniqueBounded(values: string[], max: number): string[] {
     if (result.length >= max) break
   }
   return result
+}
+
+/**
+ * A newer size-like number (160/190/…) supersedes older conflicting sizes: the
+ * customer moved from «میز تلویزیون ۱۶۰» to «۱۹۰» and stale size anchors must
+ * not steer later design/price turns to the wrong family rows. Sizes present
+ * in the new terms survive; sizes only in the old anchors are dropped.
+ */
+function resolveAnchorConflicts(newTerms: string[], oldAnchors: string[]): string[] {
+  const isSizeNumber = (term: string) => /^\d{2,4}$/.test(term)
+  const newSizes = newTerms.filter(isSizeNumber)
+  if (newSizes.length === 0) return oldAnchors
+  return oldAnchors.filter((anchor) => !isSizeNumber(anchor) || newSizes.includes(anchor))
 }
 
 function genericAnchors(message: string): string[] {
@@ -584,6 +611,13 @@ export function advanceConversationWorkingState(params: {
     )
   } else if (relation === 'CLOSING') {
     if (next.activeGoal) next.status = 'RESOLVED'
+  } else if (relation === 'SIDE_QUESTION') {
+    // A side policy question mid-goal can still carry order-intake facts
+    // («تهرانم، نقدی می‌خوام؛ آماده‌سازی و ارسالش چقدر طول می‌کشه؟») — capture
+    // the city/payment slots so the reply can acknowledge them and later
+    // turns never re-ask, WITHOUT merging anything into the product anchors.
+    if (next.activeGoal) next.status = 'ACTIVE'
+    Object.assign(next.slots, explicitSlots(message, params.messageId))
   } else if (['REFINEMENT', 'ANSWER', 'REFERENCE', 'CORRECTION'].includes(relation)) {
     if (next.activeGoal) next.status = 'ACTIVE'
     const fact: ConversationStateFact = {
@@ -620,7 +654,7 @@ export function advanceConversationWorkingState(params: {
       // customer is asking about right now, and stale anchors must never evict
       // the live terms from the bounded window.
       next.searchAnchors = uniqueBounded(
-        [...params.productPlan.searchTerms, ...next.searchAnchors],
+        [...params.productPlan.searchTerms, ...resolveAnchorConflicts(params.productPlan.searchTerms, next.searchAnchors)],
         MAX_ANCHORS,
       )
     }
@@ -795,7 +829,7 @@ export function contextualizeProductRequest(
   // engine already restarted the goal (NEW_GOAL) and this function returns
   // the plan untouched.
   const searchTerms = uniqueBounded(
-    [...plan.searchTerms, ...termsFromState(state)],
+    [...plan.searchTerms, ...resolveAnchorConflicts(plan.searchTerms, termsFromState(state))],
     MAX_ANCHORS,
   )
   return {
@@ -847,7 +881,7 @@ export function promoteConversationStateToProduct(
       next.activeEntity.source = 'CATALOG'
     }
   }
-  next.searchAnchors = uniqueBounded([...searchTerms, ...next.searchAnchors], MAX_ANCHORS)
+  next.searchAnchors = uniqueBounded([...searchTerms, ...resolveAnchorConflicts(searchTerms, next.searchAnchors)], MAX_ANCHORS)
   next.candidateEntityIds = uniqueBounded(productIds, MAX_CANDIDATES)
   if (next.lastTurn) next.lastTurn.intent = 'PRODUCT'
   return next

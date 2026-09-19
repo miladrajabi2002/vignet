@@ -111,6 +111,13 @@ function buildCatalogBlock(
   isFa: boolean,
   catalogAccessEnabled: boolean,
   userMessage: string,
+  productRequest?: {
+    isProductTurn?: boolean
+    /** Decor advice on the customer's own furniture — knowledge consult. */
+    advisoryConsult?: boolean
+    /** Anaphora without a product referent — clarification consult. */
+    anaphoraConsult?: boolean
+  },
 ): string {
   if (!catalogAccessEnabled) {
     return isFa
@@ -122,6 +129,11 @@ function buildCatalogBlock(
     // Keep generic turns lean, but explicitly prevent invention when this turn
     // asked for a product and retrieval found no matching assigned item.
     if (!CATALOG_QUERY_INTENT.test(userMessage) && !PRODUCT_SUBJECT_RE.test(userMessage)) return ''
+    // Consult-only turns (decor advice on the customer's own furniture,
+    // anaphoric clarification with no referent) answer from the knowledge
+    // base: the "not found" verdict would hijack the consultation and make
+    // the model claim «هیچ مبل کرمی پیدا نکردم» instead of advising designs.
+    if (productRequest?.advisoryConsult || productRequest?.anaphoraConsult) return ''
     return isFa
       ? '\n\nمحصول منطبق و قابل‌اعتمادی برای این درخواست پیدا نشد. نام، قیمت، موجودی یا مشخصات محصولی را حدس نزن و کوتاه بگو محصول منطبق در کاتالوگ فعلی پیدا نشد.'
       : '\n\nNo trusted matching product was found for this request. Do not invent a product, price, stock level, or specifications; briefly say no matching catalog item was found.'
@@ -273,6 +285,12 @@ export function buildMessages(params: {
     inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
     variantBrowse?: boolean
     variantPick?: boolean
+    /** Decor advice on the customer's own furniture — knowledge consult. */
+    advisoryConsult?: boolean
+    /** Comparative-choice follow-up — both sides are grounded. */
+    comparisonConsult?: boolean
+    /** Anaphora without a product referent — clarification consult. */
+    anaphoraConsult?: boolean
   }
   /** Store category names shown on browse turns so the overview is factual. */
   catalogCategories?: string[]
@@ -308,6 +326,7 @@ export function buildMessages(params: {
     isFa,
     params.catalogAccessEnabled !== false,
     params.userMessage,
+    params.productRequest,
   )
   const serviceBlock = buildServiceBlock(params.catalogServices ?? [], isFa)
 
@@ -320,6 +339,16 @@ export function buildMessages(params: {
       ? isFa
         ? '\n\nنوبت تنوع‌های همان محصول: مشتری دربارهٔ رنگ/طرح/سایزهای همان محصولی می‌پرسد که در نتیجهٔ کاتالوگ همین نوبت آمده است. مرجع «این مدل/همین/اون» همان محصول این نتیجه است؛ فهرست تنوع‌ها، رنگ‌های موجود و موجودی هر کدام را فقط از فیلد «تنوع‌ها» همان ردیف بخوان و مستقیم جواب بده. دوباره نپرس منظورتان کدام مدل است و محصول جدیدی وارد گفتگو نکن.'
         : "\n\nVariant turn for the same product: the customer is asking about the colors/patterns/sizes of THE product in this turn's catalog result. The referent for \"this model/the same one\" is exactly that product; read the variant list, available colors and per-variant stock only from that row's Variants field and answer directly. Do not re-ask which model they mean and do not introduce another product."
+      : ''
+
+  // Comparison consult («کدومش ارزون‌تره؟»): both sides of the pair are
+  // grounded in this turn's catalog rows. The model must read BOTH prices,
+  // declare the winner with numbers, and never infer equality from one side.
+  const comparisonInstruction =
+    params.productRequest?.comparisonConsult
+      ? isFa
+        ? '\n\nمشاورهٔ مقایسه: مشتری می‌پرسد کدام‌یک از دو گزینهٔ مطرح‌شده در گفتگو ارزان‌تر یا بهتر است. قیمت و مشخصات هر دو گزینه را فقط از ردیف‌های کاتالوگ همین نوبت بخوان، برنده را صریح و همراه با عدد اعلام کن و تفاوت را در یک جمله توضیح بده. اگر یکی از دو طرف در نتیجهٔ کاتالوگ نیست، همان طرف را صادقانه «قیمت تأییدشده ندارم» اعلام کن؛ هرگز از یک قیمت واحد نتیجه نگیر که هر دو گزینه یکسان‌اند.'
+        : "\n\nComparison consult: the customer asks which of the two discussed options is cheaper or better. Read BOTH options' prices and specs only from this turn's catalog rows, declare the winner explicitly with numbers, and explain the difference in one sentence. If one side is missing from the result, say honestly that its price is unconfirmed; never infer equality from a single price."
       : ''
 
   const directProductInstruction = params.productRequest?.explicitShowcase
@@ -379,7 +408,7 @@ export function buildMessages(params: {
     // Keep the stable agent/rule prefix ahead of per-turn state. Providers can
     // cache the long stable prefix even though working memory changes on every
     // message, reducing latency and input cost for large configured prompts.
-    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${variantTurnInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${variantTurnInstruction}${comparisonInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
   }
 
   return [

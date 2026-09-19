@@ -28,6 +28,10 @@ import {
         showcaseSubjectPhrase,
         structuredProductDetailReply,
         extractProductTerms,
+        extractMarkerProductIds,
+        normalizePersianText,
+        buildFamilyEnumerationReply,
+        UNRESOLVED_ANAPHORA_RE,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
 import { getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
@@ -294,6 +298,12 @@ async function buildDeterministicTurnReply(params: {
         lang?: TurnLanguage
         /** Non-product knowledge (دانشنامه) was retrieved for this turn. */
         hasKnowledgeContext?: boolean
+        /**
+         * The agent's catalog lexicon (cached). Used by the family-level
+         * variant enumeration so family terms that only exist in THIS
+         * tenant's product names (e.g. «تلویزیون») ground like global nouns.
+         */
+        corpusTokens?: ReadonlySet<string>
 }): Promise<string | null> {
         if (params.closingReply) return params.closingReply
         if (!params.canBypass) return null
@@ -351,6 +361,30 @@ async function buildDeterministicTurnReply(params: {
                 }
                 // No matching variation — fall through: the consultation flow
                 // has the target product in the model's catalog context.
+        }
+        // «طرحات چیه؟» — a plural variant ask whose family lives in the anchor
+        // terms is a FAMILY-level enumeration: the complete design list of
+        // every active catalog row in that family+size, deterministic from
+        // the live catalog. A top-k chunk summary used to list whichever four
+        // designs happened to win vector search (and borrowed a design from
+        // knowledge docs that belongs to another product family). Rows with
+        // internal variations or without «طرح …» names return null here and
+        // keep the variant-vitrine / consult flow below.
+        if (params.productRequest.variantBrowse) {
+                try {
+                        const enumReply = await buildFamilyEnumerationReply({
+                                workspaceId: params.workspaceId,
+                                agentId: params.agent.id,
+                                lang: (params.lang ?? 'fa') as 'fa' | 'en' | 'ar',
+                                searchTerms: params.productRequest.searchTerms,
+                                corpusTokens: params.corpusTokens
+                                        ?? (await getAgentCatalogLexicon(params.agent.id).catch(() => null))?.identityTokens,
+                        })
+                        if (enumReply) return enumReply
+                } catch (error) {
+                        console.error('[chat-engine] family enumeration failed:', error)
+                }
+                // Fall through to the variant showcase / consult flow below.
         }
         // «کاتالوگ طرح‌های دیگشو میفرستی» — a deterministic vitrine of the
         // discussed product's in-stock variations (each card = that variant's
@@ -756,6 +790,54 @@ async function prepareTurn(params: StartChatParams): Promise<
                         knownServiceNames: catalogServices.map((service) => service.name),
                 })
                 let productRequest = contextualizeProductRequest(rawProductRequest, workingState)
+                // ── Unresolved anaphora guard ──────────────────────────────
+                // «این مدل آماده موجود دارید؟» when the conversation never
+                // identified ANY product (no cards sent, no model named, no
+                // exact entity): the turn is a clarification ask answered from
+                // the knowledge base («برای بررسی موجودی، بفرمایید کدوم محصول…»),
+                // never a random catalog row injected as if it were the
+                // referent. Probes and product-chunk recall stay off too, or
+                // they would re-promote the turn with an arbitrary product.
+                const recentMarkerProductIds: string[] = []
+                for (const item of history.slice(-8)) {
+                        if (item.role !== 'assistant') continue
+                        recentMarkerProductIds.push(...extractMarkerProductIds(item.content ?? ''))
+                }
+                let priorUserNamesProduct = false
+                if (corpusTokens) {
+                        let checked = 0
+                        for (let index = history.length - 1; index >= 0 && checked < 3; index -= 1) {
+                                const item = history[index]
+                                if (item.role !== 'user') continue
+                                checked += 1
+                                const priorTerms = extractProductTerms(normalizePersianText(item.content ?? ''))
+                                if (priorTerms.some((term) => corpusTokens?.has(term))) {
+                                        priorUserNamesProduct = true
+                                        break
+                                }
+                        }
+                }
+                const anaphoricWithoutProduct = productRequest.isProductTurn
+                        && UNRESOLVED_ANAPHORA_RE.test(normalizePersianText(message))
+                        && recentMarkerProductIds.length === 0
+                        && !workingState.activeEntity?.id
+                        && !priorUserNamesProduct
+                if (anaphoricWithoutProduct) {
+                        productRequest = {
+                                ...productRequest,
+                                isProductTurn: false,
+                                explicitShowcase: false,
+                                discoveryBrowse: false,
+                                resetProductContext: false,
+                                requestNewTopic: false,
+                                searchTerms: [],
+                                includeProductCards: false,
+                                variantBrowse: false,
+                                variantPick: false,
+                                codeVariantVitrine: false,
+                                anaphoraConsult: true,
+                        }
+                }
                 const closingReply = closingReplyText(message, history, turnLang)
                 if (closingReply) {
                         const skillPlan = compileAgentSkillPlan({
@@ -802,7 +884,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         !CATALOG_REFINEMENT_CUE_RE.test(message),
                 )
                 const shouldProbeCatalog = Boolean(
-                        agent.productAccessEnabled && stateRelation && (
+                        agent.productAccessEnabled && !anaphoricWithoutProduct && stateRelation && (
                                 stateRelation === 'NEW_GOAL' ||
                                 shortBareCatalogCandidate ||
                                 (!productRequest.isProductTurn && workingState.lastTurn?.intent === 'GENERAL'
@@ -883,6 +965,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 // the product's own text, with zero per-vertical code.
                 const semanticProbeAllowed = Boolean(
                         agent.productAccessEnabled &&
+                        !anaphoricWithoutProduct &&
                         !productRequest.isProductTurn &&
                         !productRequest.requestNewTopic &&
                         message.trim().length >= 4,
@@ -1025,7 +1108,7 @@ async function prepareTurn(params: StartChatParams): Promise<
 
                 const [catalogProducts, orderContext, catalogCategories] = await Promise.all([
                         agent.productAccessEnabled
-                                ? fetchCatalogProducts(agent.id, productIds, productRequest, corpusTokens)
+                                ? fetchCatalogProducts(agent.id, productIds, productRequest, corpusTokens, workingState.candidateEntityIds)
                                 : Promise.resolve([]),
                         buildOrderContext({
                                 workspaceId,
