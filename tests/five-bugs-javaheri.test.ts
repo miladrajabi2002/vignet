@@ -69,6 +69,15 @@ describe('Persian copula enclitic «ست» (Javaheri issue 5 root cause)', () =>
     expect(terms).not.toContain('نظر')
     expect(terms).toContain('نگار')
   })
+
+  it('drops the SPACE-separated copula «ست» but keeps the set noun', () => {
+    // «ساده ست» typed with a plain space — same copula, harder to spot.
+    expect(extractProductTerms('مدل نگار به نظرم خیلی ساده ست')).not.toContain('ست')
+    expect(extractProductTerms('قیمتش گرون ست')).not.toContain('ست')
+    // …while real set-noun usage survives.
+    expect(extractProductTerms('ست پذیرایی دارین؟')).toContain('ست')
+    expect(extractProductTerms('یه ست میخوام')).toContain('ست')
+  })
 })
 
 describe('Javaheri issue 5 — «کدومش ارزون‌تره؟» between نقش and نگار', () => {

@@ -450,6 +450,7 @@ export const PRODUCT_STOP_WORDS = new Set([
         // search terms ("مدل نگار به نظرم خیلی ساده‌ست" once grounded ست-پذیرایی
         // rows because "ساده‌ست" tokenized into ساده + the enclitic ست).
         'است', 'بود', 'بودن', 'فکر', 'کنم', 'کنیم', 'نظر', 'نظرم', 'خیلی', 'بین', 'باشه',
+        'کدوم', 'کدام', 'کدومش', 'کدامش', 'کدومتون', 'کدامتان',
         'بهتر', 'بهتره', 'بهتری', 'بدتر', 'ساده‌تر',
         'محصول', 'محصولات', 'کالا', 'کالاها', 'کاتالوگ', 'فروشگاه', 'قیمت', 'قیمتها', 'قیمت‌ها',
         'موجود', 'موجوده', 'موجودند', 'موجودن', 'موجودی', 'ناموجود', 'خرید', 'فروش', 'بفرست', 'بفرستید', 'بفرستین', 'ارسال',
@@ -600,8 +601,29 @@ export function extractProductTerms(
                         return false
                 })
 
+        // A standalone «ست» (written with a SPACE, not the ZWNJ enclitic —
+        // "ساده ست") is almost always the copula. It only names the SET
+        // product family when it STARTS a compound (ست پذیرایی…) or follows a
+        // determiner (یه ست…). Everything else — sentence-final or followed by
+        // a verb/conjunction — is "is" and must never become a search term:
+        // it once steered a نقش/نگار price comparison onto set-product rows.
+        const SET_DETERMINERS = new Set(['یه', 'یک', 'هر', 'این', 'اون', 'همون', 'دو', 'سه', 'چهار', 'چند'])
+        const COPULA_FOLLOWERS = new Set([
+                'ولی', 'اما', 'و', 'چون', 'که', 'هم', 'دیگه', 'حالا', 'را', 'رو',
+                'میخوام', 'می‌خوام', 'میخواستم', 'می‌خواستم', 'هست', 'است', 'بود',
+                'دارم', 'داریم', 'دارید', 'دارین', 'بودن', 'شده', 'میشه', 'می‌شه',
+        ])
         const terms: string[] = []
-        for (const token of tokens) {
+        for (const [tokenIndex, token] of tokens.entries()) {
+                if (token === 'ست') {
+                        const next = tokens[tokenIndex + 1] ?? ''
+                        const prev = tokens[tokenIndex - 1] ?? ''
+                        const startsSetCompound = next.length >= 3
+                                && !COPULA_FOLLOWERS.has(next)
+                                && !PRODUCT_STOP_WORDS.has(next)
+                        const afterDeterminer = SET_DETERMINERS.has(prev)
+                        if (!startsSetCompound && !afterDeterminer) continue
+                }
                 if (PRODUCT_STOP_WORDS.has(token)) continue
                 // Persian plural suffixes are often written without a ZWNJ.
                 // Strip a colloquial possessive only when the base is a known
