@@ -1793,10 +1793,20 @@ export async function fetchCatalogProducts(
                 }
                 const recalled = (item: (typeof ranked)[number]) =>
                         semanticRank.has(item.product.id) || priorIdSet.has(item.product.id)
+                // Bundles/sets («ست پذیرایی … (مجموعه سه عددی)») are a distinct
+                // product type: when comparing two MODELS, the single-item rows
+                // are the primary comparison and set rows stay secondary —
+                // «کدومش ارزون‌تره؟» must quote جلومبلی singles, not set prices.
+                const isSetRow = (name: string) => {
+                        const tokens = modelTokens(name)
+                        return tokens.includes('ست') || tokens.includes('مجموعه') || tokens.includes('پکیج')
+                }
                 const rankBy = (bucket: (typeof ranked)[number][], reference: Set<string> | null) =>
                         [...bucket].sort((left, right) => {
                                 const recallDelta = Number(recalled(right)) - Number(recalled(left))
                                 if (recallDelta !== 0) return recallDelta
+                                const setDelta = Number(isSetRow(left.product.name)) - Number(isSetRow(right.product.name))
+                                if (setDelta !== 0) return setDelta
                                 if (reference) {
                                         const familyDelta = overlapCount(right.product.name, reference) - overlapCount(left.product.name, reference)
                                         if (familyDelta !== 0) return familyDelta
