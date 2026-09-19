@@ -19,6 +19,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   logger: {
     error(error) {
       if (error?.name === 'UnknownAction') return
+      // Missing CSRF is a rejected/malformed sign-in request (commonly an
+      // expired tab or an internet scanner), not an application failure.
+      const errorType = (error as Error & { type?: string }).type
+      if (error?.name === 'MissingCSRF' || errorType === 'MissingCSRF') {
+        captureWarning('auth:next-auth', error)
+        return
+      }
       captureError('auth:next-auth', error)
     },
   },

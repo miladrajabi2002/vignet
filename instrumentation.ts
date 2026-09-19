@@ -4,6 +4,16 @@ export async function register() {
   installProcessErrorObservers('web')
 }
 
+/** Keep observability useful without persisting credentials from query params. */
+export function observedPathname(path: string | undefined): string | undefined {
+  if (!path) return path
+  try {
+    return new URL(path, 'http://observability.local').pathname
+  } catch {
+    return path.split(/[?#]/, 1)[0]
+  }
+}
+
 export async function onRequestError(
   error: unknown,
   request: { path?: string; method?: string; headers?: Record<string, string | string[] | undefined> },
@@ -27,9 +37,14 @@ export async function onRequestError(
     err.message.includes('transformAlgorithm is not a function') &&
     typeof err.stack === 'string' &&
     err.stack.includes('node:internal/webstreams')
+  const isClientDisconnect =
+    err?.name === 'Error' &&
+    err.message === 'aborted' &&
+    typeof err.stack === 'string' &&
+    err.stack.includes('node:_http_server')
 
   const metadata = {
-    path: request.path,
+    path: observedPathname(request.path),
     method: request.method,
     routerKind: context.routerKind,
     routePath: context.routePath,
@@ -37,8 +52,14 @@ export async function onRequestError(
     renderSource: context.renderSource,
   }
 
-  if (isStreamTeardownRace) {
-    captureWarning('web:request-error:stream-teardown', error, { metadata })
+  if (isStreamTeardownRace || isClientDisconnect) {
+    captureWarning(
+      isStreamTeardownRace
+        ? 'web:request-error:stream-teardown'
+        : 'web:request-error:client-disconnect',
+      error,
+      { metadata },
+    )
     return
   }
 

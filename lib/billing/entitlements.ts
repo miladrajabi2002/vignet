@@ -169,6 +169,9 @@ export async function checkChatAllowed(
   workspaceId: string,
   _channel?: ChannelType,
 ): Promise<ChatGate> {
+  // Kept in the public signature for callers that still pass the source
+  // channel; access is deliberately workspace-wide.
+  void _channel
   return checkWorkspaceActive(workspaceId)
 }
 

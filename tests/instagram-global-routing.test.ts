@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   count: vi.fn(),
   captureError: vi.fn(),
+  captureWarning: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -18,7 +19,10 @@ vi.mock('@/lib/prisma', () => ({
     },
   },
 }))
-vi.mock('@/lib/errors/capture', () => ({ captureError: mocks.captureError }))
+vi.mock('@/lib/errors/capture', () => ({
+  captureError: mocks.captureError,
+  captureWarning: mocks.captureWarning,
+}))
 // Channel tokens are stored encrypted; identity-decrypt keeps fixtures readable.
 vi.mock('@/lib/crypto', () => ({
   decrypt: (s: string) => s,
@@ -69,6 +73,7 @@ beforeEach(() => {
   mocks.update.mockReset().mockResolvedValue({})
   mocks.count.mockReset().mockResolvedValue(0)
   mocks.captureError.mockReset()
+  mocks.captureWarning.mockReset()
 })
 
 describe('Instagram global webhook routing', () => {
@@ -82,12 +87,12 @@ describe('Instagram global webhook routing', () => {
     expect(mocks.captureError).not.toHaveBeenCalled()
   })
 
-  it('keeps an actionable error when multiple live channels exist but none matches', async () => {
+  it('keeps an actionable warning when multiple live channels exist but none matches', async () => {
     mocks.count.mockResolvedValue(2)
 
     await handleInstagramGlobalInbound(payload)
 
-    expect(mocks.captureError).toHaveBeenCalledWith(
+    expect(mocks.captureWarning).toHaveBeenCalledWith(
       'webhook:INSTAGRAM:no-channel',
       expect.any(Error),
       expect.objectContaining({
@@ -106,7 +111,7 @@ describe('Instagram global webhook routing', () => {
     await handleInstagramGlobalInbound(payload)
 
     expect(mocks.update).not.toHaveBeenCalled()
-    expect(mocks.captureError).toHaveBeenCalledWith(
+    expect(mocks.captureWarning).toHaveBeenCalledWith(
       'webhook:INSTAGRAM:no-channel',
       expect.any(Error),
       expect.objectContaining({ metadata: { triedIds: ['17841473935194423'] } }),
@@ -163,7 +168,7 @@ describe('Instagram global webhook routing', () => {
     // Must NOT be delivered to tenant A (or anyone) — and the error must not
     // even consider the commenter id as a routing candidate.
     expect(mocks.update).not.toHaveBeenCalled()
-    expect(mocks.captureError).toHaveBeenCalledWith(
+    expect(mocks.captureWarning).toHaveBeenCalledWith(
       'webhook:INSTAGRAM:no-channel',
       expect.any(Error),
       expect.objectContaining({ metadata: { triedIds: ['333'] } }),

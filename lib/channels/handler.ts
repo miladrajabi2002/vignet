@@ -29,7 +29,7 @@ import {
 } from '@/lib/channels/idempotency'
 import { withConversationTurnLock } from '@/lib/channels/conversation-lock'
 import { inboundMessageMetadata } from '@/lib/conversations/source'
-import { captureError } from '@/lib/errors/capture'
+import { captureError, captureWarning } from '@/lib/errors/capture'
 import {
         absorbConsecutiveInboundMessages,
         combineTurnText,
@@ -755,6 +755,15 @@ async function processChannelInbound(
                                 payload: msg,
                         })
                 } catch (error) {
+                        // A channel can be disconnected after global routing has
+                        // resolved it but before the durable event row is created.
+                        // The FK then correctly rejects the stale route. Treat the
+                        // user-requested disconnect as a terminal skip, not a queue
+                        // failure that will retry and spam the error dashboard.
+                        const routeStillExists = await prisma.agentChannel
+                                .count({ where: { id: channelId } })
+                                .catch(() => 1)
+                        if (routeStillExists === 0) continue
                         deferredError ??= error
                         captureError(`webhook:${type}:ledger-claim`, error, {
                                 workspaceId: agent.workspaceId,
@@ -1025,7 +1034,7 @@ async function processChannelInbound(
                                 // it loudly so the operator knows to upgrade or
                                 // clean up old contacts — silently dropping the
                                 // inbound contact is the worst UX.
-                                captureError(
+                                captureWarning(
                                         'inbound:contact-resolve-failed',
                                         new Error(
                                                 `Workspace ${agent.workspaceId} could not resolve a contact for sender ${msg.senderId} on ${type}. ` +
@@ -1461,31 +1470,11 @@ async function processChannelInbound(
                                                                                                 ? policy.storyReplyPolicy
                                                                                                 : policy.dmReplyPolicy
                                                                                 if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') {
-                                                                                        if (msg.kind !== 'REACTION') await persistInboundOnly({
-                                                                                                workspaceId: agent.workspaceId,
-                                                                                                agentId: agent.id,
-                                                                                                contactId,
-                                                                                                externalId: msg.chatId,
-                                                                                                text,
-                                                                                                channel: type,
-                                                                                                metadata: inboundMetadata,
-                                                                                                inboundEventId: eventLease.id,
-                                                                                        })
                                                                                         outcome = auto.replied ? 'AUTOMATION_REPLIED' : 'AUTOMATION_HANDLED'
                                                                                         return
                                                                                 }
                                 }
                                                                 if (reactionClassInput) {
-                                                                                if (msg.kind !== 'REACTION') await persistInboundOnly({
-                                                                                        workspaceId: agent.workspaceId,
-                                                                                        agentId: agent.id,
-                                                                                        contactId,
-                                                                                        externalId: msg.chatId,
-                                                                                text,
-                                                                                channel: type,
-                                                                                metadata: inboundMetadata,
-                                                                                inboundEventId: eventLease.id,
-                                                                                })
                                                                                 outcome = 'REACTION_RECORDED'
                                                                                 return
                                                                 }
@@ -1521,24 +1510,11 @@ async function processChannelInbound(
                                         conversationStatus: conv?.status,
                                 })
                                 if (!allow) {
-                                        // Record the inbound so the operator can see it in the
-                                        // inbox, but skip the AI outbound. We do this by calling
-                                        // generateReply and discarding the reply — that helper
-                                        // persists the inbound USER message either way.
-                                        try {
-                                                await persistInboundOnly({
-                                                        workspaceId: agent.workspaceId,
-                                                        agentId: agent.id,
-                                                        contactId,
-                                                        externalId: msg.chatId,
-                                                        text,
-                                                        channel: type,
-                                                        metadata: inboundMetadata,
-                                                        inboundEventId: eventLease.id,
-                                                })
-                                        } catch (e) {
-                                                console.error('[handler] instagram inbound-only persist failed:', e)
-                                        }
+                                        // The inbound was persisted before automation/policy
+                                        // evaluation. Do not repeat that transaction: if the
+                                        // operator deletes the conversation while this turn is
+                                        // running, a second idempotent insert can resolve a new
+                                        // thread and conflict with the already-stored message.
                                         outcome = 'AI_POLICY_SUPPRESSED'
                                         return
                                 }
@@ -2224,7 +2200,7 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
                         }
                 } else if (totalIgChannels > 1) {
                         const triedIds = Array.from(new Set(unresolvedEntries.flatMap((u) => u.ids)))
-                        captureError(
+                        captureWarning(
                                 'webhook:INSTAGRAM:no-channel',
                                 new Error(
                                         `No Instagram channel found for the owner ids of ${unresolvedEntries.length} webhook entr${

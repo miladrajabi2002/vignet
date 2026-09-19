@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   agentChannelFindFirst: vi.fn(),
   agentChannelUpdate: vi.fn(),
+  agentChannelCount: vi.fn(),
   conversationFindFirst: vi.fn(),
   conversationFindUnique: vi.fn(),
   conversationUpdate: vi.fn(),
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   notifyHandoff: vi.fn(),
   notifyWorkspace: vi.fn(),
   checkWorkspaceActive: vi.fn(),
+  captureError: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -36,6 +38,7 @@ vi.mock('@/lib/prisma', () => ({
     agentChannel: {
       findFirst: mocks.agentChannelFindFirst,
       update: mocks.agentChannelUpdate,
+      count: mocks.agentChannelCount,
     },
     conversation: {
       findFirst: mocks.conversationFindFirst,
@@ -134,7 +137,10 @@ vi.mock('@/lib/instagram/emoji', () => ({ isEmojiOnly: () => false }))
 vi.mock('@/lib/instagram/sender-profile', () => ({ fetchInstagramSenderProfile: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: mocks.transcribeAudio, downloadAudio: mocks.downloadAudio }))
 vi.mock('@/lib/ai/sales-intelligence', () => ({ refreshConversationSalesInsight: vi.fn().mockResolvedValue(undefined) }))
-vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn() }))
+vi.mock('@/lib/errors/capture', () => ({
+  captureError: mocks.captureError,
+  captureWarning: vi.fn(),
+}))
 vi.mock('@/lib/instagram/media', () => ({ sendProductCarousel: vi.fn() }))
 vi.mock('@/lib/products/presentation', () => ({
   formatProductFallback: vi.fn(() => ''),
@@ -197,6 +203,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
       },
     })
     mocks.agentChannelUpdate.mockResolvedValue({})
+    mocks.agentChannelCount.mockResolvedValue(1)
     mocks.parseUpdate.mockReturnValue([{
       kind: 'DM',
       platformMessageId: 'mid-1',
@@ -330,6 +337,19 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
         result: { outcome: 'PLAN_BLOCKED_SUBSCRIPTION_EXPIRED' },
       }),
     )
+  })
+
+  it('silently settles a webhook routed to a channel deleted during processing', async () => {
+    mocks.claimInboundEvent.mockRejectedValue(
+      Object.assign(new Error('InboundEvent_channelId_fkey'), { code: 'P2003' }),
+    )
+    mocks.agentChannelCount.mockResolvedValue(0)
+
+    await expect(handleInbound('INSTAGRAM', 'webhook-token', {})).resolves.toBeUndefined()
+
+    expect(mocks.agentChannelCount).toHaveBeenCalledWith({ where: { id: 'channel-1' } })
+    expect(mocks.captureError).not.toHaveBeenCalled()
+    expect(mocks.transaction).not.toHaveBeenCalled()
   })
 
   it('does not let an opt-out phrase trigger an unconfigured reply or conversation', async () => {
