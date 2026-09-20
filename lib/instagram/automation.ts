@@ -4,7 +4,7 @@ import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import type { ChatAgent } from '@/lib/ai/chat-engine'
 import { generateReply } from '@/lib/ai/chat-engine'
 import { startChannelTyping } from '@/lib/channels/typing'
-import { captureError } from '@/lib/errors/capture'
+import { captureError, captureWarning } from '@/lib/errors/capture'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { instagramPrivateReplyTarget } from '@/lib/instagram/private-reply'
 import {
@@ -144,6 +144,17 @@ const VALID_REPLY_MODES: ReplyMode[] = [
 
 function isReplyMode(v: unknown): v is ReplyMode {
   return typeof v === 'string' && (VALID_REPLY_MODES as string[]).includes(v)
+}
+
+/**
+ * True when a media URL can never be fetched by Meta's crawler (or anything
+ * outside the operator's browser tab): `blob:`/`data:` URLs are
+ * session-local. Rows saved before the client-side upload-gate fix may still
+ * carry them — skip delivery (with a warning) instead of sending a Graph API
+ * attachment request that is guaranteed to fail.
+ */
+function isUnfetchableMediaUrl(url: string): boolean {
+  return /^(blob|data):/i.test(url)
 }
 
 /**
@@ -791,13 +802,19 @@ async function executeAction(
               const entryText = typeof entry.text === 'string' ? entry.text : ''
               const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
               const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
+              if (entryMediaUrl && isUnfetchableMediaUrl(entryMediaUrl)) {
+                captureWarning('instagram:automation:media-url-unfetchable', new Error(
+                  `skipping ${entryType} with session-local mediaUrl`,
+                ), { workspaceId: agent.workspaceId, metadata: { entryType, mediaUrl: entryMediaUrl } })
+              }
+              const entryMediaDeliverable = !!entryMediaUrl && !isUnfetchableMediaUrl(entryMediaUrl)
 
               await ctx.beforeDispatch?.()
-              if (entryType === 'IMAGE' && entryMediaUrl) {
+              if (entryType === 'IMAGE' && entryMediaDeliverable) {
                 await sendImage(channelConfig, target, entryMediaUrl, entryText || undefined)
-              } else if (entryType === 'AUDIO' && entryMediaUrl) {
+              } else if (entryType === 'AUDIO' && entryMediaDeliverable) {
                 await sendAudio(channelConfig, target, entryMediaUrl)
-              } else if (entryType === 'VIDEO' && entryMediaUrl) {
+              } else if (entryType === 'VIDEO' && entryMediaDeliverable) {
                 await sendVideo(channelConfig, target, entryMediaUrl)
               } else if (entryType === 'QUICK_REPLY' && entryButtons.length > 0) {
                 const buttonActions: ButtonAction[] = entryButtons.slice(0, 3).map((b) =>
@@ -1032,15 +1049,22 @@ async function executeAction(
     channelConfig
   ) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
+    if (action.mediaUrl && isUnfetchableMediaUrl(action.mediaUrl)) {
+      captureWarning('instagram:automation:media-url-unfetchable', new Error(
+        `skipping legacy ${action.mediaType} reply with session-local mediaUrl`,
+      ), { workspaceId: agent.workspaceId, metadata: { mediaType: action.mediaType, mediaUrl: action.mediaUrl } })
+    }
+    const legacyMediaDeliverable =
+      action.mediaUrl && !isUnfetchableMediaUrl(action.mediaUrl) ? action.mediaUrl : ''
     await ctx.beforeDispatch?.()
-    if (action.mediaType === 'IMAGE' && action.mediaUrl) {
-      await sendImage(channelConfig, target, action.mediaUrl, action.replyText || undefined)
+    if (action.mediaType === 'IMAGE' && legacyMediaDeliverable) {
+      await sendImage(channelConfig, target, legacyMediaDeliverable, action.replyText || undefined)
       if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'IMAGE' })
-    } else if (action.mediaType === 'AUDIO' && action.mediaUrl) {
-      await sendAudio(channelConfig, target, action.mediaUrl)
+    } else if (action.mediaType === 'AUDIO' && legacyMediaDeliverable) {
+      await sendAudio(channelConfig, target, legacyMediaDeliverable)
       if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'AUDIO' })
-    } else if (action.mediaType === 'VIDEO' && action.mediaUrl) {
-      await sendVideo(channelConfig, target, action.mediaUrl)
+    } else if (action.mediaType === 'VIDEO' && legacyMediaDeliverable) {
+      await sendVideo(channelConfig, target, legacyMediaDeliverable)
       if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'VIDEO' })
     } else if (action.mediaType === 'PRODUCT' && action.productId) {
       const product = await resolveProduct(agent.id, action.productId)
@@ -1317,13 +1341,19 @@ async function tryFulfillFollowGate(
         const entryText = typeof entry.text === 'string' ? entry.text : ''
         const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
         const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
+        if (entryMediaUrl && isUnfetchableMediaUrl(entryMediaUrl)) {
+          captureWarning('instagram:automation:media-url-unfetchable', new Error(
+            `skipping ${entryType} with session-local mediaUrl`,
+          ), { workspaceId: agent.workspaceId, metadata: { entryType, mediaUrl: entryMediaUrl } })
+        }
+        const entryMediaDeliverable = !!entryMediaUrl && !isUnfetchableMediaUrl(entryMediaUrl)
 
         await ctx.beforeDispatch?.()
-        if (entryType === 'IMAGE' && entryMediaUrl) {
+        if (entryType === 'IMAGE' && entryMediaDeliverable) {
           await sendImage(channelConfig, gate.chatId, entryMediaUrl, entryText || undefined)
-        } else if (entryType === 'AUDIO' && entryMediaUrl) {
+        } else if (entryType === 'AUDIO' && entryMediaDeliverable) {
           await sendAudio(channelConfig, gate.chatId, entryMediaUrl)
-        } else if (entryType === 'VIDEO' && entryMediaUrl) {
+        } else if (entryType === 'VIDEO' && entryMediaDeliverable) {
           await sendVideo(channelConfig, gate.chatId, entryMediaUrl)
         } else if (entryType === 'QUICK_REPLY' && entryButtons.length > 0) {
           const buttonActions: ButtonAction[] = entryButtons.slice(0, 3).map((b) =>

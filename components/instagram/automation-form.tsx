@@ -462,7 +462,12 @@ export function AutomationForm({
                                 type: m.type,
                         }
                         if (m.text?.trim()) out.text = m.text
-                        if (m.mediaUrl) out.mediaUrl = m.mediaUrl
+                        // Defense-in-depth: NEVER emit a `blob:` URL into the saved
+                        // payload — it is browser-session-local and would permanently
+                        // break the scenario preview and media delivery. The submit()
+                        // gate already blocks this; stripping here ensures no code path
+                        // can persist it even if the gate is bypassed.
+                        if (m.mediaUrl && !/^blob:/i.test(m.mediaUrl)) out.mediaUrl = m.mediaUrl
                         if (m.productId) out.productId = m.productId
                         // PRODUCT_LIST: cap at 10 (Meta carousel limit), drop empties.
                         if (m.type === 'PRODUCT_LIST' && m.productIds && m.productIds.length > 0) {
@@ -541,6 +546,21 @@ export function AutomationForm({
                         form.messages.length === 0
                 ) {
                         setError('حداقل یک پیام به دنباله اضافه کنید.')
+                        return
+                }
+                // ── MEDIA UPLOAD GATE ──────────────────────────────────────────────
+                // A `blob:` mediaUrl means the media upload is still in-flight (or
+                // failed). blob: URLs are session-local to the operator's browser —
+                // persisting one produces a permanently broken preview (404) and the
+                // automation can never deliver the media. Block the save instead and
+                // tell the operator to wait for the upload to finish (or retry it).
+                const unfinishedMedia = form.messages.find(
+                        (m) => !!m.mediaUrl && /^blob:/i.test(m.mediaUrl),
+                )
+                if (unfinishedMedia) {
+                        setError(
+                                'آپلود عکس/ویدیو هنوز کامل نشده است یا ناموفق بوده است. لطفاً تا پایان آپلود (علامت ✓ روی پیش‌نمایش) صبر کنید و سپس ذخیره کنید؛ اگر آپلود خطا داده، روی «تلاش دوباره» بزنید یا فایل را حذف کنید.',
+                        )
                         return
                 }
                 // COMMENT SEND_DM: the funnel delivers the builder sequence in DM —

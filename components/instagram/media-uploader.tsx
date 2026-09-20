@@ -295,10 +295,17 @@ export function MediaUploader({
                 setItems((arr) => {
                         const target = arr.find((x) => x.id === id)
                         if (target) {
-                                // Best-effort DELETE of the S3 object so we don't leak orphaned uploads
-                                // when the operator picks a file then removes it before saving the
-                                // scenario. Failures are swallowed (don't block the UI).
-                                if (target.uploaded && target.remoteUrl) {
+                                // Best-effort DELETE of the server object so we don't leak orphaned
+                                // uploads when the operator picks a file then removes it BEFORE
+                                // saving the scenario. ONLY applies to files uploaded in THIS
+                                // editing session (`file !== null`). Items reconstructed from an
+                                // already-saved scenario URL (`initial` items, `file === null`)
+                                // must NOT be deleted here: the edit may be cancelled, and the
+                                // saved scenario (or another one) would then reference a deleted
+                                // file — leaving a permanent 404 preview and breaking automation
+                                // delivery. Orphaned server files are harmless (they're keyed by
+                                // timestamp+UUID); deleted-but-referenced files are NOT.
+                                if (target.uploaded && target.remoteUrl && target.file) {
                                         const key = deriveS3Key(target.remoteUrl)
                                         if (key) {
                                                 const encoded = key

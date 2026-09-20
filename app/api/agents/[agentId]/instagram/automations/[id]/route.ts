@@ -19,6 +19,19 @@ const buttonSchema = z.union([
   }),
 ])
 
+/**
+ * mediaUrl must be either empty or a publicly fetchable http(s) URL.
+ * `blob:`/`data:` URLs are browser-session-local — persisting one silently
+ * breaks the scenario preview (404) and media delivery (Meta's crawler can
+ * never fetch it). Mirrors the guard on the create route.
+ */
+const mediaUrlSchema = z
+  .string()
+  .refine(
+    (v) => v === '' || /^https?:\/\//i.test(v),
+    { message: 'MEDIA_URL_INVALID: must be an empty string or an absolute http(s) URL — blob:/data: URLs cannot be persisted' },
+  )
+
 const updateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   active: z.boolean().optional(),
@@ -44,7 +57,7 @@ const updateSchema = z.object({
               .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT', 'PRODUCT_LIST'])
               .optional(),
             text: z.string().optional(),
-            mediaUrl: z.string().optional(),
+            mediaUrl: mediaUrlSchema.optional(),
             productId: z.string().optional(),
             productIds: z.array(z.string()).max(10).optional(),
             buttons: z.array(buttonSchema).max(3).optional(),
@@ -55,7 +68,7 @@ const updateSchema = z.object({
       mediaType: z
         .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
         .optional(),
-      mediaUrl: z.string().optional(),
+      mediaUrl: mediaUrlSchema.optional(),
       productId: z.string().optional(),
       dmOnComment: z.boolean().optional(),
       // COMMENT + dmOnComment: short public reply posted on the comment.
