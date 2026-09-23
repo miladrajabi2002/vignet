@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendOTP, OtpRateLimitError } from '@/lib/sms/ippanel'
+import { isStaticOtpPhone } from '@/lib/sms/static-otp'
 import { phoneSchema } from '@/lib/phone'
 import { rateLimit } from '@/lib/ratelimit'
 import { getClientIp } from '@/lib/security/request-ip'
@@ -11,16 +12,7 @@ export async function POST(req: Request) {
   const startedAt = Date.now()
   const requestId = getRequestId(req.headers)
   const responseHeaders = requestIdHeaders(requestId)
-  // Per-phone limiting lives in sendOTP (3/hour). Add a per-IP cap so an
-  // attacker can't rotate phone numbers from one source to spam SMS / our cost.
   const ip = getClientIp(req.headers)
-  const ipAllowed = await rateLimit(`otp_ip:${ip}`, 10, 3600, { failClosed: true })
-  if (!ipAllowed) {
-    await persistLog('warn', 'auth:otp:ip-rate-limit', 'OTP request rejected by IP rate limit', {
-      metadata: { requestId, ip, durationMs: Date.now() - startedAt },
-    })
-    return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429, headers: responseHeaders })
-  }
 
   let body: unknown
   try {
@@ -41,6 +33,22 @@ export async function POST(req: Request) {
   }
 
   const phone = parsed.data
+
+  // Per-phone limiting lives in sendOTP (3/hour). Add a per-IP cap so an
+  // attacker can't rotate phone numbers from one source to spam SMS / our cost.
+  // Static-OTP phones (shared company logins) never trigger an SMS, so the
+  // cost-motivated cap does not apply to them; a dedicated wider bucket still
+  // keeps the endpoint and its audit log from being flooded.
+  const ipAllowed = await (isStaticOtpPhone(phone)
+    ? rateLimit(`otp_static_ip:${ip}`, 60, 3600, { failClosed: true })
+    : rateLimit(`otp_ip:${ip}`, 10, 3600, { failClosed: true }))
+  if (!ipAllowed) {
+    await persistLog('warn', 'auth:otp:ip-rate-limit', 'OTP request rejected by IP rate limit', {
+      metadata: { requestId, ip, staticPhone: isStaticOtpPhone(phone), durationMs: Date.now() - startedAt },
+    })
+    return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429, headers: responseHeaders })
+  }
+
   try {
     const existing = await prisma.user.findUnique({
       where: { phone },

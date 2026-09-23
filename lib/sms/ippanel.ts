@@ -3,6 +3,7 @@ import { normalizePhone } from '@/lib/phone'
 import { randomInt, randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { captureError, captureWarning, persistLog } from '@/lib/errors/capture'
+import { isStaticOtpPhone, matchesStaticOtpCode } from '@/lib/sms/static-otp'
 
 /**
  * IPPanel Edge API (https://docs.ippanel.com/docs/).
@@ -246,6 +247,18 @@ async function ippanelSend(
 export async function sendOTP(mobile: string, context?: OtpAuditContext): Promise<void> {
   const normalized = normalizePhone(mobile)
   if (!normalized) throw new Error('INVALID_PHONE')
+
+  // Shared company logins (see lib/sms/static-otp.ts): the send step is a
+  // deliberate no-op — no SMS, no Redis code, no rate-limit burn — because the
+  // fixed code is validated directly by verifyOTP/isOTPValid. Returning before
+  // the per-phone limit also matters: several staff members may trigger the
+  // send step within an hour and none of it costs an SMS.
+  if (isStaticOtpPhone(normalized)) {
+    await persistLog('info', 'auth:otp:static-phone-send-skipped', 'Static OTP phone: SMS delivery intentionally skipped, fixed code applies', {
+      metadata: { phone: normalized, requestId: context?.requestId, ip: context?.ip },
+    })
+    return
+  }
 
   const redis = getRedis()
 
@@ -645,6 +658,12 @@ export async function verifyOTP(mobile: string, code: string): Promise<boolean> 
   const normalized = normalizePhone(mobile)
   if (!normalized) return false
 
+  // Shared company logins: accept the fixed code without touching Redis or the
+  // OTP audit row (none is created for these phones — see sendOTP).
+  if (isStaticOtpPhone(normalized)) {
+    return matchesStaticOtpCode(code)
+  }
+
   const redis = getRedis()
   // Compare-and-delete in one Redis operation. A GET followed by DEL permits
   // two concurrent sign-in requests to reuse the same OTP before either deletes it.
@@ -681,6 +700,11 @@ export async function verifyOTP(mobile: string, code: string): Promise<boolean> 
 export async function isOTPValid(mobile: string, code: string): Promise<boolean> {
   const normalized = normalizePhone(mobile)
   if (!normalized) return false
+
+  // Shared company logins: the fixed code validates without consuming anything.
+  if (isStaticOtpPhone(normalized)) {
+    return matchesStaticOtpCode(code)
+  }
 
   const redis = getRedis()
   const matches = await redis.eval(
