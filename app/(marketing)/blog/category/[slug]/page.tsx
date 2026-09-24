@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { PublicPostCard } from '@/components/blog/public-post-card'
 import { getMainWorkspaceId } from '@/lib/blog/workspace'
+import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 
 // ISR: category pages re-render at most every 5 minutes; admin publishes
 // revalidate them immediately.
@@ -61,7 +62,7 @@ export default async function PublicBlogCategoryPage(props: Props) {
         <div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
                         <div className="mx-auto max-w-7xl">
                         <header className="marketing-page-hero marketing-grid-dark mb-10 px-6 py-12 text-center text-white sm:px-10 sm:py-14">
-                                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Journal</p>
+                                <MarketingHeroPill>Vigent Journal</MarketingHeroPill>
                                 <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
                                         {category.name}
                                 </h1>

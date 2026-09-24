@@ -115,6 +115,12 @@
         --accent2-foreground: #0077ed;
         --accent2-rgb: 10, 132, 255;
 
+        /* Marketing-only chroma. Product/dashboard states stay semantic; these
+           hues are reserved for animated public-site highlights and beams. */
+        --marketing-violet: #6d28d9;
+        --marketing-lilac: #c4b5fd;
+        --marketing-coral: #fb7185;
+
         /* ─── Spatial elevation: broad shadows separate, never decorate ─── */
         --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.035);
         --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.045);
@@ -1062,6 +1068,174 @@
                 z-index: 1;
         }
 
+        /* Writora-inspired public-site labels. Both variants keep their text in
+           a stable inner surface while only a compositor-friendly ring moves. */
+        .marketing-hero-pill {
+                position: relative;
+                isolation: isolate;
+                display: inline-grid;
+                min-height: 2.25rem;
+                overflow: hidden;
+                border-radius: 9999px;
+                padding: 1px;
+                color: #ffffff;
+                background: #17171a;
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 28px rgba(34, 21, 66, 0.13);
+                transition: transform 180ms var(--ease-spatial), box-shadow 220ms var(--ease-spatial);
+        }
+
+        a.marketing-hero-pill:focus-visible {
+                outline: 2px solid var(--marketing-violet);
+                outline-offset: 3px;
+        }
+
+        a.marketing-hero-pill:hover {
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 34px rgba(76, 29, 149, 0.2);
+        }
+
+        a.marketing-hero-pill:active {
+                transform: scale(0.98);
+        }
+
+        .marketing-hero-pill__spark {
+                position: absolute;
+                inset: -250%;
+                z-index: -2;
+                background: conic-gradient(from 0deg, transparent 0deg 342deg, rgba(255, 255, 255, 0.98) 356deg, var(--marketing-lilac) 360deg);
+                animation: marketing-pill-orbit 4.2s linear infinite;
+        }
+
+        .marketing-hero-pill__surface {
+                position: absolute;
+                inset: 1px;
+                z-index: -1;
+                border-radius: inherit;
+                background:
+                        radial-gradient(circle at 15% 120%, rgba(109, 40, 217, 0.3), transparent 48%),
+                        #0b0b0e;
+                transition: background-color 200ms ease;
+        }
+
+        .marketing-hero-pill__content {
+                position: relative;
+                z-index: 1;
+                display: inline-flex;
+                min-height: 2.125rem;
+                align-items: center;
+                justify-content: center;
+                gap: 0.45rem;
+                padding: 0.35rem 0.9rem;
+                font-size: 0.6875rem;
+                font-weight: 600;
+                line-height: 1.45;
+                white-space: nowrap;
+        }
+
+        .marketing-hero-pill--intro {
+                min-height: 2.75rem;
+                cursor: default;
+        }
+
+        .marketing-hero-pill--intro .marketing-hero-pill__content {
+                min-height: calc(2.75rem - 2px);
+                padding: 0.52rem 1.2rem;
+                font-size: 0.79rem;
+        }
+
+        .marketing-section-pill {
+                position: relative;
+                isolation: isolate;
+                display: inline-flex;
+                min-height: 2.55rem;
+                max-width: 100%;
+                overflow: hidden;
+                border-radius: 9999px;
+                padding: 1.5px;
+                vertical-align: middle;
+                background-image: linear-gradient(105deg, #6d28d9 0%, #c4b5fd 27%, #fb7185 50%, #8b5cf6 73%, #6d28d9 100%);
+                background-size: 240% 100%;
+                box-shadow: 0 10px 32px rgba(109, 40, 217, 0.13), 0 0 0 1px rgba(109, 40, 217, 0.025);
+                animation: marketing-pill-flow 5s linear infinite;
+        }
+
+        .marketing-section-pill__spin {
+                display: none;
+        }
+
+        .marketing-section-pill__content {
+                position: relative;
+                z-index: 1;
+                display: inline-flex;
+                min-height: calc(2.55rem - 3px);
+                max-width: 100%;
+                align-items: center;
+                justify-content: center;
+                border-radius: inherit;
+                background:
+                        radial-gradient(circle at 15% 130%, rgba(124, 58, 237, 0.27), transparent 46%),
+                        #0b0d14;
+                padding: 0.48rem 1.2rem;
+                color: #ffffff;
+                font-size: 0.78rem;
+                font-weight: 600;
+                line-height: 1.45;
+                text-align: center;
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+        }
+
+        .marketing-section-pill--inverse .marketing-section-pill__content {
+                background: rgba(255, 255, 255, 0.96);
+                color: #111318;
+                box-shadow: inset 0 0 0 1px rgba(17, 19, 24, 0.04);
+        }
+
+        .marketing-future-cta::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                z-index: 0;
+                pointer-events: none;
+                background:
+                        radial-gradient(circle at 50% 12%, rgba(168, 85, 247, 0.1), transparent 26rem),
+                        linear-gradient(to bottom, transparent 50%, rgba(124, 58, 237, 0.025));
+        }
+
+        /* One-line section titles (user request): never wrap, single colour.
+           The size is fitted against the element's own container width (cqw)
+           with a small 2% safety margin, capped at --title-max. The first
+           font-size line is the vw-based fallback for engines without
+           container-query units; the second overrides it wherever cqw parses. */
+        .marketing-title-oneline {
+                white-space: nowrap;
+                font-size: var(--title-fallback, 1rem);
+                font-size: min(var(--title-max, 2rem), var(--title-fit, 5cqw));
+        }
+
+        @keyframes marketing-pill-orbit {
+                to { transform: rotate(360deg); }
+        }
+
+        @keyframes marketing-pill-flow {
+                to { background-position: 240% 50%; }
+        }
+
+        @media (max-width: 639px) {
+                .marketing-hero-pill__content {
+                        max-width: min(90vw, 24rem);
+                        white-space: normal;
+                }
+
+                .marketing-section-pill {
+                        min-height: 2.4rem;
+                }
+
+                .marketing-section-pill__content {
+                        min-height: calc(2.4rem - 3px);
+                        padding: 0.42rem 1rem;
+                        font-size: 0.74rem;
+                }
+        }
+
         .material-select-menu {
                 transform-origin: top center;
                 animation: material-select-in 180ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -1132,6 +1306,33 @@
                         will-change: auto;
                 }
 
+                /* Mobile reveal for the capabilities/onboarding items: a FAST
+                   vertical fade-up (300ms, 20ms stagger) instead of the desktop
+                   horizontal side-slides. The old forced-visible override tied
+                   on specificity with the rtl side rules and lost on source
+                   order, leaving cards visibly shifted ±16px beside the rail
+                   ("broken and half-rendered" on phones). The compound selector
+                   below outranks the rtl variants regardless of order, and the
+                   vertical-only transform keeps every dot centred on the rail
+                   while it animates. */
+                html.marketing-motion-ready .marketing-story-section.marketing-section-capabilities [data-scroll-reveal],
+                html.marketing-motion-ready .marketing-story-section.marketing-section-onboarding [data-scroll-reveal] {
+                        opacity: 0;
+                        transform: translate3d(0, 0.75rem, 0);
+                        transition:
+                                opacity 300ms var(--ease-spatial),
+                                transform 300ms var(--ease-spatial);
+                        transition-delay: calc(var(--reveal-order, 0) * 20ms);
+                        will-change: opacity, transform;
+                }
+
+                html.marketing-motion-ready .marketing-story-section.marketing-section-capabilities [data-scroll-reveal].is-revealed,
+                html.marketing-motion-ready .marketing-story-section.marketing-section-onboarding [data-scroll-reveal].is-revealed {
+                        opacity: 1;
+                        transform: translate3d(0, 0, 0);
+                        will-change: auto;
+                }
+
                 /* Two fixed translucent bars force mobile browsers to repaint a
                    large backdrop on every scroll frame. Keep their opaque visual
                    treatment but skip the expensive live blur on phones. */
@@ -1139,6 +1340,15 @@
                 .marketing-mobile-bottom-nav {
                         backdrop-filter: none !important;
                         -webkit-backdrop-filter: none !important;
+                }
+
+                /* The section-pill shimmer animates background-position — a
+                   main-thread repaint every frame, for every pill on screen.
+                   Phones keep the gradient look and drop the loop (user report:
+                   the homepage sections scrolled with a stutter). */
+                .marketing-section-pill {
+                        animation: none;
+                        background-position: 0 0;
                 }
         }
         /* Hash navigation needs final section geometry before the browser can
@@ -1221,15 +1431,15 @@
         }
         .marketing-capability-rail {
                 overflow: hidden;
-                background: rgba(6, 78, 59, 0.09);
+                background: rgba(91, 33, 182, 0.1);
         }
         .marketing-capability-rail::after {
                 content: '';
                 position: absolute;
                 inset: 0;
                 border-radius: inherit;
-                background: linear-gradient(to bottom, #6ee7b7, #10b981 52%, #059669);
-                box-shadow: 0 0 18px rgba(16, 185, 129, 0.28);
+                background: linear-gradient(to bottom, #c4b5fd, #8b5cf6 52%, #ec4899);
+                box-shadow: 0 0 18px rgba(124, 58, 237, 0.3);
                 transform-origin: top;
         }
         .marketing-faq-details[open] .marketing-faq-answer {
@@ -1748,4 +1958,188 @@ html[dir='rtl'] .undo-indeterminate {
 }
 @media (prefers-reduced-motion: reduce) {
         .settings-target-flash { animation: none; }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Hero dashboard showcase — writora.xyz-style presentation: a violet conic
+   halo glowing from behind the shot, peeking above its top edge, an orbiting amber→violet border beam, and
+   a blur-up load so a hint of the dashboard is visible from the very first
+   paint while the 70 KB WebP arrives. Markup copied verbatim from writora.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Conic halo gradient, copied verbatim from writora.xyz. */
+.marketing-showcase-gradient {
+        background: conic-gradient(
+                from 230.29deg at 51.63% 52.16%,
+                #2400ff 0deg,
+                #0087ff 67.5deg,
+                #6c279d 198.75deg,
+                #1826a3 251.25deg,
+                #3667c4 301.88deg,
+                #691eff 1turn
+        );
+}
+
+/* Halo fade-in — keyframes copied verbatim from writora.xyz. */
+@keyframes image-glow {
+        0% {
+                opacity: 0;
+                animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+        }
+        10% {
+                opacity: 0.5;
+                animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+        }
+        to {
+                opacity: 0.7;
+        }
+}
+
+.animate-image-glow {
+        animation: image-glow 4s ease-out 0.6s forwards;
+}
+
+/* Orbiting border beam — keyframes copied verbatim from writora.xyz. */
+@keyframes border-beam {
+        to {
+                offset-distance: 100%;
+        }
+}
+
+.after\:animate-border-beam:after {
+        content: '';
+        animation: border-beam calc(var(--duration) * 1s) infinite linear;
+}
+
+/* Hero dashboard frame entrance: a plain CSS animation that starts at first
+   paint with zero JS dependency. The frame must never join the scroll-reveal
+   system — it lives inside the first viewport, and gating it on an observer
+   left the screenshot invisible on slow-JS paths (user report: the shot
+   "only appeared after scrolling"). */
+@keyframes marketing-showcase-enter {
+        from { opacity: 0; transform: translate3d(0, 0.9rem, 0); }
+        to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.marketing-showcase-enter {
+        animation: marketing-showcase-enter 640ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
+}
+
+/* The screenshot itself is always rendered visible; the inline LQIP behind
+   it covers the few frames before the WebP decodes. Hiding the real image
+   behind a hydrated onLoad (the old blur-up) risked a blank hero. */
+.marketing-showcase-img {
+        position: relative;
+        z-index: 10;
+}
+
+@media (prefers-reduced-motion: reduce) {
+        .animate-image-glow {
+                animation: none;
+                opacity: 0.7;
+        }
+        .marketing-showcase-beam {
+                display: none;
+        }
+        .marketing-showcase-enter {
+                animation: none;
+        }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Final-CTA lamp — the writora.xyz "Step into the Future of AI Content
+   Creation" opening beam. The band sits closed at writora's 15rem until
+   the card reveals, then both wings, the orb and the hairline open to the
+   width of the title text (--lamp-open, measured at runtime, 30rem
+   fallback) with writora's timing: 300ms delay, 800ms ease-in-out. Without
+   JS (no marketing-motion-ready) and for reduced-motion users the lamp is
+   simply rendered open.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.marketing-lamp-wing {
+        width: var(--lamp-open, 30rem);
+        opacity: 1;
+}
+
+.marketing-lamp-orb {
+        width: calc(var(--lamp-open, 30rem) * 0.53);
+}
+
+.marketing-lamp-line {
+        width: var(--lamp-open, 30rem);
+}
+
+html.marketing-motion-ready .marketing-lamp-wing {
+        width: 15rem;
+        opacity: 0.5;
+        transition:
+                width 800ms ease-in-out 300ms,
+                opacity 800ms ease-in-out 300ms;
+}
+
+html.marketing-motion-ready .marketing-lamp-orb {
+        width: 8rem;
+        transition: width 800ms ease-in-out 300ms;
+}
+
+html.marketing-motion-ready .marketing-lamp-line {
+        width: 15rem;
+        transition: width 800ms ease-in-out 300ms;
+}
+
+html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-wing {
+        width: var(--lamp-open, 30rem);
+        opacity: 1;
+}
+
+html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-orb {
+        width: calc(var(--lamp-open, 30rem) * 0.53);
+}
+
+html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-line {
+        width: var(--lamp-open, 30rem);
+}
+
+/* Phones: the 480-736px open band fills a narrow card wall-to-wall and the
+   old 800ms open read as a purple flood flashing in (user report: heavy and
+   abrupt on mobile). Cap the open width, lighten the beam and slow the open
+   down to 1.05s / 380ms delay; desktop keeps writora's original timing. */
+@media (max-width: 767px) {
+        .marketing-future-cta .marketing-lamp-wing {
+                width: min(var(--lamp-open, 30rem), 24rem);
+                opacity: 0.85;
+        }
+        .marketing-future-cta .marketing-lamp-orb {
+                width: min(calc(var(--lamp-open, 30rem) * 0.53), 12.5rem);
+        }
+        .marketing-future-cta .marketing-lamp-line {
+                width: min(var(--lamp-open, 30rem), 24rem);
+        }
+
+        html.marketing-motion-ready .marketing-future-cta .marketing-lamp-wing {
+                width: 9.5rem;
+                opacity: 0.45;
+                transition:
+                        width 1050ms ease-in-out 380ms,
+                        opacity 1050ms ease-in-out 380ms;
+        }
+        html.marketing-motion-ready .marketing-future-cta .marketing-lamp-orb {
+                width: 6.5rem;
+                transition: width 1050ms ease-in-out 380ms;
+        }
+        html.marketing-motion-ready .marketing-future-cta .marketing-lamp-line {
+                width: 9.5rem;
+                transition: width 1050ms ease-in-out 380ms;
+        }
+
+        html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-wing {
+                width: min(var(--lamp-open, 30rem), 24rem);
+                opacity: 0.85;
+        }
+        html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-orb {
+                width: min(calc(var(--lamp-open, 30rem) * 0.53), 12.5rem);
+        }
+        html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-line {
+                width: min(var(--lamp-open, 30rem), 24rem);
+        }
 }

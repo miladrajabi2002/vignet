@@ -24,6 +24,7 @@ import { InstagramIcon } from '@/components/marketing/social-links'
 import { prisma } from '@/lib/prisma'
 import { getMainWorkspaceId } from '@/lib/blog/workspace'
 import { Spotlight } from '@/components/marketing/spotlight'
+import { MarketingHeroPill, MarketingSectionPill } from '@/components/marketing/animated-pill'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
 
@@ -202,7 +203,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
                                         <div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.88fr)] lg:items-start lg:gap-14 xl:gap-20">
                                                 <div className="min-w-0 w-full max-w-3xl">
-                                                        <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 text-[11px] font-medium text-black/55 shadow-sm"><Icon className="h-3.5 w-3.5" />{meta.channel}</span>
+                                                        <MarketingHeroPill><span className="inline-flex items-center gap-2"><Icon className="h-3.5 w-3.5" />{meta.channel}</span></MarketingHeroPill>
                                                         <h1 className="marketing-heading mt-6 max-w-3xl break-words">{solution.title}</h1>
                                                         <p className="marketing-subtitle mt-5 max-w-2xl text-pretty sm:text-base">{solution.subtitle}</p>
                                                         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -229,7 +230,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
                         <section className="border-y border-black/10 bg-[#f7f7f5] py-20 sm:py-24">
                                 <div className="mx-auto max-w-7xl px-5 sm:px-8">
                                         <div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-                                                <p className="text-[11px] font-medium text-black/40">{copy.does}</p>
+                                                <MarketingSectionPill className="w-max">{copy.does}</MarketingSectionPill>
                                                 <div>
                                                         <h2 className="max-w-3xl text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">{copy.doesTitle}</h2>
                                                         <p className="mt-5 max-w-3xl text-sm leading-8 text-black/55 sm:text-[15px]">{solution.metaDescription}</p>
@@ -245,7 +246,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
                         <section className="bg-black py-20 text-white sm:py-24 lg:py-28">
                                 <div className="mx-auto max-w-6xl px-5 sm:px-8">
-                                        <div className="text-center"><p className="text-[11px] font-medium text-white/35">{copy.setup}</p><h2 className="mt-5 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] rtl:tracking-normal sm:text-4xl">{copy.setupTitle}</h2></div>
+                                        <div className="text-center"><MarketingSectionPill inverse>{copy.setup}</MarketingSectionPill><h2 className="mt-5 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] rtl:tracking-normal sm:text-4xl">{copy.setupTitle}</h2></div>
                                         <ol className="relative mt-12 grid gap-4 md:grid-cols-3">
                                                 {solution.steps.map((step, index) => {
                                                         const StepIcon = [Sparkles, Database, Globe2][index] ?? Check
@@ -257,7 +258,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
                         <section className="bg-white py-20 sm:py-24 lg:py-28">
                                 <div className="mx-auto grid max-w-6xl gap-10 px-5 sm:px-8 lg:grid-cols-[0.7fr_1.3fr]">
-                                        <div><p className="text-[11px] font-medium text-black/40">{copy.faq}</p><h2 className="mt-5 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">{copy.faqTitle}</h2><p className="mt-4 max-w-sm text-sm leading-7 text-black/50">{copy.faqDesc}</p></div>
+                                        <div><MarketingSectionPill>{copy.faq}</MarketingSectionPill><h2 className="mt-5 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">{copy.faqTitle}</h2><p className="mt-4 max-w-sm text-sm leading-7 text-black/50">{copy.faqDesc}</p></div>
                                         <div className="divide-y divide-black/10 border-y border-black/10">
                                                 {solution.faq.map((item) => <details key={item.q} className="group"><summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black"><span>{item.q}</span><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/10"><ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" /></span></summary><p className="max-w-2xl pb-5 pe-10 text-sm leading-7 text-black/50">{item.a}</p></details>)}
                                         </div>
@@ -269,7 +270,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
                                 <div className="mx-auto max-w-6xl px-5 sm:px-8">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                                                 <div>
-                                                        <p className="text-[11px] font-medium text-black/40">{isFa ? 'مطالعه مرتبط' : 'Related reading'}</p>
+                                                        <MarketingSectionPill>{isFa ? 'مطالعه مرتبط' : 'Related reading'}</MarketingSectionPill>
                                                         <h2 id="related-articles-title" className="mt-3 text-2xl font-semibold leading-[1.4] tracking-[-0.025em] text-black rtl:tracking-normal sm:text-3xl">{isFa ? 'برای این راهکار چه بخوانیم؟' : 'Read more about this solution'}</h2>
                                                 </div>
                                         </div>
@@ -294,7 +295,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
                                 <div className="mx-auto max-w-6xl px-5 sm:px-8">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                                                 <div>
-                                                        <p className="text-[11px] font-medium text-black/40">{copy.related}</p>
+                                                        <MarketingSectionPill>{copy.related}</MarketingSectionPill>
                                                         <h2 id="related-solutions-title" className="mt-3 text-2xl font-semibold leading-[1.4] tracking-[-0.025em] text-black rtl:tracking-normal sm:text-3xl">{copy.relatedTitle}</h2>
                                                 </div>
                                                 <Link href="/#solutions" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black/60 transition-colors hover:text-black">{copy.all}<DirectionArrow className="h-4 w-4" /></Link>
@@ -311,9 +312,6 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
                                 </div>
                         </section>
 
-                        <section className="px-5 pb-24 pt-16 sm:px-8 sm:pt-20 lg:pb-32">
-                                <div className="marketing-grid-dark relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-black px-6 py-14 text-center text-white shadow-[0_30px_90px_rgba(0,0,0,0.18)] sm:px-10 sm:py-16"><div className="relative"><p className="text-[10px] font-medium text-white/35">{copy.finalEyebrow}</p><h2 className="mt-5 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] rtl:tracking-normal sm:text-4xl">{copy.finalTitle}</h2><p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/50">{copy.finalDesc}</p><Link href="/login?next=/onboarding" className="marketing-pressable mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black">{copy.finalCta}<DirectionArrow className="h-4 w-4" /></Link></div></div>
-                        </section>
                 </div>
         )
 }

@@ -18,6 +18,7 @@ import {
 	UsersRound,
 } from 'lucide-react'
 import { InstagramIcon } from './social-links'
+import { MarketingSectionPill } from './animated-pill'
 
 type Pillar = {
 	title: string
@@ -110,7 +111,7 @@ export function FeaturesSection() {
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="grid gap-8 lg:grid-cols-[0.76fr_1.24fr] lg:items-end lg:gap-14">
 					<div className="text-center lg:text-start">
-						<p className="marketing-eyebrow">{copy.eyebrow}</p>
+						<MarketingSectionPill>{copy.eyebrow}</MarketingSectionPill>
 						<h2 className="marketing-heading mx-auto mt-4 max-w-2xl lg:mx-0">{copy.title}</h2>
 						<p className="marketing-subtitle mx-auto mt-4 max-w-xl lg:mx-0">{copy.subtitle}</p>
 					</div>

@@ -97,6 +97,26 @@ export async function conversationsDaily(days = 14): Promise<DailyPoint[]> {
         )
 }
 
+/** Monthly conversation totals over the last N months (for the monthly range view). */
+export async function conversationsMonthly(months = 12): Promise<MonthPoint[]> {
+        const since = new Date()
+        since.setMonth(since.getMonth() - (months - 1))
+        since.setDate(1)
+        since.setHours(0, 0, 0, 0)
+        const rows = await prisma.$queryRaw<{ m: string; c: bigint }[]>`
+    SELECT to_char(date_trunc('month', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM') AS m,
+           count(*) AS c
+    FROM "Conversation"
+    WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
+    GROUP BY 1 ORDER BY 1
+  `
+        return fillMonthly(
+                rows.map((r) => ({ m: r.m, v: Number(r.c) })),
+                months,
+        )
+}
+
 export async function errorsDaily(days = 14): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - days * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
@@ -256,6 +276,64 @@ export async function planDistribution(): Promise<Slice[]> {
                 key: r.plan,
                 label: labels[r.plan] ?? r.plan,
                 value: r._count._all,
+        }))
+}
+
+/** One revenue slice per subscription plan (successful payments only). */
+export interface PlanRevenueSlice {
+        key: string
+        label: string
+        revenueIRR: number
+        paymentCount: number
+}
+
+/**
+ * Collected subscription revenue grouped by plan, all-time, in IRR.
+ * USD payments are converted with the platform commercial rate (DB
+ * override first, then FINANCE_USD_TO_IRR env) — matching the finance
+ * summary on this dashboard. Hidden workspaces are excluded.
+ */
+export async function revenueByPlan(): Promise<PlanRevenueSlice[]> {
+        const commercialConfig = await getPlatformCommercialConfig()
+        const usdToIrr =
+                (commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
+                        ? commercialConfig.financeUsdToIRR
+                        : null) ??
+                (Number(process.env.FINANCE_USD_TO_IRR) > 0
+                        ? Math.round(Number(process.env.FINANCE_USD_TO_IRR))
+                        : 0)
+
+        const rows = await prisma.$queryRaw<{
+                plan: string | null
+                irr: number | null
+                usd: number | null
+                cnt: bigint
+        }[]>`
+    SELECT w."plan"::text      AS plan,
+           COALESCE(sum(p."amount") FILTER (WHERE p."currency" = 'IRR'), 0) AS irr,
+           COALESCE(sum(p."amount") FILTER (WHERE p."currency" = 'USD'), 0) AS usd,
+           COUNT(*)            AS cnt
+    FROM "Payment" p
+    JOIN "Workspace" w
+      ON w."id" = p."workspaceId"
+     AND w."excludeFromAdminReports" = false
+    WHERE p."status" = 'PAID'
+      AND p."kind" = 'SUBSCRIPTION'
+      AND w."plan" IS NOT NULL
+    GROUP BY 1
+    ORDER BY 2 DESC
+  `
+        const labels: Record<string, string> = {
+                TRIAL: 'آزمایشی',
+                STARTER: 'استارتر',
+                PRO: 'حرفه‌ای',
+                BUSINESS: 'سازمانی',
+        }
+        return rows.map((r) => ({
+                key: r.plan ?? 'UNKNOWN',
+                label: labels[r.plan ?? ''] ?? r.plan ?? 'نامشخص',
+                revenueIRR: Math.round(Number(r.irr ?? 0) + Number(r.usd ?? 0) * usdToIrr),
+                paymentCount: Number(r.cnt),
         }))
 }
 
@@ -529,9 +607,10 @@ export async function revenueNetDaily(days = 7): Promise<NetRevenuePoint[]> {
 
 // ─── TOP ACTIVE USERS ──────────────────────────────────────────────
 //
-// "Active" = the user's workspace had at least one conversation in the
-// last N days. We rank by conversation count so the busiest business
-// owners surface to the top of the admin overview.
+// "Active" = the user (or their workspace) showed any activity in the
+// last N days: a workspace conversation OR a panel sign-in. We rank by
+// the most recent activity so whoever acted last surfaces on top of
+// the admin overview, with conversation volume as the tiebreaker.
 
 export interface ActiveUserRow {
         userId: string
@@ -545,9 +624,11 @@ export interface ActiveUserRow {
 }
 
 /**
- * Top N active users by conversation volume in their workspace over the
- * last `days` days. Excludes admin-hidden workspaces. Returns at most
- * `limit` rows, ordered by conversation count desc then recency desc.
+ * Top N most recently active users over the last `days` days, ordered by
+ * the newest activity first (then by conversation volume as tiebreaker).
+ * Activity = workspace conversations OR panel sign-ins, so a user who
+ * just logged in but has few conversations still ranks top. Excludes
+ * admin-hidden workspaces. Returns at most `limit` rows.
  */
 export async function topActiveUsers(limit = 5, days = 30): Promise<ActiveUserRow[]> {
         const since = new Date(Date.now() - days * 86_400_000)
@@ -568,16 +649,24 @@ export async function topActiveUsers(limit = 5, days = 30): Promise<ActiveUserRo
            w."name"         AS "workspaceName",
            w."plan"::text   AS "plan",
            COUNT(c."id")    AS "conversationCount",
-           MAX(c."createdAt") AS "lastActivityAt"
+           GREATEST(
+             COALESCE(MAX(c."createdAt"), to_timestamp(0)),
+             COALESCE(u."lastLoginAt", to_timestamp(0))
+           )                AS "lastActivityAt"
     FROM "User" u
     JOIN "Workspace" w
       ON w."id" = u."workspaceId"
      AND w."excludeFromAdminReports" = false
-    JOIN "Conversation" c
+    LEFT JOIN "Conversation" c
       ON c."workspaceId" = u."workspaceId"
      AND c."createdAt" >= ${since}
+     AND c."deletedAt" IS NULL
     GROUP BY u."id", u."name", u."phone", u."workspaceId", w."name", w."plan"
-    ORDER BY "conversationCount" DESC, "lastActivityAt" DESC
+    HAVING GREATEST(
+             COALESCE(MAX(c."createdAt"), to_timestamp(0)),
+             COALESCE(u."lastLoginAt", to_timestamp(0))
+           ) >= ${since}
+    ORDER BY "lastActivityAt" DESC, "conversationCount" DESC
     LIMIT ${limit}
   `
         return rows.map((r) => ({

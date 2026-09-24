@@ -6,6 +6,7 @@ import { getLocale } from 'next-intl/server'
 import { getLocalizedSolutions } from '@/lib/marketing/solutions'
 import { InstagramIcon } from '@/components/marketing/social-links'
 import { Spotlight } from '@/components/marketing/spotlight'
+import { MarketingHeroPill, MarketingSectionPill } from '@/components/marketing/animated-pill'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
 
@@ -226,7 +227,7 @@ export default async function SolutionsIndexPage() {
 					</nav>
 
 					<div className="max-w-4xl">
-						<p className="text-[11px] font-medium tracking-[0.18em] text-black/40">{copy.eyebrow}</p>
+						<MarketingHeroPill>{copy.eyebrow}</MarketingHeroPill>
 						<h1 className="marketing-heading mt-6 break-words">{copy.h1}</h1>
 						<p className="marketing-subtitle mt-5 max-w-3xl text-pretty sm:text-base">{copy.subtitle}</p>
 						<div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -246,7 +247,7 @@ export default async function SolutionsIndexPage() {
 			<section className="border-y border-black/10 bg-[#f7f7f5] py-20 sm:py-24">
 				<div className="mx-auto max-w-7xl px-5 sm:px-8">
 					<div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-						<p className="text-[11px] font-medium text-black/40">{copy.problemsEyebrow}</p>
+						<MarketingSectionPill className="w-max">{copy.problemsEyebrow}</MarketingSectionPill>
 						<div>
 							<h2 className="max-w-3xl text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">{copy.problemsTitle}</h2>
 							<p className="mt-5 max-w-3xl text-sm leading-8 text-black/55 sm:text-[15px]">{copy.problemsIntro}</p>
@@ -276,7 +277,7 @@ export default async function SolutionsIndexPage() {
 			<section className="bg-white py-20 sm:py-24 lg:py-28">
 				<div className="mx-auto max-w-7xl px-5 sm:px-8">
 					<div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-						<p className="text-[11px] font-medium text-black/40">{copy.solutionsEyebrow}</p>
+						<MarketingSectionPill className="w-max">{copy.solutionsEyebrow}</MarketingSectionPill>
 						<div>
 							<h2 className="max-w-3xl text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">{copy.solutionsTitle}</h2>
 							<p className="mt-5 max-w-3xl text-sm leading-8 text-black/55 sm:text-[15px]">{copy.solutionsIntro}</p>
@@ -319,19 +320,6 @@ export default async function SolutionsIndexPage() {
 				</div>
 			</section>
 
-			<section className="px-5 pb-24 pt-16 sm:px-8 sm:pt-20 lg:pb-32">
-				<div className="marketing-grid-dark relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-black px-6 py-14 text-center text-white shadow-[0_30px_90px_rgba(0,0,0,0.18)] sm:px-10 sm:py-16">
-					<div className="relative">
-						<p className="text-[10px] font-medium text-white/35">{copy.finalEyebrow}</p>
-						<h2 className="mt-5 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] rtl:tracking-normal sm:text-4xl">{copy.finalTitle}</h2>
-						<p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/50">{copy.finalDesc}</p>
-						<Link href="/login?next=/onboarding" className="marketing-pressable mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black">
-							{copy.finalCta}
-							<DirectionArrow className="h-4 w-4" />
-						</Link>
-					</div>
-				</div>
-			</section>
 		</div>
 	)
 }

@@ -1076,6 +1076,24 @@ model ShowcaseEntry {
   @@index([active, sortOrder])
 }
 
+// Brand logos for the homepage «اعتماد بهترین‌های صنعت» (Trusted by the best
+// in the industry) bar — managed from /admin/showcase alongside the showcase.
+model TrustedLogo {
+  id        String   @id @default(cuid())
+  // Brand display name (alt text + text fallback when no image is uploaded)
+  name      String
+  // Uploaded logo image — /api/uploads/trusted-logo/
+  imageUrl  String?
+  // Optional link to the customer's site
+  url       String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
 model PlatformAiSettings {
   id                String   @id @default("primary")
   defaultModel      String   @default("fast")

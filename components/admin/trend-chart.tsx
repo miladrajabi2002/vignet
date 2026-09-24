@@ -217,6 +217,7 @@ export function DonutChart({
   height = 200,
   centerLabel,
   centerValue,
+  format = 'number',
 }: {
   title: string
   subtitle?: string
@@ -224,8 +225,11 @@ export function DonutChart({
   height?: number
   centerLabel?: string
   centerValue?: string | number
+  /** How legend/tooltip values are rendered: plain counts or Toman amounts. */
+  format?: 'number' | 'irr'
 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
+  const fmt = (v: number) => formatValue(v, format === 'irr' ? 'irr' : 'number')
 
   return (
     <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
@@ -254,7 +258,7 @@ export function DonutChart({
               <Tooltip
                 {...TOOLTIP}
                 formatter={(v, n) => [
-                  `${formatValue(Number(v), 'number')} (${total > 0 ? Math.round((Number(v) / total) * 100) : 0}٪)`,
+                  `${fmt(Number(v))} (${total > 0 ? Math.round((Number(v) / total) * 100) : 0}٪)`,
                   n,
                 ]}
               />
@@ -278,7 +282,7 @@ export function DonutChart({
               />
               <span className="truncate text-zinc-600">{d.label}</span>
               <span className="ms-auto font-semibold text-zinc-900">
-                {d.value.toLocaleString('fa-IR')}
+                {fmt(d.value)}
               </span>
               <span className="w-10 text-end text-zinc-400">
                 {total > 0 ? Math.round((d.value / total) * 100) : 0}٪

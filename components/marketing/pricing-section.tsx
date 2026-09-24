@@ -6,6 +6,7 @@ import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/p
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 import { InstagramIcon } from '@/components/marketing/social-links'
+import { MarketingSectionPill } from '@/components/marketing/animated-pill'
 
 const PLAN_TRANSLATION_KEY: Record<PaidPlan, 'starter' | 'pro' | 'business'> = {
         STARTER: 'starter',
@@ -58,9 +59,7 @@ export async function PricingSection() {
                                 <section id="pricing" className="marketing-story-section scroll-mt-24 bg-[var(--bg-surface)] py-9 sm:py-20 lg:py-24">
                         <div className="mx-auto max-w-7xl px-5 sm:px-8">
                                 <div className="mx-auto max-w-2xl text-center">
-                                        <span className="marketing-eyebrow">
-                                                {t('eyebrow')}
-                                        </span>
+                                        <MarketingSectionPill>{t('eyebrow')}</MarketingSectionPill>
                                         <h2 className="marketing-heading mx-auto mt-4">{t('title')}</h2>
                                         <p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
                                 </div>

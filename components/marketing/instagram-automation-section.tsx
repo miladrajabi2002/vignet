@@ -28,9 +28,15 @@ export function InstagramAutomationSection({ locale }: { locale: HomeLocale }) {
                         <div aria-hidden className={cn('pointer-events-none absolute inset-0', styles.darkGrid, styles.gridFade)} />
                         <div className="relative mx-auto grid max-w-6xl items-center gap-6 sm:gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:gap-14">
                                 <div className="lg:sticky lg:top-28 lg:self-start">
+                                        {/* Mobile: the whole homepage centre-aligns its section headers,
+                                            but this one stayed hard start-aligned (user report: the
+                                            section looked off-centre on phones). Phones now get the
+                                            centred treatment; lg keeps the original start alignment
+                                            and its side-slide reveal. */}
                                         <MarketingSectionHeading
                                                 align="start"
                                                 inverse
+                                                className="max-lg:mx-auto max-lg:text-center"
                                                 eyebrow={fa ? 'اتوماسیون اینستاگرام' : 'Instagram automation'}
                                                 title={fa ? 'دایرکت، کامنت و استوری؛ هم خودکار و هم هوشمند' : 'DMs, comments and stories — automated and intelligent'}
                                                 subtitle={fa

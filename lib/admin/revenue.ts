@@ -108,8 +108,19 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
       where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'ACTIVE', currency: 'IRR' },
       _sum: { monthlyPrice: true },
     }),
-    prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
-    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
+    // Ownerless workspaces are retained only when their financial ledger must
+    // survive account deletion. Keep their payments in historical revenue,
+    // but do not count the anonymized shell as a current customer.
+    prisma.workspace.count({
+      where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, owner: { isNot: null } },
+    }),
+    prisma.workspace.count({
+      where: {
+        ...ADMIN_VISIBLE_WORKSPACE_WHERE,
+        owner: { isNot: null },
+        plan: { in: ['STARTER', 'PRO', 'BUSINESS'] },
+      },
+    }),
     prisma.payment.aggregate({
       where: {
         ...ADMIN_VISIBLE_RELATED_WHERE,

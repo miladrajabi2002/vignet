@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { ArrowLeft, ArrowRight, MessagesSquare, Plus } from 'lucide-react'
+import { MarketingSectionPill } from './animated-pill'
 
 type FaqItem = { q: string; a: string }
 
@@ -20,7 +21,7 @@ export async function FaqSection() {
                 <section className="marketing-story-section marketing-section-faq bg-white py-9 sm:py-20 lg:py-24">
                         <div className="mx-auto max-w-6xl px-5 sm:px-8">
                                 <header data-scroll-reveal="up" className="mx-auto max-w-2xl text-center">
-                                        <span className="marketing-eyebrow">{t('eyebrow')}</span>
+                                        <MarketingSectionPill>{t('eyebrow')}</MarketingSectionPill>
                                         <h2 className="marketing-heading mx-auto mt-3 sm:mt-4">{t('title')}</h2>
                                         <p className="marketing-subtitle mx-auto mt-3 sm:mt-4">{t('subtitle')}</p>
                                 </header>

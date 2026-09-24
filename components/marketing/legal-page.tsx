@@ -1,5 +1,6 @@
 import { ShieldCheck } from 'lucide-react'
 import { LegalMobileNavigation } from '@/components/marketing/legal-mobile-navigation'
+import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 
 export type LegalSection = {
 	title: string
@@ -25,10 +26,7 @@ export function LegalPage({
 			<div className="mx-auto max-w-6xl">
 				<header className="marketing-page-hero marketing-grid-dark px-6 py-10 text-white sm:px-9 sm:py-14">
 					<div className="relative z-10 max-w-3xl">
-						<p className="inline-flex items-center gap-2 text-[10px] font-medium text-white/45">
-							<ShieldCheck className="h-3.5 w-3.5" />
-							{eyebrow}
-						</p>
+						<MarketingHeroPill><span className="inline-flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5" />{eyebrow}</span></MarketingHeroPill>
 						<h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.25] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
 							{title}
 						</h1>

@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react'
 import Image from 'next/image'
-import { Check, Globe2, Inbox, Link2, MessageCircle, Sparkles, Workflow, type LucideIcon } from 'lucide-react'
+import { Check, Globe2, Inbox, Link2, MessageCircle, Workflow, type LucideIcon } from 'lucide-react'
 import { InstagramIcon, TelegramIcon } from './social-links'
+import { MarketingSectionPill } from './animated-pill'
 
 type Locale = 'fa' | 'en'
 type BrandIcon = typeof InstagramIcon | LucideIcon
@@ -320,10 +321,7 @@ export function ChannelsSection({ locale }: { locale: Locale }) {
 
                         <div className="relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-8">
                                 <header data-scroll-reveal="up" className="mx-auto max-w-3xl text-center">
-                                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-white/80 px-3 py-1.5 text-[10px] font-black text-violet-700 shadow-[0_6px_22px_rgba(124,58,237,0.08)] backdrop-blur sm:text-[11px]">
-                                                <Sparkles className="size-3.5" />
-                                                {copy.eyebrow}
-                                        </div>
+                                        <MarketingSectionPill className="mb-3">{copy.eyebrow}</MarketingSectionPill>
                                         <h2 className="text-balance text-[clamp(1.5rem,5vw,4.35rem)] font-black leading-[1.05] tracking-[-0.055em] text-neutral-950">{copy.title}</h2>
                                         <p className="mx-auto mt-3 max-w-2xl text-pretty text-[13px] font-medium leading-6 text-neutral-600 sm:text-base sm:leading-8">{copy.subtitle}</p>
                                 </header>

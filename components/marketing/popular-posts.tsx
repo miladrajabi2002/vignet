@@ -6,6 +6,7 @@ import { toPersianDigits, deriveExcerpt } from '@/lib/blog/helpers'
 import { Eye, ArrowLeft, Flame, TrendingUp } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { TrendSpark } from '@/components/blog/trend-spark'
+import { MarketingSectionPill } from '@/components/marketing/animated-pill'
 
 /**
  * PopularPosts — server component that pulls the most-viewed published blog
@@ -73,9 +74,7 @@ export async function PopularPosts() {
                                                 <div className="mx-auto max-w-6xl px-5 sm:px-6">
                                 {/* Heading */}
                                 <div data-scroll-reveal="up" className="mx-auto max-w-2xl text-center">
-                                        <span className="marketing-eyebrow">
-                                                {isFa ? 'پر بازدیدترین‌ها' : 'Most viewed'}
-                                        </span>
+                                        <MarketingSectionPill>{isFa ? 'پر بازدیدترین‌ها' : 'Most viewed'}</MarketingSectionPill>
                                         <h2 className="marketing-heading mx-auto mt-4">
                                                 {isFa ? 'محبوب‌ترین مقالات' : 'Popular articles'}
                                         </h2>

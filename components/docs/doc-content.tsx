@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { DOCS_NAV } from '@/lib/docs/nav'
 import { CopyButton } from '@/components/ui/copy-button'
+import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 
 function pick(t: { fa: string; en: string }, locale: Locale) {
   return locale === 'fa' ? t.fa : t.en
@@ -25,7 +26,7 @@ export function DocContent({
     <article className="max-w-4xl rounded-[1.75rem] border border-black/[0.08] bg-white p-4 shadow-[0_22px_65px_rgba(0,0,0,0.07)] sm:p-7 lg:p-9">
       <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-[1.5rem] bg-black px-5 py-8 text-white shadow-[0_18px_50px_rgba(0,0,0,0.16)] sm:px-8 sm:py-11">
         <div className="relative">
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-white/55">Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</p>
+        <MarketingHeroPill>Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</MarketingHeroPill>
         <h1 className="mt-4 text-balance text-4xl font-semibold leading-[1.2] tracking-[-0.04em] rtl:tracking-normal">{pick(page.title, locale)}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">{pick(page.description, locale)}</p>
         </div>

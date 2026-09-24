@@ -50,7 +50,7 @@ describe('marketing homepage UX contracts', () => {
                 expect(pixelSizes).toEqual([])
         })
 
-        it('routes the homepage secondary call to action to the capability overview', () => {
+        it('keeps the hero on a single primary call to action and away from the old demo', () => {
                 const hero = read('components/marketing/hero.tsx')
                 const graph = read('components/marketing/neural-operation-graph.tsx')
                 const page = read('app/(marketing)/page.tsx')
@@ -63,7 +63,8 @@ describe('marketing homepage UX contracts', () => {
                 expect(graph).not.toContain('sharedBrain')
                 expect(existsSync(join(root, 'components/marketing/demo-section.tsx'))).toBe(false)
                 expect(page).not.toContain('DemoSection')
-                expect(hero).toContain('href="#solutions"')
+                expect(page).not.toContain('OperationsSection')
+                expect(existsSync(join(root, 'components/marketing/social-proof.tsx'))).toBe(false)
                 expect(hero).not.toContain('href="#demo"')
                 expect(solutionPage).toContain('href="/#vigento"')
                 expect(solutionPage).not.toContain('/#demo')
@@ -97,9 +98,8 @@ describe('marketing homepage UX contracts', () => {
                 expect(controller).toContain('mutationObserver.disconnect()')
         })
 
-        it('keeps the compact channel logos in the hero and the full unified-inbox story after capabilities', () => {
+        it('keeps the unified-inbox story after capabilities', () => {
                 const page = read('app/(marketing)/page.tsx')
-                const hero = read('components/marketing/hero.tsx')
                 const channels = read('components/marketing/channels-section.tsx')
 
                 expect(page).toContain("import('@/components/marketing/channels-section')")
@@ -107,13 +107,7 @@ describe('marketing homepage UX contracts', () => {
                 expect(page.indexOf('<CapabilitiesSection locale={locale} />')).toBeLessThan(
                         page.indexOf('<ChannelsSection locale={locale} />'),
                 )
-                expect(hero).toContain('ConnectedChannelLogos')
-                expect(hero).toContain('/brands/bale-logo.svg')
-                expect(hero).toContain('/brands/rubika-logo.svg')
-                expect(hero).toContain("fa: 'اینستاگرام'")
-                expect(hero).toContain("fa: 'تلگرام'")
-                expect(hero).not.toContain('پیام جدید از')
-                expect(hero).not.toContain('marketing-node-ring')
+                expect(page).toContain('<TrustedBySection locale={locale} />')
                 expect(channels).toContain("title: 'صندوق پیام یکپارچه'")
                 expect(channels).toContain('پیام‌ها از هر برنامه‌ای')
                 expect(channels).toContain("flowLabel: 'اتصال برنامه‌ها به صندوق پیام یکپارچه'")
@@ -213,7 +207,8 @@ describe('marketing homepage UX contracts', () => {
                         'components/marketing/hero.tsx',
                         'components/marketing/neural-operation-graph.tsx',
                         'components/marketing/channels-section.tsx',
-                        'components/marketing/social-proof.tsx',
+                        'components/marketing/trusted-by-section.tsx',
+                        'components/marketing/future-cta.tsx',
                         'components/marketing/faq-section.tsx',
                 ]) {
                         expect(read(file), file).not.toContain('framer-motion')

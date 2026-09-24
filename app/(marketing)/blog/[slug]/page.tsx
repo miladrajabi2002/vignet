@@ -13,6 +13,7 @@ import { Calendar, Clock, ArrowLeft, ArrowRight } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { SocialLinks } from '@/components/marketing/social-links'
 import { TrendSpark } from '@/components/blog/trend-spark'
+import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 import { ViewBeacon } from '@/components/blog/view-beacon'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
@@ -162,13 +163,12 @@ export default async function PublicBlogPostPage(props: Props) {
             <ViewBeacon slug={post.slug} />
             {/* Header */}
                         <header className="marketing-page-hero marketing-grid-dark mb-10 px-6 py-10 sm:px-9 sm:py-14">
-                                {post.category && (
-                                        <Link
-                                                href={`/blog/category/${post.category.slug}`}
-                                        className="relative z-10 inline-flex min-h-11 items-center rounded-full border border-white/15 bg-white/[0.06] px-3 text-[11px] font-medium text-white/65"
-                                        >
+                                {post.category ? (
+                                        <MarketingHeroPill href={`/blog/category/${post.category.slug}`} showArrow className="relative z-10">
                                                 {post.category.name}
-                                        </Link>
+                                        </MarketingHeroPill>
+                                ) : (
+                                        <MarketingHeroPill className="relative z-10">Vigent Journal</MarketingHeroPill>
                                 )}
                                 <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-4xl font-semibold leading-[1.18] tracking-[-0.04em] text-white sm:text-5xl rtl:tracking-normal">
                                         {post.title}

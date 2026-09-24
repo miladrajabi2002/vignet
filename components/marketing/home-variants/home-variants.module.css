@@ -48,35 +48,35 @@
 .capabilityCanvas {
 	isolation: isolate;
 	background:
-		radial-gradient(circle at 82% 10%, rgba(16, 185, 129, 0.08), transparent 25rem),
-		radial-gradient(circle at 12% 42%, rgba(99, 102, 241, 0.06), transparent 28rem),
-		linear-gradient(145deg, #f8fafc 0%, #f6faf8 54%, #f9fbfa 100%);
+		radial-gradient(circle at 82% 10%, rgba(124, 58, 237, 0.1), transparent 25rem),
+		radial-gradient(circle at 12% 42%, rgba(251, 113, 133, 0.08), transparent 28rem),
+		linear-gradient(145deg, #fbfaff 0%, #f8f6fc 54%, #fcfbff 100%);
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.96),
-		0 28px 90px -60px rgba(15, 80, 60, 0.32);
+		0 28px 90px -60px rgba(76, 29, 149, 0.34);
 }
 
 .capabilityGrid {
 	z-index: -1;
 	background-image:
-		linear-gradient(rgba(13, 73, 55, 0.032) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(13, 73, 55, 0.032) 1px, transparent 1px);
+		linear-gradient(rgba(91, 33, 182, 0.035) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(91, 33, 182, 0.035) 1px, transparent 1px);
 	background-size: 52px 52px;
 	-webkit-mask-image: radial-gradient(ellipse 78% 72% at 50% 44%, black 20%, transparent 82%);
 	mask-image: radial-gradient(ellipse 78% 72% at 50% 44%, black 20%, transparent 82%);
 }
 
 .capabilityCard {
-	border: 1px solid rgba(10, 74, 54, 0.085);
-	background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(252, 255, 254, 0.82));
+	border: 1px solid rgba(91, 33, 182, 0.085);
+	background: linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(253, 251, 255, 0.84));
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.98),
-		0 1px 2px rgba(15, 55, 44, 0.035),
-		0 18px 52px -36px rgba(12, 77, 57, 0.32);
+		0 1px 2px rgba(57, 25, 92, 0.035),
+		0 18px 52px -36px rgba(76, 29, 149, 0.34);
 }
 
 .capabilityConnector {
-	background-image: linear-gradient(90deg, rgba(16, 185, 129, 0.5) 50%, transparent 50%);
+	background-image: linear-gradient(90deg, rgba(124, 58, 237, 0.5) 50%, transparent 50%);
 	background-size: 8px 1px;
 }
 
@@ -455,5 +455,23 @@
 	.capabilityCard {
 		border-color: rgba(10, 50, 38, 0.28);
 		background: #ffffff;
+	}
+}
+
+/* Phones: the canvas and cards drop the large soft shadows. Big blurs are
+   expensive to paint on mobile GPUs and read as "slow loading" while the
+   section scrolls into view (user report). Desktop is untouched. */
+@media (max-width: 767px) {
+	.capabilityCanvas {
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.96),
+			0 12px 34px -30px rgba(76, 29, 149, 0.26);
+	}
+
+	.capabilityCard {
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.98),
+			0 1px 2px rgba(57, 25, 92, 0.03),
+			0 8px 22px -20px rgba(76, 29, 149, 0.24);
 	}
 }

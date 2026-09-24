@@ -3,6 +3,7 @@ import { getLocale } from 'next-intl/server'
 import { cookies } from 'next/headers'
 import { Navbar } from '@/components/marketing/navbar'
 import { Footer } from '@/components/marketing/footer'
+import { FutureCta } from '@/components/marketing/future-cta'
 import { BackToTop } from '@/components/marketing/back-to-top'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { MARKETING_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
@@ -34,6 +35,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
 			</a>
 			<Navbar authenticated={authenticated} />
 			<main id="marketing-main" tabIndex={-1}>{children}</main>
+			<FutureCta />
 			<Footer />
 			<BackToTop />
 		</div>

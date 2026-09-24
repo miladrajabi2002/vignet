@@ -3,6 +3,7 @@ import { getMainWorkspaceId as getWorkspaceId } from '@/lib/blog/workspace'
 import { prisma } from '@/lib/prisma'
 import { SocialLinks } from '@/components/marketing/social-links'
 import { PublicBlogIndex } from '@/components/blog/public-blog-index'
+import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 
 // ISR: the index re-renders at most every 5 minutes (publishing a post via the
 // admin API revalidates it immediately). Post content is Persian, so the page
@@ -56,7 +57,7 @@ export default async function PublicBlogIndexPage() {
                         <header className="marketing-page-hero marketing-grid-dark relative mb-10 px-6 py-12 text-white sm:px-10 sm:py-16">
                                 <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
                                 <div>
-                                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Journal</p>
+                                <MarketingHeroPill>Vigent Journal</MarketingHeroPill>
                                 <h1 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl lg:text-6xl">
                                         بلاگ ویجنت
                                 </h1>

@@ -30,6 +30,7 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import {
   conversationsDaily,
+  conversationsMonthly,
   errorsDailyByLevel,
   newUsersDaily,
   revenueIRRDaily,
@@ -37,12 +38,12 @@ import {
   usageChargesDaily,
   connectionsDaily,
   revenueIRRMonthly,
-  planDistribution,
+  revenueByPlan,
   revenueNetDaily,
   topActiveUsers,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs, getFinanceSummary } from '@/lib/admin/revenue'
-import { getAiOverview } from '@/lib/admin/ai-usage'
+import { getAiOverview, getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
 import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
@@ -99,16 +100,29 @@ export default async function AdminOverviewPage(
     : {}
 
   // Range-dependent series — only fetch what the selected range needs.
-  // The revenue chart now uses the credit-based net revenue series.
+  // Revenue and conversations both follow the selected range so the
+  // ۷/۳۰/ماهانه switch visibly changes every chart below.
   const rangeSeriesPromise =
     range === 'monthly'
-      ? Promise.resolve(revenueIRRMonthly(12)).then((m) => ({ monthly: m, daily: null as null, netRev: [] as Awaited<ReturnType<typeof revenueNetDaily>> }))
+      ? Promise.all([
+          revenueIRRMonthly(12),
+          conversationsMonthly(12),
+        ]).then(([m, convM]) => ({
+          monthly: m,
+          monthlyConversations: convM,
+          daily: null as null,
+          netRev: [] as Awaited<ReturnType<typeof revenueNetDaily>>,
+          conversations: [] as Awaited<ReturnType<typeof conversationsDaily>>,
+        }))
       : Promise.all([
           revenueNetDaily(days),
-        ]).then(([netRev]) => ({
+          conversationsDaily(days),
+        ]).then(([netRev, conv]) => ({
           monthly: null as null,
+          monthlyConversations: [] as Awaited<ReturnType<typeof conversationsMonthly>>,
           daily: { rev: netRev, users: [] as Awaited<ReturnType<typeof newUsersDaily>> },
           netRev,
+          conversations: conv,
         }))
 
   const [
@@ -117,10 +131,11 @@ export default async function AdminOverviewPage(
     workspaceCount,
     conversationsToday,
     errors24h,
-    plans,
+    planRevenue,
     rangeSeries,
     kpiTrends,
     aiOverview,
+    openRouterAccount,
     activeUsersList,
     newUsersToday,
     channelHealth,
@@ -131,7 +146,7 @@ export default async function AdminOverviewPage(
     prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h }, level: 'error' }] } }),
-    planDistribution(),
+    revenueByPlan(),
     rangeSeriesPromise,
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
     //   range switch, so the cards always show recent site-wide momentum).
@@ -147,7 +162,8 @@ export default async function AdminOverviewPage(
       rev, conv, users, err, pays, ai, conns,
     })),
     getAiOverview(30),
-    // Top 5 active users by conversation count in the last 30 days.
+    getOpenRouterAccountUsage(),
+    // Top 5 most recently active users in the last 30 days.
     topActiveUsers(5, 30),
     prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startToday } } }),
     Promise.all([
@@ -160,6 +176,37 @@ export default async function AdminOverviewPage(
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d }, messages: { some: { role: 'ASSISTANT' } } } }),
     ]).then(([total, answered]) => ({ total, answered, rate: total > 0 ? Math.round((answered / total) * 100) : 100 })),
   ])
+
+  // ── OpenRouter wallet balance (live from the OpenRouter API) ──
+  // Replaces the old "هزینه OpenRouter" card: operators care about how much
+  // credit is LEFT before inference breaks, not just what was spent.
+  const orStatus = openRouterAccount.status
+  const orRemaining = openRouterAccount.totalCreditsRemainingUSD
+  const orTotal = openRouterAccount.totalCreditsUSD
+  const orUsed = openRouterAccount.totalCreditsUsedUSD
+  const openRouterBalanceValue =
+    orStatus === 'connected' && orRemaining !== null ? fmtUSD(orRemaining) : '—'
+  const openRouterBalanceSub =
+    orStatus === 'connected' && orRemaining !== null
+      ? orTotal !== null && orUsed !== null
+        ? `مصرف‌شده ${fmtUSD(orUsed)} از ${fmtUSD(orTotal)} اعتبار حساب`
+        : `مصرف ۳۰ روز: ${fmtUSD(aiOverview.providerCostUSD)}`
+      : orStatus === 'unavailable'
+        ? `دریافت موجودی ناموفق بود · مصرف ۳۰ روز: ${fmtUSD(aiOverview.providerCostUSD)}`
+        : 'کلید OpenRouter تنظیم نشده است'
+  const openRouterBalanceTone: 'success' | 'warning' | 'danger' =
+    orStatus !== 'connected' || orRemaining === null
+      ? 'warning'
+      : orRemaining <= 1
+        ? 'danger'
+        : orRemaining <= 5
+          ? 'warning'
+          : 'success'
+
+  // ── Revenue by plan (successful subscription payments, all-time) ──
+  const planRevenueSlices = planRevenue.map((p) => ({ label: p.label, value: p.revenueIRR }))
+  const planRevenueTotalIRR = planRevenueSlices.reduce((s, p) => s + p.value, 0)
+  const planRevenueToman = Math.round(planRevenueTotalIRR / 10)
 
   // ── Net revenue = all collected cash − real AI provider cost ──
   // getFinanceSummary() converts USD payments and the OpenRouter bill with the
@@ -212,14 +259,11 @@ export default async function AdminOverviewPage(
           seriesLabels={kpiTrends.pays.map((point) => point.day)}
         />
         <StatCard
-          label="هزینه OpenRouter"
-          value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`}
-          sub={`${fa(aiOverview.pricedRequests)} لاگ دارای هزینه — ۳۰ روز`}
-          icon={<CircleDollarSign className="h-5 w-5" />}
-          tone="warning"
-          series={kpiTrends.ai.map((point) => point.value)}
-          seriesLabels={kpiTrends.ai.map((point) => point.day)}
-          seriesValueFormat="irr"
+          label="موجودی OpenRouter"
+          value={openRouterBalanceValue}
+          sub={openRouterBalanceSub}
+          icon={<Wallet className="h-5 w-5" />}
+          tone={openRouterBalanceTone}
         />
         <StatCard
           label="کاربر جدید امروز"
@@ -271,7 +315,7 @@ export default async function AdminOverviewPage(
                 کاربران فعال
               </h3>
               <p className="mt-1 text-xs leading-5 text-zinc-500">
-                برترین کاربران بر اساس تعداد مکالمه در ۳۰ روز اخیر
+                ۵ کاربر اخیر بر اساس آخرین فعالیت — ۳۰ روز اخیر
               </p>
             </div>
             <Link
@@ -285,7 +329,7 @@ export default async function AdminOverviewPage(
 
           {activeUsersList.length === 0 ? (
             <div className="flex flex-1 items-center justify-center px-5 py-12 text-center text-xs text-zinc-400">
-              در ۳۰ روز اخیر مکالمه‌ای ثبت نشده است.
+              در ۳۰ روز اخیر فعالیتی (مکالمه یا ورود) ثبت نشده است.
             </div>
           ) : (
             <ul className="flex flex-1 flex-col divide-y divide-zinc-100 px-3 py-2" aria-label="رتبه‌بندی کاربران فعال">
@@ -342,24 +386,35 @@ export default async function AdminOverviewPage(
         </section>
 
         <DonutChart
-          title="توزیع پلن‌ها"
-          subtitle="ترکیب فعلی کسب‌وکارها"
-          data={plans}
-          centerValue={workspaceCount}
-          centerLabel="کسب‌وکار"
+          title="درآمد به تفکیک پلن"
+          subtitle="مجموع پرداخت‌های موفق اشتراک"
+          data={planRevenueSlices}
+          centerValue={planRevenueToman}
+          centerLabel="تومان"
+          format="irr"
         />
       </div>
 
       {/* ─── Charts row: net revenue + conversations side by side ─── */}
       {range === 'monthly' && rangeSeries.monthly ? (
-        <MonthlyBarChart
-          title="درآمد ماهانه (تومان)"
-          subtitle="۱۲ ماه اخیر"
-          data={rangeSeries.monthly}
-          color="#18181b"
-          format="irr"
-          height={240}
-        />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <MonthlyBarChart
+            title="درآمد ماهانه (تومان)"
+            subtitle="۱۲ ماه اخیر"
+            data={rangeSeries.monthly}
+            color="#18181b"
+            format="irr"
+            height={240}
+          />
+          <DashboardPanel
+            title="گفتگوهای ماهانه"
+            subtitle="روند ماهانه گفتگوهای جدید پلتفرم — ۱۲ ماه اخیر"
+          >
+            <ConversationChart
+              data={rangeSeries.monthlyConversations.map((p) => ({ label: p.month, value: p.value }) as TrendPoint)}
+            />
+          </DashboardPanel>
+        </div>
       ) : rangeSeries.daily ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <NetRevenueChart
@@ -372,7 +427,7 @@ export default async function AdminOverviewPage(
             subtitle="روند روزانه گفتگوهای جدید پلتفرم"
           >
             <ConversationChart
-              data={kpiTrends.conv.map((p) => ({ label: p.day, value: p.value }) as TrendPoint)}
+              data={rangeSeries.conversations.map((p) => ({ label: p.day, value: p.value }) as TrendPoint)}
             />
           </DashboardPanel>
         </div>

@@ -3,14 +3,14 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
-import { SocialProof } from '@/components/marketing/social-proof'
+import { DashboardShowcase } from '@/components/marketing/dashboard-showcase'
+import { TrustedBySection } from '@/components/marketing/trusted-by-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 import { SectionRevealController } from '@/components/marketing/section-reveal'
 import { CapabilitiesSection } from '@/components/marketing/capabilities-section'
 import { InstagramAutomationSection } from '@/components/marketing/instagram-automation-section'
 import { HomeOnboarding } from '@/components/marketing/home-onboarding'
 import { ShowcaseSection } from '@/components/marketing/showcase-section'
-import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
 import { SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
@@ -18,226 +18,221 @@ import { jsonLdScript } from '@/lib/seo/json-ld'
 // meaningful media also stays lazy, while server rendering keeps the content
 // available to search engines and no client hydration is added unnecessarily.
 const ChannelsSection = dynamicImport(() =>
-	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
+        import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
 )
 const PricingSection = dynamicImport(() =>
-	import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
+        import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
 )
 const FaqSection = dynamicImport(() =>
-	import('@/components/marketing/faq-section').then((m) => m.FaqSection),
+        import('@/components/marketing/faq-section').then((m) => m.FaqSection),
 )
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/+$/, '')
 
 const HOME_METADATA_COPY = {
-	fa: {
-		title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
-		description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
-				openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
-		openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
-		twitterDescription: 'فروش، پشتیبانی، رزرو و CRM چندکاناله با هوش مصنوعی فارسی.',
-	},
-	en: {
-		title: 'Vigent | AI Sales, Support and Omnichannel CRM',
-		description: 'Vigent unifies AI customer support, sales, booking, CRM and Instagram automation across Instagram, Telegram, Bale, Rubika and your website.',
-				openGraphTitle: 'Vigent | Intelligent Business Operations',
-		openGraphDescription: 'Run sales, support, booking, CRM and customer conversations across every channel with one AI agent and one dashboard.',
-		twitterDescription: 'AI-powered sales, support, booking and omnichannel CRM in one workspace.',
-	},
+        fa: {
+                title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
+                description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
+                                openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
+                openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
+                twitterDescription: 'فروش، پشتیبانی، رزرو و CRM چندکاناله با هوش مصنوعی فارسی.',
+        },
+        en: {
+                title: 'Vigent | AI Sales, Support and Omnichannel CRM',
+                description: 'Vigent unifies AI customer support, sales, booking, CRM and Instagram automation across Instagram, Telegram, Bale, Rubika and your website.',
+                                openGraphTitle: 'Vigent | Intelligent Business Operations',
+                openGraphDescription: 'Run sales, support, booking, CRM and customer conversations across every channel with one AI agent and one dashboard.',
+                twitterDescription: 'AI-powered sales, support, booking and omnichannel CRM in one workspace.',
+        },
 } as const
 
 export async function generateMetadata(): Promise<Metadata> {
-	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-	const copy = HOME_METADATA_COPY[locale]
+        const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+        const copy = HOME_METADATA_COPY[locale]
 
-	// The English homepage is a real URL (/en via middleware rewrite), so its
-	// canonical must point at ITSELF - a hardcoded root canonical told
-	// crawlers the entire English page was a duplicate of the Persian one.
-	const canonicalUrl = locale === 'en' ? `${SITE_URL}/en` : SITE_URL
+        // The English homepage is a real URL (/en via middleware rewrite), so its
+        // canonical must point at ITSELF - a hardcoded root canonical told
+        // crawlers the entire English page was a duplicate of the Persian one.
+        const canonicalUrl = locale === 'en' ? `${SITE_URL}/en` : SITE_URL
 
-	return {
-		title: { absolute: copy.title },
-		description: copy.description,
-		applicationName: 'Vigent',
-		category: 'business software',
-		alternates: {
-			canonical: canonicalUrl,
-			// Real English URLs now exist (/en via middleware rewrite), so
-			// hreflang alternates are sound; crawlers pick the right locale.
-			languages: {
-				fa: SITE_URL,
-				en: `${SITE_URL}/en`,
-				'x-default': SITE_URL,
-			},
-		},
-		openGraph: {
-			type: 'website',
-			url: canonicalUrl,
-			siteName: 'Vigent',
-			locale: locale === 'fa' ? 'fa_IR' : 'en_US',
-			alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR'],
-			title: copy.openGraphTitle,
-			description: copy.openGraphDescription,
-			// app/opengraph-image.tsx renders the 1200x630 branded card. A page
-			// that defines its own openGraph object replaces the parent's, which
-			// drops the file-convention image — so reference it explicitly
-			// instead of the old square 512x512 PWA logo override.
-			images: [{
-				url: `${SITE_URL}/opengraph-image`,
-				width: 1200,
-				height: 630,
-				alt: locale === 'fa' ? 'ویجنت — ایجنت هوشمند فروش و پشتیبانی' : 'Vigent — AI sales and support agent',
-			}],
-		},
-		twitter: {
-			card: 'summary_large_image',
-			title: copy.openGraphTitle,
-			description: copy.twitterDescription,
-			images: [`${SITE_URL}/twitter-image`],
-		},
-		other: {
-			'content-language': locale === 'fa' ? 'fa-IR' : 'en-US',
-		},
-	}
+        return {
+                title: { absolute: copy.title },
+                description: copy.description,
+                applicationName: 'Vigent',
+                category: 'business software',
+                alternates: {
+                        canonical: canonicalUrl,
+                        // Real English URLs now exist (/en via middleware rewrite), so
+                        // hreflang alternates are sound; crawlers pick the right locale.
+                        languages: {
+                                fa: SITE_URL,
+                                en: `${SITE_URL}/en`,
+                                'x-default': SITE_URL,
+                        },
+                },
+                openGraph: {
+                        type: 'website',
+                        url: canonicalUrl,
+                        siteName: 'Vigent',
+                        locale: locale === 'fa' ? 'fa_IR' : 'en_US',
+                        alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR'],
+                        title: copy.openGraphTitle,
+                        description: copy.openGraphDescription,
+                        // app/opengraph-image.tsx renders the 1200x630 branded card. A page
+                        // that defines its own openGraph object replaces the parent's, which
+                        // drops the file-convention image — so reference it explicitly
+                        // instead of the old square 512x512 PWA logo override.
+                        images: [{
+                                url: `${SITE_URL}/opengraph-image`,
+                                width: 1200,
+                                height: 630,
+                                alt: locale === 'fa' ? 'ویجنت — ایجنت هوشمند فروش و پشتیبانی' : 'Vigent — AI sales and support agent',
+                        }],
+                },
+                twitter: {
+                        card: 'summary_large_image',
+                        title: copy.openGraphTitle,
+                        description: copy.twitterDescription,
+                        images: [`${SITE_URL}/twitter-image`],
+                },
+                other: {
+                        'content-language': locale === 'fa' ? 'fa-IR' : 'en-US',
+                },
+        }
 }
 
 const STRUCTURED_DATA_COPY = {
-	fa: {
-		alternateName: 'ویجنت',
-		description: 'پلتفرم ایجنت هوشمند برای کسب‌وکارها — فروش، پشتیبانی و پیگیری سفارش در سایت، تلگرام، بله و اینستاگرام',
-		features: [
-			'پاسخ‌گویی هوشمند فارسی بر پایه دانش کسب‌وکار',
-			'صندوق گفتگو و CRM چندکاناله',
-			'اتوماسیون دایرکت، کامنت و استوری اینستاگرام',
-			'کاتالوگ محصول، ووکامرس و پیشنهاد خرید',
-			'رزرو و نوبت‌دهی بدون تداخل',
-			'تحویل گفتگو به اپراتور همراه خلاصه',
-		],
-		offer: 'یک ماه دورهٔ آزمایشی همراه اعتبار اولیه پیام؛ اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند',
-	},
-	en: {
-		alternateName: 'Vigent AI',
-		description: 'An AI agent platform for business sales, customer support and order follow-up across websites, Telegram, Bale and Instagram.',
-		features: [
-			'Knowledge-grounded AI customer support',
-			'Omnichannel inbox and CRM',
-			'Instagram direct-message, comment and story automation',
-			'Product catalog, WooCommerce and purchase recommendations',
-			'Conflict-free booking and appointment scheduling',
-			'Human handoff with an automatic conversation summary',
-		],
-		offer: 'One-month trial with initial AI reply credit; deterministic Instagram automation uses no credit while access is active.',
-	},
+        fa: {
+                alternateName: 'ویجنت',
+                description: 'پلتفرم ایجنت هوشمند برای کسب‌وکارها — فروش، پشتیبانی و پیگیری سفارش در سایت، تلگرام، بله و اینستاگرام',
+                features: [
+                        'پاسخ‌گویی هوشمند فارسی بر پایه دانش کسب‌وکار',
+                        'صندوق گفتگو و CRM چندکاناله',
+                        'اتوماسیون دایرکت، کامنت و استوری اینستاگرام',
+                        'کاتالوگ محصول، ووکامرس و پیشنهاد خرید',
+                        'رزرو و نوبت‌دهی بدون تداخل',
+                        'تحویل گفتگو به اپراتور همراه خلاصه',
+                ],
+                offer: 'یک ماه دورهٔ آزمایشی همراه اعتبار اولیه پیام؛ اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند',
+        },
+        en: {
+                alternateName: 'Vigent AI',
+                description: 'An AI agent platform for business sales, customer support and order follow-up across websites, Telegram, Bale and Instagram.',
+                features: [
+                        'Knowledge-grounded AI customer support',
+                        'Omnichannel inbox and CRM',
+                        'Instagram direct-message, comment and story automation',
+                        'Product catalog, WooCommerce and purchase recommendations',
+                        'Conflict-free booking and appointment scheduling',
+                        'Human handoff with an automatic conversation summary',
+                ],
+                offer: 'One-month trial with initial AI reply credit; deterministic Instagram automation uses no credit while access is active.',
+        },
 } as const
 
-async function LivePlatformStats() {
-	const stats = await getPublicPlatformStats()
-	return <SocialProof stats={stats} />
-}
-
 export default async function HomePage() {
-	const [requestLocale, t] = await Promise.all([
-		getLocale(),
-		getTranslations('marketing.faq'),
-	])
-	const locale = requestLocale === 'en' ? 'en' : 'fa'
-	const structuredDataCopy = STRUCTURED_DATA_COPY[locale]
-	const faqItems = (t.raw('items') as { q: string; a: string }[]) ?? []
+        const [requestLocale, t] = await Promise.all([
+                getLocale(),
+                getTranslations('marketing.faq'),
+        ])
+        const locale = requestLocale === 'en' ? 'en' : 'fa'
+        const structuredDataCopy = STRUCTURED_DATA_COPY[locale]
+        const faqItems = (t.raw('items') as { q: string; a: string }[]) ?? []
 
-	// Structured data: Organization + WebSite + SoftwareApplication + FAQPage — helps
-	// Google show the brand card, product info and FAQ rich results.
-	const jsonLd = [
-		{
-			'@context': 'https://schema.org',
-			'@type': 'Organization',
-			'@id': `${SITE_URL}/#organization`,
-			name: 'Vigent',
-			alternateName: structuredDataCopy.alternateName,
-			url: SITE_URL,
-			logo: {
-				'@type': 'ImageObject',
-				url: `${SITE_URL}/android-chrome-512x512.png`,
-				width: 512,
-				height: 512,
-			},
-			image: `${SITE_URL}/android-chrome-512x512.png`,
-			telephone: SUPPORT_PHONE_E164,
-			contactPoint: {
-				'@type': 'ContactPoint',
-				telephone: SUPPORT_PHONE_E164,
-				contactType: 'customer support',
-				availableLanguage: ['fa', 'en'],
-			},
-		},
-		{
-			'@context': 'https://schema.org',
-			'@type': 'WebSite',
-			'@id': `${SITE_URL}/#website`,
-			name: 'Vigent',
-			alternateName: structuredDataCopy.alternateName,
-			url: SITE_URL,
-			inLanguage: locale === 'fa' ? 'fa-IR' : 'en',
-			publisher: { '@id': `${SITE_URL}/#organization` },
-		},
-		{
-			'@context': 'https://schema.org',
-			'@type': 'SoftwareApplication',
-			'@id': `${SITE_URL}/#software`,
-			name: 'Vigent',
-			url: SITE_URL,
-			applicationCategory: 'BusinessApplication',
-			operatingSystem: 'Web',
-			inLanguage: locale === 'fa' ? 'fa-IR' : 'en-US',
-			provider: { '@id': `${SITE_URL}/#organization` },
-			description: structuredDataCopy.description,
-			featureList: structuredDataCopy.features,
-			offers: {
-				'@type': 'Offer',
-				price: '0',
-				priceCurrency: 'IRR',
-				url: `${SITE_URL}/login?next=/onboarding`,
-				description: structuredDataCopy.offer,
-			},
-		},
-		...(faqItems.length
-			? [
-					{
-						'@context': 'https://schema.org',
-						'@type': 'FAQPage',
-						mainEntity: faqItems.map((item) => ({
-							'@type': 'Question',
-							name: item.q,
-							acceptedAnswer: { '@type': 'Answer', text: item.a },
-						})),
-					},
-				]
-			: []),
-	]
+        // Structured data: Organization + WebSite + SoftwareApplication + FAQPage — helps
+        // Google show the brand card, product info and FAQ rich results.
+        const jsonLd = [
+                {
+                        '@context': 'https://schema.org',
+                        '@type': 'Organization',
+                        '@id': `${SITE_URL}/#organization`,
+                        name: 'Vigent',
+                        alternateName: structuredDataCopy.alternateName,
+                        url: SITE_URL,
+                        logo: {
+                                '@type': 'ImageObject',
+                                url: `${SITE_URL}/android-chrome-512x512.png`,
+                                width: 512,
+                                height: 512,
+                        },
+                        image: `${SITE_URL}/android-chrome-512x512.png`,
+                        telephone: SUPPORT_PHONE_E164,
+                        contactPoint: {
+                                '@type': 'ContactPoint',
+                                telephone: SUPPORT_PHONE_E164,
+                                contactType: 'customer support',
+                                availableLanguage: ['fa', 'en'],
+                        },
+                },
+                {
+                        '@context': 'https://schema.org',
+                        '@type': 'WebSite',
+                        '@id': `${SITE_URL}/#website`,
+                        name: 'Vigent',
+                        alternateName: structuredDataCopy.alternateName,
+                        url: SITE_URL,
+                        inLanguage: locale === 'fa' ? 'fa-IR' : 'en',
+                        publisher: { '@id': `${SITE_URL}/#organization` },
+                },
+                {
+                        '@context': 'https://schema.org',
+                        '@type': 'SoftwareApplication',
+                        '@id': `${SITE_URL}/#software`,
+                        name: 'Vigent',
+                        url: SITE_URL,
+                        applicationCategory: 'BusinessApplication',
+                        operatingSystem: 'Web',
+                        inLanguage: locale === 'fa' ? 'fa-IR' : 'en-US',
+                        provider: { '@id': `${SITE_URL}/#organization` },
+                        description: structuredDataCopy.description,
+                        featureList: structuredDataCopy.features,
+                        offers: {
+                                '@type': 'Offer',
+                                price: '0',
+                                priceCurrency: 'IRR',
+                                url: `${SITE_URL}/login?next=/onboarding`,
+                                description: structuredDataCopy.offer,
+                        },
+                },
+                ...(faqItems.length
+                        ? [
+                                        {
+                                                '@context': 'https://schema.org',
+                                                '@type': 'FAQPage',
+                                                mainEntity: faqItems.map((item) => ({
+                                                        '@type': 'Question',
+                                                        name: item.q,
+                                                        acceptedAnswer: { '@type': 'Answer', text: item.a },
+                                                })),
+                                        },
+                                ]
+                        : []),
+        ]
 
-	return (
-		<>
-			<SectionRevealController />
-			<script
-				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
-			/>
-			<Hero />
-			<Suspense fallback={null}>
-				<LivePlatformStats />
-			</Suspense>
-			<CapabilitiesSection locale={locale} />
-			<ChannelsSection locale={locale} />
-			<InstagramAutomationSection locale={locale} />
-			<HomeOnboarding locale={locale} />
-			<Suspense fallback={null}>
-				<ShowcaseSection locale={locale} />
-			</Suspense>
-			<Suspense fallback={null}>
-				<PricingSection />
-			</Suspense>
-			<FaqSection />
-			<Suspense fallback={null}>
-				<PopularPosts />
-			</Suspense>
-		</>
-	)
+        return (
+                <>
+                        <SectionRevealController />
+                        <script
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
+                        />
+                        <Hero dashboard={<DashboardShowcase locale={locale} />} />
+                        <Suspense fallback={null}>
+                                <TrustedBySection locale={locale} />
+                        </Suspense>
+                        <CapabilitiesSection locale={locale} />
+                        <ChannelsSection locale={locale} />
+                        <InstagramAutomationSection locale={locale} />
+                        <HomeOnboarding locale={locale} />
+                        <Suspense fallback={null}>
+                                <ShowcaseSection locale={locale} />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                                <PricingSection />
+                        </Suspense>
+                        <FaqSection />
+                        <Suspense fallback={null}>
+                                <PopularPosts />
+                        </Suspense>
+                </>
+        )
 }

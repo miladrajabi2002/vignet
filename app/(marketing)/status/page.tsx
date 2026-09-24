@@ -1,6 +1,7 @@
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Server, XCircle } from 'lucide-react'
 import { runHealthChecks, type HealthReport } from '@/lib/health'
 import { formatDateTime } from '@/lib/format'
+import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 
 // ISR with a 60-second window: a status page does not need per-request health
 // probes (industry norm is 30–60s granularity), and serving cached HTML drops
@@ -49,7 +50,7 @@ export default async function StatusPage() {
                                 <header className="marketing-page-hero marketing-grid-dark px-6 py-10 sm:px-9 sm:py-14">
                                         <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                                                 <div>
-                                                <p className="inline-flex items-center gap-2 text-[11px] font-medium text-white/45"><Activity className="h-3.5 w-3.5" />Vigent System Status</p>
+                                                <MarketingHeroPill><span className="inline-flex items-center gap-2"><Activity className="h-3.5 w-3.5" />Vigent System Status</span></MarketingHeroPill>
                                                         <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t.title}</h1>
                                                         <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50">{t.subtitle}</p>
                                                 </div>

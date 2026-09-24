@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { MarketingSectionPill } from './animated-pill'
 
 export function MarketingSectionHeading({
         eyebrow,
@@ -8,6 +9,8 @@ export function MarketingSectionHeading({
         align = 'center',
         inverse = false,
         className,
+        titleClassName,
+        titleStyle,
 }: {
         eyebrow: string
         title: ReactNode
@@ -15,22 +18,29 @@ export function MarketingSectionHeading({
         align?: 'center' | 'start'
         inverse?: boolean
         className?: string
+        /** Replaces the default responsive h2 sizing entirely (e.g. the one-line title treatment). */
+        titleClassName?: string
+        /** Paired with titleClassName — CSS vars such as --title-fit for the cqw fit. */
+        titleStyle?: CSSProperties
 }) {
         return (
                 <header
                         data-scroll-reveal={align === 'start' ? 'side' : 'up'}
-                        className={cn(align === 'center' ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl text-start', className)}
+                        className={cn(
+                                align === 'center' ? 'mx-auto max-w-3xl text-center [container-type:inline-size]' : 'max-w-2xl text-start',
+                                className,
+                        )}
                 >
-                        <span
+                        <MarketingSectionPill inverse={inverse}>{eyebrow}</MarketingSectionPill>
+                        <h2
+                                style={titleStyle}
                                 className={cn(
-                                        'inline-flex min-h-7 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold sm:min-h-8 sm:px-3.5',
-                                        inverse ? 'border-white/15 bg-white/[0.06] text-white/65' : 'border-black/[0.08] bg-white text-black/55',
+                                        'mt-5 font-semibold leading-[1.24] tracking-[-0.04em] rtl:tracking-normal sm:mt-6',
+                                        inverse ? 'text-white' : 'text-black',
+                                        titleClassName ??
+                                                'text-balance text-[clamp(1.75rem,6.4vw,3.9rem)] sm:text-[clamp(2.15rem,5vw,4rem)]',
                                 )}
                         >
-                                <span className={cn('size-1.5 rounded-full', inverse ? 'bg-emerald-300' : 'bg-emerald-500')} />
-                                {eyebrow}
-                        </span>
-                        <h2 className={cn('mt-4 text-balance text-[clamp(1.4rem,5vw,3.5rem)] font-semibold leading-[1.28] tracking-[-0.035em] rtl:tracking-normal sm:mt-5 sm:text-[clamp(1.8rem,5vw,3.5rem)]', inverse ? 'text-white' : 'text-black')}>
                                 {title}
                         </h2>
                         {subtitle ? (

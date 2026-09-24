@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { BadgeCheck, ChevronDown, CreditCard, Sparkles } from 'lucide-react'
 import { getLocale } from 'next-intl/server'
 import { PricingSection } from '@/components/marketing/pricing-section'
+import { MarketingHeroPill, MarketingSectionPill } from '@/components/marketing/animated-pill'
 import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
@@ -242,7 +243,7 @@ export default async function PricingPage() {
                         <div className="mx-auto max-w-7xl px-3 sm:px-5">
                                 <header className="marketing-page-hero marketing-grid-dark px-6 py-12 text-white sm:px-10 sm:py-16">
                                         <div className="relative z-10 mx-auto max-w-3xl text-center">
-                                                <p className="text-[10px] font-medium tracking-[0.14em] text-white/40 rtl:tracking-normal">{copy.heroEyebrow}</p>
+                                                <MarketingHeroPill>{copy.heroEyebrow}</MarketingHeroPill>
                                                 <h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.2] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
                                                         {copy.h1}
                                                 </h1>
@@ -275,7 +276,7 @@ export default async function PricingPage() {
                         <section aria-labelledby="pricing-faq-title" className="mx-auto mt-4 max-w-7xl px-3 sm:px-5">
                                 <div className="mx-auto grid max-w-6xl gap-10 rounded-[2rem] border border-black/[0.08] bg-white px-6 py-12 shadow-[0_18px_55px_rgba(0,0,0,0.06)] sm:px-10 sm:py-14 lg:grid-cols-[0.7fr_1.3fr]">
                                         <div>
-                                                <p className="text-[11px] font-medium text-black/40">{copy.faqEyebrow}</p>
+                                                <MarketingSectionPill>{copy.faqEyebrow}</MarketingSectionPill>
                                                 <h2 id="pricing-faq-title" className="mt-4 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">
                                                         {copy.faqH2}
                                                 </h2>
