@@ -52,8 +52,8 @@ export function DashboardShowcase({ locale }: { locale: Locale }) {
         const fa = locale === 'fa'
 
         return (
-                <div className="marketing-showcase-enter relative mx-auto mt-14 w-full max-w-[1200px] sm:mt-8">
-                        <div className="relative rounded-xl bg-white/60 p-2 ring-1 ring-black/[0.08] ring-inset lg:rounded-2xl">
+                <div className="marketing-showcase-enter relative mx-auto mt-14 w-full max-w-[1200px] sm:mt-6">
+                        <div className="relative rounded-xl bg-white/60 p-2 ring-1 ring-black/[0.08] ring-inset backdrop-blur-3xl lg:rounded-2xl">
                                 {/* Violet halo BEHIND the shot: the band starts ~24-32px above
                                     the frame's top edge, so a soft arc of light peeks above the
                                     screenshot while the dashboard itself stays clean. z-0 puts it
