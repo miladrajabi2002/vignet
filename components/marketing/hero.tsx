@@ -19,16 +19,16 @@ type HeroCopy = {
 const COPY: Record<Locale, HeroCopy> = {
         fa: {
                 kicker: 'فروش و پشتیبانی با هوش مصنوعی',
-                headlineTop: 'هر پیام، یک پاسخ دقیق',
-                headlineBottomLead: 'همه کانال‌ها،',
-                headlineAccent: 'یک پنل',
+                headlineTop: 'همه برنامه‌ها، یک هوش مصنوعی',
+                headlineBottomLead: 'فروش، پشتیبانی و CRM',
+                headlineAccent: 'در یک پنل',
                 startShort: 'شروع رایگان',
         },
         en: {
                 kicker: 'Persian AI for sales and support',
-                headlineTop: 'Every message gets a clear answer',
-                headlineBottomLead: 'Every channel,',
-                headlineAccent: 'one inbox',
+                headlineTop: 'Every app, one AI',
+                headlineBottomLead: 'Sales, support & CRM',
+                headlineAccent: 'in one panel',
                 startShort: 'Start free',
         },
 }
@@ -54,8 +54,13 @@ export function Hero({ dashboard }: { dashboard?: ReactNode }) {
 
                                         {/* Single weight (Medium cut) and a single fixed ink colour — the
                                             previous Bold 600 render read as a different, heavier font,
-                                            and the gradient accent split the line into two colours. */}
-                                        <h1 className="mt-7 w-full text-balance text-[clamp(2.15rem,10vw,4.1rem)] font-medium leading-[1.22] tracking-[-0.045em] text-[var(--text-primary)] rtl:tracking-normal sm:mt-6 sm:text-[clamp(3rem,7vw,6.05rem)] sm:leading-[1.15]">
+                                            and the gradient accent split the line into two colours.
+                                            The clamp is per-locale: the longer Persian lines measure
+                                            13.1/14.2 px width per font-size px and the English bottom
+                                            line 16.6, so each is capped at the largest size that keeps
+                                            both lines unwrapped inside the 1152px container at every
+                                            viewport ≥sm (measured in the real font, weight 500). */}
+                                        <h1 className={`mt-7 w-full text-balance sm:mt-6 ${locale === 'en' ? 'text-[clamp(2.15rem,10vw,3.6rem)] sm:text-[clamp(2.1rem,5.4vw,4.2rem)]' : 'text-[clamp(2.15rem,10vw,4.1rem)] sm:text-[clamp(2.5rem,6.4vw,5rem)]'} font-medium leading-[1.22] tracking-[-0.045em] text-[var(--text-primary)] rtl:tracking-normal sm:leading-[1.15]`}>
                                                 <span className="block">{copy.headlineTop}</span>
                                                 <span className="mt-1 block sm:mt-2">
                                                         {copy.headlineBottomLead}{' '}
