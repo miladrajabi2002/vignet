@@ -981,3 +981,20 @@ bun run db:migrate   # یا npx prisma migrate deploy
 - دیپلوی: `deploy/manual-deploy-incremental.sh` → `DEPLOY_OK dist=…-1790209684-3255034`، health 200، مسیرهای / و /en و /pricing و /login و صفحات ادمین (‌/admin با هر ۳ بازه، usage، revenue، users) همگی 200.
 - تأیید مرورگر زنده: موجودی $5.589 نمایش داده شد (تطبیق با API)، لیست کاربران با «۵ دقیقه پیش» بالای لیست، نمودار گفتگوهای ۳۰روزه واقعاً ۳۰ روز دارد، دونات درآمد پلن‌ها درست.
 - بکاپ قبل از تغییر: `/root/vigent-admin-dash-backup-1790209017/` (charts.ts، page.tsx، trend-chart.tsx).
+
+## ۱۴۰۵/۰۷/۰۲ — نشست هشتم (ادامه): بازخورد کاربر — گفتگومحور کردن «کاربران فعال» + مینی‌ترند موجودی
+
+### ۱ — «کاربران فعال» بر اساس آخرین گفتگو (نه ورود به پنل)
+- بازخورد: کاربری که همین حالا گفتگو داشته باید بالای لیست باشد؛ ورود اخیر به پنل نباید رتبه را جلو ببرد.
+- `topActiveUsers` در `lib/admin/charts.ts`: `lastActivityAt = MAX(c."createdAt")` (صرفاً گفتگو)، `JOIN` دوباره `JOIN` شد (کاربر بدون گفتگو در ۳۰ روز حذف)، `ORDER BY lastActivityAt DESC, "conversationCount" DESC`. متن‌ها: زیرعنوان «برترین کاربران بر اساس آخرین گفتگو — ۳۰ روز اخیر» و تولتیپ «آخرین گفتگو».
+- تأیید با دیتابیس و مرورگر: صمدی (۶۶ مکالمه) به رتبه ۴ رفت چون آخرین گفتگویش قدیمی‌تر است؛ امین داوودی (۱۵ مکالمه، ۲ ساعت پیش) اول است.
+
+### ۲ — مینی‌ترند «کاهش روزانه» روی کارت موجودی OpenRouter
+- تابع جدید `providerCostUSDDaily(7)` در `lib/admin/charts.ts`: جمع `UsageLog.cost` (USD واقعی اوپن‌روتر) به‌تفکیک روز.
+- زنجیره اسپارک‌لاین فرمت جدید `usd` گرفت: `StatCard.seriesValueFormat` → `Sparkline.valueFormat` → `formatHoverValue` (`$0.02`). رنگ `auto` + روند صعودی مصرف = قرمز (invert) روی کارت اعمال شد.
+- تأیید مرورگر: تولتیپ «۲ روز پیش · $0.02» روی مینی‌ترند کارت $5.584.
+
+### تست و دیپلوی
+- `tsc --noEmit` صفر خطا؛ `npm test`: ۱۲۰۶ پاس (همان ۲ fail پیش‌موجود marketing).
+- دیپلوی: `DEPLOY_OK dist=…-1790242789-3528964`، health 200.
+- بکاپ: `/root/vigent-admin-dash-backup-1790242564-r2/` (charts.ts، page.tsx، ui.tsx، sparkline.tsx).

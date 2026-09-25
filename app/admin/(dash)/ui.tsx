@@ -134,7 +134,7 @@ export function StatCard({
   trend?: { value: number; label?: string }; // percentage, +/-
   series?: number[]; // 7-day (or similar) daily values for an inline sparkline
   seriesLabels?: string[]; // optional per-point labels (e.g. Persian short dates) for the hover tooltip
-  seriesValueFormat?: "number" | "irr"; // value formatting inside the hover tooltip
+  seriesValueFormat?: "number" | "irr" | "usd"; // value formatting inside the hover tooltip
 }) {
   const toneRing = {
     default: "bg-zinc-100 text-zinc-700",

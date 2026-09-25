@@ -605,6 +605,34 @@ export async function revenueNetDaily(days = 7): Promise<NetRevenuePoint[]> {
         return out
 }
 
+/**
+ * Real OpenRouter provider spend per day in USD (UsageLog.cost), the
+ * metric behind the «موجودی OpenRouter» mini trend — shows how much of
+ * the wallet balance is burned each day.
+ */
+export async function providerCostUSDDaily(days = 7): Promise<DailyPoint[]> {
+        const since = new Date(Date.now() - days * 86_400_000)
+        const rows = await prisma.$queryRaw<{ d: string; c: number | null }[]>`
+    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           COALESCE(sum("cost"), 0) AS c
+    FROM "UsageLog"
+    WHERE "date" >= ${since}
+      AND "status" = 'CAPTURED'
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
+    GROUP BY 1
+    ORDER BY 1
+  `
+        const byKey = new Map<string, number>()
+        for (const r of rows) byKey.set(r.d, Number(r.c ?? 0))
+        const out: DailyPoint[] = []
+        const now = Date.now()
+        for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(now - i * 86_400_000)
+                out.push({ day: label(d), value: byKey.get(tzDayKey(d)) ?? 0 })
+        }
+        return out
+}
+
 // ─── TOP ACTIVE USERS ──────────────────────────────────────────────
 //
 // "Active" = the user (or their workspace) showed any activity in the
@@ -624,11 +652,11 @@ export interface ActiveUserRow {
 }
 
 /**
- * Top N most recently active users over the last `days` days, ordered by
- * the newest activity first (then by conversation volume as tiebreaker).
- * Activity = workspace conversations OR panel sign-ins, so a user who
- * just logged in but has few conversations still ranks top. Excludes
- * admin-hidden workspaces. Returns at most `limit` rows.
+ * Top N users whose workspace had the most recent conversation, ordered
+ * by the newest conversation first (then by conversation volume as
+ * tiebreaker) — «یکی الان گفتگو داشته، یکی دیروز» یعنی اولِ لیست همان
+ * کاربری است که آخرین گفتگوی او تازه‌تر است. Excludes admin-hidden
+ * workspaces. Returns at most `limit` rows.
  */
 export async function topActiveUsers(limit = 5, days = 30): Promise<ActiveUserRow[]> {
         const since = new Date(Date.now() - days * 86_400_000)
@@ -649,23 +677,16 @@ export async function topActiveUsers(limit = 5, days = 30): Promise<ActiveUserRo
            w."name"         AS "workspaceName",
            w."plan"::text   AS "plan",
            COUNT(c."id")    AS "conversationCount",
-           GREATEST(
-             COALESCE(MAX(c."createdAt"), to_timestamp(0)),
-             COALESCE(u."lastLoginAt", to_timestamp(0))
-           )                AS "lastActivityAt"
+           MAX(c."createdAt") AS "lastActivityAt"
     FROM "User" u
     JOIN "Workspace" w
       ON w."id" = u."workspaceId"
      AND w."excludeFromAdminReports" = false
-    LEFT JOIN "Conversation" c
+    JOIN "Conversation" c
       ON c."workspaceId" = u."workspaceId"
      AND c."createdAt" >= ${since}
      AND c."deletedAt" IS NULL
     GROUP BY u."id", u."name", u."phone", u."workspaceId", w."name", w."plan"
-    HAVING GREATEST(
-             COALESCE(MAX(c."createdAt"), to_timestamp(0)),
-             COALESCE(u."lastLoginAt", to_timestamp(0))
-           ) >= ${since}
     ORDER BY "lastActivityAt" DESC, "conversationCount" DESC
     LIMIT ${limit}
   `

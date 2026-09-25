@@ -36,6 +36,7 @@ import {
   revenueIRRDaily,
   paymentsDaily,
   usageChargesDaily,
+  providerCostUSDDaily,
   connectionsDaily,
   revenueIRRMonthly,
   revenueByPlan,
@@ -158,8 +159,9 @@ export default async function AdminOverviewPage(
       paymentsDaily(7),
       usageChargesDaily(7),
       connectionsDaily(7),
-    ]).then(([rev, conv, users, err, pays, ai, conns]) => ({
-      rev, conv, users, err, pays, ai, conns,
+      providerCostUSDDaily(7),
+    ]).then(([rev, conv, users, err, pays, ai, conns, orCost]) => ({
+      rev, conv, users, err, pays, ai, conns, orCost,
     })),
     getAiOverview(30),
     getOpenRouterAccountUsage(),
@@ -264,6 +266,9 @@ export default async function AdminOverviewPage(
           sub={openRouterBalanceSub}
           icon={<Wallet className="h-5 w-5" />}
           tone={openRouterBalanceTone}
+          series={kpiTrends.orCost.map((point) => point.value)}
+          seriesLabels={kpiTrends.orCost.map((point) => point.day)}
+          seriesValueFormat="usd"
         />
         <StatCard
           label="کاربر جدید امروز"
@@ -315,7 +320,7 @@ export default async function AdminOverviewPage(
                 کاربران فعال
               </h3>
               <p className="mt-1 text-xs leading-5 text-zinc-500">
-                ۵ کاربر اخیر بر اساس آخرین فعالیت — ۳۰ روز اخیر
+                برترین کاربران بر اساس آخرین گفتگو — ۳۰ روز اخیر
               </p>
             </div>
             <Link
@@ -329,7 +334,7 @@ export default async function AdminOverviewPage(
 
           {activeUsersList.length === 0 ? (
             <div className="flex flex-1 items-center justify-center px-5 py-12 text-center text-xs text-zinc-400">
-              در ۳۰ روز اخیر فعالیتی (مکالمه یا ورود) ثبت نشده است.
+              در ۳۰ روز اخیر گفتگویی ثبت نشده است.
             </div>
           ) : (
             <ul className="flex flex-1 flex-col divide-y divide-zinc-100 px-3 py-2" aria-label="رتبه‌بندی کاربران فعال">
@@ -372,7 +377,7 @@ export default async function AdminOverviewPage(
                           <strong className="text-sm font-bold tabular-nums">{fa(user.conversationCount)}</strong>
                           <span className="text-[10px] font-medium text-zinc-500">مکالمه</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400" title="آخرین فعالیت">
+                        <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400" title="آخرین گفتگو">
                           <Clock3 className="h-3 w-3" aria-hidden="true" />
                           {relativeFromNow(user.lastActivityAt)}
                         </span>

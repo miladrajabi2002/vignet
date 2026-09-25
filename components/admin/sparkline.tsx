@@ -25,10 +25,15 @@ function fa(n: number): string {
   return Number(n).toLocaleString("fa-IR");
 }
 
-/** Format the hovered value: plain count or IRR → Toman. */
-function formatHoverValue(v: number, kind: "number" | "irr"): string {
+/** Format the hovered value: plain count, IRR → Toman, or USD amount. */
+function formatHoverValue(v: number, kind: "number" | "irr" | "usd"): string {
   if (kind === "irr")
     return `${Math.round(v / 10).toLocaleString("fa-IR")} تومان`;
+  if (kind === "usd")
+    return `$${v.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   return fa(v);
 }
 
@@ -44,7 +49,7 @@ function SparkTooltipBubble({
 }: {
   label: string;
   value: number;
-  kind: "number" | "irr";
+  kind: "number" | "irr" | "usd";
 }) {
   return (
     <div
@@ -85,7 +90,7 @@ function SparkTooltipBubble({
  *                 oldest → newest) shown in the hover chip
  * @param valueLabel accepted for backward compatibility — the minimal
  *                 one-line chip no longer renders a metric title
- * @param valueFormat 'number' (default) or 'irr' (Rial → Toman in the chip)
+ * @param valueFormat 'number' (default), 'irr' (Rial → Toman) or 'usd' (dollar amount)
  */
 export function Sparkline({
   data,
@@ -105,7 +110,7 @@ export function Sparkline({
   invert?: boolean;
   labels?: string[];
   valueLabel?: string;
-  valueFormat?: "number" | "irr";
+  valueFormat?: "number" | "irr" | "usd";
 }) {
   // Stable unique id for the gradient (avoids collisions when multiple
   // sparklines are on the same page).
