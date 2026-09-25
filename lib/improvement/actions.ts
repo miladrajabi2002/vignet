@@ -8,6 +8,7 @@ import { evaluateLearningEligibility, LEARNING_POLICY_VERSION } from '@/lib/ai/l
 import { dispatchIngestion } from '@/lib/queue/jobs'
 import { invalidateWidgetConfig } from '@/lib/widget/cache'
 import { addCustomerAgentPreference, customerPreferenceInstruction, readCustomerAgentPreferences, removeCustomerAgentPreference } from '@/lib/ai/customer-agent-preferences'
+import { applyEvidenceFact } from '@/lib/ai/memory-evidence'
 import { improvementCompletion, parseModelJson } from './model'
 import { getImprovementPricing } from './pricing'
 import { behaviorValue, changeBehavior, restoreBehavior, draftSchema, json, type Draft } from './types'
@@ -184,10 +185,23 @@ export async function applyImprovement(workspaceId: string, agentId: string, act
           conversationId: s.evidence[0].review.conversationId,
         })
         if (!added.created) throw new Error('BEHAVIOR_CHANGED')
+        // Evidence-anchored memory: the preference is also recorded as a
+        // statement fact with full provenance (conversation, suggestion) and
+        // an audit-ledger entry, so its history stays traceable.
+        const evidenceStore = applyEvidenceFact({
+          metadata: added.metadata,
+          agentId,
+          mode: 'statement',
+          key: 'preference',
+          value: added.preference.text,
+          conversationId: s.evidence[0].review.conversationId,
+          source: 'IMPROVEMENT_SUGGESTION',
+          sourceId: s.id,
+        })
         before = { scope: 'CUSTOMER', contactId: contact.id, preferenceId: added.preference.id }
-        after = { scope: 'CUSTOMER', contactId: contact.id, preferenceId: added.preference.id, text: added.preference.text }
+        after = { scope: 'CUSTOMER', contactId: contact.id, preferenceId: added.preference.id, text: added.preference.text, evidenceFactId: evidenceStore.fact.id }
         targetId = contact.id
-        await tx.contact.update({ where: { id: contact.id }, data: { metadata: json(added.metadata) } })
+        await tx.contact.update({ where: { id: contact.id }, data: { metadata: json(evidenceStore.metadata) } })
       } else {
         if (!agent.promptConfig || !draft.behaviorPath || hash(behaviorValue(agent.promptConfig, draft.behaviorPath)) !== hash(draft.baseline)) throw new Error('BEHAVIOR_CHANGED')
         before = { scope: 'AGENT', path: draft.behaviorPath, value: draft.baseline }

@@ -8,6 +8,7 @@ import {
 import { retrieveContext, buildMessages } from '@/lib/ai/rag'
 import { resolveSystemPrompt } from '@/lib/ai/prompt-builder'
 import { customerPreferenceInstruction, readCustomerAgentPreferences, type CustomerAgentPreference } from '@/lib/ai/customer-agent-preferences'
+import { evidenceMemoryInstruction, readEvidenceMemory, type EvidenceMemory } from '@/lib/ai/memory-evidence'
 import { closingReplyText } from '@/lib/ai/response-policy'
 import {
         extractIdentity,
@@ -210,6 +211,8 @@ function buildSystemPrompt(params: {
         customerInfoState: string
         contactName: string | null
         customerPreferences?: CustomerAgentPreference[]
+        /** Evidence-anchored long-term memory for this contact+agent (provenance, quarantine, audit). */
+        evidenceMemory?: EvidenceMemory | null
         /** Language of the customer's current turn (kernel mirrors it). */
         turnLanguage?: TurnLanguage
         /** Channel the customer is currently talking on (TELEGRAM / WHATSAPP / ...). */
@@ -242,6 +245,11 @@ function buildSystemPrompt(params: {
         // Explicit per-customer interaction preferences are isolated in CRM
         // metadata and subordinate to business facts, tools and safety rules.
         base += customerPreferenceInstruction((turnLanguage ?? agent.language) === 'en' ? 'en' : 'fa', customerPreferences)
+
+        // Evidence-anchored customer memory: confirmed facts, recorded
+        // statements and pending conflict confirmations. Same isolation rules
+        // as the preferences block above — this customer's own data only.
+        base += evidenceMemoryInstruction((turnLanguage ?? agent.language) === 'en' ? 'en' : 'fa', params.evidenceMemory ?? null)
 
         // Platform-awareness block: tells the agent which surface it is on
         // (Telegram / WhatsApp / Instagram DM / public comment / story reply /
@@ -690,6 +698,9 @@ async function prepareTurn(params: StartChatParams): Promise<
         const customerPreferences = contact
                 ? readCustomerAgentPreferences(contact.metadata, agent.id)
                 : []
+        const evidenceMemory = contact
+                ? readEvidenceMemory(contact.metadata, agent.id)
+                : null
         // History must load before the prompt is built so the reply language
         // can inherit the customer's last lettered message when the current
         // one is digits-only («0788»). Loading here (before the credit
@@ -739,6 +750,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 customerInfoState: freshState,
                 contactName: resolvedContactName,
                 customerPreferences,
+                evidenceMemory,
                 turnLanguage: turnLang,
                 channel: params.channel,
                 inboundSource: params.inboundMetadata ?? null,

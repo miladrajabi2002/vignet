@@ -6,6 +6,7 @@ import { CONVERSATION_FLOW_SKILL_VERSION, conversationFlowInstruction } from '@/
 import { EVIDENCE_GROUNDING_SKILL_VERSION, evidenceGroundingInstruction } from '@/lib/agent-kernel/skills/evidence-grounding'
 import { ACTION_CAPABILITY_SKILL_VERSION, actionCapabilityInstruction } from '@/lib/agent-kernel/skills/action-capabilities'
 import { needsVisualReferenceSkill, VISUAL_REFERENCE_SKILL_VERSION, visualReferenceInstruction } from '@/lib/agent-kernel/skills/visual-reference'
+import { HUMANIZER_SKILL_VERSION, humanizerPolishInstruction } from '@/lib/agent-kernel/skills/humanizer-polish'
 
 export const AGENT_KERNEL_VERSION = '2026.09.16-product-links.1'
 
@@ -28,6 +29,7 @@ const manifests = {
   sales: { key: 'sales-intelligence', version: '1.0.0', phase: 'context', priority: 400, description: 'Apply grounded sales guidance without overriding safety.' },
   cards: { key: 'product-card-hydration', version: '1.0.0', phase: 'postprocess', priority: 300, description: 'Hydrate product cards from trusted database rows.' },
   persian: { key: 'persian-response-polish', version: '1.0.0', phase: 'postprocess', priority: 200, description: 'Apply conservative Persian chat punctuation.' },
+  humanizer: { key: 'humanizer-polish', version: HUMANIZER_SKILL_VERSION, phase: 'postprocess', priority: 190, description: 'Remove AI-writing tells without changing meaning (prompt rules + deterministic polish).' },
 } satisfies Record<string, AgentSkillManifest>
 
 export const AGENT_SKILL_MANIFESTS: readonly AgentSkillManifest[] = Object.freeze(
@@ -36,6 +38,9 @@ export const AGENT_SKILL_MANIFESTS: readonly AgentSkillManifest[] = Object.freez
 
 export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPlan {
   const isFa = input.language !== 'en'
+  // Platform-wide kill switch for the humanizer layer (prompt rules and
+  // deterministic polish turn off together with the skill itself).
+  const humanizerDisabled = process.env.AI_HUMANIZER_DISABLE === '1'
   const selected: Array<AgentSkillManifest | null> = [
     manifests.security,
     manifests.language,
@@ -55,6 +60,7 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
     !input.deterministicClosing && input.salesIntelligenceEnabled ? manifests.sales : null,
     !input.deterministicClosing && input.richProductCards && input.productTurn ? manifests.cards : null,
     isFa ? manifests.persian : null,
+    humanizerDisabled ? null : manifests.humanizer,
   ]
   const active = selected.filter((skill): skill is AgentSkillManifest => skill !== null)
     .sort((a, b) => b.priority - a.priority)
@@ -82,6 +88,7 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
         inboundMediaKind: input.inboundMediaKind,
       }),
       ending: responseEndingInstruction(isFa),
+      humanizer: humanizerDisabled ? '' : humanizerPolishInstruction(isFa),
     },
   }
 }

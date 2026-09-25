@@ -3,6 +3,7 @@ import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts
 import { enforceActionCapabilities, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/conversation-state'
+import { enforceHumanizerPolish } from '@/lib/agent-kernel/skills/humanizer-polish'
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 
 export interface AgentSkillPostprocessContext {
@@ -93,6 +94,9 @@ export function runAgentSkillPostprocessors(
   }
   if (hasAgentSkill(plan, 'product-consultation')) {
     output = ensureSingleProductIdentity(output, context)
+  }
+  if (hasAgentSkill(plan, 'humanizer-polish')) {
+    output = enforceHumanizerPolish({ reply: output, isFa: context.isFa ?? true }).reply
   }
   if (hasAgentSkill(plan, 'persian-response-polish')) {
     output = stripTrailingPersianPeriod(output)

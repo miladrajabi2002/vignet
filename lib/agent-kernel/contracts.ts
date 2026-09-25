@@ -21,6 +21,7 @@ export type AgentSkillKey =
   | 'sales-intelligence'
   | 'product-card-hydration'
   | 'persian-response-polish'
+  | 'humanizer-polish'
 
 export interface AgentSkillManifest {
   key: AgentSkillKey
@@ -62,6 +63,8 @@ export interface AgentSkillPlan {
     capabilities: string
     visualReference: string
     ending: string
+    /** Anti-AI-tell writing rules (humanizer-polish skill). */
+    humanizer: string
   }
 }
 
