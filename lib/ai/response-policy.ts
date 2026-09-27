@@ -13,15 +13,18 @@ export function closingReplyText(message: string, history: ChatMessage[], langua
     .replace(/\s+/g, ' ').trim().toLowerCase()
   const thanks = '(?:نه\\s+)?(?:خیلی\\s+)?(?:ممنونم?|مرسی|متشکرم|سپاس(?:گزارم)?|تشکر)(?:\\s+(?:عزیزم|از\\s+راهنمایی(?:تون|تان)))?'
   const farewell = '(?:خداحافظ|خدانگهدار|فعلا(?:ً)?\\s+(?:کاری|سوالی|سؤالی)\\s+ندارم)'
-  const defer = '(?:(?:فعلا(?:ً)?\\s+)?باید\\s+فکر\\s+کنم|بعدا(?:ً)?\\s+تصمیم\\s+می\\s*گیرم)'
+  // «باشه فکرامو می‌کنم»، «روش فکر می‌کنم»، «بعداً خبرتون می‌کنم» are the same
+  // polite deferral as «باید فکر کنم»; the model used to answer them with the
+  // product card again, which reads like a pushy bot.
+  const defer = '(?:(?:باشه|اوکی|خب|پس|فعلا(?:ً)?)\\s+)?(?:(?:فعلا(?:ً)?\\s+)?باید\\s+فکر\\s+کنم|بعدا(?:ً)?\\s+تصمیم\\s+می\\s*گیرم|(?:فکرامو|فکرهامو|فکرامم)\\s+(?:رو\\s+)?می\\s*کنم|(?:روش|روشون|بهش|بهشون)\\s+فکر\\s+می\\s*کنم|(?:بعدا(?:ً)?\\s+)?(?:بهتون\\s+)?خبر(?:تون)?\\s+می\\s*(?:دم|دهم|کنم))'
   const persianClosing = new RegExp(`^(?:${thanks}|${farewell}|${defer})(?:\\s+(?:${thanks}|${farewell}|${defer}))*$`, 'u')
   const englishClosing = /^(?:(?:no\s+)?thanks?(?:\s+you)?|thank\s+you|goodbye|bye|that(?:'s| is)\s+all|(?:i\s+)?need\s+to\s+think|i(?:'ll| will)\s+decide\s+later)(?:\s+(?:thanks?|thank\s+you|goodbye|bye|that(?:'s| is)\s+all))*$/i
   if (!persianClosing.test(text) && !englishClosing.test(text)) return null
   const english = language.toLowerCase().startsWith('en')
-  if (/(?:فکر|تصمیم|think|decide)/.test(text)) return english ? 'Of course, take your time.' : 'حتماً، با خیال راحت تصمیم بگیرید.'
-  if (/(?:خداحافظ|خدانگهدار|goodbye|bye)/.test(text)) return english ? 'Goodbye.' : 'خدانگهدار.'
-  if (/^(?:نه\s|no\s)/.test(text)) return english ? 'Of course.' : 'حتماً.'
-  return english ? 'You’re welcome.' : 'خواهش می‌کنم.'
+  if (/(?:فکر|تصمیم|خبر|think|decide)/.test(text)) return english ? 'Of course, take your time.' : 'حتماً، با خیال راحت تصمیم بگیرید'
+  if (/(?:خداحافظ|خدانگهدار|goodbye|bye)/.test(text)) return english ? 'Goodbye.' : 'خدانگهدار'
+  if (/^(?:نه\s|no\s)/.test(text)) return english ? 'Of course.' : 'حتماً'
+  return english ? 'You’re welcome.' : 'خواهش می‌کنم'
 }
 
 /** Shared by every customer-facing generation path, after saved role examples. */

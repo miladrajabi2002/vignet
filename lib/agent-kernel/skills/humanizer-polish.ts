@@ -109,7 +109,82 @@ export function enforceHumanizerPolish(params: { reply: string; isFa?: boolean }
     }
   }
 
+  // 4. A trailing courtesy filler («اگر سؤال دیگری داشتید، در خدمتم») after a
+  //    complete answer. The ending policy already forbids it; this is the
+  //    deterministic backstop. Only the LAST sentence, never the only one.
+  const trimmed = dropClosingFiller(output)
+  if (trimmed !== output) {
+    output = trimmed
+    codes.push('HUMANIZER_CLOSING_FILLER')
+  }
+
+  // 5. The same question asked twice («کدوم رنگ رو می‌پسندید؟ … فقط بگو
+  //    کدوم رنگ رو می‌پسندید؟») — keep the first, drop the echo. Only
+  //    question sentences are compared, after stripping filler openers.
+  const deduped = dropRepeatedQuestions(output)
+  if (deduped !== output) {
+    output = deduped
+    codes.push('HUMANIZER_REPEATED_QUESTION')
+  }
+
   return { reply: codes.length ? output : reply, codes }
+}
+
+const CLOSING_FILLER_RE =
+  /^(?:و\s*)?(?:اگر|اگه)[^.!؟?\n]{0,50}?(?:سؤال|سوال|درخواست|کمکی|نیازی)[^.!؟?\n]{0,90}(?:در\s*خدمت(?:م|یم|تون|تان|\s*شما\s*هستم)|خوشحال\s*می\s*شم|بپرسید|بپرسین|بپرس|بفرمایید)[.!؟?]*$|^(?:if\s+you\s+have\s+any\s+(?:other\s+|more\s+|further\s+)?(?:questions?|requests?)|feel\s+free\s+to\s+(?:ask|reach\s+out)|let\s+me\s+know\s+if\s+you\s+(?:have|need)\s+any(?:thing)?\s+(?:else|other))[^.!?\n]*[.!?]*$/iu
+
+function dropClosingFiller(text: string): string {
+  const lines = text.split('\n')
+  let index = lines.length - 1
+  while (index >= 0 && (!lines[index].trim() || lines[index].includes('[[product:'))) index -= 1
+  if (index < 0) return text
+  const sentences = lines[index].split(/(?<=[.!؟?])\s+/u)
+  const last = sentences.at(-1)?.replace(/[\u200c]/g, ' ').trim() ?? ''
+  if (!CLOSING_FILLER_RE.test(last)) return text
+  sentences.pop()
+  const remainingLine = sentences.join(' ').trim()
+  const before = lines.slice(0, index).join('\n').trim()
+  // Never strip a reply down to nothing: the filler must follow real content.
+  if (!remainingLine && !before) return text
+  lines[index] = remainingLine
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+const QUESTION_FILLER_RE = /^(?:(?:فقط|لطفا|لطفاً|پس|خب|خوب|حالا|بگو|بگید|بگین|بفرمایید|just|so|please|tell\s+me)[\s،,:]*)+/iu
+
+function questionCore(sentence: string): string {
+  return sentence
+    .normalize('NFKC')
+    .replace(/[\u200c\s]+/g, ' ')
+    .trim()
+    .replace(QUESTION_FILLER_RE, '')
+    .replace(/[؟?!.،,\s]+$/u, '')
+    .trim()
+    .toLocaleLowerCase('fa')
+}
+
+function dropRepeatedQuestions(text: string): string {
+  if (!/[؟?][\s\S]*[؟?]/u.test(text)) return text
+  const seen = new Set<string>()
+  let changed = false
+  const lines = text.split('\n').map((line) => {
+    if (line.includes('[[product:')) return line
+    const parts = line.split(/(?<=[.!؟?])\s+/u)
+    const kept = parts.filter((part) => {
+      if (!/[؟?]\s*$/u.test(part)) return true
+      const core = questionCore(part)
+      if (core.length < 8) return true
+      if (seen.has(core)) {
+        changed = true
+        return false
+      }
+      seen.add(core)
+      return true
+    })
+    return kept.join(' ')
+  })
+  if (!changed) return text
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 /** Generation-time prevention block, appended to every kernel system prompt. */

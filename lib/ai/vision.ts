@@ -160,7 +160,12 @@ export async function describeImage(input: DescribeImageInput): Promise<Describe
           temperature: 0.1,
           max_tokens: 400,
           reasoning: { enabled: false },
-          provider: { data_collection: 'deny', allow_fallbacks: true },
+          provider: {
+            sort: runtime?.providerSort ?? 'price',
+            data_collection: 'deny',
+            zdr: Boolean(runtime?.zeroDataRetention),
+            allow_fallbacks: true,
+          },
         }),
       },
       {

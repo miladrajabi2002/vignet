@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
+  BellRing,
   CheckCircle2,
+  ClipboardList,
   Loader2,
   Package,
   ShieldCheck,
@@ -11,18 +13,22 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type AccessKey = 'productAccessEnabled' | 'orderTrackingEnabled'
+type AccessKey = 'productAccessEnabled' | 'orderTrackingEnabled' | 'orderCaptureEnabled' | 'restockAlertsEnabled'
 
 export function StoreAccessSettings({
   agentId,
   initialProductAccessEnabled,
   initialOrderTrackingEnabled,
+  initialOrderCaptureEnabled,
+  initialRestockAlertsEnabled,
   productCount,
   orderCount,
 }: {
   agentId: string
   initialProductAccessEnabled: boolean
   initialOrderTrackingEnabled: boolean
+  initialOrderCaptureEnabled: boolean
+  initialRestockAlertsEnabled: boolean
   productCount: number
   orderCount: number
 }) {
@@ -33,21 +39,29 @@ export function StoreAccessSettings({
   const [orderTrackingEnabled, setOrderTrackingEnabled] = useState(
     initialOrderTrackingEnabled,
   )
+  const [orderCaptureEnabled, setOrderCaptureEnabled] = useState(initialOrderCaptureEnabled)
+  const [restockAlertsEnabled, setRestockAlertsEnabled] = useState(initialRestockAlertsEnabled)
   const [saving, setSaving] = useState<AccessKey | null>(null)
   const [notice, setNotice] = useState<
     { type: 'ok' | 'err'; message: string } | null
   >(null)
 
-  async function updateAccess(key: AccessKey, enabled: boolean) {
-    const previous = key === 'productAccessEnabled'
-      ? productAccessEnabled
-      : orderTrackingEnabled
+  const values: Record<AccessKey, boolean> = {
+    productAccessEnabled,
+    orderTrackingEnabled,
+    orderCaptureEnabled,
+    restockAlertsEnabled,
+  }
+  const setters: Record<AccessKey, (value: boolean) => void> = {
+    productAccessEnabled: setProductAccessEnabled,
+    orderTrackingEnabled: setOrderTrackingEnabled,
+    orderCaptureEnabled: setOrderCaptureEnabled,
+    restockAlertsEnabled: setRestockAlertsEnabled,
+  }
 
-    if (key === 'productAccessEnabled') {
-      setProductAccessEnabled(enabled)
-    } else {
-      setOrderTrackingEnabled(enabled)
-    }
+  async function updateAccess(key: AccessKey, enabled: boolean) {
+    const previous = values[key]
+    setters[key](enabled)
 
     setSaving(key)
     setNotice(null)
@@ -64,11 +78,7 @@ export function StoreAccessSettings({
 
       setNotice({ type: 'ok', message: t('saved') })
     } catch {
-      if (key === 'productAccessEnabled') {
-        setProductAccessEnabled(previous)
-      } else {
-        setOrderTrackingEnabled(previous)
-      }
+      setters[key](previous)
       setNotice({ type: 'err', message: t('saveError') })
     } finally {
       setSaving(null)
@@ -111,6 +121,30 @@ export function StoreAccessSettings({
             enabledLabel={t('enabled')}
             disabledLabel={t('disabled')}
             onChange={(enabled) => updateAccess('orderTrackingEnabled', enabled)}
+          />
+          <AccessRow
+            icon={ClipboardList}
+            title={t('orderCaptureTitle')}
+            description={t('orderCaptureDescription')}
+            count={t('orderCaptureBadge')}
+            enabled={productCount > 0 && productAccessEnabled && orderCaptureEnabled}
+            pending={saving === 'orderCaptureEnabled'}
+            disabled={saving !== null || productCount === 0 || !productAccessEnabled}
+            enabledLabel={t('enabled')}
+            disabledLabel={t('disabled')}
+            onChange={(enabled) => updateAccess('orderCaptureEnabled', enabled)}
+          />
+          <AccessRow
+            icon={BellRing}
+            title={t('restockTitle')}
+            description={t('restockDescription')}
+            count={t('restockBadge')}
+            enabled={productCount > 0 && productAccessEnabled && restockAlertsEnabled}
+            pending={saving === 'restockAlertsEnabled'}
+            disabled={saving !== null || productCount === 0 || !productAccessEnabled}
+            enabledLabel={t('enabled')}
+            disabledLabel={t('disabled')}
+            onChange={(enabled) => updateAccess('restockAlertsEnabled', enabled)}
           />
         </div>
       </section>

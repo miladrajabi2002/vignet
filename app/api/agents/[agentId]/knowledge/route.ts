@@ -67,6 +67,9 @@ export async function POST(req: Request, props: Params) {
   let fileSize: number | undefined
   // ─ F4: optional auto-refresh cadence for URL knowledge bases (hours).
   let refreshIntervalHours = 0
+  // Fast-moving sources can use a minutes cadence (15/30 min); it wins over
+  // the hourly column when > 0.
+  let refreshIntervalMinutes: number | undefined = undefined
 
   if (contentType.includes('multipart/form-data')) {
     let rawBody: Buffer
@@ -174,12 +177,18 @@ export async function POST(req: Request, props: Params) {
         if (!(error instanceof UnsafeHttpTargetError)) console.error('[knowledge] URL validation failed:', error)
         return NextResponse.json({ error: 'INVALID_URL' }, { status: 400 })
       }
-      // Parse the optional refresh cadence (0–168 hours, default 0 = manual).
+      // Parse the optional refresh cadence: minutes (5–59 allowed here so
+      // 15/30-min pages work) or the legacy 0–168 hours. 0 = manual only.
       const rawHours = Number(json.refreshIntervalHours ?? 0)
       refreshIntervalHours =
         Number.isFinite(rawHours) && rawHours >= 0 && rawHours <= 168
           ? Math.floor(rawHours)
           : 0
+      const rawMinutes = Number(json.refreshIntervalMinutes ?? 0)
+      refreshIntervalMinutes =
+        Number.isFinite(rawMinutes) && rawMinutes >= 5 && rawMinutes <= 59
+          ? Math.floor(rawMinutes)
+          : rawMinutes === 0 ? 0 : undefined
     } else {
       type = json.type === 'FAQ' ? 'FAQ' : 'TEXT'
       inlineText = String(json.content ?? '')
@@ -202,6 +211,7 @@ export async function POST(req: Request, props: Params) {
       status: 'PENDING',
       // F4: only meaningful for URL type; ignored otherwise.
       refreshIntervalHours: type === 'URL' ? refreshIntervalHours : 0,
+      refreshIntervalMinutes: type === 'URL' ? refreshIntervalMinutes ?? 0 : 0,
     },
   })
 

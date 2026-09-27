@@ -34,12 +34,30 @@ export interface KbItem {
   lastIngestedAt?: Date | string | null
   /** F4: refresh cadence in hours (0 = manual only). */
   refreshIntervalHours?: number
+  /** Fast-moving sources: minutes cadence; wins over the hourly column when > 0. */
+  refreshIntervalMinutes?: number
   /** Editable fields — populated when the user opens the edit panel. */
   sourceUrl?: string | null
   content?: string | null
 }
 
 type Mode = 'text' | 'url' | 'file'
+
+// Re-crawl cadence choices in minutes (0 = manual). Sub-hour options exist
+// because price/availability pages change within minutes, not hours; the
+// scheduler ticks every 5 minutes and the staleness check gates real work.
+const CADENCE_MINUTES = [0, 15, 30, 60, 360, 720, 1440, 4320, 10080]
+
+function cadencePayload(minutes: number): { refreshIntervalHours: number; refreshIntervalMinutes: number } {
+  if (minutes > 0 && minutes < 60) return { refreshIntervalHours: 0, refreshIntervalMinutes: minutes }
+  return { refreshIntervalHours: Math.round(minutes / 60), refreshIntervalMinutes: 0 }
+}
+
+function cadenceMinutesOf(item: { refreshIntervalMinutes?: number; refreshIntervalHours?: number }): number {
+  return item.refreshIntervalMinutes && item.refreshIntervalMinutes > 0
+    ? item.refreshIntervalMinutes
+    : (item.refreshIntervalHours ?? 0) * 60
+}
 
 export function KbManager({
   agentId,
@@ -56,14 +74,14 @@ export function KbManager({
   const [name, setName] = useState('')
   const [content, setContent] = useState('')
   const [url, setUrl] = useState('')
-  const [refreshHours, setRefreshHours] = useState<number>(24)
+  const [refreshCadenceMinutes, setRefreshCadenceMinutes] = useState<number>(1440)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editUrl, setEditUrl] = useState('')
   const [editContent, setEditContent] = useState('')
-  const [editRefreshHours, setEditRefreshHours] = useState<number>(24)
+  const [editRefreshCadenceMinutes, setEditRefreshCadenceMinutes] = useState<number>(1440)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const sessionRedirectingRef = useRef(false)
@@ -78,7 +96,7 @@ export function KbManager({
       try {
         sessionStorage.setItem(
           `knowledge-draft:${agentId}`,
-          JSON.stringify({ mode, name, content, url, refreshHours }),
+          JSON.stringify({ mode, name, content, url, refreshCadenceMinutes }),
         )
       } catch {
         // Storage can be unavailable in strict private-browsing contexts.
@@ -111,13 +129,15 @@ export function KbManager({
         name?: string
         content?: string
         url?: string
+        refreshCadenceMinutes?: number
         refreshHours?: number
       }
       if (draft.mode === 'text' || draft.mode === 'url') setMode(draft.mode)
       if (typeof draft.name === 'string') setName(draft.name)
       if (typeof draft.content === 'string') setContent(draft.content)
       if (typeof draft.url === 'string') setUrl(draft.url)
-      if (typeof draft.refreshHours === 'number') setRefreshHours(draft.refreshHours)
+      if (typeof draft.refreshCadenceMinutes === 'number') setRefreshCadenceMinutes(draft.refreshCadenceMinutes)
+      else if (typeof draft.refreshHours === 'number') setRefreshCadenceMinutes(draft.refreshHours * 60)
     } catch {
       // Ignore malformed or obsolete drafts.
     }
@@ -147,7 +167,7 @@ export function KbManager({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(
             mode === 'url'
-              ? { name: name || url, mode: 'url', url, refreshIntervalHours: refreshHours }
+              ? { name: name || url, mode: 'url', url, ...cadencePayload(refreshCadenceMinutes) }
               : { name: name || 'دانش', mode: 'text', content },
           ),
         })
@@ -183,6 +203,7 @@ export function KbManager({
     setEditName(item.name)
     setEditError(null)
     setEditLoading(true)
+    setEditRefreshCadenceMinutes(cadenceMinutesOf(item))
     // Fetch full KB row to get sourceUrl/content
     try {
       const res = await fetch(`/api/agents/${agentId}/knowledge/${item.id}`)
@@ -193,7 +214,6 @@ export function KbManager({
       }
       const data = (await res.json()) as { kb: KbItem & { sourceUrl?: string | null } }
       setEditUrl(data.kb.sourceUrl ?? '')
-      setEditRefreshHours(item.refreshIntervalHours ?? 0)
       setEditContent(data.kb.content ?? '')
     } catch {
       setEditError(t('requestFailed'))
@@ -218,8 +238,8 @@ export function KbManager({
       if (editName.trim() && editName !== item.name) body.name = editName.trim()
       if (item.type === 'URL') {
         if (editUrl.trim() && editUrl !== (item.sourceUrl ?? '')) body.url = editUrl.trim()
-        if (editRefreshHours !== (item.refreshIntervalHours ?? 0)) {
-          body.refreshIntervalHours = editRefreshHours
+        if (editRefreshCadenceMinutes !== cadenceMinutesOf(item)) {
+          Object.assign(body, cadencePayload(editRefreshCadenceMinutes))
         }
       }
       if (item.type === 'TEXT' && editContent.trim()) {
@@ -422,23 +442,25 @@ export function KbManager({
                     {t('refreshIntervalLabel')}
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {[0, 6, 12, 24, 72, 168].map((h) => (
+                    {CADENCE_MINUTES.map((m) => (
                       <button
-                        key={h}
+                        key={m}
                         type="button"
-                        onClick={() => setRefreshHours(h)}
+                        onClick={() => setRefreshCadenceMinutes(m)}
                         className={cn(
                           'min-h-11 rounded-xl border px-3 py-2 text-xs font-medium transition-[border-color,background-color,color,transform] duration-150 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
-                          refreshHours === h
+                          refreshCadenceMinutes === m
                             ? 'border-black bg-black text-white'
                             : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]',
                         )}
                       >
-                        {h === 0
+                        {m === 0
                           ? t('refreshManual')
-                          : h < 24
-                            ? t('refreshHours', { h })
-                            : t('refreshDays', { d: Math.round(h / 24) })}
+                          : m < 60
+                            ? t('refreshMinutes', { m })
+                            : m < 1440
+                              ? t('refreshHours', { h: m / 60 })
+                              : t('refreshDays', { d: m / 1440 })}
                       </button>
                     ))}
                   </div>
@@ -571,23 +593,25 @@ export function KbManager({
                           {t('refreshIntervalLabel')}
                         </label>
                         <div className="flex flex-wrap gap-1.5">
-                          {[0, 6, 12, 24, 72, 168].map((h) => (
+                          {CADENCE_MINUTES.map((m) => (
                             <button
-                              key={h}
+                              key={m}
                               type="button"
-                              onClick={() => setEditRefreshHours(h)}
+                              onClick={() => setEditRefreshCadenceMinutes(m)}
                               className={cn(
                                 'min-h-9 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium',
-                                editRefreshHours === h
+                                editRefreshCadenceMinutes === m
                                   ? 'border-black bg-black text-white'
                                   : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)]',
                               )}
                             >
-                              {h === 0
+                              {m === 0
                                 ? t('refreshManual')
-                                : h < 24
-                                  ? t('refreshHours', { h })
-                                  : t('refreshDays', { d: Math.round(h / 24) })}
+                                : m < 60
+                                  ? t('refreshMinutes', { m })
+                                  : m < 1440
+                                    ? t('refreshHours', { h: m / 60 })
+                                    : t('refreshDays', { d: m / 1440 })}
                             </button>
                           ))}
                         </div>
@@ -668,14 +692,17 @@ export function KbManager({
                         {t('lastRefreshed', {
                           when: formatDateTime(new Date(item.lastIngestedAt), locale),
                         })}
-                        {item.refreshIntervalHours && item.refreshIntervalHours > 0
-                          ? ` · ${t('refreshEvery', { h: item.refreshIntervalHours })}`
-                          : ''}
+                        {(() => {
+                          const minutes = cadenceMinutesOf(item)
+                          if (minutes <= 0) return ''
+                          return ` · ${minutes < 60
+                            ? t('refreshEveryMinutes', { m: minutes })
+                            : t('refreshEvery', { h: minutes / 60 })}`
+                        })()}
                       </div>
                     )}
                     {item.type === 'URL' &&
-                      item.refreshIntervalHours &&
-                      item.refreshIntervalHours > 0 &&
+                      cadenceMinutesOf(item) > 0 &&
                       !item.lastIngestedAt && (
                         <div className="mt-1 text-[11px] text-[var(--amber)]">
                           {t('refreshScheduled')}

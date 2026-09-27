@@ -28,8 +28,21 @@ describe('closing without another AI turn', () => {
   })
 
   it('uses the configured language and distinguishes declining from thanks', () => {
-    expect(closingReplyText('نه ممنون', answered, 'fa')).toBe('حتماً.')
+    // Persian messenger replies drop the stiff trailing period.
+    expect(closingReplyText('نه ممنون', answered, 'fa')).toBe('حتماً')
     expect(closingReplyText('Thanks', answered, 'en')).toBe('You’re welcome.')
     expect(closingReplyText('خداحافظ', answered, 'en')).toBe('Goodbye.')
   })
+
+  it.each(['باشه فکرامو می‌کنم', 'روش فکر می‌کنم', 'باشه بعدا خبرتون می‌کنم', 'فعلا باید فکر کنم'])(
+    'treats a polite deferral as a closing without re-pitching: %s', (message) => {
+      expect(closingReplyText(message, answered, 'fa')).toBe('حتماً، با خیال راحت تصمیم بگیرید')
+    },
+  )
+
+  it.each(['باشه فکرامو می‌کنم، فقط قیمتش چنده؟', 'روش فکر می‌کنم ولی رنگ مشکی داره؟'])(
+    'keeps a deferral that carries a new question on the normal path: %s', (message) => {
+      expect(closingReplyText(message, answered, 'fa')).toBeNull()
+    },
+  )
 })

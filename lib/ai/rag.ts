@@ -33,6 +33,12 @@ export interface CatalogProduct {
    * name or paraphrased it. False/undefined for ordinary ranked results.
    */
   fullTermMatch?: boolean
+  /**
+   * The row exactly matches the request but is out of stock right now; it
+   * was returned only because no available row matched. The reply must say
+   * «ناموجوده», never «پیدا نکردم».
+   */
+  unavailable?: boolean
 }
 
 export interface CatalogService {
@@ -199,7 +205,9 @@ function buildCatalogBlock(
     // and would mislead the agent (e.g. parent stock=null even though every
     // variant is sold out). In that case we emit "تنوع‌محور" instead of the
     // flat stock line so the agent is forced to consult the variation list.
-    if (variationLines.length > 0) {
+    if (variationLines.length > 0 && variationLines.every((line) => line.includes('موجودی: ناموجود'))) {
+      parts.push('موجودی: ناموجود (همهٔ تنوع‌ها ناموجودند)')
+    } else if (variationLines.length > 0) {
       parts.push('موجودی: تنوع‌محور (به لیست تنوع‌ها مراجعه کنید)')
     } else if (p.stock == null) {
       parts.push('موجودی: موجود (تعداد دقیق ثبت نشده/نامحدود)')
@@ -262,6 +270,22 @@ function buildServiceBlock(services: CatalogService[], isFa: boolean): string {
 }
 
 /**
+ * The mirroring rule sits high in a long, mostly-Persian prompt; small models
+ * then drift back to Persian for an English or Arabic customer. Repeating the
+ * detected language as the LAST line of the system message (the most salient
+ * position) fixes that at a cost of one sentence. Persian turns need nothing.
+ */
+function replyLanguageLock(language: string): string {
+  if (language === 'en') {
+    return '\nReply language for THIS message: English. Write the whole reply in natural English even though the instructions and business data above are in Persian; keep product names/codes as written.'
+  }
+  if (language === 'ar') {
+    return '\nلغة الرد على هذه الرسالة: العربية. اكتب الرد كاملاً بالعربية حتى لو كانت التعليمات والبيانات أعلاه بالفارسية، واترك أسماء المنتجات ورموزها كما هي.'
+  }
+  return ''
+}
+
+/**
  * Assemble the message list for the model: the agent's system prompt,
  * retrieved context, prior history, and the new user message.
  */
@@ -291,6 +315,10 @@ export function buildMessages(params: {
     comparisonConsult?: boolean
     /** Anaphora without a product referent — clarification consult. */
     anaphoraConsult?: boolean
+    /** Every exact match is currently out of stock. */
+    unavailableMatch?: boolean
+    /** Cheaper-alternative consult: rows are priced below this item. */
+    cheaperThan?: { name: string; price: number } | null
   }
   /** Store category names shown on browse turns so the overview is factual. */
   catalogCategories?: string[]
@@ -304,6 +332,11 @@ export function buildMessages(params: {
   skillPlan?: AgentSkillPlan
   /** Domain-neutral working state shared by preview and every channel. */
   conversationState?: ConversationWorkingState | null
+  /**
+   * The back-in-stock alert this channel can really deliver («اگه بخواید،
+   * موجود که شد همین‌جا خبرتون می‌کنم»). Null = no alert may be promised.
+   */
+  restockOfferLine?: string | null
 }): ChatMessage[] {
   // Persian instruction blocks serve every non-English locale (including
   // Arabic turns): the kernel's language-mirroring rule owns the OUTPUT
@@ -351,6 +384,29 @@ export function buildMessages(params: {
         : "\n\nComparison consult: the customer asks which of the two discussed options is cheaper or better. Read BOTH options' prices and specs only from this turn's catalog rows, declare the winner explicitly with numbers, and explain the difference in one sentence. If one side is missing from the result, say honestly that its price is unconfirmed; never infer equality from a single price."
       : ''
 
+  // Sold-out exact matches: the product exists, so «not found» would be a
+  // lie that sends the customer away. Say it is out of stock right now and
+  // offer the real next step the knowledge base supports.
+  const restockLine = params.restockOfferLine?.trim()
+  const unavailableInstruction = params.productRequest?.unavailableMatch
+    ? isFa
+      ? `\n\nمحصول(های) درخواستی در کاتالوگ هست ولی الان موجودی ندارد (ردیف‌های بالا). صریح و کوتاه بگو «فعلاً ناموجوده»؛ هرگز نگو «پیدا نکردم» یا «در کاتالوگ نیست». اگر دانش کسب‌وکار دربارهٔ سفارش تولیدی، پیش‌سفارش یا زمان شارژ مجدد چیزی گفته همان را پیشنهاد بده؛ وگرنه پیشنهاد بده گزینهٔ موجودِ مشابه را معرفی کنی (محصولی را که در ردیف‌های بالا نیست از خودت نام نبر). ${restockLine ? `در پایان دقیقاً این پیشنهاد را به‌صورت شرطی بگو: «${restockLine}» (سیستم این اطلاع‌رسانی را واقعاً انجام می‌دهد؛ فقط اگر مشتری قبول کرد ثبت می‌شود).` : 'قول «موقع موجود شدن خبرتان می‌کنم» نده؛ در این کانال چنین اطلاع‌رسانی‌ای ممکن نیست.'}`
+      : `\n\nThe requested product(s) exist in the catalog but are out of stock right now (rows above). Say plainly that it is currently out of stock — never “not found” or “not in the catalog”. If the business knowledge describes made-to-order, pre-order or restock timing, offer exactly that; otherwise offer to suggest a similar available option (never name a product that is not in the rows above). ${restockLine ? `End with exactly this conditional offer: “${restockLine}” (the system really sends this alert; it is registered only if the customer accepts).` : 'Never promise to notify them when it is back — this channel cannot deliver such an alert.'}`
+    : ''
+
+  const cheaperThan = params.productRequest?.cheaperThan
+  const cheaperNone = Boolean(cheaperThan) && params.catalogProducts.length === 1
+    && params.catalogProducts[0]?.name === cheaperThan?.name
+  const cheaperInstruction = cheaperThan
+    ? isFa
+      ? cheaperNone
+        ? `\n\nمشتری گزینهٔ ارزان‌تر از «${cheaperThan.name}» (${formatPrice(cheaperThan.price)}) خواسته، اما در همین خانوادهٔ محصول گزینهٔ ارزان‌تری در کاتالوگ نیست. صادقانه و کوتاه همین را بگو، از قیمت دفاع نکن و فقط اگر دانش کسب‌وکار راهی مثل خرید قسطی دارد، یک جمله پیشنهادش بده.`
+        : `\n\nمشتری گزینهٔ ارزان‌تر از «${cheaperThan.name}» (${formatPrice(cheaperThan.price)}) می‌خواهد. همهٔ ردیف‌های کاتالوگ بالا واقعاً ارزان‌ترند (از نزدیک‌ترین قیمت). ۲ یا ۳ گزینه را با قیمت دقیق و یک تفاوت کوتاه و واقعی (مثلاً سایز کوچک‌تر یا مدل دیگر) معرفی کن؛ نگرانی قیمت را کوتاه بپذیر، از قیمت قبلی دفاع نکن و فشار خرید نیاور.`
+      : cheaperNone
+        ? `\n\nThe customer wants something cheaper than “${cheaperThan.name}” (${formatPrice(cheaperThan.price)}), but the catalog has no cheaper option in this product family. Say so honestly and briefly; do not defend the price; mention a payment option only if the business knowledge has one.`
+        : `\n\nThe customer wants something cheaper than “${cheaperThan.name}” (${formatPrice(cheaperThan.price)}). Every catalog row above is genuinely cheaper (closest price first). Present 2–3 of them with exact prices and one short real difference (e.g. smaller size or another model line); acknowledge the budget concern briefly, never defend the old price or push.`
+    : ''
+
   const directProductInstruction = params.productRequest?.explicitShowcase
     ? isFa
       ? `\n\nدرخواست مستقیم ویترین: کاربر صریحاً محصول خواسته است. هیچ سؤال اضافه‌ای نپرس. دقیقاً همه ${params.catalogProducts.length} محصول نتیجهٔ کاتالوگ این نوبت را معرفی کن (یا اگر نتیجه خالی است، فقط نبود نتیجهٔ منطبق را بگو). نام، قیمت، موجودی و مشخصات باید با همین نتیجه‌ها یکسان باشد و از محصولات یا ادعاهای نوبت‌های قبلی استفاده نکن.`
@@ -387,11 +443,15 @@ export function buildMessages(params: {
   // Rich product cards (web widget only): teach the model the [[product:{…}]]
   // token so the widget can render a real card (name/price/desc/badge) with
   // action buttons instead of a plain text blob.
+  // The server hydrates every card (price, image, URL, specs, stock badge)
+  // from the product row, so the model only has to POINT at a product. The
+  // old full-JSON markers (desc/image/url per card) cost ~150 tokens each and
+  // a 10-card reply hit the completion cap mid-JSON, leaking raw markers.
   const cardInstruction =
     params.richCards && params.catalogProducts.length > 0
       ? isFa
-        ? `\n\nنمایش کارت محصول: هرگاه یک تا ده محصول مشخص را فعالانه پیشنهاد می‌کنی، بعد از متن پاسخ برای هر محصول یک خط با این قالب اضافه کن:\n[[product:{"id":"شناسه دقیق","name":"نام دقیق","price":"قیمت مطابق کاتالوگ","desc":"خلاصه مشخصات","badge":"موجود","image":"آدرس دقیق تصویر","url":"لینک دقیق محصول"}]]\nقوانین: JSON معتبر و تک‌خطی؛ id، name، image و url را دقیقاً از کاتالوگ کپی کن؛ فقط محصولات موجود در نتیجه همین نوبت؛ حداکثر ۱۰ کارت؛ اگر کاربر تعداد مشخصی خواسته، برای تمام نتیجه‌های برگشتی کارت بساز؛ برای پاسخ عمومی کارت نساز؛ قالب را برای کاربر توضیح نده. اگر مشتری با نام یا کد فقط یک محصول مشخص را خواسته، فقط کارت همان محصول را بفرست و کارت محصولات دیگر را اضافه نکن؛ افزودن محصولات «مشابه» به کارت‌ها فقط وقتی مجاز است که مشتری خودش گزینه/مشابه خواسته باشد یا مورد درخواستی ناموجود باشد.\nنکتهٔ تنوع‌ها: اگر پیشنهادت برای یک تنوع مشخص از محصولی است که لیست «تنوع‌ها» دارد (مثلاً «طرح 05» یا «رنگ کرم»)، در کارت همان محصول یک فیلد "variant" هم اضافه کن و مقدارش را دقیقاً از همان لیست تنوع‌ها کپی کن (مثال: "variant":"طرح 05"). کارت خودکار عکس و قیمت همان تنوع را نشان می‌دهد. بدون "variant" کارت عکس کلی محصول را می‌گیرد که ممکن است متعلق به تنوع دیگری باشد.`
-        : `\n\nProduct cards: whenever you actively recommend one to ten specific products, append one line per product using:\n[[product:{"id":"exact id","name":"exact name","price":"catalog price","desc":"short specifications","badge":"Available","image":"exact image URL","url":"exact product URL"}]]\nRules: valid single-line JSON; copy id, name, image and url exactly from this turn's catalog results; max 10 cards; honor the requested result count; no cards for generic replies; never explain this format. When the customer asks for one specific product by name or code, attach only that product's card; adding "similar" products to the cards is allowed only when the customer explicitly asked for options or the requested item is out of stock.\nVariant note: when your recommendation is for one specific variant of a product that lists "Variants", also add a "variant" field to that product's card with the exact variant value from the list (e.g. "variant":"color: blue"). The card will then show that variant's own photo and price; without it the card shows the product's cover image, which may belong to a different variant.`
+        ? `\n\nنمایش کارت محصول: هرگاه یک تا ده محصول مشخص را فعالانه پیشنهاد می‌کنی، بعد از متن پاسخ برای هر محصول فقط یک خط کوتاه با این قالب بگذار (عکس، قیمت، لینک و موجودی را سیستم خودش از کاتالوگ اضافه می‌کند):\n[[product:{"id":"شناسه دقیق","name":"نام دقیق"}]]\nقوانین: JSON معتبر و تک‌خطی؛ id و name را دقیقاً از کاتالوگ همین نوبت کپی کن؛ هیچ فیلد دیگری (قیمت، توضیح، تصویر، لینک) ننویس؛ حداکثر ۱۰ کارت؛ برای پاسخ عمومی یا محصولی که همین الان کارتش را فرستاده‌ای دوباره کارت نساز؛ قالب را برای مشتری توضیح نده. اگر مشتری با نام یا کد فقط یک محصول مشخص را خواسته، فقط کارت همان محصول را بفرست؛ محصولات «مشابه» فقط وقتی کارت می‌گیرند که مشتری خودش گزینه خواسته یا مورد درخواستی ناموجود باشد.\nتنوع‌ها: اگر پیشنهادت یک تنوع مشخص از محصولی با لیست «تنوع‌ها» است، فیلد "variant" را هم دقیقاً از همان لیست اضافه کن (مثال: [[product:{"id":"…","name":"…","variant":"طرح 05"}]]).`
+        : `\n\nProduct cards: whenever you actively recommend one to ten specific products, after the reply text add one short line per product (the system adds photo, price, link and stock from the catalog itself):\n[[product:{"id":"exact id","name":"exact name"}]]\nRules: valid single-line JSON; copy id and name exactly from this turn's catalog; write no other fields (no price, description, image or URL); max 10 cards; no cards for generic replies or for a product whose card you just sent; never explain this format. When the customer asks for one specific product by name or code, card only that product; "similar" products get cards only when the customer asked for options or the requested item is unavailable.\nVariants: when recommending one specific variant of a product that lists "Variants", also add "variant" copied exactly from that list (e.g. [[product:{"id":"…","name":"…","variant":"color: blue"}]]).`
       : ''
 
   // Instruction hierarchy: retrieved chunks are *data*, never instructions.
@@ -408,7 +468,7 @@ export function buildMessages(params: {
     // Keep the stable agent/rule prefix ahead of per-turn state. Providers can
     // cache the long stable prefix even though working memory changes on every
     // message, reducing latency and input cost for large configured prompts.
-    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.humanizer ? `\n${skillPlan.instructions.humanizer}` : ''}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${variantTurnInstruction}${comparisonInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}\n${skillPlan.instructions.ending}`,
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.humanizer ? `\n${skillPlan.instructions.humanizer}` : ''}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${unavailableInstruction}${cheaperInstruction}${variantTurnInstruction}${comparisonInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}${replyLanguageLock(params.language)}\n${skillPlan.instructions.ending}`,
   }
 
   return [

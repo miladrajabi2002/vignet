@@ -816,6 +816,9 @@ export function contextualizeProductRequest(
     }
   }
   if (!state.activeGoal || state.activeGoal.intent !== 'PRODUCT' || !turn) return plan
+  // Cheaper alternatives deliberately search the whole FAMILY; merging the
+  // goal's design/size anchors back in would find only the same item again.
+  if (plan.cheaperAlternative) return { ...plan, isProductTurn: true }
   if (turn.relation === 'RESET' || turn.relation === 'NEW_GOAL' || turn.relation === 'SIDE_QUESTION'
     || turn.relation === 'GREETING' || turn.relation === 'CLOSING') return plan
   if (!['PRODUCT', 'GENERAL'].includes(turn.intent)) return plan

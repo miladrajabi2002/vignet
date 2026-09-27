@@ -188,6 +188,8 @@ describe('assigned-catalog entity recognition', () => {
       category: { name: 'پیراهن' },
     })
     mocks.findProducts
+      // Strict lane: rows carrying EVERY term (none here besides the target).
+      .mockResolvedValueOnce([product('target', 'پیراهن شراره 0054', 'جنس حریر')])
       // Priority lane: the rare identity term «شراره».
       .mockResolvedValueOnce([product('target', 'پیراهن شراره 0054', 'جنس حریر')])
       // Broad lane: imagine the first 160 popular «پیراهن» rows omitted it.
@@ -201,7 +203,11 @@ describe('assigned-catalog entity recognition', () => {
     const results = await fetchCatalogProducts('agent-1', [], plan)
 
     expect(results.map((item) => item.id)).toEqual(['target'])
-    expect(mocks.findProducts).toHaveBeenCalledTimes(2)
+    expect(mocks.findProducts).toHaveBeenCalledTimes(3)
+    // The strict lane requires every term (AND), so capped popularity pools
+    // can never crowd the exact row out.
+    const strictWhere = mocks.findProducts.mock.calls[0][0].where
+    expect(strictWhere.AND.length).toBeGreaterThanOrEqual(3)
   })
 
   it.each([

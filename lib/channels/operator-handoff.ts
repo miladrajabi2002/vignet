@@ -54,6 +54,8 @@ export interface HandoffContext {
         contactPhone: string | null
         reason: string
         summary?: string | null
+        /** 'order' = an in-chat pre-order the customer confirmed. */
+        kind?: 'handoff' | 'order'
 }
 
 /**
@@ -135,8 +137,10 @@ export async function createHandoffAlert(ctx: HandoffContext): Promise<string | 
                 void notifyWorkspace({
                         workspaceId: ctx.workspaceId,
                         type: 'HANDOFF',
-                        title: 'گفتگو به اپراتور انسانی منتقل شد',
-                        body: `یک مکالمه نیاز به پاسخ شما دارد.${ctx.contactName ? ` مشتری: ${ctx.contactName}` : ''}`,
+                        title: ctx.kind === 'order' ? '🛒 پیش‌سفارش جدید از چت' : 'گفتگو به اپراتور انسانی منتقل شد',
+                        body: ctx.kind === 'order'
+                                ? `مشتری سفارش را در چت تأیید کرد؛ پرداخت و ارسال را هماهنگ کنید.${ctx.contactName ? ` مشتری: ${ctx.contactName}` : ''}`
+                                : `یک مکالمه نیاز به پاسخ شما دارد.${ctx.contactName ? ` مشتری: ${ctx.contactName}` : ''}`,
                         link: `/conversations/${ctx.conversationId}`,
                 }).catch(() => {})
 
@@ -218,7 +222,7 @@ function escapeTelegramHtml(value: string): string {
 
 function formatOperatorAlertMessage(ctx: HandoffContext): string {
         const lines: string[] = []
-        lines.push('🔔 <b>انتقال به اپراتور</b>')
+        lines.push(ctx.kind === 'order' ? '🛒 <b>پیش‌سفارش جدید — هماهنگی پرداخت و ارسال</b>' : '🔔 <b>انتقال به اپراتور</b>')
         lines.push('')
         lines.push(`👤 <b>مشتری:</b> ${escapeTelegramHtml(ctx.contactName || 'ناشناس')}`)
         if (ctx.contactPhone) lines.push(`📞 <b>شماره:</b> ${escapeTelegramHtml(ctx.contactPhone)}`)
@@ -227,7 +231,7 @@ function formatOperatorAlertMessage(ctx: HandoffContext): string {
         lines.push(`📝 <b>دلیل:</b> ${escapeTelegramHtml(ctx.reason)}`)
         if (ctx.summary) {
                 lines.push('')
-                lines.push('📋 <b>خلاصه گفتگو:</b>')
+                lines.push(ctx.kind === 'order' ? '📋 <b>جزئیات سفارش:</b>' : '📋 <b>خلاصه گفتگو:</b>')
                 lines.push(escapeTelegramHtml(ctx.summary))
         }
         lines.push('')

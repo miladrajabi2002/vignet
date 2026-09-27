@@ -67,7 +67,9 @@ describe('shared adaptive mobile UI contract', () => {
     expect(mobileOrder).toContain('aria-haspopup="dialog"')
     expect(orders).toContain('spatial-surface hidden overflow-hidden rounded-[1.5rem] !bg-white')
     expect(search).toContain('spatial-surface rounded-[1.35rem] !bg-white')
-    expect(tabs).toContain('spatial-surface grid grid-cols-2')
+    expect(tabs).toContain('spatial-surface grid gap-1')
+    // Products / orders / chat requests share one segmented control.
+    expect(tabs).toContain("items.length === 3 ? 'grid-cols-3")
     expect(tabs).toContain("selected ? 'bg-white/10' : 'bg-black/[0.045]'")
   })
 

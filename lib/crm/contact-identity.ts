@@ -5,6 +5,7 @@ import {
   contactPhoneLookupVariants,
   normalizeContactPhone,
 } from '@/lib/phone'
+import { mergedMetadata } from '@/lib/crm/contact-metadata-merge'
 import {
   assertWorkspaceResourceCapacity,
   getWorkspaceResourceLimit,
@@ -171,7 +172,7 @@ async function mergeContacts(
       tags: [...new Set(all.flatMap((row) => row.tags))],
       stage: firstValue(all, 'stage'),
       notes: notes.length ? notes.join('\n\n') : null,
-      metadata: firstValue(all, 'metadata') ?? undefined,
+      metadata: mergedMetadata(all) as Prisma.InputJsonValue | undefined,
       lastActivityAt: all.reduce<Date | null>((value, row) => laterDate(value, row.lastActivityAt), null),
       telegramId: firstValue(all, 'telegramId'),
       whatsappId: firstValue(all, 'whatsappId'),

@@ -117,7 +117,7 @@ describe('order-link fallback for unavailable in-chat purchases', () => {
       orderUrl: 'https://shop.example.com/product/shomiz-0788',
     })
     expect(out).toContain('https://shop.example.com/product/shomiz-0788')
-    expect(out).toContain('از این لینک وارد شوید')
+    expect(out).toContain('از این لینک می‌تونید سفارش رو توی سایت تکمیل کنید')
     expect(out).not.toContain('حتفاً')
   })
 
@@ -128,7 +128,7 @@ describe('order-link fallback for unavailable in-chat purchases', () => {
       isFa: true,
       orderUrl: null,
     })
-    expect(out).toContain('صفحهٔ محصول در سایت فروشگاه')
+    expect(out).toContain('صفحهٔ محصول توی سایت فروشگاه')
     expect(out).not.toContain('می‌تونم براتون')
   })
 
@@ -164,7 +164,7 @@ describe('order-link fallback for unavailable in-chat purchases', () => {
       isFa: true,
       orderUrl: null,
     })
-    expect(out).toContain('امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست')
+    expect(out).toContain('ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست')
   })
 
   it('validates order URLs strictly (http/https only)', () => {

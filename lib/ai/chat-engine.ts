@@ -9,6 +9,15 @@ import { retrieveContext, buildMessages } from '@/lib/ai/rag'
 import { resolveSystemPrompt } from '@/lib/ai/prompt-builder'
 import { customerPreferenceInstruction, readCustomerAgentPreferences, type CustomerAgentPreference } from '@/lib/ai/customer-agent-preferences'
 import { evidenceMemoryInstruction, readEvidenceMemory, type EvidenceMemory } from '@/lib/ai/memory-evidence'
+import { captureStatedFacts } from '@/lib/ai/fact-capture'
+import { activeFacts } from '@/lib/ai/memory-evidence'
+import { detectOrderIntent } from '@/lib/commerce/order-capture'
+import { hasActiveOrderDraft, markOrderDraftSubmitted, resolveOrderCaptureTurn } from '@/lib/commerce/order-service'
+import { detectRestockRequest, restockMode, restockOfferLine } from '@/lib/commerce/restock'
+import { rememberRestockOffer, resolveRestockTurn, unavailableItemsFromCatalog } from '@/lib/commerce/restock-service'
+import { catalogToolGate, insertBeforeTurnMarker, planCatalogSearch, type CatalogToolReason } from '@/lib/ai/catalog-tools'
+import { looksLikePersonName } from '@/lib/ai/customer-identification'
+import { previousSessionPlanningRows } from '@/lib/ai/conversation-memory'
 import { closingReplyText } from '@/lib/ai/response-policy'
 import {
         extractIdentity,
@@ -20,6 +29,7 @@ import {
         loadHistory,
         fetchCatalogCategories,
         fetchCatalogProducts,
+        fetchCatalogProductsByIds,
         fetchCatalogServices,
         findAssignedCatalogReference,
         historyForProductTurn,
@@ -27,9 +37,10 @@ import {
         planProductRequest,
         productRequestFromCatalogReference,
         showcaseSubjectPhrase,
+        isNarrowedProductRequest,
         structuredProductDetailReply,
         extractProductTerms,
-        extractMarkerProductIds,
+        assistantCardIds,
         normalizePersianText,
         buildFamilyEnumerationReply,
         UNRESOLVED_ANAPHORA_RE,
@@ -284,14 +295,34 @@ export function catalogNoMatchReply(lang: TurnLanguage): string {
         return 'محصولی مطابق این مشخصات در کاتالوگ فعلی پیدا نکردم؛ بنابراین نمی‌توانم قیمت، موجودی یا لینک خریدی را تأیید کنم. نام یا کد محصول را بفرستید تا دقیق‌تر بررسی کنم.'
 }
 
+/**
+ * Identified products whose card is guaranteed on this reply. A card the
+ * customer received in the previous reply is not re-sent automatically on a
+ * follow-up («رنگ‌بندیش؟», «باشه») — repeating the same card every turn is a
+ * bot tell. An explicit showcase or a model-authored marker still shows it.
+ */
+function freshCardIds(identified: string[], recent: string[], explicitShowcase: boolean): string[] {
+        if (explicitShowcase || !recent.length) return identified
+        const recentParents = new Set(recent.map((id) => id.split('#')[0]))
+        return identified.filter((id) => !recentParents.has(id.split('#')[0]))
+}
+
 function appendSalesGuidance(
         messages: ReturnType<typeof buildMessages>,
         guidance: string,
 ): void {
         const system = messages.find((item) => item.role === 'system')
         if (!system) return
-        // Keep the authoritative per-turn rules after historical sales advice.
-        system.content = `${guidance}\n\n${system.content ?? ''}`
+        const content = system.content ?? ''
+        // Sales advice changes every turn, so it must not sit in FRONT of the
+        // long stable agent prompt: that defeated provider prefix caching on
+        // every single reply. Insert it just before the per-turn instruction
+        // block instead, which still keeps the authoritative per-turn rules
+        // after the (historical) sales advice.
+        const marker = content.search(/\n\n=== (?:دستور همین نوبت|Instruction for this turn) ===/u)
+        system.content = marker === -1
+                ? `${content}\n\n${guidance}`
+                : `${content.slice(0, marker)}\n\n${guidance}${content.slice(marker)}`
 }
 
 async function buildDeterministicTurnReply(params: {
@@ -312,6 +343,10 @@ async function buildDeterministicTurnReply(params: {
          * tenant's product names (e.g. «تلویزیون») ground like global nouns.
          */
         corpusTokens?: ReadonlySet<string>
+        /** The catalog tools get a chance before any «not found» is final. */
+        catalogToolsEligible?: boolean
+        /** Deliverable back-in-stock offer for a sold-out vitrine. */
+        restockOffer?: string | null
 }): Promise<string | null> {
         if (params.closingReply) return params.closingReply
         if (!params.canBypass) return null
@@ -456,9 +491,11 @@ async function buildDeterministicTurnReply(params: {
                 // A semantically promoted turn (catalog proven via vector recall)
                 // already carries real catalog evidence, so a grounded-fetch miss
                 // means presentation filtering — never a hard «not found».
-                if (!params.hasKnowledgeContext && !params.productRequest.semanticTurn) {
+                if (!params.hasKnowledgeContext && !params.productRequest.semanticTurn && !params.catalogToolsEligible) {
                         return catalogNoMatchReply(lang)
                 }
+                // An empty vitrine is not final while the model can still search.
+                if (params.catalogToolsEligible) return null
         }
         if (!params.productRequest.explicitShowcase) return null
 
@@ -473,6 +510,9 @@ async function buildDeterministicTurnReply(params: {
                         .map((product) => product.id),
                 forceShowcase: true,
                 subjectPhrase: showcaseSubjectPhrase(params.productRequest),
+                narrowed: isNarrowedProductRequest(params.productRequest),
+                unavailable: params.productRequest.unavailableMatch,
+                restockOffer: params.restockOffer,
                 identifiedVariantHint: params.productRequest.variantHint,
         })
 }
@@ -550,6 +590,55 @@ async function persistInboundTurnMessage(
  * resolution, identity extraction, prompt/history/RAG assembly and persisting
  * the inbound user message.
  */
+/**
+ * A commerce action resolved deterministically for this turn: a pre-order
+ * step, a back-in-stock alert, or a confirmed pre-order to file.
+ */
+type CommerceTurn =
+        | { kind: 'none' }
+        | { kind: 'reply'; text: string }
+        | { kind: 'submit'; text: string; draftId: string; code: string; operatorSummary: string }
+        | { kind: 'instruct'; instruction: string }
+
+/**
+ * The agent's commerce switches, read with a raw query that tolerates a
+ * database where the columns do not exist yet: the worker runs from source,
+ * so a restart before the migration must degrade to "off", never break every
+ * inbound message on an unknown-column error.
+ */
+async function loadCommerceFlags(agent: ChatAgent): Promise<{ orderCaptureEnabled: boolean; restockAlertsEnabled: boolean }> {
+        if (agent.orderCaptureEnabled !== undefined && agent.restockAlertsEnabled !== undefined) {
+                return { orderCaptureEnabled: agent.orderCaptureEnabled, restockAlertsEnabled: agent.restockAlertsEnabled }
+        }
+        try {
+                const rows = await prisma.$queryRaw<Array<{ orderCaptureEnabled: boolean; restockAlertsEnabled: boolean }>>`
+                        SELECT "orderCaptureEnabled", "restockAlertsEnabled" FROM "Agent" WHERE id = ${agent.id}`
+                return {
+                        orderCaptureEnabled: rows[0]?.orderCaptureEnabled === true,
+                        restockAlertsEnabled: rows[0]?.restockAlertsEnabled === true,
+                }
+        } catch {
+                return { orderCaptureEnabled: false, restockAlertsEnabled: false }
+        }
+}
+
+/** Known customer details offered for confirmation in an order summary. */
+function orderPrefill(params: {
+        contactName: string | null
+        contactPhone: string | null
+        facts: Array<{ key: string; value: string }>
+}): { name: string | null; phone: string | null; city: string | null; address: string | null } {
+        const name = params.contactName?.trim() ?? ''
+        const fact = (key: string) => params.facts.find((item) => item.key === key)?.value ?? null
+        return {
+                // Channel display names («milad_rgb», emoji handles) are not names.
+                name: name && /^[\p{L}\s.'‌-]{2,40}$/u.test(name) && looksLikePersonName(name) ? name : null,
+                phone: params.contactPhone ?? null,
+                city: fact('شهر مقصد ارسال') ?? fact('شهر'),
+                address: fact('آدرس'),
+        }
+}
+
 async function prepareTurn(params: StartChatParams): Promise<
         | { error: 'AI_UNAVAILABLE' }
         | { error: 'NO_CREDIT' }
@@ -581,9 +670,20 @@ async function prepareTurn(params: StartChatParams): Promise<
                   stateTrace: ConversationStateTrace
                   /** The LLM turn analyzer's rescue verdict asked for a human. */
                   analyzerHandoffSignal: boolean
+                  /** Product ids carded in the agent's previous reply. */
+                  recentCardIds: string[]
+                  /** Deterministic pre-order / back-in-stock step for this turn. */
+                  commerceTurn: CommerceTurn
+                  /** The reply model may call the catalog search tools this turn. */
+                  catalogToolReason: CatalogToolReason | null
+                  /** Deliverable back-in-stock offer for a sold-out answer. */
+                  restockOffer: string | null
+                  /** The agent files in-chat pre-orders (capability guard mode). */
+                  orderCaptureEnabled: boolean
           }
 > {
-        const { workspaceId, agent, message } = params
+        const { workspaceId, message } = params
+        const agent: ChatAgent = { ...params.agent, ...(await loadCommerceFlags(params.agent)) }
 
         // Resolve first so a returning messenger thread keeps its operator/AI
         // ownership state even when the workspace plan is currently blocked.
@@ -695,11 +795,29 @@ async function prepareTurn(params: StartChatParams): Promise<
                 select: { customerInfoState: true },
         }))?.customerInfoState ?? conversation.customerInfoState
 
+        // Capture durable facts the customer states on THIS channel into the
+        // contact-level evidence memory, so every other channel of the same
+        // contact knows them ("من تهرانم" on Telegram must reach Instagram
+        // too). Deterministic + zero-LLM, and a no-op without a first-person
+        // statement; awaited (one locked row update) so this turn's prompt and
+        // the next turn never race on a stale snapshot.
+        const capturedMetadata = contactId && message.trim().length >= 4
+                ? await captureStatedFacts({
+                        workspaceId,
+                        conversationId,
+                        contactId,
+                        agentId: agent.id,
+                        channel: params.channel,
+                        text: message,
+                        messageId: params.inboundEventId ?? undefined,
+                })
+                : null
+        const contactMetadata = capturedMetadata ?? contact?.metadata ?? null
         const customerPreferences = contact
-                ? readCustomerAgentPreferences(contact.metadata, agent.id)
+                ? readCustomerAgentPreferences(contactMetadata, agent.id)
                 : []
         const evidenceMemory = contact
-                ? readEvidenceMemory(contact.metadata, agent.id)
+                ? readEvidenceMemory(contactMetadata, agent.id)
                 : null
         // History must load before the prompt is built so the reply language
         // can inherit the customer's last lettered message when the current
@@ -740,7 +858,14 @@ async function prepareTurn(params: StartChatParams): Promise<
                         })
                         return { modelHistory: [], planningHistory: [] }
                 })
-        const planningHistory = [...crossChannelContext.planningHistory, ...history]
+        // A returning customer's previous session (behind the idle boundary)
+        // is planning context too: «همون میزی که دفعه قبل پرسیدم» must ground
+        // that product again instead of a random catalog row.
+        const planningHistory = [
+                ...crossChannelContext.planningHistory,
+                ...previousSessionPlanningRows(history),
+                ...history,
+        ]
         const modelHistory = [...crossChannelContext.modelHistory, ...history]
         // Language mirroring: the reply locale comes from what the customer
         // actually wrote THIS turn — never from a pinned agent locale.
@@ -813,7 +938,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 const recentMarkerProductIds: string[] = []
                 for (const item of history.slice(-8)) {
                         if (item.role !== 'assistant') continue
-                        recentMarkerProductIds.push(...extractMarkerProductIds(item.content ?? ''))
+                        recentMarkerProductIds.push(...assistantCardIds(item))
                 }
                 let priorUserNamesProduct = false
                 if (corpusTokens) {
@@ -850,7 +975,14 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 anaphoraConsult: true,
                         }
                 }
-                const closingReply = closingReplyText(message, history, turnLang)
+                // An order in progress or a back-in-stock request is never a
+                // «مرسی/باشه» closing: «باشه» confirms a summary there.
+                const lastAssistantText = [...history].reverse().find((item) => item.role === 'assistant')?.content ?? null
+                const commerceCandidate = Boolean(
+                        (agent.orderCaptureEnabled && (detectOrderIntent(message) || await hasActiveOrderDraft(conversationId)))
+                        || (agent.restockAlertsEnabled !== false && detectRestockRequest(message, lastAssistantText)),
+                )
+                const closingReply = commerceCandidate ? null : closingReplyText(message, history, turnLang)
                 if (closingReply) {
                         const skillPlan = compileAgentSkillPlan({
                                 language: turnLang,
@@ -885,6 +1017,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 stateExpectedRevision: loadedState.expectedRevision,
                                 stateTrace,
                                 analyzerHandoffSignal: false,
+                                recentCardIds: [],
+                                commerceTurn: { kind: 'none' },
+                                catalogToolReason: null,
+                                restockOffer: null,
+                                orderCaptureEnabled: agent.orderCaptureEnabled === true,
                         }
                 }
                 let catalogReference: Awaited<ReturnType<typeof findAssignedCatalogReference>> = null
@@ -1118,7 +1255,41 @@ async function prepareTurn(params: StartChatParams): Promise<
                         .filter((id): id is string => !!id),
                 ])]
 
-                const [catalogProducts, orderContext, catalogCategories] = await Promise.all([
+                // A singular detail follow-up («قیمتش؟», «پارچش چیه؟») right after
+                // the agent showed exactly ONE product card is about that card.
+                // Re-searching by words can land on a sibling design; the card id
+                // cannot. A new product/code named in this message wins.
+                const recentAssistants = history.filter((item) => item.role === 'assistant').slice(-2)
+                const lastAssistant = recentAssistants.at(-1)
+                const lastCardIds = lastAssistant ? assistantCardIds(lastAssistant) : []
+                // Cards the customer received in the last two replies: not
+                // re-sent on follow-ups, and their names need no re-introduction.
+                const shownCardIds = [...new Set(recentAssistants.flatMap((item) => assistantCardIds(item)))]
+                const anchorProductId = agent.productAccessEnabled
+                        && productRequest.isProductTurn
+                        && !productRequest.includeProductCards
+                        && !productRequest.resetProductContext
+                        && !productRequest.comparisonConsult
+                        && (productRequest.subjectSwitchTerms?.length ?? 0) === 0
+                        && lastCardIds.length === 1
+                        ? lastCardIds[0]
+                        : null
+                // «خیلی گرونه، ارزون‌ترش چی دارید؟»: measure alternatives against the
+                // item under discussion; the search itself applies the price ceiling.
+                if (productRequest.cheaperAlternative && agent.productAccessEnabled) {
+                        const referenceId = workingState.activeEntity?.id ?? lastCardIds[0] ?? workingState.candidateEntityIds[0]
+                        const [reference] = referenceId
+                                ? await fetchCatalogProductsByIds(agent.id, [referenceId]).catch(() => [])
+                                : []
+                        if (reference?.price != null) {
+                                productRequest = {
+                                        ...productRequest,
+                                        explicitShowcase: false,
+                                        cheaperThan: { name: reference.name, price: reference.price },
+                                }
+                        }
+                }
+                const [fetchedCatalogProducts, orderContext, catalogCategories] = await Promise.all([
                         agent.productAccessEnabled
                                 ? fetchCatalogProducts(agent.id, productIds, productRequest, corpusTokens, workingState.candidateEntityIds)
                                 : Promise.resolve([]),
@@ -1134,7 +1305,161 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 ? fetchCatalogCategories(agent.id).catch(() => [] as string[])
                                 : Promise.resolve([] as string[]),
                 ])
+                let catalogProducts = fetchedCatalogProducts
+                if (anchorProductId) {
+                        const anchored = await fetchCatalogProductsByIds(agent.id, [anchorProductId]).catch(() => [])
+                        if (anchored.length) catalogProducts = anchored
+                }
+                // Cheaper alternatives: closest price first (a similar product one
+                // step down), a handful only; none at all means the item already
+                // is the most affordable of its family, which the reply says.
+                const cheaperThan = productRequest.cheaperThan
+                if (cheaperThan) {
+                        const cheaper = catalogProducts
+                                .filter((product) => product.price != null && product.price < cheaperThan.price)
+                                .sort((left, right) => right.price! - left.price!)
+                                .slice(0, 4)
+                                .map((product) => ({ ...product, fullTermMatch: false }))
+                        catalogProducts = cheaper.length
+                                ? cheaper
+                                : (await fetchCatalogProductsByIds(agent.id, [workingState.activeEntity?.id ?? lastCardIds[0] ?? '']).catch(() => []))
+                                        .map((product) => ({ ...product, fullTermMatch: false }))
+                }
+                // Exact matches that are all sold out: a consultation says
+                // «فعلاً ناموجوده» with a real next step, and an explicit catalog
+                // request still gets its cards — badged «ناموجود» — instead of
+                // collapsing into «پیدا نکردم».
+                if (catalogProducts.length > 0 && catalogProducts.every((product) => product.unavailable)) {
+                        productRequest = { ...productRequest, unavailableMatch: true }
+                }
+                // State anchors merged into this turn («پاف نیمکتی» carried into
+                // «سایز ۱۲۰ هاش رو نشونم بده») name the family in the intro too.
+                if (corpusTokens) {
+                        productRequest = {
+                                ...productRequest,
+                                corpusSubjectTerms: [...new Set([
+                                        ...(productRequest.corpusSubjectTerms ?? []),
+                                        ...productRequest.searchTerms.filter((term) => corpusTokens.has(term)),
+                                ])],
+                        }
+                }
                 workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
+
+                // ── Commerce actions: back-in-stock alerts and pre-orders ──────
+                // Deterministic and data-built; they run after catalog grounding
+                // so «همینو می‌خوام» / «موجود شد خبرم کن» resolve to real rows.
+                const commerceLang = turnLang === 'en' ? 'en' : 'fa'
+                const restockEnabled = agent.restockAlertsEnabled !== false && agent.productAccessEnabled
+                const channelRestockMode = restockEnabled ? restockMode(params.channel, Boolean(resolvedContactPhone)) : null
+                const activeProductId = workingState.activeEntity?.type === 'PRODUCT' ? workingState.activeEntity.id : null
+                let commerceTurn: CommerceTurn = { kind: 'none' }
+                try {
+                        const restock = await resolveRestockTurn({
+                                enabled: restockEnabled,
+                                workspaceId,
+                                agentId: agent.id,
+                                conversationId,
+                                contactId,
+                                contactPhone: resolvedContactPhone,
+                                channel: params.channel,
+                                message,
+                                lang: commerceLang,
+                                lastAssistantText,
+                                catalogProducts,
+                                activeEntityId: activeProductId,
+                        })
+                        if (restock.kind === 'reply') {
+                                commerceTurn = { kind: 'reply', text: restock.text }
+                        } else if (agent.orderCaptureEnabled && agent.productAccessEnabled) {
+                                const order = await resolveOrderCaptureTurn({
+                                        enabled: true,
+                                        workspaceId,
+                                        agentId: agent.id,
+                                        conversationId,
+                                        contactId,
+                                        channel: params.channel,
+                                        message,
+                                        lang: commerceLang,
+                                        catalogProducts,
+                                        recentCardIds: shownCardIds,
+                                        activeEntityId: activeProductId,
+                                        variantHint: productRequest.variantHint,
+                                        lastAssistantText,
+                                        prefill: orderPrefill({
+                                                contactName: resolvedContactName,
+                                                contactPhone: resolvedContactPhone,
+                                                facts: activeFacts(evidenceMemory),
+                                        }),
+                                        restockEnabled,
+                                })
+                                if (order.kind === 'reply') commerceTurn = { kind: 'reply', text: order.text }
+                                else if (order.kind === 'submit') commerceTurn = order
+                                else if (order.kind === 'instruct') commerceTurn = { kind: 'instruct', instruction: order.instruction }
+                        }
+                } catch (error) {
+                        // A commerce-store hiccup degrades to an ordinary reply.
+                        captureError('chat-engine:commerce-turn', error, {
+                                workspaceId,
+                                metadata: { agentId: agent.id, conversationId },
+                        })
+                }
+                // A sold-out answer may offer a back-in-stock alert only where the
+                // channel can really deliver it; the offered items are remembered
+                // so a later «آره خبرم کن» resolves to exactly them.
+                const restockOffer = commerceTurn.kind === 'none' && productRequest.unavailableMatch && channelRestockMode
+                        ? restockOfferLine(channelRestockMode, commerceLang)
+                        : null
+                if (restockOffer) {
+                        await rememberRestockOffer(conversationId, unavailableItemsFromCatalog(catalogProducts))
+                                .catch((error) => captureError('chat-engine:restock-offer', error, { workspaceId }))
+                }
+                // ── Function-calling catalog search ───────────────────────────
+                // Budgets, superlatives and empty lexical results are where the
+                // regex planner is weakest. One compact tool call turns the
+                // customer's words into structured searches; the server enforces
+                // the parsed budget/sort and the rows replace this turn's catalog.
+                let catalogToolReason = commerceTurn.kind === 'none'
+                        ? catalogToolGate({
+                                message,
+                                plan: productRequest,
+                                catalogProducts,
+                                productAccessEnabled: agent.productAccessEnabled,
+                                hasActiveProduct: Boolean(activeProductId),
+                        })
+                        : null
+                let catalogSearchInstruction = ''
+                if (catalogToolReason) {
+                        const searchPlan = await planCatalogSearch({
+                                agentId: agent.id,
+                                model,
+                                message,
+                                history: modelHistory,
+                                reason: catalogToolReason,
+                                isFa: turnLang !== 'en',
+                        }).catch((error) => {
+                                captureError('chat-engine:catalog-search-plan', error, {
+                                        workspaceId,
+                                        metadata: { agentId: agent.id, conversationId },
+                                })
+                                return null
+                        })
+                        if (searchPlan) {
+                                catalogProducts = searchPlan.products
+                                catalogSearchInstruction = searchPlan.instruction
+                                productRequest = {
+                                        ...productRequest,
+                                        isProductTurn: true,
+                                        explicitShowcase: false,
+                                        discoveryBrowse: false,
+                                        unavailableMatch: false,
+                                        includeProductCards: searchPlan.products.length > 0,
+                                }
+                                workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
+                        } else {
+                                catalogToolReason = null
+                        }
+                }
+
                 const turnHistory = historyForProductTurn(modelHistory, productRequest)
                 const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
                 const skillPlan = compileAgentSkillPlan({
@@ -1160,6 +1485,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 params.channel !== 'API' &&
                                 productRequest.includeProductCards,
                         hasConversationState: Boolean(workingState.activeGoal || workingState.lastAnswer),
+                        returningCustomer: previousSessionPlanningRows(history).length > 0
+                                && !history.some((item) => item.role === 'user' || item.role === 'assistant'),
+                        orderCaptureEnabled: agent.orderCaptureEnabled === true,
                 })
 
                 const messages = buildMessages({
@@ -1182,7 +1510,14 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 productRequest.includeProductCards,
                         skillPlan,
                         conversationState: workingState,
+                        restockOfferLine: restockOffer,
                 })
+                if (commerceTurn.kind === 'instruct' && messages[0]?.role === 'system') {
+                        messages[0].content = insertBeforeTurnMarker(messages[0].content ?? '', `\n\n${commerceTurn.instruction}`)
+                }
+                if (catalogSearchInstruction && messages[0]?.role === 'system') {
+                        messages[0].content = insertBeforeTurnMarker(messages[0].content ?? '', catalogSearchInstruction)
+                }
 
                 const stateTrace = buildConversationStateTrace({
                         state: workingState,
@@ -1217,6 +1552,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                         stateExpectedRevision: loadedState.expectedRevision,
                         stateTrace,
                         analyzerHandoffSignal,
+                        recentCardIds: shownCardIds,
+                        commerceTurn,
+                        catalogToolReason,
+                        restockOffer,
+                        orderCaptureEnabled: agent.orderCaptureEnabled === true,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -1238,7 +1578,10 @@ async function persistHandoff(params: {
         skillPlan: AgentSkillPlan
         inboundEventId?: string
         inboundAlreadyPersisted?: boolean
-}): Promise<{ messageId: string } | null> {
+        /** Operator-facing detail (e.g. the confirmed pre-order card). */
+        summary?: string
+        kind?: 'handoff' | 'order'
+}): Promise<{ messageId: string; alertId: string | null } | null> {
         try {
                 const metadata = {
                         agentSkillTrace: agentSkillTrace(params.skillPlan),
@@ -1302,7 +1645,7 @@ async function persistHandoff(params: {
                         where: { id: params.agent.id },
                         select: { name: true },
                 })
-                await notifyHandoff({
+                const alertId = await notifyHandoff({
                         workspaceId: params.workspaceId,
                         conversationId: params.conversationId,
                         agentId: params.agent.id,
@@ -1312,8 +1655,10 @@ async function persistHandoff(params: {
                         contactName: params.contactName,
                         contactPhone: params.contactPhone,
                         reason: params.reason,
+                        summary: params.summary,
+                        kind: params.kind,
                 })
-                return { messageId: saved.messageId }
+                return { messageId: saved.messageId, alertId }
         } catch (e) {
                 console.error('[chat-engine] handoff persist error:', e)
                 if (params.inboundEventId) throw e
@@ -1473,6 +1818,11 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 stateExpectedRevision,
                 stateTrace,
                 analyzerHandoffSignal,
+                recentCardIds,
+                commerceTurn,
+                catalogToolReason,
+                restockOffer,
+                orderCaptureEnabled,
         } = prep
 
         const encoder = new TextEncoder()
@@ -1554,8 +1904,36 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 return
                         }
 
+                        // The customer confirmed the pre-order summary: file it and
+                        // hand the thread to a human for payment and shipping.
+                        if (commerceTurn.kind === 'submit') {
+                                await releaseChatCredit(reservation, 'Pre-order filed without AI').catch(() => {})
+                                send({ type: 'delta', text: commerceTurn.text })
+                                const persisted = await persistHandoff({
+                                        workspaceId,
+                                        agent,
+                                        conversationId,
+                                        channel: params.channel,
+                                        contactId,
+                                        contactName,
+                                        contactPhone,
+                                        reason: `پیش‌سفارش درون‌چت #${commerceTurn.code}`,
+                                        replyText: commerceTurn.text,
+                                        skillPlan,
+                                        inboundEventId: params.inboundEventId,
+                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
+                                        summary: commerceTurn.operatorSummary,
+                                        kind: 'order',
+                                })
+                                await markOrderDraftSubmitted(commerceTurn.draftId, persisted?.alertId ?? null)
+                                        .catch((error) => captureError('chat-engine:order-submit', error, { workspaceId }))
+                                send(persisted ? { type: 'done', messageId: persisted.messageId } : { type: 'done' })
+                                closeStream()
+                                return
+                        }
+
                         try {
-                                const deterministicReply = await buildDeterministicTurnReply({
+                                const deterministicReply = commerceTurn.kind === 'reply' ? commerceTurn.text : await buildDeterministicTurnReply({
                                         workspaceId,
                                         agent,
                                         channel: params.channel,
@@ -1563,6 +1941,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         productRequest,
                                         canBypass: canBypassDeterministicReply,
                                         closingReply,
+                                        catalogToolsEligible: Boolean(catalogToolReason),
+                                        restockOffer,
                                         lang: turnLang,
                                         hasKnowledgeContext: retrievedChunks.some((chunk) => {
                                                 const metadata = chunk.metadata
@@ -1707,6 +2087,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         identifiedProductIds.length === 1,
                                 conversationState: workingState,
                                 continuityGuardCodes,
+                                establishedProductIds: recentCardIds,
+                                orderCaptureEnabled,
                         })
 
                         if (
@@ -1723,9 +2105,12 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                 agentId: agent.id,
                                                 lang: turnLang,
                                                 preferredProductIds: catalogProducts.map((product) => product.id),
-                                                identifiedProductIds,
+                                                identifiedProductIds: freshCardIds(identifiedProductIds, recentCardIds, productRequest.explicitShowcase),
                                                 forceShowcase: productRequest.explicitShowcase,
                                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
+                                                narrowed: isNarrowedProductRequest(productRequest),
+                                                recentlyShownIds: recentCardIds,
+                                                unavailable: productRequest.unavailableMatch,
                                                 identifiedVariantHint: productRequest.variantHint,
                                         })
                                 } catch (error) {
@@ -1853,6 +2238,11 @@ export async function generateReply(
                 stateExpectedRevision,
                 stateTrace,
                 analyzerHandoffSignal,
+                recentCardIds,
+                commerceTurn,
+                catalogToolReason,
+                restockOffer,
+                orderCaptureEnabled,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -1896,8 +2286,35 @@ export async function generateReply(
                 return { conversationId, reply, messageId: persisted?.messageId }
         }
 
+        // The customer confirmed the pre-order summary: file it and hand the
+        // thread to a human for payment and shipping.
+        if (commerceTurn.kind === 'submit') {
+                await releaseChatCredit(reservation, 'Pre-order filed without AI').catch(() => {})
+                await options.onGenerationStart?.()
+                options.onTextUpdate?.(commerceTurn.text)
+                const persisted = await persistHandoff({
+                        workspaceId,
+                        agent,
+                        conversationId,
+                        channel: params.channel,
+                        contactId,
+                        contactName,
+                        contactPhone,
+                        reason: `پیش‌سفارش درون‌چت #${commerceTurn.code}`,
+                        replyText: commerceTurn.text,
+                        skillPlan,
+                        inboundEventId: params.inboundEventId,
+                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
+                        summary: commerceTurn.operatorSummary,
+                        kind: 'order',
+                })
+                await markOrderDraftSubmitted(commerceTurn.draftId, persisted?.alertId ?? null)
+                        .catch((error) => captureError('chat-engine:order-submit', error, { workspaceId }))
+                return { conversationId, reply: commerceTurn.text, messageId: persisted?.messageId }
+        }
+
         try {
-                const deterministicReply = await buildDeterministicTurnReply({
+                const deterministicReply = commerceTurn.kind === 'reply' ? commerceTurn.text : await buildDeterministicTurnReply({
                         workspaceId,
                         agent,
                         channel: params.channel,
@@ -1905,6 +2322,8 @@ export async function generateReply(
                         productRequest,
                         canBypass: canBypassDeterministicReply,
                         closingReply,
+                        catalogToolsEligible: Boolean(catalogToolReason),
+                        restockOffer,
                         lang: turnLang,
                         hasKnowledgeContext: retrievedChunks.some((chunk) => {
                                 const metadata = chunk.metadata
@@ -2050,6 +2469,8 @@ export async function generateReply(
                         identifiedProductIds.length === 1,
                 conversationState: workingState,
                 continuityGuardCodes,
+                establishedProductIds: recentCardIds,
+                orderCaptureEnabled,
         })
 
         // Canonicalize markers for every public messenger before persistence
@@ -2069,9 +2490,12 @@ export async function generateReply(
                                 agentId: agent.id,
                                 lang: turnLang,
                                 preferredProductIds: catalogProducts.map((product) => product.id),
-                                identifiedProductIds,
+                                identifiedProductIds: freshCardIds(identifiedProductIds, recentCardIds, productRequest.explicitShowcase),
                                 forceShowcase: productRequest.explicitShowcase,
                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
+                                                narrowed: isNarrowedProductRequest(productRequest),
+                                                recentlyShownIds: recentCardIds,
+                                                unavailable: productRequest.unavailableMatch,
                                 identifiedVariantHint: productRequest.variantHint,
                         })
                 } catch (error) {

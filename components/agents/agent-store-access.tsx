@@ -16,6 +16,8 @@ export async function AgentStoreAccess({ agentId }: { agentId: string }) {
         workspace: { select: { businessType: true, businessProfile: true } },
         productAccessEnabled: true,
         orderTrackingEnabled: true,
+        orderCaptureEnabled: true,
+        restockAlertsEnabled: true,
         productAccessConfigured: true,
         orderTrackingConfigured: true,
       },
@@ -53,6 +55,8 @@ export async function AgentStoreAccess({ agentId }: { agentId: string }) {
       agentId={agent.id}
       initialProductAccessEnabled={productAccessEnabled}
       initialOrderTrackingEnabled={orderTrackingEnabled}
+      initialOrderCaptureEnabled={agent.orderCaptureEnabled}
+      initialRestockAlertsEnabled={agent.restockAlertsEnabled}
       productCount={productCount}
       orderCount={orderCount}
     />

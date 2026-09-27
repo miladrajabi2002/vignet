@@ -26,6 +26,7 @@ import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
 import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-outbox'
 import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
 import { purgeSoftDeleted } from '@/lib/maintenance/soft-delete-purge'
+import { sweepRestockAlerts } from '@/lib/commerce/restock-service'
 
 /**
  * Lightweight in-process scheduler for the background worker. Uses plain
@@ -49,6 +50,9 @@ const BATCH = 100
 const ADMIN_COMMERCIAL_SMS_SWEEP_INTERVAL_MS = 5 * 60_000
 const SKILLS_SWEEP_INTERVAL_MS = 6 * HOUR_MS
 const SOFT_DELETE_PURGE_INTERVAL_MS = 6 * HOUR_MS
+// «موجود شد خبرم کن»: catalog syncs land every few minutes; customers are
+// told within ~10 minutes of a product becoming available again.
+const RESTOCK_SWEEP_INTERVAL_MS = 10 * 60 * 1000
 
 async function sweepStaleConversations(): Promise<void> {
         const cutoff = new Date(Date.now() - STALE_HOURS * HOUR_MS)
@@ -142,6 +146,8 @@ async function runChannelCheck(): Promise<void> {
 // and the plugin stay in lockstep. Going faster risks rate-limit issues on
 // stores with thousands of products (each sync walks the full catalog).
 const STORE_SYNC_INTERVAL_MS = 30 * 60 * 1000 // every 30 minutes
+const KNOWLEDGE_REFRESH_MS = 5 * 60 * 1000 // every 5 minutes; staleness gates real crawls
+                                                                                                // (supports 15/30-min source cadences)
 
 /**
  * Find every active store integration whose `pollIntervalMinutes` has elapsed
@@ -787,7 +793,7 @@ export function startScheduler(): () => void {
         const storeInterval = setInterval(runStoreSync, STORE_SYNC_INTERVAL_MS)
 
         const initialKnowledge = setTimeout(runKnowledgeRefresh, 2 * 60_000)
-        const knowledgeInterval = setInterval(runKnowledgeRefresh, HOUR_MS)
+        const knowledgeInterval = setInterval(runKnowledgeRefresh, KNOWLEDGE_REFRESH_MS)
 
         const initialProductEmbeddingRepair = setTimeout(runProductEmbeddingRepair, 105_000)
         const productEmbeddingRepairInterval = setInterval(runProductEmbeddingRepair, HOUR_MS)
@@ -857,7 +863,22 @@ export function startScheduler(): () => void {
         const initialSoftDeletePurge = setTimeout(runSoftDeletePurge, 6 * 60_000)
         const softDeletePurgeInterval = setInterval(runSoftDeletePurge, SOFT_DELETE_PURGE_INTERVAL_MS)
 
+        const runRestockSweep = async () => {
+                try {
+                        const stats = await sweepRestockAlerts()
+                        if (stats.notified || stats.followUp || stats.failed) {
+                                console.log(`[scheduler] restock alerts: ${stats.notified} notified, ${stats.followUp} follow-up, ${stats.failed} retry (${stats.checked} checked)`)
+                        }
+                } catch (e) {
+                        console.error('[scheduler] restock sweep failed:', e)
+                }
+        }
+        const initialRestock = setTimeout(runRestockSweep, 3 * 60_000)
+        const restockInterval = setInterval(runRestockSweep, RESTOCK_SWEEP_INTERVAL_MS)
+
         return () => {
+                clearTimeout(initialRestock)
+                clearInterval(restockInterval)
                 clearTimeout(initialImprovement)
                 clearInterval(improvementInterval)
                 clearTimeout(initialSweep)

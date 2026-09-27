@@ -30,7 +30,7 @@ describe('agent kernel quality guards — fabricated order confirmations', () =>
       userMessage: 'بله',
       isFa: true,
     })
-    expect(guarded).toContain('امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست')
+    expect(guarded).toContain('ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست')
     expect(guarded).not.toContain('ثبت شد')
     expect(guarded).not.toContain('از انبار ارسال می‌شود')
   })
@@ -64,7 +64,7 @@ describe('agent kernel quality guards — fabricated order confirmations', () =>
       userMessage: 'بله',
       isFa: true,
     })
-    expect(guarded).toContain('امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست')
+    expect(guarded).toContain('ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست')
     expect(guarded).not.toContain('برایتان ثبت کنم')
   })
 

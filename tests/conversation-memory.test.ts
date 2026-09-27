@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConversationMemory, Prisma } from '@prisma/client'
-import { loadConversationHistory, isConversationMemory, HISTORY_TOKEN_BUDGET, RECENT_HISTORY_LIMIT, estimateHistoryTokens } from '@/lib/ai/conversation-memory'
+import { loadConversationHistory, isConversationMemory, isPreviousSessionDigest, previousSessionPlanningRows, HISTORY_TOKEN_BUDGET, RECENT_HISTORY_LIMIT, estimateHistoryTokens } from '@/lib/ai/conversation-memory'
 import { historyForProductTurn, planProductRequest } from '@/lib/ai/conversation'
 import { loadConversationSession } from '@/lib/conversations/session-store'
 
@@ -186,7 +186,13 @@ describe('adaptive session memory', () => {
     await loadConversationHistory('thread')
     vi.setSystemTime(new Date(rows.at(-1)!.createdAt.getTime() + 48 * 3600_000))
     mocks.completion.mockClear()
-    expect(await loadConversationHistory('thread')).toEqual([])
+    const returning = await loadConversationHistory('thread')
+    // The fresh session carries no live turns — only the read-only digest of
+    // the previous session, so a returning customer is not a stranger.
+    expect(returning.filter((m) => m.role !== 'system')).toEqual([])
+    expect(returning).toHaveLength(1)
+    expect(isPreviousSessionDigest(returning[0])).toBe(true)
+    expect(returning[0].content).toContain(rows.at(-1)!.content.slice(0, 20))
     expect(mocks.completion).not.toHaveBeenCalled()
   })
 
@@ -234,7 +240,31 @@ describe('adaptive session memory', () => {
     rows.push({ ...rows[0], id: 'activity', role: 'SYSTEM', createdAt: new Date('2026-01-03T00:00:00Z'), content: 'system secret' })
     rows.push({ ...rows[0], id: 'return', role: 'USER', createdAt: new Date('2026-01-04T00:00:00Z'), content: 'new request' })
     vi.setSystemTime(new Date('2026-01-04T00:01:00Z'))
-    expect(await loadConversationHistory('thread')).toEqual([{ role: 'user', content: 'new request' }])
+    const history = await loadConversationHistory('thread')
+    expect(history.filter((m) => m.role !== 'system')).toEqual([{ role: 'user', content: 'new request' }])
+    expect(JSON.stringify(history)).not.toContain('system secret')
+    expect(previousSessionPlanningRows(history).map((m) => m.content)).toEqual(['message-0', 'message-1'])
+  })
+
+  it('carries the previous session tail for a returning customer, then drops it once the new session has substance', async () => {
+    rows.push({ id: 'p1', conversationId: 'thread', role: 'USER', content: 'میز تلویزیون طرح آپادانا ۱۶۰ موجوده؟', createdAt: new Date('2026-01-01T10:00:00Z'), inboundEventId: null })
+    rows.push({ id: 'p2', conversationId: 'thread', role: 'ASSISTANT', content: 'بله موجوده [[product:{"id":"x","name":"میز"}]]', createdAt: new Date('2026-01-01T10:01:00Z'), inboundEventId: null })
+    rows.push({ id: 'n1', conversationId: 'thread', role: 'USER', content: 'همون میزی که دفعه قبل پرسیدم رو میخوام', createdAt: new Date('2026-01-04T10:00:00Z'), inboundEventId: null })
+    vi.setSystemTime(new Date('2026-01-04T10:00:30Z'))
+    const history = await loadConversationHistory('thread')
+    const digest = history.find(isPreviousSessionDigest)
+    expect(digest?.content).toContain('آپادانا')
+    expect(digest?.content).toContain('about 3 day(s) ago')
+    expect(digest?.content).not.toContain('[[product:')
+    expect(digest?.content).toContain('never say you cannot see')
+    expect(history.at(-1)).toEqual({ role: 'user', content: 'همون میزی که دفعه قبل پرسیدم رو میخوام' })
+    expect(previousSessionPlanningRows(history)[0]).toEqual({ role: 'user', content: 'میز تلویزیون طرح آپادانا ۱۶۰ موجوده؟' })
+
+    for (let index = 0; index < 8; index++) rows.push({ id: `n${index + 2}`, conversationId: 'thread', role: index % 2 ? 'USER' : 'ASSISTANT', content: `turn ${index}`, createdAt: new Date(Date.UTC(2026, 0, 4, 10, 1 + index)), inboundEventId: null })
+    vi.setSystemTime(new Date('2026-01-04T10:30:00Z'))
+    const later = await loadConversationHistory('thread')
+    expect(later.some(isPreviousSessionDigest)).toBe(false)
+    expect(previousSessionPlanningRows(later)).toEqual([])
   })
 
   it('keeps the saved cursor on failure, limits fallback context, and retries later', async () => {

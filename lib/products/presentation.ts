@@ -59,7 +59,47 @@ export function showcaseIntroText(params: {
   isFa?: boolean
   /** Three-way reply locale; wins over the legacy isFa flag. */
   lang?: ReplyLanguage
+  /**
+   * The customer already narrowed the request (a size, code or variant).
+   * Asking «رنگ یا سایز خاصی مدنظرتان است؟» right after «سایز ۱۲۰ هاش رو
+   * نشون بده» is the canned-bot tell, so the narrowing line is dropped.
+   */
+  narrowed?: boolean
+  /** Every shown product is sold out right now (honest vitrine). */
+  unavailable?: boolean
+  /** A deliverable back-in-stock offer line for this channel, if any. */
+  restockOffer?: string | null
 }): string {
+  if (params.unavailable && params.count > 0) {
+    const offer = params.restockOffer?.trim()
+    const lang = resolveReplyLang(params.lang, params.isFa)
+    const subject = (params.subject ?? '').trim().slice(0, 40)
+    if (lang === 'en') {
+      return [
+        `${params.count === 1 ? 'This item is' : `These ${params.count} ${subject || 'items'} are`} out of stock right now; photos and prices are below.`,
+        offer
+          ? `${offer} Or tell me which one you like and I will suggest the closest available model.`
+          : 'If you like one of them, tell me and I will suggest the closest available model.',
+      ].join('\n')
+    }
+    if (lang === 'ar') {
+      return [
+        `${params.count === 1 ? 'هذا المنتج غير متوفر حاليًا' : `هذه ${params.count.toLocaleString(numberLocale(lang))} من ${subject || 'المنتجات'} غير متوفرة حاليًا`}؛ الصور والأسعار في الأسفل.`,
+        'إذا أعجبك أحدها أخبرني لأقترح عليك أقرب طراز متوفر.',
+      ].join('\n')
+    }
+    return [
+      params.count === 1
+        ? `${subject ? `این ${subject}` : 'این مدل'} فعلاً ناموجوده؛ عکس و قیمتش را در ادامه می‌بینید.`
+        : `${params.count.toLocaleString('fa-IR')} مدل ${subject || 'محصول'} داریم ولی فعلاً همه ناموجودن؛ عکس و قیمت هر کدام را در ادامه می‌بینید.`,
+      offer
+        ? `${offer}؛ یا بگید کدوم رو پسندیدید تا مدل موجودِ مشابهش رو پیشنهاد بدم`
+        : 'اگر یکی‌شان را پسندیدید بگویید تا مدل موجودِ مشابهش را پیشنهاد بدهم.',
+    ].join('\n')
+  }
+  if (params.narrowed && params.count > 0) {
+    return showcaseIntroText({ ...params, narrowed: false }).split('\n')[0]
+  }
   const lang = resolveReplyLang(params.lang, params.isFa)
   const subject = (params.subject ?? '').trim().slice(0, 40)
   const hasSubject = subject.length >= 2
@@ -101,16 +141,16 @@ export function showcaseIntroText(params: {
     if (params.count === 1) {
       return [
         hasSubject
-          ? `یک مدل ${subject} موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصاتش را در ادامه می‌بینید.`
-          : 'یک محصول موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصاتش را در ادامه می‌بینید.',
+          ? `یک مدل ${subject} موجود داریم؛ عکس، قیمت و مشخصاتش را در ادامه می‌بینید.`
+          : 'یک محصول موجود و مرتبط داریم؛ عکس، قیمت و مشخصاتش را در ادامه می‌بینید.',
         'اگر سایز یا رنگ خاصی لازم دارید، بگویید تا موجودیش را چک کنم.',
       ].join('\n')
     }
     return [
       hasSubject
-        ? `${count} مدل ${subject} موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`
-        : `${count} محصول موجود و مرتبط پیدا کردم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`,
-      'رنگ یا سایز خاصی مدنظرتان است؟ بگویید تا از بین همین‌ها دقیق‌تر نشانتان بدهم.',
+        ? `${count} مدل ${subject} موجود داریم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`
+        : `${count} محصول موجود و مرتبط داریم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`,
+      'اگر رنگ یا سایز خاصی مدنظرتان است بگویید تا از بین همین‌ها دقیق‌تر نشانتان بدهم.',
     ].join('\n')
   }
   if (params.count === 0) {
@@ -155,7 +195,14 @@ export function parseProductDirectives(raw: string): {
   directives: ProductDirective[]
 } {
   const directives: ProductDirective[] = []
-  const text = raw.replace(PRODUCT_TOKEN, (_token, json: string) => {
+  const text = raw
+    // A marker cut off by the completion cap («[[product:{"id":"x","na…») or
+    // glued with a malformed separator («}],[product:{») must never reach
+    // the customer as raw JSON. Normalize the glue, then drop any marker
+    // that never closes.
+    .replace(/\}\]\s*,\s*\[?\[product:/g, '}]]\n[[product:')
+    .replace(/\[\[product:(?![^\n]*?\}\]\])[^\n]*/g, '')
+    .replace(PRODUCT_TOKEN, (_token, json: string) => {
     if (directives.length >= MAX_PRODUCTS_PER_REPLY) return ''
     try {
       const value = JSON.parse(json) as Record<string, unknown>
@@ -281,6 +328,8 @@ export async function resolveProductShowcases(params: {
   workspaceId: string
   agentId: string
   directives: ProductDirective[]
+  /** Honest sold-out vitrine: render stock=0 rows with a «ناموجود» badge. */
+  includeUnavailable?: boolean
 }): Promise<TrustedProductShowcase[]> {
   const directives = params.directives.slice(0, MAX_PRODUCTS_PER_REPLY)
   if (!directives.length) return []
@@ -307,7 +356,7 @@ export async function resolveProductShowcases(params: {
         AND: [
           // null means unlimited/untracked in our Product schema, so it is a
           // valid available product. Only an explicit zero is sold out.
-          { OR: [{ stock: null }, { stock: { gt: 0 } }] },
+          params.includeUnavailable ? {} : { OR: [{ stock: null }, { stock: { gt: 0 } }] },
           {
             OR: [
               ...(parentIds.length ? [{ id: { in: parentIds } }] : []),
@@ -327,6 +376,7 @@ export async function resolveProductShowcases(params: {
           images: true,
           externalUrl: true,
           attributes: true,
+          stock: true,
         },
       },
     },
@@ -356,6 +406,8 @@ export async function resolveProductShowcases(params: {
     seen.add(cardId)
 
     if (!variation) {
+      const soldOut = product.stock === 0
+        || (variations.length > 0 && variations.every((row) => !isVariationAvailable(row)))
       const attributeRows = [
         ...normalizeAttributes(product.attributes),
         ...extractListItems(product.description ?? ''),
@@ -377,6 +429,8 @@ export async function resolveProductShowcases(params: {
         imageUrl: pickTemplateImageUrl(product.images),
         productUrl: safeProductUrl(product.externalUrl),
         specs,
+        // A variable product with every variation sold out is not «موجود».
+        ...(soldOut ? { badge: 'ناموجود' } : {}),
         variation: null,
       })
       continue
@@ -477,6 +531,18 @@ export async function buildTrustedProductReply(params: {
   forceShowcase?: boolean
   /** Catalog subject noun(s) from the customer's own request, for the intro. */
   subjectPhrase?: string
+  /** The request already carried a size/code/variant; skip the narrowing question. */
+  narrowed?: boolean
+  /** Every product of this forced showcase is sold out (honest vitrine). */
+  unavailable?: boolean
+  /** Deliverable back-in-stock offer line (sold-out vitrine only). */
+  restockOffer?: string | null
+  /**
+   * Product ids carded in the agent's previous reply. A consultation reply
+   * does not re-send those cards (the customer is looking at them already);
+   * a forced showcase still renders everything it was asked for.
+   */
+  recentlyShownIds?: string[]
   /**
    * Rows the deterministic search proved the customer named (every search
    * term of a code-carrying query is covered by the row). Their cards are
@@ -516,6 +582,7 @@ export async function buildTrustedProductReply(params: {
     workspaceId: params.workspaceId,
     agentId: params.agentId,
     directives,
+    includeUnavailable: params.forceShowcase && params.unavailable,
   })
   // Models occasionally introduce the right catalog rows in prose but omit
   // the internal [[product:...]] directives. Recover only exact names from
@@ -542,10 +609,13 @@ export async function buildTrustedProductReply(params: {
   // directive naming anything else is off-turn noise (e.g. a stale product
   // remembered from an earlier turn) and must not reach the customer.
   const turnScopeIds = new Set([...preferredIds, ...identifiedIds])
+  const recentlyShown = new Set((params.recentlyShownIds ?? []).map(parentId))
   const selectedProducts = params.forceShowcase
-    ? products
+    // A sold-out vitrine shows enough to browse, not a 10-card wall.
+    ? (params.unavailable ? products.slice(0, 6) : products)
     : products.filter((product) => {
       if (!turnScopeIds.has(parentId(product.id))) return false
+      if (recentlyShown.has(parentId(product.id)) && !product.variation) return false
       return (
         explicitlyResolved.has(product.id) ||
         (preferredIds.has(parentId(product.id)) && replyMentionsProduct(parsed.text, product.name)) ||
@@ -584,6 +654,9 @@ export async function buildTrustedProductReply(params: {
         count: selectedProducts.length,
         subject: subjectIsCoveredByProducts(selectedProducts, subject) ? subject : '',
         lang,
+        narrowed: params.narrowed,
+        unavailable: params.unavailable,
+        restockOffer: params.restockOffer,
       })
     : parsed.text
 

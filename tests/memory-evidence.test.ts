@@ -156,3 +156,30 @@ describe('evidence-anchored memory — prompt block', () => {
     expect(evidenceMemoryInstruction('fa', readEvidenceMemory(metadata, 'other-agent'))).toBe('')
   })
 })
+
+describe('evidence-anchored memory — conflict policies', () => {
+  it('supersede: the customer’s own newest statement wins immediately and keeps the audit trail', () => {
+    let metadata: unknown = apply({}, 'تهران').metadata
+    const moved = applyEvidenceFact({
+      metadata, agentId: AGENT, mode: 'attribute', key: 'address', value: 'مشهد',
+      conversationId: 'conv-9', source: 'AUTO_FACT:INSTAGRAM', onConflict: 'supersede', at: '2026-09-10T10:00:00.000Z',
+    })
+    expect(moved.outcome).toBe('superseded')
+    metadata = moved.metadata
+    const memory = readEvidenceMemory(metadata, AGENT)!
+    expect(memory.facts.map((fact) => [fact.value, fact.status])).toEqual([['تهران', 'superseded'], ['مشهد', 'active']])
+    expect(memory.facts[1].supersedesId).toBe(memory.facts[0].id)
+    expect(memory.ledger.at(-1)).toMatchObject({ action: 'confirm', refId: memory.facts[0].id })
+    // Nothing is left pending, so the agent has nothing to nag about.
+    expect(evidenceMemoryInstruction('fa', memory)).not.toContain('انتظار تأیید')
+  })
+
+  it('quarantine: repeating the same conflicting value never piles up duplicate confirmations', () => {
+    let metadata: unknown = apply({}, 'تهران').metadata
+    metadata = apply(metadata, 'مشهد', '2026-09-08T10:00:00.000Z').metadata
+    const again = apply(metadata, 'مشهد', '2026-09-09T10:00:00.000Z')
+    expect(again.outcome).toBe('deduped')
+    expect(again.memory.facts.filter((fact) => fact.status === 'quarantined')).toHaveLength(1)
+    expect(again.fact.evidence).toHaveLength(2)
+  })
+})

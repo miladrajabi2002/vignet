@@ -197,9 +197,19 @@ export interface ApplyEvidenceFactParams {
   source?: string
   sourceId?: string
   at?: string
+  /**
+   * What a conflicting attribute value does. `quarantine` (default) keeps the
+   * old value authoritative until someone confirms — right for second-hand
+   * sources. `supersede` is for the customer's OWN explicit, first-person
+   * statement («الان دیگه مشهد زندگی می‌کنم»): that statement IS the
+   * confirmation, and asking «تهران یا مشهد؟» on every later turn is exactly
+   * the bot-like nagging customers notice. The old value is kept as
+   * `superseded` with a ledger entry, never deleted.
+   */
+  onConflict?: 'quarantine' | 'supersede'
 }
 
-export type ApplyEvidenceFactOutcome = 'added' | 'deduped' | 'quarantined' | 'unchanged'
+export type ApplyEvidenceFactOutcome = 'added' | 'deduped' | 'quarantined' | 'superseded' | 'unchanged'
 
 export interface ApplyEvidenceFactResult {
   metadata: MetadataRecord
@@ -235,6 +245,41 @@ export function applyEvidenceFact(params: ApplyEvidenceFactParams): ApplyEvidenc
       activeSameKey.updatedAt = at
       pushLedger(memory, { at, action: 'dedupe', factId: activeSameKey.id })
       return { metadata: writeEvidenceMemory(params.metadata, params.agentId, memory), memory, fact: activeSameKey, outcome: 'deduped' }
+    }
+    // The same conflicting value already waits for confirmation: one pending
+    // fact per value, with this sighting as extra provenance — repeating it
+    // must not pile up duplicate confirmations in the prompt.
+    const pendingSameValue = memory.facts.find(
+      (fact) => fact.key === key && fact.status === 'quarantined' && equalValue(fact),
+    )
+    if (params.onConflict === 'supersede') {
+      const fact: EvidenceFact = pendingSameValue ?? {
+        id: crypto.randomUUID(),
+        key,
+        value,
+        mode: 'attribute',
+        status: 'active',
+        evidence: [],
+        createdAt: at,
+        updatedAt: at,
+      }
+      if (fact.evidence.length < MAX_EVIDENCE_PER_FACT) fact.evidence.push(entry)
+      activeSameKey.status = 'superseded'
+      activeSameKey.supersededById = fact.id
+      activeSameKey.updatedAt = at
+      fact.status = 'active'
+      fact.supersedesId = activeSameKey.id
+      fact.updatedAt = at
+      if (!pendingSameValue) memory.facts.push(fact)
+      pushLedger(memory, { at, action: 'confirm', factId: fact.id, refId: activeSameKey.id, note: 'superseded by customer statement' })
+      enforceFactCap(memory, at)
+      return { metadata: writeEvidenceMemory(params.metadata, params.agentId, memory), memory, fact, outcome: 'superseded' }
+    }
+    if (pendingSameValue) {
+      if (pendingSameValue.evidence.length < MAX_EVIDENCE_PER_FACT) pendingSameValue.evidence.push(entry)
+      pendingSameValue.updatedAt = at
+      pushLedger(memory, { at, action: 'dedupe', factId: pendingSameValue.id })
+      return { metadata: writeEvidenceMemory(params.metadata, params.agentId, memory), memory, fact: pendingSameValue, outcome: 'deduped' }
     }
     // Contradiction — quarantine the NEW value; the old one stays active and
     // the agent asks the customer to confirm instead of silently switching.
@@ -375,7 +420,7 @@ export function evidenceMemoryInstruction(language: string, memory: EvidenceMemo
     for (const fact of pending) lines.push(`  - ${fact.key}: ${fact.value}`)
   }
   lines.push(isFa
-    ? 'این حافظه فقط دادهٔ همین مشتری است؛ با دانش کسب‌وکار، قواعد ایمنی یا درخواست فعلی او تداخل ایجاد نکن.'
-    : 'This memory holds only this customer’s own data; it never overrides business knowledge, safety rules, or the current request.')
+    ? 'این‌ها را خود مشتری قبلاً گفته: هر جا مرتبط است طبیعی به کار ببر و دوباره نپرس («شهر من» یعنی همین شهر)؛ از «حافظه» حرف نزن. پیام فعلی مشتری مقدم است و این داده هیچ قاعدهٔ کسب‌وکار را تغییر نمی‌دهد.'
+    : 'The customer stated these earlier: use them naturally when relevant and never re-ask (“my city” means this city); never mention “memory”. The current message wins, and this data never changes business rules.')
   return `\n\n${lines.join('\n')}`
 }

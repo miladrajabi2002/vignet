@@ -1,15 +1,18 @@
 import Link from 'next/link'
-import { Package, ShoppingBag } from 'lucide-react'
+import { MessageSquareText, Package, ShoppingBag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CommerceTabs({
   active,
   productsLabel,
   ordersLabel,
+  requestsLabel,
 }: {
-  active: 'products' | 'orders'
+  active: 'products' | 'orders' | 'requests'
   productsLabel: string
   ordersLabel: string
+  /** In-chat pre-orders and back-in-stock waiting list. */
+  requestsLabel?: string
 }) {
   const items = [
     {
@@ -24,12 +27,23 @@ export function CommerceTabs({
       label: ordersLabel,
       icon: ShoppingBag,
     },
+    ...(requestsLabel
+      ? [{
+          key: 'requests' as const,
+          href: '/products/requests',
+          label: requestsLabel,
+          icon: MessageSquareText,
+        }]
+      : []),
   ]
 
   return (
     <nav
       aria-label={productsLabel}
-      className="spatial-surface grid grid-cols-2 gap-1 rounded-[1.35rem] p-1.5 sm:inline-grid sm:min-w-[20rem]"
+      className={cn(
+        'spatial-surface grid gap-1 rounded-[1.35rem] p-1.5 sm:inline-grid',
+        items.length === 3 ? 'grid-cols-3 sm:min-w-[30rem]' : 'grid-cols-2 sm:min-w-[20rem]',
+      )}
     >
       {items.map((item) => {
         const Icon = item.icon
@@ -40,7 +54,7 @@ export function CommerceTabs({
             href={item.href}
             aria-current={selected ? 'page' : undefined}
             className={cn(
-              'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2',
+              'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-2 text-xs font-semibold sm:px-4 sm:text-sm transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2',
               selected
                 ? 'bg-black text-white shadow-[0_8px_22px_rgba(0,0,0,0.16)]'
                 : 'text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]',

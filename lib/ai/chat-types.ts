@@ -27,6 +27,10 @@ export interface ChatAgent {
         productAccessEnabled: boolean
         /** Read-only access to order-number-scoped synced order status. */
         orderTrackingEnabled: boolean
+        /** In-chat pre-order capture (OrderDraft + operator handoff). */
+        orderCaptureEnabled?: boolean
+        /** «موجود شد خبرم کن» back-in-stock alerts. Defaults to on. */
+        restockAlertsEnabled?: boolean
 }
 
 export interface StartChatParams {

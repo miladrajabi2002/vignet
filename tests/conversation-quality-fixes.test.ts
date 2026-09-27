@@ -85,7 +85,7 @@ describe('conversation quality fixes — action capability guard', () => {
       userMessage: 'میشه از همینجا خرید کنم؟ سایت برام باز نمیشه',
       isFa: true,
     })
-    expect(guarded).toContain('امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست')
+    expect(guarded).toContain('ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست')
     expect(guarded).not.toContain('می‌تونید از همین طریق خرید کنید')
   })
 

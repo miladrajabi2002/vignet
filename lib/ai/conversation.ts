@@ -5,7 +5,9 @@ import type { CatalogProduct } from '@/lib/ai/rag'
 import type { CatalogService } from '@/lib/ai/rag'
 import type { StartChatParams } from '@/lib/ai/chat-types'
 import type { Prisma } from '@prisma/client'
-import { isConversationMemory } from '@/lib/ai/conversation-memory'
+import { historyCardIds, isConversationMemory } from '@/lib/ai/conversation-memory'
+import { isFirstPersonCityToken } from '@/lib/ai/fact-capture'
+import { extractTypedVariations } from '@/lib/products/description'
 
 /**
  * Conversation resolution + per-turn data loading, extracted from the chat
@@ -158,6 +160,21 @@ export interface ProductRequestPlan {
          * be injected as if it were the referent.
          */
         anaphoraConsult?: boolean
+        /**
+         * «خیلی گرونه، ارزون‌ترش چی دارید؟» — the customer wants genuinely
+         * cheaper alternatives in the SAME product family as the item under
+         * discussion, not a two-sided comparison. searchTerms hold the family
+         * (subject) terms only; the engine keeps rows priced below the item.
+         */
+        cheaperAlternative?: boolean
+        /** The item the cheaper alternatives are measured against (set by the engine). */
+        cheaperThan?: { name: string; price: number } | null
+        /**
+         * Every catalog row that exactly matches this request is out of stock
+         * (see fetchCatalogProducts). The reply states that honestly instead
+         * of «not found», and no vitrine is forced.
+         */
+        unavailableMatch?: boolean
 }
 
 // ─── Catalog intent vocabulary ───────────────────────────────────────────────
@@ -251,6 +268,9 @@ const PRODUCT_CONTEXT_FOLLOWUP_RE =
  */
 const COMPARISON_QUESTION_RE =
         /(?:کدوم(?:ش|م|ون|ن)?|کدام(?:ش|م|ن)?)[^\n]{0,40}(?:ارزون|ارزان|گران|گرون|بهتر|مناسب|فرق)|(?:ارزون|ارزان|گران|گرون)\s*تر|فرقش(?:ون)?|مقایسه|(?:کدوم|کدام)\s*(?:ارزون|ارزان|گران|گرون|بهتر)/iu
+/** Asking for cheaper ALTERNATIVES (not «which of these two is cheaper?»). */
+const CHEAPER_ALTERNATIVE_RE =
+        /(?:ارزون|ارزان)\s*تر(?:ش|ی|اش)?\s*(?:هم\s*)?(?:چی|چیزی|مدلی|نمونه|گزینه|سراغ|پیشنهاد|دار|هست|نیست|ندار)|(?:مدل|گزینه|نمونه|چیز)(?:ی)?\s*(?:ارزون|ارزان|اقتصادی)\s*تر|اقتصادی\s*تر|قیمت\s*(?:پایین|کمتر)\s*تر?|بودجه(?:م)?\s*(?:کمه|کمتره|نمیرسه|نمی\s*رسه)|(?:cheaper|less\s+expensive|budget)\s+(?:option|one|model|alternative)s?/iu
 /** "بین X و Y" / "از X یا Y" statements name both sides of a comparison. */
 const COMPARISON_PAIR_RE = /(?:بین|از)\s+[\p{L}\p{N}]+\s*(?:[\p{L}\p{N}]+\s*)?و\s+[\p{L}\p{N}]+/iu
 /**
@@ -404,6 +424,15 @@ const VARIANT_BROWSE_CUE_EN_RE =
 /** Product ids inside [[product:{…}]] markers of an assistant reply. */
 const MARKER_PRODUCT_ID_RE = /\[\[product:\s*\{[\s\S]*?"id"\s*:\s*"([^"]+)"/g
 
+/**
+ * Product-card ids an assistant history message showed the customer — from
+ * markers still in its content, or from the history loader's side channel
+ * (the model-facing history has its markers stripped).
+ */
+export function assistantCardIds(message: ChatMessage): string[] {
+        return [...new Set([...extractMarkerProductIds(message.content ?? ''), ...historyCardIds(message)])]
+}
+
 export function extractMarkerProductIds(content: string): string[] {
         const ids: string[] = []
         MARKER_PRODUCT_ID_RE.lastIndex = 0
@@ -497,6 +526,13 @@ export const PRODUCT_STOP_WORDS = new Set([
         // Polite imperative endings («معرفی کنید», «نشونم بده»).
         'کن', 'کنید', 'کنین', 'بدید', 'بدین', 'نشونم',
         'yes', 'sure', 'ok', 'okay', 'yeah',
+        // Verb forms and plural/possessive fragments that are never product
+        // identity («AK-85 چه رنگ‌هایی داره؟», «سایز ۱۲۰ هاش رو نشونم بده»,
+        // «همون میزی که دفعه قبل پرسیدم»). As required terms they made the
+        // fail-closed matcher reject the exact product.
+        'داره', 'نداره', 'دارند', 'ندارید', 'ندارین', 'هستن', 'هستین', 'هستید', 'چیه',
+        'هاش', 'هاشو', 'هاشون', 'هاشونو', 'هارو', 'هاتون', 'هامون',
+        'همون', 'همین', 'همان', 'هنوز', 'دوباره', 'دفعه', 'پرسیدم', 'پرسیده', 'گفتم', 'گفته', 'بودم', 'راستی',
         'product', 'products', 'catalog', 'shop', 'store', 'price', 'prices', 'buy', 'send', 'show',
         'list', 'recommend', 'available', 'stock', 'in', 'have', 'all', 'any', 'please', 'me', 'the',
         'a', 'an', 'some', 'without', 'question', 'questions', 'new', 'more',
@@ -625,6 +661,7 @@ export function extractProductTerms(
                         if (!startsSetCompound && !afterDeterminer) continue
                 }
                 if (PRODUCT_STOP_WORDS.has(token)) continue
+                if (isFirstPersonCityToken(token)) continue
                 // Persian plural suffixes are often written without a ZWNJ.
                 // Strip a colloquial possessive only when the base is a known
                 // product/generic term. Blindly stripping «تون» corrupts «تابستون».
@@ -921,7 +958,7 @@ export function planProductRequest(
                         const item = history[index]
                         const content = item.content ?? ''
                         if (item.role === 'assistant') {
-                                const markerIds = extractMarkerProductIds(content)
+                                const markerIds = assistantCardIds(item)
                                 if (markerIds.length) {
                                         variantTargetRefs.push(...markerIds)
                                         break
@@ -945,9 +982,14 @@ export function planProductRequest(
         // this flag the bare «رنگ شکلاتی دارین؟» fires the catalog-wide vitrine
         // on the color word and returns random products that merely MENTION the
         // color. A pick must resolve against the discussed product instead.
+        // A pick targets ONE product. After a multi-product vitrine, «سایز ۱۲۰
+        // هاش رو نشونم بده» filters the FAMILY (a plural «…هاش», several card
+        // targets) — it must stay a showcase, not a variant lookup on one row.
+        const singleVariantTarget = new Set(variantTargetRefs.map((ref) => ref.split('#')[0])).size === 1
+        const pluralReference = /(?:^|[^\p{L}])(?:ها|هاش|هاشو|هاشون|هاشونو|هارو|هاتون)(?=$|[^\p{L}])/u.test(normalized)
         const variantPick =
                 !orderOnly && !serviceOnly && !policyOnly && !resetRequested && !nonCatalogCode &&
-                variantHint != null && variantTargetRefs.length > 0
+                variantHint != null && variantTargetRefs.length > 0 && singleVariantTarget && !pluralReference
         // ─── Code-named variant vitrine: «0788» / «تونیک روناز ۰۷۸۸» ──────────
         // The code alone names the exact product but no specific variation,
         // so the customer is asking to SEE the item — and for a variant-bearing
@@ -996,10 +1038,13 @@ export function planProductRequest(
         // A comparative-choice follow-up ("کدومش ارزون‌تره؟") grounds BOTH sides
         // of the pair the recent messages name — see fetchCatalogProducts's
         // comparison branch.
-        const comparisonConsult = contextualProductFollowUp && COMPARISON_QUESTION_RE.test(normalized)
+        const cheaperAlternative = priorProductSignal && priorProductTerms.length > 0
+                && CHEAPER_ALTERNATIVE_RE.test(normalized)
+                && !/(?:کدوم|کدام|which)/iu.test(normalized)
+        const comparisonConsult = !cheaperAlternative && contextualProductFollowUp && COMPARISON_QUESTION_RE.test(normalized)
         const isProductTurn =
                 !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode && !advisoryConsult &&
-                (directProductSignal || contextualProductFollowUp || browseQuery || explicitShowcase || variantBrowse || variantPick)
+                (directProductSignal || contextualProductFollowUp || browseQuery || explicitShowcase || variantBrowse || variantPick || cheaperAlternative)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.
         let searchTerms = isProductTurn ? (affirmativeFollowUp ? [] : currentTerms) : []
@@ -1028,7 +1073,14 @@ export function planProductRequest(
                 // the new size silently grounds the OLD size's rows.
                 const freshSizeTerms = currentTerms.filter((term) =>
                         /^\d{2,4}$/.test(term) && !priorProductTerms.includes(term))
-                const basePriorTerms = singularProductDetailFollowUp && priorVariantHint
+                // …but only a TRUE variant value is dropped. In catalogs where
+                // each design is its own product («میز تلویزیون نقش طرح آپادانا
+                // سایز 160»), the design word is part of the row's identity
+                // (it lives in the agent's name lexicon); dropping it turned
+                // «قیمتش؟» into a search over all 24 designs and answered with
+                // a different design's price.
+                const hintIsIdentity = priorVariantHint != null && (corpusTokens?.has(priorVariantHint) ?? false)
+                const basePriorTerms = singularProductDetailFollowUp && priorVariantHint && !hintIsIdentity
                         ? priorProductTerms.filter((term) => term !== priorVariantHint)
                         : priorProductTerms
                 searchTerms = freshSizeTerms.length > 0
@@ -1048,6 +1100,17 @@ export function planProductRequest(
                 const codeTerms = currentTerms.filter((term) => /^\d{3,8}$/.test(term))
                 const merged = [...new Set([...codeTerms, ...priorProductTerms])]
                 if (merged.length) searchTerms = merged
+        }
+
+        // Cheaper alternatives live in the same FAMILY (the head noun and its
+        // qualifier, «میز تلویزیون», «پاف مراکشی»), never in the same design
+        // or size: drop the design/variant word and size numbers, keep the
+        // first two family terms the customer used.
+        if (cheaperAlternative && !productCodeSignal && !EXPLICIT_PRODUCT_SUBJECT_RE.test(normalized)) {
+                const family = priorProductTerms
+                        .filter((term) => !/^\d+$/u.test(term) && term !== priorVariantHint)
+                        .slice(0, 2)
+                if (family.length) searchTerms = family
         }
 
         const explicitCount = explicitRequestedCount(normalized.toLocaleLowerCase('fa'))
@@ -1121,6 +1184,9 @@ export function planProductRequest(
                                                 // A comparison consult presents both sides of
                                                 // the pair: two rows per side is plenty.
                                                 : comparisonConsult ? 4
+                                                // Cheaper alternatives are filtered by price
+                                                // after retrieval; fetch a wide family pool.
+                                                : cheaperAlternative ? MAX_SHOWCASE_PRODUCTS
                                                 // A singular attribute question is about one
                                                 // established product. Returning one best row
                                                 // prevents unrelated catalog cards from leaking
@@ -1144,6 +1210,7 @@ export function planProductRequest(
                 codeVariantVitrine,
                 advisoryConsult,
                 comparisonConsult,
+                cheaperAlternative,
         }
 }
 
@@ -1189,11 +1256,23 @@ export function structuredProductDetailReply(params: {
  * fine for Persian (no letter case) and keeps English subjects readable.
  */
 export function showcaseSubjectPhrase(plan: ProductRequestPlan): string {
-        return plan.searchTerms
-                .filter((term) => PRODUCT_SUBJECT_RE.test(term))
+        // The tenant's own catalog nouns («پاف», «مراکشی») name the family
+        // just like global retail nouns do; the caller still drops the phrase
+        // when the shown cards do not carry it.
+        const corpus = new Set(plan.corpusSubjectTerms ?? [])
+        const nouns = plan.searchTerms
+                .filter((term) => !/^\d+$/u.test(term) && (PRODUCT_SUBJECT_RE.test(term) || corpus.has(term)))
                 .slice(0, 2)
-                .join(' ')
-                .slice(0, 40)
+        // «پاف نیمکتی 120»: a size the customer asked for belongs in the intro,
+        // so a narrowed vitrine does not read like the generic one before it.
+        const size = nouns.length ? plan.searchTerms.find((term) => /^[1-9]\d{1,3}$/u.test(term)) : undefined
+        return [...nouns, ...(size ? [size] : [])].join(' ').slice(0, 40)
+}
+
+/** The request already pinned a size, product code or single variant. */
+export function isNarrowedProductRequest(plan: ProductRequestPlan): boolean {
+        return plan.codeIdentified || plan.variantHint != null
+                || plan.searchTerms.some((term) => /^\d{2,4}$/.test(term))
 }
 
 /** Remove stale product claims when the customer starts a fresh catalog request. */
@@ -1539,6 +1618,17 @@ export function productRequestFromCatalogReference(
         }
 }
 
+/**
+ * A variable product whose EVERY variation is sold out is not available,
+ * even when its parent row stock is null («untracked»). Without this, a
+ * showcase told the customer «موجودن» and then carded «ناموجود» variants.
+ */
+export function allVariationsSoldOut(attributes: unknown): boolean {
+        const variations = extractTypedVariations(attributes)
+        return variations.length > 0 && variations.every((variation) =>
+                variation.manageStock ? (variation.stockQuantity ?? 0) <= 0 : variation.inStock === false)
+}
+
 /** Match measurements regardless of whether the source used 48, ۴۸ or ٤٨. */
 function catalogTermVariants(term: string): string[] {
         if (!/\d/.test(term)) return [term]
@@ -1573,6 +1663,34 @@ export async function fetchCatalogProducts(
         priorCandidateIds: string[] = [],
 ): Promise<CatalogProduct[]> {
         if (!plan.isProductTurn) return []
+        const primary = await searchCatalogProducts(agentId, productIds, plan, corpusTokens, priorCandidateIds)
+        // «پاف مراکشی دارید؟» when every Moroccan pouf is sold out: an
+        // availability-filtered search finds nothing (or only a relaxed
+        // neighbour family) and the customer used to hear «در کاتالوگ پیدا
+        // نکردم» about a product the store plainly sells. The exact rows
+        // exist — they are just unavailable — so return them flagged, and
+        // let the reply say «فعلاً ناموجوده» honestly instead.
+        if (plan.inventoryMode !== 'AVAILABLE' || (primary.products.length && !primary.relaxed)) {
+                return primary.products
+        }
+        const anyStock = await searchCatalogProducts(
+                agentId,
+                productIds,
+                { ...plan, inventoryMode: 'ANY' },
+                corpusTokens,
+                priorCandidateIds,
+        )
+        if (!anyStock.products.length || anyStock.relaxed) return primary.products
+        return anyStock.products.map((product) => ({ ...product, unavailable: true }))
+}
+
+async function searchCatalogProducts(
+        agentId: string,
+        productIds: string[],
+        plan: ProductRequestPlan,
+        corpusTokens: ReadonlySet<string> | undefined,
+        priorCandidateIds: string[],
+): Promise<{ products: CatalogProduct[]; relaxed: boolean }> {
 
         const rankedIds = [...new Set(productIds)].slice(0, 40)
         const terms = plan.searchTerms.slice(0, 6)
@@ -1610,11 +1728,16 @@ export async function fetchCatalogProducts(
                         ...lexicalFilters,
                 ]
                 : []
-        const availabilityFilter: Prisma.ProductWhereInput = plan.inventoryMode === 'AVAILABLE'
+        const stockFilter: Prisma.ProductWhereInput = plan.inventoryMode === 'AVAILABLE'
                 ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
                 : plan.inventoryMode === 'OUT_OF_STOCK'
                         ? { stock: 0 }
                         : {}
+        // Cheaper alternatives: the ceiling applies before ranking/slicing, or
+        // ten popular rows at the same price would hide every cheaper option.
+        const availabilityFilter: Prisma.ProductWhereInput = plan.cheaperThan
+                ? { AND: [stockFilter, { price: { lt: plan.cheaperThan.price } }] }
+                : stockFilter
 
         const rowSelect = {
                 id: true,
@@ -1640,7 +1763,28 @@ export async function fetchCatalogProducts(
                 ...(rankedIds.length ? [{ id: { in: rankedIds } }] : []),
                 ...identityLexicalFilters,
         ]
-        const [priorityRows, broadRows] = await Promise.all([
+        // Strict lane: rows carrying EVERY term. The popularity-ordered pools
+        // below are capped, and common tokens («میز», «نقش») can fill them
+        // before the one exact row («… آپادانا – سایز ۱۹۰») is ever ranked.
+        const strictFilters: Prisma.ProductWhereInput[] = terms.length > 1
+                ? terms.map((term) => ({
+                        OR: catalogTermVariants(term).flatMap((variant) => [
+                                { name: { contains: variant, mode: 'insensitive' as const } },
+                                { sku: { contains: variant, mode: 'insensitive' as const } },
+                                { tags: { has: variant } },
+                                { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+                        ]),
+                }))
+                : []
+        const [strictRows, priorityRows, broadRows] = await Promise.all([
+                strictFilters.length
+                        ? prisma.product.findMany({
+                                where: { ...baseWhere, AND: [availabilityFilter, ...strictFilters] },
+                                take: 40,
+                                orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
+                                select: rowSelect,
+                        })
+                        : Promise.resolve([]),
                 priorityFilters.length
                         ? prisma.product.findMany({
                                 where: { ...baseWhere, AND: [availabilityFilter, { OR: priorityFilters }] },
@@ -1666,9 +1810,10 @@ export async function fetchCatalogProducts(
         }),
         ])
         const seenProductIds = new Set<string>()
-        const rows = [...priorityRows, ...broadRows].filter((product) => {
+        const rows = [...strictRows, ...priorityRows, ...broadRows].filter((product) => {
                 if (seenProductIds.has(product.id)) return false
                 seenProductIds.add(product.id)
+                if (plan.inventoryMode === 'AVAILABLE' && allVariationsSoldOut(product.attributes)) return false
                 return true
         })
 
@@ -1687,8 +1832,10 @@ export async function fetchCatalogProducts(
                 PRODUCT_SUBJECT_RE.test(term) || (corpusTokens?.has(term) ?? false),
         )
         const canonicalTokenMatch = (field: string, term: string): boolean => {
-                const normalizedField = ` ${field.replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()} `
-                return normalizedField.includes(` ${term} `)
+                const spaced = (value: string) => value.replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()
+                // The term gets the same separator folding as the field: a
+                // hyphenated code «ak-71» must match the name token «AK-71».
+                return ` ${spaced(field)} `.includes(` ${spaced(term)} `)
         }
         const ranked = rows.map((product) => {
                 const searchable = searchableProductText(product)
@@ -1882,7 +2029,7 @@ export async function fetchCatalogProducts(
                                         return true
                                 }).slice(0, 4)
                                 if (comparisonRows.length >= 2) {
-                                        return comparisonRows.map(({ product }) => ({
+                                        return { relaxed: false, products: comparisonRows.map(({ product }) => ({
                                                 id: product.id,
                                                 name: product.name,
                                                 description: product.description,
@@ -1894,7 +2041,7 @@ export async function fetchCatalogProducts(
                                                 attributes: product.attributes,
                                                 tags: product.tags,
                                                 fullTermMatch: false,
-                                        }))
+                                        })) }
                                 }
                         }
                 }
@@ -1990,9 +2137,13 @@ export async function fetchCatalogProducts(
         // remain ordinary multi-product browsing. A relaxed (adaptive) match
         // NEVER counts as unique identification — some requested term was
         // dropped, so the row is a close alternative, not the named item.
-        const uniquelyIdentified = !relaxed && selected.length === 1 && terms.length > 1
+        // Uniqueness is a property of the whole grounded result, never of the
+        // requested slice: «قیمتش؟» asks for one row, and picking the most
+        // popular of 24 «میز تلویزیون نقش ۱۶۰» designs must not be presented
+        // as the exact product the customer meant.
+        const uniquelyIdentified = !relaxed && finalEligible.length === 1 && terms.length > 1
 
-        return selected.map(({ product, coverage, subjectCoverage }) => ({
+        return { relaxed, products: selected.map(({ product, coverage, subjectCoverage }) => ({
                 id: product.id,
                 name: product.name,
                 description: product.description,
@@ -2007,7 +2158,42 @@ export async function fetchCatalogProducts(
                         coverage === terms.length &&
                         subjectCoverage === subjectTerms.length &&
                         (identifyByFullCoverage || uniquelyIdentified),
-        }))
+        })) }
+}
+
+/**
+ * Load exact assigned catalog rows by id (active, agent-scoped) as trusted
+ * catalog products — used to anchor a singular follow-up («قیمتش؟») to the
+ * one product card the agent just showed.
+ */
+export async function fetchCatalogProductsByIds(agentId: string, ids: string[]): Promise<CatalogProduct[]> {
+        const parentIds = [...new Set(ids.map((id) => id.split('#')[0]).filter(Boolean))].slice(0, 10)
+        if (!parentIds.length) return []
+        const rows = await prisma.product.findMany({
+                where: { id: { in: parentIds }, active: true, catalogItems: { some: { agentId } } },
+                select: {
+                        id: true, name: true, description: true, price: true, stock: true, images: true,
+                        externalUrl: true, attributes: true, tags: true, category: { select: { name: true } },
+                },
+        })
+        const byId = new Map(rows.map((row) => [row.id, row]))
+        return parentIds.flatMap((id) => {
+                const product = byId.get(id)
+                if (!product) return []
+                return [{
+                        id: product.id,
+                        name: product.name,
+                        description: product.description,
+                        price: product.price,
+                        stock: product.stock,
+                        category: product.category?.name ?? null,
+                        image: product.images[0] ?? null,
+                        url: product.externalUrl,
+                        attributes: product.attributes,
+                        tags: product.tags,
+                        fullTermMatch: true,
+                }]
+        })
 }
 
 /**

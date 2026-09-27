@@ -38,6 +38,9 @@ function contextualChunk(
 interface ResolvedSection {
   text: string
   page?: number
+  /** Structured/tabular text: chunk on whole-section boundaries, no overlap,
+      so value rows are never duplicated across chunks. */
+  atomic?: boolean
 }
 
 /** Resolve source text while retaining traceable boundaries such as PDF pages. */
@@ -66,7 +69,7 @@ async function resolveSections(
     case 'CSV': {
       if (!kb.fileKey) throw new Error('Missing fileKey')
       const buf = await downloadFile(BUCKETS.knowledge, kb.fileKey)
-      return [{ text: parseCsv(buf.toString('utf8')) }]
+      return [{ text: parseCsv(buf.toString('utf8')), atomic: true }]
     }
     default:
       return [{ text: (inlineText ?? '').trim() }]
@@ -107,7 +110,7 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
     const chunks = sections.flatMap((section) => {
       const pieces = kb.type === 'FAQ'
         ? chunkFaq(section.text)
-        : chunkText(section.text)
+        : chunkText(section.text, section.atomic ? { maxChars: 1_000, overlap: 0 } : undefined)
       return pieces.map((content) => ({ content, page: section.page }))
     })
     if (chunks.length === 0) {

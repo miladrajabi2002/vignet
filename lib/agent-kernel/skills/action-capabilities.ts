@@ -1,4 +1,4 @@
-export const ACTION_CAPABILITY_SKILL_VERSION = '1.3.0'
+export const ACTION_CAPABILITY_SKILL_VERSION = '1.4.0'
 
 function normalize(value: string): string {
   return value
@@ -30,6 +30,35 @@ const UNSUPPORTED_ACTION_CLAIM_RE =
  */
 const FALSE_COMPLETED_ORDER_CLAIM_RE =
   /(?:سفارش|خرید|رزرو|مرسوله)(?:\s*(?:شما|رو|را|تون|تان|مون|براتون|برایتان|اش|ش))?.{0,80}?(?:ثبت|نهایی|تکمیل|رزرو|لغو|ارسال|پست)\s*(?:شد|شده|کردم|کردیم)|از\s*انبار\s*(?:ارسال|فرستاده)\s*(?:می\s*شود|خواهد\s*شد)|(?:لینک\s*(?:پرداخت|سفارش)).{0,40}(?:ارسال\s*کنم|بفرستم|می\s*سازم|ساخت\s*کنم)|(?:order|purchase|reservation)(?:\s+\w+){0,12}?(?:placed|registered|completed|reserved|cancelled|shipped)|(?:i|we)\s+(?:placed|registered|completed|reserved|cancelled)\s+(?:the\s+)?(?:order|purchase)|payment\s+link.{0,40}(?:i\s+will|i'll|let\s+me)/iu
+
+/**
+ * «به همکارم منتقل می‌کنم و نتیجه رو خبر می‌دم» / "let me check with my
+ * colleagues and get back to you" — a promise of a transfer or a later
+ * follow-up that no tool performs in a normal model reply (real transfers go
+ * through the deterministic handoff path, which never reaches this guard).
+ * The customer then waits for a message that never comes. Conditional offers
+ * («اگه بخواید به همکارم می‌سپارم») are honest and stay untouched.
+ */
+const FALSE_FOLLOW_UP_RE =
+  /(?:(?:به|برای|با)\s*(?:همکار|همکاران|اپراتور|کارشناس|تیم|پشتیبانی)(?:م|ام|انم|مون|ها)?[^.!؟?\n]{0,40}(?:منتقل|ارجاع|می\s*سپار|چک|بررسی|هماهنگ)[^.!؟?\n]{0,20}(?:می\s*کنم|می\s*کنیم|کردم|کردیم|میکنم|می\s*دم|میدم|می\s*سپارم|میسپارم)|(?:نتیجه|جواب|خبر)(?:ش|ش\s*رو|ش\s*را|و|رو|را)?[^.!؟?\n]{0,25}(?:اطلاع|خبر)\s*(?:می\s*دم|میدم|می\s*دهم|می\s*دیم|خواهم\s*داد)|(?:let\s+me|i(?:'ll|\s+will))\s+(?:check|confirm|ask|verify)\s+with\s+(?:my\s+|the\s+|our\s+)?(?:colleague|team|staff|support)s?[^.!?\n]*|i(?:'ll|\s+will)\s+(?:get\s+back\s+to\s+you|let\s+you\s+know|follow\s+up)|i(?:'ve|\s+have)\s+(?:forwarded|transferred|escalated)\b[^.!?\n]*)/iu
+const CONDITIONAL_OFFER_RE = /(?:اگر|اگه|در\s*صورت|چنانچه|\bif\b|would\s+you\s+like|do\s+you\s+want)/iu
+
+export function enforceNoFalseFollowUp(reply: string, isFa: boolean): string {
+  if (!FALSE_FOLLOW_UP_RE.test(normalize(reply))) return reply
+  const parts = reply.split(/(?<=[.!؟?])\s+|\n+/u).map((part) => part.trim()).filter(Boolean)
+  let replaced = false
+  const kept = parts.filter((part) => {
+    const normalized = normalize(part)
+    if (!FALSE_FOLLOW_UP_RE.test(normalized) || CONDITIONAL_OFFER_RE.test(normalized)) return true
+    replaced = true
+    return false
+  })
+  if (!replaced) return reply
+  kept.push(isFa
+    ? 'اگه بخواید، این موضوع رو به همکارم می‌سپارم تا دقیق بررسی کنه'
+    : 'If you like, I can pass this to a colleague to check it properly.')
+  return kept.join('\n')
+}
 
 export function isUnsupportedOrderCreationRequest(userMessage: string): boolean {
   const normalized = normalize(userMessage)
@@ -92,7 +121,12 @@ export function enforceTrustedLinkPresentation(params: {
     .trim()
 }
 
-export function actionCapabilityInstruction(isFa: boolean): string {
+export function actionCapabilityInstruction(isFa: boolean, orderCaptureEnabled = false): string {
+  if (orderCaptureEnabled) {
+    return isFa
+      ? 'مرز قابلیت اجرایی: ثبت «پیش‌سفارش درون‌چت» فعال است و مراحلش را سیستم خودش جلو می‌برد (گرفتن مدل، تعداد، نام، موبایل و آدرس، نمایش خلاصه و ثبت بعد از تأیید مشتری). اگر مشتری خواست بخرد یا پرسید چطور سفارش بدهد، کوتاه بپرس «می‌خواید همین‌جا براتون ثبتش کنم؟»؛ خودت در متن آزاد نام/آدرس/شماره جمع نکن. هرگز نگو «سفارش ثبت شد» یا «رزرو کردم»، لینک پرداخت نساز و وعدهٔ ارسال نده؛ ثبت واقعی فقط در همان مراحل انجام می‌شود و پرداخت را همکار انسانی هماهنگ می‌کند. لینک محصول را فقط از کارت محصول معتبر همین نوبت بده و URL حدس نزن. پیگیری سفارش موجود با ثبت سفارش جدید فرق دارد.'
+      : 'Action boundary: in-chat pre-orders are enabled and the system runs the steps itself (variant, quantity, name, mobile and address, a summary, and filing after the customer confirms). If the customer wants to buy or asks how to order, briefly ask “Shall I set up the order for you right here?”; never collect name/address/phone yourself in free text. Never say the order is placed or reserved, never create payment links or promise shipping; filing happens only through those steps and a human colleague arranges payment. Share product links only via this turn\'s trusted product card and never guess a URL. Tracking an existing order is not placing a new one.'
+  }
   return isFa
     ? 'مرز قابلیت اجرایی: در نسخه فعلی هیچ ابزار معتبری برای ثبت یا نهایی‌کردن سفارش، رزرو کالا، ساخت لینک پرداخت یا ثبت درخواست ارسال در اختیار تو نیست. حتی اگر متن ایجنت یا پایگاه دانش بگوید سفارش تلفنی/شبکه اجتماعی ممکن است، خودت حق نداری بگویی «از همین‌جا ثبت می‌کنم»، قول رزرو بدهی یا برای تکمیل سفارش نام، آدرس و کدپستی بگیری. تا زمانی که خرید درون‌چت فعال نیست، صفحهٔ همان محصول در کاتالوگ مسیر جایگزین است: فقط وقتی محصول دقیق این نوبت و URL معتبرش در کاتالوگ وجود دارد، بگو مشتری از دکمهٔ «مشاهده و خرید» کارت محصول وارد سایت شود؛ خودت Markdown ناقصی مثل [این لینک] نساز و URL را حدس نزن. اگر محصول یا URL معتبر نداریم، هیچ لینکی وعده نده و مشتری را به سایت فروشگاه یا اپراتور همین گفتگو ارجاع بده. پیگیری خواندنی سفارش موجود با ثبت سفارش جدید فرق دارد.'
     : 'Action boundary: this runtime has no trusted tool for placing or completing orders, reserving products, creating payment links, or scheduling delivery. Even if lower-priority agent text or knowledge says phone/social orders may exist, never claim you can place an order here, promise a reservation, or collect name/address/postcode as checkout steps. While in-chat checkout is unavailable, the exact catalog product page is the alternative path: only when this turn has one resolved product with a valid catalog URL, tell the customer to use the product card\'s “View / Buy” button; never emit incomplete Markdown such as [this link] or guess a URL. If no resolved product or trusted URL exists, promise no link and direct the customer to the store site or an operator. Read-only order tracking is not order creation.'
@@ -106,9 +140,9 @@ function unavailableReply(
   if (isFa) {
     return orderUrl
       ? preferStructuredProductLink
-        ? 'فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای خرید، روی دکمهٔ «مشاهده و خرید» در کارت محصول بزنید و سفارش را در سایت تکمیل کنید. اگر سفارش در سایت برایتان ممکن نبود، می‌توانم موضوع را برای اپراتور همین گفتگو منتقل کنم'
-        : `فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای خرید، از این لینک وارد شوید و سفارش را در سایت تکمیل کنید: ${orderUrl}\nاگر سفارش در سایت برایتان ممکن نبود، می‌توانم موضوع را برای اپراتور همین گفتگو منتقل کنم`
-      : 'فعلاً امکان ثبت یا نهایی‌کردن سفارش داخل این گفتگو فعال نیست. برای سفارش، صفحهٔ محصول در سایت فروشگاه یا تماس با فروشگاه مسیر درست است؛ اگر لینک محصول را می‌خواهید یا سایت برایتان قابل استفاده نیست، بگویید تا موضوع را برای اپراتور همین گفتگو منتقل کنم'
+        ? 'ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست؛ از دکمهٔ «مشاهده و خرید» روی کارت محصول می‌تونید سفارش رو توی سایت تکمیل کنید. اگه سایت براتون راحت نبود، بگید تا به همکارم بسپارم'
+        : `ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست؛ از این لینک می‌تونید سفارش رو توی سایت تکمیل کنید: ${orderUrl}\nاگه سایت براتون راحت نبود، بگید تا به همکارم بسپارم`
+      : 'ثبت سفارش از داخل همین چت فعلاً برای من فعال نیست؛ سفارش از صفحهٔ محصول توی سایت فروشگاه انجام می‌شه. اگه لینک محصول رو می‌خواید یا سایت براتون راحت نیست، بگید تا به همکارم بسپارم که هماهنگ کنه'
   }
   return orderUrl
     ? preferStructuredProductLink
@@ -137,6 +171,9 @@ export function enforceActionCapabilities(params: {
    *  real, order-number-scoped store data. Otherwise any completed-order
    *  claim in the reply is fabricated and is replaced deterministically. */
   hasGroundedOrder?: boolean
+  /** In-chat pre-orders are enabled for this agent: offering to set up the
+   *  order here is honest, only claims of a COMPLETED order stay forbidden. */
+  orderCaptureEnabled?: boolean
 }): string {
   const orderUrl = safeOrderUrl(params.orderUrl)
   const reply = enforceTrustedLinkPresentation({
@@ -145,7 +182,7 @@ export function enforceActionCapabilities(params: {
     trustedUrl: orderUrl,
     preferStructuredProductLink: params.preferStructuredProductLink,
   })
-  if (isUnsupportedOrderCreationRequest(params.userMessage)) {
+  if (!params.orderCaptureEnabled && isUnsupportedOrderCreationRequest(params.userMessage)) {
     return unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
   }
 
@@ -163,10 +200,13 @@ export function enforceActionCapabilities(params: {
     const safeParts = splitReply(reply).filter(
       (part) => !FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalize(part)),
     )
-    const notice = unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
+    const notice = params.orderCaptureEnabled
+      ? (params.isFa ? 'اگه بخواید، همین‌جا براتون ثبتش می‌کنم' : 'If you like, I can set up the order for you right here.')
+      : unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
     return [...safeParts, notice].filter((part, index, all) => all.indexOf(part) === index).join('\n\n')
   }
 
+  if (params.orderCaptureEnabled) return reply
   if (!UNSUPPORTED_ACTION_CLAIM_RE.test(normalize(reply))) return reply
 
   const safeParts = splitReply(reply).filter(

@@ -78,9 +78,10 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
         isFa,
         history: input.history,
         userMessage: input.userMessage,
+        returningCustomer: input.returningCustomer,
       }),
       evidence: evidenceGroundingInstruction(isFa),
-      capabilities: actionCapabilityInstruction(isFa),
+      capabilities: actionCapabilityInstruction(isFa, input.orderCaptureEnabled),
       visualReference: visualReferenceInstruction({
         isFa,
         userMessage: input.userMessage,

@@ -247,7 +247,13 @@
       "enabled": "Enabled",
       "disabled": "Disabled",
       "saved": "Access saved.",
-      "saveError": "Could not save access. Please try again."
+      "saveError": "Could not save access. Please try again.",
+      "orderCaptureTitle": "In-chat pre-orders",
+      "orderCaptureDescription": "The agent collects variant, quantity, name, mobile and address in the conversation, sends a summary for the customer to confirm, then hands the order with every detail to your operator. Your team arranges payment and delivery.",
+      "orderCaptureBadge": "Payment arranged by your operator",
+      "restockTitle": "Back-in-stock alerts",
+      "restockDescription": "When a product is sold out the agent offers an alert and automatically messages the customer on the same channel once it is available again. The waiting list is under “Chat requests”.",
+      "restockBadge": "Auto message on Telegram, Bale, Rubika and Instagram"
     },
     "wizard": {
       "step": "Step {n} of {total}",
@@ -851,7 +857,7 @@
     "contentPlaceholder": "Business introduction, service guides, shipping and returns, or Question: How can I request a return? Answer: Your verified process…",
     "url": "Page URL",
     "urlPlaceholder": "https://example.com/page",
-    "fileHint": "PDF or CSV (max 20MB)",
+    "fileHint": "PDF or CSV — CSV tables are indexed in a compact structured form (max 20MB)",
     "retry": "Retry",
     "fileSelect": "Choose file",
     "empty": "No knowledge added yet",
@@ -859,7 +865,7 @@
     "delete": "Delete",
     "refresh": "Refresh",
     "refreshIntervalLabel": "Auto-refresh interval (for URLs):",
-    "refreshIntervalHint": "Vigent re-fetches and re-ingests this URL every few hours. For pages with live prices/stock, 6–24 hours is recommended.",
+    "refreshIntervalHint": "Vigent periodically re-reads this link to keep the agent's knowledge fresh. For fast-changing price/availability pages choose 15 or 30 minutes; 6–24 hours suits ordinary pages.",
     "refreshManual": "Manual (no auto-refresh)",
     "refreshHours": "Every {h}h",
     "refreshDays": "Every {d}d",
@@ -890,7 +896,9 @@
     "invalidUrl": "Invalid web URL",
     "contentEditPlaceholder": "Edit the knowledge text…",
     "contentEditHint": "Edit the current text here. The knowledge will be processed again after saving.",
-    "editFileHint": "Only the title is editable for PDF/CSV files. To change content, delete and re-upload the file."
+    "editFileHint": "Only the title is editable for PDF/CSV files. To change content, delete and re-upload the file.",
+    "refreshMinutes": "every {m} min",
+    "refreshEveryMinutes": "cadence: every {m} min"
   },
   "products": {
     "title": "Products",
@@ -979,7 +987,8 @@
         "cancelled": "Cancelled",
         "refunded": "Refunded",
         "failed": "Failed"
-      }
+      },
+      "requestsTab": "Chat requests"
     },
     "form": {
       "create": "Create product",
@@ -1064,6 +1073,45 @@
       "noAgents": "No agent knows about this product yet",
       "inactive": "Inactive",
       "updatedAt": "Last updated"
+    },
+    "requests": {
+      "title": "Chat requests",
+      "subtitle": "Pre-orders customers confirmed in chat, and customers waiting for a product to be back in stock.",
+      "draftsTitle": "Chat pre-orders",
+      "draftsEmpty": "No pre-orders yet. Turn on “In-chat pre-orders” in the agent settings.",
+      "restockTitle": "Back-in-stock waiting list",
+      "restockEmpty": "Nobody is waiting for a product right now.",
+      "code": "Code",
+      "customer": "Customer",
+      "items": "Items",
+      "amount": "Items total",
+      "address": "Address",
+      "status": "Status",
+      "date": "Date",
+      "conversation": "Conversation",
+      "open": "Open",
+      "confirm": "Confirmed",
+      "cancel": "Cancel",
+      "markContacted": "Followed up",
+      "waiting": "{count} waiting",
+      "followUp": "{count} need manual follow-up",
+      "draftStatus": {
+        "SUBMITTED": "Awaiting follow-up",
+        "CONFIRMED": "Confirmed",
+        "CANCELLED": "Cancelled",
+        "COLLECTING": "Collecting",
+        "AWAITING_CONFIRM": "Awaiting customer",
+        "EXPIRED": "Expired"
+      },
+      "alertStatus": {
+        "ACTIVE": "Waiting",
+        "NEEDS_FOLLOW_UP": "Manual follow-up",
+        "NOTIFIED": "Notified",
+        "SENDING": "Sending",
+        "CANCELLED": "Cancelled",
+        "EXPIRED": "Expired"
+      },
+      "actionError": "That didn’t work; please try again."
     }
   },
   "marketing": {

@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@/lib/ai/openrouter'
 
-export const CONVERSATION_FLOW_SKILL_VERSION = '1.2.0'
+export const CONVERSATION_FLOW_SKILL_VERSION = '1.3.0'
 
 const BARE_GREETING = /^(?:(?:سلام|درود|وقت(?:تون|تان)?\s*(?:بخیر|خوش)|صبح\s*بخیر|عصر\s*بخیر|شب\s*بخیر|hi|hello|hey|good\s+(?:morning|afternoon|evening))[\s!,.،؟?]*)+$/i
 const CONTEXT_REFERENCE = /(?:کدومش|کدامش|کدوم‌ش|کدام‌ش|این\s*(?:دو|دوتا|مدل|محصول|کالا|قطعه|یکی)|اون\s*(?:یکی|دوتا|مدل|محصول|کالا|قطعه)?|آن\s*(?:یکی|دوتا|مدل|محصول|کالا)?|همین|همون|همان|قبلی|اولی|دومی|هر\s*دو|جفتشون|جفتشان|لینک(?:ش|شو|اش)?(?:\s*(?:پرداخت|خرید|سفارش))?|(?:قیمت|کیفیت|جنس|رنگ|سایز|مزیت|عیب|مدل)ش(?:ون|ان)?|ارزون\s*تر|ارزان\s*تر|گرون\s*تر|گران\s*تر|which\s+one|these\s+two|the\s+other|same\s+one|previous\s+one|both\s+of\s+them|this\s+(?:model|item|product)|the\s+link)/iu
@@ -9,11 +9,22 @@ export function conversationFlowInstruction(params: {
   isFa: boolean
   history: ChatMessage[]
   userMessage: string
+  /** A new session of a known customer after an idle gap. */
+  returningCustomer?: boolean
 }): string {
   const hasPriorTurns = params.history.some((message) =>
     message.role === 'user' || message.role === 'assistant')
   const greetingOnly = BARE_GREETING.test(params.userMessage.trim())
   const referencesHistory = CONTEXT_REFERENCE.test(params.userMessage)
+
+  // A regular who comes back days later («سلام دوباره، همون میزی که…») is
+  // neither a stranger nor mid-conversation: a real salesperson says a warm
+  // word of recognition, then continues exactly where they left off.
+  if (params.returningCustomer) {
+    return params.isFa
+      ? 'مشتری بعد از چند روز برگشته (سابقهٔ گفتگوی قبلی بالاتر آمده). اگر سلام کرده، با یک عبارت خیلی کوتاه و گرم مثل «سلام، خوش برگشتید» شروع کن و بلافاصله سراغ درخواستش برو؛ اگر به موضوع قبلی اشاره کرده، آن را با نام مشخص ادامه بده و دوباره نپرس منظورش چیست. خودت را دوباره معرفی نکن و موضوعی را که مشتری برنگردانده باز نکن. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
+      : 'The customer is returning after a few days (the previous conversation record is above). If they greeted you, open with a very short warm recognition such as “Welcome back”, then go straight to their request; if they refer to the earlier topic, continue it by name without asking what they mean. Do not introduce yourself again or reopen topics they did not bring back. Use emoji only when the agent format or brand voice explicitly allows it.'
+  }
 
   if (params.isFa) {
     if (hasPriorTurns) {

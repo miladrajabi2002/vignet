@@ -1,6 +1,6 @@
 import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
-import { enforceActionCapabilities, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
+import { enforceActionCapabilities, enforceNoFalseFollowUp, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/conversation-state'
 import { enforceHumanizerPolish } from '@/lib/agent-kernel/skills/humanizer-polish'
@@ -8,7 +8,9 @@ import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 
 export interface AgentSkillPostprocessContext {
   /** Trusted rows selected by the scoped catalog repository for this turn. */
-  catalogProducts?: Array<{ name: string; url?: string | null }>
+  catalogProducts?: Array<{ id?: string; name: string; url?: string | null }>
+  /** Products whose card the customer received in the last replies. */
+  establishedProductIds?: string[]
   /** Current customer text is required for deterministic capability guards. */
   userMessage?: string
   isFa?: boolean
@@ -25,6 +27,8 @@ export interface AgentSkillPostprocessContext {
   conversationState?: ConversationWorkingState | null
   /** Mutable per-turn trace sink owned by the caller. */
   continuityGuardCodes?: string[]
+  /** In-chat pre-orders are enabled for this agent. */
+  orderCaptureEnabled?: boolean
 }
 
 function normalizeIdentity(value: string): string {
@@ -39,12 +43,27 @@ function normalizeIdentity(value: string): string {
     .toLocaleLowerCase('fa')
 }
 
+/** Price, stock or spec claims — the only replies that need a named product. */
+const PRODUCT_FACT_RE = /[\d۰-۹]|تومان|تومن|ریال|موجود|قیمت|ابعاد|سایز|جنس|پارچه|price|stock|size|material/iu
+
 function ensureSingleProductIdentity(
   reply: string,
   context: AgentSkillPostprocessContext,
 ): string {
   if (context.catalogProducts?.length !== 1) return reply
+  // The customer is already looking at this product's card: repeating its
+  // long catalog name in front of every follow-up reads like a template.
+  const productId = context.catalogProducts[0]?.id
+  if (productId && context.establishedProductIds?.some((id) => id.split('#')[0] === productId)) return reply
+  // «حتماً، با خیال راحت تصمیم بگیرید» carries no product claim; prefixing
+  // it with «میز تلویزیون …:» reads like a template engine, not a person.
+  if (!PRODUCT_FACT_RE.test(reply)) return reply
   const name = context.catalogProducts[0]?.name.trim()
+  // Already named by its distinctive words («میز تلویزیون نقش … ۱۹۰»): a
+  // «Full Catalog Name: …» prefix on top of that reads like a template.
+  const nameTokens = normalizeIdentity(name ?? '').split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 3)
+  const replyText = ` ${normalizeIdentity(reply).replace(/[^\p{L}\p{N}]+/gu, ' ')} `
+  if (nameTokens.filter((token) => replyText.includes(` ${token} `)).length >= 3) return reply
   if (!name || normalizeIdentity(reply).includes(normalizeIdentity(name))) return reply
   return `${name}: ${reply}`
 }
@@ -73,7 +92,9 @@ export function runAgentSkillPostprocessors(
       orderUrl: orderUrlFromCatalog(context),
       hasGroundedOrder: context.hasGroundedOrder ?? false,
       preferStructuredProductLink: context.preferStructuredProductLink ?? false,
+      orderCaptureEnabled: context.orderCaptureEnabled ?? false,
     })
+    output = enforceNoFalseFollowUp(output, context.isFa ?? true)
   }
   if (hasAgentSkill(plan, 'visual-reference-grounding') && context.userMessage) {
     output = enforceVisualReferenceGrounding({

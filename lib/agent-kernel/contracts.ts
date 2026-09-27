@@ -50,6 +50,10 @@ export interface AgentSkillPlanInput {
   hasConversationState?: boolean
   /** Verified media on the current inbound event, never inferred from prose. */
   inboundMediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
+  /** First turns of a new session after an idle gap, with a previous-session digest. */
+  returningCustomer?: boolean
+  /** The agent can file in-chat pre-orders (changes the capability boundary). */
+  orderCaptureEnabled?: boolean
 }
 
 export interface AgentSkillPlan {

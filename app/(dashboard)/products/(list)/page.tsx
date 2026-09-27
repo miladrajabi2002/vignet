@@ -216,6 +216,7 @@ export default async function ProductsPage(
         active="products"
         productsLabel={t('title')}
         ordersLabel={t('orders.title')}
+        requestsLabel={t('orders.requestsTab')}
       />
 
       {!productCapacity.allowed && (

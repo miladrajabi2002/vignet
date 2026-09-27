@@ -78,6 +78,8 @@ model Workspace {
   conversationTurnLeases   ConversationTurnLease[]
   knowledgeApprovals       KnowledgeApproval[]
   loginEvents              LoginEvent[]
+  orderDrafts              OrderDraft[]
+  restockAlerts            RestockAlert[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -223,6 +225,14 @@ model Agent {
   orderTrackingEnabled    Boolean  @default(true)
   productAccessConfigured Boolean  @default(false)
   orderTrackingConfigured Boolean  @default(false)
+  // ─ In-chat pre-order capture: the agent collects product, quantity, name,
+  //   phone and address in the conversation, shows a summary, and on the
+  //   customer's confirmation files an OrderDraft + operator handoff. Off by
+  //   default so stores that sell only through their website keep that path.
+  orderCaptureEnabled     Boolean  @default(false)
+  // ─ «موجود شد خبرم کن»: out-of-stock replies offer a back-in-stock alert and
+  //   the worker messages the customer when the product is available again.
+  restockAlertsEnabled    Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -243,6 +253,8 @@ model Agent {
   improvementRuns             ImprovementRun[]
   improvementSuggestions      ImprovementSuggestion[]
   skillFindings               SkillFinding[]
+  orderDrafts                 OrderDraft[]
+  restockAlerts               RestockAlert[]
 
   @@index([workspaceId])
 }
@@ -460,6 +472,7 @@ model Product {
   sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
   category          ProductCategory?  @relation(fields: [categoryId], references: [id])
   catalogItems      AgentCatalog[]
+  restockAlerts     RestockAlert[]
 
   // External source identity is authoritative. SKU remains indexed for search
   // and one-time adoption of catalog rows created before source IDs existed.
@@ -505,10 +518,14 @@ model KnowledgeBase {
   chunkCount           Int       @default(0)
   errorMsg             String?
   // ─ F4: freshness tracking. For URL sources, lastIngestedAt records when the
-  //   content was last re-fetched and re-embedded. refreshIntervalHours controls
-  //   the automatic re-crawl cadence (0 = manual only).
+  //   content is last re-fetched and re-embedded. The automatic re-crawl
+  //   cadence is refreshIntervalMinutes when set (> 0), else
+  //   refreshIntervalHours * 60 (0 = manual only). Minutes exist because
+  //   fast-moving sources (price lists, availability pages) need 15/30-min
+  //   cadences the hourly Int column cannot express.
   lastIngestedAt       DateTime?
   refreshIntervalHours Int       @default(0)
+  refreshIntervalMinutes Int?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -693,6 +710,8 @@ model Conversation {
   workingState       ConversationState?
   improvementReviews ImprovementReview[]
   skillFindings       SkillFinding[]
+  orderDrafts        OrderDraft[]
+  restockAlerts      RestockAlert[]
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
@@ -1458,6 +1477,84 @@ model HandoffAlert {
   @@index([workspaceId, state])
   @@index([conversationId])
   @@index([agentId])
+}
+
+// ─── IN-CHAT ORDER DRAFT ─────────────────────────────────────────────
+//   A pre-order the agent collected inside the conversation. The agent never
+//   takes payment or confirms stock reservations: a SUBMITTED draft is a
+//   structured request that an operator confirms (payment, shipping) — the
+//   customer is told exactly that. One active draft per conversation.
+//   COLLECTING → AWAITING_CONFIRM → SUBMITTED → CONFIRMED | CANCELLED
+//   (a stale COLLECTING/AWAITING_CONFIRM draft becomes EXPIRED).
+model OrderDraft {
+  id             String      @id @default(cuid())
+  workspaceId    String
+  agentId        String
+  conversationId String
+  contactId      String?
+  channel        ChannelType
+  // Short reference shared with the customer and the operator («A7K2Q9»).
+  code           String      @unique
+  status         String      @default("COLLECTING")
+  // [{ productId, variationId, name, variant, quantity, unitPrice, url }]
+  items          Json
+  customerName   String?
+  customerPhone  String?
+  city           String?
+  address        String?     @db.Text
+  postalCode     String?
+  note           String?     @db.Text
+  total          Float?
+  // The slot the agent asked for last; drives contextual parsing of replies.
+  expecting      String?
+  handoffAlertId String?
+  submittedAt    DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([conversationId, status])
+}
+
+// ─── BACK-IN-STOCK ALERT ─────────────────────────────────────────────
+//   «موجود شد خبرم کن». Created only on the customer's explicit request for
+//   a product (or one variation) that is sold out. The worker sweep messages
+//   the customer on their own channel once it is available again; channels
+//   that cannot deliver (closed Instagram window, web visitors) become
+//   NEEDS_FOLLOW_UP for the store team instead of silently failing.
+model RestockAlert {
+  id             String      @id @default(cuid())
+  workspaceId    String
+  agentId        String
+  conversationId String
+  contactId      String?
+  channel        ChannelType
+  productId      String
+  variationId    Int?
+  productName    String
+  variantLabel   String?
+  // conversationId:productId:variationId — one alert per item per thread.
+  dedupeKey      String      @unique
+  // ACTIVE | NOTIFIED | NEEDS_FOLLOW_UP | CANCELLED | EXPIRED
+  status         String      @default("ACTIVE")
+  lastError      String?
+  notifiedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([workspaceId, status])
+  @@index([productId, status])
 }
 
 // ─── STORE INTEGRATION (F2) ──────────────────────────────────────────

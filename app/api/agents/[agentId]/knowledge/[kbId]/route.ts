@@ -32,6 +32,7 @@ async function ownKb(workspaceId: string, agentId: string, kbId: string) {
       sourceText: true,
       sourceUrl: true,
       refreshIntervalHours: true,
+      refreshIntervalMinutes: true,
       status: true,
     },
   })
@@ -63,6 +64,7 @@ export async function GET(_req: Request, props: Params) {
       type: kb.type,
       sourceUrl: kb.sourceUrl,
       refreshIntervalHours: kb.refreshIntervalHours,
+      refreshIntervalMinutes: kb.refreshIntervalMinutes,
       status: kb.status,
       content,
     },
@@ -112,6 +114,7 @@ export async function PATCH(req: Request, props: Params) {
   // URL fields
   let sourceUrl: string | undefined
   let refreshIntervalHours: number | undefined
+  let refreshIntervalMinutes: number | undefined
   if (kb.type === 'URL') {
     if (typeof json.url === 'string') {
       sourceUrl = json.url.trim()
@@ -132,6 +135,13 @@ export async function PATCH(req: Request, props: Params) {
       refreshIntervalHours =
         Number.isFinite(rawHours) && rawHours >= 0 && rawHours <= 168
           ? Math.floor(rawHours)
+          : 0
+    }
+    if (json.refreshIntervalMinutes !== undefined) {
+      const rawMinutes = Number(json.refreshIntervalMinutes)
+      refreshIntervalMinutes =
+        Number.isFinite(rawMinutes) && rawMinutes >= 5 && rawMinutes <= 59
+          ? Math.floor(rawMinutes)
           : 0
     }
   }
@@ -156,6 +166,12 @@ export async function PATCH(req: Request, props: Params) {
       refreshIntervalHours !== kb.refreshIntervalHours
     ) {
       data.refreshIntervalHours = refreshIntervalHours
+    }
+    if (
+      refreshIntervalMinutes !== undefined &&
+      refreshIntervalMinutes !== kb.refreshIntervalMinutes
+    ) {
+      data.refreshIntervalMinutes = refreshIntervalMinutes
     }
   }
   const textChanged =
@@ -188,6 +204,7 @@ export async function PATCH(req: Request, props: Params) {
       type: true,
       sourceUrl: true,
       refreshIntervalHours: true,
+      refreshIntervalMinutes: true,
       status: true,
     },
   })

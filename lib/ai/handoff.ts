@@ -349,8 +349,18 @@ export async function shouldHandoff(
 }
 
 export function handoffReplyText(decision: HandoffDecision, agent: ChatAgent): string {
-        if (agent.handoffMessage) return agent.handoffMessage
         const english = agent.language.toLowerCase().startsWith('en')
+        if (agent.handoffMessage) {
+                // A workspace's single custom transfer line («این مورد نیاز به
+                // بررسی دقیق‌تر داره…») reads cold to an upset customer with a
+                // broken product. Keep the owner's wording, but open with one
+                // human sentence when the trigger was distress or an order issue.
+                const upset = decision.reasonCodes.some((code) => code === 'DISTRESS' || code === 'ORDER_ISSUE' || code === 'HIGH_RISK')
+                if (upset && !/(?:متأسف|متاسف|ببخشید|عذر|sorry|apolog)/iu.test(agent.handoffMessage)) {
+                        return `${english ? 'I’m really sorry about this.' : 'واقعاً متأسفم که این پیش اومده.'} ${agent.handoffMessage}`
+                }
+                return agent.handoffMessage
+        }
         if (decision.code === 'EXPLICIT_REQUEST') {
                 return english
                         ? 'Of course. I’ll transfer this conversation with a summary to a human specialist, so you won’t need to repeat the details.'
@@ -392,8 +402,9 @@ export async function notifyHandoff(params: {
         contactPhone: string | null
         reason: string
         summary?: string | null
-}): Promise<void> {
-        await createHandoffAlert({
+        kind?: 'handoff' | 'order'
+}): Promise<string | null> {
+        return createHandoffAlert({
                 workspaceId: params.workspaceId,
                 conversationId: params.conversationId,
                 agentId: params.agentId,
@@ -404,5 +415,6 @@ export async function notifyHandoff(params: {
                 contactPhone: params.contactPhone,
                 reason: params.reason,
                 summary: params.summary,
-        }).catch(() => {})
+                kind: params.kind,
+        }).catch(() => null)
 }

@@ -130,7 +130,7 @@ const NAME_STOPWORDS = new Set(
 )
 
 /** A candidate looks like a real person's name: 1–3 words, none of them intent words. */
-function looksLikePersonName(candidate: string): boolean {
+export function looksLikePersonName(candidate: string): boolean {
 	const words = candidate.split(/\s+/).filter(Boolean)
 	if (!words.length || words.length > 3) return false
 	return !words.some((w) =>

@@ -26,82 +26,93 @@ import { processIngestion } from '@/lib/knowledge/ingest'
  * Returns the new chunk count for caller convenience (e.g. display in UI).
  */
 export async function crawlUrlToKnowledge(
-	_workspaceId: string,
-	_agentId: string,
-	kbId: string,
-	url: string,
+        _workspaceId: string,
+        _agentId: string,
+        kbId: string,
+        url: string,
 ): Promise<{ chunkCount: number }> {
-	// Persist the (possibly new) source URL before ingesting so processIngestion
-	// sees the up-to-date value when it resolves the URL text.
-	await prisma.knowledgeBase.update({
-		where: { id: kbId },
-		data: { sourceUrl: url, status: 'PROCESSING', errorMsg: null },
-	})
+        // Persist the (possibly new) source URL before ingesting so processIngestion
+        // sees the up-to-date value when it resolves the URL text.
+        await prisma.knowledgeBase.update({
+                where: { id: kbId },
+                data: { sourceUrl: url, status: 'PROCESSING', errorMsg: null },
+        })
 
-	// processIngestion resolves the URL text via parseUrl, chunks it, embeds
-	// the chunks, and updates KB.status + KB.chunkCount.
-	await processIngestion({ kbId })
+        // processIngestion resolves the URL text via parseUrl, chunks it, embeds
+        // the chunks, and updates KB.status + KB.chunkCount.
+        await processIngestion({ kbId })
 
-	// Stamp the freshness marker. Do this after a successful ingest only.
-	await prisma.knowledgeBase.update({
-		where: { id: kbId },
-		data: { lastIngestedAt: new Date() },
-	})
+        // Stamp the freshness marker. Do this after a successful ingest only.
+        await prisma.knowledgeBase.update({
+                where: { id: kbId },
+                data: { lastIngestedAt: new Date() },
+        })
 
-	const kb = await prisma.knowledgeBase.findUnique({
-		where: { id: kbId },
-		select: { chunkCount: true },
-	})
-	return { chunkCount: kb?.chunkCount ?? 0 }
+        const kb = await prisma.knowledgeBase.findUnique({
+                where: { id: kbId },
+                select: { chunkCount: true },
+        })
+        return { chunkCount: kb?.chunkCount ?? 0 }
 }
 
 /**
- * Walk every URL knowledge base with a non-zero `refreshIntervalHours` and
- * re-crawl any whose `lastIngestedAt` is null or older than its interval.
- * Returns the number of KBs actually refreshed (skipped ones don't count).
+ * Walk every URL knowledge base with a non-zero refresh cadence and re-crawl
+ * any whose `lastIngestedAt` is older than its interval. The cadence is
+ * `refreshIntervalMinutes` when set (fast-moving price/availability pages),
+ * else `refreshIntervalHours * 60` (legacy column). Returns the number of KBs
+ * actually refreshed (skipped ones don't count).
  *
- * Called from `worker/scheduler.ts` on an hourly tick. Errors are logged and
- * swallowed per-KB so the sweep continues.
+ * Called from `worker/scheduler.ts` on a 5-minute tick; the staleness check
+ * below gates all real work, so sub-hour cadences (15/30 min) fire close to
+ * their schedule while hourly+ sources still crawl at most once per hour.
+ * Errors are logged and swallowed per-KB so the sweep continues.
  */
 export async function refreshStaleUrlKnowledge(): Promise<{ refreshed: number }> {
-	const candidates = await prisma.knowledgeBase.findMany({
-		where: {
-			type: 'URL',
-			refreshIntervalHours: { gt: 0 },
-		},
-		select: {
-			id: true,
-			workspaceId: true,
-			agentId: true,
-			sourceUrl: true,
-			lastIngestedAt: true,
-			refreshIntervalHours: true,
-		},
-		take: 500,
-	})
+        const candidates = await prisma.knowledgeBase.findMany({
+                where: {
+                        type: 'URL',
+                        OR: [
+                                { refreshIntervalMinutes: { gt: 0 } },
+                                { refreshIntervalHours: { gt: 0 } },
+                        ],
+                },
+                select: {
+                        id: true,
+                        workspaceId: true,
+                        agentId: true,
+                        sourceUrl: true,
+                        lastIngestedAt: true,
+                        refreshIntervalHours: true,
+                        refreshIntervalMinutes: true,
+                },
+                take: 500,
+        })
 
-	const now = Date.now()
-	let refreshed = 0
+        const now = Date.now()
+        let refreshed = 0
 
-	for (const kb of candidates) {
-		if (!kb.sourceUrl) continue
-		const staleMs = kb.refreshIntervalHours * 60 * 60 * 1000
-		const lastMs = kb.lastIngestedAt ? kb.lastIngestedAt.getTime() : 0
-		if (lastMs > 0 && now - lastMs < staleMs) continue // not stale yet
+        for (const kb of candidates) {
+                if (!kb.sourceUrl) continue
+                const staleMs =
+                        (kb.refreshIntervalMinutes && kb.refreshIntervalMinutes > 0
+                                ? kb.refreshIntervalMinutes
+                                : kb.refreshIntervalHours * 60) * 60 * 1000
+                const lastMs = kb.lastIngestedAt ? kb.lastIngestedAt.getTime() : 0
+                if (lastMs > 0 && now - lastMs < staleMs) continue // not stale yet
 
-		try {
-			await crawlUrlToKnowledge(kb.workspaceId, kb.agentId, kb.id, kb.sourceUrl)
-			refreshed++
-		} catch (e) {
-			console.error(
-				`[crawler] refresh failed for KB ${kb.id} (${kb.sourceUrl}):`,
-				e instanceof Error ? e.message : e,
-			)
-		}
-	}
+                try {
+                        await crawlUrlToKnowledge(kb.workspaceId, kb.agentId, kb.id, kb.sourceUrl)
+                        refreshed++
+                } catch (e) {
+                        console.error(
+                                `[crawler] refresh failed for KB ${kb.id} (${kb.sourceUrl}):`,
+                                e instanceof Error ? e.message : e,
+                        )
+                }
+        }
 
-	if (refreshed > 0) {
-		console.log(`[crawler] refreshed ${refreshed} stale URL knowledge base(s)`)
-	}
-	return { refreshed }
+        if (refreshed > 0) {
+                console.log(`[crawler] refreshed ${refreshed} stale URL knowledge base(s)`)
+        }
+        return { refreshed }
 }

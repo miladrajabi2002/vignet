@@ -135,6 +135,8 @@ export const agentCreateSchema = z.object({
   customerInfoPrompt: z.string().max(1000).nullable().optional(),
   productAccessEnabled: z.boolean().optional(),
   orderTrackingEnabled: z.boolean().optional(),
+  orderCaptureEnabled: z.boolean().optional(),
+  restockAlertsEnabled: z.boolean().optional(),
 })
 
 export const agentUpdateSchema = agentCreateSchema.partial().extend({
