@@ -8,7 +8,8 @@
  * into the app without touching page logic:
  *   ط۱  .ui-seg / .ui-seg-tab      segmented tabs (grey track, white pill)
  *   ط۲  --focus-ring, press timing  one focus ring and one press feel
- *   ط۳  --signal*                   violet reserved for live / AI states
+ *   ط۳  --signal*                   iris violet reserved for live / AI states
+ *       --notif*                    gold reserved for notifications
  *   ط۴  --text-muted / --text-hint  darker greys that pass contrast
  *   ط۵  .ui-chip                    status chips (ok / warn / danger / live / signal / neutral)
  *   ط۱۳ no backdrop blur on phones
@@ -22,11 +23,19 @@
 	--text-hint: #8c8780;
 
 	/* ط۳ — violet signal, reserved for live / AI / "happening now" states. */
-	--signal: #6e56cf;
-	--signal-strong: #5746af;
-	--signal-soft: #f5f3fd;
-	--signal-tint: #ebe7fa;
-	--signal-border: rgba(110, 86, 207, 0.22);
+	--signal: #5b3de8;
+	--signal-strong: #4c2fd0;
+	--signal-soft: #f3f1ff;
+	--signal-tint: #e6e1ff;
+	--signal-border: rgba(91, 61, 232, 0.22);
+	/* Notifications get their own gold so they never read as a nav count or
+	   an AI state. Text on --notif is always ink; --notif-strong is the
+	   ring around the dot and the only gold allowed as text (5.4:1 on white). */
+	--notif: #f2b705;
+	--notif-strong: #8a6300;
+	--notif-ink: #111111;
+	--notif-soft: #fffbeb;
+	--notif-tint: #fef6d8;
 	--ok: #15803d;
 	--ok-soft: #dcfce7;
 	--ok-ink: #166534;
@@ -36,11 +45,11 @@
 	--danger-ink: #b91c1c;
 
 	/* ط۲ — one focus ring for every interactive element. */
-	--focus-ring: #6e56cf;
+	--focus-ring: #5b3de8;
 	/* Form fields show "you're typing here" with an ink border and a violet
 	   halo; green stays free to mean "this value is accepted". */
 	--focus-field: #111111;
-	--focus-field-halo: rgba(110, 86, 207, 0.22);
+	--focus-field-halo: rgba(91, 61, 232, 0.22);
 
 	/* ط۱۶ — one easing curve for site and app (both were this exact curve). */
 	--vg-ease-out: var(--ease-spatial, cubic-bezier(.23, 1, .32, 1));

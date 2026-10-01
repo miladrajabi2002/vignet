@@ -1,17 +1,17 @@
 import type { Config } from 'tailwindcss'
 
-const LAVENDER = {
-  50: '#f5f3fd',
-  100: '#ebe7fa',
-  200: '#ddd6f6',
-  300: '#c7bdf0',
-  400: '#aa99ec',
-  500: '#8b76dc',
-  600: '#6e56cf',
-  700: '#5746af',
-  800: '#463a8e',
-  900: '#372e6e',
-  950: '#231d47',
+const IRIS = {
+  50: '#f3f1ff',
+  100: '#e6e1ff',
+  200: '#d5cdff',
+  300: '#b9adff',
+  400: '#9685fb',
+  500: '#765ff2',
+  600: '#5b3de8',
+  700: '#4c2fd0',
+  800: '#3d27a6',
+  900: '#302080',
+  950: '#1e1452',
 }
 
 const config: Config = {
@@ -46,17 +46,17 @@ const config: Config = {
         // Public-site palette (marketing redesign). Ink is the primary action,
         // signal violet marks data flow, `sub` (#55524C) is the lightest grey
         // allowed for body copy so it keeps 4.5:1 on the #F5F5F3 canvas.
-        // One calm lavender for every violet/purple utility (palette option D),
+        // One iris for every violet/purple utility (palette option C),
         // so stray Tailwind violet-*/purple-* classes can't drift from --signal.
         // 600 = --signal, 700 = --signal-strong, 100 = --signal-tint, 50 = --signal-soft.
-        violet: LAVENDER,
-        purple: LAVENDER,
+        violet: IRIS,
+        purple: IRIS,
         vg: {
           bg: '#f5f5f3',
           ink: '#111111',
-          signal: '#6e56cf',
-          soft: '#ebe7fa',
-          tint: '#f5f3fd',
+          signal: '#5b3de8',
+          soft: '#e6e1ff',
+          tint: '#f3f1ff',
           sub: '#55524c',
           cap: '#6f6a64',
           dim: '#8c8780',
