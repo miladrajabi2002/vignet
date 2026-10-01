@@ -58,7 +58,7 @@ export function ConversationMobileLayout({
         role="tablist"
         aria-orientation="horizontal"
         aria-label={locale === 'fa' ? 'بخش‌های گفتگو' : 'Conversation sections'}
-        className="ui-seg ui-seg-solid sticky top-[4rem] z-20 grid-cols-2 lg:hidden"
+        className="ui-seg ui-seg-solid sticky top-[5.35rem] z-20 grid-cols-2 lg:hidden"
       >
         {tabs.map(({ key, label, icon: Icon }, index) => (
           <button

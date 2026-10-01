@@ -58,15 +58,15 @@ function HeaderPlan({
       dir={fa ? 'rtl' : 'ltr'}
       aria-label={billingLabel}
       className={cn(
-        'group flex min-w-0 items-center rounded-control border border-black/[0.08] bg-white text-[var(--text-primary)] outline-none transition-[border-color,background-color] duration-200 hover:border-black/[0.18] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 motion-reduce:transition-none',
+        'spatial-press group flex min-w-0 items-center border border-black/[0.08] bg-white/90 text-[var(--text-primary)] shadow-[var(--elev-1)] outline-none transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.15] hover:shadow-[var(--elev-1)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:transform-none motion-reduce:active:transform-none',
         compact
-          ? 'h-11 w-full max-w-[16rem] gap-2 px-1.5 pe-2.5'
-          : 'h-11 w-[14rem] gap-2.5 px-2 pe-2.5 lg:w-[14.5rem]',
+          ? 'h-12 w-full max-w-[16rem] gap-2 rounded-control px-1.5 pe-2.5'
+          : 'h-14 w-[14rem] gap-2.5 rounded-card px-3 lg:w-[14.5rem] xl:h-[4.25rem] xl:w-[16rem] xl:rounded-card xl:px-3.5',
       )}
     >
       <span className={cn(
         'relative grid shrink-0 place-items-center',
-        'h-9 w-9',
+        compact ? 'h-9 w-9' : 'h-10 w-10 xl:h-12 xl:w-12',
       )}>
         <svg aria-hidden="true" viewBox="0 0 44 44" className="absolute inset-0 h-full w-full -rotate-90">
           <circle cx="22" cy="22" r="19" fill="none" strokeWidth="2" className="stroke-black/[0.09]" />
@@ -93,21 +93,21 @@ function HeaderPlan({
         </svg>
         <span className={cn(
           'grid place-items-center rounded-full border shadow-[var(--shadow-xs)]',
-          'h-7 w-7',
+          compact ? 'h-7 w-7' : 'h-8 w-8 xl:h-9 xl:w-9',
           expired
             ? 'border-red-200 bg-red-50 text-red-700'
             : isTrial
               ? 'border-amber-200/80 bg-amber-50 text-amber-700'
               : 'border-black/[0.06] bg-[var(--bg-surface)] text-black',
         )}>
-          <PlanIcon aria-hidden="true" className="h-3.5 w-3.5 stroke-[1.9]" />
+          <PlanIcon aria-hidden="true" className={cn('stroke-[1.9]', compact ? 'h-3.5 w-3.5' : 'h-4 w-4 xl:h-[1.05rem] xl:w-[1.05rem]')} />
         </span>
       </span>
 
       <span className="min-w-0 flex-1">
         <span className={cn(
           'flex min-w-0 items-center font-bold text-[var(--text-primary)]',
-          compact ? 'text-[12px] leading-4' : 'text-[13px] leading-4',
+          compact ? 'text-[12px] leading-4' : 'text-[13px] leading-4 xl:text-[15px] xl:leading-5',
         )}>
           <span className="truncate">{planTitle}</span>
           <span className="ms-1.5 inline-flex shrink-0 items-center gap-1" aria-label={statusLabel}>
@@ -133,7 +133,7 @@ function HeaderPlan({
 
         <span className={cn(
           'block min-w-0 truncate whitespace-nowrap text-[12px] leading-4 text-[var(--text-muted)]',
-          'mt-0.5',
+          compact ? 'mt-0.5' : 'mt-1 xl:text-[12px]',
         )}>
           <span className="font-bold tabular-nums text-[var(--text-secondary)]">{nf.format(creditToman)}</span>
           <span className="ms-1">{fa ? 'تومان' : 'toman'}</span>
@@ -148,7 +148,7 @@ function HeaderPlan({
 
       {!compact && (
         <span className="flex shrink-0 items-center text-[var(--text-secondary)]">
-          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
+          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none rtl:rotate-180 rtl:group-hover:-translate-x-0.5 xl:h-[1.1rem] xl:w-[1.1rem]" />
         </span>
       )}
     </Link>
@@ -206,12 +206,10 @@ export async function Header({
     : getVerticalPack(businessType).titleEn
 
   return (
-    // A flat bar on the canvas: only the page content below is a card, so the
-    // chrome never competes with it. The hairline separates it while scrolling.
-    <header data-dashboard-header className="dashboard-shell-content sticky top-0 z-30 border-b border-[var(--border-default)] bg-[var(--bg-base)]/90 backdrop-blur-xl [padding-top:env(safe-area-inset-top)] supports-[backdrop-filter:none]:bg-[var(--bg-base)]">
-      {impersonatedUserName && <div className="pt-2"><ImpersonationBanner userName={impersonatedUserName} /></div>}
-      <div className="mx-auto flex min-h-14 max-w-[108rem] items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3.5">
+    <header className="dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]">
+      {impersonatedUserName && <ImpersonationBanner userName={impersonatedUserName} />}
+      <div className="mx-auto flex min-h-[4.5rem] max-w-[112rem] items-center justify-between gap-3 rounded-card border border-black/[0.07] bg-white/[0.76] px-3 shadow-[var(--elev-1)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/[0.92] sm:px-4 xl:min-h-[5.5rem] xl:rounded-sheet xl:px-5">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3.5 xl:gap-4">
           {/* On phones the plan card takes the start slot so it gets the full free width. */}
           <div className="min-w-0 flex-1 sm:hidden">
             <HeaderPlan
@@ -232,10 +230,10 @@ export async function Header({
           </div>
           <MobileNav businessType={businessType} capabilities={capabilities} handedOffCount={handedOffCount} instagramConnected={instagramConnected} />
           <div className="hidden min-w-0 sm:block md:hidden lg:block">
-            <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)]">
+            <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)] xl:text-[15px] xl:leading-6">
               {name ? t('greeting', { name }) : t('welcome')}
             </div>
-            <div className="mt-0.5 hidden items-center gap-2 text-[12px] leading-4 text-[var(--text-muted)] sm:flex">
+            <div className="mt-1 hidden items-center gap-2 text-[12px] leading-4 text-[var(--text-muted)] sm:flex xl:mt-1.5 xl:text-xs">
               <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.08)]" />
               <span className="sr-only">{fa ? 'سامانه فعال است' : 'System online'}</span>
               <span className="truncate">
@@ -245,7 +243,7 @@ export async function Header({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-1">
+        <div className="flex shrink-0 items-center justify-end gap-1.5 xl:gap-2.5">
           <div className="hidden sm:block">
             <HeaderPlan
               fa={fa}
@@ -268,9 +266,9 @@ export async function Header({
             <button
               type="submit"
               aria-label={t('logout')}
-              className="hidden h-10 w-10 items-center justify-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:inline-flex"
+              className="spatial-press hidden h-12 w-12 items-center justify-center rounded-card border border-black/[0.07] bg-white/80 text-[var(--text-muted)] shadow-[var(--elev-1)] hover:border-black/[0.12] hover:bg-white hover:text-[var(--text-primary)] sm:inline-flex xl:h-14 xl:w-14 xl:rounded-card"
             >
-              <LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" />
+              <LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180 xl:h-[1.15rem] xl:w-[1.15rem]" />
             </button>
           </form>
         </div>

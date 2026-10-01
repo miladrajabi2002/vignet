@@ -73,7 +73,7 @@ export function SettingsMobileTabs({
 
   return (
     <div className="space-y-6">
-      <div ref={barRef} className="sticky top-[4rem] z-30 -mx-1 md:hidden">
+      <div ref={barRef} className="sticky top-[5.25rem] z-30 -mx-1 md:hidden">
       <div role="tablist" aria-label={navigationLabel} className="ui-seg ui-seg-solid grid-cols-3">
           {tabs.map(({ key, icon: Icon }, index) => (
             <button

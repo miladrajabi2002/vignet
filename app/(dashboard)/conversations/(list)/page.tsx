@@ -416,7 +416,7 @@ export default async function ConversationsPage(props: {
 
                         {/* ─── Filters: search + status + channel + agent (handed-off prioritized) ─── */}
                         <Suspense fallback={<div className="h-16 rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
-                        <div className="sticky top-[4rem] z-20 md:static md:z-auto">
+                        <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
                         <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
                         <ConversationFilters
                                 isFa={isFa}

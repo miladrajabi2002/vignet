@@ -55,18 +55,18 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
         }, [businessType])
 
         return (
-                <aside className="sticky top-0 hidden h-dvh w-[16.5rem] shrink-0 flex-col border-e border-[var(--border-default)] px-3 pb-3 pt-2 md:flex">
+                <aside className="spatial-surface sticky top-3 m-3 me-0 hidden h-[calc(100dvh-1.5rem)] w-[17rem] shrink-0 flex-col rounded-sheet p-3 md:flex">
                         {/* Logo — clean, no box */}
                         <Link
                                 href="/"
                                 aria-label={t('overview')}
-                                className="mb-2 flex min-h-12 items-center px-3"
+                                className="mb-3 flex min-h-12 items-center justify-center px-2"
                         >
                                 <Logo priority className="h-7 w-28" />
                         </Link>
 
                         {/* The assistant shortcut is the rail's only ink block; the active
-                            page is a raised white row so the two never compete. */}
+                            page is an ink-tinted row so the two never compete. */}
                         <Link
                                 href="/vigento"
                                 className="spatial-press mb-3 flex min-h-12 items-center gap-3 rounded-control bg-[#111] px-3.5 text-[13.5px] font-medium text-white shadow-[var(--shadow-control)]"
@@ -91,12 +91,12 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                                                                         href={href}
                                                                         aria-current={active ? 'page' : undefined}
                                                                         className={cn(
-                                                                                'group flex min-h-10 items-center gap-2.5 rounded-control px-3 py-1.5 text-[13.5px] transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98]',
-                                                                                // The rail has no card of its own, so the current page is the
-                                                                                // one raised white row: ink label, ink icon, ink count.
+                                                                                'group flex min-h-10 items-center gap-2.5 rounded-control px-3 py-1.5 text-[13.5px] transition-[background-color,color,transform] duration-150 active:scale-[0.98]',
+                                                                                // The rail is a white card, so the current page is an ink-tinted
+                                                                                // row with a bold ink label and icon.
                                                                                 active
-                                                                                        ? 'bg-white font-bold text-[var(--text-primary)] shadow-[var(--elev-1)] ring-1 ring-black/[0.06]'
-                                                                                        : 'text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]',
+                                                                                        ? 'bg-black/[0.07] font-bold text-[var(--text-primary)]'
+                                                                                        : 'text-[var(--text-secondary)] hover:bg-black/[0.035] hover:text-[var(--text-primary)]',
                                                                         )}
                                                                 >
                                                                         <Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} strokeWidth={active ? 2.2 : 1.9} />
@@ -121,7 +121,7 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                         <form action={logout} className="mt-2 border-t border-[var(--border-default)] pt-2">
                                 <button
                                         type="submit"
-                                        className="flex min-h-10 w-full items-center gap-2.5 rounded-control px-3 py-2 text-[13.5px] text-[var(--text-muted)] transition-colors duration-150 hover:bg-black/[0.045] hover:text-[var(--text-primary)]"
+                                        className="flex min-h-10 w-full items-center gap-2.5 rounded-control px-3 py-2 text-[13.5px] text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
                                 >
                                         <LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" />
                                         {t('logout')}

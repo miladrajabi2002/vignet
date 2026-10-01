@@ -44,7 +44,7 @@ export function SupportButton() {
         onClick={() => setOpen(true)}
         aria-label={fa ? 'پشتیبانی ویجنت' : 'Vigent support'}
         title={fa ? 'پشتیبانی' : 'Support'}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        className="spatial-press inline-flex h-12 w-12 items-center justify-center rounded-card border border-black/[0.07] bg-white/80 text-[var(--text-muted)] shadow-[var(--elev-1)] transition-colors hover:border-black/[0.12] hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 xl:h-14 xl:w-14 xl:rounded-card"
       >
         <Headphones aria-hidden="true" className="h-4 w-4" />
       </button>

@@ -409,7 +409,7 @@ export function ProductsToolbar({
 
   return (
     <>
-      <div className="sticky top-[4rem] z-20 md:static md:z-auto">
+      <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
         <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2 md:hidden">
             {searchField()}

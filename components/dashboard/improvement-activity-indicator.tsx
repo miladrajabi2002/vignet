@@ -81,7 +81,7 @@ export function ImprovementActivityIndicator() {
           animate={{ opacity: 1, y: 0, height: 'auto' }}
           exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6, height: 0 }}
           transition={{ duration: reduced ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto max-w-[108rem] overflow-hidden pb-2"
+          className="mx-auto mt-2 max-w-[112rem] overflow-hidden"
         >
           <Link
             href={href}

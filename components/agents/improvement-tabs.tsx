@@ -28,7 +28,7 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
 
   useEffect(() => setActive(initialActive), [initialActive])
   useEffect(() => {
-    const header = document.querySelector<HTMLElement>('[data-dashboard-header]')
+    const header = document.querySelector<HTMLElement>('.dashboard-shell-header')
     if (!header) return
     const updateOffset = () => container.current?.style.setProperty('--improvement-sticky-top', `${header.offsetHeight + 8}px`)
     updateOffset()
@@ -81,7 +81,7 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
       <div
         role="tablist"
         aria-label={isFa ? 'بخش‌های بهبود ایجنت' : 'Agent improvement sections'}
-        className="ui-seg ui-seg-solid sticky top-[var(--improvement-sticky-top,calc(env(safe-area-inset-top)+4rem))] z-20 grid-cols-3"
+        className="ui-seg ui-seg-solid sticky top-[var(--improvement-sticky-top,calc(max(0.75rem,env(safe-area-inset-top))+5rem))] z-20 grid-cols-3"
       >
         {tabs.map(({ key, label, icon: Icon }, index) => (
           <button

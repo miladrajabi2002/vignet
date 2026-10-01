@@ -386,7 +386,7 @@ export function ServiceStatTileSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the sticky services search bar (mobile wrapper included). */
 export function SearchBarSkeleton({ delay = 0, className }: { delay?: number; className?: string }) {
   return (
-    <div className={cn('sticky top-[4rem] z-20 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-2 shadow-sm backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none', className)}>
+    <div className={cn('sticky top-[5.25rem] z-20 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-2 shadow-sm backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none', className)}>
       <Skeleton delay={delay} className="h-11 w-full rounded-xl" />
     </div>
   )
@@ -408,7 +408,7 @@ export function EmptyDashedCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors SettingsMobileTabs: 3-pill tab bar (mobile only). */
 export function SettingsMobileTabsSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="sticky top-[4rem] z-30 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl md:hidden">
+    <div className="sticky top-[5.25rem] z-30 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl md:hidden">
       <div className="grid grid-cols-3 gap-1">
         {[0, 1, 2].map((index) => (
           <div key={index} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1">
@@ -730,7 +730,7 @@ export function ThreadCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the mobile 2-tab bar on the conversation detail page. */
 export function MobileTabBar2Skeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="sticky top-[4rem] z-20 grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-default)] bg-white/95 p-1 shadow-[var(--elev-1)] backdrop-blur-xl lg:hidden">
+    <div className="sticky top-[5.35rem] z-20 grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-default)] bg-white/95 p-1 shadow-[var(--elev-1)] backdrop-blur-xl lg:hidden">
       {[0, 1].map((index) => (
         <div key={index} className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3">
           <Skeleton delay={delay - index * 80} className="h-4 w-4 rounded-md" />

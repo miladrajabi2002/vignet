@@ -136,7 +136,7 @@ export function OrdersSearchForm({
         action="/products/orders"
         method="get"
         onSubmit={(event) => event.preventDefault()}
-        className="sticky top-[4rem] z-20 md:static md:z-auto"
+        className="sticky top-[5.35rem] z-20 md:static md:z-auto"
       >
         <div className="spatial-surface rounded-card !bg-white p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2 md:hidden">
