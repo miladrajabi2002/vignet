@@ -360,6 +360,7 @@ function TelegramScene({ locale }: { locale: SiteLocale }) {
 						<span key={key} className="relative rounded-lg bg-white/70 py-1.5 text-center text-[11px] font-medium text-[#1c6f9e] lg:text-[12px]">
 							{key}
 							{i === 1 ? <span className="vg-x1 absolute inset-0 rounded-lg bg-[#2aabee]/25" /> : null}
+							{i === 1 ? <span className="vg-cur vg-cur-step" style={{ '--vg-cur-at': 1 } as CSSProperties}><i /></span> : null}
 						</span>
 					))}
 				</div>

@@ -116,12 +116,15 @@ function Chip({ step, tone = 'ok', className, children }: { step?: number; tone?
 	return <span className={cn(step !== undefined && `vg-t${step}`, 'inline-flex h-7 w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-medium', TONES[tone], className)}>{children}</span>
 }
 
-/** A button being tapped: the ring blooms during `step`. */
+/** A button being tapped during `step`: the pointer glides on and presses, the ring blooms. */
 function Tap({ step }: { step: number }) {
 	return (
-		<span className={cn(`vg-x${step}`, 'pointer-events-none absolute inset-0 rounded-[inherit]')}>
-			<span className="vg-tap absolute inset-0 rounded-[inherit] border-2 border-vg-signal" />
-		</span>
+		<>
+			<span className={cn(`vg-x${step}`, 'pointer-events-none absolute inset-0 rounded-[inherit]')}>
+				<span className="vg-tap absolute inset-0 rounded-[inherit] border-2 border-vg-signal" />
+			</span>
+			<span className="vg-cur vg-cur-step" style={{ '--vg-cur-at': step } as CSSProperties}><i /></span>
+		</>
 	)
 }
 
