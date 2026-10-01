@@ -86,7 +86,10 @@ export function verifyAdminCredentialsDetailed(
         // اگر ADMIN_OWNER_PHONE در زمان لود ماژول خالی بوده (سرور قبل از تنظیم
         // .env استارت شده)، اینجا null است و لاگین همیشه شکست می‌خورد — راه‌حل:
         // ری‌استارت سرور.
-        if (!ownerPhone || !phone || !p) return fail('MISSING_ENV')
+        if (!ownerPhone || !p) return fail('MISSING_ENV')
+
+        // شماره‌ی خالی/نامعتبرِ فرم خطای ورودی است، نه پیکربندی سرور.
+        if (!phone) return fail('PHONE_INVALID')
 
         if (!safeEqual(phone, ownerPhone)) return fail('PHONE_MISMATCH')
 
