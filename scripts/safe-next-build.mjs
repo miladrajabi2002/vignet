@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -51,14 +51,19 @@ if (
 	process.exit(1)
 }
 
-function run(command, args) {
+function spawn(command, args, extraEnv = {}) {
 	const result = spawnSync(command, args, {
 		cwd: projectRoot,
-		env: process.env,
+		env: { ...process.env, ...extraEnv },
 		stdio: 'inherit',
 	})
 	if (result.error) throw result.error
-	if (result.status !== 0) process.exit(result.status ?? 1)
+	return result.status ?? 1
+}
+
+function run(command, args) {
+	const status = spawn(command, args)
+	if (status !== 0) process.exit(status)
 }
 
 run(process.execPath, [path.join(projectRoot, 'scripts/minify-widget.mjs')])
@@ -69,8 +74,41 @@ run(process.execPath, [path.join(projectRoot, 'scripts/minify-widget.mjs')])
 // restore the user's tsconfig byte-for-byte even when compilation fails.
 const tsconfigPath = path.join(projectRoot, 'tsconfig.json')
 const originalTsconfig = readFileSync(tsconfigPath)
+// Type-check in its own process before `next build`. Inside the build, the
+// checker ran on top of webpack's heap and was OOM-killed on the 8 GB host;
+// sequentially each phase fits. Generated route types of every .next* dir are
+// left out — `**/*.ts` would otherwise pull in ~220 files per retained release.
+const checkConfigPath = path.join(projectRoot, '.tsconfig.build-check.json')
+writeFileSync(
+	checkConfigPath,
+	`${JSON.stringify({
+		extends: './tsconfig.json',
+		compilerOptions: { incremental: false },
+		exclude: ['node_modules', '.next', '.next-*'],
+	}, null, 2)}\n`,
+)
+let typecheckStatus = 1
 try {
-	run(process.execPath, [require.resolve('next/dist/bin/next'), 'build'])
+	console.log('==> Type-checking (tsc --noEmit)')
+	typecheckStatus = spawn(process.execPath, [
+		require.resolve('typescript/bin/tsc'),
+		'-p',
+		checkConfigPath,
+		'--noEmit',
+	])
 } finally {
+	rmSync(checkConfigPath, { force: true })
+}
+if (typecheckStatus !== 0) process.exit(typecheckStatus)
+
+let buildStatus = 1
+try {
+	buildStatus = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'build'], {
+		// next.config.mjs skips its in-build type check only with this flag.
+		VIGENT_TYPES_CHECKED: '1',
+	})
+} finally {
+	// process.exit() inside the try would skip this, so exit only afterwards.
 	writeFileSync(tsconfigPath, originalTsconfig)
 }
+if (buildStatus !== 0) process.exit(buildStatus)

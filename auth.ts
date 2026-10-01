@@ -14,6 +14,9 @@ import { getRequestId } from '@/lib/observability/request-context'
 import { verifyAdminImpersonationGrant } from '@/lib/admin/impersonation'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 
+/** Effectively "lifetime" for the platform owner's own subscription. */
+const PLATFORM_OWNER_PLAN_END = new Date('2099-12-31T23:59:59Z')
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   logger: {
@@ -153,10 +156,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         if (user.platformRole === 'ADMIN') {
-          await prisma.workspace.update({
-            where: { id: user.workspaceId },
-            data: { excludeFromAdminReports: true },
-          })
+          // The platform owner's workspace is internal: a lifetime Business
+          // (سازمانی) plan, hidden from every admin list and report.
+          await prisma.$transaction([
+            prisma.workspace.update({
+              where: { id: user.workspaceId },
+              data: { excludeFromAdminReports: true, plan: 'BUSINESS' },
+            }),
+            prisma.subscription.upsert({
+              where: { workspaceId: user.workspaceId },
+              create: {
+                workspaceId: user.workspaceId,
+                plan: 'BUSINESS',
+                status: 'ACTIVE',
+                monthlyPrice: 0,
+                currentPeriodEnd: PLATFORM_OWNER_PLAN_END,
+              },
+              update: { plan: 'BUSINESS', status: 'ACTIVE', currentPeriodEnd: PLATFORM_OWNER_PLAN_END },
+            }),
+          ])
         }
 
         // Login report (گزارش ورود به پنل): one row per successful sign-in plus

@@ -66,6 +66,10 @@ export default auth((req) => {
 })
 
 export const config = {
+  // Node.js runtime (stable since Next 15.5). The app only ever runs on
+  // `next start` under Node, so the Edge sandbox bought nothing, and bundling
+  // next-auth for Edge produced a jose CompressionStream warning on every build.
+  runtime: 'nodejs',
   matcher: [
         '/login',
         '/overview/:path*',

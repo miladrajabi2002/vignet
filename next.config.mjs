@@ -151,6 +151,12 @@ const nextConfig = {
   experimental: {
     cpus: 1,
   },
+  // scripts/safe-next-build.mjs runs `tsc --noEmit` as a separate step first
+  // (type errors still fail the build); skipping the duplicate in-build check
+  // keeps the checker off webpack's heap, which is what got the build OOM-killed.
+  typescript: {
+    ignoreBuildErrors: process.env.VIGENT_TYPES_CHECKED === '1',
+  },
   // In Next.js 15+ `serverExternalPackages` is a top-level key (it was
   // previously under `experimental`). @ricky0123/vad-web pulls in
   // onnxruntime-web, which uses dynamic require() internally (ort.wasm.min.js)
@@ -161,6 +167,8 @@ const nextConfig = {
   // WASM runtime belongs.
   serverExternalPackages: ['onnxruntime-web', '@ricky0123/vad-web', 'ffmpeg-static'],
   images: {
+    // AVIF first (≈30-50% smaller than WebP for blog covers), WebP fallback.
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       // Supabase Storage signed URLs (product images, avatars)
       { protocol: 'https', hostname: '*.supabase.co' },
