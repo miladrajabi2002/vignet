@@ -16,8 +16,11 @@ import { displayPhone, normalizeIranianMobile, toEnglishDigits } from '@/lib/pho
 import { findIranianCity } from '@/lib/ai/fact-capture'
 import { looksLikePersonName } from '@/lib/ai/customer-identification'
 
-export type OrderSlot = 'product' | 'variant' | 'name' | 'phone' | 'address' | 'confirm'
-export type OrderDraftStatus = 'COLLECTING' | 'AWAITING_CONFIRM' | 'SUBMITTED' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
+export type OrderSlot = 'product' | 'variant' | 'name' | 'phone' | 'address' | 'shipping' | 'confirm'
+export type OrderDraftStatus =
+  | 'COLLECTING' | 'AWAITING_CONFIRM' | 'SUBMITTED' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
+  // In-chat checkout (payment link) lifecycle.
+  | 'LINK_SENT' | 'PAYMENT_PENDING' | 'PAYMENT_FAILED' | 'PAID' | 'ON_HOLD' | 'REFUNDED' | 'SUPERSEDED'
 export type OrderLang = 'fa' | 'en'
 
 export interface OrderDraftItem {
@@ -43,6 +46,10 @@ export interface OrderDraftState {
   postalCode: string | null
   note: string | null
   expecting: OrderSlot | null
+  /** Coupon codes the customer gave (validated by the store, never invented). */
+  coupons?: string[]
+  /** Store shipping rate the customer picked (or the store's only rate). */
+  shippingRateId?: string | null
 }
 
 export interface OrderSlotValues {
@@ -232,7 +239,6 @@ export function extractOrderSlots(message: string, expecting: OrderSlot | null, 
   const quantity = extractQuantity(lowered)
   if (quantity) out.quantity = quantity
 
-  const wantsName = expecting === 'name' || missing.includes('name')
   const wantsAddress = expecting === 'address' || missing.includes('address')
 
   const lines = original
@@ -344,9 +350,11 @@ export function applyOrderSlots(draft: OrderDraftState, slots: OrderSlotValues):
   set('city', slots.city)
   set('address', slots.address)
   set('postalCode', slots.postalCode)
-  if (slots.quantity && draft.items[0] && draft.items[0].quantity !== slots.quantity) {
-    const max = draft.items[0].maxQuantity
-    draft.items[0].quantity = max != null && max > 0 ? Math.min(slots.quantity, max) : slots.quantity
+  // A bare quantity («دوتا») refers to the line added last.
+  const last = draft.items[draft.items.length - 1]
+  if (slots.quantity && last && last.quantity !== slots.quantity) {
+    const max = last.maxQuantity
+    last.quantity = max != null && max > 0 ? Math.min(slots.quantity, max) : slots.quantity
     changed = true
   }
   return changed
@@ -401,11 +409,18 @@ export function composeProductQuestion(candidates: Array<{ name: string }>, lang
     : 'حتماً 🙂 کدوم محصول رو می‌خواید؟ اسم یا کدش رو بفرستید تا ثبتش کنم'
 }
 
-export function composeVariantQuestion(item: OrderDraftItem, options: string[], lang: OrderLang): string {
-  const list = options.slice(0, 8)
+export function composeVariantQuestion(item: OrderDraftItem, options: string[], lang: OrderLang, attribute: string | null = null): string {
+  const list = options.slice(0, 10)
+  // A partly chosen line («کت گرامی — مشکی») names what is already settled.
+  const name = item.variant ? `${item.name} — ${item.variant}` : item.name
+  if (attribute) {
+    return lang === 'en'
+      ? `“${name}” is available in these ${attribute} options: ${list.join(', ')}. Which ${attribute} would you like?`
+      : `«${name}» الان در این ${attribute}‌ها موجوده: ${list.join('، ')}\nکدوم ${attribute} رو می‌خواید؟`
+  }
   return lang === 'en'
-    ? `“${item.name}” is available in: ${list.join(', ')}. Which one would you like?`
-    : `«${item.name}» الان در این مدل‌ها موجوده: ${list.join('، ')}\nکدوم رو می‌خواید؟`
+    ? `“${name}” is available in: ${list.join(', ')}. Which one would you like?`
+    : `«${name}» الان در این مدل‌ها موجوده: ${list.join('، ')}\nکدوم رو می‌خواید؟`
 }
 
 /**
@@ -424,11 +439,12 @@ export function composeOrderAsk(params: {
   const labels = slotLabels(params.missing, draft, lang)
   const item = draft.items[0]
   if (params.opening && item) {
-    const qty = item.quantity > 1 ? (lang === 'en' ? ` × ${item.quantity}` : ` (${faNumber(item.quantity)} عدد)`) : ''
+    const qty = (line: OrderDraftItem) => line.quantity > 1 ? (lang === 'en' ? ` × ${line.quantity}` : ` (${faNumber(line.quantity)} عدد)`) : ''
+    const names = draft.items.map((line) => lang === 'en' ? `“${itemLabel(line)}”${qty(line)}` : `«${itemLabel(line)}»${qty(line)}`)
     if (lang === 'en') {
-      return `Great, I’ll set up “${itemLabel(item)}”${qty} for you right here.\nPlease send:\n${labels.map((label) => `• ${label}`).join('\n')}`
+      return `Great, I’ll set up ${joinEn(names)} for you right here.\nPlease send:\n${labels.map((label) => `• ${label}`).join('\n')}`
     }
-    return `عالیه 🌿 «${itemLabel(item)}»${qty} رو همین‌جا براتون ثبت می‌کنم.\nبرای ارسال این‌ها رو بفرستید:\n${labels.map((label) => `• ${label}`).join('\n')}`
+    return `عالیه 🌿 ${joinFa(names)} رو همین‌جا براتون ثبت می‌کنم.\nبرای ارسال این‌ها رو بفرستید:\n${labels.map((label) => `• ${label}`).join('\n')}`
   }
   if (params.unparsed) {
     return lang === 'en'
@@ -440,28 +456,156 @@ export function composeOrderAsk(params: {
   return `ممنون${firstName ? ` ${firstName}` : ''} 🙏 فقط ${joinFa(labels)} رو هم بفرستید`
 }
 
-export function composeOrderSummary(draft: OrderDraftState, lang: OrderLang, corrected = false): string {
+/** Live store quote shown in the summary of a payment-link order. */
+export interface SummaryQuote {
+  shipping: { label: string; cost: number } | null
+  discount: number
+  total: number | null
+  gateways: string[]
+  couponErrors: string[]
+  /** The store offers more than one shipping method for this address. */
+  shippingChangeable?: boolean
+}
+
+export function composeOrderSummary(
+  draft: OrderDraftState,
+  lang: OrderLang,
+  corrected = false,
+  quote: SummaryQuote | null = null,
+  payLink = false,
+): string {
   const total = orderTotal(draft)
   const lines: string[] = []
+  const priceSuffix = (item: OrderDraftItem) => payLink && item.unitPrice != null
+    ? (lang === 'en' ? ` — ${(item.unitPrice * item.quantity).toLocaleString('en-US')}` : ` — ${faNumber(item.unitPrice * item.quantity)}`)
+    : ''
   if (lang === 'en') {
     lines.push(corrected ? 'Updated 👌 Here is your order:' : 'Here is your order:')
-    for (const item of draft.items) lines.push(`🛍 ${itemLabel(item)} × ${item.quantity}`)
+    for (const item of draft.items) lines.push(`🛍 ${itemLabel(item)} × ${item.quantity}${priceSuffix(item)}`)
     if (total != null) lines.push(`💰 Items total: ${total.toLocaleString('en-US')} Toman`)
+    if (quote?.shipping) lines.push(quote.shipping.cost > 0 ? `🚚 Shipping (${quote.shipping.label}): ${quote.shipping.cost.toLocaleString('en-US')} Toman` : '🚚 Shipping: free')
+    if (quote?.discount) lines.push(`🏷 Discount: −${quote.discount.toLocaleString('en-US')} Toman`)
+    if (quote?.couponErrors.length) lines.push(`⚠️ Coupon not applied: ${quote.couponErrors[0]}`)
+    if (quote?.total != null) lines.push(`💳 To pay: ${quote.total.toLocaleString('en-US')} Toman`)
     lines.push(`👤 ${draft.customerName} · ${displayPhone(draft.customerPhone) ?? draft.customerPhone}`)
     lines.push(`📍 ${[draft.city, draft.address].filter(Boolean).join(', ')}${draft.postalCode ? ` · postal code ${draft.postalCode}` : ''}`)
-    lines.push('If everything is correct, reply “confirm” and I’ll file it; if something needs changing, just send the correct value.')
+    if (payLink && quote?.gateways.length) lines.push(`Payment on the store's website: ${quote.gateways.join(', ')}`)
+    else if (payLink && !quote) lines.push('Shipping is calculated on the store\'s payment page.')
+    lines.push(payLink
+      ? `If everything is correct, reply “confirm” and I’ll send the payment link; to change anything (quantity, color${quote?.shippingChangeable ? ', shipping method' : ''}, another item) just tell me.`
+      : 'If everything is correct, reply “confirm” and I’ll file it; if something needs changing, just send the correct value.')
     return lines.join('\n')
   }
   lines.push(corrected ? 'اصلاح شد 👌 خلاصهٔ سفارشتون:' : 'خلاصهٔ سفارشتون:')
-  for (const item of draft.items) lines.push(`🛍 ${itemLabel(item)} × ${faNumber(item.quantity)}`)
+  for (const item of draft.items) lines.push(`🛍 ${itemLabel(item)} × ${faNumber(item.quantity)}${priceSuffix(item)}`)
   if (total != null) lines.push(`💰 مبلغ کالا: ${faNumber(total)} تومان`)
+  if (quote?.shipping) lines.push(quote.shipping.cost > 0 ? `🚚 ارسال (${quote.shipping.label}): ${faNumber(quote.shipping.cost)} تومان` : '🚚 ارسال: رایگان')
+  if (quote?.discount) lines.push(`🏷 تخفیف: −${faNumber(quote.discount)} تومان`)
+  if (quote?.couponErrors.length) lines.push(`⚠️ کد تخفیف اعمال نشد: ${quote.couponErrors[0]}`)
+  if (quote?.total != null) lines.push(`💳 قابل پرداخت: ${faNumber(quote.total)} تومان`)
   lines.push(`👤 ${draft.customerName} · ${displayPhone(draft.customerPhone) ?? draft.customerPhone}`)
   const address = draft.address && draft.city && normalizeOrderText(draft.address).includes(normalizeOrderText(draft.city))
     ? draft.address
     : [draft.city, draft.address].filter(Boolean).join('، ')
   lines.push(`📍 ${address}${draft.postalCode ? ` · کد پستی ${draft.postalCode}` : ''}`)
-  lines.push('اگه همه‌چیز درسته «تأیید» رو بفرستید تا ثبتش کنم؛ اگه چیزی باید عوض بشه، همون رو درستش رو بفرستید')
+  if (payLink && quote?.gateways.length) lines.push(`پرداخت روی سایت فروشگاه: ${quote.gateways.join('، ')}`)
+  else if (payLink && !quote) lines.push('هزینهٔ ارسال در صفحهٔ پرداخت سایت حساب می‌شه.')
+  lines.push(payLink
+    ? `اگه همه‌چیز درسته «تأیید» رو بفرستید تا لینک پرداخت رو بفرستم؛ اگه چیزی باید عوض بشه (تعداد، رنگ${quote?.shippingChangeable ? '، روش ارسال' : ''} یا کالای دیگه) همون رو بگید`
+    : 'اگه همه‌چیز درسته «تأیید» رو بفرستید تا ثبتش کنم؛ اگه چیزی باید عوض بشه، همون رو درستش رو بفرستید')
   return lines.join('\n')
+}
+
+/** A shipping method the store offers for this cart and address. */
+export interface ShippingOption {
+  id: string
+  label: string
+  cost: number
+}
+
+function shippingCost(cost: number, lang: OrderLang): string {
+  if (cost <= 0) return lang === 'en' ? 'free' : 'رایگان'
+  return lang === 'en' ? `${cost.toLocaleString('en-US')} Toman` : `${faNumber(cost)} تومان`
+}
+
+/** «روش ارسال رو انتخاب کنید» with the store's own methods and prices. */
+export function composeShippingQuestion(options: ShippingOption[], lang: OrderLang, retry = false): string {
+  const list = options
+    .map((option, index) => `${lang === 'en' ? index + 1 : faNumber(index + 1)}. ${option.label} — ${shippingCost(option.cost, lang)}`)
+    .join('\n')
+  if (lang === 'en') {
+    return `${retry ? 'Please pick one of these shipping methods:' : 'How would you like it shipped?'}\n${list}\nJust send the number or the name.`
+  }
+  return `${retry ? 'لطفاً یکی از این روش‌های ارسال رو انتخاب کنید:' : 'روش ارسال رو انتخاب کنید:'}\n${list}\nشماره یا اسم روش رو بفرستید`
+}
+
+const SHIPPING_TOPIC_RE = /(?:روش|نوع|نحوه|شیوه)\s?(?:ی\s)?(?:ارسال|پست|حمل)|shipping\s+(?:method|option)|delivery\s+(?:method|option)/u
+const CHEAPEST_RE = /(?:ارزون\s?ترین|ارزان\s?ترین|ارزونتر|ارزانتر|کم\s?هزینه\s?ترین|cheapest|cheaper)/u
+const FREE_RE = /(?:^|\s)(?:رایگان|مجانی|free)(?:\s|$)/u
+// Words every method shares carry no choice («ارسال با پست» vs «ارسال با پیک»).
+const SHIPPING_STOP_WORDS = new Set(['ارسال', 'با', 'از', 'طریق', 'به', 'و', 'روش', 'هزینه', 'رایگان', 'shipping', 'delivery', 'by', 'via', 'the', 'rate', 'free'])
+
+/** The customer asks about or wants to change the shipping method. */
+export function mentionsShippingMethod(message: string): boolean {
+  return SHIPPING_TOPIC_RE.test(normalizeOrderText(message))
+}
+
+/**
+ * Which offered shipping method the message picks: by number («۲»، «دومی»)
+ * when `byNumber` (only right after the list was shown), by name («تیپاکس»،
+ * «پیشتاز»), «ارزون‌ترین» or «رایگان». Null when it is not a clear pick.
+ */
+export function matchShippingChoice(message: string, options: ShippingOption[], byNumber = true): ShippingOption | null {
+  if (!options.length) return null
+  const text = normalizeOrderText(message)
+  if (byNumber) {
+    const index = parseOrdinalChoice(message, options.length)
+    if (index != null) return options[index]
+  }
+  const whole = options.filter((option) => {
+    const label = normalizeOrderText(option.label)
+    return label.length >= 3 && text.includes(label)
+  })
+  if (whole.length === 1) return whole[0]
+  const words = new Set(text.split(/[\s،,.!؟?()«»\-–—:]+/u).filter(Boolean))
+  let best: ShippingOption | null = null
+  let bestScore = 0
+  let tie = false
+  for (const option of options) {
+    const tokens = normalizeOrderText(option.label)
+      .split(/[\s،,.!؟?()«»\-–—:/]+/u)
+      .filter((token) => token.length >= 2 && !SHIPPING_STOP_WORDS.has(token))
+    const score = tokens.filter((token) => words.has(token)).length
+    if (score > bestScore) {
+      best = option
+      bestScore = score
+      tie = false
+    } else if (score > 0 && score === bestScore) {
+      tie = true
+    }
+  }
+  if (best && !tie) return best
+  if (CHEAPEST_RE.test(text)) return [...options].sort((a, b) => a.cost - b.cost)[0]
+  if (FREE_RE.test(text)) {
+    const free = options.filter((option) => option.cost <= 0)
+    if (free.length === 1) return free[0]
+  }
+  return null
+}
+
+/** One-line acknowledgement of a cart edit, prepended to the next step. */
+export function composeCartChange(change: { added: OrderDraftItem[]; removed: OrderDraftItem[]; updated: OrderDraftItem[] }, lang: OrderLang): string {
+  const parts: string[] = []
+  if (lang === 'en') {
+    if (change.added.length) parts.push(`Added ${change.added.map((item) => `“${itemLabel(item)}” × ${item.quantity}`).join(', ')} ✅`)
+    if (change.removed.length) parts.push(`Removed ${change.removed.map((item) => `“${itemLabel(item)}”`).join(', ')}.`)
+    if (change.updated.length) parts.push(`Updated ${change.updated.map((item) => `“${itemLabel(item)}” × ${item.quantity}`).join(', ')}.`)
+    return parts.join(' ')
+  }
+  if (change.added.length) parts.push(`${change.added.map((item) => `«${itemLabel(item)}» × ${faNumber(item.quantity)}`).join('، ')} به سبد اضافه شد ✅`)
+  if (change.removed.length) parts.push(`${change.removed.map((item) => `«${itemLabel(item)}»`).join('، ')} از سبد حذف شد.`)
+  if (change.updated.length) parts.push(`${change.updated.map((item) => `«${itemLabel(item)}» × ${faNumber(item.quantity)}`).join('، ')} به‌روز شد.`)
+  return parts.join('\n')
 }
 
 export function composeOrderSubmitted(draft: OrderDraftState, lang: OrderLang): string {
@@ -500,9 +644,11 @@ export function orderInProgressInstruction(draft: OrderDraftState, missing: Orde
     ? (lang === 'en' ? 'which product they want' : 'اینکه کدوم محصول رو می‌خواد')
     : missing.includes('variant')
       ? (lang === 'en' ? 'which variant they want' : 'اینکه کدوم مدل/طرح رو می‌خواد')
-      : labels.length
-        ? (lang === 'en' ? joinEn(labels) : joinFa(labels))
-        : (lang === 'en' ? 'a confirmation of the summary' : 'تأیید خلاصهٔ سفارش')
+      : missing.includes('shipping')
+        ? (lang === 'en' ? 'their choice of one of the shipping methods listed above' : 'انتخاب یکی از روش‌های ارسالی که بالاتر فهرست شد')
+        : labels.length
+          ? (lang === 'en' ? joinEn(labels) : joinFa(labels))
+          : (lang === 'en' ? 'a confirmation of the summary' : 'تأیید خلاصهٔ سفارش')
   if (lang === 'en') {
     return `=== In-chat order in progress ===\nThe customer is placing a pre-order${item ? ` for “${itemLabel(item)}” × ${item.quantity}` : ''}. Answer their question briefly from the trusted data, then in one short sentence remind them that to finish the order you still need ${next}. Never say the order is placed or registered; it is filed only after they confirm the summary.`
   }

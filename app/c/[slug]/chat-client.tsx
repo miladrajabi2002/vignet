@@ -22,6 +22,8 @@ import {
 	type ShowcaseProduct,
 } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
+import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
+import { parseCheckoutDirective, type CheckoutCard } from '@/lib/commerce/checkout-card'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ type Msg =
 			role: 'assistant'
 			text: string
 			cards: ProductCard[]
+			checkout?: CheckoutCard | null
 			done: boolean
 			serverId?: string
 	  }
@@ -52,9 +55,10 @@ type Props = {
 function parseAssistant(
 	raw: string,
 	done: boolean,
-): { text: string; cards: ProductCard[] } {
-	const shared = parseProductShowcaseContent(raw, done)
-	return { text: shared.text, cards: done ? shared.products : [] }
+): { text: string; cards: ProductCard[]; checkout: CheckoutCard | null } {
+	const checkoutSplit = parseCheckoutDirective(raw)
+	const shared = parseProductShowcaseContent(checkoutSplit.text, done)
+	return { text: shared.text, cards: done ? shared.products : [], checkout: done ? checkoutSplit.checkout : null }
 }
 
 function errorText(code?: string): string {
@@ -148,6 +152,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 											role: 'assistant',
 											text: parsedAssistant.text,
 											cards: parsedAssistant.cards,
+											checkout: parsedAssistant.checkout,
 											done: true,
 											serverId: id,
 										} as Msg
@@ -171,6 +176,17 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 			cancelled = true
 		}
 	}, [convKey, leadKey, msgsKey, settings.leadCapture, slug])
+
+	// «?q=…» from the digital menu («درباره این غذا بپرسید», «ارسال در
+	// گفتگو»): the question is typed in for the customer, never auto-sent.
+	useEffect(() => {
+		try {
+			const prefill = new URLSearchParams(window.location.search).get('q')
+			if (prefill) setInput(prefill.slice(0, 300))
+		} catch {
+			/* malformed URL — nothing to prefill */
+		}
+	}, [])
 
 	// Persist transcript to localStorage so it survives a tab close / refresh.
 	useEffect(() => {
@@ -258,6 +274,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								role: 'assistant',
 								text: parsedAssistant.text,
 								cards: parsedAssistant.cards,
+								checkout: parsedAssistant.checkout,
 								done: true,
 								serverId: id,
 							})
@@ -342,7 +359,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 			let started = false
 			let serverId: string | undefined
 			const upsertAssistant = (done: boolean) => {
-				const { text: parsed, cards } = parseAssistant(raw, done)
+				const { text: parsed, cards, checkout } = parseAssistant(raw, done)
 				setMessages((m) => {
 					const idx = m.findIndex((x) => x.id === assistantId)
 					const msg: Msg = {
@@ -350,6 +367,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						role: 'assistant',
 						text: parsed,
 						cards,
+						checkout,
 						done,
 						...(serverId ? { serverId } : {}),
 					}
@@ -486,14 +504,14 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 			<Background kind={settings.background} accent={accent} reduce={Boolean(reduce)} />
 
 			{/* App column */}
-			<div className="relative z-10 mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white/55 backdrop-blur-sm md:my-3 md:h-[calc(100%-1.5rem)] md:rounded-[2rem] md:border md:border-white/70 md:shadow-[0_28px_90px_rgba(0,0,0,0.13)]">
+			<div className="relative z-10 mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white/55 backdrop-blur-sm md:my-3 md:h-[calc(100%-1.5rem)] md:rounded-sheet md:border md:border-white/70 md:shadow-[var(--elev-2)]">
 				{/* Header — pt uses safe-area so it clears the notch/Dynamic Island
                                     in standalone or in-app browsers with viewport-fit=cover. */}
 				<header className="flex items-center gap-3 border-b border-black/[0.06] bg-white/82 px-4 pb-3 backdrop-blur-2xl [padding-top:max(env(safe-area-inset-top),12px)] md:px-5">
 					<Avatar avatar={avatar} monogram={monogram} accent={accent} size={40} online />
 					<div className="min-w-0 flex-1">
 						<p className="truncate text-sm font-semibold leading-tight">{name}</p>
-						<p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-neutral-500">
+						<p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-neutral-500">
 							<span className="relative flex h-1.5 w-1.5">
 								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
 								<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -505,7 +523,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						<button
 							onClick={reset}
 							aria-label="شروع گفتگوی جدید"
-						className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
+						className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
 						>
 							<RotateCcw className="h-4 w-4" />
 						</button>
@@ -597,7 +615,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								placeholder="پیام خود را بنویسید…"
 								className="[&_button]:!text-[color:var(--vgt-on-accent)] [&_button:hover:enabled]:!bg-[color:color-mix(in_srgb,var(--accent-strong)_86%,black)]"
 								footer={
-									<p dir="ltr" className="mt-2 text-center text-[10px] text-neutral-400">
+									<p dir="ltr" className="mt-2 text-center text-[12px] text-neutral-400">
 										Powered by{' '}
 										<Link
 											href="/"
@@ -776,7 +794,7 @@ function Intro(props: {
 					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.15, duration: 0.45 }}
-					className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3.5 text-[11px] tracking-wide text-neutral-600 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur"
+					className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3.5 text-[12px] tracking-wide text-neutral-600 shadow-[var(--elev-1)] backdrop-blur"
 				>
 					<Sparkles className="h-3 w-3" style={{ color: accent }} />
 					پاسخ فوری با هوش مصنوعی
@@ -787,7 +805,7 @@ function Intro(props: {
 				initial={reduce ? false : { opacity: 0, y: 8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.22, duration: 0.45 }}
-				className="mt-3 text-2xl font-semibold tracking-tight"
+				className="mt-3 text-2xl font-bold tracking-tight"
 			>
 				{name}
 			</motion.h1>
@@ -808,7 +826,7 @@ function Intro(props: {
 					initial={reduce ? false : { opacity: 0, y: 10 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.4, duration: 0.5 }}
-					className="mt-7 w-full max-w-sm rounded-[1.6rem] border border-black/[0.08] bg-white/90 p-5 text-start shadow-[0_18px_55px_rgba(0,0,0,0.09)] backdrop-blur-xl"
+					className="mt-7 w-full max-w-sm rounded-card border border-black/[0.08] bg-white/90 p-5 text-start shadow-[var(--elev-2)] backdrop-blur-xl"
 				>
 					<p className="text-sm text-neutral-700">
 						{leadMessage ?? 'برای شروع گفتگو، یک معرفی کوتاه بنویسید:'}
@@ -863,7 +881,7 @@ function Intro(props: {
 							initial={reduce ? false : { opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ delay: 0.4, duration: 0.5 }}
-							className="mt-7 max-w-sm rounded-[1.5rem] rounded-ss-lg border border-black/[0.07] bg-white/92 px-4 py-3.5 text-start text-sm leading-7 text-neutral-800 shadow-[0_14px_40px_rgba(0,0,0,0.08)] backdrop-blur"
+							className="mt-7 max-w-sm rounded-card rounded-ss-lg border border-black/[0.07] bg-white/92 px-4 py-3.5 text-start text-sm leading-7 text-neutral-800 shadow-[var(--elev-1)] backdrop-blur"
 						>
 							{welcomeMessage}
 						</motion.div>
@@ -952,6 +970,9 @@ function MessageRow({
 							className={!isUser ? '[&_p]:leading-7 [&_p]:text-right' : undefined}
 						/>
 					</ConversationBubble>
+				)}
+				{!isUser && msg.checkout && (
+					<CheckoutCardView card={msg.checkout} accent={accent} onAccent={onAccent} />
 				)}
 				{!isUser && msg.cards.length > 0 && (
 					<ProductShowcaseRail

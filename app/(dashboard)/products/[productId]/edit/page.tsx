@@ -3,7 +3,8 @@ import { getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductForm, type VariationInput } from '@/components/products/product-form'
-import { BackButton } from '@/components/dashboard/back-button'
+import { PencilLine } from 'lucide-react'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function EditProductPage(
   props: {
@@ -63,13 +64,17 @@ export default async function EditProductPage(
         stock: stockNum === null ? '' : String(stockNum),
         price: priceNum === null ? '' : String(priceNum),
         image: typeof v.image === 'string' && v.image ? v.image : '',
+        // Keep the saved identity: re-numbering would break carts, cards and
+        // (for synced products) the store's own variation ids.
+        ...(typeof v.id === 'number' && v.id !== 0 ? { id: v.id } : {}),
+        ...(typeof v.sku === 'string' && v.sku ? { sku: v.sku } : {}),
+        ...(v.inStock === false ? { inStock: false } : {}),
       }
     })
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <BackButton href="/products" label={t('title')} />
-      <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('edit')}</h1>
+      <PageHeader icon={PencilLine} title={t('edit')} subtitle={product.name} back={{ href: '/products', label: t('title') }} />
       <ProductForm
         mode="edit"
         categories={categories}
@@ -81,6 +86,7 @@ export default async function EditProductPage(
           comparePrice: product.comparePrice?.toString() ?? '',
           sku: product.sku ?? '',
           stock: product.stock?.toString() ?? '',
+          lowStockThreshold: product.lowStockThreshold?.toString() ?? '',
           categoryId: product.categoryId ?? '',
           tags: product.tags.join(', '),
           externalUrl: product.externalUrl ?? '',

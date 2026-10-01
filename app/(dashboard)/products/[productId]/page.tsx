@@ -139,7 +139,7 @@ export default async function ProductDetailPage(
       </div>
 
       {/* Header */}
-      <div className="spatial-surface flex flex-col gap-5 rounded-[1.5rem] p-5 sm:flex-row">
+      <div className="spatial-surface flex flex-col gap-5 rounded-card p-5 sm:flex-row">
         <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[var(--bg-muted)] sm:w-56">
           {product.images[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -253,7 +253,7 @@ export default async function ProductDetailPage(
         {stats.map((s) => (
           <div
             key={s.label}
-            className="spatial-surface rounded-[1.5rem] p-5"
+            className="spatial-surface rounded-card p-5"
           >
             <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
               <s.icon className="h-4 w-4" />
@@ -267,7 +267,7 @@ export default async function ProductDetailPage(
       </div>
 
       {/* Agent coverage */}
-      <div className="spatial-surface rounded-[1.5rem] p-5">
+      <div className="spatial-surface rounded-card p-5">
         <h2 className="text-sm font-medium text-[var(--text-secondary)]">
           {t('detail.knownByAgents')}
         </h2>
@@ -297,7 +297,7 @@ export default async function ProductDetailPage(
           The internal `_variations` key is stripped by normalizeAttributes
           so it never appears here. */}
       {mergedAttributes.length > 0 && (
-        <div className="spatial-surface rounded-[1.5rem] p-5">
+        <div className="spatial-surface rounded-card p-5">
           <h2 className="text-sm font-medium text-[var(--text-secondary)]">
             {t('form.attributes')}
           </h2>
@@ -324,7 +324,7 @@ export default async function ProductDetailPage(
           This replaces the old behavior where `_variations` leaked into the
           attributes grid as a single raw-JSON row. */}
       {variations.length > 0 && (
-        <div className="spatial-surface rounded-[1.5rem] p-5">
+        <div className="spatial-surface rounded-card p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-[var(--text-secondary)]">
               {locale === 'fa' ? 'تنوع‌ها' : 'Variants'}
@@ -335,6 +335,7 @@ export default async function ProductDetailPage(
                 : `${fmt(inStockVariations.length)} in stock of ${fmt(variations.length)}`}
             </span>
           </div>
+          <VariationMatrix variations={variations} locale={locale} fmt={fmt} />
           <div className="mt-3 grid gap-3">
             {variations.map((v) => {
               const inStock = v.manageStock ? (v.stockQuantity ?? 0) > 0 : v.inStock
@@ -417,3 +418,50 @@ export default async function ProductDetailPage(
 // `stripListBlocks` live in `lib/products/description.ts` so the Instagram
 // automation engine can reuse the same HTML-stripping logic for product card
 // subtitles.
+
+/**
+ * Two-option products (رنگ × سایز) read best as a grid: one row per first
+ * option, one column per second, stock in each cell. Other shapes keep only
+ * the list below.
+ */
+function VariationMatrix({ variations, locale, fmt }: { variations: VariationRow[]; locale: string; fmt: (value: number) => string }) {
+  const keys = [...new Set(variations.flatMap((v) => Object.keys(v.attributes)))]
+  if (keys.length !== 2 || variations.length < 2 || variations.some((v) => Object.keys(v.attributes).length !== 2)) return null
+  const [rowKey, colKey] = keys
+  const rows = [...new Set(variations.map((v) => v.attributes[rowKey]))]
+  const cols = [...new Set(variations.map((v) => v.attributes[colKey]))]
+  const cell = (row: string, col: string) => variations.find((v) => v.attributes[rowKey] === row && v.attributes[colKey] === col)
+  const fa = locale === 'fa'
+  return (
+    <div className="mt-3 overflow-x-auto rounded-xl border border-[var(--border-default)]">
+      <table className="w-full min-w-max text-sm">
+        <thead>
+          <tr className="bg-[var(--bg-muted)] text-xs text-[var(--text-muted)]">
+            <th scope="col" className="px-3 py-2 text-start font-medium">{rowKey} × {colKey}</th>
+            {cols.map((col) => <th key={col} scope="col" className="px-3 py-2 text-center font-medium text-[var(--text-secondary)]">{col}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row} className="border-t border-[var(--border-subtle)]">
+              <th scope="row" className="px-3 py-2 text-start font-medium text-[var(--text-primary)]">{row}</th>
+              {cols.map((col) => {
+                const v = cell(row, col)
+                if (!v) return <td key={col} className="px-3 py-2 text-center text-[var(--text-hint)]">—</td>
+                const count = v.manageStock ? v.stockQuantity ?? 0 : null
+                const inStock = count != null ? count > 0 : v.inStock !== false
+                return (
+                  <td key={col} className="px-3 py-2 text-center tabular-nums">
+                    <span className={`inline-flex min-w-[2.5rem] justify-center rounded-full px-2 py-0.5 text-xs font-medium ${inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                      {count != null ? fmt(count) : inStock ? (fa ? 'موجود' : 'In stock') : (fa ? 'ناموجود' : 'Out')}
+                    </span>
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

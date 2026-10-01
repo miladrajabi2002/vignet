@@ -6,6 +6,8 @@
  * interactive rail lives in `./product-showcase-rail`.
  */
 
+import { parseCheckoutDirective, type CheckoutCard } from '@/lib/commerce/checkout-card'
+
 const PRODUCT_PREFIX = '[[product:'
 export const MAX_SHOWCASE_PRODUCTS = 10
 
@@ -124,7 +126,10 @@ function productTokenBounds(
 export function parseProductShowcaseContent(
   raw: string,
   complete = true,
-): { text: string; products: ShowcaseProduct[] } {
+): { text: string; products: ShowcaseProduct[]; checkout: CheckoutCard | null } {
+  // In-chat checkout cards ride in the same reply; they never render as text.
+  const checkoutSplit = parseCheckoutDirective(raw)
+  raw = checkoutSplit.text
   const products: ShowcaseProduct[] = []
   const visible: string[] = []
   const seen = new Set<string>()
@@ -159,5 +164,6 @@ export function parseProductShowcaseContent(
   return {
     text: visible.join('').replace(/\n{3,}/g, '\n\n').trim(),
     products,
+    checkout: complete ? checkoutSplit.checkout : null,
   }
 }

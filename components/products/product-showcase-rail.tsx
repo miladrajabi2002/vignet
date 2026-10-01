@@ -274,10 +274,10 @@ export function ProductShowcaseRail({
                         style={accentStyle}
                 >
                         <div className="mb-2 flex items-center gap-2 px-0.5">
-                                <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-black/55">
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
                                         <Package aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                                         <span className="truncate">{isFa ? 'ویترین محصولات' : 'Product showcase'}</span>
-                                        <span className="tabular-nums text-black/35">{formatCount(items.length, locale)}</span>
+                                        <span className="tabular-nums text-[var(--text-muted)]">{formatCount(items.length, locale)}</span>
                                 </span>
 
                                 <div className="ms-auto flex shrink-0 items-center gap-1">
@@ -304,7 +304,7 @@ export function ProductShowcaseRail({
                                                         type="button"
                                                         onClick={() => setExpanded((value) => !value)}
                                                         aria-expanded={expanded}
-                                                        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/10 bg-white/90 px-3 text-[11px] font-bold text-neutral-700 shadow-sm transition-colors duration-150 hover:border-black/25 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)] focus-visible:ring-offset-1 sm:min-h-8"
+                                                        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/10 bg-white/90 px-3 text-[12px] font-bold text-neutral-700 shadow-sm transition-colors duration-150 hover:border-black/25 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)] focus-visible:ring-offset-1 sm:min-h-8"
                                                 >
                                                         {expanded ? (
                                                                 <>
@@ -345,7 +345,7 @@ export function ProductShowcaseRail({
                                         <button
                                                 type="button"
                                                 onClick={() => setExpanded(false)}
-                                                className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white/80 text-[11px] font-bold text-neutral-600 transition-colors duration-150 hover:border-black/25 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)] focus-visible:ring-offset-1"
+                                                className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white/80 text-[12px] font-bold text-neutral-600 transition-colors duration-150 hover:border-black/25 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)] focus-visible:ring-offset-1"
                                         >
                                                 <Rows3 aria-hidden="true" className="h-3.5 w-3.5" />
                                                 {isFa ? 'بستن ویترین' : 'Collapse showcase'}
@@ -450,7 +450,7 @@ function ShowcaseCard({
         return (
                 <article
                         className={cn(
-                                'group flex flex-col overflow-hidden rounded-2xl border border-black/[0.09] bg-white text-start text-neutral-900 shadow-[0_12px_32px_-20px_rgba(0,0,0,0.34)]',
+                                'group flex flex-col overflow-hidden rounded-2xl border border-black/[0.09] bg-white text-start text-neutral-900 shadow-[var(--elev-1)]',
                                 layout === 'rail'
                                         ? cn('shrink-0 snap-start', compact ? 'w-[13.25rem]' : 'w-[min(16rem,78vw)]')
                                         : 'min-w-0',
@@ -481,7 +481,7 @@ function ShowcaseCard({
                                         </span>
                                 )}
                                 {product.badge && (
-                                        <span className="absolute start-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/70 bg-white/92 px-2.5 py-1 text-[10px] font-semibold text-neutral-700 shadow-sm">
+                                        <span className="absolute start-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/70 bg-white/92 px-2.5 py-1 text-[12px] font-semibold text-neutral-700 shadow-sm">
                                                 {product.badge}
                                         </span>
                                 )}
@@ -492,7 +492,7 @@ function ShowcaseCard({
                                         {product.name}
                                 </h3>
                                 {description && (
-                                        <p className="mt-1.5 line-clamp-3 text-[11px] leading-5 text-neutral-500">
+                                        <p className="mt-1.5 line-clamp-3 text-[12px] leading-5 text-neutral-500">
                                                 {description}
                                         </p>
                                 )}
@@ -504,7 +504,7 @@ function ShowcaseCard({
                                                 {specs.map((spec) => (
                                                         <li
                                                                 key={spec}
-                                                                className="max-w-full truncate rounded-md bg-neutral-100 px-2 py-1 text-[10px] text-neutral-600"
+                                                                className="max-w-full truncate rounded-md bg-neutral-100 px-2 py-1 text-[12px] text-neutral-600"
                                                         >
                                                                 {spec}
                                                         </li>
@@ -515,7 +515,7 @@ function ShowcaseCard({
                                 <div className="mt-auto pt-3">
                                         {product.price && (
                                                 <p
-                                                        className="mb-2 text-[13px] font-black tabular-nums text-neutral-950"
+                                                        className="mb-2 text-[13px] font-bold tabular-nums text-neutral-950"
                                                         dir="auto"
                                                 >
                                                         {product.price}
@@ -532,7 +532,7 @@ function ShowcaseCard({
                                                         <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
                                                 </a>
                                         ) : (
-                                                <div className="flex min-h-11 items-center text-[11px] text-neutral-400">
+                                                <div className="flex min-h-11 items-center text-[12px] text-neutral-400">
                                                         {isFa ? 'برای اطلاعات بیشتر پیام دهید' : 'Message us for details'}
                                                 </div>
                                         )}

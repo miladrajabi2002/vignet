@@ -346,6 +346,13 @@ class Vigent_Woo_Ajax {
                 $s['sync_products']  = ! empty( $_POST['sync_products'] ) ? '1' : '';
                 $s['sync_orders']    = ! empty( $_POST['sync_orders'] ) ? '1' : '';
                 $s['sync_customers'] = ! empty( $_POST['sync_customers'] ) ? '1' : '';
+                if ( isset( $_POST['checkout_enabled'] ) ) {
+                        $s['checkout_enabled'] = '1' === sanitize_text_field( wp_unslash( $_POST['checkout_enabled'] ) ) ? '1' : '';
+                }
+                if ( isset( $_POST['checkout_flow'] ) ) {
+                        $flow                = sanitize_key( wp_unslash( $_POST['checkout_flow'] ) );
+                        $s['checkout_flow'] = in_array( $flow, array( 'auto', 'order_pay', 'cart' ), true ) ? $flow : 'auto';
+                }
                 $this->core()->update_settings( $s );
                 wp_send_json_success( array( 'message' => __( 'ذخیره شد.', 'vigent-woo' ) ) );
         }

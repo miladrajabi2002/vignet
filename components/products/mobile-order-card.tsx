@@ -35,7 +35,7 @@ export function MobileOrderCard({
 
   return (
     <>
-      <article className="spatial-surface overflow-hidden rounded-[1.35rem] !bg-white">
+      <article className="spatial-surface overflow-hidden rounded-card !bg-white">
         <button
           ref={triggerRef}
           type="button"
@@ -43,7 +43,7 @@ export function MobileOrderCard({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={`${detailsLabel}: #${orderNumber}`}
-          className="spatial-press block w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+          className="spatial-press block w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
         >
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
@@ -63,11 +63,11 @@ export function MobileOrderCard({
 
               <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-black/[0.025] p-3 text-xs">
                 <div className="min-w-0">
-                  <span className="block text-[10px] text-[var(--text-muted)]">{amountTitle}</span>
+                  <span className="block text-[12px] text-[var(--text-muted)]">{amountTitle}</span>
                   <span className="mt-1 block truncate font-bold tabular-nums text-[var(--text-primary)]">{amountLabel}</span>
                 </div>
                 <div className="min-w-0">
-                  <span className="block text-[10px] text-[var(--text-muted)]">{dateTitle}</span>
+                  <span className="block text-[12px] text-[var(--text-muted)]">{dateTitle}</span>
                   <span className="mt-1 block truncate font-semibold text-[var(--text-primary)]">{dateLabel}</span>
                 </div>
               </div>
@@ -87,13 +87,13 @@ export function MobileOrderCard({
         onClose={() => setOpen(false)}
         contentClassName="bg-[var(--bg-base)]/70"
       >
-        <div className="mb-4 grid grid-cols-2 gap-2 rounded-[1.35rem] border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]">
+        <div className="mb-4 grid grid-cols-2 gap-2 rounded-card border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]">
           <div className="min-w-0">
-            <span className="block text-[10px] text-[var(--text-muted)]">{amountTitle}</span>
+            <span className="block text-[12px] text-[var(--text-muted)]">{amountTitle}</span>
             <span className="mt-1 block truncate font-bold tabular-nums text-[var(--text-primary)]">{amountLabel}</span>
           </div>
           <div className="min-w-0">
-            <span className="block text-[10px] text-[var(--text-muted)]">{dateTitle}</span>
+            <span className="block text-[12px] text-[var(--text-muted)]">{dateTitle}</span>
             <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--text-primary)]">{dateLabel}</span>
           </div>
         </div>

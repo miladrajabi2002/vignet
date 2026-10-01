@@ -59,7 +59,7 @@ export function ChatRequestAction({
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         {label}
       </button>
-      {error && <span role="alert" className="text-[11px] text-danger">{errorLabel}</span>}
+      {error && <span role="alert" className="text-[12px] text-danger">{errorLabel}</span>}
     </span>
   )
 }

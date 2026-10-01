@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
- * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند و محصولات و سفارش‌ها را همگام می‌سازد.
- * Version:           4.3.11
+ * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند، محصولات و سفارش‌ها را همگام می‌سازد و خرید داخل گفتگو را روی صفحهٔ پرداخت خود سایت ثبت می‌کند.
+ * Version:           5.0.1
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -13,14 +13,14 @@
  * Domain Path:       /languages
  * Requires at least: 5.8
  * Requires PHP:      7.4
- * WC requires at least: 6.0
+ * WC requires at least: 7.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '4.3.11' );
+define( 'VIGENT_WOO_VERSION', '5.0.1' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
@@ -31,6 +31,7 @@ $vg_includes = array(
         __DIR__ . '/includes/class-vigent-woo-core.php',
         __DIR__ . '/includes/class-vigent-woo-sync.php',
         __DIR__ . '/includes/class-vigent-woo-rest.php',
+        __DIR__ . '/includes/class-vigent-woo-checkout.php',
         __DIR__ . '/includes/class-vigent-woo-admin.php',
         __DIR__ . '/includes/class-vigent-woo-ajax.php',
         __DIR__ . '/includes/class-vigent-woo-updater.php',
@@ -95,6 +96,7 @@ function vigent_woo_deactivate() {
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
         wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );
+        wp_clear_scheduled_hook( 'vigent_woo_checkout_expire' );
 }
 register_deactivation_hook( __FILE__, 'vigent_woo_deactivate' );
 
@@ -274,6 +276,22 @@ if ( class_exists( 'Vigent_Woo_Sync' ) ) {
 if ( class_exists( 'Vigent_Woo_REST' ) ) {
         Vigent_Woo_REST::instance();
 }
+
+if ( class_exists( 'Vigent_Woo_Checkout' ) ) {
+        Vigent_Woo_Checkout::instance();
+}
+
+// Orders are read and written only through WooCommerce CRUD APIs, so the
+// plugin works with both HPOS order tables and the legacy posts storage.
+add_action(
+        'before_woocommerce_init',
+        function () {
+                if ( class_exists( '\\Automattic\\WooCommerce\\Utilities\\FeaturesUtil' ) ) {
+                        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', VIGENT_WOO_FILE, true );
+                        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', VIGENT_WOO_FILE, true );
+                }
+        }
+);
 
 if ( class_exists( 'Vigent_Woo_Admin' ) ) {
         Vigent_Woo_Admin::instance();

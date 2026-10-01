@@ -191,7 +191,7 @@ export function WooSetupCard({
     // ── Not connected yet ────────────────────────────────────────────────
     if (!integration) {
         return (
-            <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+            <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-3">
                         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
@@ -218,7 +218,7 @@ export function WooSetupCard({
                 {showForm && (
                     <form onSubmit={submit} className="mt-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
                         <div className="mb-4 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-[var(--text-primary)]">آدرس سایت را وارد کنید</h3>
+                            <h3 className="text-sm font-bold text-[var(--text-primary)]">آدرس سایت را وارد کنید</h3>
                             <button type="button" onClick={() => setShowForm(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                                 <X className="h-4 w-4" />
                             </button>
@@ -269,7 +269,7 @@ export function WooSetupCard({
             : 'در انتظار اتصال افزونه'
 
     return (
-        <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+        <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
             {/* Top row: URL + status + actions */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
@@ -285,7 +285,7 @@ export function WooSetupCard({
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                             <span className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+                                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold',
                                 !integration.active
                                     ? 'bg-gray-100 text-gray-600'
                                     : syncPausedByPlan
@@ -342,7 +342,7 @@ export function WooSetupCard({
                     aria-live="polite"
                     className={cn(
                     'mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm',
-                    notice.type === 'ok' ? 'border border-[var(--green)]/30 bg-[var(--green)]/5 text-[var(--green)]' : 'border border-danger/30 bg-danger/5 text-danger',
+                    notice.type === 'ok' ? 'border border-[var(--ok)]/25 bg-[var(--ok-soft)] text-[var(--ok)]' : 'border border-danger/30 bg-danger/5 text-danger',
                 )}>
                     {notice.type === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                     {notice.msg}

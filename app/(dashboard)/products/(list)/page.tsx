@@ -1,3 +1,4 @@
+import { LowStockCard } from '@/components/products/low-stock-card'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { ArrowUpLeft, Plus, Package, FolderTree } from 'lucide-react'
@@ -18,6 +19,8 @@ import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
+import { searchVariants } from '@/lib/search/persian'
+import { LiveEmptyState } from '@/components/ui/live-empty-state'
 
 const PAGE_SIZE = 20
 
@@ -35,10 +38,25 @@ export default async function ProductsPage(
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
   const categoryId = searchParams.categoryId ?? ''
-  const stock = ['in_stock', 'out_of_stock'].includes(searchParams.stock ?? '')
+  const stock = ['in_stock', 'out_of_stock', 'low_stock'].includes(searchParams.stock ?? '')
     ? searchParams.stock!
     : ''
   const page = Math.max(1, Number(searchParams.page) || 1)
+
+  const stockAlert = await prisma.workspace.findUnique({
+    where: { id: user.workspaceId },
+    select: { lowStockThreshold: true, operatorChannels: { where: { active: true }, select: { operatorChatId: true }, take: 1 } },
+  })
+  const lowStockThreshold = stockAlert?.lowStockThreshold ?? 3
+  // Tracked stock at or under the level: products using the default level,
+  // plus any product already alerted under its own override.
+  const lowStockWhere: Prisma.ProductWhereInput = {
+    stock: { not: null },
+    OR: [
+      { lowStockAlertedAt: { not: null } },
+      ...(lowStockThreshold > 0 ? [{ lowStockThreshold: null, stock: { lte: lowStockThreshold } }] : []),
+    ],
+  }
 
   const orderBy: Prisma.ProductOrderByWithRelationInput =
     sort === 'price_asc'
@@ -56,14 +74,16 @@ export default async function ProductsPage(
       ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
       : stock === 'out_of_stock'
         ? { stock: 0 }
-        : {}),
+        : stock === 'low_stock'
+          ? lowStockWhere
+          : {}),
     ...(q
       ? {
           AND: [{
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { sku: { contains: q, mode: 'insensitive' } },
-            ],
+            OR: searchVariants(q).flatMap((term): Prisma.ProductWhereInput[] => [
+              { name: { contains: term, mode: 'insensitive' } },
+              { sku: { contains: term, mode: 'insensitive' } },
+            ]),
           }],
         }
       : {}),
@@ -73,7 +93,7 @@ export default async function ProductsPage(
   //    The recent-events panel was noisy and duplicated what the WooSetupCard
   //    already shows. Removing it keeps the products page focused on the
   //    catalog itself.
-  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs] = await Promise.all([
+  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs, lowStockCount, trackedStockCount] = await Promise.all([
     prisma.product.findMany({
       where: productWhere,
       orderBy,
@@ -116,6 +136,8 @@ export default async function ProductsPage(
     }),
     checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
     getEffectivePlanDefs(),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, active: true, ...lowStockWhere } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, stock: { not: null } } }),
   ])
 
   const recommendedPlan = recommendedUpgradePlan(
@@ -228,6 +250,16 @@ export default async function ProductsPage(
         productLimit={!productCapacity.allowed ? productLimit : null}
       />
 
+      {trackedStockCount > 0 && (
+        <LowStockCard
+          fa={fa}
+          lowCount={lowStockCount}
+          threshold={lowStockThreshold}
+          telegramConnected={Boolean(stockAlert?.operatorChannels[0]?.operatorChatId)}
+          filtering={stock === 'low_stock'}
+        />
+      )}
+
       {/* ─── 7-day trend chart + top products (hidden when filtering/searching) ─── */}
       {!q && !categoryId && !stock && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -262,14 +294,7 @@ export default async function ProductsPage(
       )}
 
       {products.length === 0 && !q && !categoryId && !stock ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
-          <Package className="h-8 w-8 text-[var(--text-muted)]" />
-          <h2 className="mt-4 text-lg text-[var(--text-primary)]">{t('empty')}</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('emptyDesc')}</p>
-          <Link href="/products/new" className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)]">
-            {t('new')}
-          </Link>
-        </div>
+        <LiveEmptyState icon={Package} preview="cards" title={t('empty')} description={t('emptyDesc')} action={{ href: '/products/new', label: t('new') }} />
       ) : (
         <>
           <ProductsToolbar

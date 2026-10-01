@@ -56,6 +56,8 @@ export interface VariationRow {
   inStock?: boolean
   attributes: Record<string, string>
   image?: string | null
+  /** Entered by hand in Vigent (stored with a negative id): never a store id. */
+  synthetic?: boolean
 }
 
 /**
@@ -74,10 +76,14 @@ export function extractTypedVariations(attrs: unknown): VariationRow[] {
     const typedAttrs: Record<string, string> = {}
     for (const [k, val] of Object.entries(attrs as Record<string, unknown>)) {
       if (val == null) continue
-      typedAttrs[k] = String(val)
+      typedAttrs[decodeAttributeText(k)] = decodeAttributeText(String(val))
     }
-    const id = typeof v.id === 'number' ? v.id : 0
-    if (id <= 0) continue
+    // Manual variations are stored with negative ids (see ProductForm). They
+    // used to be dropped here, so hand-entered colours/sizes never reached the
+    // cart or the agent; they are read as positive ids, flagged synthetic.
+    const rawId = typeof v.id === 'number' && Number.isFinite(v.id) ? Math.trunc(v.id) : 0
+    if (rawId === 0) continue
+    const id = Math.abs(rawId)
     out.push({
       id,
       sku: typeof v.sku === 'string' && v.sku ? v.sku : null,
@@ -89,9 +95,26 @@ export function extractTypedVariations(attrs: unknown): VariationRow[] {
       inStock: v.inStock !== false,
       attributes: typedAttrs,
       image: typeof v.image === 'string' && v.image ? v.image : null,
+      ...(rawId < 0 ? { synthetic: true } : {}),
     })
   }
   return out
+}
+
+/**
+ * WooCommerce stores custom (non-taxonomy) attribute keys and some term slugs
+ * percent-encoded: a Persian «سایز» arrives as «%d8%b3%d8%a7%db%8c%d8%b2».
+ * Decode anything that is clearly percent-encoded; leave other text alone.
+ */
+export function decodeAttributeText(value: string): string {
+  if (!/%[0-9a-f]{2}/i.test(value)) return value
+  try {
+    const decoded = decodeURIComponent(value.replace(/\+/g, ' '))
+    // Slugs join words with «-»; the Persian ones read better with spaces.
+    return /[\u0600-\u06FF]/.test(decoded) ? decoded.replace(/-/g, ' ') : decoded
+  } catch {
+    return value
+  }
 }
 
 /**
@@ -119,8 +142,8 @@ export function normalizeAttributes(raw: unknown): AttrRow[] {
     for (const item of raw) {
       if (!item || typeof item !== 'object') continue
       const obj = item as Record<string, unknown>
-      const label = typeof obj.name === 'string' ? obj.name : '—'
-      const value = formatAttrValue(obj.options ?? obj.value)
+      const label = typeof obj.name === 'string' ? decodeAttributeText(obj.name) : '—'
+      const value = decodeAttributeText(formatAttrValue(obj.options ?? obj.value))
       if (value) out.push({ label, value })
     }
     return out
@@ -137,16 +160,16 @@ export function normalizeAttributes(raw: unknown): AttrRow[] {
     // { name: "رنگ", option: "blue" }.
     if (typeof value === 'object' && !Array.isArray(value)) {
       const obj = value as Record<string, unknown>
-      const label = typeof obj.name === 'string' && obj.name ? obj.name : key
+      const label = decodeAttributeText(typeof obj.name === 'string' && obj.name ? obj.name : key)
       const inner = obj.options ?? obj.option ?? obj.value
-      const formatted = formatAttrValue(inner)
+      const formatted = decodeAttributeText(formatAttrValue(inner))
       if (formatted) out.push({ label, value: formatted })
       continue
     }
 
     // Primitive or array.
-    const formatted = formatAttrValue(value)
-    if (formatted) out.push({ label: key, value: formatted })
+    const formatted = decodeAttributeText(formatAttrValue(value))
+    if (formatted) out.push({ label: decodeAttributeText(key), value: formatted })
   }
   return out
 }

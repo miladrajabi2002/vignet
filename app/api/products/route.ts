@@ -11,6 +11,7 @@ import {
   WorkspaceResourceLimitError,
 } from '@/lib/billing/entitlements'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
+import { searchVariants } from '@/lib/search/persian'
 
 export async function GET(req: Request) {
   const user = await getCurrentUser()
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
         ? { stock: 0 }
         : {}),
     ...(q
-      ? { AND: [{ OR: [{ name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } }] }] }
+      ? { AND: [{ OR: searchVariants(q).flatMap((term): Prisma.ProductWhereInput[] => [{ name: { contains: term, mode: 'insensitive' } }, { sku: { contains: term, mode: 'insensitive' } }]) }] }
       : {}),
   }
 
@@ -122,6 +123,7 @@ export async function POST(req: Request) {
         comparePrice: d.comparePrice ?? null,
         sku: d.sku,
         stock: d.stock ?? null,
+        lowStockThreshold: d.lowStockThreshold ?? null,
         categoryId: d.categoryId ?? null,
         images: d.images ?? [],
         attributes: d.attributes,

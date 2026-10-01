@@ -42,7 +42,7 @@ export default function ProductsLoading() {
       </div>
 
       {/* Toolbar */}
-      <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+      <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
         <Skeleton className="h-11 min-w-[12rem] flex-1 rounded-xl" />
         <Skeleton delay={-90} className="h-11 min-w-40 rounded-xl" />
         <Skeleton delay={-180} className="h-11 min-w-40 rounded-xl" />

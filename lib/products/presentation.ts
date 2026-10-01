@@ -184,6 +184,22 @@ export type TrustedProductShowcase = ProductShowcase & {
   badge?: string
   /** The exact variation this card represents (null = the product as a whole). */
   variation?: VariationRow | null
+  /** WooCommerce id the store's own cart accepts (a simple product or one
+   *  variation), set only for store-synced rows that are in stock. The site
+   *  widget uses it for «افزودن به سبد» straight into the site's real cart. */
+  cartId?: number | null
+}
+
+/** WooCommerce purchasable id for a card, or null when it cannot go into the store cart as-is. */
+export function storeCartId(
+  product: { sourceIntegrationId?: string | null; externalId?: string | null; stock?: number | null },
+  variations: VariationRow[],
+  variation: VariationRow | null,
+): number | null {
+  if (!product.sourceIntegrationId || !product.externalId || !/^\d+$/.test(product.externalId)) return null
+  if (variation) return isVariationAvailable(variation) && variation.id > 0 && !variation.synthetic ? variation.id : null
+  if (variations.length || product.stock === 0) return null // variable parent: a variant must be picked first
+  return Number(product.externalId)
 }
 
 /**
@@ -375,6 +391,8 @@ export async function resolveProductShowcases(params: {
           price: true,
           images: true,
           externalUrl: true,
+          sourceIntegrationId: true,
+          externalId: true,
           attributes: true,
           stock: true,
         },
@@ -432,6 +450,7 @@ export async function resolveProductShowcases(params: {
         // A variable product with every variation sold out is not «موجود».
         ...(soldOut ? { badge: 'ناموجود' } : {}),
         variation: null,
+        cartId: storeCartId(product, variations, null),
       })
       continue
     }
@@ -446,6 +465,7 @@ export async function resolveProductShowcases(params: {
       specs: variationSpecs(variation, product.attributes),
       badge: isVariationAvailable(variation) ? 'موجود' : 'ناموجود',
       variation,
+      cartId: storeCartId(product, variations, variation),
     })
   }
 
@@ -646,6 +666,7 @@ export async function buildTrustedProductReply(params: {
       image: safeProductUrl(product.imageUrl) ?? '',
       url: safeProductUrl(product.productUrl) ?? '',
       specs: product.specs,
+      ...(product.cartId ? { cart: product.cartId } : {}),
     })}]]`
   })
 
@@ -724,6 +745,8 @@ type VariantTargetRow = {
   externalUrl: string | null
   sku: string | null
   attributes: unknown
+  sourceIntegrationId: string | null
+  externalId: string | null
 }
 
 /**
@@ -781,6 +804,8 @@ async function resolveVariantTarget(params: {
           price: true,
           images: true,
           externalUrl: true,
+          sourceIntegrationId: true,
+          externalId: true,
           sku: true,
           attributes: true,
         },
@@ -878,6 +903,7 @@ export async function buildVariantShowcaseReply(params: {
     image: safeProductUrl(variation.image ?? null) ?? safeProductUrl(pickTemplateImageUrl(target.images)) ?? '',
     url: safeProductUrl(target.externalUrl) ?? '',
     specs: variationSpecs(variation, target.attributes),
+    ...(storeCartId(target, available, variation) ? { cart: storeCartId(target, available, variation) } : {}),
   })}]]`)
 
   const intro = lang === 'ar'
@@ -971,6 +997,7 @@ export async function buildVariantPickReply(params: {
     image: safeProductUrl(variation.image ?? null) ?? safeProductUrl(pickTemplateImageUrl(target.images)) ?? '',
     url: safeProductUrl(target.externalUrl) ?? '',
     specs: variationSpecs(variation, target.attributes),
+    ...(storeCartId(target, variations, variation) ? { cart: storeCartId(target, variations, variation) } : {}),
   })}]]`
 
   const intro = lang === 'ar'

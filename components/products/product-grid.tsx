@@ -136,7 +136,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
             <Link
               key={p.id}
               href={`/products/${p.id}`}
-              className="spatial-surface group flex flex-col overflow-hidden rounded-[1.5rem] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
+              className="spatial-surface group flex flex-col overflow-hidden rounded-card transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               <div className="relative aspect-video bg-[var(--bg-muted)]">
                 {p.images[0] ? (
@@ -225,7 +225,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                 aria-modal="true"
                 aria-labelledby="delete-product-title"
                 aria-describedby="delete-product-description"
-                className="w-full max-w-[27rem] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+                className="w-full max-w-[27rem] overflow-hidden rounded-card border border-black/10 bg-white shadow-[var(--elev-2)]"
                 initial={reduceMotion ? false : { opacity: 0, scale: 0.96, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 6 }}
@@ -255,7 +255,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                     type="button"
                     onClick={() => setDeleteTarget(null)}
                     disabled={deleting}
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
                   >
                     {t('deleteCancel')}
                   </button>
@@ -397,7 +397,7 @@ export function ProductsToolbar({
           <button
             type="button"
             onClick={() => setSearchInput('')}
-            className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+            className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
             aria-label={t('clearFilters')}
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -409,8 +409,8 @@ export function ProductsToolbar({
 
   return (
     <>
-      <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-        <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+      <div className="sticky top-[4rem] z-20 md:static md:z-auto">
+        <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2 md:hidden">
             {searchField()}
             <button
@@ -421,7 +421,7 @@ export function ProductsToolbar({
               aria-expanded={filterSheetOpen}
               aria-label={t('filters')}
               className={cn(
-                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
+                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
                 activeFacetCount > 0
                   ? 'border-black bg-black text-white'
                   : 'border-[var(--border-default)] text-[var(--text-secondary)]',
@@ -429,7 +429,7 @@ export function ProductsToolbar({
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
               {activeFacetCount > 0 && (
-                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[10px] font-bold tabular-nums text-black">
+                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[12px] font-bold tabular-nums text-black">
                   {number.format(activeFacetCount)}
                 </span>
               )}
@@ -480,6 +480,7 @@ export function ProductsToolbar({
                 { value: '', label: t('allStockStatuses') },
                 { value: 'in_stock', label: t('inStock') },
                 { value: 'out_of_stock', label: t('outOfStock') },
+                { value: 'low_stock', label: t('lowStock') },
               ]}
             />
             <MaterialSelect
@@ -498,7 +499,7 @@ export function ProductsToolbar({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 aria-label={t('clearFilters')}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -521,14 +522,14 @@ export function ProductsToolbar({
               type="button"
               onClick={clearFilters}
               disabled={!hasFilters}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 disabled:opacity-40"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"
             >
               {t('clearFilters')}
             </button>
             <button
               type="button"
               onClick={() => setFilterSheetOpen(false)}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               {t('showResults')} ({number.format(totalResults)})
             </button>
@@ -556,6 +557,7 @@ export function ProductsToolbar({
                 { value: '', label: t('allStockStatuses') },
                 { value: 'in_stock', label: t('inStock') },
                 { value: 'out_of_stock', label: t('outOfStock') },
+                { value: 'low_stock', label: t('lowStock') },
               ]}
             />
           </ProductFilterField>
@@ -583,7 +585,7 @@ function ProductFilterChip({ label, onRemove }: { label: string; onRemove: () =>
     <button
       type="button"
       onClick={onRemove}
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
     >
       <span className="max-w-36 truncate">{label}</span>
       <X className="h-3.5 w-3.5" aria-hidden="true" />

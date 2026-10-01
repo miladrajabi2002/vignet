@@ -13,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DeleteCategoryDialog } from '@/components/products/delete-category-dialog'
 
 export interface CategoryNode {
   id: string
@@ -97,24 +97,6 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
     }
   }
 
-  async function remove() {
-    if (!deleting || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const response = await fetch(`/api/products/categories/${deleting.id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error('delete-failed')
-      setDeleting(null)
-      router.refresh()
-    } catch {
-      setError(t('deleteFailed'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   function toggleBranch(id: string) {
     setCollapsed((current) => {
       const next = new Set(current)
@@ -153,7 +135,7 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
           )}
 
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold text-[var(--text-primary)]">{category.name}</h2>
+            <h2 className="truncate text-sm font-bold text-[var(--text-primary)]">{category.name}</h2>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">{t('count', { count: category.products })}</p>
           </div>
 
@@ -191,7 +173,7 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[5.25rem] z-20 -mx-1 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-3 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+      <div className="sticky top-[4rem] z-20 -mx-1 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-3 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
         <p className="text-sm text-[var(--text-secondary)]">{t('total', { count: categories.length })}</p>
         <button
           ref={createTriggerRef}
@@ -251,17 +233,17 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
         </div>
       </MobileBottomSheet>
 
-      <ConfirmDialog
-        open={Boolean(deleting)}
-        title={t('deleteTitle')}
-        description={deleting ? t('deleteDescription', { name: deleting.name }) : undefined}
-        confirmLabel={t('delete')}
-        cancelLabel={t('cancel')}
-        busy={busy}
-        error={deleting ? error : null}
-        onConfirm={remove}
-        onClose={() => !busy && setDeleting(null)}
-      />
+      {deleting && (
+        <DeleteCategoryDialog
+          category={deleting}
+          categories={categories}
+          onCancel={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null)
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -41,7 +41,7 @@ export function CommerceTabs({
     <nav
       aria-label={productsLabel}
       className={cn(
-        'spatial-surface grid gap-1 rounded-[1.35rem] p-1.5 sm:inline-grid',
+        'ui-seg sm:inline-grid',
         items.length === 3 ? 'grid-cols-3 sm:min-w-[30rem]' : 'grid-cols-2 sm:min-w-[20rem]',
       )}
     >
@@ -53,19 +53,9 @@ export function CommerceTabs({
             key={item.key}
             href={item.href}
             aria-current={selected ? 'page' : undefined}
-            className={cn(
-              'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-2 text-xs font-semibold sm:px-4 sm:text-sm transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2',
-              selected
-                ? 'bg-black text-white shadow-[0_8px_22px_rgba(0,0,0,0.16)]'
-                : 'text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]',
-            )}
+            className="ui-seg-tab px-2 text-xs sm:px-4 sm:text-sm"
           >
-            <span
-              className={cn(
-                'grid h-7 w-7 place-items-center rounded-lg transition-colors duration-200',
-                selected ? 'bg-white/10' : 'bg-black/[0.045]',
-              )}
-            >
+            <span className="ui-seg-icon h-7 w-7">
               <Icon className="h-4 w-4" aria-hidden="true" />
             </span>
             {item.label}

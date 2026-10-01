@@ -20,6 +20,13 @@ const DRAFT_TONE: Record<string, string> = {
   SUBMITTED: 'bg-amber-50 text-amber-700',
   CONFIRMED: 'bg-emerald-50 text-emerald-700',
   CANCELLED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
+  LINK_SENT: 'bg-sky-50 text-sky-700',
+  PAYMENT_PENDING: 'bg-sky-50 text-sky-700',
+  PAYMENT_FAILED: 'bg-rose-50 text-rose-700',
+  PAID: 'bg-emerald-50 text-emerald-700',
+  ON_HOLD: 'bg-amber-50 text-amber-700',
+  EXPIRED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
+  REFUNDED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
 }
 
 /**
@@ -37,7 +44,12 @@ export default async function ChatRequestsPage() {
 
   const [drafts, alerts] = await Promise.all([
     prisma.orderDraft.findMany({
-      where: { workspaceId: user.workspaceId, status: { in: ['SUBMITTED', 'CONFIRMED', 'CANCELLED'] }, submittedAt: { not: null } },
+      // Operator pre-orders plus payment-link carts (SUPERSEDED copies are hidden).
+      where: {
+        workspaceId: user.workspaceId,
+        status: { in: ['SUBMITTED', 'CONFIRMED', 'CANCELLED', 'LINK_SENT', 'PAYMENT_PENDING', 'PAYMENT_FAILED', 'PAID', 'ON_HOLD', 'EXPIRED', 'REFUNDED'] },
+        submittedAt: { not: null },
+      },
       orderBy: { submittedAt: 'desc' },
       take: 60,
     }),
@@ -70,7 +82,7 @@ export default async function ChatRequestsPage() {
         requestsLabel={productsT('orders.requestsTab')}
       />
 
-      <section className="spatial-surface rounded-[1.5rem] !bg-white p-4 sm:p-5">
+      <section className="spatial-surface rounded-card !bg-white p-4 sm:p-5">
         <h2 className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
           <ClipboardList className="h-4 w-4" /> {t('draftsTitle')}
         </h2>
@@ -114,11 +126,20 @@ export default async function ChatRequestsPage() {
                       {draft.postalCode ? ` · ${draft.postalCode}` : ''}
                     </dd>
                   </div>
-                  {draft.total != null && (
+                  {(draft.grandTotal ?? draft.total) != null && (
                     <div>
                       <dt className="text-xs text-[var(--text-muted)]">{t('amount')}</dt>
                       <dd className="mt-0.5 font-semibold tabular-nums text-[var(--text-primary)]">
-                        {draft.total.toLocaleString(numberLocale)} {isEn ? 'Toman' : 'تومان'}
+                        {(draft.grandTotal ?? draft.total)!.toLocaleString(numberLocale)} {isEn ? 'Toman' : 'تومان'}
+                      </dd>
+                    </div>
+                  )}
+                  {draft.checkoutMode === 'PAY_LINK' && (
+                    <div>
+                      <dt className="text-xs text-[var(--text-muted)]">{t('storeOrder')}</dt>
+                      <dd className="mt-0.5 leading-6 text-[var(--text-primary)]">
+                        {draft.externalOrderNumber ? `#${draft.externalOrderNumber}` : '—'}
+                        {draft.paymentMethodTitle ? ` · ${draft.paymentMethodTitle}` : ''}
                       </dd>
                     </div>
                   )}
@@ -143,7 +164,7 @@ export default async function ChatRequestsPage() {
         )}
       </section>
 
-      <section className="spatial-surface rounded-[1.5rem] !bg-white p-4 sm:p-5">
+      <section className="spatial-surface rounded-card !bg-white p-4 sm:p-5">
         <h2 className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
           <BellRing className="h-4 w-4" /> {t('restockTitle')}
         </h2>
@@ -176,7 +197,7 @@ export default async function ChatRequestsPage() {
                         <span className="text-xs text-[var(--text-muted)]">{alert.channel}</span>
                         <span className="text-xs text-[var(--text-muted)]">· {t(`alertStatus.${alert.status}` as 'alertStatus.ACTIVE')}</span>
                         <span className="ms-auto flex items-center gap-2">
-                          <Link href={`/conversations/${alert.conversationId}`} className="text-xs font-semibold text-blue-600 hover:underline">
+                          <Link href={`/conversations/${alert.conversationId}`} className="ui-link">
                             {t('open')}
                           </Link>
                           {alert.status === 'NEEDS_FOLLOW_UP' && (

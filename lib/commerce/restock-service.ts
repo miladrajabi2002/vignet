@@ -28,6 +28,7 @@ import {
   type RestockItem,
   type RestockLang,
 } from '@/lib/commerce/restock'
+import { heldByOthers, heldExcept, liveHoldsFor, withHeldStock } from '@/lib/commerce/cart-hold'
 
 /** An offer the agent made is honoured for this long. */
 const OFFER_TTL_MS = 3 * 24 * 60 * 60 * 1000
@@ -113,6 +114,8 @@ export async function resolveRestockTurn(params: {
   catalogProducts: CatalogProduct[]
   /** The conversation's grounded product entity. */
   activeEntityId: string | null
+  /** agent.cartHoldEnabled: units other chats hold count as taken. */
+  cartHold?: boolean
 }): Promise<RestockTurnOutcome> {
   if (!params.enabled) return { kind: 'none' }
   const conversation = await prisma.conversation.findUnique({
@@ -145,7 +148,8 @@ export async function resolveRestockTurn(params: {
     where: { id: { in: items.map((item) => item.productId) }, catalogItems: { some: { agentId: params.agentId } } },
     select: { id: true, name: true, active: true, stock: true, attributes: true },
   })
-  const byId = new Map(rows.map((row) => [row.id, row]))
+  const held = params.cartHold ? await heldByOthers(params.workspaceId, params.conversationId) : null
+  const byId = new Map(rows.map((row) => [row.id, held ? withHeldStock(row, held) : row]))
   const resolved = items.flatMap((item) => {
     const row = byId.get(item.productId)
     if (!row) return []
@@ -339,7 +343,10 @@ export async function sweepRestockAlerts(limit = 300): Promise<RestockSweepStats
     },
   })
   stats.checked = alerts.length
-  const ready = alerts.filter((alert) => !alert.product.deletedAt && isItemAvailable(alert.product, alert.variationId))
+  // Units another chat holds (cart hold) are not back in stock yet.
+  const holds = await liveHoldsFor(alerts.map((alert) => alert.workspaceId))
+  const ready = alerts.filter((alert) => !alert.product.deletedAt
+    && isItemAvailable(withHeldStock(alert.product, heldExcept(holds, alert.workspaceId, alert.conversationId)), alert.variationId))
   const byConversation = new Map<string, AlertRow[]>()
   for (const alert of ready) {
     const list = byConversation.get(alert.conversationId) ?? []
@@ -389,7 +396,7 @@ export async function sweepRestockAlerts(limit = 300): Promise<RestockSweepStats
       title: `«${entry.name}» دوباره موجود شد`,
       body: parts.join(' '),
       link: '/products/requests',
-      operatorTelegram: entry.followUp.length > 0,
+      operatorTelegram: entry.followUp.length > 0 ? 'orders' : false,
     }).catch(() => {})
   }
   return stats

@@ -32,6 +32,8 @@ class Vigent_Woo_Core {
                         'sync_orders'     => '1',
                         'sync_customers'  => '1',
                         'enable_retry'    => '1',
+                        'checkout_enabled' => '1',
+                        'checkout_flow'   => 'auto',
                 );
                 $saved = get_option( VIGENT_WOO_OPTION, array() );
                 if ( ! is_array( $saved ) ) {
@@ -984,7 +986,12 @@ class Vigent_Woo_Core {
                 // the WP plugin sent raw WC attribute objects).
                 $attrs = array();
                 foreach ( $product->get_attributes() as $key => $value ) {
-                        $name = wc_attribute_label( $key );
+                        // Custom (non-taxonomy) attributes: the array key is the
+                        // sanitized slug (percent-encoded for Persian names), so
+                        // take the name the merchant typed from the attribute.
+                        $name = ( is_object( $value ) && method_exists( $value, 'is_taxonomy' ) && ! $value->is_taxonomy() && method_exists( $value, 'get_name' ) )
+                                ? $value->get_name()
+                                : wc_attribute_label( $key );
 
                         // WooCommerce stores attribute values in several shapes:
                         //   • string — pre-3.0 flat string
@@ -1167,6 +1174,9 @@ class Vigent_Woo_Core {
                         'tags'              => $tags,
                         'categories'        => $categories,
                         'variations'        => $variations,
+                        // Merchandising links the agent uses for «goes well with» suggestions.
+                        'cross_sell_ids'    => array_map( 'intval', (array) $product->get_cross_sell_ids() ),
+                        'upsell_ids'        => array_map( 'intval', (array) $product->get_upsell_ids() ),
                 );
         }
 
@@ -1370,6 +1380,8 @@ class Vigent_Woo_Core {
                         'shipping'             => ! empty( $shipping_methods ) ? $shipping_methods[0] : array(),
                         'shipping_info'        => $shipping_info,
                         'line_items'           => $line_items,
+                        // Set when the order came from an in-chat checkout (5.0+).
+                        'vigent_cart_code'     => (string) $order->get_meta( '_vigent_cart_code' ),
                 );
         }
 

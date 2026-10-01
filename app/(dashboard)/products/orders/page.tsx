@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import type { Prisma } from '@prisma/client'
 import { ShoppingBag } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
@@ -17,6 +16,8 @@ import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-l
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { dateLocaleTag } from '@/lib/localized-date'
+import { searchVariants } from '@/lib/search/persian'
+import { LiveEmptyState } from '@/components/ui/live-empty-state'
 
 const PAGE_SIZE = 20
 const ORDER_STATUSES = [
@@ -61,13 +62,13 @@ export default async function OrdersPage({
     ...(status ? { status } : {}),
     ...(q
       ? {
-          OR: [
-            { externalOrderId: { contains: q, mode: 'insensitive' } },
-            { customerName: { contains: q, mode: 'insensitive' } },
-            { customerPhone: { contains: q, mode: 'insensitive' } },
-            { customerEmail: { contains: q, mode: 'insensitive' } },
-            { trackingCode: { contains: q, mode: 'insensitive' } },
-          ],
+          OR: searchVariants(q).flatMap((term): Prisma.StoreOrderWhereInput[] => [
+            { externalOrderId: { contains: term, mode: 'insensitive' } },
+            { customerName: { contains: term, mode: 'insensitive' } },
+            { customerPhone: { contains: term, mode: 'insensitive' } },
+            { customerEmail: { contains: term, mode: 'insensitive' } },
+            { trackingCode: { contains: term, mode: 'insensitive' } },
+          ]),
         }
       : {}),
   }
@@ -192,28 +193,16 @@ export default async function OrdersPage({
       />
 
       {orders.length === 0 ? (
-        <section className="flex min-h-72 flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-white p-8 text-center shadow-[var(--shadow-card)]">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--bg-muted)] text-[var(--text-muted)]">
-            <ShoppingBag className="h-6 w-6" />
-          </span>
-          <h2 className="mt-4 text-base font-semibold text-[var(--text-primary)]">
-            {hasFilters ? t('emptyFiltered') : t('empty')}
-          </h2>
-          <p className="mt-1 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
-            {hasFilters ? t('emptyFilteredDescription') : t('emptyDescription')}
-          </p>
-          {hasFilters && (
-            <Link
-              href="/products/orders"
-              className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-primary)]"
-            >
-              {t('clearFilters')}
-            </Link>
-          )}
-        </section>
+        <LiveEmptyState
+        icon={ShoppingBag}
+        preview={hasFilters ? 'none' : 'orders'}
+        title={hasFilters ? t('emptyFiltered') : t('empty')}
+        description={hasFilters ? t('emptyFilteredDescription') : t('emptyDescription')}
+        action={hasFilters ? { href: '/products/orders', label: t('clearFilters') } : undefined}
+        />
       ) : (
         <>
-          <section className="spatial-surface hidden overflow-hidden rounded-[1.5rem] !bg-white md:block">
+          <section className="spatial-surface hidden overflow-hidden rounded-card !bg-white md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1120px] border-collapse text-sm">
                 <thead className="bg-[var(--bg-muted)] text-start text-xs text-[var(--text-secondary)]">
@@ -298,7 +287,7 @@ export default async function OrdersPage({
                                 href={order.trackingLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex min-h-8 items-center text-xs font-semibold text-blue-600 hover:underline"
+                                className="inline-flex min-h-8 items-center ui-link"
                               >
                                 {t('trackingLink')}
                               </a>
@@ -346,7 +335,7 @@ export default async function OrdersPage({
                 detailsLabel={t('details')}
                 closeLabel={t('hideDetails')}
               >
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-[1.35rem] border border-[var(--border-default)] bg-white p-4 text-xs shadow-[var(--shadow-xs)]">
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-card border border-[var(--border-default)] bg-white p-4 text-xs shadow-[var(--shadow-xs)]">
                   <div className="col-span-2">
                     <dt className="text-[var(--text-muted)]">{t('items')}</dt>
                     <dd className="mt-1 text-sm leading-6 text-[var(--text-primary)]">
@@ -394,7 +383,7 @@ export default async function OrdersPage({
                         {order.trackingLink && (
                           <p className="min-w-0">
                             <span className="text-[var(--text-muted)]">{t('trackingLink')}: </span>
-                            <a href={order.trackingLink} target="_blank" rel="noopener noreferrer" dir="ltr" className="break-all font-medium text-blue-600 hover:underline">
+                            <a href={order.trackingLink} target="_blank" rel="noopener noreferrer" dir="ltr" className="ui-link inline break-all">
                               {order.trackingLink}
                             </a>
                           </p>
@@ -438,21 +427,20 @@ function friendlyCourierName(courierName: string, locale: string) {
   return courierName
 }
 
+/** Order states on the shared chip palette (app/ui-system.css). */
 function statusClassName(status: string) {
-  switch (status) {
-    case 'completed':
-      return 'bg-green-50 text-green-700'
-    case 'processing':
-      return 'bg-blue-50 text-blue-700'
-    case 'pending':
-    case 'on-hold':
-      return 'bg-amber-50 text-amber-700'
-    case 'cancelled':
-    case 'failed':
-      return 'bg-red-50 text-red-700'
-    case 'refunded':
-      return 'bg-purple-50 text-purple-700'
-    default:
-      return 'bg-[var(--bg-muted)] text-[var(--text-secondary)]'
-  }
+switch (status) {
+case 'completed':
+return 'ui-chip ui-chip-ok'
+case 'processing':
+return 'ui-chip ui-chip-signal'
+case 'pending':
+case 'on-hold':
+return 'ui-chip ui-chip-warn'
+case 'cancelled':
+case 'failed':
+return 'ui-chip ui-chip-danger'
+default:
+return 'ui-chip ui-chip-neutral'
+}
 }

@@ -2,7 +2,8 @@ import { getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { CategoryTree } from '@/components/products/category-tree'
-import { BackButton } from '@/components/dashboard/back-button'
+import { FolderTree } from 'lucide-react'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function CategoriesPage() {
   const user = await requireUser()
@@ -16,10 +17,7 @@ export default async function CategoriesPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <BackButton href="/products" label={t('title')} />
-      <h1 className="text-2xl font-light text-[var(--text-primary)]">
-        {t('categories.title')}
-      </h1>
+      <PageHeader icon={FolderTree} title={t('categories.title')} back={{ href: '/products', label: t('title') }} />
       <CategoryTree
         categories={categories.map((c) => ({
           id: c.id,

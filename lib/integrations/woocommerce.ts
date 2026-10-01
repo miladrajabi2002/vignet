@@ -1,15 +1,19 @@
 /* === Issue #1: source tag for WooCommerce-synced customers === */
 export const WOO_SOURCE_TAG = 'افزونه ووکامرس'
 
+import { applyCheckoutEvent, enableInChatSellingByDefault } from '@/lib/commerce/checkout-service'
+import { pluginSupportsCheckout } from '@/lib/commerce/checkout-link'
 import crypto from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 import { normalizePhone, toEnglishDigits } from '@/lib/phone'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
+import { notifyOrderWatchers } from '@/lib/commerce/order-updates'
 import type { WooWebhookBatchJobData, WooWebhookEvent } from '@/lib/queue/jobs'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import { productEmbeddingSourceHash } from '@/lib/products/embedding-source'
+import { decodeAttributeText } from '@/lib/products/description'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 
 export const WOOCOMMERCE_REST_PER_PAGE = 100
@@ -171,15 +175,6 @@ export function resolveWooCredentials(raw: unknown): WooCredentials {
   return { consumerKey, consumerSecret }
 }
 
-export function hasWooCredentials(raw: unknown): boolean {
-  try {
-    resolveWooCredentials(raw)
-    return true
-  } catch {
-    return false
-  }
-}
-
 export function verifyWooWebhookSignature(
   rawBody: string,
   signature: string,
@@ -306,11 +301,12 @@ function mapWooProduct(product: WooProduct) {
   const attributes: Record<string, string> = {}
   for (const attribute of product.attributes ?? []) {
     if (!attribute.name) continue
-    attributes[attribute.name] = Array.isArray(attribute.options)
-      ? attribute.options.map(String).join(', ')
+    // Custom Persian attribute names arrive percent-encoded from older plugins.
+    attributes[decodeAttributeText(attribute.name)] = Array.isArray(attribute.options)
+      ? attribute.options.map((option) => decodeAttributeText(String(option))).join(', ')
       : attribute.options == null
         ? ''
-        : String(attribute.options)
+        : decodeAttributeText(String(attribute.options))
   }
 
   // Variable products: normalize per-variation sku/price/stock/attributes
@@ -337,7 +333,8 @@ function mapWooProduct(product: WooProduct) {
         manageStock: v.manage_stock === true,
         stockQuantity: v.stock_quantity ?? null,
         inStock: v.in_stock !== false,
-        attributes: v.attributes ?? {},
+        attributes: Object.fromEntries(Object.entries(v.attributes ?? {})
+          .map(([key, value]) => [decodeAttributeText(key), decodeAttributeText(String(value))])),
         image: v.image?.trim() || null,
       }
     })
@@ -867,6 +864,7 @@ async function updateOrderTrackingFromWoo(
     where: { id: existing.id },
     data: shippingFieldsFromWoo(order),
   })
+  await notifyOrderWatchers(integration.id, externalOrderId)
   return true
 }
 
@@ -934,6 +932,8 @@ async function upsertOrderFromWoo(
       data: { orderTrackingEnabled: true },
     })
   }
+  // A customer who asked about this order in chat hears about the change.
+  if (existing) await notifyOrderWatchers(integration.id, externalOrderId)
 }
 
 /**
@@ -1261,7 +1261,26 @@ export async function processWebhookEvent(
   }
   if (event.topic === 'order.created' || event.topic === 'order.updated') {
     await upsertOrderFromWoo(integration, event.data as WooOrder)
+    // Orders placed through an in-chat checkout also arrive through the normal
+    // (batched) sync; applying them here is idempotent and covers a lost
+    // instant checkout.updated event.
+    const order = event.data as WooOrder & { vigent_cart_code?: string }
+    if (order?.vigent_cart_code) {
+      await applyCheckoutEvent(integration.id, 'checkout.updated', {
+        cart_code: order.vigent_cart_code,
+        order_id: order.id,
+        order_number: order.number,
+        status: order.status,
+        total: order.total,
+        payment_method: order.payment_method,
+        payment_method_title: order.payment_method_title,
+      })
+    }
     return 1
+  }
+  // v5.0+ in-chat checkout: instant order status for a chat cart.
+  if (event.topic === 'checkout.order_created' || event.topic === 'checkout.updated' || event.topic === 'checkout.failed') {
+    return await applyCheckoutEvent(integration.id, event.topic, (event.data ?? {}) as Record<string, unknown>) ? 1 : 0
   }
   if (event.topic === 'order.tracking.updated') {
     return await updateOrderTrackingFromWoo(integration, event.data as WooOrder) ? 1 : 0
@@ -1307,6 +1326,7 @@ export async function processWebhookEvent(
         ...(pluginVersion ? { pluginVersion } : {}),
       },
     })
+    if (pluginSupportsCheckout(pluginVersion)) await enableInChatSellingByDefault(integration.workspaceId)
     return 1
   }
   if (event.topic === 'connection.disconnected') {
@@ -1354,11 +1374,12 @@ export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promi
 
   const row = await prisma.storeIntegration.findUnique({
     where: { id: job.integrationId },
-    select: { id: true, workspaceId: true, storeUrl: true },
+    select: { id: true, workspaceId: true, storeUrl: true, pluginVersion: true },
   })
   if (!row || row.workspaceId !== job.workspaceId) throw new Error('INTEGRATION_NOT_FOUND')
+  const { pluginVersion: previousPluginVersion, ...stored } = row
   const integration: StoreIntegrationInput = {
-    ...row,
+    ...stored,
     credentials: { consumerKey: '', consumerSecret: '' },
   }
   await prisma.storeWebhookDelivery.update({
@@ -1402,6 +1423,10 @@ export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promi
         },
       }),
     ])
+    // The store just upgraded to a plugin that takes payments.
+    if (pluginSupportsCheckout(job.pluginVersion) && !pluginSupportsCheckout(previousPluginVersion)) {
+      await enableInChatSellingByDefault(integration.workspaceId)
+    }
     // Do not turn a known plan limit into an unbounded per-delivery log stream.
     // StoreIntegration.lastSyncError is the single current-state marker shown
     // to the owner; the delivery is complete and must not be retried.

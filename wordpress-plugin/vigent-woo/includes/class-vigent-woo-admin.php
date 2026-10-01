@@ -733,6 +733,10 @@ class Vigent_Woo_Admin {
                                 body.append('sync_products', syncProducts ? '1' : '0');
                                 body.append('sync_orders', syncOrders ? '1' : '0');
                                 body.append('sync_customers', syncCustomers ? '1' : '0');
+                                var checkoutEnabled = document.getElementById('checkout_enabled');
+                                var checkoutFlow = document.getElementById('checkout_flow');
+                                if (checkoutEnabled) body.append('checkout_enabled', checkoutEnabled.checked ? '1' : '0');
+                                if (checkoutFlow) body.append('checkout_flow', checkoutFlow.value);
 
                                 fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
                                         .then(function(r) { return r.json(); })
@@ -1555,7 +1559,7 @@ class Vigent_Woo_Admin {
 
                 <div class="vg-card">
                         <h2><?php esc_html_e( 'تنظیمات هم‌گام‌سازی', 'vigent-woo' ); ?></h2>
-                        <p><?php esc_html_e( 'داده‌ها برای معرفی محصول و پیگیری سفارش در اختیار ویجنت قرار می‌گیرند. ثبت یا فروش سفارش توسط ایجنت از این افزونه فعال نمی‌شود.', 'vigent-woo' ); ?></p>
+                        <p><?php esc_html_e( 'داده‌ها برای معرفی محصول و پیگیری سفارش در اختیار ویجنت قرار می‌گیرند.', 'vigent-woo' ); ?></p>
 
                         <label class="vg-toggle <?php echo $has_wc ? '' : 'off'; ?>">
                                 <input type="checkbox" id="sync_products" <?php checked( $settings['sync_products'], '1' ); ?> <?php disabled( ! $has_wc ); ?> />
@@ -1569,7 +1573,7 @@ class Vigent_Woo_Admin {
                                 <input type="checkbox" id="sync_orders" <?php checked( $settings['sync_orders'], '1' ); ?> <?php disabled( ! $has_wc ); ?> />
                                 <div>
                                         <div class="label"><?php esc_html_e( 'ارسال سفارش‌ها برای پیگیری', 'vigent-woo' ); ?></div>
-                                        <div class="sub"><?php esc_html_e( 'ایجاد و تغییر وضعیت سفارش برای پشتیبانی ارسال می‌شود؛ امکان ثبت سفارش ایجاد نمی‌کند.', 'vigent-woo' ); ?></div>
+                                        <div class="sub"><?php esc_html_e( 'ایجاد و تغییر وضعیت سفارش برای پیگیری سفارش در گفتگو ارسال می‌شود.', 'vigent-woo' ); ?></div>
                                 </div>
                         </label>
 
@@ -1580,6 +1584,43 @@ class Vigent_Woo_Admin {
                                         <div class="sub"><?php esc_html_e( 'اطلاعات تماس مشتریان (نام، تلفن، ایمیل، شهر) به‌صورت خودکار ارسال می‌شود تا ایجنت بتواند مشتریان را بشناسد و سوالاتشان را پاسخ دهد.', 'vigent-woo' ); ?></div>
                                 </div>
                         </label>
+
+                        <div class="vg-btns">
+                                <button class="vg-btn vg-btn-black" onclick="vgSaveToggles(this)"><?php esc_html_e( 'ذخیره', 'vigent-woo' ); ?></button>
+                        </div>
+                </div>
+
+                <div class="vg-card">
+                        <h2><?php esc_html_e( 'فروش داخل گفتگو', 'vigent-woo' ); ?></h2>
+                        <p><?php esc_html_e( 'مشتری سبدش را در گفتگو با ایجنت می‌چیند و با لینک پرداخت، روی صفحهٔ پرداخت همین سایت و با درگاه‌های فعال همین سایت پرداخت می‌کند. سفارش مثل خرید عادی از سایت ثبت می‌شود. روشن کردن لینک پرداخت برای هر ایجنت از پنل ویجنت انجام می‌شود.', 'vigent-woo' ); ?></p>
+
+                        <?php $checkout_ok = Vigent_Woo_Checkout::wc_supported(); ?>
+                        <?php if ( $has_wc && ! $checkout_ok ) : ?>
+                                <p class="sub" style="color:#b45309;font-weight:600">
+                                        <?php
+                                        printf(
+                                                /* translators: %s: installed WooCommerce version */
+                                                esc_html__( 'فروش داخل گفتگو به ووکامرس ۷.۰ یا بالاتر نیاز دارد (نسخهٔ نصب‌شده: %s). همگام‌سازی محصولات و سفارش‌ها همچنان کار می‌کند؛ برای فعال شدن پرداخت از گفتگو ووکامرس را به‌روز کنید.', 'vigent-woo' ),
+                                                esc_html( defined( 'WC_VERSION' ) ? WC_VERSION : '—' )
+                                        );
+                                        ?>
+                                </p>
+                        <?php endif; ?>
+                        <label class="vg-toggle <?php echo $checkout_ok ? '' : 'off'; ?>">
+                                <input type="checkbox" id="checkout_enabled" <?php checked( $settings['checkout_enabled'], '1' ); ?> <?php disabled( ! $checkout_ok ); ?> />
+                                <div>
+                                        <div class="label"><?php esc_html_e( 'پذیرش لینک پرداخت از گفتگو', 'vigent-woo' ); ?></div>
+                                        <div class="sub"><?php esc_html_e( 'اگر خاموش باشد، لینک‌های پرداخت ویجنت روی این سایت سفارشی نمی‌سازند.', 'vigent-woo' ); ?></div>
+                                </div>
+                        </label>
+
+                        <label for="checkout_flow" style="display:block;margin:14px 0 6px;font-weight:600"><?php esc_html_e( 'مسیر پرداخت', 'vigent-woo' ); ?></label>
+                        <select id="checkout_flow" <?php disabled( ! $checkout_ok ); ?> style="min-width:280px">
+                                <option value="auto" <?php selected( $settings['checkout_flow'], 'auto' ); ?>><?php esc_html_e( 'خودکار (پیشنهادی)', 'vigent-woo' ); ?></option>
+                                <option value="order_pay" <?php selected( $settings['checkout_flow'], 'order_pay' ); ?>><?php esc_html_e( 'لینک پرداخت مستقیم (صفحهٔ پرداخت سفارش)', 'vigent-woo' ); ?></option>
+                                <option value="cart" <?php selected( $settings['checkout_flow'], 'cart' ); ?>><?php esc_html_e( 'انتقال سبد به صفحهٔ تسویه‌حساب سایت', 'vigent-woo' ); ?></option>
+                        </select>
+                        <p class="sub" style="margin-top:6px"><?php esc_html_e( 'خودکار: مشتری مستقیم به صفحهٔ پرداخت سفارش می‌رود؛ اگر فرم تسویه‌حساب شما فیلد اجباری اضافه (مثل کد ملی) داشته باشد، سبد به صفحهٔ تسویه‌حساب سایت منتقل می‌شود. اگر درگاهی فقط در تسویه‌حساب کار می‌کند، «انتقال سبد» را انتخاب کنید.', 'vigent-woo' ); ?></p>
 
                         <div class="vg-btns">
                                 <button class="vg-btn vg-btn-black" onclick="vgSaveToggles(this)"><?php esc_html_e( 'ذخیره', 'vigent-woo' ); ?></button>

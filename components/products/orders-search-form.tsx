@@ -121,7 +121,7 @@ export function OrdersSearchForm({
             type="button"
             onClick={() => setSearchInput('')}
             aria-label={clearFilters}
-            className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+            className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -136,9 +136,9 @@ export function OrdersSearchForm({
         action="/products/orders"
         method="get"
         onSubmit={(event) => event.preventDefault()}
-        className="sticky top-[5.35rem] z-20 md:static md:z-auto"
+        className="sticky top-[4rem] z-20 md:static md:z-auto"
       >
-        <div className="spatial-surface rounded-[1.35rem] !bg-white p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+        <div className="spatial-surface rounded-card !bg-white p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2 md:hidden">
             {searchField('orders-search-mobile')}
             <button
@@ -149,7 +149,7 @@ export function OrdersSearchForm({
               aria-expanded={filtersOpen}
               aria-label={filtersLabel}
               className={cn(
-                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
+                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
                 statusInput
                   ? 'border-black bg-black text-white'
                   : 'border-[var(--border-default)] text-[var(--text-secondary)]',
@@ -157,7 +157,7 @@ export function OrdersSearchForm({
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
               {statusInput && (
-                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[10px] font-bold tabular-nums text-black">
+                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[12px] font-bold tabular-nums text-black">
                   {new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US').format(1)}
                 </span>
               )}
@@ -169,7 +169,7 @@ export function OrdersSearchForm({
               <button
                 type="button"
                 onClick={() => setStatusInput('')}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <span className="max-w-40 truncate">{selectedStatusLabel}</span>
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -195,7 +195,7 @@ export function OrdersSearchForm({
                 onClick={clearAll}
                 aria-label={clearFilters}
                 title={clearFilters}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -217,11 +217,11 @@ export function OrdersSearchForm({
               type="button"
               onClick={clearAll}
               disabled={!hasFilters}
-              className="min-h-12 rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 disabled:opacity-40"
+              className="min-h-12 rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"
             >
               {clearFilters}
             </button>
-            <button type="button" onClick={() => setFiltersOpen(false)} className="min-h-12 rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2">
+            <button type="button" onClick={() => setFiltersOpen(false)} className="min-h-12 rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
               {closeFilters}
             </button>
           </div>
