@@ -30,7 +30,7 @@ import type { ChannelKey } from '@/components/ui/channel-mark'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { getDashboardNavigationModules, getVerticalPack } from '@/lib/verticals/registry'
-import { readBusinessProfile, workspaceCapabilities } from '@/lib/verticals/profile'
+import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { getCapabilityReadiness } from '@/lib/verticals/readiness'
 import { CapabilityStatusPanel } from '@/components/dashboard/capability-status-panel'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
@@ -218,7 +218,6 @@ export default async function OverviewPage() {
   ])
 
   const pack = getVerticalPack(workspace.businessType)
-  const businessProfile = readBusinessProfile(workspace.businessProfile, workspace.businessType)
   const capabilities = workspaceCapabilities(workspace)
   const modules = getDashboardNavigationModules(capabilities)
   const readiness = await getCapabilityReadiness(workspaceId, capabilities)
