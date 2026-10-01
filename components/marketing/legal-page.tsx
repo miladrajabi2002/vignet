@@ -24,18 +24,18 @@ export function LegalPage({
 	return (
 		<div className="marketing-page-shell min-h-screen px-3 pb-20 pt-24 sm:px-5 sm:pt-28">
 			<div className="mx-auto max-w-6xl">
-				<header className="marketing-page-hero marketing-grid-dark px-6 py-10 text-white sm:px-9 sm:py-14">
+				<header className="marketing-page-hero px-1 pb-10 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
 					<div className="relative z-10 max-w-3xl">
 						<MarketingHeroPill><span className="inline-flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5" />{eyebrow}</span></MarketingHeroPill>
 						<h1 className="mt-5 text-balance text-4xl font-bold leading-[1.25] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
 							{title}
 						</h1>
-						<p className="mt-4 max-w-2xl text-sm leading-7 text-white/55">{description}</p>
-						<p className="mt-6 text-[12px] text-white/35">{updatedAt}</p>
+						<p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub">{description}</p>
+						<p className="mt-6 text-[12px] text-vg-cap">{updatedAt}</p>
 					</div>
 				</header>
 
-				<div className="relative z-10 -mt-5 grid gap-4 px-3 sm:px-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
+				<div className="relative z-10 mt-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
 					<LegalMobileNavigation sections={sections.map((section) => section.title)} />
 
 					<article className="spatial-surface rounded-sheet bg-white p-6 sm:p-9">

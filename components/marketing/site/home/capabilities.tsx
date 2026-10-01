@@ -217,120 +217,6 @@ function LiveToggle() {
 	)
 }
 
-const MINI_COPY = {
-	fa: { slots: ['۱۶:۰۰', '۱۷:۰۰'], alert: 'هشدار فوری', langs: ['فا', 'EN', 'ع'], sources: ['PDF', 'سایت', 'کاتالوگ'], price: '۶٬۹۸۰٬۰۰۰', time: '۰:۰۶', notify: 'خبر می‌دهیم', tag: 'قصد خرید', initial: 'س' },
-	en: { slots: ['16:00', '17:00'], alert: 'Instant alert', langs: ['EN', 'فا', 'ع'], sources: ['PDF', 'Site', 'Catalog'], price: '6,980,000', time: '0:06', notify: 'We’ll notify', tag: 'High intent', initial: 'S' },
-} as const
-const SOURCE_GLOW = ['vg-g1', 'vg-g2', 'vg-g3']
-const INBOX_DOTS = [
-	{ color: '#be185d', cls: 'vg-in1' },
-	{ color: '#0369a1', cls: 'vg-in2' },
-	{ color: '#047857', cls: 'vg-in3' },
-	{ color: '#5b3de8', cls: 'vg-in4' },
-]
-
-/**
- * The phone grid's live cues: 26px-tall, decorative miniatures of each
- * capability. They reuse the desktop bento's CSS loops, so they cost no JS
- * and pause off-screen with the rest of the `.vg-anim` block.
- */
-function MiniCue({ cue, locale }: { cue: CueKey; locale: SiteLocale }) {
-	const m = MINI_COPY[locale]
-	const box = 'mt-auto flex h-[26px] w-full items-center justify-center gap-1'
-	switch (cue) {
-		case 'learn':
-			return (
-				<div aria-hidden className={box}>
-					{m.sources.map((source, i) => (
-						<span key={source} className={cn('rounded-md border border-vg-line bg-vg-bg px-1.5 py-0.5 text-[10px] leading-none text-vg-sub', SOURCE_GLOW[i])}>{source}</span>
-					))}
-				</div>
-			)
-		case 'sell':
-			return (
-				<div aria-hidden className={cn(box, 'gap-1.5 rounded-lg bg-vg-bg px-1.5')}>
-					<ShoppingCart className="size-3 shrink-0 text-vg-ink" strokeWidth={2.2} />
-					<span className="text-[10.5px] font-bold tabular-nums">{m.price}</span>
-					<span className="vg-sq3 inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#dcfce7] text-[#166534]"><Check className="size-2.5" strokeWidth={3} /></span>
-				</div>
-			)
-		case 'inbox':
-			return (
-				<div aria-hidden className={cn(box, 'gap-1.5')}>
-					{INBOX_DOTS.map((dot) => <span key={dot.color} className={cn('size-2.5 rounded-full', dot.cls)} style={{ background: dot.color }} />)}
-					<Inbox className="ms-0.5 size-3.5 text-vg-cap" strokeWidth={2} />
-				</div>
-			)
-		case 'voice':
-			return (
-				<div aria-hidden className={cn(box, 'gap-[3px] rounded-lg bg-[#1f1f23] px-2')}>
-					{WAVE_DELAYS.slice(0, 10).map((delay) => <span key={delay} className="vg-wave h-3.5 w-[2.5px] rounded bg-[#b9adff]" style={{ animationDelay: `${delay}s` }} />)}
-					<span className="ms-1 text-[10px] tabular-nums text-[#a1a1aa]">{m.time}</span>
-				</div>
-			)
-		case 'pre':
-			return (
-				<div aria-hidden className={cn(box, 'gap-1.5 text-[10.5px] font-medium text-[#4c2fd0]')}>
-					<span className="relative inline-flex size-5 items-center justify-center">
-						<span className="vg-ring absolute inset-0 rounded-full border border-[rgba(91,61,232,0.45)]" />
-						<Bell className="relative size-3" strokeWidth={2.2} />
-					</span>
-					{m.notify}
-				</div>
-			)
-		case 'crm':
-			return (
-				<div aria-hidden className={cn(box, 'gap-1.5')}>
-					<span className="inline-flex size-5 items-center justify-center rounded-full bg-vg-soft text-[10px] font-bold text-[#4c2fd0]">{m.initial}</span>
-					<span className="vg-sq2 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[10px] leading-none text-[#166534]">{m.tag}</span>
-				</div>
-			)
-		case 'ctrl':
-			return (
-				<div aria-hidden className={cn(box, 'gap-2')}>
-					<span className="relative inline-block h-4 w-7 overflow-hidden rounded-full bg-[#d4d4d8]">
-						<span className="vg-knob-track absolute inset-0 rounded-full bg-vg-ink" />
-						<span className="vg-knob absolute start-0.5 top-0.5 size-3 rounded-full bg-white shadow-sm" />
-					</span>
-					<span className="h-1 w-8 rounded-full bg-[#e4e4e7]"><span className="vg-knob-track block h-full w-3/4 rounded-full bg-vg-signal" /></span>
-				</div>
-			)
-		case 'book':
-			return (
-				<div aria-hidden className={cn(box, 'gap-1')}>
-					<span className="rounded-md bg-vg-bg px-1.5 py-0.5 text-[10px] leading-none text-vg-dim line-through">{m.slots[0]}</span>
-					<span className="vg-g2 rounded-md border border-vg-line bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none">{m.slots[1]}</span>
-					<span className="vg-sq3 inline-flex size-4 items-center justify-center rounded-full bg-[#dcfce7] text-[#166534]"><Check className="size-2.5" strokeWidth={3} /></span>
-				</div>
-			)
-		case 'bot':
-			return (
-				<div aria-hidden className={cn(box, 'gap-1.5 text-[10.5px] font-medium text-[#0369a1]')}>
-					<span className="relative inline-flex size-5 items-center justify-center">
-						<span className="vg-ring absolute inset-0 rounded-full border border-[rgba(3,105,161,0.45)]" />
-						<TelegramIcon className="relative size-3.5" />
-					</span>
-					{m.alert}
-				</div>
-			)
-		case 'lang':
-			return (
-				<div aria-hidden className={box}>
-					{m.langs.map((lang, i) => (
-						<span key={lang} className={cn('rounded-md border border-vg-line bg-vg-bg px-1.5 py-0.5 text-[10px] leading-none text-vg-sub', SOURCE_GLOW[i])}>{lang}</span>
-					))}
-				</div>
-			)
-		default:
-			return (
-				<div aria-hidden className={cn(box, 'items-end gap-[3px] border-b border-black/10 px-3')}>
-					{BAR_HEIGHTS.map((h, i) => <span key={i} className="vg-grow w-2 rounded-t-[2px]" style={{ height: `${h}%`, background: BAR_COLORS[i], animationDelay: `${i * 0.15}s` }} />)}
-				</div>
-			)
-	}
-}
-
-
 /**
  * The quieter features that are easy to miss in a demo but matter in daily
  * use — each one maps to a real runtime module (language mirroring, vision,
@@ -427,22 +313,24 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					className="vg-rv"
 				/>
 
-				{/* Phones: a compact 2×4 grid; each card carries a tiny live cue of
-				    the same demo the desktop bento shows (voice wave, chart, sync…). */}
-				<ul className="vg-anim vg-rv-group mt-[18px] grid grid-cols-2 gap-2.5 lg:hidden">
+				{/* Phones: one column of rows, icon beside the text, so each
+				    capability reads at full width instead of three cramped lines. */}
+				<ul className="vg-rv-group mt-[18px] grid grid-cols-1 gap-2 lg:hidden">
 					{c.mobile.map((item, i) => {
 						const cue = MOBILE_KEYS[i]
 						const Icon = MOBILE_ICONS[cue]
-						const dark = cue === 'voice'
 						return (
-							<li key={item.t} className={cn('relative flex flex-col items-center gap-2 rounded-card px-3 pb-3.5 pt-[18px] text-center', dark ? 'bg-vg-ink text-white' : 'border border-vg-line bg-white', i === MOBILE_KEYS.length - 1 && MOBILE_KEYS.length % 2 === 1 && 'col-span-2')}>
-								{cue === 'sell' ? <span className="absolute start-2.5 top-2.5 rounded-full bg-vg-signal px-[7px] py-0.5 text-[11px] text-white">{c.preNew}</span> : null}
-								<span aria-hidden className={cn('inline-flex size-[42px] items-center justify-center rounded-control', dark ? 'bg-white/10 text-[#b9adff]' : 'bg-vg-ink text-white')}>
+							<li key={item.t} className="flex items-center gap-3 rounded-card border border-vg-line bg-white px-3.5 py-3">
+								<span aria-hidden className="inline-flex size-[42px] shrink-0 items-center justify-center rounded-control bg-vg-ink text-white">
 									<Icon className="size-[19px]" strokeWidth={1.8} />
 								</span>
-								<h3 className="text-[14px] font-bold leading-[1.6]">{item.t}</h3>
-								<p className={cn('text-[12px] leading-[1.8]', dark ? 'text-[#d4d4d8]' : 'text-vg-sub')}>{item.d}</p>
-								<MiniCue cue={cue} locale={locale} />
+								<div className="min-w-0">
+									<h3 className="flex flex-wrap items-center gap-2 text-[14.5px] font-bold leading-[1.6]">
+										{item.t}
+										{cue === 'sell' ? <span className="rounded-full bg-vg-signal px-2 py-0.5 text-[12px] font-medium text-white">{c.preNew}</span> : null}
+									</h3>
+									<p className="text-[13px] leading-[1.8] text-vg-sub">{item.d}</p>
+								</div>
 							</li>
 						)
 					})}

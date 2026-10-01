@@ -304,13 +304,13 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 				{HERO_BEATS.map((beat) => (
 					<div key={beat.channel} className="vg-pkt vg-shot" style={{ background: '#5b3de8', boxShadow: '0 0 0 4px rgba(91,61,232,0.15)', offsetPath: `path('${paths[beat.channel]}')`, animationDelay: `${beat.inAt}s` }} />
 				))}
-				<div className="absolute inset-x-0 top-3.5 text-center text-[11.5px] font-medium text-vg-cap">{copy.inputs}</div>
+				<div className="absolute inset-x-0 top-3.5 text-center text-[12px] font-medium text-vg-cap">{copy.inputs}</div>
 				{CHANNELS.map((channel, i) => (
 					<div key={channel.id}>
 						<div className={cn('flex items-center justify-center rounded-control border border-vg-line bg-white', glow[i])} style={place({ x: xs[i] - 24, y: 40, w: 48, h: 44 }, m, MW)}>
 							<ChannelBadge channel={channel} size={34} iconSize={17} />
 						</div>
-						<span className="text-center text-[11px] text-vg-sub" style={place({ x: xs[i] - 30, y: 88, w: 60 }, m, MW)}>{channel.short[locale]}</span>
+						<span className="text-center text-[12px] text-vg-sub" style={place({ x: xs[i] - 30, y: 88, w: 60 }, m, MW)}>{channel.short[locale]}</span>
 					</div>
 				))}
 				{copy.incoming.map((msg, i) => (
@@ -319,7 +319,7 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 						className={cn('border border-vg-line bg-white px-3 py-[9px] text-start text-[13px] leading-[1.75] shadow-[0_14px_28px_-18px_rgba(17,17,17,0.45)]', ['vg-c1', 'vg-c2', 'vg-c3'][i])}
 						style={{ ...place({ x: 54, y: 122, w: 250 }, m, MW), borderRadius: bubbleIn }}
 					>
-						<div className="text-[11px] font-bold" style={{ color: msg.color }}>{msg.who}</div>
+						<div className="text-[12px] font-bold" style={{ color: msg.color }}>{msg.who}</div>
 						{msg.text}
 					</div>
 				))}
@@ -339,7 +339,7 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 						style={{ ...place({ x: 40, y: 368, w: 278 }, m, MW), borderRadius: bubbleOut }}
 					>
 						{reply.text}
-						<div className="text-[11px] text-[#b9adff]">{reply.source}</div>
+						<div className="text-[12px] text-[#b9adff]">{reply.source}</div>
 					</div>
 				))}
 				{copy.chips.map((chip, i) => (
@@ -351,7 +351,7 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 						<HeroChip index={i} text={chip} small />
 					</div>
 				))}
-				<div className="absolute inset-x-0 top-[440px] text-center text-[11.5px] font-medium text-vg-cap">{copy.outputs}</div>
+				<div className="absolute inset-x-0 top-[440px] text-center text-[12px] font-medium text-vg-cap">{copy.outputs}</div>
 				<div className="absolute inset-x-3 top-[474px] grid grid-cols-2 gap-2">
 					{copy.results.map((result, i) => {
 						const { icon: Icon, tint, color } = RESULT_ICONS[i]
@@ -362,7 +362,7 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 								</span>
 								<span className="min-w-0">
 									<span className="block truncate text-[12.5px] font-bold">{'mobileTitle' in result ? result.mobileTitle : result.title}</span>
-									<span className="block truncate text-[11px] text-vg-cap">{result.short}</span>
+									<span className="block truncate text-[12px] text-vg-cap">{result.short}</span>
 								</span>
 							</div>
 						)

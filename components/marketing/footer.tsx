@@ -107,14 +107,14 @@ export async function Footer() {
 				</nav>
 
 				<div className="mt-1.5 flex flex-wrap justify-center gap-x-3.5 gap-y-1 text-[12px] text-vg-cap lg:mt-[26px] lg:justify-between lg:border-t lg:border-black/[0.06] lg:pt-[18px] lg:text-[12.5px]">
-					<span className="flex flex-wrap justify-center gap-x-3.5 lg:gap-4">
+					<span className="flex flex-wrap items-center justify-center gap-x-3.5 lg:gap-4">
 						<span>{c.copyright}</span>
-						<Link href={`${prefix}/privacy`} className="vg-flink">{c.privacy}</Link>
-						<Link href={`${prefix}/terms`} className="vg-flink"><span className="lg:hidden">{c.termsShort}</span><span className="hidden lg:inline">{c.terms}</span></Link>
+						<Link href={`${prefix}/privacy`} className="vg-flink inline-flex min-h-10 items-center lg:min-h-0">{c.privacy}</Link>
+						<Link href={`${prefix}/terms`} className="vg-flink inline-flex min-h-10 items-center lg:min-h-0"><span className="lg:hidden">{c.termsShort}</span><span className="hidden lg:inline">{c.terms}</span></Link>
 					</span>
 					<span className="flex gap-3.5">
 						<span className="hidden font-medium text-vg-ink lg:inline">{c.current}</span>
-						<LanguageSwitcher bare className="vg-flink cursor-pointer">{c.other}</LanguageSwitcher>
+						<LanguageSwitcher bare className="vg-flink inline-flex min-h-10 cursor-pointer items-center lg:min-h-0">{c.other}</LanguageSwitcher>
 					</span>
 				</div>
 

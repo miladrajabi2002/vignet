@@ -169,9 +169,9 @@ export default async function PublicBlogPostPage(props: Props) {
                                                 {post.category.name}
                                         </MarketingHeroPill>
                                 ) : (
-                                        <MarketingHeroPill className="relative z-10">Vigent Journal</MarketingHeroPill>
+                                        <MarketingHeroPill className="relative z-10">بلاگ</MarketingHeroPill>
                                 )}
-                                <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-4xl font-bold leading-[1.18] tracking-[-0.04em] text-vg-ink sm:text-5xl rtl:leading-[1.4] rtl:tracking-normal">
+                                <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-[27px] font-bold sm:text-4xl leading-[1.18] tracking-[-0.04em] text-vg-ink lg:text-5xl rtl:leading-[1.4] rtl:tracking-normal">
                                         {post.title}
                                 </h1>
                                 <p className="relative z-10 mt-5 max-w-3xl text-[16px] leading-8 text-vg-sub">{plainExcerpt}</p>

@@ -63,7 +63,7 @@ export default async function PublicBlogCategoryPage(props: Props) {
         <div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
                         <div className="mx-auto max-w-7xl">
                         <header className="relative mb-10 border-b border-black/[0.08] px-1 pb-9 pt-2 sm:px-2 sm:pb-12 sm:pt-4 text-center">
-                                <MarketingHeroPill>Vigent Journal</MarketingHeroPill>
+                                <MarketingHeroPill>بلاگ</MarketingHeroPill>
                                 <h1 className="mt-4 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl">
                                         {category.name}
                                 </h1>

@@ -95,6 +95,8 @@ export async function PricingSection() {
                                                 <details
                                                         key={view.plan}
                                                         name="mobile-pricing-plan"
+                                                        // The recommended plan starts open so its limits are visible without a tap.
+                                                        open={view.recommended || undefined}
                                                         data-scroll-reveal="up"
                                                         style={{ '--reveal-order': index } as CSSProperties}
                                                         className={`group rounded-card border bg-white shadow-[var(--shadow-sm)] ${view.recommended ? 'border-black/35 open:border-black' : 'border-[var(--border-default)] open:border-black/15'}`}
@@ -183,9 +185,9 @@ function MobilePlanHeader({ view, suffix }: { view: MobilePlanView; suffix: stri
                 <div className="min-w-0 text-start">
                         <div className="flex flex-wrap items-center gap-2">
                                 <h3 className="text-lg font-bold text-[var(--text-primary)]">{view.name}</h3>
-                                {view.recommended ? <span className="rounded-full bg-black px-2.5 py-1 text-[9px] font-semibold text-white">{view.recommendedLabel}</span> : null}
+                                {view.recommended ? <span className="rounded-full bg-black px-2.5 py-1 text-[12px] font-semibold leading-4 text-white">{view.recommendedLabel}</span> : null}
                         </div>
-                        <p className="mt-1 line-clamp-1 text-xs leading-5 text-[var(--text-secondary)]">{view.audience}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{view.audience}</p>
                         <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
                                 <span className="text-2xl font-light tabular-nums text-[var(--text-primary)]">{view.price}</span>
                                 <span className="text-xs text-[var(--text-muted)]">{suffix}</span>

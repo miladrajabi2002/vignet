@@ -34,12 +34,12 @@ export function PublicPostCard({ post, locale, featured = false }: { post: Publi
 				</Link>
 			) : (
 				<Link href={`/blog/${post.slug}`} className={`marketing-grid-dark flex items-end bg-black p-6 text-white ${featured ? 'min-h-64' : 'min-h-52'}`}>
-				<span className="text-[12px] text-white/60">Vigent Journal</span>
+				<span className="text-[12px] text-white/60">بلاگ ویجنت</span>
 				</Link>
 			)}
 			<div className={`flex flex-1 flex-col ${featured ? 'p-6 sm:p-8' : 'p-5'}`}>
 				<div className="flex items-center justify-between gap-3">
-				{post.category ? <Link href={`/blog/category/${post.category.slug}`} className="inline-flex min-h-11 items-center text-[12px] font-medium text-[var(--text-secondary)] hover:text-black">{post.category.name}</Link> : <span className="text-[12px] text-[var(--text-muted)]">Vigent Journal</span>}
+				{post.category ? <Link href={`/blog/category/${post.category.slug}`} className="inline-flex min-h-11 items-center text-[12px] font-medium text-[var(--text-secondary)] hover:text-black">{post.category.name}</Link> : <span className="text-[12px] text-[var(--text-muted)]">بلاگ ویجنت</span>}
 					<TrendSpark seed={post.id} width={featured ? 82 : 58} height={22} />
 				</div>
 				<h2 className={`mt-4 font-bold leading-[1.55] text-black ${featured ? 'text-2xl sm:text-3xl' : 'text-base'}`}><Link href={`/blog/${post.slug}`}>{post.title}</Link></h2>

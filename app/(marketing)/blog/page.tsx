@@ -58,7 +58,7 @@ export default async function PublicBlogIndexPage() {
                         <header className="relative mb-10 border-b border-black/[0.08] px-1 pb-9 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
                                 <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
                                 <div>
-                                <MarketingHeroPill>Vigent Journal</MarketingHeroPill>
+                                <MarketingHeroPill>بلاگ</MarketingHeroPill>
                                 <h1 className="mt-5 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl lg:text-6xl">
                                         بلاگ ویجنت
                                 </h1>

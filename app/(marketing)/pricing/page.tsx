@@ -20,7 +20,7 @@ const COPY = {
                 description: 'پلن‌ها، تعرفه ماهانه و اعتبار پاسخ هوش مصنوعی ویجنت را شفاف مقایسه کنید و پلن مناسب کسب‌وکار خود را انتخاب کنید.',
                 ogTitle: 'تعرفه‌ها و پلن‌های ویجنت',
                 ogDescription: 'مقایسه شفاف پلن‌ها، اعتبار پاسخ هوش مصنوعی و امکانات هر سطح از ویجنت.',
-                heroEyebrow: 'VIGENT PRICING',
+                heroEyebrow: 'تعرفه‌ها',
                 h1: 'قیمت و تعرفه ایجنت هوش مصنوعی ویجنت',
                 subtitle: 'رایگان شروع کنید، پلن مناسب تعداد برنامه‌های خود را انتخاب کنید و مصرف پاسخ‌های هوش مصنوعی را شفاف ببینید.',
                 assurancesLabel: 'مزایای تعرفه ویجنت',
@@ -53,7 +53,7 @@ const COPY = {
                 description: 'Compare Vigent plans, monthly pricing and AI reply credit transparently, and pick the right plan for your business.',
                 ogTitle: 'Vigent pricing and plans',
                 ogDescription: 'A transparent comparison of plans, AI reply credit and what each Vigent tier includes.',
-                heroEyebrow: 'VIGENT PRICING',
+                heroEyebrow: 'Pricing',
                 h1: 'Transparent pricing for real growth',
                 subtitle: 'Start free, pick the plan that matches your number of channels, and see exactly what each AI reply costs.',
                 assurancesLabel: 'What you get with every plan',
@@ -267,19 +267,19 @@ export default async function PricingPage() {
                 <div className="marketing-page-shell min-h-screen pb-20 pt-24 sm:pt-28">
                         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
                         <div className="mx-auto max-w-7xl px-3 sm:px-5">
-                                <header className="marketing-page-hero marketing-grid-dark px-6 py-12 text-white sm:px-10 sm:py-16">
+                                <header className="marketing-page-hero px-6 pb-10 pt-4 sm:px-10 sm:pb-14 sm:pt-8">
                                         <div className="relative z-10 mx-auto max-w-3xl text-center">
                                                 <MarketingHeroPill>{copy.heroEyebrow}</MarketingHeroPill>
                                                 <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.2] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
                                                         {copy.h1}
                                                 </h1>
-                                                <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50">
+                                                <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-8 text-vg-sub">
                                                         {copy.subtitle}
                                                 </p>
                                         </div>
                                 </header>
 
-                                <section className="relative z-10 -mt-5 grid gap-3 px-3 sm:grid-cols-3 sm:px-6" aria-label={copy.assurancesLabel}>
+                                <section className="relative z-10 mt-8 grid gap-3 sm:grid-cols-3" aria-label={copy.assurancesLabel}>
                                         {copy.assurances.map(({ title, text }, index) => {
                                                 const Icon = ASSURANCE_ICONS[index]
                                                 return (

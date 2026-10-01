@@ -44,11 +44,11 @@ export function DocContent({
 
   return (
     <article className="max-w-4xl rounded-sheet border border-black/[0.08] bg-white p-4 shadow-[var(--elev-2)] sm:p-7 lg:p-9">
-      <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-card bg-black px-5 py-8 text-white shadow-[var(--elev-2)] sm:px-8 sm:py-11">
+      <header className="relative mb-10 border-b border-black/[0.08] pb-8 sm:pb-10">
         <div className="relative">
-        <MarketingHeroPill>Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</MarketingHeroPill>
+        <MarketingHeroPill>{locale === 'fa' ? 'راهنما' : 'Guide'}</MarketingHeroPill>
         <h1 className="mt-4 text-balance text-4xl font-bold leading-[1.2] tracking-[-0.04em] rtl:tracking-normal">{pick(page.title, locale)}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">{pick(page.description, locale)}</p>
+        <p className="mt-3 max-w-2xl text-[15px] leading-8 text-vg-sub">{pick(page.description, locale)}</p>
         </div>
       </header>
 

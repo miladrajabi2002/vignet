@@ -33,9 +33,9 @@ const HEART_TRACE = 'M0 20 H130 L142 20 L150 8 L160 33 L170 4 L180 27 L188 20 H2
 const FLAT_TRACE = 'M0 20 H400'
 
 const META: Record<HealthReport['status'], { color: string; Icon: typeof CheckCircle2; tone: string }> = {
-        operational: { color: 'var(--success)', Icon: CheckCircle2, tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300' },
-        degraded: { color: 'var(--warning)', Icon: AlertTriangle, tone: 'border-amber-400/20 bg-amber-400/10 text-amber-300' },
-        down: { color: 'var(--danger)', Icon: XCircle, tone: 'border-red-400/20 bg-red-400/10 text-red-300' },
+        operational: { color: 'var(--success)', Icon: CheckCircle2, tone: 'border-emerald-600/20 bg-emerald-50 text-emerald-800' },
+        degraded: { color: 'var(--warning)', Icon: AlertTriangle, tone: 'border-amber-600/25 bg-amber-50 text-amber-900' },
+        down: { color: 'var(--danger)', Icon: XCircle, tone: 'border-red-600/20 bg-red-50 text-red-800' },
 }
 
 export default async function StatusPage() {
@@ -50,16 +50,16 @@ export default async function StatusPage() {
         return (
                 <div className="marketing-page-shell min-h-screen px-3 pb-20 pt-24 sm:px-5 sm:pt-28">
                         <div className="mx-auto max-w-6xl">
-                                <header className="marketing-page-hero marketing-grid-dark px-6 py-10 sm:px-9 sm:py-14">
+                                <header className="marketing-page-hero px-1 pb-10 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
                                         <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                                                 <div>
-                                                <MarketingHeroPill><span className="inline-flex items-center gap-2"><Activity className="h-3.5 w-3.5" />Vigent System Status</span></MarketingHeroPill>
+                                                <MarketingHeroPill><span className="inline-flex items-center gap-2"><Activity className="h-3.5 w-3.5" />وضعیت سرویس‌ها</span></MarketingHeroPill>
                                                         <h1 className="mt-5 text-4xl font-bold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t.title}</h1>
-                                                        <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50">{t.subtitle}</p>
+                                                        <p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub">{t.subtitle}</p>
                                                         {/* A live trace: the pulse runs while services answer; a
                                                             full outage shows a flat line instead of a heartbeat. */}
                                                         <svg aria-hidden viewBox="0 0 400 40" fill="none" className="vg-anim mt-6 h-8 w-full max-w-md">
-                                                                <path d={report.status === 'down' ? FLAT_TRACE : HEART_TRACE} stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeLinejoin="round" />
+                                                                <path d={report.status === 'down' ? FLAT_TRACE : HEART_TRACE} stroke="rgba(17,17,17,0.12)" strokeWidth="1.5" strokeLinejoin="round" />
                                                                 {report.status !== 'down' ? <path className="vg-beat" d={HEART_TRACE} pathLength={400} style={{ stroke: color }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> : null}
                                                         </svg>
                                                 </div>
@@ -73,9 +73,9 @@ export default async function StatusPage() {
                                         </div>
                                 </header>
 
-                                <section className="relative z-10 -mt-5 grid gap-3 px-3 sm:grid-cols-3 sm:px-6">
-                                        <Metric icon={Server} label={t.healthyServices} value={`${healthy} / ${report.checks.length}`} />
-                                        <Metric icon={Activity} label={t.averageResponse} value={`${averageLatency} ${t.ms}`} />
+                                <section className="relative z-10 mt-8 grid gap-3 sm:grid-cols-3">
+                                        <Metric icon={Server} label={t.healthyServices} value={`${healthy.toLocaleString('fa-IR')} از ${report.checks.length.toLocaleString('fa-IR')}`} />
+                                        <Metric icon={Activity} label={t.averageResponse} value={`${averageLatency.toLocaleString('fa-IR')} ${t.ms}`} />
                                         <Metric icon={Clock3} label={t.lastChecked} value={checkedAt} small />
                                 </section>
 
@@ -97,7 +97,7 @@ export default async function StatusPage() {
                                                                         <span className="truncate text-sm font-medium text-black">{t[check.name as keyof typeof STATUS_COPY] ?? check.name}</span>
                                                                 </div>
                                                                 <span className="shrink-0 rounded-full bg-black/[0.035] px-3 py-1.5 font-mono text-xs text-black/50">
-                                                                        {check.ok ? `${check.latencyMs} ${t.ms}` : t.unreachable}
+                                                                        {check.ok ? `${check.latencyMs.toLocaleString('fa-IR')} ${t.ms}` : t.unreachable}
                                                                 </span>
                                                         </div>
                                                 ))}
