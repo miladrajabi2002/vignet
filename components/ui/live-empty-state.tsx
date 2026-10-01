@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 type Preview = 'chat' | 'people' | 'cards' | 'orders' | 'agents' | 'none'
 
 const ROW_ANIM = ['vg-in1', 'vg-in2', 'vg-in3', 'vg-in4']
-const DOTS = ['#be185d', '#0369a1', '#047857', '#6e56cf']
+const DOTS = ['#be185d', '#0369a1', '#047857', '#5b3de8']
 // Placeholder text lines "fill in" a beat after their row lands, the way a
 // real row renders its name then its preview.
 const LINE_FILL = ['vg-f1', 'vg-f3', 'vg-f5']

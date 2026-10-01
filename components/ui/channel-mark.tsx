@@ -17,7 +17,7 @@ export const CHANNEL_TONES: Record<ChannelKey, { tint: string; color: string; ic
 	TELEGRAM: { tint: '#eff6ff', color: '#0369a1', icon: TelegramIcon },
 	BALE: { tint: '#e6f7f1', color: '#00a37a', icon: BaleIcon },
 	RUBIKA: { tint: '#fff7ed', color: '#c2410c', icon: RubikaIcon },
-	WEB_WIDGET: { tint: '#f5f3fd', color: '#6e56cf', icon: Globe },
+	WEB_WIDGET: { tint: '#f3f1ff', color: '#5b3de8', icon: Globe },
 	CHAT_LINK: { tint: '#f4f4f5', color: '#3f3f46', icon: Link2 },
 	WHATSAPP: { tint: '#ecfdf5', color: '#15803d', icon: MessagesSquare },
 	API: { tint: '#f4f4f5', color: '#3f3f46', icon: Webhook },

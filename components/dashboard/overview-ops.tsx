@@ -275,11 +275,11 @@ function AgentNode({ locale, agentName, automationRate, compact = false }: { loc
 	return (
 		<div className={cn('relative flex flex-col items-center', compact ? 'px-0' : 'px-1')}>
 			<div className={cn('relative grid place-items-center', compact ? 'h-[5.5rem] w-[5.5rem]' : 'h-28 w-28')}>
-				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(110,86,207,0.4)]" />
-				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(110,86,207,0.4)] [animation-delay:1.4s]" />
-				<span className={cn('relative grid place-items-center rounded-full border border-[var(--border-default)] bg-white shadow-[0_20px_40px_-20px_rgba(110,86,207,0.6)]', compact ? 'h-[4.5rem] w-[4.5rem]' : 'h-24 w-24')}>
+				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(91,61,232,0.4)]" />
+				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(91,61,232,0.4)] [animation-delay:1.4s]" />
+				<span className={cn('relative grid place-items-center rounded-full border border-[var(--border-default)] bg-white shadow-[0_20px_40px_-20px_rgba(91,61,232,0.6)]', compact ? 'h-[4.5rem] w-[4.5rem]' : 'h-24 w-24')}>
 					<span className={cn('flex flex-col items-center justify-center gap-0.5 rounded-full bg-[var(--text-primary)] text-white', compact ? 'h-14 w-14' : 'h-[4.5rem] w-[4.5rem]')}>
-						<Bot className="h-5 w-5 text-[#c7bdf0]" strokeWidth={1.8} />
+						<Bot className="h-5 w-5 text-[#b9adff]" strokeWidth={1.8} />
 						<span className="max-w-[4rem] truncate text-[10.5px] font-bold">{agentName}</span>
 					</span>
 				</span>
@@ -310,7 +310,7 @@ export function VigentoCard({
 		: ['What needs attention today?', 'Which product was asked about most?', 'What did AI cost this week?']
 	return (
 		<section aria-labelledby="vigento-card-title" className="relative overflow-hidden rounded-sheet bg-[#0f0f12] p-5 text-white sm:p-7">
-			<div aria-hidden className="pointer-events-none absolute -top-24 end-[-4rem] h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(110,86,207,0.45),rgba(15,15,18,0))]" />
+			<div aria-hidden className="pointer-events-none absolute -top-24 end-[-4rem] h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(91,61,232,0.45),rgba(15,15,18,0))]" />
 			<div className="relative grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
 				<div>
 					<div className="flex items-center gap-2.5">
@@ -351,12 +351,12 @@ export function VigentoCard({
 						<p dir={fa ? 'rtl' : 'ltr'} className="vg-t0 max-w-[88%] self-end rounded-2xl rounded-br-md bg-white px-3.5 py-2.5 text-[13px] leading-6 text-black">{questions[0]}</p>
 						<div dir={fa ? 'rtl' : 'ltr'} className="relative min-h-[4.5rem] self-start">
 							<span className="vg-x1 absolute end-0 top-0 inline-flex h-8 items-center gap-1 rounded-full bg-white/10 px-3">
-								{[0, 0.2, 0.4].map((delay) => <span key={delay} className="vg-tdot h-1.5 w-1.5 rounded-full bg-[#c7bdf0]" style={{ animationDelay: `${delay}s` }} />)}
+								{[0, 0.2, 0.4].map((delay) => <span key={delay} className="vg-tdot h-1.5 w-1.5 rounded-full bg-[#b9adff]" style={{ animationDelay: `${delay}s` }} />)}
 							</span>
 							<p className="vg-t2 max-w-[92%] rounded-2xl rounded-bl-md bg-[#26262c] px-3.5 py-2.5 text-[13px] leading-6 text-white/90">{liveAnswer}</p>
 						</div>
 						<div dir={fa ? 'rtl' : 'ltr'} className="vg-t4 flex flex-wrap gap-1.5">
-							<span className="rounded-full bg-[rgba(199,189,240,0.14)] px-2.5 py-1 text-[11px] text-[#ddd6f6]">{fa ? 'منبع: گفتگوهای امروز' : 'Source: today’s chats'}</span>
+							<span className="rounded-full bg-[rgba(199,189,240,0.14)] px-2.5 py-1 text-[11px] text-[#d5cdff]">{fa ? 'منبع: گفتگوهای امروز' : 'Source: today’s chats'}</span>
 						</div>
 					</div>
 				</div>

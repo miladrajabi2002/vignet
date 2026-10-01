@@ -241,7 +241,7 @@ export function LiveArrivalItem({
           <>
             <motion.span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(100deg,transparent_8%,rgba(110,86,207,0.11)_48%,rgba(16,185,129,0.08)_72%,transparent_96%)]"
+              className="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(100deg,transparent_8%,rgba(91,61,232,0.11)_48%,rgba(16,185,129,0.08)_72%,transparent_96%)]"
               initial={{ opacity: 0 }}
               animate={{ opacity: reduceMotion ? [0, 0.42, 0] : [0, 1, 0] }}
               exit={{ opacity: 0 }}
@@ -252,7 +252,7 @@ export function LiveArrivalItem({
             />
             <motion.span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-y-2 start-0 z-20 w-[3px] rounded-full bg-gradient-to-b from-violet-500 via-fuchsia-400 to-emerald-400 shadow-[0_0_18px_rgba(110,86,207,0.55)]"
+              className="pointer-events-none absolute inset-y-2 start-0 z-20 w-[3px] rounded-full bg-gradient-to-b from-violet-500 via-fuchsia-400 to-emerald-400 shadow-[0_0_18px_rgba(91,61,232,0.55)]"
               initial={{
                 opacity: 0,
                 transform: reduceMotion ? 'scaleY(1)' : 'scaleY(0.35)',

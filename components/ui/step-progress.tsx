@@ -37,7 +37,7 @@ export function StepProgress({
 								className={cn(
 									'grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-colors duration-200',
 									done && 'bg-[var(--text-primary)] text-white',
-									active && 'bg-[var(--signal)] text-white shadow-[0_0_0_4px_rgba(110,86,207,0.14)]',
+									active && 'bg-[var(--signal)] text-white shadow-[0_0_0_4px_rgba(91,61,232,0.14)]',
 									!done && !active && 'border border-[var(--border-hover)] bg-white text-[var(--text-muted)]',
 								)}
 							>

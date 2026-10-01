@@ -113,7 +113,7 @@ const ACCENTS = [
   { bar: 'bg-emerald-500', soft: 'bg-emerald-500/10 text-emerald-800', hex: '#10b981' },
   { bar: 'bg-sky-500', soft: 'bg-sky-500/10 text-sky-800', hex: '#0ea5e9' },
   { bar: 'bg-amber-500', soft: 'bg-amber-500/10 text-amber-800', hex: '#f59e0b' },
-  { bar: 'bg-violet-500', soft: 'bg-violet-500/10 text-violet-800', hex: '#8b76dc' },
+  { bar: 'bg-violet-500', soft: 'bg-violet-500/10 text-violet-800', hex: '#765ff2' },
   { bar: 'bg-rose-500', soft: 'bg-rose-500/10 text-rose-800', hex: '#f43f5e' },
   { bar: 'bg-teal-500', soft: 'bg-teal-500/10 text-teal-800', hex: '#14b8a6' },
 ]
