@@ -119,7 +119,7 @@
     "analytics": "Analytics",
     "instagram": "Instagram",
     "integrations": "Integrations",
-    "billing": "Billing",
+    "billing": "Plan & credit",
     "settings": "Settings",
     "onboarding": "Get started",
     "logout": "Log out",
@@ -831,8 +831,8 @@
     }
   },
   "billing": {
-    "title": "Billing",
-    "subtitle": "Your plan, usage and invoices",
+    "title": "Plan & credit",
+    "subtitle": "Your plan, AI credit and payments",
     "currentPlan": "Current plan",
     "status": "Status",
     "renewsOn": "Renews on",

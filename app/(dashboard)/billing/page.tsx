@@ -1,15 +1,17 @@
 import { getTranslations, getLocale } from 'next-intl/server'
-import { MessagesSquare, Cpu, Wallet, Sparkles, Check, Zap, CalendarCheck2, Clock3 } from 'lucide-react'
+import { Cpu, Wallet, Check, Sparkles, CircleAlert, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
-import { ReplyCreditEstimator } from '@/components/dashboard/reply-credit-estimator'
 import { formatDateTime } from '@/lib/format'
-import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, isPaidPlan, PAID_PLANS } from '@/lib/billing/plans'
+import { formatLocalizedDate } from '@/lib/localized-date'
+import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, isPaidPlan, PAID_PLANS, PERIOD_DAYS } from '@/lib/billing/plans'
+import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
+import { AGENT_MODELS } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
-import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
+import { getActiveChannelConnectionCount, getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CreditFlowMotion } from '@/components/motion/explainers'
 
@@ -35,7 +37,7 @@ export default async function BillingPage(
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [workspace, subscription, convoCount, usage, messagesUsed, bookingCount] =
+  const [workspace, subscription, usage, messagesUsed, payments, channelsUsed, productsUsed, ordersUsed, customersUsed] =
     await Promise.all([
       prisma.workspace.findUnique({
         where: { id: ws },
@@ -45,23 +47,30 @@ export default async function BillingPage(
         where: { workspaceId: ws },
         select: { status: true, currentPeriodEnd: true },
       }),
-      prisma.conversation.count({
-        where: { workspaceId: ws, createdAt: { gte: monthStart } },
-      }),
       prisma.usageLog.aggregate({
         where: { workspaceId: ws, date: { gte: monthStart } },
         _sum: { promptTokens: true, completionTokens: true, cost: true, chargedIRR: true },
       }),
       getMonthlyMessageCount(ws),
-      prisma.appointment.count({
-        where: { workspaceId: ws, createdAt: { gte: monthStart } },
+      // Abandoned checkouts stay PENDING forever; they are not payments.
+      prisma.payment.findMany({
+        where: { workspaceId: ws, status: { not: 'PENDING' } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, gateway: true, plan: true, kind: true, amount: true, currency: true, status: true, createdAt: true, paidAt: true },
       }),
+      getActiveChannelConnectionCount(ws),
+      prisma.product.count({ where: { workspaceId: ws } }),
+      prisma.storeOrder.count({ where: { workspaceId: ws } }),
+      prisma.contact.count({ where: { workspaceId: ws } }),
     ])
 
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
   const plan = workspace?.plan ?? 'TRIAL'
   const chargedIRR = usage._sum.chargedIRR ?? 0
-  const estimatedMinutesSaved = messagesUsed * 2
+  const balanceIRR = workspace?.aiCreditBalanceIRR ?? 0
+  const reservedIRR = workspace?.aiCreditReservedIRR ?? 0
+  const toman = locale === 'fa' ? 'تومان' : 'toman'
 
   const defs = await getEffectivePlanDefs()
   const replyPricesIRR = await getEffectivePlanReplyPricesIRR(plan)
@@ -79,11 +88,75 @@ export default async function BillingPage(
     crypto: t('payCrypto'),
     error: t('paymentError'),
   }
-  const subscriptionStatus = subscription
-    ? locale === 'fa'
-      ? ({ ACTIVE: 'فعال', CANCELLED: 'لغوشده', PAST_DUE: 'نیازمند پرداخت' } as const)[subscription.status]
-      : subscription.status.charAt(0) + subscription.status.slice(1).toLowerCase().replace('_', ' ')
-    : ''
+  const now = new Date()
+  const subscriptionLive = !!subscription && subscription.status === 'ACTIVE' && subscription.currentPeriodEnd > now
+  const periodEnd = subscription?.currentPeriodEnd ?? workspace?.trialEndsAt ?? null
+  const daysLeft = periodEnd ? Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / 86_400_000)) : 0
+  const planStatus: { label: string; tone: Tone } = subscription
+    ? subscriptionLive
+      ? { label: locale === 'fa' ? 'فعال' : 'Active', tone: 'ok' }
+      : subscription.status === 'CANCELLED'
+        ? { label: locale === 'fa' ? 'لغوشده' : 'Cancelled', tone: 'warn' }
+        : subscription.status === 'PAST_DUE'
+          ? { label: locale === 'fa' ? 'نیازمند پرداخت' : 'Past due', tone: 'warn' }
+          : { label: locale === 'fa' ? 'منقضی‌شده' : 'Expired', tone: 'danger' }
+    : trialExpired
+      ? { label: locale === 'fa' ? 'پایان‌یافته' : 'Ended', tone: 'danger' }
+      : { label: locale === 'fa' ? 'دورهٔ آزمایشی' : 'Trial', tone: 'neutral' }
+
+  const currentDef = defs[plan]
+  const capacity = [
+    { label: locale === 'fa' ? 'اتصال برنامهٔ فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels },
+    { label: locale === 'fa' ? 'محصول' : 'Products', used: productsUsed, limit: currentDef.maxProducts },
+    { label: locale === 'fa' ? 'سفارش' : 'Orders', used: ordersUsed, limit: currentDef.maxOrders },
+    { label: locale === 'fa' ? 'مشتری' : 'Customers', used: customersUsed, limit: currentDef.maxCustomers },
+  ]
+  const replyTiers = AGENT_MODELS.map((model) => ({
+    id: model.id,
+    name: locale === 'fa' ? model.name : model.nameEn,
+    priceIRR: replyPricesIRR[model.id],
+    replies: estimateRemainingReplies(balanceIRR, replyPricesIRR[model.id]),
+  }))
+
+  const paymentRows = payments.map((payment) => ({
+    id: payment.id,
+    date: formatDateTime(payment.paidAt ?? payment.createdAt, locale),
+    title: payment.kind === 'AI_CREDIT'
+      ? (locale === 'fa' ? 'افزایش اعتبار هوش مصنوعی' : 'AI credit top-up')
+      : `${locale === 'fa' ? 'اشتراک' : 'Subscription'} ${payment.plan ? t(PLAN_KEY[payment.plan] ?? 'planTrial') : ''}`.trim(),
+    amount: payment.currency === 'USD'
+      ? `$${nf.format(payment.amount)}`
+      : `${nf.format(payment.amount / 10)} ${toman}`,
+    gateway: payment.gateway === 'ZARINPAY'
+      ? (locale === 'fa' ? 'زرین‌پی' : 'ZarinPay')
+      : (locale === 'fa' ? 'ارز دیجیتال' : 'Crypto'),
+    status: PAYMENT_STATUS[payment.status]?.[locale] ?? payment.status,
+    tone: PAYMENT_STATUS[payment.status]?.tone ?? 'neutral',
+  }))
+
+  const creditRules = [
+    {
+      icon: Sparkles,
+      title: locale === 'fa' ? 'پاسخ موفق هوش مصنوعی' : 'Successful AI request',
+      desc: locale === 'fa' ? 'پاسخ، تحلیل گفتگو یا تست پاسخ' : 'Reply, conversation analysis, or response test',
+      result: locale === 'fa' ? 'کسر به قیمت مدل انتخابی' : 'Charged at the selected model price',
+      tone: 'neutral' as Tone,
+    },
+    {
+      icon: Check,
+      title: locale === 'fa' ? 'اتوماسیون اینستاگرام' : 'Instagram automation',
+      desc: locale === 'fa' ? 'پاسخ ثابت، کلیدواژه، کامنت و سناریوهای بدون AI' : 'Static replies, keywords, comments and non-AI scenarios',
+      result: locale === 'fa' ? 'رایگان · بدون محدودیت سناریو' : 'Free · unlimited scenarios',
+      tone: 'ok' as Tone,
+    },
+    {
+      icon: RefreshCw,
+      title: locale === 'fa' ? 'درخواست ناموفق' : 'Failed request',
+      desc: locale === 'fa' ? 'پاسخی ساخته نشد' : 'No reply was produced',
+      result: locale === 'fa' ? 'بدون هزینه · رزرو برمی‌گردد' : 'No charge · hold released',
+      tone: 'ok' as Tone,
+    },
+  ]
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -110,226 +183,312 @@ export default async function BillingPage(
         </div>
       )}
 
-      {/* The credit rule, told and shown: text on one side, the three
-          cases (charged / free / refunded) playing out on the other. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)]">
-      <section className="spatial-surface flex flex-col gap-4 rounded-card p-4 sm:flex-row sm:items-center sm:p-5 lg:flex-col lg:items-start lg:justify-center">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
-          <Zap className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-bold text-[var(--text-primary)]">
-            {locale === 'fa' ? 'اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند' : 'Instagram automation uses no AI credit'}
-          </h2>
-          <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
-            {locale === 'fa'
-              ? 'پاسخ‌های ثابت، کلیدواژه‌ها، کامنت و سناریوهای بدون AI در طول دورهٔ آزمایشی یا اشتراک فعال از اعتبار کم نمی‌کنند. هر درخواست موفق هوش مصنوعی—پاسخ، تحلیل گفتگو یا تست پاسخ—با قیمت مدل انتخابی از اعتبار کم می‌شود.'
-              : 'Static replies, keywords, comments and non-AI scenarios consume no credit during an active trial or subscription. Each successful AI request—reply, conversation analysis, or response test—is charged at the selected model price.'}
-          </p>
-        </div>
-        <span className="inline-flex min-h-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[12px] font-bold text-[var(--text-primary)]">
-          {locale === 'fa' ? 'بدون محدودیت سناریو' : 'Unlimited scenarios'}
-        </span>
-      </section>
-      <CreditFlowMotion locale={locale} />
-      </div>
+      {/* Status first: what the workspace has (plan) and what it can spend
+          (credit), each with its own action right inside the card. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <section className="spatial-surface flex flex-col rounded-card p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xs font-medium text-[var(--text-muted)]">{t('currentPlan')}</h2>
+            <StatusPill tone={planStatus.tone}>{planStatus.label}</StatusPill>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-[var(--text-primary)]">{t(PLAN_KEY[plan] ?? 'planTrial')}</p>
+          {periodEnd ? (
+            <>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)]">
+                <span>{subscription ? t('renewsOn') : t('trialEnds')} {formatLocalizedDate(periodEnd, locale)}</span>
+                <span className="tabular-nums">
+                  {locale === 'fa' ? `${nf.format(daysLeft)} روز مانده` : `${nf.format(daysLeft)} days left`}
+                </span>
+              </div>
+              {subscription && <Meter className="mt-2" ratio={daysLeft / PERIOD_DAYS} />}
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">{t('noSubscription')}</p>
+          )}
 
-      {/* Plan card */}
-      <section className="spatial-surface rounded-card p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <span className="text-sm text-[var(--text-secondary)]">
-              {t('currentPlan')}
-            </span>
-            <div className="mt-1 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-[var(--text-primary)]" />
-              <span className="text-lg font-bold text-[var(--text-primary)]">
-                {t(PLAN_KEY[plan] ?? 'planTrial')}
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-[var(--text-muted)]">
-              {subscription
-                ? `${t('status')}: ${subscriptionStatus} · ${t('renewsOn')} ${formatDateTime(subscription.currentPeriodEnd, locale)}`
-                : workspace?.trialEndsAt
-                  ? `${t('trialEnds')} ${formatDateTime(workspace.trialEndsAt, locale)}`
-                  : t('noSubscription')}
-            </p>
+          <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4">
+            {capacity.map((item) => {
+              const ratio = item.limit > 0 ? item.used / item.limit : 1
+              return (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-[var(--text-secondary)]">{item.label}</span>
+                    <span className="tabular-nums text-[var(--text-muted)]">
+                      {locale === 'fa'
+                        ? `${nf.format(item.used)} از ${nf.format(item.limit)}`
+                        : `${nf.format(item.used)} of ${nf.format(item.limit)}`}
+                    </span>
+                  </div>
+                  <Meter className="mt-1.5" ratio={ratio} warnWhenFull />
+                </div>
+              )
+            })}
           </div>
-        </div>
 
-        <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-3">
-          <div className="rounded-xl bg-[var(--bg-muted)] p-3">
-            <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p>
-            <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
-          </div>
-          <div className="rounded-xl bg-[var(--bg-muted)] p-3">
-            <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
-            <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
-          </div>
-          <div className="rounded-xl bg-[var(--bg-muted)] p-3">
-            <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p>
-            <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
-          </div>
-        </div>
-      </section>
-
-      {(messagesUsed > 0 || convoCount > 0 || bookingCount > 0) && (
-        <section className="dashboard-intro relative overflow-hidden rounded-card border border-[var(--border-default)] p-5 shadow-[var(--shadow-card)] sm:p-6">
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)]">
-                <Sparkles className="h-3.5 w-3.5" />
-                {locale === 'fa' ? 'ارزش ایجادشده این ماه' : 'Value created this month'}
-              </span>
-              <h2 className="mt-4 text-xl font-bold text-[var(--text-primary)]">
-                {locale === 'fa' ? 'قبل از انتخاب پلن، خروجی واقعی ویجنت را ببینید' : 'See Vigent’s actual output before choosing a plan'}
-              </h2>
-              <p className="mt-2 text-xs leading-7 text-[var(--text-secondary)]">
-                {locale === 'fa'
-                  ? `برآورد زمان ذخیره‌شده با فرض محافظه‌کارانهٔ ۲ دقیقه برای هر پاسخ موفق محاسبه شده و شامل ارزش فروش یا رزرو نیست.`
-                  : 'Estimated time saved uses a conservative two minutes per successful reply and excludes the value of sales or bookings.'}
-              </p>
-            </div>
-            <a href="#vigent-plans" className="spatial-press inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-black px-5 text-xs font-bold text-white">
-              {locale === 'fa' ? (plan === 'TRIAL' ? 'فعال‌سازی پلن مناسب' : 'بررسی ارتقا') : (plan === 'TRIAL' ? 'Activate the right plan' : 'Review upgrade')}
+          <div className="mt-auto pt-5">
+            <a href="#vigent-plans" className="spatial-press inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-[var(--bg-elevated)]">
+              {locale === 'fa'
+                ? (subscription ? 'تمدید یا تغییر پلن' : 'انتخاب پلن')
+                : (subscription ? 'Renew or change plan' : 'Choose a plan')}
             </a>
           </div>
-          <div className="relative mt-5 grid gap-3 sm:grid-cols-3">
-            <ValueMetric icon={MessagesSquare} label={locale === 'fa' ? 'گفتگوهای این ماه' : 'Conversations this month'} value={nf.format(convoCount)} />
-            <ValueMetric icon={CalendarCheck2} label={locale === 'fa' ? 'رزروهای ثبت‌شده' : 'Bookings created'} value={nf.format(bookingCount)} />
-            <ValueMetric icon={Clock3} label={locale === 'fa' ? 'زمان تقریبی ذخیره‌شده' : 'Estimated time saved'} value={locale === 'fa' ? `${nf.format(Math.round(estimatedMinutesSaved / 60))} ساعت` : `${nf.format(Math.round(estimatedMinutesSaved / 60))} hours`} />
+        </section>
+
+        <section className="spatial-surface rounded-card p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xs font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار هوش مصنوعی' : 'AI credit'}</h2>
+            <span className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'منقضی نمی‌شود' : 'Never expires'}</span>
+          </div>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">
+            {nf.format(balanceIRR / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{toman}</span>
+          </p>
+          {reservedIRR > 0 && (
+            <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">
+              {locale === 'fa'
+                ? `${nf.format(reservedIRR / 10)} تومان در حال پردازش`
+                : `${nf.format(reservedIRR / 10)} toman currently reserved`}
+            </p>
+          )}
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
+            {replyTiers.map((tier) => (
+              <div key={tier.id} className="min-w-0 rounded-xl bg-[var(--bg-muted)] px-3 py-2.5">
+                <p className="text-sm font-bold tabular-nums text-[var(--text-primary)]">
+                  ≈ {nf.format(tier.replies)} {locale === 'fa' ? 'پاسخ' : 'replies'}
+                </p>
+                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                  {tier.name} · <span className="tabular-nums">{nf.format(tier.priceIRR / 10)} {toman}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
+            <CreditTopup locale={locale} />
           </div>
         </section>
-      )}
+      </div>
 
-      <ReplyCreditEstimator
-        balanceIRR={workspace?.aiCreditBalanceIRR ?? 0}
-        pricesIRR={replyPricesIRR}
-        locale={locale}
-      />
-
-      <CreditTopup locale={locale} />
-
-      {/* Plans */}
-      <div id="vigent-plans" className="scroll-mt-24">
-        <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
-          {t('plans')}
+      {/* Usage */}
+      <div>
+        <h2 className="mb-3 text-sm font-bold text-[var(--text-primary)]">
+          {t('usageThisMonth')}
         </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatsCard label={locale === 'fa' ? 'پاسخ موفق هوش مصنوعی' : 'Successful AI replies'} value={nf.format(messagesUsed)} icon={Cpu} />
+          <StatsCard
+            label={locale === 'fa' ? 'اعتبار مصرف‌شده' : 'Credit charged'}
+            value={`${nf.format(chargedIRR / 10)} ${toman}`}
+            icon={Wallet}
+          />
+        </div>
+      </div>
+
+      {/* Plans: each card lists only what differs; shared features sit once below. */}
+      <div id="vigent-plans" className="scroll-mt-24">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">{t('plans')}</h2>
+          <span className="text-xs text-[var(--text-muted)]">
+            {locale === 'fa' ? `هر پرداخت ${nf.format(PERIOD_DAYS)} روز اشتراک` : `Each payment covers ${nf.format(PERIOD_DAYS)} days`}
+          </span>
+        </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {PAID_PLANS.map((p) => {
             const def = defs[p]
             const isRecommended = requestedPlan === p
-            const isCurrent =
-              plan === p &&
-              subscription?.status === 'ACTIVE' &&
-              subscription.currentPeriodEnd > new Date()
+            const isCurrent = plan === p && subscriptionLive
+            const limits = [
+              { label: locale === 'fa' ? 'اتصال برنامهٔ فعال' : 'Active channel connections', value: nf.format(def.maxChannels) },
+              { label: locale === 'fa' ? 'محصول' : 'Products', value: nf.format(def.maxProducts) },
+              { label: locale === 'fa' ? 'سفارش' : 'Orders', value: nf.format(def.maxOrders) },
+              { label: locale === 'fa' ? 'مشتری' : 'Customers', value: nf.format(def.maxCustomers) },
+              { label: locale === 'fa' ? 'اعتبار هدیهٔ اولین خرید' : 'Gift credit on first purchase', value: `${nf.format(def.includedCreditIRR / 10)} ${toman}` },
+            ]
             return (
               <section
                 key={p}
                 id={`plan-${p}`}
                 className={cn(
                   'spatial-surface relative flex scroll-mt-24 flex-col rounded-card p-5',
+                  isCurrent && 'border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]',
                   isRecommended && 'border-amber-400 ring-2 ring-amber-300/60',
                 )}
               >
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-[var(--text-primary)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-[var(--text-secondary)]">
                     {t(PLAN_KEY[p])}
                   </h3>
-                  {isRecommended && (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[12px] font-bold text-amber-900">
-                      {locale === 'fa' ? 'پیشنهاد متناسب با ظرفیت شما' : 'Recommended for your capacity'}
-                    </span>
+                  {isCurrent && <StatusPill tone="ok">{t('currentPlanBadge')}</StatusPill>}
+                  {isRecommended && !isCurrent && (
+                    <StatusPill tone="warn">{locale === 'fa' ? 'پیشنهاد متناسب با ظرفیت شما' : 'Recommended for your capacity'}</StatusPill>
                   )}
                 </div>
-                <div className="mt-3">
+                <div className="mt-2">
                   <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">
                     {nf.format(def.priceIRR / 10)}
                   </span>
                   <span className="ms-1 text-xs text-[var(--text-muted)]">
                     {t('tomanPerMonth')}
                   </span>
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    ≈ ${def.priceUSD} {t('cryptoPerMonth')}
-                  </p>
                 </div>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-[var(--text-secondary)]">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
-                    {locale === 'fa' ? 'بدون بسته یا تعهد تعداد پیام' : 'No message packs or volume commitment'}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
-                    {locale === 'fa'
-                      ? `${nf.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه، فقط در اولین خرید اشتراک`
-                      : `${nf.format(def.includedCreditIRR / 10)} toman gift credit on your first subscription purchase only`}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
-                    {t('featChannelLimit', { count: nf.format(def.maxChannels) })}
-                  </li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? `${nf.format(def.maxProducts)} محصول` : `${nf.format(def.maxProducts)} products`}</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? `${nf.format(def.maxOrders)} سفارش` : `${nf.format(def.maxOrders)} orders`}</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? `${nf.format(def.maxCustomers)} مشتری` : `${nf.format(def.maxCustomers)} customers`}</li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
-                    {t('featChannels')}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
-                    {t('featUnlimitedAgents')}
-                  </li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? 'تعرفه ثابت پاسخ در همه پلن‌ها' : 'Same reply price across every plan'}</li>
-                </ul>
-                <div className="mt-5">
-                  {isCurrent ? (
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-center text-sm text-emerald-600">
-                      {t('currentPlanBadge')}
+                <dl className="mt-4 flex-1 text-sm">
+                  {limits.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] py-2">
+                      <dt className="text-[var(--text-secondary)]">{item.label}</dt>
+                      <dd className="font-bold tabular-nums text-[var(--text-primary)]">{item.value}</dd>
                     </div>
-                  ) : (
-                    <PlanCheckout plan={p} labels={checkoutLabels} />
-                  )}
+                  ))}
+                </dl>
+                <div className="mt-4">
+                  <PlanCheckout
+                    plan={p}
+                    emphasis={isCurrent || isRecommended}
+                    labels={{
+                      ...checkoutLabels,
+                      rial: isCurrent
+                        ? (locale === 'fa' ? `تمدید ${nf.format(PERIOD_DAYS)} روزه` : `Renew for ${nf.format(PERIOD_DAYS)} days`)
+                        : checkoutLabels.rial,
+                      crypto: `${checkoutLabels.crypto} · ≈ $${def.priceUSD}`,
+                    }}
+                  />
                 </div>
               </section>
             )
           })}
         </div>
+        <p className="mt-3 rounded-xl border border-dashed border-[var(--border-hover)] bg-[var(--bg-elevated)] px-4 py-3 text-xs leading-6 text-[var(--text-secondary)]">
+          <strong className="font-bold text-[var(--text-primary)]">{locale === 'fa' ? 'در همهٔ پلن‌ها: ' : 'In every plan: '}</strong>
+          {[
+            t('featChannels'),
+            t('featUnlimitedAgents'),
+            locale === 'fa' ? 'تعرفهٔ ثابت پاسخ' : 'Same reply price',
+            locale === 'fa' ? 'بدون بسته یا تعهد تعداد پیام' : 'No message packs or volume commitment',
+          ].join(' · ')}
+        </p>
       </div>
 
-      {/* Usage */}
+      {/* Recent payments: table on desktop, one card per payment on phones. */}
       <div>
-        <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
-          {t('usageThisMonth')}
+        <h2 className="mb-3 text-sm font-bold text-[var(--text-primary)]">
+          {locale === 'fa' ? 'پرداخت‌های اخیر' : 'Recent payments'}
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatsCard
-            label={t('conversations')}
-            value={nf.format(convoCount)}
-            icon={MessagesSquare}
-          />
-          <StatsCard label={locale === 'fa' ? 'پاسخ موفق هوش مصنوعی' : 'Successful AI replies'} value={nf.format(messagesUsed)} icon={Cpu} />
-          <StatsCard
-            label={locale === 'fa' ? 'اعتبار مصرف‌شده' : 'Credit charged'}
-            value={`${nf.format(chargedIRR / 10)} ${locale === 'fa' ? 'تومان' : 'toman'}`}
-            icon={Wallet}
-          />
-        </div>
-
+        {paymentRows.length === 0 ? (
+          <p className="spatial-surface rounded-card p-5 text-sm text-[var(--text-secondary)]">
+            {locale === 'fa' ? 'هنوز پرداختی ثبت نشده است. اولین خرید اشتراک یا اعتبار همین‌جا دیده می‌شود.' : 'No payments yet. Your first plan or credit purchase will appear here.'}
+          </p>
+        ) : (
+          <>
+            <div className="space-y-3 md:hidden">
+              {paymentRows.map((row) => (
+                <article key={row.id} className="spatial-surface rounded-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="min-w-0 text-[15px] font-bold text-[var(--text-primary)]">{row.title}</h3>
+                    <StatusPill tone={row.tone}>{row.status}</StatusPill>
+                  </div>
+                  <p className="mt-2 text-lg font-bold tabular-nums text-[var(--text-primary)]">{row.amount}</p>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[var(--border-subtle)] pt-2.5 text-xs text-[var(--text-muted)]">
+                    <span className="tabular-nums">{row.date}</span>
+                    <span>{row.gateway}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="spatial-surface hidden overflow-x-auto rounded-card md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border-subtle)] text-start text-xs font-medium text-[var(--text-muted)]">
+                    <th className="px-5 py-3 text-start font-medium">{locale === 'fa' ? 'تاریخ' : 'Date'}</th>
+                    <th className="px-5 py-3 text-start font-medium">{locale === 'fa' ? 'شرح' : 'Description'}</th>
+                    <th className="px-5 py-3 text-start font-medium">{locale === 'fa' ? 'مبلغ' : 'Amount'}</th>
+                    <th className="px-5 py-3 text-start font-medium">{locale === 'fa' ? 'روش پرداخت' : 'Method'}</th>
+                    <th className="px-5 py-3 text-start font-medium">{locale === 'fa' ? 'وضعیت' : 'Status'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentRows.map((row) => (
+                    <tr key={row.id} className="border-b border-[var(--border-subtle)] last:border-b-0">
+                      <td className="whitespace-nowrap px-5 py-3 tabular-nums text-[var(--text-secondary)]">{row.date}</td>
+                      <td className="px-5 py-3 font-medium text-[var(--text-primary)]">{row.title}</td>
+                      <td className="whitespace-nowrap px-5 py-3 font-bold tabular-nums text-[var(--text-primary)]">{row.amount}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-[var(--text-secondary)]">{row.gateway}</td>
+                      <td className="px-5 py-3"><StatusPill tone={row.tone}>{row.status}</StatusPill></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
-      <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-4 text-xs leading-relaxed text-[var(--text-secondary)]">
-        {t('usageBilling')}
-      </p>
+      {/* The credit rule, told and shown: the three cases on one side, the
+          same three playing out in motion on the other. */}
+      <div>
+        <h2 className="mb-3 text-sm font-bold text-[var(--text-primary)]">
+          {locale === 'fa' ? 'اعتبار چطور مصرف می‌شود؟' : 'How is credit used?'}
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)]">
+          <section className="spatial-surface flex flex-col gap-3 rounded-card p-4 sm:p-5">
+            {creditRules.map((rule) => (
+              <div key={rule.title} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-[var(--border-subtle)] p-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
+                    <rule.icon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)]">{rule.title}</h3>
+                    <p className="text-xs leading-5 text-[var(--text-secondary)]">{rule.desc}</p>
+                  </div>
+                </div>
+                <StatusPill tone={rule.tone}>{rule.result}</StatusPill>
+              </div>
+            ))}
+            <p className="mt-auto flex items-start gap-2 text-xs leading-6 text-[var(--text-secondary)]">
+              <CircleAlert className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+              {t('usageBilling')}
+            </p>
+          </section>
+          <CreditFlowMotion locale={locale} />
+        </div>
+      </div>
     </div>
   )
 }
 
-function ValueMetric({ icon: Icon, label, value }: { icon: typeof MessagesSquare; label: string; value: string }) {
+type Tone = 'ok' | 'warn' | 'danger' | 'neutral'
+
+const PAYMENT_STATUS: Record<string, { fa: string; en: string; tone: Tone }> = {
+  PAID: { fa: 'موفق', en: 'Paid', tone: 'ok' },
+  FAILED: { fa: 'ناموفق', en: 'Failed', tone: 'danger' },
+  EXPIRED: { fa: 'منقضی‌شده', en: 'Expired', tone: 'neutral' },
+}
+
+const TONE_CLASS: Record<Tone, string> = {
+  ok: 'bg-[var(--ok-soft)] text-[var(--ok-ink)]',
+  warn: 'bg-[var(--warn-soft)] text-[var(--warn-ink)]',
+  danger: 'bg-[var(--danger-soft)] text-[var(--danger-ink)]',
+  neutral: 'bg-[var(--bg-muted)] text-[var(--text-secondary)]',
+}
+
+function StatusPill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-white/90 p-4 shadow-[var(--shadow-xs)]">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-primary)]"><Icon className="h-4 w-4" /></span>
-      <p className="mt-3 text-xs text-[var(--text-muted)]">{label}</p>
-      <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
+    <span className={cn('inline-flex min-h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-bold', TONE_CLASS[tone])}>
+      {children}
+    </span>
+  )
+}
+
+/** Thin progress bar. With `warnWhenFull` it turns amber from 80% and red at the cap. */
+function Meter({ ratio, warnWhenFull, className }: { ratio: number; warnWhenFull?: boolean; className?: string }) {
+  const clamped = Math.min(1, Math.max(0, Number.isFinite(ratio) ? ratio : 0))
+  return (
+    <div className={cn('h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]', className)}>
+      <div
+        className={cn(
+          'h-full rounded-full bg-[var(--text-primary)]',
+          warnWhenFull && clamped >= 0.8 && 'bg-amber-500',
+          warnWhenFull && clamped >= 1 && 'bg-red-500',
+        )}
+        style={{ width: `${clamped * 100}%` }}
+      />
     </div>
   )
 }
