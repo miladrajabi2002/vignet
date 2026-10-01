@@ -139,7 +139,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 					dir="ltr"
 					className={cn(
 						'flex items-end gap-2 border bg-white px-2 py-1.5 transition-colors',
-						'border-black/[0.09] shadow-[0_1px_2px_rgba(17,17,17,0.04)]',
+						'border-black/[0.09] shadow-[var(--shadow-xs)]',
 						'focus-within:border-black/25 focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.06)]',
 						disabled && 'opacity-60',
 					)}

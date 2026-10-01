@@ -44,16 +44,12 @@ export async function setTelegramWebhook(
   }
 }
 
-/** Register the management commands shown in Telegram's bot command menu. */
+/** Register the manager bot's single command-menu entry (/start). */
 export async function setTelegramBotCommands(token: string): Promise<boolean> {
   try {
-    const commands = [
-      { command: 'menu', description: 'مرکز مدیریت' },
-      { command: 'chats', description: 'گفتگوهای منتظر اپراتور' },
-      { command: 'stats', description: 'گزارش ۲۴ ساعت اخیر' },
-      { command: 'health', description: 'بررسی سلامت اتصال' },
-      { command: 'help', description: 'راهنمای بات اپراتور' },
-    ]
+    // The manager bot is driven by glass (inline) buttons; the command menu
+    // only needs a way back to the control center.
+    const commands = [{ command: 'start', description: '🎛 مرکز مدیریت' }]
     const register = async (languageCode?: string) => {
       const res = await fetch(`${TELEGRAM_BASE}/bot${token}/setMyCommands`, {
         method: 'POST',

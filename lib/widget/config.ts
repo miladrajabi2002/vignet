@@ -304,6 +304,8 @@ export function resolveCornerRadii(s: Pick<WidgetSettings, 'corners' | 'cornerRa
 export function stripProductTokens(content: string): string {
         return content
                 .replace(/\[\[product:\{[\s\S]*?\}\]\]/g, '')
+                // In-chat checkout cards ([[checkout:{…}]]) are channel UI, not text.
+                .replace(/\[\[checkout:\{[\s\S]*?\}\]\](?!\])/g, '')
                 .replace(/\n{3,}/g, '\n\n')
                 .trim()
 }

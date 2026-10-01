@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { agentCreateSchema } from '@/lib/validations/agent'
+import { findCheckoutIntegration } from '@/lib/commerce/checkout-service'
 import { syncOnboarding } from '@/lib/onboarding'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
@@ -88,10 +89,13 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data
-  const [productCount, orderCount] = await Promise.all([
+  const [productCount, orderCount, checkoutStore] = await Promise.all([
     prisma.product.count({ where: { workspaceId: user.workspaceId, active: true } }),
     prisma.storeOrder.count({ where: { workspaceId: user.workspaceId } }),
+    findCheckoutIntegration(user.workspaceId).then((found) => found.integration),
   ])
+  // A store whose plugin takes payments sells in chat by default.
+  const sellingReady = Boolean(checkoutStore)
   const agent = await prisma.agent.create({
     data: {
       workspaceId: user.workspaceId,
@@ -122,6 +126,10 @@ export async function POST(req: Request) {
       orderTrackingEnabled: data.orderTrackingEnabled ?? orderCount > 0,
       productAccessConfigured: data.productAccessEnabled !== undefined,
       orderTrackingConfigured: data.orderTrackingEnabled !== undefined,
+      orderCaptureEnabled: data.orderCaptureEnabled ?? sellingReady,
+      payLinkEnabled: data.payLinkEnabled ?? sellingReady,
+      orderCaptureConfigured: data.orderCaptureEnabled !== undefined,
+      payLinkConfigured: data.payLinkEnabled !== undefined,
     },
   })
 

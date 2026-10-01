@@ -15,6 +15,7 @@ export type AgentSkillKey =
   | 'product-consultation'
   | 'order-tracking'
   | 'appointment-booking'
+  | 'course-enrollment'
   | 'customer-identification'
   | 'customer-preferences'
   | 'operator-handoff'
@@ -40,6 +41,10 @@ export interface AgentSkillPlanInput {
   catalogAccessEnabled?: boolean
   orderTurn?: boolean
   bookingTurn?: boolean
+  /** The customer asks for a booking but the business has bookings switched off. */
+  bookingUnavailable?: boolean
+  /** Course/class enrollment intent while the courses capability is on. */
+  courseTurn?: boolean
   identificationPending?: boolean
   hasCustomerPreferences?: boolean
   handoffEnabled?: boolean
@@ -54,6 +59,8 @@ export interface AgentSkillPlanInput {
   returningCustomer?: boolean
   /** The agent can file in-chat pre-orders (changes the capability boundary). */
   orderCaptureEnabled?: boolean
+  /** Confirmed carts get a payment link on the store (in-chat checkout). */
+  payLinkEnabled?: boolean
 }
 
 export interface AgentSkillPlan {

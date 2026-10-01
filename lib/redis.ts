@@ -49,5 +49,3 @@ export function getRedis(): Redis {
   globalForRedis.redis = client
   return client
 }
-
-export default getRedis

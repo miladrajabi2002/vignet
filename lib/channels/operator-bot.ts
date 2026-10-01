@@ -10,10 +10,18 @@ export type TelegramInlineKeyboardMarkup = {
   inline_keyboard: TelegramInlineKeyboardButton[][]
 }
 
+export type OperatorBotScreenName =
+  | 'home' | 'queue' | 'today' | 'orders' | 'book' | 'agents' | 'credit' | 'alerts' | 'health' | 'help'
+
 export type OperatorBotCallback =
-  | { type: 'menu'; action: 'home' | 'open' | 'stats' | 'health' | 'help' }
+  | { type: 'screen'; screen: OperatorBotScreenName }
+  | { type: 'report'; days: 1 | 7 | 30 }
   | { type: 'channel'; action: 'pause' | 'resume' }
-  | { type: 'alert'; action: 'claim' | 'resolve' | 'status'; alertId: string }
+  | { type: 'alert'; action: 'view' | 'claim' | 'resolve' | 'status' | 'quick' | 'write'; alertId: string }
+  | { type: 'send'; alertId: string; index: number }
+  | { type: 'agent'; action: 'ask' | 'confirm'; agentId: string }
+  | { type: 'pref'; key: string }
+  | { type: 'cancel' }
 
 function normalizeAppUrl(appUrl: string): string {
   return appUrl.replace(/\/$/, '')
@@ -33,36 +41,9 @@ export function operatorWebhookSecret(
 }
 
 /**
- * Telegram calls inline keyboards "inline keyboard markup". In Persian bot
- * terminology these are commonly known as glass buttons (دکمه شیشه‌ای).
+ * Glass buttons (دکمه‌های شیشه‌ای — Telegram's inline keyboard) under a pushed
+ * handoff/pre-order alert: reply right here, claim or resolve, open the case.
  */
-export function buildOperatorMenuKeyboard(
-  appUrl: string,
-  active: boolean,
-): TelegramInlineKeyboardMarkup {
-  const baseUrl = normalizeAppUrl(appUrl)
-
-  return {
-    inline_keyboard: [
-      [
-        { text: '📥 گفتگوهای منتظر', callback_data: 'menu:open' },
-        { text: '📊 گزارش ۲۴ساعته', callback_data: 'menu:stats' },
-      ],
-      [
-        { text: '🩺 سلامت بات', callback_data: 'menu:health' },
-        {
-          text: active ? '⏸ توقف هشدارها' : '▶️ فعال‌سازی هشدارها',
-          callback_data: active ? 'channel:pause' : 'channel:resume',
-        },
-      ],
-      [
-        { text: '❓ راهنما', callback_data: 'menu:help' },
-        { text: '🖥 پنل ویجنت', url: `${baseUrl}/conversations` },
-      ],
-    ],
-  }
-}
-
 export function buildOperatorAlertKeyboard(params: {
   appUrl: string
   conversationId: string
@@ -70,56 +51,70 @@ export function buildOperatorAlertKeyboard(params: {
   state?: string
 }): TelegramInlineKeyboardMarkup {
   const baseUrl = normalizeAppUrl(params.appUrl)
-  const resolved = params.state === 'resolved'
-  const claimed = params.state === 'claimed'
-
-  const stateButton: TelegramInlineKeyboardButton = resolved
-    ? { text: '✅ حل‌شده', callback_data: `alert:status:${params.alertId}` }
-    : claimed
-      ? { text: '👤 در حال پیگیری', callback_data: `alert:status:${params.alertId}` }
-      : { text: '🙋 قبول گفتگو', callback_data: `alert:claim:${params.alertId}` }
-
+  const open: TelegramInlineKeyboardButton = {
+    text: '🖥 باز کردن در پنل',
+    url: `${baseUrl}/conversations/${encodeURIComponent(params.conversationId)}`,
+  }
+  if (params.state === 'resolved') {
+    return {
+      inline_keyboard: [
+        [{ text: '✅ حل‌شده', callback_data: `a:t:${params.alertId}` }],
+        [open, { text: '🏠 خانه', callback_data: 'm:home' }],
+      ],
+    }
+  }
   return {
     inline_keyboard: [
       [
-        {
-          text: '💬 مشاهده و پاسخ',
-          url: `${baseUrl}/conversations/${encodeURIComponent(params.conversationId)}`,
-        },
+        { text: '✍️ نوشتن پاسخ', callback_data: `a:w:${params.alertId}` },
+        { text: '⚡ پاسخ آماده', callback_data: `a:q:${params.alertId}` },
       ],
-      resolved
-        ? [stateButton]
-        : [
-            stateButton,
-            { text: '✅ علامت‌گذاری حل‌شده', callback_data: `alert:resolve:${params.alertId}` },
-          ],
-      [{ text: '📊 مرکز مدیریت', callback_data: 'menu:home' }],
+      [
+        params.state === 'claimed'
+          ? { text: '👤 در حال پیگیری', callback_data: `a:t:${params.alertId}` }
+          : { text: '🙋 قبول گفتگو', callback_data: `a:c:${params.alertId}` },
+        { text: '✅ حل شد', callback_data: `a:r:${params.alertId}` },
+      ],
+      [open, { text: '🏠 خانه', callback_data: 'm:home' }],
     ],
   }
 }
 
+const SCREENS: readonly OperatorBotScreenName[] = ['home', 'queue', 'today', 'orders', 'book', 'agents', 'credit', 'alerts', 'health', 'help']
+const LEGACY_MENU: Record<string, OperatorBotScreenName> = { home: 'home', open: 'queue', health: 'health', help: 'help' }
+const ALERT_ACTIONS = { v: 'view', c: 'claim', r: 'resolve', t: 'status', q: 'quick', w: 'write' } as const
+const ID = '([A-Za-z0-9_-]{8,50})'
+
 export function parseOperatorBotCallback(value: string): OperatorBotCallback | null {
-  const menu = /^menu:(home|open|stats|health|help)$/.exec(value)
-  if (menu) {
-    return {
-      type: 'menu',
-      action: menu[1] as 'home' | 'open' | 'stats' | 'health' | 'help',
-    }
+  const screen = /^m:([a-z]+)$/.exec(value)
+  if (screen && (SCREENS as readonly string[]).includes(screen[1])) {
+    return { type: 'screen', screen: screen[1] as OperatorBotScreenName }
   }
+  const report = /^m:rep:(1|7|30)$/.exec(value)
+  if (report) return { type: 'report', days: Number(report[1]) as 1 | 7 | 30 }
 
-  const channel = /^channel:(pause|resume)$/.exec(value)
-  if (channel) {
-    return { type: 'channel', action: channel[1] as 'pause' | 'resume' }
-  }
+  const alert = new RegExp(`^a:([vcrtqw]):${ID}$`).exec(value)
+  if (alert) return { type: 'alert', action: ALERT_ACTIONS[alert[1] as keyof typeof ALERT_ACTIONS], alertId: alert[2] }
+  const send = new RegExp(`^a:s:${ID}:(\\d)$`).exec(value)
+  if (send) return { type: 'send', alertId: send[1], index: Number(send[2]) }
 
-  const alert = /^alert:(claim|resolve|status):([A-Za-z0-9_-]{8,50})$/.exec(value)
-  if (alert) {
-    return {
-      type: 'alert',
-      action: alert[1] as 'claim' | 'resolve' | 'status',
-      alertId: alert[2],
-    }
+  const agent = new RegExp(`^g:([ty]):${ID}$`).exec(value)
+  if (agent) return { type: 'agent', action: agent[1] === 't' ? 'ask' : 'confirm', agentId: agent[2] }
+
+  const pref = /^p:([a-z]{3,12})$/.exec(value)
+  if (pref) return { type: 'pref', key: pref[1] }
+  if (value === 'x:c') return { type: 'cancel' }
+
+  const channel = /^(?:ch|channel):(pause|resume)$/.exec(value)
+  if (channel) return { type: 'channel', action: channel[1] as 'pause' | 'resume' }
+
+  // Buttons on messages sent before the control-center redesign.
+  const legacyMenu = /^menu:(home|open|stats|health|help)$/.exec(value)
+  if (legacyMenu) {
+    return legacyMenu[1] === 'stats' ? { type: 'report', days: 1 } : { type: 'screen', screen: LEGACY_MENU[legacyMenu[1]] }
   }
+  const legacyAlert = new RegExp(`^alert:(claim|resolve|status):${ID}$`).exec(value)
+  if (legacyAlert) return { type: 'alert', action: legacyAlert[1] as 'claim' | 'resolve' | 'status', alertId: legacyAlert[2] }
 
   return null
 }

@@ -117,25 +117,6 @@ export async function probeSmsProvider(): Promise<{ status: ChannelHealthStatus;
         }
 }
 
-export async function readSmsProviderHealth(): Promise<{
-        status: ChannelHealthStatus
-        checkedAt: string | null
-        error: string | null
-}> {
-        try {
-                const redis = getRedis()
-                const raw = await redis.get(SMS_HEALTH_REDIS_KEY)
-                if (!raw) return { status: 'unknown', checkedAt: null, error: null }
-                return JSON.parse(raw) as {
-                        status: ChannelHealthStatus
-                        checkedAt: string
-                        error: string | null
-                }
-        } catch {
-                return { status: 'unknown', checkedAt: null, error: null }
-        }
-}
-
 /**
  * Sweep every active messenger channel, persist results, and notify owners on
  * red transitions (once per channel per alert episode). Also probes the SMS

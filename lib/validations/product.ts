@@ -7,6 +7,8 @@ export const productCreateSchema = z.object({
   comparePrice: z.number().nonnegative().nullable().optional(),
   sku: z.string().max(80).optional(),
   stock: z.number().int().nullable().optional(),
+  /** Alert when stock falls to this many units; null = workspace default, 0 = never. */
+  lowStockThreshold: z.number().int().min(0).max(1000).nullable().optional(),
   categoryId: z.string().nullable().optional(),
   images: z.array(z.string().url()).max(10).optional(),
   // Values may be simple strings or structured variation data imported from

@@ -581,9 +581,6 @@ export function tokenizeCatalogText(value: string): string[] {
         return tokens
 }
 
-/** Alias kept for callers that prefer the identity-text wording. */
-export { tokenizeCatalogText as tokenizeCatalogIdentityText }
-
 export function extractProductTerms(
         value: string,
         options?: { sizeNumbersAllowed?: boolean },
@@ -2350,6 +2347,6 @@ export async function fetchCatalogServices(workspaceId: string): Promise<Catalog
                 where: { workspaceId, active: true },
                 orderBy: { createdAt: 'asc' },
                 take: 30,
-                select: { name: true, description: true, durationMinutes: true, location: true },
+                select: { name: true, description: true, durationMinutes: true, location: true, price: true },
         })
 }

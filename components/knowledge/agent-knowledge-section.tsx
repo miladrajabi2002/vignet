@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { KbManager } from '@/components/knowledge/kb-manager'
+import { KnowledgeFlowMotion } from '@/components/motion/explainers'
 
 export async function AgentKnowledgeSection({ agentId }: { agentId: string }) {
   const user = await requireUser()
@@ -33,6 +34,7 @@ export async function AgentKnowledgeSection({ agentId }: { agentId: string }) {
   return (
     <div className="space-y-6">
       <ImprovementIntro section="knowledge"
+        visual={<KnowledgeFlowMotion locale={isFa ? 'fa' : 'en'} />}
         title={isFa ? 'دانش ایجنت' : 'Agent knowledge'}
         description={isFa
           ? 'اطلاعاتی را که ایجنت برای پاسخ‌گویی نیاز دارد، اینجا اضافه و به‌روز کنید: معرفی کسب‌وکار، توضیح خدمات، شرایط ارسال و مرجوعی و سؤال‌های متداول. می‌توانید متن بنویسید، فایل بارگذاری کنید یا لینک سایت بدهید و وضعیت آماده‌شدن هر منبع را ببینید. ایجنت از این منابع برای پاسخ‌های دقیق‌تر استفاده می‌کند؛ پاسخ‌های تأییدشده در یادگیری هم به همین دانش اضافه می‌شوند.'

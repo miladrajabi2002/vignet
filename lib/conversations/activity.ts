@@ -21,6 +21,9 @@ export type ConversationReceiptKind =
   | 'slots_checked'
   | 'appointment_booked'
   | 'appointment_cancelled'
+  | 'course_enrolled'
+  | 'course_waitlisted'
+  | 'enrollment_cancelled'
   | 'model_error'
 
 export type ConversationTimelineKind =

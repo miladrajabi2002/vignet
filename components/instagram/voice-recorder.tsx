@@ -175,7 +175,7 @@ export function VoiceRecorder({
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <audio src={audioUrl} controls className="h-9 flex-1" />
-            <span className="text-[11px] text-[var(--text-muted)]">{mm}:{ss}</span>
+            <span className="text-[12px] text-[var(--text-muted)]">{mm}:{ss}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -240,14 +240,14 @@ export function VoiceRecorder({
             <div className="mt-0.5 flex items-center gap-1.5">
               <span
                 className={cn(
-                  'font-mono text-[11px] tabular-nums',
+                  'font-mono text-[12px] tabular-nums',
                   state === 'recording' ? 'text-[var(--danger)]' : 'text-[var(--text-muted)]',
                 )}
                 dir="ltr"
               >
                 {mm}:{ss}
               </span>
-              <span className="text-[11px] text-[var(--text-muted)]">/ {maxMm}:{maxSs}</span>
+              <span className="text-[12px] text-[var(--text-muted)]">/ {maxMm}:{maxSs}</span>
             </div>
           </div>
         </div>

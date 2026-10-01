@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByAgent } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { LiveEmptyState } from '@/components/ui/live-empty-state'
 
 export default async function AgentsPage() {
         const user = await requireUser()
@@ -27,7 +28,6 @@ export default async function AgentsPage() {
                         select: {
                                 id: true,
                                 name: true,
-                                description: true,
                                 active: true,
                                 language: true,
                                 _count: {
@@ -61,24 +61,14 @@ export default async function AgentsPage() {
                         />
 
                         {agents.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
-                                        <Bot className="h-8 w-8 text-[var(--text-muted)]" />
-                                        <h2 className="mt-4 text-lg text-[var(--text-primary)]">{t('empty')}</h2>
-                                        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('emptyDesc')}</p>
-                                        <Link
-                                                href="/agents/new"
-                                                className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)]"
-                                        >
-                                                {t('create')}
-                                        </Link>
-                                </div>
+                                <LiveEmptyState icon={Bot} preview="agents" title={t('empty')} description={t('emptyDesc')} action={{ href: '/agents/new', label: t('create') }} />
                         ) : (
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                         {agents.map((agent) => (
                                                 <Link
                                                         key={agent.id}
                                                         href={`/agents/${agent.id}`}
-                                                        className="spatial-surface group flex flex-col rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
+                                                        className="spatial-surface group flex flex-col rounded-card p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                                 >
                                                         {/* Header */}
                                                         <div className="flex items-start justify-between">
@@ -107,15 +97,6 @@ export default async function AgentsPage() {
                                                         <h3 className="mt-4 truncate text-base font-medium text-[var(--text-primary)]">
                                                                 {agent.name}
                                                         </h3>
-                                                        {agent.description ? (
-                                                                <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">
-                                                                        {agent.description}
-                                                                </p>
-                                                        ) : (
-                                                                <p className="mt-1 text-sm italic text-[var(--text-muted)]">
-                                                                        {agent.language === 'fa' ? 'بدون توضیحات' : 'No description'}
-                                                                </p>
-                                                        )}
 
                                                         {/* Stats */}
                                                         <div className="mt-4 flex items-center gap-3 text-xs text-[var(--text-muted)]">
@@ -143,7 +124,7 @@ export default async function AgentsPage() {
                                                                 return (
                                                                         <div className="mt-3 flex items-center gap-2">
                                                                                 <Sparkline data={spark.series} color="#111111" width={100} height={24} fluid />
-                                                                                <span className="shrink-0 text-[11px] text-[var(--text-muted)]">
+                                                                                <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
                                                                                         {spark.total.toLocaleString('fa-IR')} در ۷ روز
                                                                                 </span>
                                                                         </div>
@@ -151,7 +132,7 @@ export default async function AgentsPage() {
                                                         })()}
 
                                                         {/* Action hints */}
-                                                        <div className="mt-4 flex items-center gap-1 border-t border-[var(--border-subtle)] pt-3 text-[11px] text-[var(--text-muted)]">
+                                                        <div className="mt-4 flex items-center gap-1 border-t border-[var(--border-subtle)] pt-3 text-[12px] text-[var(--text-muted)]">
                                                                 <span className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-base)] px-2 py-1 transition-colors group-hover:bg-[var(--bg-hover)] group-hover:text-[var(--text-secondary)]">
                                                                         <Settings className="h-3 w-3" />
                                                                         {t('settings')}
@@ -188,6 +169,6 @@ function agent_hint_title(n: number): string {
 
 function agent_hint_body(n: number): string {
         return n === 1
-                ? 'برای تست، روی کارت بزنید. از بخش «کانال‌ها» می‌توانید آن را به وب‌سایت یا تلگرام وصل کنید.'
-                : 'روی هر کارت بزنید تا تنظیمات، پایگاه دانش و کانال‌های آن را ببینید. می‌توانید ایجنت‌های مختلف برای کارهای مختلف بسازید.'
+                ? 'برای تست، روی کارت بزنید. از بخش «برنامه‌ها» می‌توانید آن را به وب‌سایت یا تلگرام وصل کنید.'
+                : 'روی هر کارت بزنید تا تنظیمات، پایگاه دانش و برنامه‌های آن را ببینید. می‌توانید ایجنت‌های مختلف برای کارهای مختلف بسازید.'
 }

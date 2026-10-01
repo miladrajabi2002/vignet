@@ -38,7 +38,7 @@ export function TypingIndicator({
         <span className="chat-typing-dot" />
         <span className="chat-typing-dot" />
       </span>
-      <span aria-hidden="true" className="truncate text-[11px] font-medium leading-5">
+      <span aria-hidden="true" className="truncate text-[12px] font-medium leading-5">
         {label}
       </span>
     </div>

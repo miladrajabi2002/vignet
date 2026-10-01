@@ -145,7 +145,7 @@ export function WidgetPreview({
         return (
                 <div
                         dir={isRtl ? 'rtl' : 'ltr'}
-                        className="relative h-[500px] overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-base)]"
+                        className="relative h-[500px] overflow-hidden rounded-card border border-[var(--border-default)] bg-[var(--bg-base)]"
                         style={{
                                 backgroundImage: 'radial-gradient(var(--border-default) 1px, transparent 1px)',
                                 backgroundSize: '16px 16px',
@@ -153,7 +153,7 @@ export function WidgetPreview({
                         }}
                 >
                         {/* view switch — pill style */}
-                        <div className="absolute start-3 top-3 z-10 inline-flex rounded-lg bg-[var(--bg-muted)] p-1 text-[11px]">
+                        <div className="absolute start-3 top-3 z-10 inline-flex rounded-lg bg-[var(--bg-muted)] p-1 text-[12px]">
                                 {(
                                         [
                                                 { id: 'chat', label: isRtl ? 'گفتگو و محصول' : 'Chat & product' },
@@ -242,7 +242,7 @@ export function WidgetPreview({
                                                                 {title}
                                                         </div>
                                                         <div
-                                                                className="mt-0.5 truncate text-[11px]"
+                                                                className="mt-0.5 truncate text-[12px]"
                                                                 style={
                                                                         gradientHead
                                                                                 ? { color: onAccent, opacity: 0.72 }
@@ -288,7 +288,7 @@ export function WidgetPreview({
                                                                         {quickReplies.map((q) => (
                                                                                 <span
                                                                                         key={q}
-                                                                                        className="cursor-pointer rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors"
+                                                                                        className="cursor-pointer rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors"
                                                                                         style={{
                                                                                                 border: `1px solid ${c.border}`,
                                                                                                 background: c.bg,
@@ -325,7 +325,7 @@ export function WidgetPreview({
 
                                                         {/* source chip */}
                                                         <span
-                                                                className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                                                                className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[12px] font-semibold"
                                                                 style={{ border: `1px solid ${c.border}`, background: c.bg, color: c.muted }}
                                                         >
                                                                 <Package className="h-3 w-3" />
@@ -377,7 +377,7 @@ export function WidgetPreview({
                                                                                                 {demo.productName}
                                                                                         </span>
                                                                                         <span
-                                                                                                className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                                                                                className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold"
                                                                                                 style={{
                                                                                                         color: accentInk,
                                                                                                         background: accentSoft,
@@ -387,10 +387,10 @@ export function WidgetPreview({
                                                                                                 {demo.badge}
                                                                                         </span>
                                                                                 </div>
-                                                                                <div className="mt-0.5 truncate text-[10.5px]" style={{ color: c.muted }}>
+                                                                                <div className="mt-0.5 truncate text-[12px]" style={{ color: c.muted }}>
                                                                                         {demo.productDesc}
                                                                                 </div>
-                                                                                <div className="mt-1 text-[12.5px] font-extrabold" style={{ color: c.text }}>
+                                                                                <div className="mt-1 text-[12.5px] font-bold" style={{ color: c.text }}>
                                                                                         {demo.productPrice}
                                                                                 </div>
                                                                         </div>
@@ -402,7 +402,7 @@ export function WidgetPreview({
                                                                 {demo.actions.map((a) => (
                                                                         <span
                                                                                 key={a}
-                                                                                className="inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1.5 text-[10.5px] font-semibold"
+                                                                                className="inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1.5 text-[12px] font-semibold"
                                                                                 style={{ border: `1px solid ${c.border}`, background: c.bg, color: c.text }}
                                                                         >
                                                                                 {a}

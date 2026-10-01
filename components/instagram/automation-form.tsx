@@ -43,13 +43,14 @@ import {
         Film,
         Link2,
         Eye,
+        ChevronLeft,
         type LucideIcon,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { IphonePreview } from '@/components/instagram/iphone-preview'
 import type { MediaItem } from '@/components/instagram/media-uploader'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { BackButton } from '@/components/dashboard/back-button'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import {
         type Automation,
@@ -182,6 +183,27 @@ function defaultReplyMode(type: AutomationType): ReplyMode {
 
 function emptyTextMessage(): AutomationMessage {
         return { id: newMessageId(), type: 'TEXT', text: '' }
+}
+
+/** Adds comma/newline-separated keywords from `raw`, skipping duplicates. */
+function mergeKeywords(keywords: string[], raw: string): string[] {
+        const next = keywords.slice()
+        for (const piece of raw.split(/[,\n]/)) {
+                const p = piece.trim()
+                if (p && !next.includes(p)) next.push(p)
+        }
+        return next
+}
+
+/** A message the engine can actually deliver (not an empty draft card). */
+function hasMessageContent(m: AutomationMessage): boolean {
+        return Boolean(
+                m.text.trim() ||
+                m.mediaUrl ||
+                m.productId ||
+                (m.productIds && m.productIds.length > 0) ||
+                (m.buttons && m.buttons.length > 0),
+        )
 }
 
 /** Default public ack posted on the comment when the reply goes to DM. */
@@ -335,18 +357,8 @@ export function AutomationForm({
 
         // ── Keyword tag input ─────────────────────────────────────────────────
         function addKeyword(raw: string) {
-                const pieces = raw
-                        .split(/[,\n]/)
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                if (pieces.length === 0) return
-                setKeywords((arr) => {
-                        const next = arr.slice()
-                        for (const p of pieces) {
-                                if (!next.some((k) => k === p)) next.push(p)
-                        }
-                        return next
-                })
+                if (!raw.trim()) return
+                setKeywords((arr) => mergeKeywords(arr, raw))
                 setKeywordInput('')
         }
 
@@ -421,12 +433,12 @@ export function AutomationForm({
         }
 
         // ── Build payload ─────────────────────────────────────────────────────
-        function buildPayload(resolvedPostIds?: string[]): {
+        function buildPayload(resolvedPostIds?: string[], keywords: string[] = form.keywords): {
                 trigger: AutomationTrigger
                 action: AutomationAction
         } {
                 // Trigger keywords — empty when filter = ANY (matches all messages).
-                const effectiveKeywords = form.keywordFilter === 'SPECIFIC' ? form.keywords : []
+                const effectiveKeywords = form.keywordFilter === 'SPECIFIC' ? keywords : []
                 const effectivePostIds =
                         type === 'COMMENT' && form.postFilter === 'SPECIFIC'
                                 ? resolvedPostIds ?? parsedPostReferences.ids
@@ -522,9 +534,18 @@ export function AutomationForm({
                 e.preventDefault()
                 if (!form.name.trim()) {
                         setError('نام سناریو را وارد کنید.')
+                        nameRef.current?.focus({ preventScroll: true })
+                        nameRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
                         return
                 }
-                if (form.keywordFilter === 'SPECIFIC' && form.keywords.length === 0) {
+                // A keyword typed but not yet confirmed with Enter still counts —
+                // fold it in so the operator never loses the last word they typed.
+                const keywords = mergeKeywords(form.keywords, keywordInput)
+                if (keywords.length !== form.keywords.length) {
+                        set('keywords', keywords)
+                        setKeywordInput('')
+                }
+                if (form.keywordFilter === 'SPECIFIC' && keywords.length === 0) {
                         setError('حداقل یک کلمه‌کلیدی اضافه کنید یا حالت «هر کلمه‌ای» را انتخاب کنید.')
                         return
                 }
@@ -548,6 +569,14 @@ export function AutomationForm({
                         setError('حداقل یک پیام به دنباله اضافه کنید.')
                         return
                 }
+                if (
+                        type === 'COMMENT' &&
+                        form.replyMode === 'MULTI_MESSAGE' &&
+                        !form.messages.some((m) => m.text.trim())
+                ) {
+                        setError('متن حداقل یک گزینهٔ ریپلای را بنویسید.')
+                        return
+                }
                 // ── MEDIA UPLOAD GATE ──────────────────────────────────────────────
                 // A `blob:` mediaUrl means the media upload is still in-flight (or
                 // failed). blob: URLs are session-local to the operator's browser —
@@ -567,15 +596,7 @@ export function AutomationForm({
                 // require at least one non-empty message so the scenario can't be
                 // saved in a state that silently no-ops.
                 if (type === 'COMMENT' && form.dmOnComment) {
-                        const hasDmContent = form.messages.some(
-                                (m) =>
-                                        m.text.trim() ||
-                                        m.mediaUrl ||
-                                        m.productId ||
-                                        (m.productIds && m.productIds.length > 0) ||
-                                        (m.buttons && m.buttons.length > 0),
-                        )
-                        if (!hasDmContent) {
+                        if (!form.messages.some(hasMessageContent)) {
                                 setError('برای «ارسال در دایرکت» حداقل یک پیام اضافه کنید.')
                                 return
                         }
@@ -587,7 +608,7 @@ export function AutomationForm({
                                 ? await resolvePostReferences(true)
                                 : undefined
                         if (type === 'COMMENT' && form.postFilter === 'SPECIFIC' && !resolvedPostIds) return
-                        const { trigger, action } = buildPayload(resolvedPostIds ?? undefined)
+                        const { trigger, action } = buildPayload(resolvedPostIds ?? undefined, keywords)
                         const base = `/api/agents/${agentId}/instagram/automations`
                         const body = {
                                 type,
@@ -645,9 +666,11 @@ export function AutomationForm({
         // The preview needs the bot's message text and the user-side keyword.
         // When the keyword filter is ANY (match-all), use a placeholder bubble
         // so the iPhone preview still shows something meaningful.
+        // Every trigger keyword, separated by « / », so the preview shows all
+        // the words that start this scenario (not only the first one).
         const previewUserText =
                 form.keywordFilter === 'SPECIFIC'
-                        ? (form.keywords[0] ?? '')
+                        ? form.keywords.map((keyword) => keyword.trim()).filter(Boolean).join(' / ')
                         : 'سلام'
         const previewMessages = useMemo<AutomationMessage[]>(() => {
                 if (form.replyMode !== 'STATIC' && form.replyMode !== 'MULTI_MESSAGE') return []
@@ -671,6 +694,46 @@ export function AutomationForm({
                 form.replyMode === 'STATIC' &&
                 (isDm || isStory || (isComment && form.dmOnComment))
 
+        const previewProps: React.ComponentProps<typeof IphonePreview> = {
+                mode: type,
+                accountUsername: accountUsername || 'vigent.bot',
+                accountAvatarUrl,
+                userText: previewUserText,
+                replyMode: form.replyMode,
+                messages: previewMessages,
+                dmOnComment: form.dmOnComment,
+                commentAckEnabled: form.commentAckEnabled,
+                commentAckText: form.commentAckText,
+                followGate: form.followGate,
+                gatePrompt: form.gatePrompt,
+                gateButton: form.gateQuickReply,
+        }
+
+        // ── Readiness — the save button stays disabled until these are done ──
+        // Mirrors the submit() gates (a typed-but-unconfirmed keyword counts).
+        const ready = ![
+                !form.name.trim(),
+                form.keywordFilter === 'SPECIFIC' && form.keywords.length === 0 && !keywordInput.trim(),
+                isComment &&
+                        form.postFilter === 'SPECIFIC' &&
+                        (parsedPostReferences.invalid.length > 0 ||
+                                (parsedPostReferences.ids.length === 0 && parsedPostReferences.shortcodes.length === 0)),
+                showBuilder && !form.messages.some(hasMessageContent),
+                isComment && form.replyMode === 'MULTI_MESSAGE' && !form.messages.some((m) => m.text.trim()),
+                form.messages.some((m) => !!m.mediaUrl && /^blob:/i.test(m.mediaUrl)),
+        ].some(Boolean)
+
+        const modeLabel = isDm ? 'دایرکت' : isComment ? 'کامنت پست' : 'پاسخ استوری'
+        const flowSteps = buildFlowSteps(form, type)
+
+        // Mobile preview sheet — opened from the top card or the save dock.
+        const [previewOpen, setPreviewOpen] = useState(false)
+        const previewTriggerRef = useRef<HTMLElement | null>(null)
+        const openPreview = (e: React.MouseEvent<HTMLElement>) => {
+                previewTriggerRef.current = e.currentTarget
+                setPreviewOpen(true)
+        }
+
         return (
                 <div className="mx-auto max-w-7xl space-y-5">
                         {/* Page header — unified with the rest of the dashboard.
@@ -683,12 +746,8 @@ export function AutomationForm({
                                         : type === 'COMMENT' ? 'پاسخ خودکار به کامنت پست‌ها'
                                         : 'پاسخ خودکار به استوری‌ها'
                                 }
-                                actions={
-                                        <BackButton href="/instagram" label="بازگشت" />
-                                }
+                                back={{ href: '/instagram', label: 'اینستاگرام' }}
                         />
-
-                        <MobileAutomationStepper />
 
                         <form onSubmit={submit} className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                                 {/* ── LEFT: form fields ────────────────────────────────────── */}
@@ -708,23 +767,10 @@ export function AutomationForm({
                                                                 className="input"
                                                         />
                                                 </div>
-                                                <div className="flex items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
-                                                        <div>
-                                                                <p className="text-sm font-medium text-[var(--text-primary)]">فعال</p>
-                                                                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                                                                        سناریوهای غیرفعال اجرا نمی‌شوند.
-                                                                </p>
-                                                        </div>
-                                                        <Switch
-                                                                checked={form.active}
-                                                                onChange={(v) => set('active', v)}
-                                                                aria-label="فعال بودن سناریو"
-                                                        />
-                                                </div>
                                         </Section>
 
                                         {/* ─── Trigger section ─────────────────────────────────── */}
-                                        <Section title="شرط اجرا" Icon={Zap}>
+                                        <Section id="automation-trigger" title="شرط اجرا" Icon={Zap}>
                                                 {/* COMMENT: post scope (any / specific) */}
                                                 {isComment && (
                                                         <SegmentedField
@@ -763,22 +809,22 @@ export function AutomationForm({
                                                                         className={`input ${postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? 'border-red-400 focus:border-red-500' : ''}`}
                                                                 />
                                                                 {resolvingPostReferences ? (
-                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[11px] leading-5 text-[var(--text-secondary)]">
+                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
                                                                                 <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                                                                                 در حال دریافت شناسه دقیق پست از Meta…
                                                                         </p>
                                                                 ) : postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? (
-                                                                        <p id="instagram-post-reference-help" role="alert" className="flex items-start gap-1.5 text-[11px] leading-5 text-red-700">
+                                                                        <p id="instagram-post-reference-help" role="alert" className="flex items-start gap-1.5 text-[12px] leading-5 text-red-700">
                                                                                 <AlertCircle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                                                                 {postReferenceFeedback?.text ?? `لینک یا شناسه «${parsedPostReferences.invalid[0]}» شناخته نشد.`}
                                                                         </p>
                                                                 ) : postReferenceFeedback?.kind === 'ok' ? (
-                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[11px] leading-5 text-emerald-700">
+                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[12px] leading-5 text-emerald-700">
                                                                                 <Check aria-hidden="true" className="h-3.5 w-3.5" />
                                                                                 {postReferenceFeedback.text}
                                                                         </p>
                                                                 ) : (
-                                                                        <p id="instagram-post-reference-help" className="text-[11px] leading-5 text-[var(--text-muted)]">
+                                                                        <p id="instagram-post-reference-help" className="text-[12px] leading-5 text-[var(--text-muted)]">
                                                                                 لینک پست یا ریلز را با یا بدون <bdi dir="ltr">www / https</bdi> وارد کنید؛ شناسه عددی خودکار استخراج می‌شود. کد کوتاه و شناسه عددی هم پذیرفته می‌شوند و چند مورد را می‌توانید با کاما جدا کنید.
                                                                         </p>
                                                                 )}
@@ -800,7 +846,7 @@ export function AutomationForm({
                                                                         ]}
                                                                 />
                                                                 {form.storyScope === 'ALL' && (
-                                                                        <p className="text-[11px] text-[var(--text-muted)]">
+                                                                        <p className="text-[12px] text-[var(--text-muted)]">
                                                                                 به هر ریپلای یا منشن استوری پاسخ داده می‌شود.
                                                                         </p>
                                                                 )}
@@ -836,7 +882,7 @@ export function AutomationForm({
                                                                         onKeyDown={onKeywordKeyDown}
                                                                         placeholder="کلمه را بنویس و Enter بزن…"
                                                                 />
-                                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                                <p className="text-[12px] text-[var(--text-muted)]">
                                                                         زمانی که کاربر کلمات زیر را در {isDm ? 'دایرکت' : isComment ? 'کامنت' : 'استوری'} ارسال کند، این سناریو اجرا می‌شود. با Enter یا کاما اضافه کنید.
                                                                 </p>
                                                         </div>
@@ -906,6 +952,7 @@ export function AutomationForm({
                                         {/* ─── MESSAGE BUILDER (DM/STORY STATIC, COMMENT SEND_DM) ── */}
                                         {showBuilder && (
                                                 <Section
+                                                        id="automation-messages"
                                                         title={isComment && form.dmOnComment ? 'پیام‌های دایرکت' : 'دنباله پیام‌ها'}
                                                         Icon={isComment && form.dmOnComment ? Send : MessageCircle}
                                                 >
@@ -916,7 +963,7 @@ export function AutomationForm({
                                                                 onRemove={removeMessage}
                                                                 onMove={moveMessage}
                                                         />
-                                                        <p className="text-[11px] text-[var(--text-muted)]">
+                                                        <p className="text-[12px] text-[var(--text-muted)]">
                                                                 {isComment && form.dmOnComment
                                                                         ? 'به‌جای ریپلای عمومی، این پیام‌ها در دایرکتِ کامنت‌گذار ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول اضافه کنید.'
                                                                         : 'پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.'}
@@ -966,7 +1013,7 @@ export function AutomationForm({
                                                                                 maxLength={200}
                                                                                 className="input resize-none"
                                                                         />
-                                                                        <p className="text-[11px] text-[var(--text-muted)]">
+                                                                        <p className="text-[12px] text-[var(--text-muted)]">
                                                                                 این متن فقط زیر کامنت نمایش داده می‌شود و محتوای دایرکت را فاش نمی‌کند.
                                                                         </p>
                                                                 </div>
@@ -976,14 +1023,14 @@ export function AutomationForm({
 
                                         {/* ─── COMMENT MULTI_MESSAGE: list of reply options ─────── */}
                                         {isComment && form.replyMode === 'MULTI_MESSAGE' && (
-                                                <Section title="گزینه‌های پاسخ" Icon={MessageSquare}>
+                                                <Section id="automation-messages" title="گزینه‌های پاسخ" Icon={MessageSquare}>
                                                         <div className="space-y-2">
                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                         یکی به‌صورت تصادفی ریپلای می‌شود
                                                                 </label>
                                                                 {form.messages.map((m, idx) => (
                                                                         <div key={m.id} className="flex items-start gap-2">
-                                                                                <div className="mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[11px] font-medium text-[var(--text-secondary)]">
+                                                                                <div className="mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[12px] font-medium text-[var(--text-secondary)]">
                                                                                         {(idx + 1).toLocaleString('fa-IR')}
                                                                                 </div>
                                                                                 <textarea
@@ -1029,7 +1076,7 @@ export function AutomationForm({
                                                                         <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
                                                                                 اگر کاربر فالو داشته باشد، پاسخ ارسال می‌شود. در غیر این‌صورت از او می‌خواهیم اول فالو کند.
                                                                         </p>
-                                                                        <p className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-[11px] leading-5 text-amber-900">
+                                                                        <p className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-[12px] leading-5 text-amber-900">
                                                                                 برای پیج‌های پرتعاملی پیشنهاد می‌شود؛ تعداد ارسال به افراد غیرفالوور را کمتر می‌کند و ریسک محدودشدن پیج را پایین می‌آورد.
                                                                         </p>
                                                                 </div>
@@ -1042,7 +1089,7 @@ export function AutomationForm({
                                                 </div>
                                                 {form.followGate && (
                                                         <div className="space-y-3">
-                                                                <p className="rounded-lg bg-[var(--bg-base)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                                                                <p className="rounded-lg bg-[var(--bg-base)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">
                                                                         وقتی کاربر پیام می‌دهد و فالو نیست، این پیام برایش ارسال می‌شود. بعد از فالو کردن و زدن دکمه «دنبال کردم»، محتوای زیر برایش ارسال می‌شود.
                                                                 </p>
                                                                 <div className="space-y-1.5">
@@ -1079,26 +1126,47 @@ export function AutomationForm({
                                                 </p>
                                         )}
 
-                                        {/* Footer — sticky action bar */}
-                                        <div id="automation-publish" className="sticky z-10 flex scroll-mt-28 items-center justify-between gap-2 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-base)]/95 px-4 py-3 backdrop-blur-md [bottom:calc(6rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-4 md:bottom-0">
-                                                <p className="hidden text-[11px] font-medium text-[var(--text-muted)] sm:block">
-                                                        پیش‌نمایش زنده در ستون کناری
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                        <Link
-                                                                href="/instagram"
-                                                                className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                                                        >
-                                                                انصراف
-                                                        </Link>
-                                                        <button
-                                                                type="submit"
-                                                                disabled={busy || !form.name.trim()}
-                                                                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
-                                                        >
-                                                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                                                {mode === 'create' ? 'افزودن سناریو' : 'ذخیره تغییرات'}
-                                                        </button>
+                                        {/* Footer — one compact sticky dock. On phones it also
+                                            carries the preview button, beside the save action. */}
+                                        <div
+                                                id="automation-publish"
+                                                data-sticky-actions=""
+                                                className="sticky z-20 scroll-mt-28 [bottom:calc(6rem+env(safe-area-inset-bottom))] md:bottom-4"
+                                        >
+                                                <div className="rounded-card border border-black/[0.07] bg-white/90 p-1.5 shadow-[var(--elev-2)] backdrop-blur-xl backdrop-saturate-150 sm:p-2">
+                                                        <div className="flex items-center gap-1.5 sm:gap-2">
+                                                                <MobilePreviewButton onOpen={openPreview} />
+                                                                {ready ? (
+                                                                        <p className="hidden min-w-0 flex-1 items-center gap-2 truncate px-2 text-[12px] font-medium text-[var(--text-muted)] lg:flex">
+                                                                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${form.active ? 'bg-success' : 'bg-[var(--text-hint)]'}`} />
+                                                                                {`${form.name.trim()} · ${
+                                                                                        mode === 'create'
+                                                                                                ? 'بلافاصله پس از افزودن فعال می‌شود'
+                                                                                                : form.active ? 'فعال' : 'غیرفعال'
+                                                                                }`}
+                                                                        </p>
+                                                                ) : (
+                                                                        <span aria-hidden className="hidden flex-1 lg:block" />
+                                                                )}
+                                                                <Link
+                                                                        href="/instagram"
+                                                                        className="hidden min-h-11 shrink-0 items-center rounded-2xl px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] sm:inline-flex"
+                                                                >
+                                                                        انصراف
+                                                                </Link>
+                                                                <button
+                                                                        type="submit"
+                                                                        disabled={busy || !ready}
+                                                                        className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-bold transition-[opacity,background-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 lg:flex-none ${
+                                                                                ready
+                                                                                        ? 'spatial-press bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)] hover:opacity-90 disabled:opacity-60'
+                                                                                        : 'cursor-not-allowed bg-black/[0.06] text-[var(--text-muted)]'
+                                                                        }`}
+                                                                >
+                                                                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" strokeWidth={2.5} />}
+                                                                        {mode === 'create' ? 'افزودن سناریو' : 'ذخیره تغییرات'}
+                                                                </button>
+                                                        </div>
                                                 </div>
                                         </div>
                                 </div>
@@ -1106,113 +1174,284 @@ export function AutomationForm({
                                 {/* ── RIGHT: sticky live iPhone preview ──────────────────── */}
                                 <div className="hidden lg:block">
                                         <div className="sticky top-24">
-                                                <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-                                                        <div className="mb-4 flex items-center justify-between">
-                                                                <div>
-                                                                        <p className="text-xs font-medium text-[var(--text-secondary)]">پیش‌نمایش زنده</p>
-                                                                        <p className="text-[11px] text-[var(--text-muted)]">
-                                                                                همان لحظه در گوشی می‌بینید
-                                                                        </p>
-                                                                </div>
-                                                                <div className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-base)] px-2 py-1 text-[10px] text-[var(--text-muted)]">
-                                                                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                                                                        زنده
-                                                                </div>
-                                                        </div>
-                                                        <IphonePreview
-                                                                mode={type}
-                                                                accountUsername={accountUsername || 'vigent.bot'}
-                                                                accountAvatarUrl={accountAvatarUrl}
-                                                                userText={previewUserText}
-                                                                replyMode={form.replyMode}
-                                                                messages={previewMessages}
-                                                                dmOnComment={form.dmOnComment}
-                                                                commentAckEnabled={form.commentAckEnabled}
-                                                                commentAckText={form.commentAckText}
-                                                                followGate={form.followGate}
-                                                        />
-                                                </div>
+                                                <PreviewStage
+                                                        Icon={HeaderIcon}
+                                                        modeLabel={modeLabel}
+                                                        steps={flowSteps}
+                                                        previewProps={previewProps}
+                                                />
                                         </div>
                                 </div>
 
-                                {/* On mobile: collapsible preview */}
-                                <div className="lg:hidden">
-                                        <MobilePreviewToggle
-                                                {...{
-                                                        mode: type,
-                                                        accountUsername: accountUsername || 'vigent.bot',
-                                                        accountAvatarUrl,
-                                                        userText: previewUserText,
-                                                        replyMode: form.replyMode,
-                                                        messages: previewMessages,
-                                                        dmOnComment: form.dmOnComment,
-                                                        commentAckEnabled: form.commentAckEnabled,
-                                                        commentAckText: form.commentAckText,
-                                                        followGate: form.followGate,
-                                                }}
-                                        />
-                                </div>
+                                <MobilePreviewSheet
+                                        open={previewOpen}
+                                        onClose={() => setPreviewOpen(false)}
+                                        triggerRef={previewTriggerRef}
+                                        modeLabel={modeLabel}
+                                        steps={flowSteps}
+                                        previewProps={previewProps}
+                                />
+
                         </form>
                 </div>
         )
 }
 
-function MobileAutomationStepper() {
-        const steps = [
-                { id: 'automation-condition', label: 'شرط' },
-                { id: 'automation-response', label: 'پاسخ' },
-                { id: 'automation-publish', label: 'انتشار' },
-        ]
+// ── Desktop preview stage ─────────────────────────────────────────────────
+const IG_GRADIENT = 'linear-gradient(45deg, #f58529 0%, #dd2a7b 50%, #8134af 100%)'
 
+interface FlowStep {
+        Icon: LucideIcon
+        label: string
+        /** Still needs operator input — drawn as a dashed placeholder chip. */
+        pending?: boolean
+}
+
+/** Plain-language «trigger → … → reply» summary of what the preview shows. */
+function buildFlowSteps(form: FormState, type: AutomationType): FlowStep[] {
+        const faNum = (n: number) => n.toLocaleString('fa-IR')
+        const keywords = form.keywords.map((k) => k.trim()).filter(Boolean)
+        const keywordLabel =
+                keywords.length === 0 ? null
+                : keywords.length === 1 ? `«${keywords[0]}»`
+                : `«${keywords[0]}» و ${faNum(keywords.length - 1)} کلمه دیگر`
+        const specific = form.keywordFilter === 'SPECIFIC'
+        const steps: FlowStep[] = []
+
+        if (type === 'DIRECT_MESSAGE') {
+                steps.push({ Icon: MessageCircle, label: specific ? 'پیام دایرکت' : 'هر پیام دایرکت' })
+        } else if (type === 'COMMENT') {
+                steps.push({
+                        Icon: MessageSquare,
+                        label: form.postFilter === 'SPECIFIC' ? 'کامنت روی پست‌های مشخص' : 'کامنت روی هر پست',
+                })
+        } else {
+                steps.push({ Icon: Circle, label: form.storyScope === 'ALL' ? 'هر پاسخ به استوری' : 'پاسخ به استوری' })
+        }
+        if (specific && !(type === 'STORY' && form.storyScope === 'ALL')) {
+                steps.push({ Icon: Tag, label: keywordLabel ?? 'کلمه کلیدی؟', pending: !keywordLabel })
+        }
+        if (form.followGate) steps.push({ Icon: Shield, label: 'بررسی فالو' })
+
+        const count = form.messages.filter(hasMessageContent).length
+        if (type === 'COMMENT') {
+                if (form.dmOnComment) {
+                        steps.push({ Icon: Send, label: count ? `${faNum(count)} پیام در دایرکت` : 'پیام دایرکت؟', pending: !count })
+                        if (form.commentAckEnabled && form.commentAckText.trim()) {
+                                steps.push({ Icon: MessageSquare, label: 'ریپلای زیر کامنت' })
+                        }
+                } else if (form.replyMode === 'MULTI_MESSAGE') {
+                        const options = form.messages.filter((m) => m.text.trim()).length
+                        steps.push({
+                                Icon: MessageSquare,
+                                label: options === 0 ? 'متن ریپلای؟'
+                                        : options === 1 ? 'ریپلای عمومی'
+                                        : `ریپلای تصادفی از ${faNum(options)} گزینه`,
+                                pending: options === 0,
+                        })
+                } else {
+                        steps.push({ Icon: Circle, label: 'بدون ریپلای' })
+                }
+                return steps
+        }
+        if (form.replyMode === 'AI') steps.push({ Icon: Bot, label: 'پاسخ هوشمند ایجنت' })
+        else if (form.replyMode === 'STATIC') steps.push({ Icon: Send, label: count ? `${faNum(count)} پیام سفارشی` : 'پیام سفارشی؟', pending: !count })
+        else if (form.replyMode === 'STOP_AI') steps.push({ Icon: Zap, label: 'توقف هوش مصنوعی' })
+        else steps.push({ Icon: Circle, label: 'بدون پاسخ' })
+        return steps
+}
+
+function PreviewStage({
+        Icon,
+        modeLabel,
+        steps,
+        previewProps,
+}: {
+        Icon: LucideIcon
+        modeLabel: string
+        steps: FlowStep[]
+        previewProps: React.ComponentProps<typeof IphonePreview>
+}) {
         return (
-                <nav aria-label="مراحل سناریو" className="sticky top-[5.25rem] z-30 -mx-1 grid grid-cols-3 gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl lg:hidden">
-                        {steps.map((step, index) => (
-                                <button
-                                        key={step.id}
-                                        type="button"
-                                        onClick={() => document.getElementById(step.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                <section aria-label="پیش‌نمایش زنده سناریو" className="spatial-surface overflow-hidden rounded-[1.75rem]">
+                        <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                        <span
+                                                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white shadow-[0_8px_18px_-8px_rgba(221,42,123,0.7)]"
+                                                style={{ background: IG_GRADIENT }}
+                                        >
+                                                <Icon className="h-4 w-4" aria-hidden="true" />
+                                        </span>
+                                        <div className="min-w-0">
+                                                <p className="text-sm font-bold text-[var(--text-primary)]">پیش‌نمایش زنده</p>
+                                                <p className="truncate text-[11px] text-[var(--text-muted)]">
+                                                        {modeLabel} · همان چیزی که مشتری می‌بیند
+                                                </p>
+                                        </div>
+                                </div>
+                                <LivePill />
+                        </div>
+
+                        <StageBackdrop className="mx-3 px-4 py-5">
+                                {/* Sized from the viewport height so the whole phone stays
+                                    in view while the column is sticky (19rem ≈ sticky offset
+                                    + header + flow summary). */}
+                                <div
+                                        className="w-full"
+                                        style={{ maxWidth: `min(340px, max(240px, calc((100dvh - 19rem) / ${PHONE_RATIO})))` }}
                                 >
-                                        <span className="grid h-6 w-6 place-items-center rounded-full bg-black text-[10px] text-white">{(index + 1).toLocaleString('fa-IR')}</span>
-                                        {step.label}
-                                </button>
-                        ))}
-                </nav>
+                                        <IphonePreview {...previewProps} frameClassName="max-w-none" />
+                                </div>
+                        </StageBackdrop>
+
+                        <FlowSummary steps={steps} className="px-5 pb-4 pt-3" />
+                </section>
         )
 }
 
-// ── Mobile preview sheet ──────────────────────────────────────────────────
-function MobilePreviewToggle(props: React.ComponentProps<typeof IphonePreview>) {
-        const [open, setOpen] = useState(false)
-        const triggerRef = useRef<HTMLButtonElement>(null)
-        return (
-                <>
-                        <button
-                                ref={triggerRef}
-                                type="button"
-                                onClick={() => setOpen(true)}
-                                aria-expanded={open}
-                                className="fixed end-4 bottom-[calc(10.75rem+env(safe-area-inset-bottom))] z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-black px-4 text-sm font-bold text-white shadow-[0_14px_40px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2 lg:hidden"
-                        >
-                                <Eye className="h-4 w-4" aria-hidden="true" />
-                                پیش‌نمایش
-                        </button>
+/** Framed phone height ÷ width (screen 393×852 plus the 2.1% bezel). */
+const PHONE_RATIO = 2.12
 
-                        <MobileBottomSheet
-                                open={open}
-                                title="پیش‌نمایش زنده"
-                                description="نمایی که کاربر در اینستاگرام می‌بیند"
-                                closeLabel="بستن پیش‌نمایش"
-                                size="large"
-                                triggerRef={triggerRef}
-                                onClose={() => setOpen(false)}
-                                contentClassName="flex justify-center bg-[var(--bg-muted)]"
-                        >
-                                <div className="w-full max-w-md py-2">
-                                        <IphonePreview {...props} />
+function LivePill() {
+        return (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-bold text-success">
+                        <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
+                                <span className="relative h-1.5 w-1.5 rounded-full bg-success" />
+                        </span>
+                        زنده
+                </span>
+        )
+}
+
+/** Dotted backdrop + a soft Instagram-gradient glow, so the phone reads as the hero. */
+function StageBackdrop({ className, children }: { className?: string; children: React.ReactNode }) {
+        return (
+                <div
+                        className={cn(
+                                'relative isolate grid place-items-center overflow-hidden rounded-[1.35rem] border border-black/[0.05] bg-[var(--bg-muted)]',
+                                className,
+                        )}
+                        style={{
+                                backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.07) 1px, transparent 0)',
+                                backgroundSize: '18px 18px',
+                        }}
+                >
+                        <div
+                                aria-hidden
+                                className="pointer-events-none absolute left-1/2 top-[45%] -z-10 aspect-square w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-25 blur-3xl"
+                                style={{ background: IG_GRADIENT }}
+                        />
+                        {children}
+                </div>
+        )
+}
+
+function FlowSummary({ steps, className }: { steps: FlowStep[]; className?: string }) {
+        return (
+                <div className={className}>
+                        <p className="mb-2 text-[11px] font-bold text-[var(--text-muted)]">مسیر سناریو</p>
+                        <ol className="flex flex-wrap items-center gap-x-1 gap-y-1.5">
+                                {steps.map((step, i) => (
+                                        <li key={`${i}-${step.label}`} className="flex min-w-0 items-center gap-1">
+                                                {i > 0 && <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--text-hint)]" />}
+                                                <span
+                                                        className={cn(
+                                                                'inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+                                                                step.pending
+                                                                        ? 'border-dashed border-[var(--border-hover)] text-[var(--text-muted)]'
+                                                                        : 'border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-primary)]',
+                                                        )}
+                                                >
+                                                        <step.Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                                                        <span className="max-w-[12rem] truncate">{step.label}</span>
+                                                </span>
+                                        </li>
+                                ))}
+                        </ol>
+                </div>
+        )
+}
+
+// ── Mobile preview ────────────────────────────────────────────────────────
+// Gradient button in the save dock, right beside «افزودن سناریو»; it opens a
+// sheet that mirrors the desktop stage.
+function MobilePreviewButton({ onOpen }: { onOpen: (e: React.MouseEvent<HTMLElement>) => void }) {
+        return (
+                <button
+                        type="button"
+                        onClick={onOpen}
+                        aria-haspopup="dialog"
+                        className="spatial-press inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-transparent px-3.5 text-sm font-bold text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden"
+                        style={{ background: `linear-gradient(#fff, #fff) padding-box, ${IG_GRADIENT} border-box` }}
+                >
+                        <span className="grid h-6 w-6 place-items-center rounded-lg text-white" style={{ background: IG_GRADIENT }}>
+                                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                        </span>
+                        پیش‌نمایش
+                </button>
+        )
+}
+
+function MobilePreviewSheet({
+        open,
+        onClose,
+        triggerRef,
+        modeLabel,
+        steps,
+        previewProps,
+}: {
+        open: boolean
+        onClose: () => void
+        triggerRef: { current: HTMLElement | null }
+        modeLabel: string
+        steps: FlowStep[]
+        previewProps: React.ComponentProps<typeof IphonePreview>
+}) {
+        return (
+                <MobileBottomSheet
+                        open={open}
+                        title="پیش‌نمایش زنده"
+                        description={`${modeLabel} · همان چیزی که مشتری می‌بیند`}
+                        closeLabel="بستن پیش‌نمایش"
+                        size="large"
+                        triggerRef={triggerRef}
+                        onClose={onClose}
+                        contentClassName="flex flex-col overflow-hidden p-0"
+                >
+                        <FitPhoneStage previewProps={previewProps} />
+                        <FlowSummary steps={steps} className="shrink-0 px-4 pt-3" />
+                </MobileBottomSheet>
+        )
+}
+
+/**
+ * Fills whatever height the sheet leaves after its header and the flow
+ * summary, and sizes the phone from the measured box — the whole device is
+ * always visible, with no inner scroll, on any phone height.
+ */
+function FitPhoneStage({ previewProps }: { previewProps: React.ComponentProps<typeof IphonePreview> }) {
+        const boxRef = useRef<HTMLDivElement>(null)
+        const [width, setWidth] = useState(0)
+        useEffect(() => {
+                const box = boxRef.current
+                if (!box) return
+                const observer = new ResizeObserver(([entry]) => {
+                        const { width: w, height: h } = entry.contentRect
+                        setWidth(Math.floor(Math.min(320, w, h / PHONE_RATIO)))
+                })
+                observer.observe(box)
+                return () => observer.disconnect()
+        }, [])
+        return (
+                <StageBackdrop className="mx-3 mt-3 min-h-0 flex-1 px-4 py-4">
+                        <div ref={boxRef} className="absolute inset-4" aria-hidden />
+                        {width > 0 && (
+                                <div style={{ width }}>
+                                        <IphonePreview {...previewProps} frameClassName="max-w-none" />
                                 </div>
-                        </MobileBottomSheet>
-                </>
+                        )}
+                </StageBackdrop>
         )
 }
 
@@ -1235,7 +1474,7 @@ function Section({
         const [open, setOpen] = useState(!defaultCollapsed)
         if (!collapsible) {
                 return (
-                        <section id={id} className="spatial-surface scroll-mt-28 space-y-4 rounded-[1.5rem] p-5 sm:p-6">
+                        <section id={id} className="spatial-surface scroll-mt-28 space-y-4 rounded-card p-5 sm:p-6">
                                 <div className="flex items-center gap-2.5">
                                         {Icon && (
                                                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
@@ -1249,7 +1488,7 @@ function Section({
                 )
         }
         return (
-                <section id={id} className="spatial-surface scroll-mt-28 overflow-hidden rounded-[1.5rem]">
+                <section id={id} className="spatial-surface scroll-mt-28 overflow-hidden rounded-card">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}
@@ -1377,7 +1616,7 @@ function DmActionSelector({
                                                         <p className="text-xs font-medium text-[var(--text-primary)] leading-tight">
                                                                 {label}
                                                         </p>
-                                                        <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                                                        <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
                                                                 {desc}
                                                         </p>
                                                 </div>
@@ -1450,7 +1689,7 @@ function CommentActionSelector({
                                                 </div>
                                                 <div className="min-w-0 flex-1">
                                                         <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
-                                                        <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{desc}</p>
+                                                        <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">{desc}</p>
                                                 </div>
                                                 {active && <Check className="mt-1 h-4 w-4 shrink-0 text-[var(--text-primary)]" />}
                                         </button>
@@ -1502,7 +1741,7 @@ function StoryActionSelector({
                                                         <p className="text-xs font-medium text-[var(--text-primary)] leading-tight">
                                                                 {label}
                                                         </p>
-                                                        <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                                                        <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
                                                                 {desc}
                                                         </p>
                                                 </div>
@@ -1554,13 +1793,13 @@ function MessageBuilder({
                 <div className="space-y-3">
                         {/* Header: count badge + hint — makes it OBVIOUS the user can stack messages. */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-base)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-secondary)]">
                                         <MessageCircle className="h-3 w-3" />
                                         {messages.length > 0
                                                 ? `${messages.length.toLocaleString('fa-IR')} پیام`
                                                 : 'بدون پیام'}
                                 </span>
-                                <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
                                         چند پیام پشت‌سر هم — به‌ترتیب ارسال می‌شوند.
                                 </p>
                         </div>
@@ -1592,7 +1831,7 @@ function MessageBuilder({
                             sees at a glance every kind of message they can add. No hidden
                             dropdown, no guessing. */}
                         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
-                                <p className="mb-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                <p className="mb-2.5 text-[12px] font-medium text-[var(--text-secondary)]">
                                         افزودن پیام
                                 </p>
                                 <div className="grid grid-cols-3 gap-1.5">
@@ -1601,7 +1840,7 @@ function MessageBuilder({
                                                         key={value}
                                                         type="button"
                                                         onClick={() => onAdd(value)}
-                                                        className="group flex flex-col items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-2.5 text-[10px] font-medium text-[var(--text-secondary)] transition-all hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] active:scale-95"
+                                                        className="group flex flex-col items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-2.5 text-[12px] font-medium text-[var(--text-secondary)] transition-all hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] active:scale-95"
                                                 >
                                                         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg-base)] text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--white)] group-hover:text-[var(--bg-base)]">
                                                                 <Icon className="h-3.5 w-3.5" />
@@ -1719,13 +1958,13 @@ function MessageCard({
                         {/* Card header */}
                         <div className="mb-2.5 flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--bg-muted)] text-[10px] font-medium text-[var(--text-secondary)]">
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--bg-muted)] text-[12px] font-medium text-[var(--text-secondary)]">
                                                 {(index + 1).toLocaleString('fa-IR')}
                                         </span>
                                         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--bg-surface)] text-[var(--text-secondary)]">
                                                 <TypeIcon className="h-3 w-3" />
                                         </div>
-                                        <span className="text-[11px] font-medium text-[var(--text-secondary)]">{typeLabel}</span>
+                                        <span className="text-[12px] font-medium text-[var(--text-secondary)]">{typeLabel}</span>
                                 </div>
                                 <div className="flex items-center gap-0.5">
                                         <button
@@ -1778,7 +2017,7 @@ function MessageCard({
                                             button. Otherwise show the recorder + the upload fallback. */}
                                         {message.type === 'AUDIO' && message.mediaUrl ? (
                                                 <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
-                                                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                        <p className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-secondary)]">
                                                                 <Mic className="h-3.5 w-3.5" />
                                                                 ویس ضبط‌شده
                                                         </p>
@@ -1786,7 +2025,7 @@ function MessageCard({
                                                         <button
                                                                 type="button"
                                                                 onClick={() => onUpdate({ mediaUrl: undefined })}
-                                                                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-[12px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                                                         >
                                                                 <Trash2 className="h-3 w-3" />
                                                                 حذف و ضبط دوباره
@@ -1794,7 +2033,7 @@ function MessageCard({
                                                 </div>
                                         ) : message.type === 'AUDIO' ? (
                                                 <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
-                                                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                        <p className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-secondary)]">
                                                                 <Mic className="h-3.5 w-3.5" />
                                                                 ضبط صدا
                                                         </p>
@@ -1804,13 +2043,13 @@ function MessageCard({
                                                                 maxSeconds={60}
                                                         />
                                                         {voiceUploading && (
-                                                                <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                                                                <p className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
                                                                         <Loader2 className="h-3 w-3 animate-spin" />
                                                                         در حال آپلود…
                                                                 </p>
                                                         )}
                                                         {voiceError && (
-                                                                <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--danger)]">
+                                                                <p className="inline-flex items-center gap-1.5 text-[12px] text-[var(--danger)]">
                                                                         <AlertCircle className="h-3 w-3" />
                                                                         {voiceError}
                                                                 </p>
@@ -1847,7 +2086,7 @@ function MessageCard({
 
                                         {(message.type === 'IMAGE' || message.type === 'VIDEO') && (
                                                 <div className="space-y-1.5">
-                                                        <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                                                        <label className="text-[12px] font-medium text-[var(--text-secondary)]">
                                                                 کپشن (اختیاری)
                                                         </label>
                                                         <input
@@ -1864,7 +2103,7 @@ function MessageCard({
                         {message.type === 'QUICK_REPLY' && (
                                 <div className="space-y-2.5">
                                         <div className="space-y-1.5">
-                                                <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                                                <label className="text-[12px] font-medium text-[var(--text-secondary)]">
                                                         متن اصلی
                                                 </label>
                                                 <textarea
@@ -1876,7 +2115,7 @@ function MessageCard({
                                                 />
                                         </div>
                                         <div className="space-y-1.5">
-                                                <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                                                <label className="text-[12px] font-medium text-[var(--text-secondary)]">
                                                         نوع دکمه
                                                 </label>
                                                 <div className="flex gap-2">
@@ -1903,14 +2142,14 @@ function MessageCard({
                                                                 تراشه (Quick Reply)
                                                         </button>
                                                 </div>
-                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                <p className="text-[12px] text-[var(--text-muted)]">
                                                         {(message.buttonType ?? 'button') === 'button'
                                                                 ? 'دکمه داخل حباب پیام — در Message Requests هم دیده می‌شود.'
                                                                 : 'تراشه بالای کادر تایپ — بعد از کلیک ناپدید می‌شود.'}
                                                 </p>
                                         </div>
                                         <div className="space-y-1.5">
-                                                <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                                                <label className="text-[12px] font-medium text-[var(--text-secondary)]">
                                                         دکمه‌ها (حداکثر ۳)
                                                 </label>
                                                 <ButtonBuilder
@@ -1933,7 +2172,7 @@ function MessageCard({
                                         />
                                         {message.productId && (
                                                 <div className="space-y-1.5">
-                                                        <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                                                        <label className="text-[12px] font-medium text-[var(--text-secondary)]">
                                                                 متن همراه (اختیاری)
                                                         </label>
                                                         <input
@@ -1949,7 +2188,7 @@ function MessageCard({
 
                         {message.type === 'PRODUCT_LIST' && (
                                 <div className="space-y-3">
-                                        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                        <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
                                                 یک محصول = کارت محصول تکی، دو یا بیشتر = ویترین افقی قابل‌scroll. ترتیب با فلش‌های بالا/پایین قابل تغییره. حداکثر ۱۰ محصول.
                                         </p>
                                         <MultiProductPicker
@@ -2005,7 +2244,7 @@ function ButtonBuilder({
         return (
                 <div className="space-y-2">
                         {buttons.length === 0 && (
-                                <p className="text-[11px] text-[var(--text-muted)]">
+                                <p className="text-[12px] text-[var(--text-muted)]">
                                         هنوز دکمه‌ای اضافه نشده.
                                 </p>
                         )}
@@ -2051,7 +2290,7 @@ function ButtonBuilder({
 
                                                         {/* Type badge — link if URL is set, otherwise postback/text. */}
                                                         <span
-                                                                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                                                                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] font-medium ${
                                                                         isLink
                                                                                 ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
                                                                                 : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
@@ -2079,12 +2318,12 @@ function ButtonBuilder({
                                                                 onChange={(e) => update(idx, { url: e.target.value })}
                                                                 placeholder="لینک (اختیاری)"
                                                                 dir="ltr"
-                                                                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-[11px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+                                                                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
                                                         />
                                                 </div>
 
                                                 {/* Character-count hint for the title. */}
-                                                <div className="mt-1 ps-7 text-[10px] text-[var(--text-muted)]">
+                                                <div className="mt-1 ps-7 text-[12px] text-[var(--text-muted)]">
                                                         {b.title.length.toLocaleString('fa-IR')} / {TITLE_MAX.toLocaleString('fa-IR')}
                                                 </div>
                                         </div>
@@ -2227,7 +2466,7 @@ function useProductPickerPages(open: boolean, q: string): PagedProductList {
 function PickerListFooter({ loadingMore, hasMore, shown, total, onMore }: { loadingMore: boolean; hasMore: boolean; shown: number; total: number; onMore: () => void }) {
         if (total <= 0 && !hasMore) return null
         return (
-                <div className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] px-3 py-2 text-[11px] text-[var(--text-muted)]">
+                <div className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] px-3 py-2 text-[12px] text-[var(--text-muted)]">
                         {loadingMore ? (
                                 <>
                                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -2291,7 +2530,7 @@ function ProductPicker({
                                                 <p className="truncate text-xs font-medium text-[var(--text-primary)]">
                                                         {selected.name}
                                                 </p>
-                                                <p className="text-[11px] text-[var(--text-secondary)]">
+                                                <p className="text-[12px] text-[var(--text-secondary)]">
                                                         {selected.price != null
                                                                 ? `${selected.price.toLocaleString('fa-IR')} تومان`
                                                                 : 'بدون قیمت'}
@@ -2366,7 +2605,7 @@ function ProductPicker({
                                                                                 <p className="truncate text-xs font-medium text-[var(--text-primary)]">
                                                                                         {p.name}
                                                                                 </p>
-                                                                                <p className="text-[11px] text-[var(--text-secondary)]">
+                                                                                <p className="text-[12px] text-[var(--text-secondary)]">
                                                                                         {p.price != null
                                                                                                 ? `${p.price.toLocaleString('fa-IR')} تومان`
                                                                                                 : 'بدون قیمت'}
@@ -2502,7 +2741,7 @@ function MultiProductPicker({
                                                                         <p className="truncate text-xs font-medium text-[var(--text-primary)]">
                                                                                 {p?.name ?? '…'}
                                                                         </p>
-                                                                        <p className="text-[11px] text-[var(--text-secondary)]">
+                                                                        <p className="text-[12px] text-[var(--text-secondary)]">
                                                                                 {p?.price != null
                                                                                         ? `${p.price.toLocaleString('fa-IR')} تومان`
                                                                                         : 'بدون قیمت'}
@@ -2557,7 +2796,7 @@ function MultiProductPicker({
                                         <ChevronDown className="h-3.5 w-3.5" />
                                 </button>
                         ) : (
-                                <p className="text-center text-[11px] text-[var(--text-muted)]">
+                                <p className="text-center text-[12px] text-[var(--text-muted)]">
                                         حداکثر {MAX.toLocaleString('fa-IR')} محصول در هر ویترین.
                                 </p>
                         )}
@@ -2608,7 +2847,7 @@ function MultiProductPicker({
                                                                                         <p className="truncate text-xs font-medium text-[var(--text-primary)]">
                                                                                                 {p.name}
                                                                                         </p>
-                                                                                        <p className="text-[11px] text-[var(--text-secondary)]">
+                                                                                        <p className="text-[12px] text-[var(--text-secondary)]">
                                                                                                 {p.price != null
                                                                                                         ? `${p.price.toLocaleString('fa-IR')} تومان`
                                                                                                         : 'بدون قیمت'}

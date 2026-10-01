@@ -150,7 +150,7 @@ export function InstagramConnectFlow({
         } else if (data.error === 'NOT_FOUND') {
           setError('این ایجنت پیدا نشد.')
         } else if (data.error === 'CHANNEL_LIMIT') {
-          setError('سهمیه اتصال کانال پلن شما تکمیل شده است. یک کانال را حذف کنید یا پلن را ارتقا دهید.')
+          setError('سهمیهٔ اتصال برنامه‌های پلن شما تکمیل شده است. یک برنامه را حذف کنید یا پلن را ارتقا دهید.')
         } else if (res.status >= 500) {
           setError('سرویس اتصال اینستاگرام موقتاً در دسترس نیست. چند دقیقه دیگر دوباره تلاش کنید.')
         } else {
@@ -185,7 +185,7 @@ export function InstagramConnectFlow({
 
   return (
     <div className="mt-4 space-y-3">
-      <div className="overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white shadow-[var(--shadow-card)]">
+      <div className="overflow-hidden rounded-card border border-[var(--border-default)] bg-white shadow-[var(--shadow-card)]">
         <div className="border-b border-[var(--border-subtle)] bg-[linear-gradient(135deg,#fff_0%,#fff_58%,rgba(221,42,123,0.06)_100%)] p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white shadow-[0_10px_24px_-14px_rgba(221,42,123,0.85)]">
@@ -193,10 +193,10 @@ export function InstagramConnectFlow({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">
                   اتصال رسمی به اینستاگرام
                 </h3>
-                <span className="rounded-full border border-emerald-600/15 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
+                <span className="rounded-full border border-emerald-600/15 bg-emerald-50 px-2 py-0.5 text-[12px] font-bold text-emerald-700">
                   بدون ساخت اپ متا
                 </span>
               </div>
@@ -213,10 +213,10 @@ export function InstagramConnectFlow({
               ['۳', 'بازگشت و شروع کار'],
             ].map(([step, label]) => (
               <li key={step} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white/80 px-3 py-2.5">
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--text-primary)] text-[10px] font-bold text-white">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--text-primary)] text-[12px] font-bold text-white">
                   {step}
                 </span>
-                <span className="text-[10px] font-medium text-[var(--text-secondary)]">{label}</span>
+                <span className="text-[12px] font-medium text-[var(--text-secondary)]">{label}</span>
               </li>
             ))}
           </ol>
@@ -279,7 +279,7 @@ export function InstagramConnectFlow({
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
             {busy ? 'در حال انتقال به اینستاگرام…' : 'بررسی شرایط و اتصال'}
           </button>
-          <p className="mt-2 text-center text-[10px] leading-5 text-[var(--text-muted)]">
+          <p className="mt-2 text-center text-[12px] leading-5 text-[var(--text-muted)]">
             رمز عبور را فقط در صفحه Instagram وارد می‌کنید؛ ویجنت آن را دریافت یا ذخیره نمی‌کند.
           </p>
 
@@ -290,7 +290,7 @@ export function InstagramConnectFlow({
             className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
             <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-            بازگشت به کانال‌ها
+            بازگشت به برنامه‌ها
           </button>
         </div>
       </div>
@@ -325,7 +325,7 @@ export function InstagramConnectFlow({
               <button
                 type="button"
                 onClick={() => setVpnModalOpen(false)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 aria-label="بستن"
               >
                 <X className="h-4 w-4" />
@@ -342,7 +342,7 @@ export function InstagramConnectFlow({
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                   <div>
                     <p className="text-xs font-bold text-emerald-900">این پیام نشانه مشکل امنیتی پیج شما نیست</p>
-                    <p className="mt-1 text-[11px] leading-6 text-emerald-900/75">
+                    <p className="mt-1 text-[12px] leading-6 text-emerald-900/75">
                       این محدودیت مطابق فرایند دسترسی اپ‌های در حال بررسی Meta است. رمز عبور شما در اختیار ویجنت یا پشتیبانی قرار نمی‌گیرد و اتصال همچنان در صفحه رسمی Instagram انجام می‌شود.
                     </p>
                   </div>
@@ -356,8 +356,8 @@ export function InstagramConnectFlow({
                   ['۳', 'VPN را روشن کنید، برگردید و دکمه «پیج اضافه شده؛ اتصال» را بزنید.'],
                 ].map(([step, text]) => (
                   <li key={step} className="flex items-start gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-black text-[10px] font-bold text-white">{step}</span>
-                    <span className="text-[11px] leading-6 text-[var(--text-secondary)]">{text}</span>
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-black text-[12px] font-bold text-white">{step}</span>
+                    <span className="text-[12px] leading-6 text-[var(--text-secondary)]">{text}</span>
                   </li>
                 ))}
               </ol>
@@ -367,7 +367,7 @@ export function InstagramConnectFlow({
               <button
                 type="button"
                 onClick={() => setVpnModalOpen(false)}
-                className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 انصراف
               </button>
@@ -377,7 +377,7 @@ export function InstagramConnectFlow({
                   href={SUPPORT_TELEGRAM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                   <Send className="h-4 w-4" />
                   پیام به پشتیبانی
@@ -385,7 +385,7 @@ export function InstagramConnectFlow({
                 <button
                   type="button"
                   onClick={confirmVpn}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   پیج اضافه شده؛ اتصال
@@ -412,7 +412,7 @@ export function InstagramConnectFlow({
                 aria-modal="true"
                 aria-labelledby="instagram-trust-title"
                 aria-describedby="instagram-trust-description"
-                className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[1.5rem] border border-[var(--border-default)] bg-white shadow-2xl"
+                className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-card border border-[var(--border-default)] bg-white shadow-2xl"
               >
                 <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
                   <div className="flex items-center gap-3">
@@ -420,8 +420,8 @@ export function InstagramConnectFlow({
                       <ShieldCheck className="h-[1.1rem] w-[1.1rem]" />
                     </span>
                     <div>
-                      <p className="text-[10px] font-bold text-emerald-700">اتصال شفاف و قابل لغو</p>
-                      <h3 id="instagram-trust-title" className="mt-0.5 text-sm font-semibold text-[var(--text-primary)]">
+                      <p className="text-[12px] font-bold text-emerald-700">اتصال شفاف و قابل لغو</p>
+                      <h3 id="instagram-trust-title" className="mt-0.5 text-sm font-bold text-[var(--text-primary)]">
                         چجوری بهتون اعتماد کنیم؟
                       </h3>
                     </div>
@@ -429,7 +429,7 @@ export function InstagramConnectFlow({
                   <button
                     type="button"
                     onClick={() => setTrustModalOpen(false)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     aria-label="بستن"
                   >
                     <X className="h-4 w-4" />
@@ -448,11 +448,11 @@ export function InstagramConnectFlow({
                       فقط پروفایل حرفه‌ای، پیام‌ها و کامنت‌ها برای پاسخ‌گویی و اتوماسیون درخواست می‌شوند؛ همان مواردی که در صفحه تأیید می‌بینید.
                     </TrustItem>
                     <TrustItem icon={Unplug} title="هر زمان خواستید قطعش کنید">
-                      می‌توانید کانال را از ویجنت حذف کنید یا دسترسی برنامه را از تنظیمات Instagram لغو کنید.
+                      می‌توانید برنامه را از ویجنت حذف کنید یا دسترسی برنامه را از تنظیمات Instagram لغو کنید.
                     </TrustItem>
                   </div>
 
-                  <div className="mt-5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[11px] leading-6 text-[var(--text-secondary)]">
+                  <div className="mt-5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[12px] leading-6 text-[var(--text-secondary)]">
                     مسیر قابل بررسی است: دکمه اتصال شما را به <b className="text-[var(--text-primary)]">api.instagram.com</b> می‌فرستد و پس از تأیید به ویجنت برمی‌گرداند.
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export function InstagramConnectFlow({
                     data-autofocus
                     type="button"
                     onClick={() => setTrustModalOpen(false)}
-                    className="inline-flex min-h-11 items-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
+                    className="inline-flex min-h-11 items-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                   >
                     متوجه شدم
                   </button>
@@ -492,7 +492,7 @@ function TrustItem({
       </span>
       <div>
         <p className="text-xs font-semibold text-[var(--text-primary)]">{title}</p>
-        <p className="mt-1 text-[11px] leading-6 text-[var(--text-secondary)]">{children}</p>
+        <p className="mt-1 text-[12px] leading-6 text-[var(--text-secondary)]">{children}</p>
       </div>
     </div>
   )

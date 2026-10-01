@@ -67,7 +67,7 @@ function safeValue(value: string, maxLength = 300): string {
  * Returns '' if no recognized pattern matches — we'd rather expose no link
  * than a wrong one.
  */
-function synthesizeTrackingLink(trackingCode: string | null, courierName: string | null): string {
+export function synthesizeTrackingLink(trackingCode: string | null, courierName: string | null): string {
   if (!trackingCode) return ''
   const code = trackingCode.trim()
   const courier = (courierName ?? '').toLowerCase()
@@ -106,6 +106,8 @@ export async function buildOrderContext(params: {
   history?: Array<{ role: string; content: string | null }>
   enabled: boolean
   language: string
+  /** agent.orderUpdatesEnabled: the conversation follows the order it asked about. */
+  follow?: { agentId: string; conversationId: string; channel: string } | null
 }): Promise<string> {
   const bareOrderId = extractBareOrderId(params.message)
   const isOrderContinuation = Boolean(
@@ -141,6 +143,7 @@ export async function buildOrderContext(params: {
     },
     orderBy: { createdAt: 'desc' },
     select: {
+      integrationId: true,
       externalOrderId: true,
       status: true,
       total: true,
@@ -190,5 +193,27 @@ export async function buildOrderContext(params: {
     ? 'این بلوک تنها منبع معتبر پاسخ است. شماره موبایل نخواه. فقط مقدار دقیق tracking_code کد رهگیری مرسوله است؛ شماره سفارش، کدپستی، تلفن، مبلغ یا هر عدد دیگری را کد رهگیری تلقی نکن. اگر tracking_code برابر NOT_AVAILABLE است، صریحاً بگو کد رهگیری هنوز ثبت نشده و هیچ کدی نساز. اگر موجود است، همان رشته را کامل و بدون تغییر داخل `...` اعلام کن و tracking_link را هم بده. وضعیت «تکمیل‌شده» به‌تنهایی به معنی تحویل به پست نیست؛ مرحله ارسال یا زمان تحویل را حدس نزن. پاسخ را مستقیم بده و نگو «یک لحظه بررسی می‌کنم». ثبت، لغو، مرجوع یا ویرایش سفارش انجام نده.'
     : 'This block is the only authoritative source. Do not ask for a phone number. Only the exact tracking_code value is a parcel tracking code; never reinterpret an order number, postal code, phone, amount, or any other number as tracking. If tracking_code is NOT_AVAILABLE, clearly say it has not been registered yet and invent nothing. If present, reproduce the complete exact string inside `...` and share tracking_link. A completed order status alone does not prove carrier handoff; never guess shipment stage or delivery time. Answer directly without saying you will check. Never create, cancel, return, or change an order.'
 
-  return `\n\n<verified_order>\n${lines.join('\n')}\n</verified_order>\n${guard}`
+  // Follow the order so its next status change reaches this conversation.
+  let followGuard = ''
+  if (params.follow) {
+    const { followOrder } = await import('@/lib/commerce/order-updates')
+    const { followLine } = await import('@/lib/commerce/order-updates-text')
+    const following = await followOrder({
+      workspaceId: params.workspaceId,
+      agentId: params.follow.agentId,
+      conversationId: params.follow.conversationId,
+      integrationId: order.integrationId,
+      externalOrderId: order.externalOrderId,
+      status: order.status,
+      trackingCode: order.trackingCode,
+    })
+    if (following) {
+      const line = followLine(params.follow.channel, isFa ? 'fa' : 'en')
+      followGuard = isFa
+        ? `\nدر پایان پاسخ، همین جمله را کوتاه بگو: «${line}»`
+        : `\nEnd the reply with this short sentence: “${line}”`
+    }
+  }
+
+  return `\n\n<verified_order>\n${lines.join('\n')}\n</verified_order>\n${guard}${followGuard}`
 }

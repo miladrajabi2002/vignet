@@ -76,22 +76,6 @@ export function smartTime(
 }
 
 /**
- * Compact number for dashboard/stat displays: 1K / 1.2M style with the exact
- * value available for a tooltip. Falls back to plain grouping below 1000.
- */
-export function compactNumber(
-        value: number,
-        locale: 'fa' | 'en' = 'fa',
-): string {
-        const tag = locale === 'fa' ? 'fa-IR' : 'en-US'
-        if (Math.abs(value) < 1000) return value.toLocaleString(tag)
-        return new Intl.NumberFormat(tag, {
-                notation: 'compact',
-                maximumFractionDigits: 1,
-        }).format(value)
-}
-
-/**
  * Middle truncation for IDs / filenames / long tokens where the END of the
  * string carries the distinguishing information:
  * `quarterly_report_final_v3.pdf` → `quarterly_rep…_v3.pdf`.

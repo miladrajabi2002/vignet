@@ -8,6 +8,7 @@ import {
   readBusinessProfile,
 } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
+import { forgetWorkspaceCapabilities } from '@/lib/verticals/workspace-capabilities'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -23,7 +24,7 @@ export async function GET() {
   return NextResponse.json({
     ...state,
     businessType: workspace?.businessType ?? 'CUSTOM',
-    businessProfile: readBusinessProfile(workspace?.businessProfile),
+    businessProfile: readBusinessProfile(workspace?.businessProfile, workspace?.businessType),
     vertical: getVerticalPack(workspace?.businessType),
   })
 }
@@ -69,6 +70,7 @@ export async function PATCH(request: Request) {
         businessProfile: normalizeBusinessProfile(parsed.data),
       },
     })
+    forgetWorkspaceCapabilities(user.workspaceId)
     }
   }
   const state = await syncOnboarding(user.workspaceId)
@@ -79,7 +81,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({
     ...state,
     businessType: workspace?.businessType ?? 'CUSTOM',
-    businessProfile: readBusinessProfile(workspace?.businessProfile),
+    businessProfile: readBusinessProfile(workspace?.businessProfile, workspace?.businessType),
     vertical: getVerticalPack(workspace?.businessType),
   })
 }

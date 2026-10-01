@@ -27,6 +27,14 @@ import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-ou
 import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
 import { purgeSoftDeleted } from '@/lib/maintenance/soft-delete-purge'
 import { sweepRestockAlerts } from '@/lib/commerce/restock-service'
+import { sweepCheckoutLinks } from '@/lib/commerce/checkout-service'
+import { sweepCartHolds } from '@/lib/commerce/cart-hold'
+import { purgeExpiredOrderWatches } from '@/lib/commerce/order-updates'
+import { sweepOperatorDailyReports } from '@/lib/channels/operator-daily-report'
+import { sweepLowStockAlerts } from '@/lib/commerce/low-stock'
+import { sweepPlanExpiryAlerts } from '@/lib/billing/plan-expiry-alerts'
+import { sweepCustomerBookingReminders } from '@/lib/bookings/customer-reminders'
+import { sweepCourseReminders } from '@/lib/courses/reminders'
 
 /**
  * Lightweight in-process scheduler for the background worker. Uses plain
@@ -453,17 +461,12 @@ async function remindExpiringSubscriptions(): Promise<void> {
                                 1,
                                 Math.ceil((sub.currentPeriodEnd.getTime() - now) / (24 * HOUR_MS)),
                         )
+                        // The panel bell and the manager bot get their own 7/3/1-day
+                        // notices (sweepPlanExpiryAlerts); this is the SMS only.
                         await sendSubscriptionExpiringSms(owner.phone, {
                                 plan: sub.plan,
                                 daysRemaining,
                                 currentPeriodEnd: sub.currentPeriodEnd,
-                        })
-                        await notifyWorkspace({
-                                workspaceId: sub.workspaceId,
-                                type: 'SYSTEM',
-                                title: 'اشتراک در حال اتمام',
-                                body: `اشتراک ${sub.plan} شما ${daysRemaining} روز دیگر منقضی می‌شود. برای تمدید وارد حساب کاربری خود شوید.`,
-                                link: '/billing',
                         })
                 } catch (e) {
                         captureError('scheduler:sub-expiring-sms', e, {
@@ -859,7 +862,9 @@ export function startScheduler(): () => void {
         // ─ Soft-delete retention: physically remove rows that were trashed
         // more than 7 days ago (bulk-delete undo window is long over). Runs
         // every 6 hours; first run a few minutes after boot.
-        const runSoftDeletePurge = () => purgeSoftDeleted().catch((e) => console.error('[scheduler] soft-delete purge failed:', e))
+        const runSoftDeletePurge = () => purgeSoftDeleted()
+                .then(() => purgeExpiredOrderWatches())
+                .catch((e) => console.error('[scheduler] soft-delete purge failed:', e))
         const initialSoftDeletePurge = setTimeout(runSoftDeletePurge, 6 * 60_000)
         const softDeletePurgeInterval = setInterval(runSoftDeletePurge, SOFT_DELETE_PURGE_INTERVAL_MS)
 
@@ -876,7 +881,101 @@ export function startScheduler(): () => void {
         const initialRestock = setTimeout(runRestockSweep, 3 * 60_000)
         const restockInterval = setInterval(runRestockSweep, RESTOCK_SWEEP_INTERVAL_MS)
 
+        // In-chat checkout: expire unpaid payment links and send one reminder
+        // an hour after an unpaid link (push channels only).
+        const runCheckoutSweep = async () => {
+                try {
+                        const stats = await sweepCheckoutLinks()
+                        if (stats.reminded || stats.expired) {
+                                console.log(`[scheduler] checkout links: ${stats.reminded} reminded, ${stats.expired} expired`)
+                        }
+                } catch (e) {
+                        console.error('[scheduler] checkout sweep failed:', e)
+                }
+        }
+        const initialCheckout = setTimeout(runCheckoutSweep, 2 * 60_000)
+        const checkoutInterval = setInterval(runCheckoutSweep, 5 * 60_000)
+
+        // Cart hold (agent.cartHoldEnabled): the 30-minutes-left reminder and
+        // the end of the one-hour hold, when sold-out lines leave the cart.
+        const runCartHoldSweep = async () => {
+                try {
+                        const stats = await sweepCartHolds()
+                        if (stats.reminded || stats.trimmed) {
+                                console.log(`[scheduler] cart holds: ${stats.reminded} reminded, ${stats.released} released, ${stats.trimmed} trimmed`)
+                        }
+                } catch (e) {
+                        // Until the migration is applied the hold columns do not
+                        // exist (P2022 / unknown field): nothing is held yet.
+                        const schemaNotReady = (e as { code?: string })?.code === 'P2022'
+                                || (e as { name?: string })?.name === 'PrismaClientValidationError'
+                        if (!schemaNotReady) console.error('[scheduler] cart hold sweep failed:', e)
+                }
+        }
+        const initialCartHold = setTimeout(runCartHoldSweep, 90_000)
+        const cartHoldInterval = setInterval(runCartHoldSweep, 2 * 60_000)
+
+        // Manager bot «گزارش صبحگاهی»: checked every 10 minutes, sent once per
+        // Tehran day from 09:00 (idempotent via Redis).
+        const runOperatorDailyReports = () => sweepOperatorDailyReports().catch((e) => console.error('[scheduler] operator daily report failed:', e))
+        const initialOperatorDaily = setTimeout(runOperatorDailyReports, 4 * 60_000)
+        const operatorDailyInterval = setInterval(runOperatorDailyReports, 10 * 60_000)
+
+        // Until the migration lands the new columns/tables do not exist
+        // (P2021/P2022, or a raw-query 42703): the sweep simply waits.
+        const schemaPending = (e: unknown) => {
+                const code = (e as { code?: string; meta?: { code?: string } })?.code
+                return code === 'P2021' || code === 'P2022' || code === 'P2010'
+                        || (e as { name?: string })?.name === 'PrismaClientValidationError'
+        }
+
+        // Low stock → owner (panel + manager bot «موجودی کم محصول»).
+        const runLowStockSweep = async () => {
+                try {
+                        const alerted = await sweepLowStockAlerts()
+                        if (alerted) console.log(`[scheduler] low-stock alerts: ${alerted} product(s)`)
+                } catch (e) {
+                        if (!schemaPending(e)) console.error('[scheduler] low-stock sweep failed:', e)
+                }
+        }
+        const initialLowStock = setTimeout(runLowStockSweep, 150_000)
+        const lowStockInterval = setInterval(runLowStockSweep, 10 * 60_000)
+
+        // Plan / trial ending in 7, 3 or 1 day(s) → panel + manager bot.
+        const runPlanExpiryAlerts = () => sweepPlanExpiryAlerts()
+                .then((sent) => { if (sent) console.log(`[scheduler] plan-expiry alerts: ${sent}`) })
+                .catch((e) => console.error('[scheduler] plan-expiry alerts failed:', e))
+        const initialPlanExpiry = setTimeout(runPlanExpiryAlerts, 100_000)
+        const planExpiryInterval = setInterval(runPlanExpiryAlerts, HOUR_MS)
+
+        // Booking and course reminders to the customer, in their conversation.
+        const runCustomerReminders = async () => {
+                try {
+                        const bookings = await sweepCustomerBookingReminders()
+                        const courses = await sweepCourseReminders()
+                        if (bookings.sent || bookings.skipped || courses.sent) {
+                                console.log(`[scheduler] customer reminders: ${bookings.sent} booking sent, ${bookings.skipped} skipped, ${courses.sent} course sent`)
+                        }
+                } catch (e) {
+                        if (!schemaPending(e)) console.error('[scheduler] customer reminders failed:', e)
+                }
+        }
+        const initialCustomerReminders = setTimeout(runCustomerReminders, 80_000)
+        const customerRemindersInterval = setInterval(runCustomerReminders, 10 * 60_000)
+
         return () => {
+                clearTimeout(initialLowStock)
+                clearInterval(lowStockInterval)
+                clearTimeout(initialPlanExpiry)
+                clearInterval(planExpiryInterval)
+                clearTimeout(initialCustomerReminders)
+                clearInterval(customerRemindersInterval)
+                clearTimeout(initialCheckout)
+                clearInterval(checkoutInterval)
+                clearTimeout(initialCartHold)
+                clearInterval(cartHoldInterval)
+                clearTimeout(initialOperatorDaily)
+                clearInterval(operatorDailyInterval)
                 clearTimeout(initialRestock)
                 clearInterval(restockInterval)
                 clearTimeout(initialImprovement)

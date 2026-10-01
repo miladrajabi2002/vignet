@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { ImprovementIntro } from '@/components/agents/improvement-intro'
+import { ToneMotion } from '@/components/motion/explainers'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -19,10 +20,13 @@ import {
         HelpCircle,
         Type,
         ListChecks,
+        Power,
+        Mic,
+        ImageIcon,
 } from 'lucide-react'
 import { ModelSelect } from '@/components/agent-builder/model-select'
-import { MaterialSelect } from '@/components/ui/material-select'
-import type { ModelAlias } from '@/lib/ai/models'
+import { Switch, SwitchCard } from '@/components/ui/switch'
+import { resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import {
         buildLayeredPrompt,
         hasMeaningfulPromptConfig,
@@ -92,6 +96,7 @@ export function AgentSettingsForm({
         const tw = useTranslations('agents.wizard')
         const tf = useTranslations('agents.settingsForm')
         const tc = useTranslations('common')
+        const ta = useTranslations('agents')
         const locale = useLocale() === 'en' ? 'en' : 'fa'
         const router = useRouter()
 
@@ -99,8 +104,8 @@ export function AgentSettingsForm({
                 name: agent.name,
                 description: agent.description ?? '',
                 systemPrompt: agent.systemPrompt,
-                model: agent.model ?? '',
-                language: agent.language as 'fa' | 'en',
+                // Retired aliases (standard / balanced / premium) are saved back as today's mode.
+                model: agent.model ? resolveModelAlias(agent.model) : '',
                 welcomeMessage: agent.welcomeMessage ?? '',
                 fallbackMessage: agent.fallbackMessage ?? '',
                 handoffEnabled: agent.handoffEnabled,
@@ -149,10 +154,10 @@ export function AgentSettingsForm({
         const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
                 setForm((f) => ({ ...f, [k]: v }))
 
-        const previewPrompt = useMemo(() => {
-                const isFa = form.language !== 'en'
-                return buildLayeredPrompt(promptConfig, form.systemPrompt, isFa)
-        }, [promptConfig, form.systemPrompt, form.language])
+        const previewPrompt = useMemo(
+                () => buildLayeredPrompt(promptConfig, form.systemPrompt, locale === 'fa'),
+                [promptConfig, form.systemPrompt, locale],
+        )
 
         async function save() {
                 if (status === 'saving') return
@@ -239,83 +244,120 @@ export function AgentSettingsForm({
                 }
         }
 
-        const tabs: { key: LayerTab; label: string; icon: typeof Sparkles }[] = [
-                { key: 'personality', label: tf('layerPersonality'), icon: Sparkles },
-                { key: 'tone', label: tf('layerTone'), icon: MessageSquare },
-                { key: 'scope', label: tf('layerScope'), icon: ShieldAlert },
-                { key: 'fallback', label: tf('layerFallback'), icon: HelpCircle },
-                { key: 'format', label: tf('layerFormat'), icon: Type },
-                { key: 'qa', label: tf('layerQA'), icon: ListChecks },
+        const fa = locale === 'fa'
+        const tabs: { key: LayerTab; label: string; icon: typeof Sparkles; hint: string; filled: boolean }[] = [
+                { key: 'personality', label: tf('layerPersonality'), icon: Sparkles, hint: fa ? 'ایجنت کیست و در گفتگو چه نقشی دارد.' : 'Who the agent is and the role it plays.', filled: Boolean(promptConfig.personality?.trim()) },
+                { key: 'tone', label: tf('layerTone'), icon: MessageSquare, hint: fa ? 'چطور حرف بزند: رسمی یا صمیمی، کوتاه یا مفصل.' : 'How it talks: formal or friendly, brief or detailed.', filled: Boolean(promptConfig.tone?.trim()) },
+                { key: 'scope', label: tf('layerScope'), icon: ShieldAlert, hint: fa ? 'بایدها و نبایدهای پاسخ‌گویی.' : 'What it must and must never say.', filled: promptConfig.doSay.length + promptConfig.dontSay.length > 0 },
+                { key: 'fallback', label: tf('layerFallback'), icon: HelpCircle, hint: fa ? 'وقتی جواب را نمی‌داند چه کند.' : 'What it does when it does not know.', filled: Boolean(promptConfig.fallbackBehavior?.trim()) },
+                { key: 'format', label: tf('layerFormat'), icon: Type, hint: fa ? 'طول پاسخ، ایموجی، لینک و فهرست.' : 'Reply length, emoji, links and lists.', filled: true },
+                { key: 'qa', label: tf('layerQA'), icon: ListChecks, hint: fa ? 'چند نمونه پاسخ تا سبک شما را یاد بگیرد.' : 'A few sample answers so it learns your style.', filled: promptConfig.qaPairs.length > 0 },
         ]
+        const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.key === activeTab))
+        const filledCount = tabs.filter((tab) => tab.filled).length
+        const layerNumber = (value: number) => value.toLocaleString(fa ? 'fa-IR' : 'en-US')
 
         return (
                 <div className="space-y-6">
                         {section === 'behavior' ? (
                         <>
                         <ImprovementIntro section="behavior"
+                                visual={<ToneMotion locale={locale === 'fa' ? 'fa' : 'en'} />}
                                 title={locale === 'fa' ? 'رفتار و لحن ایجنت' : 'Agent behavior and tone'}
                                 description={locale === 'fa'
                                         ? 'شخصیت و نقش ایجنت، لحن رسمی یا صمیمی، محدوده پاسخ‌گویی و بایدها و نبایدها را تنظیم کنید. مشخص کنید وقتی پاسخ را نمی‌داند چه رفتاری داشته باشد و پاسخ‌ها با چه طول و قالبی نوشته شوند. این تنظیمات کمک می‌کند ایجنت با سبک کسب‌وکار شما صحبت کند و پاسخ‌های یکدست‌تری بدهد.'
                                         : 'Set the agent’s personality and role, formal or friendly tone, response boundaries and rules. Choose how it handles unknown answers and control response length and formatting. Use these settings to match your business voice and keep replies consistent.'} />
                         {/* ─ 6-LAYER PROMPT ENGINE ──────────────────────────────────── */}
-                        <div id="behavior" className="scroll-mt-28 spatial-surface space-y-5 rounded-[1.5rem] p-5 sm:p-6">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                                <h3 className="text-base font-medium text-[var(--text-primary)]">
-                                                        {tf('promptEngineTitle')}
-                                                </h3>
+                        <div id="behavior" className="scroll-mt-28 spatial-surface space-y-4 rounded-card p-4 sm:space-y-5 sm:p-6">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="min-w-0">
+                                                <h3 className="ui-h3">{tf('promptEngineTitle')}</h3>
+                                                <div className="mt-1.5 flex items-center gap-2.5">
+                                                        <span className="flex gap-1" aria-hidden="true">
+                                                                {tabs.map((tab) => (
+                                                                        <span key={tab.key} className={`h-1.5 w-5 rounded-full transition-colors ${tab.filled ? 'bg-[var(--text-primary)]' : 'bg-black/[0.09]'}`} />
+                                                                ))}
+                                                        </span>
+                                                        <span className="text-[12px] font-medium tabular-nums text-[var(--text-muted)]">
+                                                                {fa ? `${layerNumber(filledCount)} از ${layerNumber(tabs.length)} لایه تنظیم شده` : `${filledCount} of ${tabs.length} layers set`}
+                                                        </span>
+                                                </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap">
-                                        <button type="button" onClick={save} disabled={status === 'saving'} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2">
-                                                {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
-                                                {status === 'saved' ? tc('saved') : tc('save')}
-                                        </button>
-                                        <button
-                                                type="button"
-                                                onClick={() => setShowPreview(true)}
-                                                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                        >
-                                                <Eye className="h-3.5 w-3.5" />
-                                                {tf('previewPrompt')}
-                                        </button>
+                                        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setShowPreview(true)}
+                                                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                >
+                                                        <Eye className="h-4 w-4" />
+                                                        {tf('previewPrompt')}
+                                                </button>
+                                                <button type="button" onClick={save} disabled={status === 'saving'} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
+                                                        {status === 'saving' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Check className="h-4 w-4" strokeWidth={2.5} />}
+                                                        {status === 'saved' ? tc('saved') : tc('save')}
+                                                </button>
                                         </div>
                                 </div>
                                 {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
 
-                                {/* Layer tabs */}
-                                <div className="grid grid-cols-3 gap-1 border-b border-[var(--border-subtle)] pb-2 sm:flex sm:flex-wrap">
-                                        {tabs.map(({ key, label, icon: Icon }) => (
+                                {/* Layer tabs — segmented, 3×2 on phones, one row on desktop */}
+                                <div role="tablist" aria-label={fa ? 'لایه‌های رفتار ایجنت' : 'Agent behavior layers'} className="ui-seg grid-cols-3 sm:grid-cols-6">
+                                        {tabs.map(({ key, label, icon: Icon, filled }, index) => (
                                                 <button
                                                         key={key}
                                                         type="button"
+                                                        role="tab"
+                                                        id={`behavior-layer-tab-${key}`}
+                                                        aria-controls="behavior-layer-panel"
+                                                        aria-selected={activeTab === key}
+                                                        tabIndex={activeTab === key ? 0 : -1}
                                                         onClick={() => setActiveTab(key)}
-                                                        className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 sm:px-3 sm:text-xs ${
-                                                                activeTab === key
-                                                                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                                                                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                                                        }`}
+                                                        onKeyDown={(event) => {
+                                                                let next: number | undefined
+                                                                if (event.key === 'Home') next = 0
+                                                                if (event.key === 'End') next = tabs.length - 1
+                                                                if (event.key === 'ArrowRight') next = (index + (fa ? -1 : 1) + tabs.length) % tabs.length
+                                                                if (event.key === 'ArrowLeft') next = (index + (fa ? 1 : -1) + tabs.length) % tabs.length
+                                                                if (next === undefined) return
+                                                                event.preventDefault()
+                                                                setActiveTab(tabs[next].key)
+                                                                document.getElementById(`behavior-layer-tab-${tabs[next].key}`)?.focus()
+                                                        }}
+                                                        className="ui-seg-tab min-h-[3.75rem] flex-col gap-1 px-1 py-1.5 text-[12.5px] sm:text-xs"
                                                 >
-                                                        <Icon className="h-3.5 w-3.5" />
-                                                        {label}
+                                                        <span className="relative">
+                                                                <span className="ui-seg-icon h-7 w-7"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
+                                                                {filled && key !== 'format' && <span aria-hidden className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />}
+                                                        </span>
+                                                        <span className="max-w-full truncate">{label}</span>
                                                 </button>
                                         ))}
                                 </div>
 
+                                <div className="flex items-start gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-2.5">
+                                        <span className="mt-0.5 shrink-0 rounded-full bg-[var(--text-primary)] px-2 py-0.5 text-[12px] font-bold tabular-nums text-white">
+                                                {fa ? `لایه ${layerNumber(activeIndex + 1)}` : `Layer ${activeIndex + 1}`}
+                                        </span>
+                                        <p className="text-[12.5px] leading-6 text-[var(--text-secondary)]">{tabs[activeIndex].hint}</p>
+                                </div>
+
                                 {/* Layer editors */}
-                                <LayerEditor
-                                        tab={activeTab}
-                                        config={promptConfig}
-                                        onChange={setPromptConfig}
-                                        isFa={form.language !== 'en'}
-                                        t={tf}
-                                />
+                                <div id="behavior-layer-panel" role="tabpanel" aria-labelledby={`behavior-layer-tab-${activeTab}`}>
+                                        <LayerEditor
+                                                tab={activeTab}
+                                                config={promptConfig}
+                                                onChange={setPromptConfig}
+                                                isFa={locale === 'fa'}
+                                                t={tf}
+                                        />
+                                </div>
 
                         </div>
 
                         </>
                         ) : (
                         <>
-                        <div className="spatial-surface space-y-5 rounded-[1.5rem] p-5 sm:p-6">
+                        <div className="spatial-surface space-y-5 rounded-card p-5 sm:p-6">
                                 <Field label={tw('name')}>
                                         <input
                                                 value={form.name}
@@ -323,55 +365,45 @@ export function AgentSettingsForm({
                                                 className="input"
                                         />
                                 </Field>
-                                <Field label={tw('description')}>
-                                        <input
-                                                value={form.description}
-                                                onChange={(e) => set('description', e.target.value)}
-                                                className="input"
-                                        />
-                                </Field>
 
-                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                        <Toggle
-                                                label={tf('agentActive')}
+                                <div className="grid gap-2.5 md:grid-cols-3">
+                                        <SwitchCard
+                                                icon={Power}
+                                                title={tf('agentActive')}
+                                                description={tf('agentActiveHint')}
                                                 checked={form.active}
                                                 onChange={(v) => set('active', v)}
+                                                enabledLabel={ta('active')}
+                                                disabledLabel={ta('inactive')}
                                         />
-                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                                                {tf('agentActiveHint')}
-                                        </p>
-                                </div>
-
-                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                        <Toggle
-                                                label={tf('voiceInputEnabled')}
-                                                checked={form.voiceInputEnabled}
-                                                onChange={(v) => set('voiceInputEnabled', v)}
-                                        />
-                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                                                {form.voiceInputEnabled
+                                        <SwitchCard
+                                                icon={Mic}
+                                                title={tf('voiceInputEnabled')}
+                                                description={form.voiceInputEnabled
                                                         ? tf('voiceInputEnabledActiveHint', {
                                                                 price: new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
                                                                         .format(modelPolicy.sttPricePerMinuteIRR / 10),
                                                         })
                                                         : tf('voiceInputEnabledHint')}
-                                        </p>
-                                </div>
-
-                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                        <Toggle
-                                                label={tf('imageInputEnabled')}
-                                                checked={form.imageInputEnabled}
-                                                onChange={(v) => set('imageInputEnabled', v)}
+                                                checked={form.voiceInputEnabled}
+                                                onChange={(v) => set('voiceInputEnabled', v)}
+                                                enabledLabel={ta('active')}
+                                                disabledLabel={ta('inactive')}
                                         />
-                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                                                {form.imageInputEnabled
+                                        <SwitchCard
+                                                icon={ImageIcon}
+                                                title={tf('imageInputEnabled')}
+                                                description={form.imageInputEnabled
                                                         ? tf('imageInputEnabledActiveHint', {
                                                                 price: new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
                                                                         .format(modelPolicy.visionPricePerImageIRR / 10),
                                                         })
                                                         : tf('imageInputEnabledHint')}
-                                        </p>
+                                                checked={form.imageInputEnabled}
+                                                onChange={(v) => set('imageInputEnabled', v)}
+                                                enabledLabel={ta('active')}
+                                                disabledLabel={ta('inactive')}
+                                        />
                                 </div>
 
                                 <Field label={tw('model')}>
@@ -383,14 +415,6 @@ export function AgentSettingsForm({
                                                 isTrial={modelPolicy.plan === 'TRIAL'}
                                                 creditBalanceIRR={modelPolicy.creditBalanceIRR}
                                                 replyPricesIRR={modelPolicy.replyPricesIRR}
-                                        />
-                                </Field>
-                                <Field label={tw('language')}>
-                                        <MaterialSelect
-                                                value={form.language}
-                                                onValueChange={(value) => set('language', value as 'fa' | 'en')}
-                                                ariaLabel={tw('language')}
-                                                options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
                                         />
                                 </Field>
                                 <Field label={tw('welcomeMessage')}>
@@ -411,8 +435,9 @@ export function AgentSettingsForm({
 
                         {storeAccess}
 
+                        <div className="grid items-start gap-4 xl:grid-cols-2">
                         {/* ─ CUSTOMER IDENTIFICATION (F3) ──────────────────────────── */}
-                        <div className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
+                        <div className="spatial-surface space-y-4 rounded-card p-5 sm:p-6">
                                 <div>
                                         <h3 className="text-base font-medium text-[var(--text-primary)]">
                                                 {tf('customerIdentificationTitle')}
@@ -443,7 +468,7 @@ export function AgentSettingsForm({
                         </div>
 
                         {/* ─ Handoff ─────────────────────────────────────────────────── */}
-                        <div className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
+                        <div className="spatial-surface space-y-4 rounded-card p-5 sm:p-6">
                                 <div>
                                         <h3 className="text-base font-medium text-[var(--text-primary)]">
                                                 {tf('handoffTitle')}
@@ -483,11 +508,14 @@ export function AgentSettingsForm({
                                                 </p>
                                         </>
                                 )}
-                                <div className="flex items-center gap-3 pt-2">
+                        </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
                                         <button
                                                 onClick={save}
                                                 disabled={status === 'saving'}
-                                                className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--white)] px-6 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
                                         >
                                                 {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
                                                 {status === 'saved' ? tc('saved') : tc('save')}
@@ -499,11 +527,10 @@ export function AgentSettingsForm({
                                                         {tf('saved')}
                                                 </span>
                                         )}
-                                </div>
                         </div>
 
                         {/* Danger zone — delete agent */}
-                        <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+                        <div className="spatial-surface rounded-card p-5 sm:p-6">
                                 <div className="flex items-start gap-3">
                                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger/10 text-danger">
                                                 <Trash2 className="h-4 w-4" />
@@ -546,14 +573,14 @@ export function AgentSettingsForm({
                                                                 role="dialog"
                                                                 aria-modal="true"
                                                                 aria-label={tf('previewPrompt')}
-                                                                className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+                                                                className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-card border border-black/10 bg-white shadow-[var(--elev-2)]"
                                                                 initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 10 }}
                                                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                                                 exit={{ opacity: 0, scale: 0.98, y: 6 }}
                                                         >
                                                                 <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
                                                                         <div>
-                                                                                <h3 className="text-base font-semibold text-neutral-900">{tf('previewPrompt')}</h3>
+                                                                                <h3 className="text-base font-bold text-neutral-900">{tf('previewPrompt')}</h3>
                                                                                 <p className="mt-1 text-xs text-neutral-500">{tf('assembledPrompt')}</p>
                                                                         </div>
                                                                         <button
@@ -565,7 +592,7 @@ export function AgentSettingsForm({
                                                                                 <X className="h-5 w-5" />
                                                                         </button>
                                                                 </div>
-                                                                <pre dir={form.language === 'fa' ? 'rtl' : 'ltr'} className="overflow-y-auto whitespace-pre-wrap p-5 text-start font-mono text-xs leading-7 text-neutral-700">
+                                                                <pre dir={locale === 'fa' ? 'rtl' : 'ltr'} className="overflow-y-auto whitespace-pre-wrap p-5 text-start font-mono text-xs leading-7 text-neutral-700">
                                                                         {previewPrompt || tf('emptyPrompt')}
                                                                 </pre>
                                                         </motion.div>
@@ -596,7 +623,7 @@ export function AgentSettingsForm({
                                                                 role="dialog"
                                                                 aria-modal="true"
                                                                 aria-label={tf('delete')}
-                                                                className="w-full max-w-[27rem] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+                                                                className="w-full max-w-[27rem] overflow-hidden rounded-card border border-black/10 bg-white shadow-[var(--elev-2)]"
                                                                 initial={reduceMotion ? false : { opacity: 0, scale: 0.96, y: 12 }}
                                                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                                                 exit={{ opacity: 0, scale: 0.98, y: 6 }}
@@ -643,7 +670,7 @@ export function AgentSettingsForm({
                                                                                 type="button"
                                                                                 onClick={() => setDeleteOpen(false)}
                                                                                 disabled={deleting}
-                                                                                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] disabled:opacity-50"
+                                                                                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
                                                                         >
                                                                                 {tf('cancel')}
                                                                         </button>
@@ -668,6 +695,10 @@ export function AgentSettingsForm({
         )
 }
 
+/** Long free-text layers: tall enough to read a whole paragraph, and
+ *  growing with the text where the browser supports field-sizing. */
+const LAYER_TEXTAREA = 'input min-h-[200px] max-h-[560px] resize-y text-sm leading-7 [field-sizing:content] sm:min-h-[260px]'
+
 // ─────────────────────────────────────────────────────────────────────
 // LAYER EDITOR — renders the active layer's form
 // ─────────────────────────────────────────────────────────────────────
@@ -691,13 +722,13 @@ function LayerEditor({
                                 <textarea
                                         value={config.personality}
                                         onChange={(e) => onChange({ ...config, personality: e.target.value })}
-                                        rows={5}
+                                        rows={8}
                                         placeholder={
                                                 isFa
                                                         ? 'مثلاً: تو یک مشاور فروش صبور و حرفه‌ای هستی...'
                                                         : 'e.g. You are a patient, professional sales consultant...'
                                         }
-                                        className="input resize-none text-sm"
+                                        className={LAYER_TEXTAREA}
                                 />
                                 <p className="mt-1 text-xs text-[var(--text-muted)]">{t('personalityHint')}</p>
                         </Field>
@@ -711,13 +742,13 @@ function LayerEditor({
                                         <textarea
                                                 value={config.tone}
                                                 onChange={(e) => onChange({ ...config, tone: e.target.value })}
-                                                rows={5}
+                                                rows={8}
                                                 placeholder={
                                                         isFa
                                                                 ? 'مثلاً: لحن گرم و صمیمی، از کلمات محترمانه «شما»...'
                                                                 : 'e.g. Warm and friendly tone, use polite "you"...'
                                                 }
-                                                className="input resize-none text-sm"
+                                                className={LAYER_TEXTAREA}
                                         />
                                         <p className="mt-1 text-xs text-[var(--text-muted)]">{t('toneHint')}</p>
                                 </Field>
@@ -764,13 +795,13 @@ function LayerEditor({
                                 <textarea
                                         value={config.fallbackBehavior}
                                         onChange={(e) => onChange({ ...config, fallbackBehavior: e.target.value })}
-                                        rows={5}
+                                        rows={8}
                                         placeholder={
                                                 isFa
                                                         ? 'مثلاً: اگر محصولی در کاتالوگ نبود، صادقانه بگو و راه تماس بده...'
                                                         : 'e.g. If a product is not in the catalog, honestly say so and offer contact...'
                                         }
-                                        className="input resize-none text-sm"
+                                        className={LAYER_TEXTAREA}
                                 />
                                 <p className="mt-1 text-xs text-[var(--text-muted)]">{t('fallbackHint')}</p>
                         </Field>
@@ -988,7 +1019,7 @@ function QAEditor({
                                         className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3"
                                 >
                                         <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-medium text-[var(--text-muted)]">
+                                                <span className="text-[12px] font-medium text-[var(--text-muted)]">
                                                         {t('qaPair')} {i + 1}
                                                 </span>
                                                 <button
@@ -1046,33 +1077,11 @@ function Toggle({
         onChange: (v: boolean) => void
 }) {
         return (
-                <button
-                        type="button"
-                        onClick={() => onChange(!checked)}
-                        role="switch"
-                        aria-checked={checked}
-                        className="flex min-h-11 w-full items-center justify-between gap-4 rounded-xl text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
-                >
-                        <span
-                                className={`text-sm ${checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}
-                        >
+                <div className="flex min-h-11 items-center justify-between gap-4">
+                        <span className={`text-sm ${checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
                                 {label}
                         </span>
-                        <span
-                                className={`relative h-6 w-11 rounded-full border transition-colors ${
-                                        checked
-                                                ? 'border-[var(--white)] bg-[var(--white)]'
-                                                : 'border-[var(--border-hover)] bg-[var(--bg-muted)]'
-                                }`}
-                        >
-                                <span
-                                        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full shadow-sm transition-all ${
-                                                checked
-                                                        ? 'start-6 bg-[var(--bg-base)]'
-                                                        : 'start-1 border border-[var(--border-hover)] bg-[var(--bg-base)]'
-                                        }`}
-                                />
-                        </span>
-                </button>
+                        <Switch checked={checked} onChange={onChange} aria-label={label} />
+                </div>
         )
 }

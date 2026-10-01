@@ -1,6 +1,6 @@
 import type { Plan } from '@prisma/client'
 import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
-import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { DEFAULT_COMMERCIAL_CONFIG, getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /**
  * Plan catalog — the subscription pays for platform/service capacity while AI
@@ -8,11 +8,9 @@ import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
  * plan-level message quota; availability is governed by subscription state and
  * the workspace's reply-credit balance.
  *
- * Env overrides (all optional):
- *   PLAN_PRICE_STARTER_IRR / PLAN_PRICE_PRO_IRR / PLAN_PRICE_BUSINESS_IRR
- *   PLAN_PRICE_STARTER_USD / PLAN_PRICE_PRO_USD / PLAN_PRICE_BUSINESS_USD
- *   PLAN_INCLUDED_CREDIT_STARTER_IRR / PLAN_INCLUDED_CREDIT_PRO_IRR / PLAN_INCLUDED_CREDIT_BUSINESS_IRR
- *   PLAN_LIMIT_TRIAL_CHANNELS / PLAN_LIMIT_STARTER_CHANNELS / PLAN_LIMIT_PRO_CHANNELS / PLAN_LIMIT_BUSINESS_CHANNELS
+ * Prices, limits and included credit are edited in the admin panel
+ * (PlatformAiSettings.planConfig); DEFAULT_COMMERCIAL_CONFIG is the fallback
+ * until the panel is saved.
  */
 
 export interface PlanDef {
@@ -33,66 +31,14 @@ export interface PlanDef {
   includedCreditIRR: number
 }
 
-function envInt(name: string, fallback: number): number {
-  const v = Number(process.env[name])
-  return Number.isFinite(v) && v > 0 ? Math.round(v) : fallback
-}
-
-function envNonNegativeInt(name: string, fallback: number): number {
-  const v = Number(process.env[name])
-  return Number.isFinite(v) && v >= 0 ? Math.round(v) : fallback
-}
-
+/** Built-in plan catalog (no DB). Runtime code should use getEffectivePlanDefs. */
 export function getPlanDefs(): Record<Plan, PlanDef> {
-  return {
-    TRIAL: {
-      plan: 'TRIAL',
-      priceIRR: 0,
-      priceUSD: 0,
-      maxChannels: envInt('PLAN_LIMIT_TRIAL_CHANNELS', envInt('PLAN_LIMIT_TRIAL_AGENTS', 1)),
-      maxProducts: envInt('PLAN_LIMIT_TRIAL_PRODUCTS', 50),
-      maxOrders: envInt('PLAN_LIMIT_TRIAL_ORDERS', 100),
-      maxCustomers: envInt('PLAN_LIMIT_TRIAL_CUSTOMERS', 100),
-      replyDiscountBps: 0,
-      includedCreditIRR: 0,
-    },
-    STARTER: {
-      plan: 'STARTER',
-      priceIRR: envInt('PLAN_PRICE_STARTER_IRR', 8_900_000),
-      priceUSD: envInt('PLAN_PRICE_STARTER_USD', 9),
-      maxChannels: envInt('PLAN_LIMIT_STARTER_CHANNELS', envInt('PLAN_LIMIT_STARTER_AGENTS', 2)),
-      maxProducts: envInt('PLAN_LIMIT_STARTER_PRODUCTS', 500),
-      maxOrders: envInt('PLAN_LIMIT_STARTER_ORDERS', 2_000),
-      maxCustomers: envInt('PLAN_LIMIT_STARTER_CUSTOMERS', 2_000),
-      replyDiscountBps: 0,
-      includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
-    },
-    PRO: {
-      plan: 'PRO',
-      priceIRR: envInt('PLAN_PRICE_PRO_IRR', 24_900_000),
-      priceUSD: envInt('PLAN_PRICE_PRO_USD', 25),
-      maxChannels: envInt('PLAN_LIMIT_PRO_CHANNELS', envInt('PLAN_LIMIT_PRO_AGENTS', 5)),
-      maxProducts: envInt('PLAN_LIMIT_PRO_PRODUCTS', 2_500),
-      maxOrders: envInt('PLAN_LIMIT_PRO_ORDERS', 10_000),
-      maxCustomers: envInt('PLAN_LIMIT_PRO_CUSTOMERS', 10_000),
-      replyDiscountBps: 0,
-      includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
-    },
-    BUSINESS: {
-      plan: 'BUSINESS',
-      priceIRR: envInt('PLAN_PRICE_BUSINESS_IRR', 59_000_000),
-      priceUSD: envInt('PLAN_PRICE_BUSINESS_USD', 59),
-      maxChannels: envInt('PLAN_LIMIT_BUSINESS_CHANNELS', envInt('PLAN_LIMIT_BUSINESS_AGENTS', 20)),
-      maxProducts: envInt('PLAN_LIMIT_BUSINESS_PRODUCTS', 10_000),
-      maxOrders: envInt('PLAN_LIMIT_BUSINESS_ORDERS', 50_000),
-      maxCustomers: envInt('PLAN_LIMIT_BUSINESS_CUSTOMERS', 50_000),
-      replyDiscountBps: 0,
-      includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
-    },
-  }
+  return Object.fromEntries(
+    (Object.keys(DEFAULT_COMMERCIAL_CONFIG.plans) as Plan[]).map((plan) => [plan, { plan, ...DEFAULT_COMMERCIAL_CONFIG.plans[plan] }]),
+  ) as Record<Plan, PlanDef>
 }
 
-/** DB-backed runtime catalog. Environment values remain first-deploy fallbacks. */
+/** DB-backed runtime catalog, edited in the admin panel. */
 export async function getEffectivePlanDefs(): Promise<Record<Plan, PlanDef>> {
   const config = await getPlatformCommercialConfig()
   return Object.fromEntries(

@@ -541,6 +541,27 @@
                         '.vgt-card-no-link{display:flex;align-items:center;min-height:44px;margin:auto 14px 10px;color:var(--vgt-muted);font-size:11px;}' +
                         '.vgt-card-link:hover{opacity:.9;transform:translateY(-1px);}' +
                         '.vgt-card-link:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-card-actions{display:flex;gap:8px;margin:auto 14px 14px;}' +
+                        '.vgt-card-actions .vgt-card-link{margin:0;flex:1 1 0;min-width:0;padding:0 8px;text-align:center;}' +
+                        '.vgt-card-cart{flex-grow:1.6 !important;border:0;font-family:inherit;cursor:pointer;}' +
+                        '.vgt-card-cart[data-state="busy"]{opacity:.7;cursor:progress;}' +
+                        '.vgt-card-cart[data-state="done"]{background:var(--vgt-accent-soft);color:var(--vgt-accent-ink);box-shadow:inset 0 0 0 1px var(--vgt-accent-line);}' +
+                        '.vgt-card-ghost{background:transparent;color:var(--vgt-text);box-shadow:inset 0 0 0 1px var(--vgt-border);}' +
+                        // in-chat checkout card
+                        '.vgt-checkout{max-width:min(320px,86vw);border:1px solid var(--vgt-border);border-radius:var(--vgt-r-bubble);background:var(--vgt-bg);' +
+                        'box-shadow:0 12px 32px -20px rgba(0,0,0,.34);padding:12px 14px 14px;animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;}' +
+                        '.vgt-co-head{display:flex;flex-direction:column;gap:2px;margin-bottom:8px;}' +
+                        '.vgt-co-title{font-size:13.5px;font-weight:800;color:var(--vgt-text);}' +
+                        '.vgt-co-host{font-size:11px;color:var(--vgt-muted);}' +
+                        '.vgt-co-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--vgt-border);font-size:12px;line-height:1.6;color:var(--vgt-text);}' +
+                        '.vgt-co-label{min-width:0;overflow-wrap:anywhere;}' +
+                        '.vgt-co-value{flex:0 0 auto;font-variant-numeric:tabular-nums;white-space:nowrap;}' +
+                        '.vgt-co-muted{color:var(--vgt-muted);}' +
+                        '.vgt-co-total{font-weight:800;font-size:13px;}' +
+                        '.vgt-co-pay{display:flex;align-items:center;justify-content:center;min-height:46px;margin-top:10px;border-radius:12px;' +
+                        'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:13px;font-weight:800;text-decoration:none;transition:opacity .18s,transform .15s;}' +
+                        '.vgt-co-pay:hover{opacity:.92;transform:translateY(-1px);}' +
+                        '.vgt-co-pay:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
                         // action chips under a bot reply — ≥44px touch height (11px*2 + ~22px line)
                         '.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
                         '.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
@@ -1394,7 +1415,238 @@
         /** Split raw assistant content into clean text + at most ten cards.
             A prefix/end scanner is used instead of a brace regex so escaped
             JSON and future optional fields remain backward-compatible. */
+        // ---- In-chat checkout card ([[checkout:{…}]] in a reply) ----
+        var CHECKOUT_PREFIX = '[[checkout:'
+
+        /** Strip checkout markers; keep the first complete one as a card. */
+        function extractCheckout(raw, done) {
+                var checkout = null
+                var out = []
+                var cursor = 0
+                while (cursor < raw.length) {
+                        var start = raw.indexOf(CHECKOUT_PREFIX, cursor)
+                        if (start === -1) {
+                                out.push(raw.slice(cursor))
+                                break
+                        }
+                        out.push(raw.slice(cursor, start))
+                        var jsonStart = start + CHECKOUT_PREFIX.length
+                        var bounds = productTokenBounds(raw, jsonStart)
+                        if (!bounds) break // still streaming: hide the partial marker
+                        if (done && !checkout) {
+                                try {
+                                        var c = JSON.parse(raw.slice(jsonStart, bounds.jsonEnd))
+                                        var url = safeHttpUrl(c && c.url)
+                                        if (url) {
+                                                checkout = {
+                                                        code: compactProductText(c.code, 16),
+                                                        url: url,
+                                                        host: compactProductText(c.storeHost, 80),
+                                                        items: Array.isArray(c.items) ? c.items.slice(0, 20) : [],
+                                                        shipping: c.shipping && typeof c.shipping === 'object' ? c.shipping : null,
+                                                        discount: typeof c.discount === 'number' ? c.discount : null,
+                                                        total: typeof c.total === 'number' ? c.total : null,
+                                                        lang: c.lang === 'en' ? 'en' : 'fa',
+                                                }
+                                        }
+                                } catch (e) {
+                                        /* malformed marker is removed, never displayed */
+                                }
+                        }
+                        cursor = bounds.tokenEnd
+                }
+                return { raw: out.join(''), checkout: checkout }
+        }
+
+        function money(value, lang) {
+                return Math.round(value).toLocaleString(lang === 'en' ? 'en-US' : 'fa-IR') + (lang === 'en' ? ' Toman' : ' تومان')
+        }
+
+        /**
+         * WooCommerce Store API of the page the widget is embedded in. WordPress
+         * advertises its REST root in <link rel="https://api.w.org/">; only a
+         * same-origin root counts, so a card for another site never touches
+         * this site's cart.
+         */
+        var siteStore = (function () {
+                var root = null
+                var probed = false
+                var nonce = ''
+                function apiRoot() {
+                        if (probed) return root
+                        probed = true
+                        try {
+                                var tag = document.querySelector('link[rel="https://api.w.org/"]')
+                                if (tag && tag.href) {
+                                        var url = new URL(tag.href, location.href)
+                                        if (url.origin === location.origin) root = url.href.indexOf('rest_route=') > -1 ? url.href : url.href.replace(/\/?$/, '/')
+                                }
+                        } catch (e) {
+                                root = null
+                        }
+                        return root
+                }
+                function siteBase() {
+                        var r = apiRoot()
+                        if (!r) return ''
+                        var at = r.indexOf('wp-json/')
+                        if (at > -1) return r.slice(0, at)
+                        var q = r.indexOf('?')
+                        return q > -1 ? r.slice(0, q) : r
+                }
+                function endpoint(path) {
+                        return apiRoot() + path
+                }
+                function owns(url) {
+                        var base = siteBase()
+                        return !!(base && typeof url === 'string' && url.indexOf(base) === 0)
+                }
+                function readNonce(res) {
+                        var fresh = res.headers.get('Nonce') || res.headers.get('X-WC-Store-API-Nonce')
+                        if (fresh) nonce = fresh
+                }
+                function ensureNonce() {
+                        if (nonce) return Promise.resolve(nonce)
+                        return fetch(endpoint('wc/store/v1/cart'), { credentials: 'same-origin' }).then(function (res) {
+                                readNonce(res)
+                                if (!res.ok) throw new Error('')
+                                return nonce
+                        })
+                }
+                function plain(text) {
+                        var box = document.createElement('textarea')
+                        box.innerHTML = String(text || '').replace(/<[^>]*>/g, ' ')
+                        return box.value.replace(/\s+/g, ' ').trim().slice(0, 160)
+                }
+                function addOnce(id) {
+                        return ensureNonce().then(function (n) {
+                                return fetch(endpoint('wc/store/v1/cart/add-item'), {
+                                        method: 'POST',
+                                        credentials: 'same-origin',
+                                        headers: { 'Content-Type': 'application/json', Nonce: n, 'X-WC-Store-API-Nonce': n },
+                                        body: JSON.stringify({ id: id, quantity: 1 }),
+                                })
+                        }).then(function (res) {
+                                readNonce(res)
+                                return res.json().catch(function () { return {} }).then(function (body) {
+                                        if (res.ok) return body
+                                        var err = new Error(plain(body && body.message))
+                                        err.nonce = !!(body && /nonce/.test(String(body.code || '')))
+                                        throw err
+                                })
+                        })
+                }
+                function add(id) {
+                        return addOnce(id).catch(function (err) {
+                                if (!err || !err.nonce) throw err
+                                nonce = ''
+                                return addOnce(id)
+                        }).then(function (body) {
+                                // Let the theme's mini-cart (block or classic) pick up the new line.
+                                try {
+                                        document.body.dispatchEvent(new CustomEvent('wc-blocks_added_to_cart', { bubbles: true, cancelable: true }))
+                                } catch (e) { /* old browsers */ }
+                                try {
+                                        if (window.jQuery) window.jQuery(document.body).trigger('wc_fragment_refresh')
+                                } catch (e) { /* theme without cart fragments */ }
+                                return body
+                        })
+                }
+                function cartUrl() {
+                        var url = ''
+                        try {
+                                url = (window.wc_add_to_cart_params && window.wc_add_to_cart_params.cart_url) ||
+                                        (window.wcSettings && window.wcSettings.storePages && window.wcSettings.storePages.cart && window.wcSettings.storePages.cart.permalink) || ''
+                                if (url && new URL(url, location.href).origin !== location.origin) url = ''
+                        } catch (e) {
+                                url = ''
+                        }
+                        return url
+                }
+                return { owns: owns, add: add, cartUrl: cartUrl }
+        })()
+
+        function siteCartButton(id) {
+                var btn = el('button', 'vgt-card-link vgt-card-cart')
+                btn.type = 'button'
+                btn.textContent = t('افزودن به سبد', 'Add to cart')
+                btn.setAttribute('aria-live', 'polite')
+                btn.addEventListener('click', function () {
+                        if (btn.getAttribute('data-state') === 'busy') return
+                        if (btn.getAttribute('data-state') === 'done') {
+                                var go = siteStore.cartUrl()
+                                if (go) location.href = go
+                                return
+                        }
+                        btn.setAttribute('data-state', 'busy')
+                        btn.textContent = t('در حال افزودن…', 'Adding…')
+                        siteStore.add(id).then(function () {
+                                btn.setAttribute('data-state', 'done')
+                                btn.textContent = siteStore.cartUrl()
+                                        ? t('✓ در سبد · مشاهده سبد', '✓ In cart · View cart')
+                                        : t('✓ به سبد اضافه شد', '✓ Added to cart')
+                        }).catch(function (err) {
+                                btn.removeAttribute('data-state')
+                                btn.textContent = (err && err.message) || t('افزودن نشد؛ دوباره بزنید', 'Could not add; try again')
+                                setTimeout(function () {
+                                        if (!btn.getAttribute('data-state')) btn.textContent = t('افزودن به سبد', 'Add to cart')
+                                }, 4000)
+                        })
+                })
+                return btn
+        }
+
+        function renderCheckout(c) {
+                var fa = c.lang !== 'en'
+                var box = el('div', 'vgt-checkout')
+                box.setAttribute('dir', fa ? 'rtl' : 'ltr')
+                var head = el('div', 'vgt-co-head')
+                var title = el('span', 'vgt-co-title')
+                title.textContent = (fa ? 'سفارش ' : 'Order ') + c.code
+                head.appendChild(title)
+                var lock = el('span', 'vgt-co-host')
+                lock.textContent = (fa ? 'پرداخت امن روی ' : 'Secure payment on ') + (c.host || '')
+                head.appendChild(lock)
+                box.appendChild(head)
+                function row(label, value, cls) {
+                        var r = el('div', 'vgt-co-row' + (cls ? ' ' + cls : ''))
+                        var a = el('span', 'vgt-co-label')
+                        a.textContent = label
+                        var b = el('span', 'vgt-co-value')
+                        b.textContent = value
+                        r.appendChild(a)
+                        r.appendChild(b)
+                        box.appendChild(r)
+                }
+                for (var i = 0; i < c.items.length; i++) {
+                        var it = c.items[i] || {}
+                        var name = compactProductText(it.name, 120) + (it.variant ? ' — ' + compactProductText(it.variant, 60) : '')
+                        var qty = typeof it.quantity === 'number' ? it.quantity : 1
+                        row(name + ' × ' + qty.toLocaleString(fa ? 'fa-IR' : 'en-US'), typeof it.lineTotal === 'number' ? money(it.lineTotal, c.lang) : '')
+                }
+                if (c.shipping && typeof c.shipping.label === 'string') {
+                        var cost = Number(c.shipping.cost) || 0
+                        row((fa ? 'ارسال — ' : 'Shipping — ') + compactProductText(c.shipping.label, 60), cost > 0 ? money(cost, c.lang) : (fa ? 'رایگان' : 'Free'), 'vgt-co-muted')
+                }
+                if (c.discount) row(fa ? 'تخفیف' : 'Discount', '−' + money(c.discount, c.lang), 'vgt-co-muted')
+                if (c.total != null) row(fa ? 'قابل پرداخت' : 'To pay', money(c.total, c.lang), 'vgt-co-total')
+                var pay = document.createElement('a')
+                pay.className = 'vgt-co-pay'
+                pay.href = c.url
+                if (siteStore.owns(c.url)) {
+                        pay.target = '_self' // already on the store: pay in this tab, the widget follows
+                } else {
+                        pay.target = '_blank'
+                        pay.rel = 'noopener noreferrer'
+                }
+                pay.textContent = fa ? 'پرداخت و ثبت سفارش' : 'Pay and place order'
+                box.appendChild(pay)
+                return box
+        }
+
         function parseAssistant(raw, done) {
+                var co = extractCheckout(raw, done)
+                raw = co.raw
                 var cards = []
                 var visible = []
                 var seen = {}
@@ -1426,6 +1678,7 @@
                                                         image: safeHttpUrl(p.image || p.imageUrl),
                                                         url: safeHttpUrl(p.url || p.productUrl),
                                                         specs: productSpecs(p),
+                                                        cart: typeof p.cart === 'number' && p.cart > 0 && p.cart < 1e12 ? Math.floor(p.cart) : 0,
                                                 })
                                         }
                                 } catch (e) {
@@ -1435,7 +1688,7 @@
                         cursor = bounds.tokenEnd
                 }
                 var text = visible.join('')
-                return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards: cards }
+                return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards: cards, checkout: co.checkout }
         }
 
         function renderCard(p) {
@@ -1492,7 +1745,20 @@
                         link.target = '_blank'
                         link.rel = 'noopener noreferrer'
                         link.textContent = t('مشاهده محصول', 'View product')
-                        card.appendChild(link)
+                        if (p.cart && siteStore.owns(p.url)) {
+                                // The widget sits on the store's own site: «افزودن به سبد» goes
+                                // straight into the visitor's real WooCommerce cart.
+                                var actions = el('div', 'vgt-card-actions')
+                                link.className = 'vgt-card-link vgt-card-ghost'
+                                link.target = '_self'
+                                link.removeAttribute('rel')
+                                link.textContent = t('مشاهده', 'View')
+                                actions.appendChild(siteCartButton(p.cart))
+                                actions.appendChild(link)
+                                card.appendChild(actions)
+                        } else {
+                                card.appendChild(link)
+                        }
                 } else {
                         var noLink = el('div', 'vgt-card-no-link')
                         noLink.textContent = t('برای اطلاعات بیشتر پیام دهید', 'Message us for details')
@@ -1817,6 +2083,11 @@
                                 shell.vgtSync()
                                 setTimeout(shell.vgtSync, 60)
                         }
+                }
+
+                // checkout card — once, when the reply carries a payment link
+                if (done && parsed.checkout && !group.querySelector('.vgt-checkout')) {
+                        group.appendChild(renderCheckout(parsed.checkout))
                 }
 
                 // action chips — once, after streaming finished, for the first card

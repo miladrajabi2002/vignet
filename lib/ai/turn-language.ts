@@ -22,9 +22,6 @@ import type { ChatMessage } from '@/lib/ai/openrouter'
 
 export type TurnLanguage = 'fa' | 'en' | 'ar'
 
-/** Reply locales the deterministic templates are authored for. */
-export const CANNED_REPLY_LANGUAGES: readonly TurnLanguage[] = ['fa', 'ar', 'en']
-
 // Letters that exist in Persian but NOT in standard Arabic orthography.
 const PERSIAN_ONLY = /[پچژگ]/g
 // Persian-specific forms of ی/ک (Arabic uses U+064A/U+0643 instead).

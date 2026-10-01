@@ -137,6 +137,10 @@ export const agentCreateSchema = z.object({
   orderTrackingEnabled: z.boolean().optional(),
   orderCaptureEnabled: z.boolean().optional(),
   restockAlertsEnabled: z.boolean().optional(),
+  payLinkEnabled: z.boolean().optional(),
+  payLinkTtlHours: z.number().int().min(1).max(168).optional(),
+  orderUpdatesEnabled: z.boolean().optional(),
+  cartHoldEnabled: z.boolean().optional(),
 })
 
 export const agentUpdateSchema = agentCreateSchema.partial().extend({

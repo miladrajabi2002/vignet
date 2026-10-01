@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { OPENROUTER_BASE, fetchWithProviderRetry, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { ensureVisionCreditAvailable, captureVisionCredit } from '@/lib/billing/vision-credits'
-import { getPlatformCommercialConfig, PLATFORM_VISION_MODEL } from '@/lib/platform/commercial-config'
+import { DEFAULT_COMMERCIAL_CONFIG, getPlatformCommercialConfig, PLATFORM_VISION_MODEL } from '@/lib/platform/commercial-config'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import type { InboundMessage } from '@/lib/channels/types'
 
@@ -21,14 +21,8 @@ import type { InboundMessage } from '@/lib/channels/types'
  * account on empty wallets.
  */
 
-/** Legacy env-only default kept for tests; runtime pricing now flows from
- *  the platform commercial config (admin-editable, A15). */
-export const VISION_PRICE_PER_IMAGE_IRR = positiveEnv('AI_VISION_PRICE_PER_IMAGE_IRR', 800)
-
-function positiveEnv(name: string, fallback: number): number {
-  const value = Number(process.env[name])
-  return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback
-}
+/** Built-in default; runtime pricing flows from the admin panel (A15). */
+export const VISION_PRICE_PER_IMAGE_IRR = DEFAULT_COMMERCIAL_CONFIG.visionPricePerImageIRR
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const DOWNLOAD_TIMEOUT_MS = 20_000

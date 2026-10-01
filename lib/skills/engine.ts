@@ -46,7 +46,7 @@ import {
   type ReceiptTurnInput,
 } from './detectors'
 import { markClean, persistFindings, type PersistStats } from './findings'
-import { DEEP_SKILL_KEYS, FREE_SKILL_KEYS, type SkillKey } from './registry'
+import { DEEP_SKILL_KEYS, FREE_SKILL_KEYS } from './registry'
 
 // Only the post-change "before" baseline still uses a 7-day look-back; every
 // conversation scanned by the skills themselves comes from today only.
@@ -742,9 +742,4 @@ export async function runSkillsRun(runId: string): Promise<void> {
       data: { status: 'ERROR', error: code, durationMs: Date.now() - startedAt, finishedAt: new Date() },
     }).catch(() => {})
   }
-}
-
-export const SKILL_KEYS_BY_MODE: Record<'FREE' | 'DEEP', readonly SkillKey[]> = {
-  FREE: FREE_SKILL_KEYS,
-  DEEP: [...FREE_SKILL_KEYS, ...DEEP_SKILL_KEYS],
 }

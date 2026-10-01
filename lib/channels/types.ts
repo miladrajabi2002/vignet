@@ -1,3 +1,4 @@
+import type { CheckoutCard } from '@/lib/commerce/checkout-link'
 import type { ChannelType } from '@prisma/client'
 
 /**
@@ -182,4 +183,10 @@ export interface MessengerAdapter {
    *     fetch it, but still send the text caption + button
    */
   sendProductCard?(chatId: string, card: ProductCard): Promise<void>
+  /**
+   * Send an in-chat checkout card: cart lines, total and a pay button that
+   * opens the store's own payment page. Optional; callers fall back to the
+   * text summary + link (`composeCheckoutFallback`) when absent or failing.
+   */
+  sendCheckoutCard?(chatId: string, card: CheckoutCard): Promise<void>
 }

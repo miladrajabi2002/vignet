@@ -7,31 +7,19 @@ import { useTranslations } from 'next-intl'
 import {
   Check,
   Loader2,
-  Send,
-  MessagesSquare,
-  Radio,
-  Camera,
   ChevronDown,
   AlertTriangle,
   Settings2,
   ArrowLeft,
-  type LucideIcon,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
+import { ChannelMark } from '@/components/ui/channel-mark'
 
 export type MessengerKind =
   | 'TELEGRAM'
   | 'BALE'
   | 'RUBIKA'
   | 'INSTAGRAM'
-
-/** Icon lookup so the server component never passes a component across the boundary. */
-const ICONS: Record<MessengerKind, LucideIcon> = {
-  TELEGRAM: Send,
-  BALE: MessagesSquare,
-  RUBIKA: Radio,
-  INSTAGRAM: Camera,
-}
 
 /** Credential fields the user fills in per platform. */
 type FieldDef = { key: string; labelKey: string; placeholderKey: string }
@@ -140,7 +128,7 @@ function ChannelSettings({
             <p className="text-xs font-medium text-[var(--text-primary)]">
               {t('msgrQuickRepliesLabel')}
             </p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+            <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
               {t('msgrQuickRepliesHint')}
             </p>
           </div>
@@ -264,7 +252,7 @@ function ChannelHealthBadge({
         {rel ? <span className="text-[var(--text-tertiary)]">— {t('healthChecked', { time: rel })}</span> : null}
       </button>
       {expanded && error ? (
-        <div className="mt-1 break-words text-[11px] leading-4 text-[var(--text-tertiary)]">{error}</div>
+        <div className="mt-1 break-words text-[12px] leading-4 text-[var(--text-tertiary)]">{error}</div>
       ) : null}
     </div>
   )
@@ -318,7 +306,6 @@ export function MessengerChannel({
 }) {
   const t = useTranslations('channels')
   const router = useRouter()
-  const Icon = ICONS[type]
   const fields = FIELD_SETS[type]
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(false)
@@ -370,7 +357,7 @@ export function MessengerChannel({
   }
 
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="flex flex-wrap items-center gap-3">
         {enabled && isInstagram && botAvatar && failedAvatarUrl !== botAvatar ? (
           // Connected Instagram OAuth channel — show the IG profile avatar
@@ -388,9 +375,7 @@ export function MessengerChannel({
             className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
           />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
-            <Icon className="h-5 w-5" />
-          </div>
+          <ChannelMark channel={type} />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 font-medium text-[var(--text-primary)]">
@@ -429,7 +414,7 @@ export function MessengerChannel({
               aria-expanded={open}
               aria-controls={`channel-details-${type.toLowerCase()}`}
               aria-label={t(open ? 'collapseConnection' : 'expandConnection')}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
               <ChevronDown
                 className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}

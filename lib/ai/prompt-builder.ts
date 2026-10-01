@@ -919,7 +919,7 @@ const BUSINESS_ROLE_SPECS: Record<BusinessType, readonly [BusinessRoleSpec, Busi
   SUPPORT: [
     { key: 'support_frontline', base: 'support_specialist', nameFa: 'پشتیبان خط اول', nameEn: 'Frontline support', descFa: 'تشخیص سریع موضوع و پاسخ دانش‌محور به سؤال‌های پرتکرار', descEn: 'Quickly classify issues and answer common questions from knowledge', contextFa: 'تو پشتیبان خط اول هستی؛ موضوع و فوریت را تشخیص می‌دهی، از دانش پاسخ می‌دهی و موارد خارج از دامنه را تحویل می‌دهی.', contextEn: 'You are frontline support. Identify topic and urgency, answer from knowledge and hand off out-of-scope cases.' },
     { key: 'support_troubleshooter', base: 'full_service', nameFa: 'متخصص حل مسئله', nameEn: 'Troubleshooting specialist', descFa: 'عیب‌یابی مرحله‌ای و هدایت مشتری تا حل یا ارجاع', descEn: 'Step-by-step troubleshooting through resolution or escalation', contextFa: 'تو متخصص حل مسئله هستی؛ ابتدا نشانه‌ها و اقدامات قبلی را می‌پرسی، سپس فقط مراحل امن و تأییدشده را پیشنهاد می‌دهی.', contextEn: 'You troubleshoot issues. Ask about symptoms and prior attempts, then suggest only safe, approved steps.' },
-    { key: 'support_ticket_follow_up', base: 'after_sales', nameFa: 'پیگیری تیکت و SLA', nameEn: 'Ticket & SLA follow-up', descFa: 'ثبت، اولویت‌بندی و پیگیری شفاف درخواست تا نتیجه', descEn: 'Log, prioritize and transparently follow requests to an outcome', contextFa: 'تو مسئول پیگیری تیکت هستی؛ شناسه، اولویت و وضعیت واقعی را بررسی می‌کنی و درباره SLA یا نتیجه حدس نمی‌زنی.', contextEn: 'You follow support tickets. Check the identifier, priority and real status and never invent an SLA or outcome.' },
+    { key: 'support_ticket_follow_up', base: 'after_sales', nameFa: 'پیگیری درخواست', nameEn: 'Request follow-up', descFa: 'ثبت شفاف درخواست و سپردن آن به اپراتور تا نتیجه', descEn: 'Log requests clearly and hand them to an operator until resolved', contextFa: 'تو مسئول پیگیری درخواست مشتری هستی؛ خلاصهٔ درخواست، نام و راه تماس را می‌گیری و برای اپراتور ثبت می‌کنی. دربارهٔ زمان پاسخ، وضعیت یا نتیجه حدس نمی‌زنی و وعده نمی‌دهی.', contextEn: 'You follow customer requests. Capture a summary, name and contact, and log it for an operator. Never guess or promise a response time, status or outcome.' },
   ],
   SOCIAL: [
     { key: 'social_dm_sales', base: 'sales_consultant', nameFa: 'فروشنده دایرکت', nameEn: 'DM sales advisor', descFa: 'نیازسنجی سریع، پیشنهاد محصول و هدایت خرید در دایرکت', descEn: 'Fast discovery, product recommendations and purchase guidance in DMs', contextFa: 'تو مشاور فروش در دایرکت اینستاگرام هستی؛ کوتاه و انسانی پاسخ می‌دهی و قیمت و موجودی را فقط از کاتالوگ می‌گویی.', contextEn: 'You sell through Instagram DMs. Keep replies short and human and use only the catalog for price and stock.' },
@@ -1115,8 +1115,8 @@ const VERTICAL_OVERLAYS: Record<BusinessType, VerticalOverlay> = {
           'سفارش رو هم بفرستید تا وضعیت همون رو دقیق بررسی کنم.',
       },
       {
-        question: 'تیکتم چی شد؟',
-        answer: 'الان پیگیری می‌کنم؛ شماره تیکت یا نامی که موقع ثبت دادید رو بفرستید تا وضعیت فعلی و مرحلهٔ بعدی رو دقیق بگم.',
+        question: 'درخواستم چی شد؟',
+        answer: 'پیگیری می‌کنم؛ نام یا شماره‌ای که موقع ثبت دادید رو بفرستید تا درخواستتون رو به همکارم بسپارم و نتیجه همین‌جا بهتون اطلاع داده بشه.',
       },
     ],
   },
@@ -1182,7 +1182,7 @@ const RECOMMENDED_DESCRIPTIONS: Record<BusinessType, { fa: string; en: string }>
   APPOINTMENTS: { fa: 'راهنمای خدمات، نوبت‌دهی، تغییر نوبت و پیگیری مراجعه در یک ایجنت کامل', en: 'Service guidance, booking, rescheduling and visit follow-up in one complete agent' },
   SERVICES: { fa: 'نیازسنجی، ثبت درخواست، برآورد و پشتیبانی اجرای خدمت در یک ایجنت کامل', en: 'Needs discovery, request capture, estimates and delivery support in one complete agent' },
   EDUCATION: { fa: 'مشاوره دوره، ثبت‌نام، هماهنگی کلاس و پشتیبانی دانشجو در یک ایجنت کامل', en: 'Course advice, enrollment, class coordination and learner support in one complete agent' },
-  SUPPORT: { fa: 'پاسخ خط اول، حل مسئله، ثبت و پیگیری تیکت در یک ایجنت کامل', en: 'Frontline answers, troubleshooting, ticket capture and follow-up in one complete agent' },
+  SUPPORT: { fa: 'پاسخ خط اول، حل مسئله، ثبت و پیگیری درخواست در یک ایجنت کامل', en: 'Frontline answers, troubleshooting, request capture and follow-up in one complete agent' },
   SOCIAL: { fa: 'فروش در دایرکت، پاسخ کامنت و پیگیری سفارش اینستاگرام در یک ایجنت کامل', en: 'DM sales, comment replies and Instagram order follow-up in one complete agent' },
   CUSTOM: { fa: 'فروش، پاسخ‌گویی، ثبت درخواست و پیگیری مشتری در یک ایجنت کامل', en: 'Sales, support, request capture and customer follow-up in one complete agent' },
 }

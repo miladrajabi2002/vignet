@@ -28,6 +28,7 @@ import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import { ensureConversationSummary } from '@/lib/conversations/summary'
 import { recordConversationActivity } from '@/lib/conversations/activity'
 import { buildOperatorAlertKeyboard } from '@/lib/channels/operator-bot'
+import { CHANNEL_FA, readOperatorPrefs } from '@/lib/channels/operator-bot-screens'
 
 /**
  * Decrypt the stored OperatorChannel.botToken. The column is TEXT and stores the
@@ -178,6 +179,10 @@ async function pushAlertToOperatorBot(
                 where: { workspaceId },
         })
         if (!op || !op.active || !op.operatorChatId) return
+        // The owner can mute a category from the bot's «هشدارها» screen; the
+        // alert still exists in the panel and in the bot's operator queue.
+        const prefs = readOperatorPrefs(op.prefs)
+        if (!prefs[ctx.kind === 'order' ? 'orders' : 'handoff']) return
         const botToken = readOperatorBotToken(op.botToken)
         if (!botToken) return
 
@@ -222,11 +227,11 @@ function escapeTelegramHtml(value: string): string {
 
 function formatOperatorAlertMessage(ctx: HandoffContext): string {
         const lines: string[] = []
-        lines.push(ctx.kind === 'order' ? '🛒 <b>پیش‌سفارش جدید — هماهنگی پرداخت و ارسال</b>' : '🔔 <b>انتقال به اپراتور</b>')
+        lines.push(ctx.kind === 'order' ? '🛒 <b>پیش‌سفارش جدید — هماهنگی پرداخت و ارسال</b>' : '🙋 <b>یک گفتگو به شما سپرده شد</b>')
         lines.push('')
         lines.push(`👤 <b>مشتری:</b> ${escapeTelegramHtml(ctx.contactName || 'ناشناس')}`)
         if (ctx.contactPhone) lines.push(`📞 <b>شماره:</b> ${escapeTelegramHtml(ctx.contactPhone)}`)
-        lines.push(`📱 <b>کانال:</b> ${escapeTelegramHtml(ctx.channel)}`)
+        lines.push(`📱 <b>برنامه:</b> ${CHANNEL_FA[ctx.channel] ?? escapeTelegramHtml(ctx.channel)}`)
         lines.push(`🤖 <b>ایجنت:</b> ${escapeTelegramHtml(ctx.agentName)}`)
         lines.push(`📝 <b>دلیل:</b> ${escapeTelegramHtml(ctx.reason)}`)
         if (ctx.summary) {
@@ -235,7 +240,7 @@ function formatOperatorAlertMessage(ctx: HandoffContext): string {
                 lines.push(escapeTelegramHtml(ctx.summary))
         }
         lines.push('')
-        lines.push(`💬 شناسه گفتگو: <code>${escapeTelegramHtml(ctx.conversationId)}</code>`)
+        lines.push('↩️ برای جواب دادن، روی همین پیام Reply بزنید یا «نوشتن پاسخ» را لمس کنید.')
         return lines.join('\n')
 }
 
@@ -248,18 +253,23 @@ function formatOperatorAlertMessage(ctx: HandoffContext): string {
  */
 export async function routeOperatorReplyFromTelegram(params: {
         workspaceId: string
-        telegramMessageId: string
+        /** The alert message the operator replied to… */
+        telegramMessageId?: string
+        /** …or the case picked with «نوشتن پاسخ» / «پاسخ آماده» in the bot. */
+        alertId?: string
         operatorText: string
-}): Promise<{ ok: boolean; reason?: string }> {
+}): Promise<{ ok: boolean; reason?: string; contactName?: string | null }> {
+        if (!params.telegramMessageId && !params.alertId) return { ok: false, reason: 'no target' }
         const alert = await prisma.handoffAlert.findFirst({
                 where: {
                         workspaceId: params.workspaceId,
-                        externalMessageId: params.telegramMessageId,
+                        ...(params.alertId ? { id: params.alertId } : { externalMessageId: params.telegramMessageId }),
                         state: { in: ['open', 'claimed'] },
                 },
                 select: {
                         id: true,
                         conversationId: true,
+                        contactName: true,
                         conversation: { select: { agentId: true, channel: true, externalId: true } },
                 },
         })
@@ -323,5 +333,5 @@ export async function routeOperatorReplyFromTelegram(params: {
                         data: { state: 'claimed' },
                 })
         }
-        return { ok: delivered }
+        return { ok: delivered, contactName: alert.contactName }
 }

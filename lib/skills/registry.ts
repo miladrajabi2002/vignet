@@ -34,8 +34,6 @@ export interface SkillMeta {
   version: string
 }
 
-export const SKILLS_VERSION = '2026.09.14'
-
 export const SKILL_REGISTRY: readonly SkillMeta[] = Object.freeze([
   {
     key: 'knowledge-gap',

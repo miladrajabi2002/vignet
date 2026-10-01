@@ -3,6 +3,17 @@ import { prisma } from '@/lib/prisma'
 import { dispatchNotification } from '@/lib/queue/jobs'
 import { captureError } from '@/lib/errors/capture'
 import { sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
+import type { OperatorPrefKey } from '@/lib/channels/operator-bot-screens'
+
+// Which «هشدارها» toggle in the manager bot governs each notification type.
+const OPERATOR_CATEGORY: Record<NotificationType, OperatorPrefKey> = {
+  NEW_MESSAGE: 'handoff',
+  HANDOFF: 'handoff',
+  APPOINTMENT: 'bookings',
+  CHANNEL_DOWN: 'health',
+  LEARNING: 'health',
+  SYSTEM: 'billing',
+}
 
 export interface NotifyParams {
   workspaceId: string
@@ -13,8 +24,12 @@ export interface NotifyParams {
   link?: string
   /** Also send an ops email to ALERT_EMAIL (platform monitoring). */
   opsEmail?: boolean
-  /** Also alert the workspace's configured operator Telegram bot. */
-  operatorTelegram?: boolean
+  /**
+   * Also alert the workspace's operator Telegram bot. `true` picks the bot's
+   * alert category from `type`; pass a category when `type` is too broad
+   * (SYSTEM covers both billing and store events).
+   */
+  operatorTelegram?: boolean | OperatorPrefKey
 }
 
 /**
@@ -53,8 +68,10 @@ export async function notifyWorkspace(params: NotifyParams): Promise<void> {
     try {
       await sendOperatorTelegramNotification({
         workspaceId: params.workspaceId,
-        text,
+        title: params.title,
+        body: params.body,
         link: params.link,
+        category: typeof params.operatorTelegram === 'string' ? params.operatorTelegram : OPERATOR_CATEGORY[params.type],
       })
     } catch (e) {
       captureError('notify:operator-telegram', e, { workspaceId: params.workspaceId })

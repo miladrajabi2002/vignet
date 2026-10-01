@@ -170,9 +170,5 @@ export function validateProductionEnv(env: Env): ProductionEnvReport {
     warnings.push('BACKUP_S3_ENDPOINT: backups are not copied to an independent off-site store')
   }
 
-  if (!value(env, 'FINANCE_USD_TO_IRR')) {
-    warnings.push('FINANCE_USD_TO_IRR: admin profit reporting cannot show a reliable IRR total')
-  }
-
   return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] }
 }

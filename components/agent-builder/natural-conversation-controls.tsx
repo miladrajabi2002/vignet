@@ -1,9 +1,10 @@
 'use client'
 
 import { useId, useState } from 'react'
-import { Check, ChevronDown, MessageCircleMore } from 'lucide-react'
+import { ChevronDown, MessageCircleMore } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { SwitchTrack } from '@/components/ui/switch'
 import type { PromptConversationConfig } from '@/lib/ai/prompt-builder'
 
 export function NaturalConversationControls({
@@ -14,7 +15,7 @@ export function NaturalConversationControls({
         onChange: (value: PromptConversationConfig) => void
 }) {
         const t = useTranslations('agents.naturalConversation')
-        const [open, setOpen] = useState(false)
+        const [open, setOpen] = useState(true)
         const titleId = useId()
         const controlsId = useId()
         const set = <K extends keyof PromptConversationConfig>(
@@ -66,7 +67,7 @@ export function NaturalConversationControls({
                                         <span id={titleId} className="block text-sm font-semibold text-[var(--text-primary)]">
                                                 {t('title')}
                                         </span>
-                                        <span className="mt-0.5 block truncate text-[10px] leading-5 text-[var(--text-muted)] sm:text-[11px]">
+                                        <span className="mt-0.5 block truncate text-[12px] leading-5 text-[var(--text-muted)] sm:text-[12px]">
                                                 {[
                                                         t(`formality.options.${value.formality}`),
                                                         t(`initiative.options.${value.initiative}`),
@@ -79,11 +80,11 @@ export function NaturalConversationControls({
 
                         {open && (
                                 <div id={controlsId} className="border-t border-[var(--border-subtle)] p-3.5 sm:p-4">
-                                        <p className="text-[11px] leading-5 text-[var(--text-muted)]">
+                                        <p className="text-[12px] leading-5 text-[var(--text-muted)]">
                                                 {t('description')}
                                         </p>
 
-                                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
                                                 {selectFields.map(({ key, options }) => (
                                                         <MaterialSelect
                                                                 key={key}
@@ -106,18 +107,13 @@ export function NaturalConversationControls({
                                                                 <button
                                                                         key={key}
                                                                         type="button"
-                                                                        aria-pressed={active}
+                                                                        role="switch"
+                                                                        aria-checked={active}
                                                                         onClick={() => set(key, !active)}
-                                                                        className={`spatial-press flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-[border-color,background-color,color] duration-150 ${
-                                                                                active
-                                                                                        ? 'border-black bg-black text-white'
-                                                                                        : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-black/25'
-                                                                        }`}
+                                                                        className="spatial-press flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-white px-3 text-start text-[13px] font-medium text-[var(--text-primary)] transition-[border-color] duration-150 hover:border-black/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                                                                 >
-                                                                        <span>{label}</span>
-                                                                        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ${active ? 'bg-white text-black' : 'bg-black/[0.05] text-transparent'}`}>
-                                                                                <Check className="h-3 w-3" />
-                                                                        </span>
+                                                                        <span className="min-w-0">{label}</span>
+                                                                        <SwitchTrack checked={active} />
                                                                 </button>
                                                         )
                                                 })}

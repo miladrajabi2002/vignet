@@ -1,6 +1,6 @@
 import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
-import { enforceActionCapabilities, enforceNoFalseFollowUp, safeOrderUrl } from '@/lib/agent-kernel/skills/action-capabilities'
+import { enforceActionCapabilities, enforceNoFalseFollowUp, safeOrderUrl, stripAgentDiscountOffers, stripFabricatedPaymentLinks } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/conversation-state'
 import { enforceHumanizerPolish } from '@/lib/agent-kernel/skills/humanizer-polish'
@@ -83,7 +83,10 @@ export function runAgentSkillPostprocessors(
   plan: AgentSkillPlan,
   context: AgentSkillPostprocessContext = {},
 ): string {
-  let output = reply
+  // Unconditional: no skill plan may let the model author a payment link.
+  let output = stripFabricatedPaymentLinks(reply, context.isFa ?? true)
+  // An agent that sells in chat never grants discounts: the store prices the cart.
+  if (context.orderCaptureEnabled) output = stripAgentDiscountOffers(output, context.isFa ?? true)
   if (hasAgentSkill(plan, 'action-capability-boundaries') && context.userMessage) {
     output = enforceActionCapabilities({
       reply: output,

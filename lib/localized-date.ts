@@ -1,4 +1,4 @@
-import { gregorianToJalali, instantToWallClock, jalaliMonthLength, jalaliToGregorian, wallClockToInstant } from '@doranjs/core'
+import { gregorianToJalali, instantToWallClock, jalaliToGregorian, wallClockToInstant } from '@doranjs/core'
 
 export type DateLocale = 'fa' | 'en'
 
@@ -109,21 +109,4 @@ export function dateKeyFromCalendarParts(
   const key = `${String(gregorian.year).padStart(4, '0')}-${String(gregorian.month).padStart(2, '0')}-${String(gregorian.day).padStart(2, '0')}`
   parseDateKey(key)
   return key
-}
-
-export function calendarMonthLength(month: CalendarMonth, locale: DateLocale): number {
-  if (locale === 'fa') return jalaliMonthLength(month.year, month.month)
-  return new Date(Date.UTC(month.year, month.month, 0)).getUTCDate()
-}
-
-export function calendarMonthOffset(month: CalendarMonth, locale: DateLocale): number {
-  const firstKey = dateKeyFromCalendarParts(month.year, month.month, 1, locale)
-  const { year, month: gregorianMonth, day } = parseDateKey(firstKey)
-  const weekday = new Date(Date.UTC(year, gregorianMonth - 1, day, 12)).getUTCDay()
-  return locale === 'fa' ? (weekday + 1) % 7 : weekday
-}
-
-export function shiftCalendarMonth(month: CalendarMonth, amount: number): CalendarMonth {
-  const index = month.year * 12 + (month.month - 1) + amount
-  return { year: Math.floor(index / 12), month: ((index % 12) + 12) % 12 + 1 }
 }

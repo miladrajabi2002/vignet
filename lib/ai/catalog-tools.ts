@@ -16,7 +16,6 @@ import { chatCompletion, type ChatMessage, type ChatTool, type ChatUsage } from 
 import type { CatalogProduct } from '@/lib/ai/rag'
 import { extractProductTerms, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
 import { extractTypedVariations } from '@/lib/products/description'
-import { variationLabel } from '@/lib/products/presentation'
 
 const MAX_RESULTS = 10
 

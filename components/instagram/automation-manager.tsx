@@ -22,6 +22,9 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
+import { AutomationsReportSummary } from '@/components/instagram/automation-report'
+import type { AutomationReportMap } from '@/lib/instagram/automation-report'
+import { AutomationMotion, type AutomationKind } from '@/components/motion/explainers'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Switch } from '@/components/ui/switch'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -69,11 +72,14 @@ export function InstagramAutomationManager({
         accountUsername,
         initialAutomations,
         initialSettings,
+        reports = {},
 }: {
         agentId: string
         accountUsername: string
         initialAutomations: Automation[]
         initialSettings?: InstagramAutomationSettings
+        /** 30-day results per automation (people reached, chats, orders…). */
+        reports?: AutomationReportMap
 }) {
         const t = useTranslations('instagram')
         const locale = useLocale()
@@ -197,7 +203,13 @@ export function InstagramAutomationManager({
                                 accountUsername={accountUsername}
                         />
 
-                        <section className="spatial-surface space-y-4 rounded-[1.5rem] p-4 sm:p-5" aria-labelledby="instagram-scenarios-title">
+                        <AutomationsReportSummary
+                                fa={locale === 'fa'}
+                                reports={reports}
+                                names={Object.fromEntries(automations.map((item) => [item.id, item.name]))}
+                        />
+
+                        <section className="spatial-surface space-y-4 rounded-card p-4 sm:p-5" aria-labelledby="instagram-scenarios-title">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div className="min-w-0">
                                                 <h2 id="instagram-scenarios-title" className="text-base font-bold tracking-tight text-[var(--text-primary)]">
@@ -214,7 +226,7 @@ export function InstagramAutomationManager({
                                         </span>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-1.5 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.035] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>
+<div className="ui-seg grid-cols-1 sm:grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>
                                         {TABS.map(({ key, labelKey, Icon }) => {
                                                 const count = byType[key].length
                                                 const activeCount = byType[key].filter((a) => a.active).length
@@ -233,23 +245,19 @@ export function InstagramAutomationManager({
                                                                 aria-selected={active}
                                                                 aria-controls={`scenario-panel-${key}`}
                                                                 onClick={() => setActiveTab(key)}
-                                                                className={`group flex min-h-[4.5rem] items-center gap-3 rounded-[1.05rem] px-3.5 py-3 text-start transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 ${
-                                                                        active
-                                                                                ? 'bg-black text-white shadow-[0_12px_28px_-18px_rgba(0,0,0,0.9)]'
-                                                                                : 'text-[var(--text-secondary)] hover:bg-white/70 hover:text-[var(--text-primary)]'
-                                                                }`}
-                                                        >
-                                                                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${active ? 'border-white/15 bg-white/10 text-white' : 'border-black/[0.06] bg-white/75 text-[var(--text-secondary)]'}`}>
+className="ui-seg-tab group min-h-[4.5rem] justify-start gap-3 px-3.5 py-3 text-start"
+                                                                >
+                                                                <span className="ui-seg-icon h-9 w-9">
                                                                         <Icon className="h-4 w-4" />
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
                                                                         <span className="flex items-center justify-between gap-2">
                                                                                 <span className="text-sm font-semibold">{t(labelKey)}</span>
-                                                                                <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${active ? 'bg-white text-black' : 'bg-black/[0.06] text-[var(--text-secondary)]'}`}>
+<span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums ${active ? 'bg-[var(--signal-soft)] text-[var(--signal-strong)]' : 'bg-black/[0.06] text-[var(--text-secondary)]'}`}>
                                                                                         {activeCount.toLocaleString(numLocale)}
                                                                                 </span>
                                                                         </span>
-                                                                        <span className={`mt-0.5 block truncate text-[11px] ${active ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>
+<span className="mt-0.5 block truncate text-[12.5px] font-normal text-[var(--text-muted)]">
                                                                                 {description}{count > activeCount ? ` · ${count.toLocaleString(numLocale)}` : ''}
                                                                         </span>
                                                                 </span>
@@ -266,7 +274,7 @@ export function InstagramAutomationManager({
                                 >
                                 {current.length === 0 ? (
                                         <EmptyState
-                                                Icon={currentTab.Icon}
+                                                kind={EMPTY_MOTION_KIND[activeTab]}
                                                 text={t(currentTab.emptyKey)}
                                                 onCreate={() =>
                                                         router.push(`/instagram/new?agentId=${agentId}&type=${activeTab}`)
@@ -279,6 +287,7 @@ export function InstagramAutomationManager({
                                                                 key={a.id}
                                                                 automation={a}
                                                                 agentId={agentId}
+                                                                report={reports[a.id]}
                                                                 onToggleActive={(next) => handleToggleActive(a, next)}
                                                                 onDelete={() => setDeleteTarget(a)}
                                                         />
@@ -396,10 +405,10 @@ function ChannelSettingsCard({
                 disabled = false,
         ) {
                 return (
-                        <div className={`flex min-h-[4.5rem] items-center justify-between gap-4 rounded-2xl border border-black/[0.06] bg-white/70 p-4 shadow-[0_10px_26px_-24px_rgba(0,0,0,0.75)] ${disabled ? 'opacity-55' : ''}`}>
+                        <div className={`flex min-h-[4.5rem] items-center justify-between gap-4 rounded-2xl border border-black/[0.06] bg-white/70 p-4 shadow-[var(--shadow-control)] ${disabled ? 'opacity-55' : ''}`}>
                                 <div className="min-w-0">
                                         <p className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{label}</p>
-                                        <p className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">{description}</p>
+                                        <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{description}</p>
                                 </div>
                                 <Switch
                                         checked={Boolean(draft[key])}
@@ -460,25 +469,25 @@ function ChannelSettingsCard({
         ]
 
         return (
-                <section className="overflow-hidden rounded-[1.5rem] border border-black/[0.06] bg-white/75 shadow-[0_22px_60px_-44px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+                <section className="overflow-hidden rounded-card border border-black/[0.06] bg-white/75 shadow-[var(--elev-2)] backdrop-blur-xl">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}
-                                className="flex min-h-[4.75rem] w-full items-center justify-between gap-3 px-5 py-4 text-start transition-[background-color,transform] duration-150 hover:bg-black/[0.025] active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60 sm:px-6"
+                                className="flex min-h-[4.75rem] w-full items-center justify-between gap-3 px-5 py-4 text-start transition-[background-color,transform] duration-150 hover:bg-black/[0.025] active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:px-6"
                                 aria-expanded={open}
                         >
                                 <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white shadow-[0_10px_24px_-14px_rgba(0,0,0,0.8)]">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
                                                 <Settings2 className="h-4 w-4" />
                                         </div>
                                         <div>
                                                 <p className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
                                                         {t('manager.settingsTitle')}
-                                                        <span className="ms-2 text-[11px] font-normal text-[var(--text-muted)]">
+                                                        <span className="ms-2 text-[12px] font-normal text-[var(--text-muted)]">
                                                                 @{accountUsername || 'vigent.bot'}
                                                         </span>
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] leading-5 text-[var(--text-secondary)]">
+                                                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">
                                                         {t('manager.settingsSubtitle')}
                                                 </p>
                                         </div>
@@ -490,7 +499,7 @@ function ChannelSettingsCard({
 
                         {open && (
                                 <div className="space-y-5 border-t border-black/[0.05] bg-[linear-gradient(180deg,rgba(250,250,251,0.7),rgba(255,255,255,0.92))] px-5 py-5 sm:px-6 sm:py-6">
-                                        <div className="grid grid-cols-2 gap-1.5 rounded-[1.2rem] border border-black/[0.05] bg-black/[0.035] p-1.5 sm:grid-cols-4" role="tablist" aria-label={t('manager.settingsTabsAria')}>
+                                        <div className="ui-seg grid-cols-2 sm:grid-cols-4" role="tablist" aria-label={t('manager.settingsTabsAria')}>
                                                 {SETTINGS_TABS.map(({ key: tab, Icon, label, description }) => {
                                                         const active = settingsTab === tab
                                                         return (
@@ -502,12 +511,12 @@ function ChannelSettingsCard({
                                                                         aria-selected={active}
                                                                         aria-controls={`settings-panel-${tab}`}
                                                                         onClick={() => setSettingsTab(tab)}
-                                                                        className={`flex min-h-[3.75rem] items-center gap-2.5 rounded-[0.95rem] px-3 py-2.5 text-start transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 ${active ? 'bg-black text-white shadow-[0_10px_22px_-16px_rgba(0,0,0,0.9)]' : 'text-[var(--text-secondary)] hover:bg-white/75 hover:text-[var(--text-primary)]'}`}
+                                                                        className="ui-seg-tab min-h-[3.75rem] justify-start gap-2.5 px-3 py-2.5 text-start"
                                                                 >
                                                                         <Icon className="h-4 w-4 shrink-0" />
                                                                         <span className="min-w-0">
                                                                                 <span className="block text-xs font-semibold">{label}</span>
-                                                                                <span className={`mt-0.5 block truncate text-[10px] ${active ? 'text-white/55' : 'text-[var(--text-muted)]'}`}>{description}</span>
+                                                                                <span className="mt-0.5 block truncate text-[12px] font-normal text-[var(--text-muted)]">{description}</span>
                                                                         </span>
                                                                 </button>
                                                         )
@@ -527,9 +536,9 @@ function ChannelSettingsCard({
                                                                                 key={value}
                                                                                 type="button"
                                                                                 onClick={() => set(policyKey, value)}
-                                                                                className={`group relative flex min-h-[8.5rem] flex-col items-start gap-2 rounded-2xl border p-4 text-start transition-[border-color,background-color,box-shadow,transform] duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 ${
+                                                                                className={`group relative flex min-h-[8.5rem] flex-col items-start gap-2 rounded-2xl border p-4 text-start transition-[border-color,background-color,box-shadow,transform] duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
                                                                                         active
-                                                                                                ? 'border-black bg-white shadow-[0_16px_34px_-26px_rgba(0,0,0,0.8)]'
+                                                                                                ? 'border-black bg-white shadow-[var(--shadow-control)]'
                                                                                                 : 'border-black/[0.07] bg-white/70 hover:border-black/20 hover:bg-white'
                                                                                 }`}
                                                                         >
@@ -544,7 +553,7 @@ function ChannelSettingsCard({
                                                                                 </div>
                                                                                 <div>
                                                                                         <p className="text-xs font-medium text-[var(--text-primary)]">{t(labelKey)}</p>
-                                                                                        <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                                                                                        <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
                                                                                                 {t(descKey)}
                                                                                         </p>
                                                                                 </div>
@@ -625,14 +634,14 @@ function ChannelSettingsCard({
                                                                 className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
                                                         />
                                                 </div>
-                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                <p className="text-[12px] text-[var(--text-muted)]">
                                                         {t('manager.stopWordsHint')}
                                                 </p>
                                         </div>
 
                                         {/* Save bar */}
                                         <div className="flex flex-col gap-3 border-t border-black/[0.05] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                <p className="text-[12px] text-[var(--text-muted)]">
                                                         {dirty
                                                                 ? t('manager.dirtyHint')
                                                                 : settingsTab === 'reaction'
@@ -675,9 +684,9 @@ function CreateScenarioCard({
                         type="button"
                         onClick={onCreate}
                         aria-label={`${t('manager.addScenario')} — ${typeLabel}`}
-                        className="group flex min-h-[13rem] w-full flex-col items-center justify-center rounded-[1.35rem] border border-dashed border-black/15 bg-[linear-gradient(145deg,rgba(255,255,255,0.72),rgba(247,247,249,0.64))] p-6 text-center transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-black/35 hover:bg-white hover:shadow-[0_20px_50px_-38px_rgba(0,0,0,0.65)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/65 focus-visible:ring-offset-2 active:translate-y-0 motion-reduce:transform-none"
+                        className="group flex min-h-[13rem] w-full flex-col items-center justify-center rounded-card border border-dashed border-black/15 bg-[linear-gradient(145deg,rgba(255,255,255,0.72),rgba(247,247,249,0.64))] p-6 text-center transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-black/35 hover:bg-white hover:shadow-[var(--elev-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 active:translate-y-0 motion-reduce:transform-none"
                 >
-                        <span className="relative grid h-12 w-12 place-items-center rounded-2xl bg-black text-white shadow-[0_12px_28px_-16px_rgba(0,0,0,0.8)] transition-transform duration-200 group-hover:scale-105 motion-reduce:transform-none">
+                        <span className="relative grid h-12 w-12 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] transition-transform duration-200 group-hover:scale-105 motion-reduce:transform-none">
                                 <Icon aria-hidden="true" className="h-4 w-4 opacity-55" />
                                 <Plus aria-hidden="true" className="absolute h-5 w-5" />
                         </span>
@@ -694,23 +703,29 @@ function CreateScenarioCard({
 }
 
 // ── Empty state ─────────────────────────────────────────────────────────
+// The first-scenario moment is when "what does this do?" matters most, so
+// the empty tab plays that scenario type end to end (trigger → instant DM).
+const EMPTY_MOTION_KIND: Record<AutomationType, AutomationKind> = {
+        DIRECT_MESSAGE: 'dm',
+        COMMENT: 'comment',
+        STORY: 'story',
+}
+
 function EmptyState({
-        Icon,
+        kind,
         text,
         onCreate,
 }: {
-        Icon: LucideIcon
+        kind: AutomationKind
         text: string
         onCreate: () => void
 }) {
         const t = useTranslations('instagram')
         const locale = useLocale()
         return (
-                <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(247,247,249,0.78))] p-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-12">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-white shadow-[0_12px_28px_-16px_rgba(0,0,0,0.8)]">
-                                <Icon className="h-5 w-5" />
-                        </div>
-                        <h3 className="mt-4 text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+                <div className="rounded-card border border-dashed border-black/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(247,247,249,0.78))] p-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-8">
+                        <AutomationMotion key={kind} locale={locale === 'en' ? 'en' : 'fa'} kind={kind} className="mx-auto max-w-xl" />
+                        <h3 className="mt-5 text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">
                                 {locale === 'fa' ? 'اولین سناریو را بسازید' : 'Create your first scenario'}
                         </h3>
                         <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-[var(--text-secondary)]">
@@ -719,7 +734,7 @@ function EmptyState({
                         <button
                                 type="button"
                                 onClick={onCreate}
-                                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+                                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                         >
                                 <Plus className="h-4 w-4" />
                                 {t('manager.addScenario')}

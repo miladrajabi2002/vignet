@@ -31,6 +31,10 @@ export interface ChatAgent {
         orderCaptureEnabled?: boolean
         /** «موجود شد خبرم کن» back-in-stock alerts. Defaults to on. */
         restockAlertsEnabled?: boolean
+        /** Follow an order the customer asked about and message its status changes. */
+        orderUpdatesEnabled?: boolean
+        /** Hold a chat cart for one hour, with a reminder 30 minutes before it ends. */
+        cartHoldEnabled?: boolean
 }
 
 export interface StartChatParams {
@@ -59,4 +63,16 @@ export interface StartChatParams {
         inboundEventId?: string
         /** The channel handler already persisted/counted the USER message. */
         inboundAlreadyPersisted?: boolean
+        /**
+         * Which business capabilities are switched on (settings → business).
+         * Filled by the engine itself; a turn never runs a workflow for a
+         * capability the owner turned off.
+         */
+        capabilityGates?: CapabilityGates
+}
+
+export interface CapabilityGates {
+        products: boolean
+        bookings: boolean
+        courses: boolean
 }

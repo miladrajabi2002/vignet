@@ -197,5 +197,3 @@ export function Markdown({ children }: { children: string }) {
 
 	return <>{blocks}</>
 }
-
-export default Markdown

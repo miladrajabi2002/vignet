@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { isAdminAuthed } from '@/lib/admin/auth'
+import { BLOG_UPLOAD_DIR, writeBlogImageVariants } from '@/lib/blog/image-processing'
 import { matchesImageSignature } from '@/lib/security/file-signatures'
 import {
 	readBoundedRequestBody,
@@ -64,12 +65,25 @@ export async function POST(req: Request) {
 		return NextResponse.json({ error: 'INVALID_FILE_CONTENT' }, { status: 415 })
 	}
 	const ext = EXTENSION[file.type]
-	const name = `${Date.now()}-${randomUUID()}.${ext}`
+	const baseName = `${Date.now()}-${randomUUID()}`
+	const name = `${baseName}.${ext}`
 
-	// مسیر مطلق روی دیسک — process.cwd() ریشه پروژه است (PM2 با cwd ریشه اجرا می‌شود)
-	const dir = join(process.cwd(), 'public', 'uploads', 'blog')
+	// The original is kept untouched (Open Graph / social previews use it).
+	const dir = BLOG_UPLOAD_DIR
 	await mkdir(dir, { recursive: true })
 	await writeFile(join(dir, name), buf)
+
+	// Mobile / tablet / desktop WebP copies the public pages serve via srcset.
+	// GIFs keep only the original (a resized WebP would lose the animation).
+	// A failure here must not fail the upload: the image route regenerates any
+	// missing variant from the original on first request.
+	if (ext !== 'gif') {
+		try {
+			await writeBlogImageVariants(buf, baseName, dir)
+		} catch (error) {
+			console.error('[blog-upload] variant generation failed', error)
+		}
+	}
 
 	return NextResponse.json({ url: `/api/uploads/blog/${name}` })
 }

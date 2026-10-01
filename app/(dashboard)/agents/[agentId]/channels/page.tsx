@@ -190,10 +190,10 @@ export default async function AgentChannelsPage(
 
   return (
     <div className="space-y-6">
-      <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6" aria-labelledby="channel-quota-title">
+      <section className="spatial-surface rounded-card p-5 sm:p-6" aria-labelledby="channel-quota-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 id="channel-quota-title" className="text-sm font-semibold text-[var(--text-primary)]">
+            <h2 id="channel-quota-title" className="text-sm font-bold text-[var(--text-primary)]">
               {t('quotaTitle')}
             </h2>
             <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
@@ -201,7 +201,7 @@ export default async function AgentChannelsPage(
             </p>
           </div>
           <div className="shrink-0 text-start sm:text-end">
-            <p className="text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+            <p className="text-lg font-bold tabular-nums text-[var(--text-primary)]">
               {t('quotaUsage', { used: usedChannels, limit: maxChannels })}
             </p>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">
@@ -261,7 +261,7 @@ export default async function AgentChannelsPage(
               {igError === 'denied' && '(دسترسی لغو شد)'}
               {igError === 'exchange' && '(خطا در تأیید کد)'}
               {igError === 'state' && '(نشست نامعتبر)'}
-              {igError === 'channel_limit' && '(سهمیه اتصال کانال پلن شما تکمیل شده است)'}
+              {igError === 'channel_limit' && '(سهمیهٔ اتصال برنامه‌های پلن شما تکمیل شده است)'}
             </p>
             <a
               href="/docs/instagram-connection"
@@ -282,7 +282,7 @@ export default async function AgentChannelsPage(
           without cluttering the channel list with a toggle that doesn't belong. */}
       <Link
         href="/integrations"
-        className="group flex items-start gap-4 rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6 transition-colors hover:border-[var(--border-strong)]"
+        className="group flex items-start gap-4 rounded-card border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6 transition-colors hover:border-[var(--border-strong)]"
       >
         <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
           <Store className="h-5 w-5" />

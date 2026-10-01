@@ -70,6 +70,7 @@ import {
         type ConversationReceipt,
 } from '@/lib/conversations/activity'
 import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
+import { maybeRunCourseAgentTurn } from '@/lib/courses/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
 import { buildTrustedProductReply, buildVariantPickReply, buildVariantShowcaseReply, parseProductDirectives } from '@/lib/products/presentation'
@@ -81,6 +82,8 @@ import {
 } from '@/lib/agent-kernel/contracts'
 import { runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
 import { hasBookingIntent } from '@/lib/bookings/intent'
+import { hasCourseIntent } from '@/lib/courses/intent'
+import { loadWorkspaceModules } from '@/lib/verticals/workspace-capabilities'
 import { getRedis } from '@/lib/redis'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
@@ -606,9 +609,37 @@ type CommerceTurn =
  * so a restart before the migration must degrade to "off", never break every
  * inbound message on an unknown-column error.
  */
-async function loadCommerceFlags(agent: ChatAgent): Promise<{ orderCaptureEnabled: boolean; restockAlertsEnabled: boolean }> {
-        if (agent.orderCaptureEnabled !== undefined && agent.restockAlertsEnabled !== undefined) {
-                return { orderCaptureEnabled: agent.orderCaptureEnabled, restockAlertsEnabled: agent.restockAlertsEnabled }
+type CommerceFlags = {
+        orderCaptureEnabled: boolean
+        restockAlertsEnabled: boolean
+        orderUpdatesEnabled: boolean
+        cartHoldEnabled: boolean
+}
+
+async function loadCommerceFlags(agent: ChatAgent): Promise<CommerceFlags> {
+        if (
+                agent.orderCaptureEnabled !== undefined && agent.restockAlertsEnabled !== undefined
+                && agent.orderUpdatesEnabled !== undefined && agent.cartHoldEnabled !== undefined
+        ) {
+                return {
+                        orderCaptureEnabled: agent.orderCaptureEnabled,
+                        restockAlertsEnabled: agent.restockAlertsEnabled,
+                        orderUpdatesEnabled: agent.orderUpdatesEnabled,
+                        cartHoldEnabled: agent.cartHoldEnabled,
+                }
+        }
+        try {
+                const rows = await prisma.$queryRaw<Array<CommerceFlags>>`
+                        SELECT "orderCaptureEnabled", "restockAlertsEnabled", "orderUpdatesEnabled", "cartHoldEnabled" FROM "Agent" WHERE id = ${agent.id}`
+                return {
+                        orderCaptureEnabled: rows[0]?.orderCaptureEnabled === true,
+                        restockAlertsEnabled: rows[0]?.restockAlertsEnabled === true,
+                        orderUpdatesEnabled: rows[0]?.orderUpdatesEnabled === true,
+                        cartHoldEnabled: rows[0]?.cartHoldEnabled === true,
+                }
+        } catch {
+                // The follow-up switches ship in a later migration than the
+                // order-capture ones: without them, both are simply off.
         }
         try {
                 const rows = await prisma.$queryRaw<Array<{ orderCaptureEnabled: boolean; restockAlertsEnabled: boolean }>>`
@@ -616,9 +647,11 @@ async function loadCommerceFlags(agent: ChatAgent): Promise<{ orderCaptureEnable
                 return {
                         orderCaptureEnabled: rows[0]?.orderCaptureEnabled === true,
                         restockAlertsEnabled: rows[0]?.restockAlertsEnabled === true,
+                        orderUpdatesEnabled: false,
+                        cartHoldEnabled: false,
                 }
         } catch {
-                return { orderCaptureEnabled: false, restockAlertsEnabled: false }
+                return { orderCaptureEnabled: false, restockAlertsEnabled: false, orderUpdatesEnabled: false, cartHoldEnabled: false }
         }
 }
 
@@ -636,6 +669,36 @@ function orderPrefill(params: {
                 phone: params.contactPhone ?? null,
                 city: fact('شهر مقصد ارسال') ?? fact('شهر'),
                 address: fact('آدرس'),
+        }
+}
+
+/**
+ * Apply the owner's capability switches before anything else reads the
+ * agent: with products off the catalog and pre-orders go quiet, and the
+ * booking/course workflows only run while their capability is on.
+ */
+async function withCapabilityGates(params: StartChatParams): Promise<StartChatParams> {
+        if (params.capabilityGates) return params
+        let modules: Set<string>
+        try {
+                modules = await loadWorkspaceModules(params.workspaceId)
+        } catch (error) {
+                // Fail open to the agent's own switches rather than breaking a turn.
+                console.error('[chat-engine] capability read failed:', error)
+                return { ...params, capabilityGates: { products: true, bookings: true, courses: true } }
+        }
+        const capabilityGates = {
+                products: modules.has('products'),
+                bookings: modules.has('appointments'),
+                courses: modules.has('courses'),
+        }
+        return {
+                ...params,
+                capabilityGates,
+                agent: {
+                        ...params.agent,
+                        productAccessEnabled: params.agent.productAccessEnabled && capabilityGates.products,
+                },
         }
 }
 
@@ -683,7 +746,13 @@ async function prepareTurn(params: StartChatParams): Promise<
           }
 > {
         const { workspaceId, message } = params
-        const agent: ChatAgent = { ...params.agent, ...(await loadCommerceFlags(params.agent)) }
+        const commerceFlags = await loadCommerceFlags(params.agent)
+        const agent: ChatAgent = {
+                ...params.agent,
+                ...commerceFlags,
+                // Pre-orders sell from the catalog: off with the products capability.
+                orderCaptureEnabled: commerceFlags.orderCaptureEnabled && params.capabilityGates?.products !== false,
+        }
 
         // Resolve first so a returning messenger thread keeps its operator/AI
         // ownership state even when the workspace plan is currently blocked.
@@ -1299,6 +1368,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 history,
                                 enabled: agent.orderTrackingEnabled,
                                 language: agent.language,
+                                follow: agent.orderUpdatesEnabled
+                                        ? { agentId: agent.id, conversationId, channel: params.channel }
+                                        : null,
                         }),
                         // Category overview keeps browse-turn consulting factual.
                         agent.productAccessEnabled && productRequest.discoveryBrowse
@@ -1353,6 +1425,16 @@ async function prepareTurn(params: StartChatParams): Promise<
                 const channelRestockMode = restockEnabled ? restockMode(params.channel, Boolean(resolvedContactPhone)) : null
                 const activeProductId = workingState.activeEntity?.type === 'PRODUCT' ? workingState.activeEntity.id : null
                 let commerceTurn: CommerceTurn = { kind: 'none' }
+                // Payment links on the store (plugin 5.0+) when the agent sells
+                // in chat; otherwise the classic operator pre-order.
+                const checkoutContext = agent.orderCaptureEnabled && agent.productAccessEnabled
+                        ? await import('@/lib/commerce/checkout-service')
+                                .then((service) => service.loadCheckoutContext(workspaceId, agent.id))
+                                .catch((error) => {
+                                        captureError('chat-engine:checkout-context', error, { workspaceId, metadata: { agentId: agent.id } })
+                                        return null
+                                })
+                        : null
                 try {
                         const restock = await resolveRestockTurn({
                                 enabled: restockEnabled,
@@ -1367,11 +1449,14 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 lastAssistantText,
                                 catalogProducts,
                                 activeEntityId: activeProductId,
+                                cartHold: agent.cartHoldEnabled === true,
                         })
                         if (restock.kind === 'reply') {
                                 commerceTurn = { kind: 'reply', text: restock.text }
                         } else if (agent.orderCaptureEnabled && agent.productAccessEnabled) {
                                 const order = await resolveOrderCaptureTurn({
+                                        checkout: checkoutContext,
+                                        cartModel: model,
                                         enabled: true,
                                         workspaceId,
                                         agentId: agent.id,
@@ -1391,6 +1476,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                                 facts: activeFacts(evidenceMemory),
                                         }),
                                         restockEnabled,
+                                        cartHold: agent.cartHoldEnabled === true,
                                 })
                                 if (order.kind === 'reply') commerceTurn = { kind: 'reply', text: order.text }
                                 else if (order.kind === 'submit') commerceTurn = order
@@ -1462,6 +1548,10 @@ async function prepareTurn(params: StartChatParams): Promise<
 
                 const turnHistory = historyForProductTurn(modelHistory, productRequest)
                 const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
+                const bookingIntent = hasBookingIntent([
+                        ...planningHistory,
+                        { role: 'user', content: message },
+                ])
                 const skillPlan = compileAgentSkillPlan({
                         language: turnLang,
                         userMessage: message,
@@ -1472,7 +1562,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                         productTurn: productRequest.isProductTurn,
                         catalogAccessEnabled: agent.productAccessEnabled,
                         orderTurn: Boolean(orderContext),
-                        bookingTurn: hasBookingIntent([
+                        bookingTurn: bookingIntent && params.capabilityGates?.bookings !== false,
+                        bookingUnavailable: bookingIntent && params.capabilityGates?.bookings === false,
+                        courseTurn: params.capabilityGates?.courses === true && hasCourseIntent([
                                 ...planningHistory,
                                 { role: 'user', content: message },
                         ]),
@@ -1488,6 +1580,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         returningCustomer: previousSessionPlanningRows(history).length > 0
                                 && !history.some((item) => item.role === 'user' || item.role === 'assistant'),
                         orderCaptureEnabled: agent.orderCaptureEnabled === true,
+                        payLinkEnabled: Boolean(checkoutContext),
                 })
 
                 const messages = buildMessages({
@@ -1793,7 +1886,8 @@ export type StartChatResult =
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; stream: ReadableStream<Uint8Array> }
 
-export async function startChat(params: StartChatParams): Promise<StartChatResult> {
+export async function startChat(input: StartChatParams): Promise<StartChatResult> {
+        const params = await withCapabilityGates(input)
         const { workspaceId, agent, message } = params
 
         const prep = await prepareTurn(params)
@@ -1996,8 +2090,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         let extraReceipts: ConversationReceipt[] = []
                         let providerFailed = false
                         try {
-                                const bookingTurn = hasAgentSkill(skillPlan, 'appointment-booking')
-                                        ? await maybeRunBookingAgentTurn({
+                                const courseTurn = hasAgentSkill(skillPlan, 'course-enrollment')
+                                        ? await maybeRunCourseAgentTurn({
                                                 workspaceId,
                                                 conversationId,
                                                 contactId,
@@ -2007,6 +2101,17 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                 maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                                         })
                                         : null
+                                const bookingTurn = courseTurn ?? (hasAgentSkill(skillPlan, 'appointment-booking')
+                                        ? await maybeRunBookingAgentTurn({
+                                                workspaceId,
+                                                conversationId,
+                                                contactId,
+                                                model,
+                                                messages,
+                                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
+                                        })
+                                        : null)
                                 if (bookingTurn) {
                                         full = bookingTurn.content
                                         usage = bookingTurn.usage
@@ -2193,9 +2298,10 @@ export interface GenerateReplyOptions {
  * shot. Persists both messages and updates counters, mirroring startChat.
  */
 export async function generateReply(
-        params: StartChatParams,
+        input: StartChatParams,
         options: GenerateReplyOptions = {},
 ): Promise<GenerateReplyResult> {
+        const params = await withCapabilityGates(input)
         const { workspaceId, agent, message } = params
 
         // A previous worker may have committed the assistant row and crashed
@@ -2382,8 +2488,8 @@ export async function generateReply(
         let extraReceipts: ConversationReceipt[] = []
         let providerFailed = false
         try {
-                const bookingTurn = hasAgentSkill(skillPlan, 'appointment-booking')
-                        ? await maybeRunBookingAgentTurn({
+                const courseTurn = hasAgentSkill(skillPlan, 'course-enrollment')
+                        ? await maybeRunCourseAgentTurn({
                                 workspaceId,
                                 conversationId,
                                 contactId,
@@ -2393,6 +2499,17 @@ export async function generateReply(
                                 maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                         })
                         : null
+                const bookingTurn = courseTurn ?? (hasAgentSkill(skillPlan, 'appointment-booking')
+                        ? await maybeRunBookingAgentTurn({
+                                workspaceId,
+                                conversationId,
+                                contactId,
+                                model,
+                                messages,
+                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
+                        })
+                        : null)
                 if (bookingTurn) {
                         reply = bookingTurn.content.trim()
                         usage = bookingTurn.usage

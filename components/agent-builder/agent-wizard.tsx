@@ -29,9 +29,9 @@ import {
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
 import { fromLegacyBusinessKey, getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
-import { MaterialSelect } from '@/components/ui/material-select'
 import { NaturalConversationControls } from './natural-conversation-controls'
 import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
+import { StepProgress } from '@/components/ui/step-progress'
 
 const TOTAL = 3
 
@@ -234,7 +234,7 @@ export function AgentWizard({
                 ? getVerticalPack(resolvedBusinessType).titleFa
                 : getVerticalPack(resolvedBusinessType).titleEn
 	const presetCopy = preset?.[locale]
-	const trialModelLabel = locale === 'fa' ? findModel(modelPolicy.trialModel).name : modelPolicy.trialModel
+	const trialModelLabel = locale === 'fa' ? findModel(modelPolicy.trialModel).name : findModel(modelPolicy.trialModel).nameEn
 	const activeModelLabel = modelPolicy.plan === 'TRIAL'
 		? trialModelLabel
 		: (locale === 'fa' ? 'مدل پیش‌فرض ویجنت' : 'Vigent default model')
@@ -251,7 +251,7 @@ export function AgentWizard({
 		welcomeMessage: presetCopy?.welcome ?? '',
 		fallbackMessage: '',
 		model: modelPolicy.plan === 'TRIAL' ? modelPolicy.trialModel : '',
-                language: 'fa',
+                language: locale,
                 handoffEnabled: true,
                 handoffMessage: '',
                 handoffKeywords: locale === 'fa' ? 'اپراتور، انسان، شکایت' : 'operator, human, complaint',
@@ -379,17 +379,10 @@ export function AgentWizard({
 
 	return (
 		<div className="mx-auto max-w-4xl">
-			<div className="mb-2 text-sm text-[var(--text-secondary)]">
-                                {t('step', { n: step + 1, total: TOTAL })} — {stepTitles[step]}
-                        </div>
-                        <div className="mb-8 h-1 overflow-hidden rounded-full bg-[var(--white-05)]">
-                                <div
-                                        className="h-full bg-[var(--white)] transition-[width] duration-300"
-                                        style={{ width: `${((step + 1) / TOTAL) * 100}%` }}
-                                />
-                        </div>
+			<p className="sr-only" aria-live="polite">{t('step', { n: step + 1, total: TOTAL })} — {stepTitles[step]}</p>
+			<StepProgress steps={[...stepTitles]} current={step} locale={locale === 'fa' ? 'fa' : 'en'} className="mb-6 sm:mb-8" />
 
-                        <div className="spatial-surface rounded-[1.75rem] p-5 sm:p-7">
+                        <div className="spatial-surface rounded-sheet p-5 sm:p-7">
                                 <AnimatePresence mode="wait" initial={false}>
                                         <motion.div
                                                 key={step}
@@ -417,7 +410,7 @@ export function AgentWizard({
                                                                                         <Sparkles className="h-3.5 w-3.5" />
                                                                                         {t('roleTemplateLabel')}
                                                                                 </p>
-                                                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[12px] font-medium text-[var(--text-secondary)]">
                                                                                         {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
                                                                                 </span>
                                                                         </div>
@@ -444,10 +437,10 @@ export function AgentWizard({
                                                                                                         {custom ? <Zap className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
                                                                                                 </span>
                                                                                         </div>
-                                                                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                                                                        <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
                                                                                                 {locale === 'fa' ? role.descFa : role.descEn}
                                                                                                         </p>
-                                                                                        <p className="mt-2 text-[11px] font-medium text-[var(--text-hint)]">
+                                                                                        <p className="mt-2 text-[12px] font-medium text-[var(--text-hint)]">
                                                                                                 {custom
                                                                                                         ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
                                                                                                         : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
@@ -474,7 +467,7 @@ export function AgentWizard({
                                                                                                         <span className="block text-sm font-semibold text-[var(--text-primary)]">
                                                                                                                 {locale === 'fa' ? 'بهبود رفتار ایجنت؛ بعد از اولین گفتگو' : 'Refine behavior after your first conversation'}
                                                                                                         </span>
-                                                                                                        <span className="block text-[11px] text-[var(--text-muted)]">
+                                                                                                        <span className="block text-[12px] text-[var(--text-muted)]">
                                                                                                                 {locale === 'fa' ? 'موتور ۶ لایه با تنظیمات پیشنهادی آماده است · ویرایش اختیاری' : 'Six layers are ready with suggested settings · editing is optional'}
                                                                                                         </span>
                                                                                                 </span>
@@ -529,8 +522,8 @@ export function AgentWizard({
                                                                                                 </LayerField>
                                                                                                 <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
                                                                                                         <div className="grid gap-3 sm:grid-cols-2">
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[10px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-rose-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[10px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-rose-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
                                                                                                         </div>
                                                                                                 </LayerField>
                                                                                                 <LayerField n={4} label={t('layerFallback')}>
@@ -555,7 +548,7 @@ export function AgentWizard({
                                                                                                                         </button>
                                                                                                                 ))}
                                                                                                         </div>
-                                                                                                        <p className="mt-2 text-[11px] font-medium text-[var(--text-secondary)]">{tA('settingsForm.formatLength')}</p>
+                                                                                                        <p className="mt-2 text-[12px] font-medium text-[var(--text-secondary)]">{tA('settingsForm.formatLength')}</p>
                                                                                                         <div className="mt-1.5 flex gap-1.5">
                                                                                                                 {(['short', 'medium', 'long'] as const).map((len) => (
                                                                                                                         <button
@@ -578,7 +571,7 @@ export function AgentWizard({
                                                                                                                 placeholder={locale === 'fa' ? 'سؤال نمونه مشتری|پاسخ ایده‌آل ایجنت\nهر خط یک نمونه' : 'Customer question|Ideal agent answer\nOne pair per line'}
                                                                                                                 className="input resize-none text-sm"
                                                                                                         />
-                                                                                                        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                                                                                                        <p className="mt-1.5 text-[12px] text-[var(--text-muted)]">
                                                                                                                 {locale === 'fa' ? 'هر خط یک نمونه: سؤال|پاسخ. حداکثر ۲۰ نمونه.' : 'One pair per line: question|answer. Max 20 pairs.'}
                                                                                                         </p>
                                                                                                 </LayerField>
@@ -611,29 +604,29 @@ export function AgentWizard({
 						<div className="grid gap-4 lg:grid-cols-2">
 								<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
                                                                         <div className="mb-4 flex items-start gap-2">
-                                                                                <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-500" />
+                                                                                <ShieldCheck className="mt-0.5 h-4 w-4 text-[var(--ok)]" />
                                                                                 <div>
                                                                                         <h3 className="text-sm font-medium text-[var(--text-primary)]">{locale === 'fa' ? 'مرز پاسخ و تحویل امن' : 'Safe boundaries & handoff'}</h3>
-                                                                                        <p className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">{locale === 'fa' ? 'موارد مبهم یا حساس با خلاصه به اپراتور منتقل می‌شوند.' : 'Ambiguous or sensitive cases are handed off with context.'}</p>
+                                                                                        <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{locale === 'fa' ? 'موارد مبهم یا حساس با خلاصه به اپراتور منتقل می‌شوند.' : 'Ambiguous or sensitive cases are handed off with context.'}</p>
                                                                                 </div>
                                                                         </div>
                                                                         <label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
                                                                                 <span>
                                                                                         <span className="block">{locale === 'fa' ? 'انتقال خودکار در موقعیت‌های پیشنهادی' : 'Proactive human handoff'}</span>
-                                                                                        <span className="mt-0.5 block text-[10px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'برای اصطکاک، مذاکره یا طولانی‌شدن گفتگو؛ درخواست مستقیم و موارد پرخطر همیشه منتقل می‌شوند' : 'For friction, negotiation, or long chats; direct requests and high-risk cases always transfer'}</span>
+                                                                                        <span className="mt-0.5 block text-[12px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'برای اصطکاک، مذاکره یا طولانی‌شدن گفتگو؛ درخواست مستقیم و موارد پرخطر همیشه منتقل می‌شوند' : 'For friction, negotiation, or long chats; direct requests and high-risk cases always transfer'}</span>
                                                                                 </span>
                                                                                 <input type="checkbox" checked={form.handoffEnabled} onChange={(e) => set('handoffEnabled', e.target.checked)} className="h-4 w-4 accent-violet-500" />
                                                                         </label>
                                                                         {form.handoffEnabled && (
                                                                                 <div className="mt-3 space-y-3">
                                                                                         <Field label={locale === 'fa' ? 'پیام تحویل' : 'Handoff message'}><input value={form.handoffMessage} onChange={(e) => set('handoffMessage', e.target.value)} className="input" /></Field>
-                                                                                        <Field label={locale === 'fa' ? 'کلمات تحویل' : 'Handoff keywords'}><input value={form.handoffKeywords} onChange={(e) => set('handoffKeywords', e.target.value)} className="input" /><p className="mt-1 text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'با ویرگول جدا کنید؛ مثل اپراتور، شکایت، پرداخت ناموفق' : 'Comma-separated; e.g. operator, complaint, payment failed'}</p></Field>
+                                                                                        <Field label={locale === 'fa' ? 'کلمات تحویل' : 'Handoff keywords'}><input value={form.handoffKeywords} onChange={(e) => set('handoffKeywords', e.target.value)} className="input" /><p className="mt-1 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'با ویرگول جدا کنید؛ مثل اپراتور، شکایت، پرداخت ناموفق' : 'Comma-separated; e.g. operator, complaint, payment failed'}</p></Field>
                                                                                 </div>
                                                                         )}
                                                                         <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
                                                                                 <span>
                                                                                         <span className="block">{locale === 'fa' ? 'نام و شماره موبایل قبل از چت اجباری باشد' : 'Require name and mobile before chat'}</span>
-                                                                                        <span className="mt-0.5 block text-[10px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'در ویجت وب و چت‌لینک یک فرم یکپارچه نمایش داده می‌شود' : 'Shows one consistent form in the web widget and chat link'}</span>
+                                                                                        <span className="mt-0.5 block text-[12px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'در ویجت وب و چت‌لینک یک فرم یکپارچه نمایش داده می‌شود' : 'Shows one consistent form in the web widget and chat link'}</span>
                                                                                 </span>
                                                                                 <input type="checkbox" checked={form.requireCustomerInfo} onChange={(e) => set('requireCustomerInfo', e.target.checked)} className="h-4 w-4 accent-violet-500" />
                                                                         </label>
@@ -647,7 +640,7 @@ export function AgentWizard({
 											<h3 className="text-sm font-medium text-[var(--text-primary)]">
 												{locale === 'fa' ? 'مدل پاسخ‌گویی فعلاً خودکار انتخاب می‌شود' : 'The response model is selected automatically for now'}
 											</h3>
-											<p className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">
+											<p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
 											{modelPolicy.plan === 'TRIAL'
 												? (locale === 'fa'
 													? `در دوره آزمایشی مدل «${trialModelLabel}» فعال است. بعداً از تنظیمات ایجنت می‌توانید مدل را تغییر دهید.`
@@ -657,19 +650,6 @@ export function AgentWizard({
 													: 'The Vigent default model is active and can be changed later in agent settings.')}
 											</p>
 										</div>
-									</div>
-									<div className="mt-4">
-										<Field label={t('language')}>
-											<MaterialSelect
-												value={form.language}
-												onValueChange={(value) => set('language', value as 'fa' | 'en')}
-												ariaLabel={t('language')}
-												options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
-											/>
-										</Field>
-										<p className="mt-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
-											{locale === 'fa' ? 'زبان پیش‌فرض پاسخ‌های ایجنت را مشخص کنید.' : 'Choose the default language for agent replies.'}
-										</p>
 									</div>
 								</section>
 							</div>
@@ -754,7 +734,7 @@ function LayerField({ n, label, children }: { n: number; label: string; children
         return (
                 <label className="block">
                         <span className="mb-2 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[11px] font-semibold text-[var(--accent-strong)]">{faNum}</span>
+                                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[12px] font-semibold text-[var(--accent-strong)]">{faNum}</span>
                                 {label}
                         </span>
                         {children}
@@ -791,11 +771,6 @@ function ReviewCard({
 		},
 		{
 			ok: true,
-			label: isFa ? 'زبان پاسخ‌گویی' : 'Response language',
-			value: form.language === 'fa' ? 'فارسی' : 'English',
-		},
-		{
-			ok: true,
 			label: isFa ? 'مدل فعلی' : 'Current model',
 			value: isTrial
 				? (isFa ? `${modelLabel} · آزمایشی و قابل تغییر` : `${modelLabel} · trial, changeable later`)
@@ -819,7 +794,7 @@ function ReviewCard({
 			<div className="flex items-start gap-3 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] p-4">
 				<Eye className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent-strong)]" />
 				<div>
-					<h3 className="text-sm font-semibold text-[var(--text-primary)]">{isFa ? 'چک‌لیست آمادگی ایجنت' : 'Agent readiness checklist'}</h3>
+					<h3 className="text-sm font-bold text-[var(--text-primary)]">{isFa ? 'چک‌لیست آمادگی ایجنت' : 'Agent readiness checklist'}</h3>
 					<p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
 						{isFa ? 'جزئیات را یک‌بار بررسی کنید؛ محصولات، دانش و برنامه‌های ارتباطی بعداً هم قابل افزودن‌اند.' : 'Review the details once. Products, knowledge and connected apps can also be added later.'}
 					</p>

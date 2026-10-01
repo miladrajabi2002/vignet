@@ -548,6 +548,53 @@ export interface AutomationContext {
    * (text bodies + `[[product:{…}]]` markers + media notes) so the operator
    * sees the scenario reply in the CRM inbox, including the showcase rail. */
   receipt?: string[]
+  /** Filled while an action runs: the person was asked to follow first. */
+  outcome?: { gated: boolean }
+}
+
+/**
+ * One row per automation execution for one person (the automation report).
+ * Never allowed to fail the reply: before the migration lands the table
+ * does not exist and the row is simply skipped.
+ */
+async function logAutomationRun(
+  ctx: AutomationContext,
+  automationId: string,
+  trigger: AutomationRow['type'],
+  outcome: 'SENT' | 'GATED' | 'FOLLOW_CONFIRMED' | 'FAILED',
+): Promise<void> {
+  if (!ctx.msg.senderId) return
+  try {
+    await prisma.instagramAutomationRun.create({
+      data: {
+        automationId,
+        agentId: ctx.agent.id,
+        workspaceId: ctx.agent.workspaceId,
+        igUserId: ctx.msg.senderId,
+        igUsername: ctx.msg.senderUsername ?? null,
+        trigger,
+        outcome,
+        conversationId: ctx.conversationId ?? null,
+      },
+    })
+  } catch {
+    // Reporting only; the reply already went out.
+  }
+}
+
+/** The gate a fulfillment just closed, for the run log. */
+async function justFulfilledGate(ctx: AutomationContext) {
+  if (!ctx.msg.senderId) return null
+  return Promise.resolve().then(() => prisma.instagramFollowGate.findFirst({
+    where: {
+      agentId: ctx.agent.id,
+      igSenderId: ctx.msg.senderId,
+      status: 'FULFILLED',
+      fulfilledAt: { gte: new Date(Date.now() - 60_000) },
+    },
+    orderBy: { fulfilledAt: 'desc' },
+    select: { automationId: true, automation: { select: { type: true } } },
+  })).catch(() => null)
 }
 
 /** Build the inbox-visible `[[product:{…}]]` marker from a showcase snapshot
@@ -651,7 +698,11 @@ export async function runInstagramAutomation(
   // confirm keyword like "done" can't be hijacked by another scenario.
   if (msg.kind === 'DM' || msg.kind === undefined) {
     const fulfilled = await tryFulfillFollowGate(ctx)
-    if (fulfilled) return { handled: true, replied: true }
+    if (fulfilled) {
+      const gate = await justFulfilledGate(ctx)
+      if (gate) await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
+      return { handled: true, replied: true }
+    }
   }
 
   // ─── 2. STORY_MENTION hard-gate fulfillment ────────────────────────
@@ -659,7 +710,11 @@ export async function runInstagramAutomation(
   // fulfills the gate (the user proved engagement by mentioning the account).
   if (msg.kind === 'STORY_MENTION') {
     const fulfilled = await tryFulfillGateByMention(ctx)
-    if (fulfilled) return { handled: true, replied: true }
+    if (fulfilled) {
+      const gate = await justFulfilledGate(ctx)
+      if (gate) await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
+      return { handled: true, replied: true }
+    }
   }
 
   // ─── 3. Scenario matching ──────────────────────────────────────────
@@ -668,6 +723,7 @@ export async function runInstagramAutomation(
   const action = readAction(row.action)
 
   // ─── Matched. Execute the action. ───
+  const outcome = { gated: false }
   try {
     let sent = false
     const receipt: string[] = []
@@ -685,13 +741,16 @@ export async function runInstagramAutomation(
       },
     }
     await executeAction(
-      { ...ctx, adapter: trackingAdapter, beforeDispatch, receipt },
+      { ...ctx, adapter: trackingAdapter, beforeDispatch, receipt, outcome },
       row,
       action,
     )
     if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt)
+    if (outcome.gated) await logAutomationRun(ctx, row.id, row.type, 'GATED')
+    else if (sent) await logAutomationRun(ctx, row.id, row.type, 'SENT')
     return { handled: true, replied: sent }
   } catch (e) {
+    await logAutomationRun(ctx, row.id, row.type, 'FAILED')
     captureError(`instagram:automation:${row.id}`, e, {
       workspaceId: agent.workspaceId,
       metadata: { agentId: agent.id, automationId: row.id },
@@ -877,6 +936,7 @@ async function executeAction(
       })
     }
 
+    if (ctx.outcome) ctx.outcome.gated = true
     await prisma.instagramFollowGate.create({
       data: {
         automationId: row.id,

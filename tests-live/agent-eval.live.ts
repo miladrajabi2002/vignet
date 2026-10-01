@@ -34,7 +34,6 @@ vi.mock('@/lib/billing/entitlements', async (orig) => ({
 vi.mock('@/lib/notifications/create', () => ({ notifyWorkspace: vi.fn(async () => {}) }))
 vi.mock('@/lib/billing/trial-quota-alert', () => ({
   processTrialQuotaAlert: vi.fn(async () => ({})),
-  isCreditExhausted: vi.fn(async () => false),
 }))
 vi.mock('@/lib/onboarding', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),

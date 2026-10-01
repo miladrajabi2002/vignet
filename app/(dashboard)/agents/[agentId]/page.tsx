@@ -14,7 +14,6 @@ import {
   Link2,
   MessageCircle,
   Package,
-  Radio,
   Send,
   Share2,
   Store,
@@ -24,12 +23,13 @@ import {
   WandSparkles,
   type LucideIcon,
 } from 'lucide-react'
+import { CHANNEL_TONES, ChannelMark, type ChannelKey } from '@/components/ui/channel-mark'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { TestPlayground } from '@/components/agent-builder/test-playground'
 import { cn } from '@/lib/utils'
 import { getDashboardModules } from '@/lib/verticals/registry'
-import { readBusinessProfile } from '@/lib/verticals/profile'
+import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { relativeTime } from '@/lib/format'
 import { summarizeAgentReadiness } from '@/lib/agents/readiness'
 
@@ -47,6 +47,8 @@ interface SetupStep {
 interface ConnectionSummary {
   key: string
   icon: LucideIcon
+  /** Messaging apps show their own brand mark instead of the generic glyph. */
+  channel?: ChannelKey
   label: string
   detail: string
   active: boolean
@@ -68,7 +70,7 @@ const CHANNEL_META: Record<string, { fa: string; en: string; icon: LucideIcon }>
   TELEGRAM: { fa: 'تلگرام', en: 'Telegram', icon: Send },
   WHATSAPP: { fa: 'واتساپ', en: 'WhatsApp', icon: MessageCircle },
   INSTAGRAM: { fa: 'اینستاگرام', en: 'Instagram', icon: MessageCircle },
-  RUBIKA: { fa: 'روبیکا', en: 'Rubika', icon: Radio },
+  RUBIKA: { fa: 'روبیکا', en: 'Rubika', icon: Cable },
   BALE: { fa: 'بله', en: 'Bale', icon: Send },
   WEB_WIDGET: { fa: 'ویجت وب', en: 'Web widget', icon: Globe2 },
   CHAT_LINK: { fa: 'لینک گفتگو', en: 'Chat link', icon: Link2 },
@@ -163,8 +165,7 @@ export default async function AgentDetailPage(
       }),
     ])
 
-  const profile = readBusinessProfile(workspace?.businessProfile)
-  const modules = getDashboardModules(workspace?.businessType, profile?.services)
+  const modules = getDashboardModules(workspaceCapabilities(workspace))
   const hasProducts = modules.includes('products')
   const hasAppointments = modules.includes('appointments')
   const hasServices = modules.includes('services')
@@ -258,6 +259,7 @@ export default async function AgentDetailPage(
       return {
         key: `channel-${channel.id}`,
         icon: meta.icon,
+        channel: channel.type in CHANNEL_TONES ? (channel.type as ChannelKey) : undefined,
         label: fa ? meta.fa : meta.en,
         detail: channel.active
           ? activity
@@ -344,12 +346,12 @@ export default async function AgentDetailPage(
     growthActions.push({
       key: 'channel-growth',
       icon: Share2,
-      title: fa ? 'گسترش دسترسی به یک کانال دیگر' : 'Add another customer channel',
+      title: fa ? 'گسترش دسترسی به یک برنامهٔ دیگر' : 'Add another customer channel',
       desc: fa
-        ? 'یک کانال مکمل اضافه کنید تا مشتریان از مسیرهای بیشتری به ایجنت برسند.'
+        ? 'یک برنامهٔ مکمل اضافه کنید تا مشتریان از مسیرهای بیشتری به ایجنت برسند.'
         : 'Add a complementary channel so more customers can reach the agent.',
       href: `/agents/${agent.id}/channels`,
-      cta: fa ? 'مدیریت کانال‌ها' : 'Manage channels',
+      cta: fa ? 'مدیریت برنامه‌ها' : 'Manage channels',
       badge: fa ? 'پیشنهاد رشد' : 'Growth idea',
     })
   }
@@ -399,21 +401,21 @@ export default async function AgentDetailPage(
   return (
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
       {/* ── LEFT: Test playground ─────────────────────────────────────── */}
-      <section className="spatial-surface flex flex-col overflow-hidden rounded-[1.5rem]">
+      <section className="spatial-surface flex flex-col overflow-hidden rounded-card">
         {/* Header strip */}
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
               {fa ? 'آزمایش فوری پاسخ' : 'Instant response test'}
             </p>
             <h2 className="mt-0.5 text-base font-bold text-[var(--text-primary)]">
               {t('test')}
             </h2>
-            <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
+            <p className="mt-0.5 text-[12px] text-[var(--text-secondary)]">
               {fa ? 'تجربه واقعی مشتری را بدون خروج از صفحه بررسی کنید.' : 'Check the real customer experience without leaving.'}
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-bold text-success">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-bold text-success">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
             {fa ? 'در دسترس' : 'Live'}
           </span>
@@ -461,10 +463,10 @@ function AgentSetupPanel({
   const remainingCount = readiness.totalCount - readiness.doneCount
 
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+    <section className="spatial-surface overflow-hidden rounded-card">
       <div className="flex flex-wrap items-center justify-between gap-4 bg-black p-5 text-white sm:p-6">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-white/45">
+          <p className="text-[12px] font-bold uppercase tracking-wide text-white/60">
             {fa ? 'چک‌لیست پیشنهادی' : 'Recommended checklist'}
           </p>
           <h2 className="mt-0.5 text-base font-bold">
@@ -486,7 +488,7 @@ function AgentSetupPanel({
           aria-valuenow={readiness.progress}
           aria-label={fa ? 'میزان آمادگی ایجنت' : 'Agent readiness'}
         >
-          <div className="flex items-center justify-between text-[11px] text-white/60">
+          <div className="flex items-center justify-between text-[12px] text-white/60">
             <span>{fa ? `${remainingCount} گام باقی مانده` : `${remainingCount} steps left`}</span>
             <span className="font-bold tabular-nums text-white">{readiness.progress}%</span>
           </div>
@@ -531,7 +533,7 @@ function AgentSetupPanel({
               {!step.done && (
                 <Link
                   href={step.href}
-                  className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                 >
                   {step.cta}
                   <ArrowRight className="h-3 w-3 rtl:rotate-180" />
@@ -557,13 +559,13 @@ function AgentGrowthPanel({
   channelsHref: string
 }) {
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+    <section className="spatial-surface overflow-hidden rounded-card">
       <div className="relative isolate overflow-hidden bg-black p-5 text-white sm:p-6">
         <div aria-hidden className="pointer-events-none absolute -end-16 -top-24 h-52 w-52 rounded-full bg-white/[0.09] blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -bottom-20 start-1/4 h-40 w-40 rounded-full bg-success/20 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-md">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-white/45">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-white/60">
               {fa ? 'مرکز رشد ایجنت' : 'Agent growth center'}
             </p>
             <h2 className="mt-0.5 text-base font-bold">
@@ -592,7 +594,7 @@ function AgentGrowthPanel({
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
                 {fa ? 'فرصت‌های رشد بعدی' : 'Next growth opportunities'}
               </h3>
-              <p className="text-[11px] text-[var(--text-muted)]">
+              <p className="text-[12px] text-[var(--text-muted)]">
                 {fa ? 'پیشنهادهای پویا براساس وضعیت فعلی' : 'Dynamic suggestions based on current status'}
               </p>
             </div>
@@ -618,17 +620,17 @@ function AgentGrowthPanel({
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-xs font-bold text-[var(--text-primary)]">{action.title}</p>
                         {action.badge && (
-                          <span className="rounded-full bg-black/[0.055] px-2 py-0.5 text-[9px] font-bold text-[var(--text-secondary)]">
+                          <span className="rounded-full bg-black/[0.055] px-2 py-0.5 text-[12px] font-bold text-[var(--text-secondary)]">
                             {action.badge}
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">
+                      <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">
                         {action.desc}
                       </p>
                       <Link
                         href={action.href}
-                        className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-xl text-[11px] font-bold text-[var(--text-primary)] transition-opacity hover:opacity-65"
+                        className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-xl text-[12px] font-bold text-[var(--text-primary)] transition-opacity hover:opacity-65"
                       >
                         {action.cta}
                         <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
@@ -647,7 +649,7 @@ function AgentGrowthPanel({
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
                 {fa ? 'اتصال‌های فعلی' : 'Current connections'}
               </h3>
-              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+              <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
                 {fa ? 'وضعیت و آخرین فعالیت هر اتصال' : 'Status and latest activity for every connection'}
               </p>
             </div>
@@ -668,18 +670,22 @@ function AgentGrowthPanel({
                   href={connection.href}
                   className="group flex min-h-16 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2.5 transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]"
                 >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)]">
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
+                  {connection.channel ? (
+                    <ChannelMark channel={connection.channel} />
+                  ) : (
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)]">
+                      <Icon className="h-[18px] w-[18px]" />
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-bold text-[var(--text-primary)]">
                       {connection.label}
                     </span>
-                    <span className="mt-1 block truncate text-[10px] text-[var(--text-muted)]">
+                    <span className="mt-1 block truncate text-[12px] text-[var(--text-muted)]">
                       {connection.detail}
                     </span>
                   </span>
-                  <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold', connection.active ? 'text-success' : 'text-danger')}>
+                  <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold', connection.active ? 'text-success' : 'text-danger')}>
                     <span className={cn('h-1.5 w-1.5 rounded-full', connection.active ? 'bg-success' : 'bg-danger')} />
                     {connection.active ? (fa ? 'فعال' : 'Active') : (fa ? 'نیاز به بررسی' : 'Review')}
                   </span>

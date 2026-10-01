@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { DEFAULT_MODEL, MODEL_ALIASES, isModelAlias, type ModelAlias } from '@/lib/ai/models'
+import { DEFAULT_MODEL, MODEL_ALIASES, isModelAlias, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import type { Plan } from '@prisma/client'
 
 export type PlatformAiConfig = {
@@ -15,16 +15,14 @@ const FALLBACK: PlatformAiConfig = {
   defaultModel: DEFAULT_MODEL,
   enabledModels: [...MODEL_ALIASES],
   trialModel: DEFAULT_MODEL,
-  vigentoModel: 'balanced',
+  vigentoModel: 'smart',
   providerModels: {},
   monthlyBudgetUSD: null,
 }
 
 const DEFAULT_PROVIDER_MODELS: Partial<Record<ModelAlias, string>> = {
   fast: 'deepseek/deepseek-v4-flash',
-  standard: 'google/gemini-3.1-flash-lite',
-  balanced: 'openai/gpt-5.4-nano',
-  premium: 'deepseek/deepseek-v4-pro',
+  smart: 'deepseek/deepseek-v4.1-flash',
 }
 
 let cache: { value: PlatformAiConfig; expiresAt: number } | null = null
@@ -34,10 +32,12 @@ export async function getPlatformAiConfig(): Promise<PlatformAiConfig> {
   try {
     const row = await prisma.platformAiSettings.findUnique({ where: { id: 'primary' } })
     if (!row) return FALLBACK
-    const enabled = row.enabledModels.filter(isModelAlias)
-    const defaultModel = isModelAlias(row.defaultModel) ? row.defaultModel : DEFAULT_MODEL
-    const trialModel = isModelAlias(row.trialModel) ? row.trialModel : DEFAULT_MODEL
-    const vigentoModel = isModelAlias(row.vigentoModel) ? row.vigentoModel : 'balanced'
+    // Rows saved before the catalog shrank to two modes still hold retired
+    // aliases (standard / balanced / premium); map them onto today's modes.
+    const enabled = [...new Set(row.enabledModels.map(resolveModelAlias))]
+    const defaultModel = resolveModelAlias(row.defaultModel)
+    const trialModel = resolveModelAlias(row.trialModel)
+    const vigentoModel = row.vigentoModel ? resolveModelAlias(row.vigentoModel) : FALLBACK.vigentoModel
     const storedProviders = row.providerModels && typeof row.providerModels === 'object'
       ? row.providerModels as Record<string, unknown>
       : {}
@@ -50,7 +50,7 @@ export async function getPlatformAiConfig(): Promise<PlatformAiConfig> {
     ) as Partial<Record<ModelAlias, string>>
     const value: PlatformAiConfig = {
       defaultModel,
-      enabledModels: enabled.length ? enabled : [defaultModel],
+      enabledModels: enabled.includes(defaultModel) ? enabled : [defaultModel, ...enabled],
       trialModel,
       vigentoModel,
       providerModels,
@@ -70,7 +70,7 @@ export function applyPlatformModelPolicy(
   plan?: Plan,
 ): ModelAlias {
   if (plan === 'TRIAL') return config.trialModel
-  const alias = isModelAlias(requested) ? requested : config.defaultModel
+  const alias = requested ? resolveModelAlias(requested) : config.defaultModel
   return config.enabledModels.includes(alias) ? alias : config.defaultModel
 }
 

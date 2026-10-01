@@ -1,3 +1,4 @@
+import { checkoutCardText, type CheckoutCard } from '@/lib/commerce/checkout-link'
 import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import {
@@ -591,6 +592,39 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 )
                         }
                 },
+
+                                /**
+                                 * Cart summary + a web_url button (Instagram «button template»).
+                                 * Meta limits: text ≤ 640 chars, button title ≤ 20 chars.
+                                 */
+                                async sendCheckoutCard(chatId: string, card: CheckoutCard): Promise<void> {
+                                                if (!token) throw new Error('INSTAGRAM invalid credentials')
+                                                const h = await host()
+                                                if (!h) throw new Error('INSTAGRAM invalid credentials (token rejected by both Meta Graph hosts)')
+                                                const res = await fetch(`${h.base}/me/messages`, {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                                        body: JSON.stringify({
+                                                                recipient: { id: chatId },
+                                                                messaging_type: 'RESPONSE',
+                                                                message: {
+                                                                        attachment: {
+                                                                                type: 'template',
+                                                                                payload: {
+                                                                                        template_type: 'button',
+                                                                                        text: checkoutCardText(card).slice(0, 640),
+                                                                                        buttons: [{ type: 'web_url', url: card.url, title: card.lang === 'en' ? 'Pay now' : 'پرداخت آنلاین' }],
+                                                                                },
+                                                                        },
+                                                                },
+                                                        }),
+                                                })
+                                                if (!res.ok) {
+                                                        const detail = await res.text().catch(() => '')
+                                                        if (is24hWindowError(detail)) throw new Instagram24hWindowError(detail.slice(0, 300))
+                                                        throw new Error(`INSTAGRAM sendCheckoutCard failed (${res.status}): ${detail.slice(0, 300)}`)
+                                                }
+                                },
 
                                 async reactToMessage(messageId: string, recipientId: string): Promise<void> {
                                                 if (!token) throw new Error('INSTAGRAM invalid credentials')

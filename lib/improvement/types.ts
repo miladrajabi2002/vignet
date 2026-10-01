@@ -250,16 +250,6 @@ export function validateFinding(
     (finding.draft.behaviorPath === 'doSay' ? typeof finding.draft.behaviorValue !== 'string' || finding.draft.behaviorValue.trim().length < 3 : !(behaviorValues[finding.draft.behaviorPath] as readonly unknown[]).includes(finding.draft.behaviorValue)))) throw new Error('INVALID_BEHAVIOR')
 }
 
-export function validateReviewEvidence(result: ReviewResult, messageIds: Set<string>, hasCustomerMessages: boolean) {
-  const ids = [
-    ...result.intentMessageIds,
-    ...result.outcomeMessageIds,
-    ...result.strengths.flatMap((strength) => strength.messageIds),
-  ]
-  if (ids.some((id) => !messageIds.has(id))) throw new Error('INVALID_EVIDENCE')
-  if (hasCustomerMessages && result.intent.trim() && result.intentMessageIds.length === 0) throw new Error('INVALID_EVIDENCE')
-}
-
 export function restoreBehavior(config: unknown, path: BehaviorPath, value: unknown) {
   if (path === 'doSay') return promptConfigSchema.parse({ ...promptConfigSchema.parse(config), doSay: value })
   return changeBehavior(config, path, value)

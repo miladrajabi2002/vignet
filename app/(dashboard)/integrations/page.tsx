@@ -2,16 +2,12 @@ import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
 import {
-        Globe,
-        Send,
-        MessagesSquare,
-        Radio,
-        Camera,
         ArrowRight,
-        Link2,
         Plug,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
+import { ChannelMark } from '@/components/ui/channel-mark'
+import { StatusChip } from '@/components/ui/status-chip'
 import { prisma } from '@/lib/prisma'
 import {
         StoreIntegrationsSection,
@@ -25,14 +21,13 @@ import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan, type L
 const CHANNELS: {
         type: ChannelType
         name: string
-        icon: typeof Globe
         available: boolean
 }[] = [
-        { type: 'WEB_WIDGET', name: 'Web Widget', icon: Globe, available: true },
-        { type: 'TELEGRAM', name: 'Telegram', icon: Send, available: true },
-        { type: 'BALE', name: 'Bale', icon: MessagesSquare, available: true },
-        { type: 'RUBIKA', name: 'Rubika', icon: Radio, available: true },
-        { type: 'INSTAGRAM', name: 'Instagram', icon: Camera, available: true },
+        { type: 'WEB_WIDGET', name: 'Web Widget', available: true },
+        { type: 'TELEGRAM', name: 'Telegram', available: true },
+        { type: 'BALE', name: 'Bale', available: true },
+        { type: 'RUBIKA', name: 'Rubika', available: true },
+        { type: 'INSTAGRAM', name: 'Instagram', available: true },
 ]
 
 export default async function IntegrationsPage() {
@@ -177,23 +172,13 @@ export default async function IntegrationsPage() {
                                 {/* Chat Link — a Vigent-native channel (public standalone chat page). */}
                                 <Link
                                         href={primaryAgent ? `/agents/${primaryAgent.id}/channels` : '/agents/new'}
-                                        className="spatial-surface group flex flex-col gap-3 rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
+                                        className="spatial-surface group flex flex-col gap-3 rounded-card p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                 >
                                         <div className="flex items-center justify-between">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--white)] text-[var(--bg-base)]">
-                                                        <Link2 className="h-5 w-5" />
-                                                </div>
-                                                <span
-                                                        className={
-                                                                chatLinkCount > 0
-                                                                        ? 'inline-flex items-center gap-1.5 text-xs text-[var(--green)]'
-                                                                        : 'text-xs text-[var(--text-muted)]'
-                                                        }
-                                                >
-                                                        {chatLinkCount > 0
-                                                                ? `● ${t('connected')}`
-                                                                : t('notConnected')}
-                                                </span>
+                                                <ChannelMark channel="CHAT_LINK" />
+                                                <StatusChip tone={chatLinkCount > 0 ? 'ok' : 'neutral'} dot={chatLinkCount > 0}>
+                                                {chatLinkCount > 0 ? t('connected') : t('notConnected')}
+                                                </StatusChip>
                                         </div>
                                         <div>
                                                 <p className="text-sm font-medium text-[var(--text-primary)]">
@@ -207,34 +192,20 @@ export default async function IntegrationsPage() {
                                         </div>
                                 </Link>
 
-                                {CHANNELS.map(({ type, name, icon: Icon, available }) => {
+                                {CHANNELS.map(({ type, name, available }) => {
                                         const count = counts.get(type) ?? 0
                                         const connected = count > 0
                                         return (
                                                 <Link
                                                         key={type}
                                                         href={primaryAgent ? (type === 'INSTAGRAM' ? `/agents/${primaryAgent.id}/instagram` : `/agents/${primaryAgent.id}/channels`) : '/agents/new'}
-                                                        className="spatial-surface group flex flex-col gap-3 rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
+                                                        className="spatial-surface group flex flex-col gap-3 rounded-card p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                                 >
                                                         <div className="flex items-center justify-between">
-                                                                <div className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]">
-                                                                        <Icon className="h-5 w-5" />
-                                                                </div>
-                                                                <span
-                                                                        className={
-                                                                                available
-                                                                                        ? connected
-                                                                                                ? 'inline-flex items-center gap-1.5 text-xs text-[var(--green)]'
-                                                                                                : 'text-xs text-[var(--text-muted)]'
-                                                                                        : 'text-xs text-[var(--text-muted)]'
-                                                                        }
-                                                                >
-                                                                        {!available
-                                                                                ? t('comingSoon')
-                                                                                : connected
-                                                                                        ? `● ${t('connected')}`
-                                                                                        : t('notConnected')}
-                                                                </span>
+                                                                <ChannelMark channel={type} />
+                                                                <StatusChip tone={available && connected ? 'ok' : 'neutral'} dot={available && connected}>
+                                                                {!available ? t('comingSoon') : connected ? t('connected') : t('notConnected')}
+                                                                </StatusChip>
                                                         </div>
                                                         <div>
                                                                 <p className="text-sm font-medium text-[var(--text-primary)]">

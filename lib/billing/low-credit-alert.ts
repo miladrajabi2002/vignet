@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { captureError } from '@/lib/errors/capture'
+import { sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 import { findModel, type ModelAlias } from '@/lib/ai/models'
 import {
   decideLowCreditAlertAction,
@@ -17,7 +18,7 @@ export async function processLowCreditAlert(params: {
   replyPriceIRR: number
 }): Promise<void> {
   try {
-    await prisma.$transaction(async (tx) => {
+    const alert = await prisma.$transaction(async (tx) => {
       const [workspace, state] = await Promise.all([
         tx.workspace.findUnique({
           where: { id: params.workspaceId },
@@ -92,18 +93,24 @@ export async function processLowCreditAlert(params: {
       const valueContext = conversationsThisMonth || bookingsThisMonth
         ? ` این ماه ${conversationsThisMonth.toLocaleString('fa-IR')} گفتگو و ${bookingsThisMonth.toLocaleString('fa-IR')} رزرو در ویجنت ثبت شده است.`
         : ''
+      const title = 'اعتبار پاسخ‌ها رو به پایان است'
+      const body = `با مدل «${modelName}» حدود ${remainingReplies.toLocaleString('fa-IR')} پاسخ موفق دیگر باقی مانده است.${valueContext} برای حفظ این روند، اعتبار را افزایش دهید.`
       await tx.notification.create({
-        data: {
-          workspaceId: params.workspaceId,
-          type: 'SYSTEM',
-          title: 'اعتبار پاسخ‌ها رو به پایان است',
-          body: `با مدل «${modelName}» حدود ${remainingReplies.toLocaleString('fa-IR')} پاسخ موفق دیگر باقی مانده است.${valueContext} برای حفظ این روند، اعتبار را افزایش دهید.`,
-          link: '/billing',
-        },
+        data: { workspaceId: params.workspaceId, type: 'SYSTEM', title, body, link: '/billing' },
       })
 
-      return null
+      return { title, body }
     })
+    // Outside the transaction: the manager bot's «اعتبار و پلن» alert.
+    if (alert) {
+      await sendOperatorTelegramNotification({
+        workspaceId: params.workspaceId,
+        title: alert.title,
+        body: alert.body,
+        link: '/billing',
+        category: 'billing',
+      }).catch((error) => captureError('billing:low-credit-telegram', error, { workspaceId: params.workspaceId }))
+    }
   } catch (error) {
     captureError('billing:low-credit-alert', error, {
       workspaceId: params.workspaceId,

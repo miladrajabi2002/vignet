@@ -26,7 +26,7 @@ export default async function AgentLayout(
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: { id: true, name: true, description: true, active: true, workspace: { select: { businessType: true, businessProfile: true } } },
+    select: { id: true, name: true, active: true, workspace: { select: { businessType: true, businessProfile: true } } },
   })
   if (!agent) notFound()
 
@@ -44,7 +44,7 @@ export default async function AgentLayout(
     <LearningCountProvider key={agent.id} initialCount={learningCount}>
     <div className="mx-auto max-w-7xl space-y-6">
       <BackButton href="/agents" label={t('title')} />
-      <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+      <section className="spatial-surface overflow-hidden rounded-card">
         <div className="flex items-center gap-4 p-4 sm:p-5">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
             <Bot className="h-5 w-5" />
@@ -53,11 +53,6 @@ export default async function AgentLayout(
             <h1 className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">
               {agent.name}
             </h1>
-            {agent.description && (
-              <p className="truncate text-sm text-[var(--text-secondary)]">
-                {agent.description}
-              </p>
-            )}
           </div>
           <span
             className={cn(

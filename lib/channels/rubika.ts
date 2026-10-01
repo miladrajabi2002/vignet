@@ -1,3 +1,4 @@
+import { checkoutButtonLabel, checkoutCardText, type CheckoutCard } from '@/lib/commerce/checkout-link'
 import type { MessengerAdapter, InboundMessage, ProductCard } from '@/lib/channels/types'
 import { normalizeMessengerText, splitOutboundText } from '@/lib/channels/text-chunks'
 import { createThrottledTextStream } from '@/lib/channels/text-stream'
@@ -181,6 +182,14 @@ export function rubikaAdapter(token: string): MessengerAdapter {
         chat_id: chatId,
         text: caption,
         ...(rows.length ? { reply_markup: { rows } } : {}),
+      })
+    },
+
+    async sendCheckoutCard(chatId: string, card: CheckoutCard): Promise<void> {
+      await call('sendMessage', {
+        chat_id: chatId,
+        text: checkoutCardText(card).slice(0, 4096),
+        reply_markup: { rows: [{ buttons: [{ text: checkoutButtonLabel(card), url: card.url }] }] },
       })
     },
   }

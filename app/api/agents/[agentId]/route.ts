@@ -86,6 +86,8 @@ export async function PATCH(req: Request, props: Params) {
   }
   if (parsed.data.productAccessEnabled !== undefined) data.productAccessConfigured = true
   if (parsed.data.orderTrackingEnabled !== undefined) data.orderTrackingConfigured = true
+  if (parsed.data.orderCaptureEnabled !== undefined) data.orderCaptureConfigured = true
+  if (parsed.data.payLinkEnabled !== undefined) data.payLinkConfigured = true
 
   const agent = await prisma.agent.update({
     where: { id: params.agentId },

@@ -1,22 +1,23 @@
 /**
- * The four platform-managed AI modes exposed to customers.
+ * The two platform-managed AI modes exposed to customers.
  *
- * Users store an alias (fast / balanced / premium), never a raw provider slug.
- * The actual OpenRouter model is resolved server-side and can be rotated with
- * env variables without migrating every Agent row.
+ * Users store an alias (fast / smart), never a raw provider slug. The actual
+ * OpenRouter model is resolved server-side and can be rotated from the owner
+ * panel without migrating every Agent row.
  */
 
-export const MODEL_ALIASES = ['fast', 'standard', 'balanced', 'premium'] as const
+export const MODEL_ALIASES = ['fast', 'smart'] as const
 export type ModelAlias = (typeof MODEL_ALIASES)[number]
 
 export const DEFAULT_MODEL: ModelAlias = 'fast'
 
-export type ModelTier = 'free' | 'economy' | 'balanced' | 'premium'
+export type ModelTier = 'economy' | 'smart'
 
 export interface AgentModel {
   /** Stable alias persisted on Agent.model. */
   id: ModelAlias
   name: string
+  nameEn: string
   provider: string
   /** Default provider slug. The admin policy may override this at runtime. */
   providerId: string
@@ -31,68 +32,47 @@ export interface AgentModel {
   outputUsdPerMillion: number
   descFa: string
   descEn: string
+  /** Short "best for" tags shown on the picker card. */
+  bestForFa: string[]
+  bestForEn: string[]
 }
 
 export const AGENT_MODELS: AgentModel[] = [
   {
     id: 'fast',
     name: 'سریع و اقتصادی',
+    nameEn: 'Fast & economical',
     provider: 'DeepSeek V4 Flash',
     providerId: 'deepseek/deepseek-v4-flash',
     tier: 'economy',
     quality: 4,
     cost: 1,
     goodForPersian: true,
-    replyPriceIRR: 3_000,
+    replyPriceIRR: 4_000,
     inputUsdPerMillion: 0.09,
     outputUsdPerMillion: 0.18,
-    descFa: 'پیشنهاد پیش‌فرض ویجنت؛ سریع، کم‌هزینه و مناسب بیشتر گفتگوهای فروش و پشتیبانی.',
-    descEn: 'Vigent’s default: fast, low-cost and suited to most support and sales conversations.',
+    descFa: 'پیش‌فرض ویجنت؛ پاسخ فوری با کمترین هزینه. برای بیشتر سؤال‌های روزمرهٔ مشتری کافی است.',
+    descEn: 'Vigent’s default: instant replies at the lowest cost. Enough for most everyday customer questions.',
+    bestForFa: ['قیمت و موجودی', 'سؤال‌های متداول', 'پیگیری سفارش'],
+    bestForEn: ['Price & stock', 'FAQs', 'Order tracking'],
   },
   {
-    id: 'standard',
-    name: 'هوشمند و خوش‌فهم',
-    provider: 'Gemini 3.1 Flash Lite',
-    providerId: 'google/gemini-3.1-flash-lite',
-    tier: 'balanced',
-    quality: 4,
-    cost: 2,
-    goodForPersian: true,
-    replyPriceIRR: 4_500,
-    inputUsdPerMillion: 0.25,
-    outputUsdPerMillion: 1.5,
-    descFa: 'بهترین درک فارسی در این رده؛ دستورالعمل‌ها را دقیق اجرا می‌کند و برای مشاوره فروش حرفه‌ای و گفتگوهای چندمرحله‌ای که فهم درست پیام مشتری مهم است، انتخاب اول است.',
-    descEn: 'Best-in-class Persian understanding; follows instructions precisely — the first pick for professional sales consulting and multi-step conversations.',
-  },
-  {
-    id: 'balanced',
-    name: 'چابک و مقیاس‌پذیر',
-    provider: 'GPT-5.4 Nano',
-    providerId: 'openai/gpt-5.4-nano',
-    tier: 'balanced',
-    quality: 4,
+    id: 'smart',
+    name: 'هوشمند و دقیق',
+    nameEn: 'Smart & precise',
+    provider: 'DeepSeek V4.1 Flash',
+    providerId: 'deepseek/deepseek-v4.1-flash',
+    tier: 'smart',
+    quality: 5,
     cost: 2,
     goodForPersian: true,
     replyPriceIRR: 6_500,
-    inputUsdPerMillion: 0.20,
-    outputUsdPerMillion: 1.25,
-    descFa: 'ساخته‌شده برای حجم بالای گفتگو؛ پاسخ فوری و پایدار با کیفیت مطمئن OpenAI — مناسب فروشگاه‌های پرترافیک، کمپین‌ها و پشتیبانی پرتکرار.',
-    descEn: 'Built for high-volume workloads; instant, consistent replies with dependable OpenAI quality — ideal for busy stores, campaigns and repetitive support.',
-  },
-  {
-    id: 'premium',
-    name: 'دقیق و حرفه‌ای',
-    provider: 'DeepSeek V4 Pro',
-    providerId: 'deepseek/deepseek-v4-pro',
-    tier: 'premium',
-    quality: 5,
-    cost: 4,
-    goodForPersian: true,
-    replyPriceIRR: 30_000,
-    inputUsdPerMillion: 0.435,
-    outputUsdPerMillion: 0.87,
-    descFa: 'برای گفتگوهای حساس، مبهم و چندمرحله‌ای؛ دقیق‌تر است و فقط برای موارد مهم پیشنهاد می‌شود.',
-    descEn: 'For sensitive, ambiguous and multi-step conversations; best reserved for high-value cases.',
+    inputUsdPerMillion: 0.02,
+    outputUsdPerMillion: 0.4,
+    descFa: 'نسل تازه‌تر با درک بهتر؛ پیام‌های طولانی و چندمرحله‌ای را دقیق‌تر می‌فهمد و دستورالعمل‌های شما را بهتر رعایت می‌کند.',
+    descEn: 'The newer generation with deeper understanding: reads long, multi-step messages more accurately and follows your instructions more closely.',
+    bestForFa: ['مشاوره فروش', 'گفتگوی چندمرحله‌ای', 'سؤال‌های پیچیده'],
+    bestForEn: ['Sales advice', 'Multi-step chats', 'Complex questions'],
   },
 ]
 
@@ -100,25 +80,31 @@ const BY_ALIAS = new Map<ModelAlias, AgentModel>(AGENT_MODELS.map((model) => [mo
 
 /** Historical values are mapped into a safe managed mode at runtime. */
 const LEGACY_ALIAS_MAP: Record<string, ModelAlias> = {
+  // Retired managed modes: the economy mode stays fast, every higher mode
+  // moves to smart so no agent silently loses quality.
+  standard: 'smart',
+  balanced: 'smart',
+  premium: 'smart',
   'deepseek/deepseek-v4-flash': 'fast',
+  'deepseek/deepseek-v4.1-flash': 'smart',
   'deepseek/deepseek-chat': 'fast',
   'deepseek/deepseek-chat-v3-0324:free': 'fast',
   'openai/gpt-oss-120b:free': 'fast',
   'meta-llama/llama-3.3-70b-instruct:free': 'fast',
   'google/gemini-2.5-flash-lite': 'fast',
   'google/gemini-flash-1.5': 'fast',
-  'qwen/qwen3.5-35b-a3b': 'balanced',
-  'qwen/qwen3.6-35b-a3b': 'balanced',
-  'qwen/qwen-2.5-72b-instruct': 'balanced',
-  'openai/gpt-5.4-nano': 'balanced',
-  'openai/gpt-4o-mini': 'standard',
-  'qwen/qwen3.7-plus': 'standard',
-  'google/gemini-3.1-flash-lite': 'standard',
-  'anthropic/claude-haiku-4.5': 'balanced',
-  'deepseek/deepseek-v4-pro': 'premium',
-  'anthropic/claude-sonnet-5': 'premium',
-  'anthropic/claude-3.5-sonnet': 'premium',
-  'openai/gpt-4o': 'premium',
+  'qwen/qwen3.5-35b-a3b': 'smart',
+  'qwen/qwen3.6-35b-a3b': 'smart',
+  'qwen/qwen-2.5-72b-instruct': 'smart',
+  'openai/gpt-5.4-nano': 'smart',
+  'openai/gpt-4o-mini': 'smart',
+  'qwen/qwen3.7-plus': 'smart',
+  'google/gemini-3.1-flash-lite': 'smart',
+  'anthropic/claude-haiku-4.5': 'smart',
+  'deepseek/deepseek-v4-pro': 'smart',
+  'anthropic/claude-sonnet-5': 'smart',
+  'anthropic/claude-3.5-sonnet': 'smart',
+  'openai/gpt-4o': 'smart',
 }
 
 export function isModelAlias(value: string | null | undefined): value is ModelAlias {
@@ -137,37 +123,23 @@ export function findModel(value: string | null | undefined): AgentModel {
 }
 
 /**
- * Resolve a provider slug. Call this only on the server: env overrides let the
- * operator rotate a model while the customer-facing alias stays stable.
+ * Resolve a provider slug: the owner panel's choice for the alias, else the
+ * catalog default. Call this only on the server.
  */
 export function resolveModelId(
   value: string | null | undefined,
   providerModels?: Partial<Record<ModelAlias, string>>,
 ): string {
   const alias = resolveModelAlias(value)
-  const configured = providerModels?.[alias]?.trim()
-  if (configured) return configured
-  if (alias === 'balanced') {
-    return process.env.OPENROUTER_MODEL_BALANCED || 'openai/gpt-5.4-nano'
-  }
-  if (alias === 'standard') {
-    return process.env.OPENROUTER_MODEL_STANDARD || 'google/gemini-3.1-flash-lite'
-  }
-  if (alias === 'premium') {
-    return process.env.OPENROUTER_MODEL_PREMIUM || 'deepseek/deepseek-v4-pro'
-  }
-  return process.env.OPENROUTER_MODEL_FAST || 'deepseek/deepseek-v4-flash'
+  return providerModels?.[alias]?.trim() || findModel(alias).providerId
 }
 
-/** Fixed customer price, optionally overridable server-side. */
+/** Catalog reply price; the owner panel's price (getEffectiveReplyPriceIRR) wins at runtime. */
 export function getReplyPriceIRR(value: string | null | undefined): number {
-  const model = findModel(value)
-  const envName = `AI_REPLY_PRICE_${model.id.toUpperCase()}_IRR`
-  const override = Number(process.env[envName])
-  return Number.isFinite(override) && override > 0 ? Math.round(override) : model.replyPriceIRR
+  return findModel(value).replyPriceIRR
 }
 
-/** Runtime price selected in the owner panel, with the env catalog as fallback. */
+/** Runtime price selected in the owner panel, with the built-in catalog as fallback. */
 export async function getEffectiveReplyPriceIRR(value: string | null | undefined): Promise<number> {
   const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
   const alias = resolveModelAlias(value)

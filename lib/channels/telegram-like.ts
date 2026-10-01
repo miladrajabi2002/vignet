@@ -1,3 +1,4 @@
+import { checkoutButtonLabel, checkoutCardText, type CheckoutCard } from '@/lib/commerce/checkout-link'
 import type { ChannelType } from '@prisma/client'
 import type {
   InboundMessage,
@@ -369,6 +370,17 @@ export function createTelegramLikeAdapter(opts: {
         delete fallback.parse_mode
         await call('sendMessage', fallback)
       }
+    },
+
+    async sendCheckoutCard(chatId: string, card: CheckoutCard): Promise<void> {
+      const body = checkoutCardText(card)
+      const payload: Record<string, unknown> = {
+        chat_id: chatId,
+        text: channel === 'TELEGRAM' ? escapeHtml(body) : body,
+        reply_markup: JSON.stringify({ inline_keyboard: [[{ text: checkoutButtonLabel(card), url: card.url }]] }),
+      }
+      if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
+      await call('sendMessage', payload)
     },
 
     async getVoiceUrl(fileId: string): Promise<string | null> {

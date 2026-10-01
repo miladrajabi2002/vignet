@@ -6,11 +6,36 @@ import {
 } from '@/lib/channels/operator-handoff'
 import {
   buildOperatorAlertKeyboard,
-  buildOperatorMenuKeyboard,
   parseOperatorBotCallback,
+  type OperatorBotScreenName,
   type TelegramInlineKeyboardMarkup,
 } from '@/lib/channels/operator-bot'
-import { getTelegramWebhookInfo, TELEGRAM_BASE } from '@/lib/channels/telegram'
+import {
+  agentConfirmScreen,
+  agentsScreen,
+  alertsScreen,
+  bookingsScreen,
+  caseScreen,
+  clearReplyTarget,
+  creditScreen,
+  escapeHtml,
+  helpScreen,
+  homeScreen,
+  isOperatorPrefKey,
+  ordersScreen,
+  queueScreen,
+  QUICK_REPLIES,
+  quickRepliesScreen,
+  readOperatorPrefs,
+  reportScreen,
+  takeReplyTarget,
+  todayScreen,
+  writeReplyScreen,
+  type OperatorContext,
+} from '@/lib/channels/operator-bot-screens'
+import { getTelegramWebhookInfo, setTelegramBotCommands, TELEGRAM_BASE } from '@/lib/channels/telegram'
+import { invalidateWidgetConfig } from '@/lib/widget/cache'
+import type { Prisma } from '@prisma/client'
 import { captureError } from '@/lib/errors/capture'
 import { operatorWebhookSecret } from '@/lib/channels/operator-bot'
 import { rateLimit } from '@/lib/ratelimit'
@@ -59,17 +84,11 @@ interface OperatorChannelRow {
   operatorChatId: string | null
   botUsername: string | null
   active: boolean
+  prefs: Prisma.JsonValue
   lastError: string | null
 }
 
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-}
 
 async function telegramRequest(
   botToken: string,
@@ -135,112 +154,6 @@ async function answerCallback(
   })
 }
 
-function homeText(op: OperatorChannelRow): string {
-  const state = op.active ? '🟢 فعال و آماده دریافت هشدار' : '⏸ هشدارها موقتاً متوقف هستند'
-  const chat = op.operatorChatId ? '✅ شناسه اپراتور ثبت شده' : '⚠️ شناسه اپراتور ثبت نشده'
-  return [
-    '🎛 <b>مرکز مدیریت بات اپراتور ویجنت</b>',
-    '',
-    state,
-    chat,
-    '',
-    'از دکمه‌های مدیریتی زیر برای بررسی صف، گزارش عملکرد و کنترل بات استفاده کنید.',
-  ].join('\n')
-}
-
-function helpText(): string {
-  return [
-    '📖 <b>راهنمای سریع بات اپراتور</b>',
-    '',
-    '• با «گفتگوهای منتظر» صف ارجاع‌ها را ببینید.',
-    '• «قبول گفتگو» وضعیت مورد را به در حال پیگیری تغییر می‌دهد.',
-    '• با «علامت‌گذاری حل‌شده» مورد را از صف باز خارج کنید.',
-    '• برای پاسخ به مشتری، روی پیام هشدار <b>Reply</b> بزنید و متن را ارسال کنید.',
-    '• از «سلامت بات» برای بررسی webhook و خطاهای تلگرام استفاده کنید.',
-    '',
-    '<b>دستورات:</b> /menu · /chats · /stats · /health · /help',
-  ].join('\n')
-}
-
-async function getOpenAlerts(workspaceId: string) {
-  return prisma.handoffAlert.findMany({
-    where: { workspaceId, state: { in: ['open', 'claimed'] } },
-    orderBy: { createdAt: 'desc' },
-    take: 8,
-    select: {
-      id: true,
-      conversationId: true,
-      contactName: true,
-      contactPhone: true,
-      channel: true,
-      reason: true,
-      state: true,
-      createdAt: true,
-    },
-  })
-}
-
-async function openAlertsScreen(workspaceId: string): Promise<{
-  text: string
-  replyMarkup: TelegramInlineKeyboardMarkup
-}> {
-  const alerts = await getOpenAlerts(workspaceId)
-  if (alerts.length === 0) {
-    return {
-      text: '📭 <b>صف اپراتور خالی است</b>\n\nدر حال حاضر گفتگوی باز یا در حال پیگیری وجود ندارد.',
-      replyMarkup: { inline_keyboard: [[{ text: '↩️ مرکز مدیریت', callback_data: 'menu:home' }]] },
-    }
-  }
-
-  const lines = [`📥 <b>صف اپراتور · ${alerts.length.toLocaleString('fa-IR')} مورد اخیر</b>`, '']
-  const rows: TelegramInlineKeyboardMarkup['inline_keyboard'] = []
-  alerts.forEach((alert, index) => {
-    const contact = alert.contactName || alert.contactPhone || 'مشتری ناشناس'
-    const state = alert.state === 'claimed' ? 'در حال پیگیری' : 'منتظر'
-    lines.push(
-      `${(index + 1).toLocaleString('fa-IR')}. <b>${escapeHtml(contact)}</b> · ${escapeHtml(alert.channel)} · ${state}` +
-        (alert.reason ? `\n   ${escapeHtml(alert.reason.slice(0, 90))}` : ''),
-    )
-    rows.push([
-      {
-        text: `💬 ${contact.slice(0, 18)}`,
-        url: `${appUrl}/conversations/${encodeURIComponent(alert.conversationId)}`,
-      },
-      alert.state === 'open'
-        ? { text: '🙋 قبول', callback_data: `alert:claim:${alert.id}` }
-        : { text: '👤 پیگیری', callback_data: `alert:status:${alert.id}` },
-      { text: '✅ حل', callback_data: `alert:resolve:${alert.id}` },
-    ])
-  })
-  rows.push([{ text: '↩️ مرکز مدیریت', callback_data: 'menu:home' }])
-
-  return { text: lines.join('\n'), replyMarkup: { inline_keyboard: rows } }
-}
-
-async function statsText(workspaceId: string): Promise<string> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1_000)
-  const [open, claimed, resolved, total, delivered] = await Promise.all([
-    prisma.handoffAlert.count({ where: { workspaceId, state: 'open' } }),
-    prisma.handoffAlert.count({ where: { workspaceId, state: 'claimed' } }),
-    prisma.handoffAlert.count({ where: { workspaceId, state: 'resolved', resolvedAt: { gte: since } } }),
-    prisma.handoffAlert.count({ where: { workspaceId, createdAt: { gte: since } } }),
-    prisma.handoffAlert.count({
-      where: { workspaceId, createdAt: { gte: since }, externalMessageId: { not: null } },
-    }),
-  ])
-  const deliveryRate = total > 0 ? Math.round((delivered / total) * 100) : null
-
-  return [
-    '📊 <b>گزارش عملیاتی ۲۴ ساعت اخیر</b>',
-    '',
-    `🔴 منتظر پاسخ: <b>${open.toLocaleString('fa-IR')}</b>`,
-    `🟡 در حال پیگیری: <b>${claimed.toLocaleString('fa-IR')}</b>`,
-    `🟢 حل‌شده: <b>${resolved.toLocaleString('fa-IR')}</b>`,
-    `📨 ارجاع جدید: <b>${total.toLocaleString('fa-IR')}</b>`,
-    `📡 تحویل به تلگرام: <b>${deliveryRate === null ? 'بدون داده' : `${deliveryRate.toLocaleString('fa-IR')}٪`}</b>`,
-  ].join('\n')
-}
-
 async function healthText(op: OperatorChannelRow, botToken: string): Promise<string> {
   const webhook = await getTelegramWebhookInfo(botToken)
   const webhookReady = Boolean(webhook?.url)
@@ -248,7 +161,7 @@ async function healthText(op: OperatorChannelRow, botToken: string): Promise<str
   const telegramError = webhook?.lastErrorMessage ?? op.lastError
 
   return [
-    '🩺 <b>سلامت اتصال بات</b>',
+    '🩺 <b>سلامت اتصال ربات مدیر</b>',
     '',
     `${op.active ? '✅' : '⏸'} ارسال هشدار: <b>${op.active ? 'فعال' : 'متوقف'}</b>`,
     `${op.operatorChatId ? '✅' : '⚠️'} شناسه اپراتور: <b>${op.operatorChatId ? 'ثبت شده' : 'ناقص'}</b>`,
@@ -259,111 +172,178 @@ async function healthText(op: OperatorChannelRow, botToken: string): Promise<str
   ].join('\n')
 }
 
+type Screen = { text: string; keyboard: TelegramInlineKeyboardMarkup }
+
+function toContext(op: OperatorChannelRow): OperatorContext {
+  return { id: op.id, workspaceId: op.workspaceId, active: op.active, prefs: op.prefs }
+}
+
+async function screenFor(name: OperatorBotScreenName, op: OperatorChannelRow, botToken: string): Promise<Screen> {
+  switch (name) {
+    case 'queue': return queueScreen(op.workspaceId)
+    case 'today': return todayScreen(op.workspaceId)
+    case 'orders': return ordersScreen(op.workspaceId)
+    case 'book': return bookingsScreen(op.workspaceId)
+    case 'agents': return agentsScreen(op.workspaceId)
+    case 'credit': return creditScreen(op.workspaceId)
+    case 'alerts': return alertsScreen(toContext(op))
+    case 'help': return helpScreen()
+    case 'health':
+      return {
+        text: await healthText(op, botToken),
+        keyboard: { inline_keyboard: [[{ text: '🔄 بررسی دوباره', callback_data: 'm:health' }, { text: '🏠 خانه', callback_data: 'm:home' }]] },
+      }
+    default: return homeScreen(toContext(op))
+  }
+}
+
+const GONE: Screen = {
+  text: 'این گفتگو دیگر در دسترس نیست.',
+  keyboard: { inline_keyboard: [[{ text: '↩️ صف اپراتور', callback_data: 'm:queue' }, { text: '🏠 خانه', callback_data: 'm:home' }]] },
+}
+
 async function handleCallback(params: {
   query: TgCallbackQuery
   op: OperatorChannelRow
   botToken: string
   chatId: string
 }): Promise<void> {
+  const { op, botToken, chatId } = params
   const callback = parseOperatorBotCallback(params.query.data ?? '')
   if (!callback) {
-    await answerCallback(params.botToken, params.query.id, 'این عملیات معتبر نیست.')
+    await answerCallback(botToken, params.query.id, 'این دکمه قدیمی است؛ /start را بزنید.')
     return
   }
-
   const messageId = params.query.message?.message_id
+  // A pushed alert keeps its content: case screens open as a new message and
+  // only its buttons are refreshed. Control-center screens edit in place.
+  const fromAlert = messageId
+    ? (await prisma.handoffAlert.count({ where: { workspaceId: op.workspaceId, externalMessageId: String(messageId) } })) > 0
+    : false
+  const show = (screen: Screen, inPlace = !fromAlert) =>
+    showScreen({ botToken, chatId, messageId: inPlace ? messageId : undefined, text: screen.text, replyMarkup: screen.keyboard })
 
-  if (callback.type === 'menu') {
-    await answerCallback(params.botToken, params.query.id, 'به‌روزرسانی شد')
-    if (callback.action === 'open') {
-      const screen = await openAlertsScreen(params.op.workspaceId)
-      await showScreen({ ...params, messageId, ...screen })
+  switch (callback.type) {
+    case 'screen': {
+      await answerCallback(botToken, params.query.id, '')
+      await show(await screenFor(callback.screen, op, botToken))
       return
     }
-
-    const text = callback.action === 'stats'
-      ? await statsText(params.op.workspaceId)
-      : callback.action === 'health'
-        ? await healthText(params.op, params.botToken)
-        : callback.action === 'help'
-          ? helpText()
-          : homeText(params.op)
-    await showScreen({
-      ...params,
-      messageId,
-      text,
-      replyMarkup: buildOperatorMenuKeyboard(appUrl, params.op.active),
-    })
-    return
-  }
-
-  if (callback.type === 'channel') {
-    const active = callback.action === 'resume'
-    await prisma.operatorChannel.update({ where: { id: params.op.id }, data: { active } })
-    const next = { ...params.op, active }
-    await answerCallback(
-      params.botToken,
-      params.query.id,
-      active ? 'هشدارها فعال شدند' : 'هشدارها متوقف شدند',
-    )
-    await showScreen({
-      ...params,
-      messageId,
-      text: homeText(next),
-      replyMarkup: buildOperatorMenuKeyboard(appUrl, active),
-    })
-    return
+    case 'report': {
+      await answerCallback(botToken, params.query.id, '')
+      await show(await reportScreen(op.workspaceId, callback.days))
+      return
+    }
+    case 'channel': {
+      const active = callback.action === 'resume'
+      await prisma.operatorChannel.update({ where: { id: op.id }, data: { active } })
+      await answerCallback(botToken, params.query.id, active ? 'هشدارها روشن شدند' : 'هشدارها خاموش شدند')
+      await show(alertsScreen(toContext({ ...op, active })))
+      return
+    }
+    case 'pref': {
+      if (!isOperatorPrefKey(callback.key)) {
+        await answerCallback(botToken, params.query.id, 'گزینهٔ نامعتبر')
+        return
+      }
+      const prefs = readOperatorPrefs(op.prefs)
+      prefs[callback.key] = !prefs[callback.key]
+      await prisma.operatorChannel.update({ where: { id: op.id }, data: { prefs } })
+      await answerCallback(botToken, params.query.id, prefs[callback.key] ? 'روشن شد ✅' : 'خاموش شد')
+      await show(alertsScreen(toContext({ ...op, prefs })))
+      return
+    }
+    case 'cancel': {
+      await clearReplyTarget(op.workspaceId)
+      await answerCallback(botToken, params.query.id, 'لغو شد')
+      await show(await homeScreen(toContext(op)))
+      return
+    }
+    case 'agent': {
+      const agent = await prisma.agent.findFirst({ where: { id: callback.agentId, workspaceId: op.workspaceId }, select: { id: true, name: true, active: true } })
+      if (!agent) {
+        await answerCallback(botToken, params.query.id, 'این ایجنت پیدا نشد.')
+        await show(await agentsScreen(op.workspaceId))
+        return
+      }
+      if (callback.action === 'ask') {
+        await answerCallback(botToken, params.query.id, '')
+        const screen = await agentConfirmScreen(op.workspaceId, agent.id)
+        if (screen) await show(screen)
+        return
+      }
+      await prisma.agent.update({ where: { id: agent.id }, data: { active: !agent.active } })
+      await invalidateWidgetConfig(agent.id).catch(() => {})
+      const notice = agent.active ? `⏸ «${escapeHtml(agent.name)}» متوقف شد.` : `▶️ «${escapeHtml(agent.name)}» دوباره فعال شد.`
+      await answerCallback(botToken, params.query.id, agent.active ? 'متوقف شد' : 'فعال شد')
+      await show(await agentsScreen(op.workspaceId, notice))
+      return
+    }
+    case 'send': {
+      const text = QUICK_REPLIES[callback.index]
+      if (!text) {
+        await answerCallback(botToken, params.query.id, 'پاسخ پیدا نشد.')
+        return
+      }
+      const result = await routeOperatorReplyFromTelegram({ workspaceId: op.workspaceId, alertId: callback.alertId, operatorText: text })
+      await answerCallback(botToken, params.query.id, result.ok ? 'ارسال شد ✅' : 'ارسال نشد')
+      const screen = await caseScreen(op.workspaceId, callback.alertId, result.ok
+        ? `✅ پاسخ برای ${escapeHtml(result.contactName || 'مشتری')} ارسال شد.`
+        : '⚠️ ارسال انجام نشد؛ ممکن است گفتگو بسته شده باشد. از پنل امتحان کنید.')
+      await show(screen ?? GONE)
+      return
+    }
+    case 'alert': break
   }
 
   const alert = await prisma.handoffAlert.findFirst({
-    where: { id: callback.alertId, workspaceId: params.op.workspaceId },
+    where: { id: callback.alertId, workspaceId: op.workspaceId },
     select: { id: true, conversationId: true, state: true },
   })
   if (!alert) {
-    await answerCallback(params.botToken, params.query.id, 'این گفتگو دیگر در دسترس نیست.')
+    await answerCallback(botToken, params.query.id, 'این گفتگو دیگر در دسترس نیست.')
+    return
+  }
+
+  if (callback.action === 'view' || callback.action === 'quick' || callback.action === 'write') {
+    await answerCallback(botToken, params.query.id, '')
+    const screen = callback.action === 'view'
+      ? await caseScreen(op.workspaceId, alert.id)
+      : callback.action === 'quick'
+        ? await quickRepliesScreen(op.workspaceId, alert.id)
+        : await writeReplyScreen(op.workspaceId, alert.id)
+    await show(screen ?? GONE)
     return
   }
 
   let state = alert.state
   let feedback = state === 'resolved' ? 'این مورد قبلاً حل شده است.' : 'وضعیت به‌روز است.'
   if (callback.action === 'claim' && state === 'open') {
-    const updated = await prisma.handoffAlert.update({
+    state = (await prisma.handoffAlert.update({
       where: { id: alert.id },
-      data: { state: 'claimed', claimedBy: `telegram:${params.chatId}` },
+      data: { state: 'claimed', claimedBy: `telegram:${chatId}` },
       select: { state: true },
-    })
-    state = updated.state
-    feedback = 'گفتگو به شما اختصاص یافت.'
+    })).state
+    feedback = 'گفتگو به شما سپرده شد 🙋'
   } else if (callback.action === 'resolve' && state !== 'resolved') {
-    const updated = await prisma.handoffAlert.update({
+    state = (await prisma.handoffAlert.update({
       where: { id: alert.id },
       data: { state: 'resolved', resolvedAt: new Date() },
       select: { state: true },
-    })
-    state = updated.state
-    feedback = 'گفتگو حل‌شده ثبت شد.'
+    })).state
+    feedback = 'حل‌شده ثبت شد ✅'
   }
+  await answerCallback(botToken, params.query.id, feedback)
 
-  await answerCallback(params.botToken, params.query.id, feedback)
-
-  if (params.query.message?.text?.includes('صف اپراتور')) {
-    const screen = await openAlertsScreen(params.op.workspaceId)
-    await showScreen({ ...params, messageId, ...screen })
+  if (fromAlert && messageId) {
+    await telegramRequest(botToken, 'editMessageReplyMarkup', {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: buildOperatorAlertKeyboard({ appUrl, conversationId: alert.conversationId, alertId: alert.id, state }),
+    })
     return
   }
-
-  if (messageId) {
-    await telegramRequest(params.botToken, 'editMessageReplyMarkup', {
-      chat_id: params.chatId,
-      message_id: messageId,
-      reply_markup: buildOperatorAlertKeyboard({
-        appUrl,
-        conversationId: alert.conversationId,
-        alertId: alert.id,
-        state,
-      }),
-    })
-  }
+  await show((await caseScreen(op.workspaceId, alert.id)) ?? GONE)
 }
 
 export async function POST(req: Request) {
@@ -385,6 +365,7 @@ export async function POST(req: Request) {
       operatorChatId: true,
       botUsername: true,
       active: true,
+      prefs: true,
       lastError: true,
     },
   })
@@ -441,43 +422,49 @@ export async function POST(req: Request) {
     const text = (message.text ?? '').trim()
     const command = text.split(/\s/, 1)[0]?.split('@', 1)[0]?.toLowerCase()
     const repliedMessageId = message.reply_to_message?.message_id
+    const send = (screen: Screen) => sendMessage(botToken, op.operatorChatId!, screen.text, screen.keyboard)
 
-    if (repliedMessageId && text && !text.startsWith('/')) {
+    if (command?.startsWith('/')) {
+      await clearReplyTarget(op.workspaceId)
+      // Keep the Telegram command menu down to one entry: everything else is
+      // a glass button inside the bot.
+      if (command === '/start') void setTelegramBotCommands(botToken).catch(() => {})
+      const byCommand: Record<string, OperatorBotScreenName> = { '/chats': 'queue', '/open': 'queue', '/health': 'health', '/help': 'help' }
+      if (command === '/stats') await send(await reportScreen(op.workspaceId, 1))
+      else await send(await screenFor(byCommand[command] ?? 'home', op, botToken))
+      return NextResponse.json({ ok: true })
+    }
+    if (!text) return NextResponse.json({ ok: true })
+
+    // «نوشتن پاسخ» armed a target, or the owner used Telegram's Reply on an alert.
+    const targetAlertId = repliedMessageId ? null : await takeReplyTarget(op.workspaceId)
+    if (repliedMessageId || targetAlertId) {
       const result = await routeOperatorReplyFromTelegram({
         workspaceId: op.workspaceId,
-        telegramMessageId: String(repliedMessageId),
+        ...(targetAlertId ? { alertId: targetAlertId } : { telegramMessageId: String(repliedMessageId) }),
         operatorText: text,
       })
-      await sendMessage(
-        botToken,
-        op.operatorChatId,
-        result.ok
-          ? '✅ پیام شما برای مشتری ارسال شد.'
-          : '⚠️ ارسال انجام نشد. مطمئن شوید روی یک هشدار باز Reply زده‌اید و دوباره تلاش کنید.',
-        buildOperatorMenuKeyboard(appUrl, op.active),
-      )
+      if (result.ok) {
+        await sendMessage(botToken, op.operatorChatId, `✅ برای <b>${escapeHtml(result.contactName || 'مشتری')}</b> ارسال شد.`, {
+          inline_keyboard: [[
+            ...(targetAlertId ? [{ text: '↩️ پرونده', callback_data: `a:v:${targetAlertId}` }] : []),
+            { text: '📥 صف اپراتور', callback_data: 'm:queue' },
+            { text: '🏠 خانه', callback_data: 'm:home' },
+          ]],
+        })
+      } else {
+        await sendMessage(
+          botToken,
+          op.operatorChatId,
+          '⚠️ ارسال انجام نشد. ممکن است این گفتگو بسته شده باشد؛ از صف اپراتور دوباره انتخابش کنید.',
+          { inline_keyboard: [[{ text: '📥 صف اپراتور', callback_data: 'm:queue' }, { text: '🏠 خانه', callback_data: 'm:home' }]] },
+        )
+      }
       return NextResponse.json({ ok: true })
     }
 
-    if (command === '/start' || command === '/menu') {
-      await sendMessage(botToken, op.operatorChatId, homeText(op), buildOperatorMenuKeyboard(appUrl, op.active))
-    } else if (command === '/chats' || command === '/open') {
-      const screen = await openAlertsScreen(op.workspaceId)
-      await sendMessage(botToken, op.operatorChatId, screen.text, screen.replyMarkup)
-    } else if (command === '/stats') {
-      await sendMessage(botToken, op.operatorChatId, await statsText(op.workspaceId), buildOperatorMenuKeyboard(appUrl, op.active))
-    } else if (command === '/health') {
-      await sendMessage(botToken, op.operatorChatId, await healthText(op, botToken), buildOperatorMenuKeyboard(appUrl, op.active))
-    } else if (command === '/help') {
-      await sendMessage(botToken, op.operatorChatId, helpText(), buildOperatorMenuKeyboard(appUrl, op.active))
-    } else if (text && !text.startsWith('/')) {
-      await sendMessage(
-        botToken,
-        op.operatorChatId,
-        'ℹ️ برای پاسخ به مشتری، روی پیام هشدار <b>Reply</b> بزنید؛ یا از مرکز مدیریت استفاده کنید.',
-        buildOperatorMenuKeyboard(appUrl, op.active),
-      )
-    }
+    // Free text with no target: bring the control center back.
+    await send(await homeScreen(toContext(op)))
   } catch (error) {
     captureError('operator-webhook:processing', error, {
       workspaceId: op.workspaceId,

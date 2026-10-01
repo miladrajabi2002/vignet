@@ -32,9 +32,7 @@ const schema = z.object({
   zeroDataRetention: z.boolean(),
   replyPricesIRR: z.object({
     fast: positiveInt,
-    standard: positiveInt,
-    balanced: positiveInt,
-    premium: positiveInt,
+    smart: positiveInt,
   }),
   trialCreditIRR: positiveInt,
   financeUsdToIRR: positiveInt.nullable(),

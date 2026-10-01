@@ -2,6 +2,7 @@ import type { ChannelType, Prisma } from '@prisma/client'
 import { contactPhoneLookupVariants } from '@/lib/phone'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/session'
+import { searchVariants } from '@/lib/search/persian'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,17 +47,17 @@ export async function GET(request: Request) {
     ...(channelField ? { [channelField]: { not: null } } : {}),
     ...(query
       ? {
-          OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { phone: { contains: query } },
+          OR: searchVariants(query).flatMap((term): Prisma.ContactWhereInput[] => [
+            { name: { contains: term, mode: 'insensitive' } },
+            { phone: { contains: term } },
             ...(phoneVariants.length ? [{ phone: { in: phoneVariants } }] : []),
-            { telegramUsername: { contains: query, mode: 'insensitive' } },
-            { baleUsername: { contains: query, mode: 'insensitive' } },
-            { rubikaUsername: { contains: query, mode: 'insensitive' } },
-            { whatsappName: { contains: query, mode: 'insensitive' } },
-            { instagramUsername: { contains: query, mode: 'insensitive' } },
-            { tags: { has: query } },
-          ],
+            { telegramUsername: { contains: term, mode: 'insensitive' } },
+            { baleUsername: { contains: term, mode: 'insensitive' } },
+            { rubikaUsername: { contains: term, mode: 'insensitive' } },
+            { whatsappName: { contains: term, mode: 'insensitive' } },
+            { instagramUsername: { contains: term, mode: 'insensitive' } },
+            { tags: { has: term } },
+          ]),
         }
       : {}),
   }

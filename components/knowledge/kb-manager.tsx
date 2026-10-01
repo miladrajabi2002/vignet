@@ -304,12 +304,12 @@ export function KbManager({
     <div className="space-y-6">
       {/* ── Add form ──────────────────────────────────────────────────── */}
       <section
-        className="spatial-surface overflow-hidden rounded-[1.5rem]"
+        className="spatial-surface overflow-hidden rounded-card"
         aria-labelledby="knowledge-add-title"
       >
         <div className="border-b border-black/[0.05] bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,248,250,0.78))] px-5 py-5 sm:px-6">
           <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.9rem] border border-black/[0.06] bg-white text-[var(--text-primary)] shadow-[0_8px_24px_-18px_rgba(0,0,0,0.7)]">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control border border-black/[0.06] bg-white text-[var(--text-primary)] shadow-[var(--shadow-control)]">
               <Database className="h-[1.1rem] w-[1.1rem]" />
             </span>
             <div>
@@ -328,7 +328,7 @@ export function KbManager({
 
         <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
           <div
-            className="grid grid-cols-1 gap-1.5 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.035] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:grid-cols-3"
+            className="ui-seg grid-cols-1 sm:grid-cols-3"
             role="tablist"
             aria-label={t('tabsAria')}
           >
@@ -343,30 +343,15 @@ export function KbManager({
                   aria-selected={active}
                   aria-controls="knowledge-source-panel"
                   onClick={() => setMode(key)}
-                  className={cn(
-                    'group flex min-h-[4.5rem] items-center gap-3 rounded-[1.05rem] px-3.5 py-3 text-start transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.985] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70',
-                    active
-                      ? 'bg-black text-white shadow-[0_12px_28px_-18px_rgba(0,0,0,0.9)]'
-                      : 'text-[var(--text-secondary)] hover:bg-white/70 hover:text-[var(--text-primary)]',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'grid h-9 w-9 shrink-0 place-items-center rounded-xl border',
-                      active
-                        ? 'border-white/15 bg-white/10 text-white'
-                        : 'border-black/[0.06] bg-white/75 text-[var(--text-secondary)]',
-                    )}
+                  className="ui-seg-tab group min-h-[4.5rem] justify-start gap-3 px-3.5 py-3 text-start"
                   >
+                  <span className="ui-seg-icon h-9 w-9">
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold">{label}</span>
                     <span
-                      className={cn(
-                        'mt-0.5 block text-[11px] leading-5',
-                        active ? 'text-white/60' : 'text-[var(--text-muted)]',
-                      )}
+                      className="mt-0.5 block text-[12.5px] font-normal leading-5 text-[var(--text-muted)]"
                     >
                       {description}
                     </span>
@@ -448,7 +433,7 @@ export function KbManager({
                         type="button"
                         onClick={() => setRefreshCadenceMinutes(m)}
                         className={cn(
-                          'min-h-11 rounded-xl border px-3 py-2 text-xs font-medium transition-[border-color,background-color,color,transform] duration-150 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
+                          'min-h-11 rounded-xl border px-3 py-2 text-xs font-medium transition-[border-color,background-color,color,transform] duration-150 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
                           refreshCadenceMinutes === m
                             ? 'border-black bg-black text-white'
                             : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]',
@@ -464,7 +449,7 @@ export function KbManager({
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                  <p className="mt-2 text-[12px] leading-relaxed text-[var(--text-muted)]">
                     {t('refreshIntervalHint')}
                   </p>
                 </div>
@@ -527,7 +512,7 @@ export function KbManager({
               type="button"
               onClick={submit}
               disabled={!canSubmit}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white transition-[opacity,transform,box-shadow] duration-150 hover:shadow-[0_12px_26px_-18px_rgba(0,0,0,0.9)] active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white transition-[opacity,transform,box-shadow] duration-150 hover:shadow-[var(--shadow-control)] active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? t('adding') : t('add')}
@@ -538,7 +523,7 @@ export function KbManager({
 
       {/* ── Added items list ──────────────────────────────────────────── */}
       {items.length === 0 ? (
-        <div className="spatial-surface rounded-[1.5rem] p-8 text-center">
+        <div className="spatial-surface rounded-card p-8 text-center">
           <FileText className="mx-auto h-8 w-8 text-[var(--text-muted)]" />
           <p className="mt-3 text-sm text-[var(--text-muted)]">{t('empty')}</p>
         </div>
@@ -566,7 +551,7 @@ export function KbManager({
                     </button>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-medium text-[var(--text-secondary)]">
+                    <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
                       {t('name')}
                     </label>
                     <input
@@ -578,7 +563,7 @@ export function KbManager({
                   {item.type === 'URL' && (
                     <>
                       <div>
-                        <label className="mb-1 block text-[11px] font-medium text-[var(--text-secondary)]">
+                        <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
                           {t('url')}
                         </label>
                         <input
@@ -589,7 +574,7 @@ export function KbManager({
                         />
                       </div>
                       <div className="spatial-inset rounded-2xl p-3">
-                        <label className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
+                        <label className="mb-2 block text-[12px] font-medium text-[var(--text-secondary)]">
                           {t('refreshIntervalLabel')}
                         </label>
                         <div className="flex flex-wrap gap-1.5">
@@ -599,7 +584,7 @@ export function KbManager({
                               type="button"
                               onClick={() => setEditRefreshCadenceMinutes(m)}
                               className={cn(
-                                'min-h-9 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium',
+                                'min-h-9 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium',
                                 editRefreshCadenceMinutes === m
                                   ? 'border-black bg-black text-white'
                                   : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)]',
@@ -620,7 +605,7 @@ export function KbManager({
                   )}
                   {item.type === 'TEXT' && (
                     <div>
-                      <label className="mb-1 block text-[11px] font-medium text-[var(--text-secondary)]">
+                      <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
                         {t('content')}
                       </label>
                       <textarea
@@ -630,13 +615,13 @@ export function KbManager({
                         placeholder={t('contentEditPlaceholder')}
                         className="input resize-none"
                       />
-                      <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                      <p className="mt-1 text-[12px] text-[var(--text-muted)]">
                         {t('contentEditHint')}
                       </p>
                     </div>
                   )}
                   {item.type !== 'TEXT' && item.type !== 'URL' && (
-                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                       {t('editFileHint')}
                     </p>
                   )}
@@ -675,7 +660,7 @@ export function KbManager({
                       {item.name}
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
-                      <span className="rounded-md bg-[var(--bg-base)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide">
+                      <span className="rounded-md bg-[var(--bg-base)] px-1.5 py-0.5 font-mono text-[12px] uppercase tracking-wide">
                         {item.type}
                       </span>
                       <span>{t(`status.${item.status}`)}</span>
@@ -687,7 +672,7 @@ export function KbManager({
                       )}
                     </div>
                     {item.type === 'URL' && item.lastIngestedAt && (
-                      <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                      <div className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
                         <Clock className="h-3 w-3" />
                         {t('lastRefreshed', {
                           when: formatDateTime(new Date(item.lastIngestedAt), locale),
@@ -704,7 +689,7 @@ export function KbManager({
                     {item.type === 'URL' &&
                       cadenceMinutesOf(item) > 0 &&
                       !item.lastIngestedAt && (
-                        <div className="mt-1 text-[11px] text-[var(--amber)]">
+                        <div className="mt-1 text-[12px] text-[var(--amber)]">
                           {t('refreshScheduled')}
                         </div>
                       )}
@@ -712,7 +697,7 @@ export function KbManager({
                   <button
                     type="button"
                     onClick={() => startEdit(item)}
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-black/[0.04] hover:text-[var(--text-primary)] active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-black/[0.04] hover:text-[var(--text-primary)] active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     aria-label={t('edit')}
                   >
                     <Pencil className="h-4 w-4" />

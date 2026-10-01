@@ -3,6 +3,7 @@ import { Camera, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { InstagramAutomationManager } from '@/components/instagram/automation-manager'
+import { getAutomationReports } from '@/lib/instagram/automation-report'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
 import {
         DEFAULT_SETTINGS,
@@ -132,7 +133,7 @@ async function InstagramAutomationContent({
                                                 <Camera className="h-5 w-5" />
                                         </div>
                                         <div>
-                                                <h1 className="text-base font-semibold text-[var(--text-primary)]">
+                                                <h1 className="text-base font-bold text-[var(--text-primary)]">
                                                         اتصال اینستاگرام
                                                 </h1>
                                                 <p className="text-xs text-[var(--text-secondary)]">
@@ -189,6 +190,7 @@ async function InstagramAutomationContent({
         }))
 
         const settings = normalizeSettings(settingsRow)
+        const reports = await getAutomationReports({ workspaceId: user.workspaceId, automationIds: rows.map((row) => row.id) })
 
         return (
                 <div className="mx-auto max-w-6xl space-y-5">
@@ -198,6 +200,7 @@ async function InstagramAutomationContent({
                                 accountUsername={accountUsername}
                                 initialAutomations={automations}
                                 initialSettings={settings}
+                                reports={reports}
                         />
                 </div>
         )

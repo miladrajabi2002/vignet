@@ -337,7 +337,7 @@ export function MediaUploader({
                 <div className="space-y-3">
                         {/* S3 unavailable banner */}
                         {s3Unavailable && (
-                                <div className="flex items-start gap-2 rounded-lg bg-[var(--amber)]/10 px-3 py-2 text-[11px] text-[var(--amber)]">
+                                <div className="flex items-start gap-2 rounded-lg bg-[var(--amber)]/10 px-3 py-2 text-[12px] text-[var(--amber)]">
                                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                         <span className="leading-relaxed">
                                                 سرویس آپلود به S3 در دسترس نیست. احتمالاً هنوز پیکربندی نشده. فایل‌ها فقط برای پیش‌نمایش محلی نگه داشته می‌شوند — قبل از ذخیره سناریو این مشکل را برطرف کنید.
@@ -402,7 +402,7 @@ export function MediaUploader({
                                                                 ? 'ویدیو را اینجا بکشید یا کلیک کنید'
                                                                 : 'فایل صوتی را اینجا بکشید یا کلیک کنید'}
                                         </p>
-                                        <p className="text-[11px] text-[var(--text-muted)]">
+                                        <p className="text-[12px] text-[var(--text-muted)]">
                                                 {tab === 'IMAGE'
                                                         ? `حداکثر ${maxImages.toLocaleString('fa-IR')} عکس · JPG، PNG، WEBP`
                                                         : tab === 'VIDEO'
@@ -427,7 +427,7 @@ export function MediaUploader({
 
                         {/* Inline error */}
                         {error && (
-                                <div className="flex items-start gap-2 rounded-lg bg-[var(--danger)]/10 px-3 py-2 text-[11px] text-[var(--danger)]">
+                                <div className="flex items-start gap-2 rounded-lg bg-[var(--danger)]/10 px-3 py-2 text-[12px] text-[var(--danger)]">
                                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                         <span className="leading-relaxed">{error}</span>
                                 </div>
@@ -492,7 +492,7 @@ export function MediaUploader({
                                                                                                         />
                                                                                                 ))}
                                                                                         </div>
-                                                                                        <p className="mt-1 truncate text-[10px] text-[var(--text-muted)]" dir="ltr">
+                                                                                        <p className="mt-1 truncate text-[12px] text-[var(--text-muted)]" dir="ltr">
                                                                                                 {item.file?.name ?? 'voice memo'}
                                                                                         </p>
                                                                                 </div>
@@ -504,7 +504,7 @@ export function MediaUploader({
                                                                 {!item.uploaded && !item.error && (
                                                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/55 text-white backdrop-blur-sm">
                                                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                                                <span className="text-[10px] font-medium">
+                                                                                <span className="text-[12px] font-medium">
                                                                                         {item.progress > 0
                                                                                                 ? `${item.progress.toLocaleString('fa-IR')}٪`
                                                                                                 : 'در حال آپلود…'}
@@ -516,11 +516,11 @@ export function MediaUploader({
                                                                 {item.error && (
                                                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/70 p-2 text-center text-white">
                                                                                 <AlertCircle className="h-4 w-4 text-red-300" />
-                                                                                <span className="text-[10px] leading-tight">{item.error}</span>
+                                                                                <span className="text-[12px] leading-tight">{item.error}</span>
                                                                                 <button
                                                                                         type="button"
                                                                                         onClick={() => retry(item)}
-                                                                                        className="mt-1 inline-flex items-center gap-1 rounded-md bg-white/20 px-2 py-0.5 text-[10px] font-medium hover:bg-white/30"
+                                                                                        className="mt-1 inline-flex items-center gap-1 rounded-md bg-white/20 px-2 py-0.5 text-[12px] font-medium hover:bg-white/30"
                                                                                 >
                                                                                         <RotateCcw className="h-3 w-3" />
                                                                                         تلاش دوباره
@@ -585,7 +585,7 @@ function TabButton({
                         {count > 0 && (
                                 <span
                                         className={cn(
-                                                'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]',
+                                                'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[11px]',
                                                 active ? 'bg-white/20 text-white' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]',
                                         )}
                                 >

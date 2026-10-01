@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { BookOpen, GraduationCap, SlidersHorizontal } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useLearningCount } from '@/components/agents/learning-count'
 import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 
@@ -29,7 +28,7 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
 
   useEffect(() => setActive(initialActive), [initialActive])
   useEffect(() => {
-    const header = document.querySelector<HTMLElement>('.dashboard-shell-header')
+    const header = document.querySelector<HTMLElement>('[data-dashboard-header]')
     if (!header) return
     const updateOffset = () => container.current?.style.setProperty('--improvement-sticky-top', `${header.offsetHeight + 8}px`)
     updateOffset()
@@ -82,7 +81,7 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
       <div
         role="tablist"
         aria-label={isFa ? 'بخش‌های بهبود ایجنت' : 'Agent improvement sections'}
-        className="sticky top-[var(--improvement-sticky-top,calc(max(0.75rem,env(safe-area-inset-top))+5rem))] z-20 grid grid-cols-3 gap-1 rounded-[1.25rem] border border-black/[0.07] bg-white/95 p-1.5 shadow-[var(--shadow-xs)] backdrop-blur-xl"
+        className="ui-seg ui-seg-solid sticky top-[var(--improvement-sticky-top,calc(env(safe-area-inset-top)+4rem))] z-20 grid-cols-3"
       >
         {tabs.map(({ key, label, icon: Icon }, index) => (
           <button
@@ -106,24 +105,21 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
               select(tabs[next].key)
               buttons.current[next]?.focus()
             }}
-            className={cn(
-              'flex min-h-14 min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 motion-reduce:transition-none sm:min-h-12 sm:flex-row sm:gap-2',
-              active === key ? 'bg-black text-white shadow-[var(--shadow-control)]' : 'text-[var(--text-secondary)] hover:bg-black/[0.04]',
-            )}
+            className="ui-seg-tab min-h-[3.75rem] flex-col gap-1 px-1.5 py-1.5 text-[12px] sm:min-h-12 sm:flex-row sm:gap-2.5 sm:text-[13px]"
           >
-            <span className="relative inline-flex items-center gap-1.5">
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="relative">
+              <span className="ui-seg-icon h-7 w-7"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
               {key === 'learning' && (
                 <NavigationCountBadge
                   count={pendingCount}
                   active={active === key}
                   locale={isFa ? 'fa-IR' : 'en-US'}
                   label={isFa ? 'موارد در انتظار' : 'Pending items'}
-                  className="text-[10px]"
+                  className="absolute -end-2.5 -top-2 h-[1.1rem] min-w-[1.1rem] text-[12px] ring-0 shadow-[0_0_0_2px_rgba(255,255,255,0.95)]"
                 />
               )}
             </span>
-            <span>{label}</span>
+            <span className="max-w-full truncate">{label}</span>
           </button>
         ))}
       </div>

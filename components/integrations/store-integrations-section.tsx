@@ -17,12 +17,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
-import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { PlanLimitsNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 /**
  * Integrations page — "WordPress/WooCommerce" section.
- * Uses the same `spatial-surface rounded-[1.5rem]` design as the Products page.
+ * Uses the same `spatial-surface rounded-card` design as the Products page.
  */
 
 interface SyncLogEntry {
@@ -194,7 +194,7 @@ export function StoreIntegrationsSection({
         <div id="online-store" className="scroll-mt-24 space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-[var(--text-secondary)]">سایت (وردپرس/ووکامرس)</h2>
+                <h2 className="text-sm font-bold text-[var(--text-secondary)]">سایت (وردپرس/ووکامرس)</h2>
                 {integrations.length > 0 && (
                     <button
                         onClick={() => setShowForm(true)}
@@ -213,22 +213,14 @@ export function StoreIntegrationsSection({
                     aria-live="polite"
                     className={cn(
                     'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm',
-                    notice.type === 'ok' ? 'border border-[var(--green)]/30 bg-[var(--green)]/5 text-[var(--green)]' : 'border border-danger/30 bg-danger/5 text-danger',
+                    notice.type === 'ok' ? 'border border-[var(--ok)]/25 bg-[var(--ok-soft)] text-[var(--ok)]' : 'border border-danger/30 bg-danger/5 text-danger',
                 )}>
                     {notice.type === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                     {notice.msg}
                 </div>
             )}
 
-            {planLimits.map((limit) => (
-                <PlanLimitNotice
-                    key={limit.resource}
-                    limit={limit}
-                    locale={locale}
-                    syncContext
-                    compact
-                />
-            ))}
+            <PlanLimitsNotice limits={planLimits} locale={locale} syncContext compact />
 
             {/* Form */}
             {showForm && (
@@ -240,7 +232,7 @@ export function StoreIntegrationsSection({
 
             {/* Empty state */}
             {integrations.length === 0 && !showForm && (
-                <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6 text-center">
+                <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6 text-center">
                     <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
                         <Globe className="h-5 w-5" />
                     </span>
@@ -328,9 +320,9 @@ function AddSiteForm({
     }
 
     return (
-        <form onSubmit={submit} className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+        <form onSubmit={submit} className="spatial-surface rounded-card p-5 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">آدرس سایت را وارد کنید</h3>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">آدرس سایت را وارد کنید</h3>
                 <button type="button" onClick={onDone} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                     <X className="h-4 w-4" />
                 </button>
@@ -381,6 +373,7 @@ function IntegrationCard({
     planLimits: PlanLimitInfo[]
 }) {
     const limitFromError = planLimitFromError(integration.lastSyncError, planLimits)
+    const visibleLogs = integration.syncLogs.filter((log) => log.outcome !== 'ok' || log.count > 0)
     const hasPlanLimitError = isResourceLimitError(integration.lastSyncError)
     const isPluginConfigured = isIntegrationConnected(integration) || hasPlanLimitError
     const syncPausedByPlan = limitFromError !== null
@@ -393,7 +386,7 @@ function IntegrationCard({
             : 'در انتظار اتصال افزونه'
 
     return (
-        <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+        <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
             {/* Top row */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
@@ -409,7 +402,7 @@ function IntegrationCard({
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                             <span className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+                                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold',
                                 !integration.active
                                     ? 'bg-gray-100 text-gray-600'
                                     : syncPausedByPlan
@@ -422,8 +415,9 @@ function IntegrationCard({
                                 {statusLabel}
                             </span>
                             {isPluginConfigured && (
-                                <span className="text-xs tabular-nums text-[var(--text-muted)]">
-                                    {integration._count.orders.toLocaleString('fa-IR')} سفارش · {integration._count.syncLogs.toLocaleString('fa-IR')} رویداد اخیر
+                                <span suppressHydrationWarning className="text-xs tabular-nums text-[var(--text-muted)]">
+                                    {integration._count.orders.toLocaleString('fa-IR')} سفارش
+                                    {integration.lastSyncAt ? ` · آخرین همگام‌سازی ${relativeTime(integration.lastSyncAt)}` : ''}
                                 </span>
                             )}
                         </div>
@@ -492,24 +486,24 @@ function IntegrationCard({
                 </div>
             )}
 
-            {/* Recent logs — last 3 days */}
-            {isPluginConfigured && integration.syncLogs.length > 0 && (
+            {/* Recent sync activity — last 3 days. Deliveries that changed
+                nothing (plugin pings, unchanged items) are noise and hidden. */}
+            {isPluginConfigured && visibleLogs.length > 0 && (
                 <div className="mt-4">
                     <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                        رویدادهای اخیر (۳ روز)
-                        <span className="mr-2 text-[var(--text-muted)]">— {integration.syncLogs.length} رویداد</span>
+                        تغییرات دریافت‌شده از سایت
+                        <span className="ms-2 text-[var(--text-muted)]">· ۳ روز اخیر</span>
                     </p>
                     <div className="max-h-64 space-y-1 overflow-y-auto">
-                        {integration.syncLogs.map((log) => (
+                        {visibleLogs.map((log) => (
                             <div key={log.id} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2 text-xs">
                                 {log.outcome === 'ok' ? (
                                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
                                 ) : (
                                     <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                                 )}
-                                <span className="text-[var(--text-secondary)]">{entityLabel(log.entity)}</span>
-                                <span className="text-[var(--text-muted)]">·</span>
-                                <span className="text-[var(--text-muted)]">{log.count} مورد</span>
+                                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{logLabel(log)}</span>
+                                <time suppressHydrationWarning dateTime={log.createdAt} className="shrink-0 tabular-nums text-[var(--text-muted)]">{relativeTime(log.createdAt)}</time>
                             </div>
                         ))}
                     </div>
@@ -524,6 +518,22 @@ function IntegrationCard({
             )}
         </section>
     )
+}
+
+function logLabel(log: SyncLogEntry): string {
+    const count = log.count.toLocaleString('fa-IR')
+    if (log.outcome !== 'ok') return log.entity === 'batch' ? 'دریافت تغییرات از سایت ناموفق بود' : `همگام‌سازی ${entityLabel(log.entity)} ناموفق بود`
+    if (log.entity === 'batch') return `${count} تغییر از سایت اعمال شد`
+    return `${count} ${entityLabel(log.entity)} همگام شد`
+}
+
+function relativeTime(iso: string): string {
+    const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
+    if (minutes < 1) return 'همین حالا'
+    if (minutes < 60) return `${minutes.toLocaleString('fa-IR')} دقیقه پیش`
+    const hours = Math.round(minutes / 60)
+    if (hours < 24) return `${hours.toLocaleString('fa-IR')} ساعت پیش`
+    return `${Math.round(hours / 24).toLocaleString('fa-IR')} روز پیش`
 }
 
 function entityLabel(entity: string): string {

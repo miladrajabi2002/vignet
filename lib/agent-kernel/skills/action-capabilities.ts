@@ -1,4 +1,4 @@
-export const ACTION_CAPABILITY_SKILL_VERSION = '1.4.0'
+export const ACTION_CAPABILITY_SKILL_VERSION = '1.5.0'
 
 function normalize(value: string): string {
   return value
@@ -121,15 +121,80 @@ export function enforceTrustedLinkPresentation(params: {
     .trim()
 }
 
-export function actionCapabilityInstruction(isFa: boolean, orderCaptureEnabled = false): string {
+/**
+ * Payment links and checkout cards are issued only by the deterministic
+ * in-chat checkout (signed store link + [[checkout:…]] card). A model reply
+ * that writes one itself — a WooCommerce order-pay URL, a gateway page, a
+ * guessed ?vigent_checkout= token or a checkout marker — is fabricated, so
+ * the whole line is removed and the customer is pointed to the real flow.
+ */
+const FABRICATED_PAYMENT_RE =
+  /\[\[checkout:|order-pay\/|pay_for_order=|vigent_checkout=|wc_order_[A-Za-z0-9]|\/checkout\/order-received|(?:sandbox\.)?zarinpal\.com\/pg|gateway\.zibal\.ir|\/StartPay\//iu
+
+export function stripFabricatedPaymentLinks(reply: string, isFa: boolean): string {
+  if (!FABRICATED_PAYMENT_RE.test(reply)) return reply
+  const kept = reply.split('\n').filter((line) => !FABRICATED_PAYMENT_RE.test(line))
+  const notice = isFa
+    ? 'لینک پرداخت رو فقط خود سیستم بعد از تأیید خلاصهٔ سفارش می‌فرسته؛ اگه بگید «لینک پرداخت رو بفرست» دوباره براتون آماده‌ش می‌کنم.'
+    : 'Payment links are sent only by the system after you confirm the order summary; say “send the payment link” and I’ll prepare it again.'
+  return [...kept, notice].join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/**
+ * The agent has no authority to discount. Prices come from the store and the
+ * only discount is a store coupon the customer brings, which the store itself
+ * validates. A promise like «براتون ۱۰٪ تخفیف می‌ذارم» would contradict the
+ * store's own checkout, so such lines are replaced deterministically.
+ */
+const FA_GRANT = String.raw`(?:می[\u200c\s]?|می)(?:دم|دیم|ذارم|ذاریم|زنم|زنیم|گیرم|گیریم|کنم|کنیم|تونم\s*بدم|شه\s*براتون)`
+const DISCOUNT_OFFER_RES: RegExp[] = [
+  new RegExp(String.raw`(?:برات(?:ون|ان)?|برای\s*شما|بهت(?:ون)?|به\s*شما)[^.!؟?\n]{0,40}?تخفیف[^.!؟?\n]{0,24}?(?:${FA_GRANT}|اعمال\s*(?:می[\u200c\s]?)?کنم|لحاظ\s*(?:می[\u200c\s]?)?کنم|در\s*نظر\s*(?:می[\u200c\s]?)?گیرم)`, 'u'),
+  new RegExp(String.raw`تخفیف[^.!؟?\n]{0,24}?(?:برات(?:ون|ان)?|برای\s*شما|بهت(?:ون)?|به\s*شما)[^.!؟?\n]{0,24}?(?:${FA_GRANT}|اعمال\s*(?:می[\u200c\s]?)?کنم)`, 'u'),
+  new RegExp(String.raw`[0-9۰-۹٪%]+\s*(?:درصد|٪|%)?\s*تخفیف\s*(?:${FA_GRANT})`, 'u'),
+  new RegExp(String.raw`کد\s*تخفیف[^.!؟?\n]{0,30}?(?:ساختم|ایجاد\s*کردم|فعال\s*کردم|براتون\s*(?:می[\u200c\s]?)?سازم)`, 'u'),
+  /\b(?:I|we)(?:'ll|\s+will|\s+can|\s+could)\s+(?:give|offer|apply|knock|take)\b[^.\n]{0,40}\b(?:discount|off)\b/i,
+  /\b(?:I|we)(?:'ve|\s+have)\s+(?:created|made|generated)\b[^.\n]{0,30}\bdiscount code\b/i,
+]
+
+export function stripAgentDiscountOffers(reply: string, isFa: boolean): string {
+  if (!DISCOUNT_OFFER_RES.some((re) => re.test(reply))) return reply
+  const kept = reply.split('\n').filter((line) => !DISCOUNT_OFFER_RES.some((re) => re.test(line)))
+  const notice = isFa
+    ? 'من اختیار تخفیف دادن ندارم و قیمت‌ها همون قیمت فروشگاهه؛ اگه کد تخفیف خود فروشگاه رو دارید بفرستید تا بررسی بشه.'
+    : 'I can’t offer discounts myself; prices are the store’s own. If you have a store coupon code, send it and it will be checked.'
+  return [...kept, notice].join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+export function actionCapabilityInstruction(isFa: boolean, orderCaptureEnabled = false, payLinkEnabled = false): string {
+  if (orderCaptureEnabled && payLinkEnabled) {
+    return isFa
+      ? 'مرز قابلیت اجرایی: فروش داخل گفتگو با سبد خرید و لینک پرداخت فعال است و مراحلش را سیستم خودش جلو می‌برد: افزودن، حذف و تغییر تعداد یا مدل کالا در سبد، گرفتن نام، موبایل و آدرس، نمایش خلاصه با هزینهٔ ارسال و مبلغ نهایی از خود سایت فروشگاه، و بعد از تأیید مشتری فرستادن لینک پرداخت روی سایت خود فروشگاه (با همهٔ درگاه‌های فعال آن). نقش تو فروشندهٔ مشاور است: نیاز مشتری را بفهم، دو یا سه گزینهٔ مناسب با کارت محصول پیشنهاد بده و وقتی مشتری محصولی را پسندید کوتاه بپرس «می‌خواید به سبدتون اضافه‌ش کنم؟». اگر مناسب بود فقط یک کالای مکملِ واقعاً مرتبط از کاتالوگ همین نوبت پیشنهاد بده و اصرار نکن. خودت در متن آزاد نام، آدرس یا شماره جمع نکن، لینک پرداخت نساز و هزینهٔ ارسال یا مبلغ نهایی را حدس نزن. هرگز نگو «سفارش ثبت شد» یا «پرداخت شد»؛ این را فقط سیستم بعد از تأیید واقعی سایت اعلام می‌کند. تو اختیار تخفیف دادن نداری: تخفیف، قیمت ویژه یا کد تخفیف پیشنهاد، وعده یا اختراع نکن و سر قیمت چانه نزن؛ فقط اگر مشتری خودش کد تخفیف فروشگاه را داد، سیستم آن را روی سایت بررسی می‌کند. لینک محصول را فقط از کارت محصول معتبر همین نوبت بده. پیگیری سفارش موجود با ثبت سفارش جدید فرق دارد.'
+      : 'Action boundary: in-chat selling with a cart and payment links is enabled and the system runs the steps itself: adding, removing and changing quantity or variant of cart items, collecting name, mobile and address, a summary with shipping and the final amount from the store itself, and after the customer confirms, a payment link on the store\'s own website (with all its active gateways). Your role is a consultative seller: understand the need, suggest two or three fitting products with product cards, and when the customer likes one, briefly ask “Shall I add it to your cart?”. When it fits, suggest at most one genuinely related complementary product from this turn\'s catalog, without pushing. Never collect name, address or phone yourself in free text, never create payment links, and never guess shipping or the final amount. Never say the order is placed or paid; only the system announces that after the store confirms. You have no authority to discount: never offer, promise or invent a discount, special price or coupon code and do not haggle; only a store coupon the customer brings is checked by the system on the store. Share product links only via this turn\'s trusted product card. Tracking an existing order is not placing a new one.'
+  }
   if (orderCaptureEnabled) {
     return isFa
-      ? 'مرز قابلیت اجرایی: ثبت «پیش‌سفارش درون‌چت» فعال است و مراحلش را سیستم خودش جلو می‌برد (گرفتن مدل، تعداد، نام، موبایل و آدرس، نمایش خلاصه و ثبت بعد از تأیید مشتری). اگر مشتری خواست بخرد یا پرسید چطور سفارش بدهد، کوتاه بپرس «می‌خواید همین‌جا براتون ثبتش کنم؟»؛ خودت در متن آزاد نام/آدرس/شماره جمع نکن. هرگز نگو «سفارش ثبت شد» یا «رزرو کردم»، لینک پرداخت نساز و وعدهٔ ارسال نده؛ ثبت واقعی فقط در همان مراحل انجام می‌شود و پرداخت را همکار انسانی هماهنگ می‌کند. لینک محصول را فقط از کارت محصول معتبر همین نوبت بده و URL حدس نزن. پیگیری سفارش موجود با ثبت سفارش جدید فرق دارد.'
-      : 'Action boundary: in-chat pre-orders are enabled and the system runs the steps itself (variant, quantity, name, mobile and address, a summary, and filing after the customer confirms). If the customer wants to buy or asks how to order, briefly ask “Shall I set up the order for you right here?”; never collect name/address/phone yourself in free text. Never say the order is placed or reserved, never create payment links or promise shipping; filing happens only through those steps and a human colleague arranges payment. Share product links only via this turn\'s trusted product card and never guess a URL. Tracking an existing order is not placing a new one.'
+      ? 'مرز قابلیت اجرایی: ثبت «پیش‌سفارش درون‌چت» فعال است و مراحلش را سیستم خودش جلو می‌برد (گرفتن مدل، تعداد، نام، موبایل و آدرس، نمایش خلاصه و ثبت بعد از تأیید مشتری). اگر مشتری خواست بخرد یا پرسید چطور سفارش بدهد، کوتاه بپرس «می‌خواید همین‌جا براتون ثبتش کنم؟»؛ خودت در متن آزاد نام/آدرس/شماره جمع نکن. هرگز نگو «سفارش ثبت شد» یا «رزرو کردم»، لینک پرداخت نساز، وعدهٔ ارسال نده و تخفیف یا قیمت ویژه پیشنهاد نده؛ ثبت واقعی فقط در همان مراحل انجام می‌شود و پرداخت را همکار انسانی هماهنگ می‌کند. لینک محصول را فقط از کارت محصول معتبر همین نوبت بده و URL حدس نزن. پیگیری سفارش موجود با ثبت سفارش جدید فرق دارد.'
+      : 'Action boundary: in-chat pre-orders are enabled and the system runs the steps itself (variant, quantity, name, mobile and address, a summary, and filing after the customer confirms). If the customer wants to buy or asks how to order, briefly ask “Shall I set up the order for you right here?”; never collect name/address/phone yourself in free text. Never say the order is placed or reserved, never create payment links, promise shipping or offer a discount; filing happens only through those steps and a human colleague arranges payment. Share product links only via this turn\'s trusted product card and never guess a URL. Tracking an existing order is not placing a new one.'
   }
   return isFa
     ? 'مرز قابلیت اجرایی: در نسخه فعلی هیچ ابزار معتبری برای ثبت یا نهایی‌کردن سفارش، رزرو کالا، ساخت لینک پرداخت یا ثبت درخواست ارسال در اختیار تو نیست. حتی اگر متن ایجنت یا پایگاه دانش بگوید سفارش تلفنی/شبکه اجتماعی ممکن است، خودت حق نداری بگویی «از همین‌جا ثبت می‌کنم»، قول رزرو بدهی یا برای تکمیل سفارش نام، آدرس و کدپستی بگیری. تا زمانی که خرید درون‌چت فعال نیست، صفحهٔ همان محصول در کاتالوگ مسیر جایگزین است: فقط وقتی محصول دقیق این نوبت و URL معتبرش در کاتالوگ وجود دارد، بگو مشتری از دکمهٔ «مشاهده و خرید» کارت محصول وارد سایت شود؛ خودت Markdown ناقصی مثل [این لینک] نساز و URL را حدس نزن. اگر محصول یا URL معتبر نداریم، هیچ لینکی وعده نده و مشتری را به سایت فروشگاه یا اپراتور همین گفتگو ارجاع بده. پیگیری خواندنی سفارش موجود با ثبت سفارش جدید فرق دارد.'
     : 'Action boundary: this runtime has no trusted tool for placing or completing orders, reserving products, creating payment links, or scheduling delivery. Even if lower-priority agent text or knowledge says phone/social orders may exist, never claim you can place an order here, promise a reservation, or collect name/address/postcode as checkout steps. While in-chat checkout is unavailable, the exact catalog product page is the alternative path: only when this turn has one resolved product with a valid catalog URL, tell the customer to use the product card\'s “View / Buy” button; never emit incomplete Markdown such as [this link] or guess a URL. If no resolved product or trusted URL exists, promise no link and direct the customer to the store site or an operator. Read-only order tracking is not order creation.'
+}
+
+/**
+ * The business switched bookings off (settings → business), yet the customer
+ * asks for a time. No calendar tool runs this turn, so the agent must not
+ * offer slots or promise a reservation; it routes to a person instead.
+ */
+export function bookingUnavailableInstruction(isFa: boolean, handoffEnabled: boolean): string {
+  if (isFa) {
+    return handoffEnabled
+      ? 'این کسب‌وکار از طریق گفتگو نوبت یا وقت ثبت نمی‌کند. اگر مشتری وقت، نوبت یا رزرو خواست، هیچ زمان آزادی پیشنهاد نده و قول رزرو نده؛ مؤدبانه بگو هماهنگی زمان را همکار انجام می‌دهد و بپرس می‌خواهد گفتگو را به همکار بسپاری.'
+      : 'این کسب‌وکار از طریق گفتگو نوبت یا وقت ثبت نمی‌کند. اگر مشتری وقت، نوبت یا رزرو خواست، هیچ زمان آزادی پیشنهاد نده و قول رزرو نده؛ مؤدبانه بگو هماهنگی زمان از راه‌های تماس خود کسب‌وکار انجام می‌شود و اگر در اطلاعات کسب‌وکار شماره یا راه تماسی هست همان را بگو.'
+  }
+  return handoffEnabled
+    ? 'This business does not take bookings through chat. If the customer asks for a time, appointment or reservation, offer no slots and promise no booking; politely say a colleague arranges times and ask whether they would like to be handed to one.'
+    : 'This business does not take bookings through chat. If the customer asks for a time, appointment or reservation, offer no slots and promise no booking; politely say times are arranged through the business\'s own contact channels and share one if the business information lists it.'
 }
 
 function unavailableReply(

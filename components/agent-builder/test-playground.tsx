@@ -10,6 +10,7 @@ import { ConversationBubble, ConversationText } from '@/components/chat/conversa
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
+import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
 import { detectSttLanguageHint } from '@/lib/ai/turn-language'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
@@ -295,7 +296,7 @@ export function TestPlayground({
                                                 <p className="truncate text-xs font-bold text-[var(--text-primary)]">
                                                         {t('sessionLabel')}
                                                 </p>
-                                                <p className="truncate text-[10px] text-[var(--text-muted)]">
+                                                <p className="truncate text-[12px] text-[var(--text-muted)]">
                                                         {t('sessionHint')}
                                                 </p>
                                         </div>
@@ -338,7 +339,7 @@ export function TestPlayground({
                                                 // the last message is still streaming so machine syntax never
                                                 // flashes on screen.
                                                 const showcase = isUser
-                                                        ? { text: m.content, products: [] }
+                                                        ? { text: m.content, products: [], checkout: null }
                                                         : parseProductShowcaseContent(m.content, !streaming || i !== messages.length - 1)
                                                 const hasShowcase = showcase.products.length > 0
                                                 return (
@@ -373,6 +374,11 @@ export function TestPlayground({
                                                                                         variant="app"
                                                                                 />
                                                                         ) : null}
+                                                                        {!isUser && showcase.checkout && (
+                                                                                <div className="mt-1.5">
+                                                                                        <CheckoutCardView card={showcase.checkout} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" />
+                                                                                </div>
+                                                                        )}
                                                                         {m.role === 'assistant' && hasShowcase && (
                                                                                 <ProductShowcaseRail
                                                                                         products={showcase.products}
@@ -428,7 +434,7 @@ export function TestPlayground({
 
                         {suggestedPrompts.length > 0 && (
                                 <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 pt-3">
-                                        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+                                        <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)]">
                                                 <Sparkles className="h-3.5 w-3.5" />
                                                 {t('suggestions')}
                                         </div>
@@ -439,7 +445,7 @@ export function TestPlayground({
                                                                 type="button"
                                                                 onClick={() => selectSuggestedPrompt(prompt)}
                                                                 disabled={streaming}
-                                                                className="min-h-11 shrink-0 rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-[11px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                                                                className="min-h-11 shrink-0 rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
                                                         >
                                                                 {prompt}
                                                         </button>

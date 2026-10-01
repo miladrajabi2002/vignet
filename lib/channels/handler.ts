@@ -1,3 +1,4 @@
+import { composeCheckoutFallback, parseCheckoutDirective } from '@/lib/commerce/checkout-link'
 import type { Prisma } from '@prisma/client'
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
 import { prisma } from '@/lib/prisma'
@@ -1689,7 +1690,7 @@ async function processChannelInbound(
                                                                 const safePartial = openMarker > closedMarker
                                                                         ? partialText.slice(0, openMarker)
                                                                         : partialText
-                                                                textStream?.update(parseProductDirectives(safePartial).text)
+                                                                textStream?.update(parseProductDirectives(parseCheckoutDirective(safePartial).text).text)
                                                         }
                                                         : undefined,
                                         },
@@ -1779,7 +1780,11 @@ async function processChannelInbound(
                         // Product markers are never trusted as customer-facing data. Resolve
                         // them against active products assigned to this agent, then choose the
                         // richest presentation supported by the current channel.
-                        const parsedReply = parseProductDirectives(result.reply)
+                        // An in-chat checkout reply carries one [[checkout:{…}]] card:
+                        // the pay button is sent after the text, as the channel's
+                        // richest format (inline URL button / IG button template).
+                        const checkoutSplit = parseCheckoutDirective(result.reply)
+                        const parsedReply = parseProductDirectives(checkoutSplit.text)
                         const showcasedProducts = agent.productAccessEnabled
                                 ? await resolveProductShowcases({
                                         workspaceId: agent.workspaceId,
@@ -1889,7 +1894,19 @@ async function processChannelInbound(
                                         const outboundText = [parsedReply.text, productFallback]
                                                 .filter(Boolean)
                                                 .join('\n\n')
-                                        await sendReplyText(outboundText || result.reply, settings.quickReplies)
+                                        await sendReplyText(outboundText || checkoutSplit.text || result.reply, settings.quickReplies)
+                                }
+                                if (checkoutSplit.checkout) {
+                                        const checkoutCard = checkoutSplit.checkout
+                                        try {
+                                                if (!deliveryAdapter.sendCheckoutCard) throw new Error('NO_CHECKOUT_CARD')
+                                                await deliveryAdapter.sendCheckoutCard(msg.chatId, checkoutCard)
+                                        } catch (cardError) {
+                                                if (!(cardError instanceof Error && cardError.message === 'NO_CHECKOUT_CARD')) {
+                                                        console.error(`[handler] ${type} checkout card failed:`, cardError)
+                                                }
+                                                await deliveryAdapter.sendText(msg.chatId, composeCheckoutFallback(checkoutCard))
+                                        }
                                 }
                         } catch (deliveryError) {
                                 await textStream?.cancel()

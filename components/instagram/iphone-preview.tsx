@@ -4,46 +4,56 @@ import { memo, useEffect, useState } from 'react'
 import {
         Heart,
         Send,
-        Camera,
         Image as ImageIcon,
         Mic,
         MoreHorizontal,
-        Phone,
-        Video,
         Plus,
         Bookmark,
         MessageCircle,
         KeyRound,
         ShoppingBag,
         Film,
+        Check,
+        UserPlus,
+        Lock,
 } from 'lucide-react'
 import type {
         AutomationType,
         ReplyMode,
         AutomationMessage,
 } from '@/components/instagram/types'
+import {
+        IG_COLORS,
+        IgAvatar,
+        IgBubble,
+        IgDmScreen,
+        IgIncoming,
+        IgMeta,
+        IgOutgoing,
+        IgPhone,
+        IgStatusBar,
+        IgTimestamp,
+        IgTypingDots,
+        pt,
+        useIgClock,
+        type IgDmHeaderProps,
+} from '@/components/instagram/ios-kit'
+import { cn } from '@/lib/utils'
 
 /**
- * IphonePreview — a CSS-only, hyper-realistic iPhone 15 Pro mockup that
- * mirrors the current automation form state.
+ * IphonePreview — the scenario builder's live phone preview.
  *
  * Three modes:
  *  - `mode="DIRECT_MESSAGE"` → Instagram DM chat screen
- *  - `mode="STORY"`         → Instagram story viewer with reply bar
+ *  - `mode="STORY"`         → story reply thread
  *  - `mode="COMMENT"`       → Instagram post with comment thread
  *
- * The mockup is intentionally lightweight (memoized, no animation libs) so
- * it can re-render on every keystroke without jank. All visuals are CSS —
- * no images, no external assets. The IG brand gradient
- * (`#f58529 → #dd2a7b → #8134af`) is used for bot bubbles, accents and the
- * story background.
+ * The phone, status bar, DM header, bubbles and composer come from the shared
+ * iOS kit (`ios-kit.tsx`) — the same mockup the marketing «اتوماسیون
+ * اینستاگرام» demo renders — so the builder shows exactly what the site
+ * promises. Memoized and animation-free so it can re-render on every keystroke.
  */
 
-// Instagram 2024 colors — DM bubbles are solid (not gradient).
-// User (incoming) bubbles: light gray #efefef.
-// Bot (outgoing) bubbles: Instagram blue #5e5ce6 (iOS system indigo, matches the
-// screenshot from iPhone 16 Pro). The gradient is reserved for avatars + story bg.
-const IG_BLUE = '#5e5ce6'
 const IG_GRADIENT = 'linear-gradient(45deg, #f58529 0%, #dd2a7b 50%, #8134af 100%)'
 const IG_GRADIENT_SOFT = 'linear-gradient(45deg, rgba(245,133,41,0.15) 0%, rgba(221,42,123,0.15) 50%, rgba(129,52,175,0.15) 100%)'
 
@@ -124,100 +134,40 @@ export interface IphonePreviewProps {
         commentAckEnabled?: boolean
         /** The public ack text rendered as the comment reply bubble. */
         commentAckText?: string
-        /** Follow gate enabled? Shows a gate prompt bubble. */
+        /** Follow gate enabled? The gate prompt goes out first, then the reply. */
         followGate?: boolean
+        /** The operator's custom follow-request text (falls back to the default). */
+        gatePrompt?: string
+        /** The confirm button's label (falls back to «دنبال کردم»). */
+        gateButton?: string
+        /** Extra classes for the phone frame (e.g. `max-w-none` to fill a larger stage). */
+        frameClassName?: string
+}
+
+const DEFAULT_GATE_PROMPT = 'لطفاً ابتدا صفحه ما را دنبال کنید.\nبعد از دنبال کردن، روی دکمه زیر بزنید.'
+const DEFAULT_GATE_BUTTON = 'دنبال کردم'
+
+function gateCopy(gatePrompt?: string, gateButton?: string) {
+        return {
+                prompt: gatePrompt?.trim() || DEFAULT_GATE_PROMPT,
+                button: gateButton?.trim() || DEFAULT_GATE_BUTTON,
+        }
 }
 
 function IphonePreviewBase(props: IphonePreviewProps) {
         return (
-                <div className="flex justify-center">
-                        <PhoneFrame>
-                                <Screen {...props} />
-                        </PhoneFrame>
+                <div aria-hidden>
+                        <IgPhone className={cn('max-w-[280px]', props.frameClassName)}>
+                                <IgStatusBar />
+                                <div className="relative flex min-h-0 flex-1 flex-col">
+                                        <Screen {...props} />
+                                </div>
+                        </IgPhone>
                 </div>
         )
 }
 
 export const IphonePreview = memo(IphonePreviewBase)
-
-// ── Phone shell — iPhone 16 Pro (titanium frame, Dynamic Island). Compact
-// width so the preview doesn't dominate the form column.
-
-function PhoneFrame({ children }: { children: React.ReactNode }) {
-        return (
-                <div
-                        className="relative mx-auto aspect-[9/19.5] w-full max-w-[240px] rounded-[2.4rem] p-[4px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)_inset,0_0_0_2px_rgba(0,0,0,0.4)] after:absolute after:inset-0 after:rounded-[2.4rem] after:bg-gradient-to-br after:from-white/5 after:to-transparent after:pointer-events-none"
-                        style={{
-                                background:
-                                        'linear-gradient(180deg, #4a4a4c 0%, #2a2a2c 50%, #1c1c1e 100%)',
-                        }}
-                        aria-hidden
-                >
-                        {/* Titanium inner rim */}
-                        <div
-                                className="pointer-events-none absolute inset-[2px] rounded-[2.4rem] ring-1 ring-white/5"
-                                aria-hidden
-                        />
-
-                        {/* Side buttons — Action button + volume up/down + power */}
-                        <div className="absolute -start-[2px] top-[15%] h-1.5 w-[3px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -start-[2px] top-[20%] h-6 w-[3px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -start-[2px] top-[27%] h-6 w-[3px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -start-[2px] top-[34%] h-6 w-[3px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -end-[2px] top-[28%] h-12 w-[3px] rounded-r bg-[#1c1c1e]" />
-
-                        {/* Screen */}
-                        <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-white">
-                                {/* Dynamic Island — black pill (compact) */}
-                                <div className="absolute left-1/2 top-[6px] z-30 h-[18px] w-[58px] -translate-x-1/2 rounded-full bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
-                                        {/* Tiny camera dot */}
-                                        <div className="absolute end-[6px] top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full bg-[#1c1c1e] ring-1 ring-[#222]" />
-                                </div>
-                                {children}
-                        </div>
-                </div>
-        )
-}
-
-// ── Status bar (9:41 + signal + wifi + battery) ───────────────────────────
-
-function StatusBar({ dark = false }: { dark?: boolean }) {
-        const fg = dark ? 'text-white' : 'text-black'
-        return (
-                <div
-                        className={`relative z-20 flex h-[26px] items-center justify-between px-3 pt-0.5 text-[10px] font-semibold ${fg}`}
-                        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
-                >
-                        <span className="tracking-tight">9:41</span>
-                        <div className="flex items-center gap-[3px]">
-                                {/* Signal — 4 ascending bars (compact) */}
-                                <svg width="11" height="7" viewBox="0 0 18 12" fill="currentColor" aria-hidden>
-                                        <rect x="0" y="9" width="3" height="3" rx="0.5" />
-                                        <rect x="5" y="6" width="3" height="6" rx="0.5" />
-                                        <rect x="10" y="3" width="3" height="9" rx="0.5" />
-                                        <rect x="15" y="0" width="3" height="12" rx="0.5" />
-                                </svg>
-                                {/* LTE text (compact) */}
-                                <span className="text-[7px] font-medium">LTE</span>
-                                {/* Battery — rounded rect with fill (compact) */}
-                                <div dir="ltr" className="flex items-center gap-[1px]">
-                                        <div
-                                                className={`relative h-[9px] w-[19px] rounded-[2.5px] border ${dark ? 'border-white/50' : 'border-black/40'}`}
-                                                style={{ padding: '1.5px' }}
-                                        >
-                                                <div
-                                                        className="h-full rounded-[1px] bg-current"
-                                                        style={{ width: '100%' }}
-                                                />
-                                        </div>
-                                        <div
-                                                className={`h-[3px] w-[1px] rounded-r ${dark ? 'bg-white/50' : 'bg-black/40'}`}
-                                        />
-                                </div>
-                        </div>
-                </div>
-        )
-}
 
 // ── Mode switcher ────────────────────────────────────────────────────────
 
@@ -227,6 +177,24 @@ function Screen(props: IphonePreviewProps) {
         if (props.mode === 'STORY') return <StoryScreen {...props} />
         if (props.mode === 'COMMENT') return <CommentScreen {...props} />
         return <DMScreen {...props} />
+}
+
+const COMPOSER = { placeholder: 'Message...' }
+
+function dmHeader(accountUsername: string, accountAvatarUrl?: string): IgDmHeaderProps {
+        return {
+                name: accountUsername,
+                subtitle: 'Active now',
+                avatar: <IgAvatar size={36} ring="hairline" src={accountAvatarUrl} label={accountUsername} />,
+        }
+}
+
+function visibleReplies(messages: AutomationMessage[] | undefined) {
+        return (messages ?? []).filter(
+                (m) =>
+                        (m.type !== 'PRODUCT' || m.productId) &&
+                        (m.type !== 'PRODUCT_LIST' || (m.productIds && m.productIds.length > 0)),
+        )
 }
 
 // ── DM screen ────────────────────────────────────────────────────────────
@@ -239,98 +207,59 @@ function DMScreen(props: ScreenProps) {
                 replyMode,
                 messages,
                 followGate,
+                gatePrompt,
+                gateButton,
         } = props
-
-        const visibleMessages = (messages ?? []).filter(
-                (m) =>
-                        (m.type !== 'PRODUCT' || m.productId) &&
-                        (m.type !== 'PRODUCT_LIST' || (m.productIds && m.productIds.length > 0)),
-        )
+        const time = useIgClock()
 
         return (
-                <div
-                        className="flex h-full flex-col bg-white"
-                        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
-                >
-                        <StatusBar />
-
-                        {/* ── Chat header — IG DM style (LTR so back button is on the LEFT) ──
-                            Back arrow + avatar + username + "Business chat"
-                            subtitle + call/video/tag icons on the right. Matches the
-                            iPhone 16 Pro screenshot layout. */}
-                        <div dir="ltr" className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-black" aria-hidden>
-                                        <polyline points="15 18 9 12 15 6" />
-                                </svg>
-                                <Avatar url={accountAvatarUrl} name={accountUsername} size={32} />
-                                <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[12px] font-bold leading-tight text-black">
-                                                {accountUsername}
-                                        </p>
-                                        <p className="text-[9px] leading-tight text-black/50">Business chat</p>
-                                </div>
-                                <Phone className="h-[16px] w-[16px] text-black" strokeWidth={2} />
-                                <Video className="h-[17px] w-[17px] text-black" strokeWidth={2} />
+                <IgDmScreen header={dmHeader(accountUsername, accountAvatarUrl)} composer={COMPOSER}>
+                        {/* Profile card — how Instagram opens a new conversation */}
+                        <div className="flex shrink-0 flex-col items-center" style={{ padding: `${pt(4)} 0 ${pt(10)}` }}>
+                                <IgAvatar size={84} src={accountAvatarUrl} label={accountUsername} />
+                                <p className="max-w-full truncate font-semibold" style={{ fontSize: pt(17), marginTop: pt(8) }}>
+                                        {accountUsername}
+                                </p>
+                                <p style={{ fontSize: pt(13), color: IG_COLORS.label }}>Instagram</p>
+                                <span
+                                        className="rounded-lg bg-[#efeff3] font-semibold"
+                                        style={{ marginTop: pt(10), padding: `${pt(6)} ${pt(14)}`, fontSize: pt(13) }}
+                                >
+                                        View profile
+                                </span>
                         </div>
 
-                        {/* ── Messages ──
-                            dir="ltr" so justify-start (user) = visual LEFT and
-                            justify-end (bot) = visual RIGHT — matching Instagram
-                            regardless of the page's RTL direction. */}
-                        <div dir="ltr" className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2.5 no-scrollbar">
-                                {/* Profile preview card (large avatar + username + View Profile) */}
-                                <div className="flex flex-col items-center pb-2.5 pt-1">
-                                        <Avatar url={accountAvatarUrl} name={accountUsername} size={56} ring />
-                                        <p className="mt-1.5 text-[12px] font-bold text-black">{accountUsername}</p>
-                                        <p className="text-[9px] text-black/50">Instagram</p>
-                                        <button className="mt-1.5 rounded-md bg-[#efefef] px-3 py-1 text-[10px] font-medium text-black transition-transform active:scale-95">
-                                                View Profile
-                                        </button>
-                                </div>
+                        <IgTimestamp>Today {time}</IgTimestamp>
 
-                                {/* User's incoming message (the trigger keyword) */}
-                                {userText.trim() ? (
-                                        <Bubble side="user">{userText}</Bubble>
-                                ) : (
-                                        <Bubble side="user" muted>
-                                                کلمه‌کلیدی نمونه…
-                                        </Bubble>
-                                )}
+                        {/* The customer's message (the trigger keyword) */}
+                        <IgOutgoing>
+                                <IgBubble side="out" muted={!userText.trim()}>
+                                        {userText.trim() ? userText : 'کلمه‌کلیدی نمونه…'}
+                                </IgBubble>
+                        </IgOutgoing>
 
-                                {/* Bot reply (or mode-specific state) */}
-                                <BotReplyBlock
-                                        replyMode={replyMode}
-                                        messages={visibleMessages}
-                                        accountUsername={accountUsername}
-                                />
+                        <BotReplyBlock
+                                replyMode={replyMode}
+                                messages={visibleReplies(messages)}
+                                accountUsername={accountUsername}
+                                accountAvatarUrl={accountAvatarUrl}
+                                followGate={followGate}
+                                gatePrompt={gatePrompt}
+                                gateButton={gateButton}
+                        />
+                </IgDmScreen>
+        )
+}
 
-                                {/* Follow gate prompt */}
-                                {followGate && (
-                                        <Bubble side="bot">
-                                                <span className="text-[9px] text-white/70">دروازه فالو</span>
-                                                <span className="mt-0.5 block">لطفاً ابتدا صفحه ما را دنبال کنید. بعد از دنبال کردن روی دکمه زیر کلیک کنید.</span>
-                                                <button className="mt-1.5 inline-flex items-center justify-center rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-medium text-white transition-colors hover:bg-white/20">
-                                                        دنبال کردم
-                                                </button>
-                                        </Bubble>
-                                )}
-
-                        </div>
-
-                        {/* ── Input bar — IG DM 2024 style ──
-                            Blue camera icon + gray pill input (with mic inside) +
-                            blue heart outside. Matches the screenshot. */}
-                        <div dir="ltr" className="flex items-center gap-2 px-2.5 py-2 pb-3">
-                                <Camera className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
-                                <div className="flex flex-1 items-center gap-2 rounded-full bg-black/[0.05] px-3 py-1.5">
-                                        <span className="flex-1 text-[11px] text-black/40">Message...</span>
-                                        <Mic className="h-[14px] w-[14px] shrink-0 text-black/50" />
-                                </div>
-                                <Heart className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
-                        </div>
-
-                        {/* Home indicator */}
-                        <div className="absolute bottom-[5px] left-1/2 z-30 h-[4px] w-[90px] -translate-x-1/2 rounded-full bg-black/30" />
+function StatusPill({ tone = 'neutral', children }: { tone?: 'neutral' | 'danger'; children: React.ReactNode }) {
+        return (
+                <div className="flex shrink-0 items-center justify-center" style={{ padding: `${pt(8)} 0` }}>
+                        <span
+                                className={tone === 'danger' ? 'rounded-full bg-red-50 text-red-600' : 'rounded-full bg-black/[0.05] text-[var(--text-muted)]'}
+                                style={{ fontSize: pt(13), padding: `${pt(5)} ${pt(12)}` }}
+                        >
+                                {children}
+                        </span>
                 </div>
         )
 }
@@ -338,49 +267,113 @@ function DMScreen(props: ScreenProps) {
 function BotReplyBlock({
         replyMode,
         messages,
+        accountUsername,
+        accountAvatarUrl,
+        followGate = false,
+        gatePrompt,
+        gateButton,
 }: {
         replyMode: ReplyMode
         messages: AutomationMessage[]
         accountUsername: string
+        accountAvatarUrl?: string
+        followGate?: boolean
+        gatePrompt?: string
+        gateButton?: string
 }) {
-        if (replyMode === 'SILENT') {
-                return (
-                        <div className="flex items-center justify-center py-2">
-                                <span className="rounded-full bg-black/[0.06] px-3 py-1 text-[10px] text-black/40">
-                                        بی‌صدا — پاسخی ارسال نمی‌شود
-                                </span>
-                        </div>
-                )
-        }
-        if (replyMode === 'STOP_AI') {
-                return (
-                        <div className="flex items-center justify-center py-2">
-                                <span className="rounded-full bg-red-50 px-3 py-1 text-[10px] text-red-600">
-                                        پاسخ‌گویی هوش مصنوعی متوقف شد
-                                </span>
-                        </div>
-                )
-        }
-        if (replyMode === 'AI') {
-                return (
-                        <Bubble side="bot">
-                                <TypingDots />
-                        </Bubble>
-                )
-        }
-        // STATIC or MULTI_MESSAGE → render the messages in order
-        if (messages.length === 0) {
-                return (
-                        <Bubble side="bot" muted>
-                                پاسخ خود را بنویسید…
-                        </Bubble>
-                )
-        }
+        if (replyMode === 'SILENT') return <StatusPill>بی‌صدا — پاسخی ارسال نمی‌شود</StatusPill>
+        if (replyMode === 'STOP_AI') return <StatusPill tone="danger">پاسخ‌گویی هوش مصنوعی متوقف شد</StatusPill>
+
+        const avatar = <IgAvatar size={28} src={accountAvatarUrl} label={accountUsername} />
+        const reply = (
+                <IgIncoming avatar={avatar}>
+                        {replyMode === 'AI' ? (
+                                <IgBubble side="in">
+                                        <IgTypingDots />
+                                </IgBubble>
+                        ) : messages.length === 0 ? (
+                                // STATIC or MULTI_MESSAGE with nothing written yet
+                                <IgBubble side="in" muted>
+                                        پاسخ خود را بنویسید…
+                                </IgBubble>
+                        ) : (
+                                messages.map((m) => <MessageBubble key={m.id} message={m} />)
+                        )}
+                </IgIncoming>
+        )
+        if (!followGate) return reply
+
+        // Follow gate — the real order of the conversation: the follow request
+        // goes out first, the customer taps the confirm button, and only then
+        // does the actual reply arrive.
+        const gate = gateCopy(gatePrompt, gateButton)
         return (
-                <div className="space-y-1.5">
-                        {messages.map((m) => (
-                                <MessageBubble key={m.id} message={m} />
-                        ))}
+                <>
+                        <IgIncoming avatar={avatar}>
+                                <FollowGateBubble prompt={gate.prompt} button={gate.button} />
+                        </IgIncoming>
+                        <IgOutgoing>
+                                <IgBubble side="out">{gate.button}</IgBubble>
+                        </IgOutgoing>
+                        <GateStepLabel />
+                        {reply}
+                </>
+        )
+}
+
+/** The follow-request message — Button Template style, like the real DM. */
+function FollowGateBubble({ prompt, button }: { prompt: string; button: string }) {
+        return (
+                <IgBubble side="in" flush style={{ width: pt(240) }}>
+                        <span
+                                className="flex items-center font-semibold"
+                                style={{ gap: pt(5), padding: `${pt(9)} ${pt(12)} 0`, fontSize: pt(12), color: IG_COLORS.label }}
+                        >
+                                <UserPlus aria-hidden style={{ width: pt(13), height: pt(13) }} />
+                                فقط برای کسی که هنوز فالو نکرده
+                        </span>
+                        <p dir="auto" className="whitespace-pre-line" style={{ padding: `${pt(4)} ${pt(12)} ${pt(9)}` }}>
+                                {prompt}
+                        </p>
+                        <span
+                                dir="auto"
+                                className="block border-t border-black/[0.08] text-center font-semibold"
+                                style={{ padding: `${pt(9)} ${pt(12)}`, fontSize: pt(15) }}
+                        >
+                                {button}
+                        </span>
+                </IgBubble>
+        )
+}
+
+function GateStepLabel() {
+        return (
+                <div className="flex shrink-0 items-center justify-center" style={{ padding: `${pt(2)} 0` }}>
+                        <span className="inline-flex items-center rounded-full bg-black/[0.05] font-medium text-[var(--text-muted)]" style={{ gap: pt(5), fontSize: pt(12), padding: `${pt(4)} ${pt(11)}` }}>
+                                <Check aria-hidden style={{ width: pt(12), height: pt(12) }} strokeWidth={3} />
+                                فالو تأیید شد — پاسخ اصلی ارسال می‌شود
+                        </span>
+                </div>
+        )
+}
+
+function ButtonChips({ buttons }: { buttons: NonNullable<AutomationMessage['buttons']> | string[] }) {
+        if (buttons.length === 0) return null
+        return (
+                <div className="flex flex-wrap" style={{ gap: pt(6), marginTop: pt(4) }}>
+                        {buttons.map((b, i) => {
+                                const btn = typeof b === 'string' ? { title: b } : b
+                                return (
+                                        <span
+                                                key={i}
+                                                dir="auto"
+                                                className="rounded-full border border-black/15 bg-white font-semibold text-black"
+                                                style={{ fontSize: pt(14), padding: `${pt(6)} ${pt(13)}` }}
+                                        >
+                                                {btn.title}
+                                        </span>
+                                )
+                        })}
                 </div>
         )
 }
@@ -389,72 +382,62 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
         // IMAGE
         if (message.type === 'IMAGE' && message.mediaUrl) {
                 return (
-                        <Bubble side="bot" flush>
-                                <div className="overflow-hidden rounded-2xl rounded-br-md">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                                src={message.mediaUrl}
-                                                alt={message.text || 'preview'}
-                                                loading="lazy"
-                                                decoding="async"
-                                                className="block max-h-48 w-full object-cover"
-                                        />
-                                </div>
+                        <IgBubble side="in" flush style={{ width: pt(230) }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                        src={message.mediaUrl}
+                                        alt={message.text || 'preview'}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="block w-full object-cover"
+                                        style={{ maxHeight: pt(280) }}
+                                />
                                 {message.text?.trim() && (
-                                        <p className="px-3 py-2 text-[12px] text-white">{message.text}</p>
+                                        <p dir="auto" style={{ padding: `${pt(8)} ${pt(12)}` }}>{message.text}</p>
                                 )}
-                        </Bubble>
+                        </IgBubble>
                 )
         }
         // AUDIO — voice player UI
         if (message.type === 'AUDIO' && message.mediaUrl) {
                 return (
-                        <Bubble side="bot">
-                                <div className="flex items-center gap-2.5 py-0.5">
-                                        <button className="flex h-7 w-7 items-center justify-center rounded-full bg-white/25 text-white">
-                                                <svg width="9" height="10" viewBox="0 0 8 9" fill="currentColor" aria-hidden>
+                        <IgBubble side="in">
+                                <div dir="ltr" className="flex items-center" style={{ gap: pt(10) }}>
+                                        <span className="grid shrink-0 place-items-center rounded-full bg-black/10 text-black" style={{ width: pt(30), height: pt(30) }}>
+                                                <svg viewBox="0 0 8 9" fill="currentColor" aria-hidden style={{ width: pt(10), height: pt(11) }}>
                                                         <path d="M0 0 L8 4.5 L0 9 Z" />
                                                 </svg>
-                                        </button>
-                                        <div className="flex h-5 items-center gap-[2px]">
+                                        </span>
+                                        <span className="flex items-center" style={{ gap: pt(2.5), height: pt(24) }}>
                                                 {[7, 12, 5, 11, 8, 14, 6, 10, 9, 13, 5, 11, 7, 9].map((h, i) => (
-                                                        <span
-                                                                key={i}
-                                                                className="w-[2px] rounded-full bg-white/85"
-                                                                style={{ height: h }}
-                                                        />
+                                                        <span key={i} className="rounded-full bg-black/55" style={{ width: pt(2.5), height: pt(h * 1.4) }} />
                                                 ))}
-                                        </div>
-                                        <span className="text-[10px] text-white/80" dir="ltr">0:08</span>
+                                        </span>
+                                        <span className="text-black/55" style={{ fontSize: pt(12) }}>0:08</span>
                                 </div>
-                        </Bubble>
+                        </IgBubble>
                 )
         }
         // VIDEO — playable video player (like real Instagram DM)
         if (message.type === 'VIDEO' && message.mediaUrl) {
                 return (
-                        <Bubble side="bot" flush>
-                                <div className="relative overflow-hidden rounded-2xl rounded-br-md bg-black">
-                                        <video
-                                                src={message.mediaUrl}
-                                                controls
-                                                playsInline
-                                                className="block max-h-48 w-full object-cover"
-                                        />
-                                </div>
+                        <IgBubble side="in" flush style={{ width: pt(230) }}>
+                                <video
+                                        src={message.mediaUrl}
+                                        controls
+                                        playsInline
+                                        className="block w-full bg-black object-cover"
+                                        style={{ maxHeight: pt(280) }}
+                                />
                                 {message.text?.trim() && (
-                                        <p className="px-3 py-2 text-[12px] text-white">{message.text}</p>
+                                        <p dir="auto" style={{ padding: `${pt(8)} ${pt(12)}` }}>{message.text}</p>
                                 )}
-                        </Bubble>
+                        </IgBubble>
                 )
         }
         // PRODUCT — card view (v3.1: real photo/name/price from /api/products)
         if (message.type === 'PRODUCT' && message.productId) {
-                return (
-                        <Bubble side="bot" flush>
-                                <ProductCardBubble productId={message.productId} />
-                        </Bubble>
-                )
+                return <ProductCardBubble productId={message.productId} />
         }
         // PRODUCT_LIST — horizontal carousel of product cards (v3.1: real data).
         // Renders up to 3 cards (3 = what visually fits in the phone preview
@@ -464,31 +447,23 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                 const ids = (message.productIds ?? []).filter(Boolean)
                 if (ids.length === 0) {
                         return (
-                                <Bubble side="bot" flush>
-                                        <div className="w-[210px] overflow-hidden rounded-2xl rounded-br-md border border-black/10 bg-white">
-                                                <div
-                                                        className="flex h-20 items-center justify-center text-white"
-                                                        style={{ background: IG_GRADIENT }}
-                                                >
-                                                        <ImageIcon className="h-7 w-7 opacity-80" />
-                                                </div>
-                                                <div className="p-2.5">
-                                                        <p className="text-[11px] font-medium text-black/60">ویترین محصولات</p>
-                                                        <p className="text-[10px] text-black/40">محصولی اضافه نشده</p>
-                                                </div>
+                                <div className="overflow-hidden border border-black/10 bg-white" style={{ width: pt(230), borderRadius: pt(18) }}>
+                                        <div className="flex items-center justify-center text-white" style={{ height: pt(96), background: IG_GRADIENT }}>
+                                                <ImageIcon className="opacity-80" style={{ width: pt(30), height: pt(30) }} />
                                         </div>
-                                </Bubble>
+                                        <div style={{ padding: pt(11) }}>
+                                                <p className="font-semibold text-black" style={{ fontSize: pt(14) }}>ویترین محصولات</p>
+                                                <p className="text-[var(--text-muted)]" style={{ fontSize: pt(12.5) }}>محصولی اضافه نشده</p>
+                                        </div>
+                                </div>
                         )
                 }
-                const cards = ids.slice(0, 3)
                 return (
-                        <Bubble side="bot" flush>
-                                <div className="flex w-[210px] gap-1.5 overflow-x-auto rounded-2xl rounded-br-md p-1.5 bg-transparent">
-                                        {cards.map((id) => (
-                                                <ProductCardBubble key={id} productId={id} small />
-                                        ))}
-                                </div>
-                        </Bubble>
+                        <div className="no-scrollbar flex overflow-x-auto" style={{ width: pt(260), gap: pt(6) }}>
+                                {ids.slice(0, 3).map((id) => (
+                                        <ProductCardBubble key={id} productId={id} small />
+                                ))}
+                        </div>
                 )
         }
         // QUICK_REPLY — render differently based on buttonType:
@@ -496,80 +471,42 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
         //   'quick_reply'      → chips BELOW the bubble (Quick Reply style)
         if (message.type === 'QUICK_REPLY') {
                 const buttons = message.buttons ?? message.quickReplies ?? []
-                const isQuickReplyStyle = message.buttonType === 'quick_reply'
-
-                if (isQuickReplyStyle) {
-                        // Quick Reply style: chips below the bubble (like the old rendering)
+                if (message.buttonType === 'quick_reply') {
                         return (
-                                <div>
-                                        <Bubble side="bot">
-                                                {message.text?.trim() ? message.text : 'متن پیام…'}
-                                        </Bubble>
-                                        {buttons.length > 0 && (
-                                                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                                        {buttons.map((b, i) => {
-                                                                const btn = typeof b === 'string' ? { title: b } : b
-                                                                return (
-                                                                        <button
-                                                                                key={i}
-                                                                                className="rounded-full border border-[#5e5ce6]/30 bg-white px-3 py-1.5 text-[10px] font-medium text-[#5e5ce6] transition-colors hover:bg-[#5e5ce6]/5"
-                                                                        >
-                                                                                {btn.title}
-                                                                        </button>
-                                                                )
-                                                        })}
-                                                </div>
-                                        )}
+                                <div className="flex flex-col items-start">
+                                        <IgBubble side="in">{message.text?.trim() ? message.text : 'متن پیام…'}</IgBubble>
+                                        <ButtonChips buttons={buttons} />
                                 </div>
                         )
                 }
-
-                // Button Template style: buttons INSIDE the bubble (like real IG)
+                // Button Template style: title rows under the text, like real IG
                 return (
-                        <Bubble side="bot" flush>
-                                <div className="px-3 py-2.5">
-                                        <p className="text-[11.5px] leading-relaxed text-white">
-                                                {message.text?.trim() ? message.text : 'متن پیام…'}
-                                        </p>
-                                        <div className="mt-2 space-y-1.5">
-                                                {buttons.map((b, i) => {
-                                                        const btn = typeof b === 'string' ? { title: b } : b
-                                                        return (
-                                                                <button
-                                                                        key={i}
-                                                                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-medium text-white transition-colors hover:bg-white/20"
-                                                                >
-                                                                        {btn.title}
-                                                                </button>
-                                                        )
-                                                })}
-                                        </div>
-                                </div>
-                        </Bubble>
+                        <IgBubble side="in" flush style={{ width: pt(240) }}>
+                                <p dir="auto" style={{ padding: `${pt(9)} ${pt(12)}` }}>
+                                        {message.text?.trim() ? message.text : 'متن پیام…'}
+                                </p>
+                                {buttons.map((b, i) => {
+                                        const btn = typeof b === 'string' ? { title: b } : b
+                                        return (
+                                                <span
+                                                        key={i}
+                                                        dir="auto"
+                                                        className="block border-t border-black/[0.08] text-center font-semibold"
+                                                        style={{ padding: `${pt(9)} ${pt(12)}`, fontSize: pt(15) }}
+                                                >
+                                                        {btn.title}
+                                                </span>
+                                        )
+                                })}
+                        </IgBubble>
                 )
         }
         // TEXT (or fallback)
         const buttons = message.buttons ?? message.quickReplies ?? []
         return (
-                <div>
-                        <Bubble side="bot">
-                                {message.text?.trim() ? message.text : 'متن پاسخ…'}
-                        </Bubble>
-                        {buttons.length > 0 && (
-                                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                        {buttons.map((b, i) => {
-                                                const btn = typeof b === 'string' ? { title: b } : b
-                                                return (
-                                                        <button
-                                                                key={i}
-                                                                className="rounded-full border border-[#3897f0]/30 bg-white px-3.5 py-2 text-[12px] font-medium text-[#3897f0] transition-colors hover:bg-[#3897f0]/5"
-                                                        >
-                                                                {btn.title}
-                                                        </button>
-                                                )
-                                        })}
-                                </div>
-                        )}
+                <div className="flex flex-col items-start">
+                        <IgBubble side="in">{message.text?.trim() ? message.text : 'متن پاسخ…'}</IgBubble>
+                        <ButtonChips buttons={buttons} />
                 </div>
         )
 }
@@ -582,12 +519,12 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
 function ProductCardBubble({ productId, small }: { productId: string; small?: boolean }) {
         const product = usePreviewProduct(productId)
         const img = product?.images?.[0]
-        const width = small ? 'w-[150px]' : 'w-[210px]'
         return (
                 <div
-                        className={`${width} shrink-0 overflow-hidden rounded-xl border border-black/10 bg-white`}
+                        className="shrink-0 overflow-hidden border border-black/10 bg-white"
+                        style={{ width: pt(small ? 170 : 230), borderRadius: pt(18) }}
                 >
-                        <div className={`flex items-center justify-center bg-black/[0.04] ${small ? 'h-20' : 'h-24'}`}>
+                        <div className="flex items-center justify-center bg-black/[0.04]" style={{ height: pt(small ? 120 : 150) }}>
                                 {img ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
@@ -598,28 +535,28 @@ function ProductCardBubble({ productId, small }: { productId: string; small?: bo
                                                 className="h-full w-full object-cover"
                                         />
                                 ) : product === null ? (
-                                        <ImageIcon className={small ? 'h-6 w-6' : 'h-8 w-8'} opacity={0.35} />
+                                        <ImageIcon opacity={0.35} style={{ width: pt(30), height: pt(30) }} />
                                 ) : (
-                                        <div className={`animate-pulse rounded ${small ? 'h-5 w-5' : 'h-6 w-6'} bg-black/10`} />
+                                        <div className="animate-pulse rounded bg-black/10" style={{ width: pt(26), height: pt(26) }} />
                                 )}
                         </div>
-                        <div className={small ? 'p-2' : 'p-2.5'}>
-                                <p className={`truncate font-semibold text-black ${small ? 'text-[10px]' : 'text-[11px]'}`}>
+                        <div style={{ padding: pt(small ? 9 : 11) }}>
+                                <p className="truncate font-semibold text-black" style={{ fontSize: pt(small ? 13.5 : 14.5) }}>
                                         {product ? product.name : '…'}
                                 </p>
-                                <p className={`${small ? 'text-[9px]' : 'text-[10px]'} text-black/60`}>
+                                <p className="text-[var(--text-secondary)]" style={{ fontSize: pt(small ? 12 : 13) }}>
                                         {product === undefined
                                                 ? '…'
                                                 : product?.price != null
                                                         ? `قیمت: ${product.price.toLocaleString('fa-IR')} تومان`
                                                         : 'بدون قیمت'}
                                 </p>
-                                <button
-                                        className={`mt-1 w-full rounded-md font-medium text-white ${small ? 'py-0.5 text-[9px]' : 'mt-1.5 rounded-lg py-1 text-[10px]'}`}
-                                        style={{ background: IG_GRADIENT }}
+                                <span
+                                        className="block rounded-lg bg-[#efeff3] text-center font-semibold text-black"
+                                        style={{ marginTop: pt(8), padding: `${pt(small ? 5 : 7)} 0`, fontSize: pt(small ? 12.5 : 13.5) }}
                                 >
                                         {small ? 'مشاهده' : 'مشاهده محصول'}
-                                </button>
+                                </span>
                         </div>
                 </div>
         )
@@ -634,119 +571,43 @@ function StoryScreen(props: ScreenProps) {
                 userText,
                 replyMode,
                 messages,
+                followGate,
+                gatePrompt,
+                gateButton,
         } = props
-
-        const visibleMessages = (messages ?? []).filter(
-                (m) =>
-                        (m.type !== 'PRODUCT' || m.productId) &&
-                        (m.type !== 'PRODUCT_LIST' || (m.productIds && m.productIds.length > 0)),
-        )
+        const time = useIgClock()
 
         return (
-                <div
-                        className="flex h-full flex-col bg-white"
-                        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
-                >
-                        <StatusBar />
+                <IgDmScreen header={dmHeader(accountUsername, accountAvatarUrl)} composer={COMPOSER}>
+                        {/* Pushes a short thread down to the composer, like the app; long ones still scroll. */}
+                        <div aria-hidden className="mt-auto" />
+                        <IgTimestamp>Today {time}</IgTimestamp>
 
-                        {/* ── Chat header — same as DM (LTR so back button is on the LEFT) ── */}
-                        <div dir="ltr" className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-black" aria-hidden>
-                                        <polyline points="15 18 9 12 15 6" />
-                                </svg>
-                                <Avatar url={accountAvatarUrl} name={accountUsername} size={32} />
-                                <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[12px] font-bold leading-tight text-black">
-                                                {accountUsername}
-                                        </p>
-                                        <p className="text-[9px] leading-tight text-black/50">Business chat</p>
+                        {/* The customer's story reply — story thumbnail + text, on the RIGHT. */}
+                        <IgOutgoing>
+                                <IgMeta>You replied to their story</IgMeta>
+                                <div
+                                        className="relative grid place-items-center overflow-hidden shadow-sm"
+                                        style={{ width: pt(72), height: pt(124), borderRadius: pt(12), background: IG_GRADIENT }}
+                                >
+                                        <span className="font-medium text-white/90" style={{ fontSize: pt(11) }}>Story</span>
                                 </div>
-                                <Phone className="h-[16px] w-[16px] text-black" strokeWidth={2} />
-                                <Video className="h-[17px] w-[17px] text-black" strokeWidth={2} />
-                        </div>
+                                <IgBubble side="out" muted={!userText.trim()}>
+                                        {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
+                                </IgBubble>
+                        </IgOutgoing>
 
-                        {/* ── Messages — same layout as DM, but with story thumbnail ── */}
-                        <div dir="ltr" className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2.5 no-scrollbar">
-                                {/* Timestamp */}
-                                <div className="text-center text-[8px] text-black/40">19:06</div>
-
-                                {/* "Replied to your story" label + story thumbnail */}
-                                <div className="flex flex-col items-center gap-1 py-1">
-                                        <p className="text-[9px] text-black/50">Replied to your story</p>
-                                        {/* Story thumbnail — vertical, gradient background (sample story) */}
-                                        <div
-                                                className="relative h-[80px] w-[48px] overflow-hidden rounded-lg shadow-sm"
-                                                style={{ background: IG_GRADIENT }}
-                                        >
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className="text-[7px] font-medium text-white/90">Story</span>
-                                                </div>
-                                        </div>
-                                </div>
-
-                                {/* User's reply — LEFT-aligned gray bubble (#efefef), same as DM.
-                                    In Instagram, incoming messages (from the customer) are on the LEFT. */}
-                                <div className="flex justify-start">
-                                        <div className="max-w-[78%] rounded-2xl rounded-bl-md bg-[#efefef] px-2.5 py-1.5 text-[11.5px] leading-relaxed text-black">
-                                                {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
-                                        </div>
-                                </div>
-
-                                {/* Bot responses — RIGHT-aligned blue bubbles (#5e5ce6), same as DM.
-                                    Outgoing replies (from the business/bot) are on the RIGHT. */}
-                                {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0 && (
-                                        visibleMessages.map((m) => (
-                                                <div key={m.id} className="space-y-1">
-                                                        <MessageBubble message={m} />
-                                                </div>
-                                        ))
-                                )}
-                                {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length === 0 && (
-                                        <div className="flex justify-end">
-                                                <div
-                                                        className="max-w-[78%] rounded-2xl rounded-br-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white/70 shadow-sm"
-                                                        style={{ background: IG_BLUE }}
-                                                >
-                                                        پاسخ خود را بنویسید…
-                                                </div>
-                                        </div>
-                                )}
-                                {replyMode === 'AI' && (
-                                        <div className="flex justify-end">
-                                                <div
-                                                        className="rounded-2xl rounded-br-md px-2.5 py-2 text-[11px] text-white shadow-sm"
-                                                        style={{ background: IG_BLUE }}
-                                                >
-                                                        <TypingDots />
-                                                </div>
-                                        </div>
-                                )}
-                                {replyMode === 'SILENT' && (
-                                        <div className="text-center text-[10px] text-black/40">بدون پاسخ خودکار</div>
-                                )}
-                                {replyMode === 'STOP_AI' && (
-                                        <div className="text-center text-[10px] text-red-500">هوش مصنوعی متوقف شد</div>
-                                )}
-
-                                {/* "Seen" indicator (like real IG — under the last outgoing message, left-aligned) */}
-                                {((replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0) && (
-                                        <div className="ps-1 text-start text-[8px] text-black/40">Seen just now</div>
-                                )}
-                        </div>
-
-                        {/* ── Input bar — same as DM ── */}
-                        <div dir="ltr" className="flex items-center gap-2 px-2.5 py-2 pb-3">
-                                <Camera className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
-                                <div className="flex flex-1 items-center gap-2 rounded-full bg-black/[0.05] px-3 py-1.5">
-                                        <span className="flex-1 text-[11px] text-black/40">Message...</span>
-                                        <Mic className="h-[14px] w-[14px] shrink-0 text-black/50" />
-                                </div>
-                                <Heart className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
-                        </div>
-
-                        {/* Home indicator */}
-                        <div className="absolute bottom-[5px] left-1/2 z-30 h-[4px] w-[90px] -translate-x-1/2 rounded-full bg-black/30" />
-                </div>
+                        {/* Business replies — on the LEFT, same as DM. */}
+                        <BotReplyBlock
+                                replyMode={replyMode}
+                                messages={visibleReplies(messages)}
+                                accountUsername={accountUsername}
+                                accountAvatarUrl={accountAvatarUrl}
+                                followGate={followGate}
+                                gatePrompt={gatePrompt}
+                                gateButton={gateButton}
+                        />
+                </IgDmScreen>
         )
 }
 
@@ -762,7 +623,11 @@ function CommentScreen(props: ScreenProps) {
                 dmOnComment,
                 commentAckEnabled,
                 commentAckText,
+                followGate,
+                gatePrompt,
+                gateButton,
         } = props
+        const gate = followGate && replyMode !== 'SILENT' && replyMode !== 'STOP_AI' ? gateCopy(gatePrompt, gateButton) : null
 
         // v3.1: comment→DM funnels no longer post a public reply — the DM
         // sequence IS the reply. The public bubble only renders for public
@@ -784,18 +649,14 @@ function CommentScreen(props: ScreenProps) {
                 : []
 
         return (
-                <div
-                        className="flex h-full flex-col bg-white"
-                        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
-                >
-                        <StatusBar />
+                <div className="flex h-full flex-col bg-white">
 
                         {/* Mini post header (LTR) */}
                         <div dir="ltr" className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-1.5">
-                                <Avatar url={accountAvatarUrl} name={accountUsername} size={26} />
+                                <IgAvatar size={36} src={accountAvatarUrl} label={accountUsername} />
                                 <p className="text-[11px] font-semibold text-black">{accountUsername}</p>
                                 <span className="text-[10px] font-semibold text-[#3897f0]">• Follow</span>
-                                <MoreHorizontal className="ms-auto h-3.5 w-3.5 text-black/60" />
+                                <MoreHorizontal className="ms-auto h-3.5 w-3.5 text-[var(--text-secondary)]" />
                         </div>
 
                         {/* Square post image area */}
@@ -805,7 +666,7 @@ function CommentScreen(props: ScreenProps) {
                         >
                                 <ImageIcon className="h-8 w-8 opacity-80" />
                                 <div className="absolute top-1.5 end-1.5 rounded-full bg-black/30 px-1.5 py-0.5 text-[8px] text-white backdrop-blur">
-                                        ۱/۱
+                                        1/1
                                 </div>
                         </div>
 
@@ -819,7 +680,7 @@ function CommentScreen(props: ScreenProps) {
 
                         {/* Likes count + caption */}
                         <p className="px-2.5 text-[10px] font-semibold text-black">
-                                {(1247).toLocaleString('fa-IR')} پسند
+                                1,247 likes
                         </p>
                         <p className="px-2.5 pb-1.5 text-[10px] text-black leading-snug">
                                 <span className="font-semibold">{accountUsername}</span>{' '}
@@ -828,7 +689,7 @@ function CommentScreen(props: ScreenProps) {
 
                         {/* Comments section — dir="ltr" for consistent alignment */}
                         <div dir="ltr" className="flex-1 space-y-2 overflow-y-auto border-t border-black/[0.06] px-2.5 py-2 no-scrollbar">
-                                <p className="text-[9px] font-semibold text-black/50">کامنت‌ها</p>
+                                <p className="text-[9px] font-semibold text-[var(--text-muted)]">Comments</p>
 
                                 {/* User's comment (the trigger keyword) */}
                                 <div className="flex gap-2">
@@ -840,29 +701,49 @@ function CommentScreen(props: ScreenProps) {
                                                         <span className="font-semibold">user_123</span>{' '}
                                                         {userText.trim() || 'کامنت نمونه…'}
                                                 </p>
-                                                <div className="mt-0.5 flex items-center gap-3 text-[9px] text-black/40">
-                                                        <span>اکنون</span>
-                                                        <span>پاسخ</span>
+                                                <div className="mt-0.5 flex items-center gap-3 text-[9px] text-[var(--text-muted)]">
+                                                        <span>now</span>
+                                                        <span>Reply</span>
                                                 </div>
                                         </div>
-                                        <Heart className="mt-0.5 h-2.5 w-2.5 text-black/30" />
+                                        <Heart className="mt-0.5 h-2.5 w-2.5 text-[var(--text-muted)]" />
                                 </div>
+
+                                {/* Follow gate — the commenter first gets a follow request in
+                                    DM; the reply below only goes out after they confirm. */}
+                                {gate && (
+                                        <div dir="rtl" className="rounded-xl border border-black/[0.08] bg-[#f6f6f8] p-2.5">
+                                                <p className="flex items-center gap-1 text-[10px] font-semibold text-[var(--text-primary)]">
+                                                        <Lock className="h-3 w-3" />
+                                                        ۱. درخواست فالو در دایرکت
+                                                        <span className="font-normal text-[var(--text-muted)]">(فقط غیرفالوورها)</span>
+                                                </p>
+                                                <div className="mt-1.5 overflow-hidden rounded-lg border border-black/[0.06] bg-white">
+                                                        <p dir="auto" className="whitespace-pre-line px-2 py-1.5 text-[11px] leading-snug text-black">{gate.prompt}</p>
+                                                        <p dir="auto" className="border-t border-black/[0.06] px-2 py-1 text-center text-[11px] font-semibold text-black">{gate.button}</p>
+                                                </div>
+                                                <p className="mt-1.5 flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                                                        <Check className="h-3 w-3" strokeWidth={3} />
+                                                        {`بعد از زدن «${gate.button}»، پاسخ زیر ارسال می‌شود`}
+                                                </p>
+                                        </div>
+                                )}
 
                                 {/* Bot's reply (if STATIC/MULTI_MESSAGE) */}
                                 {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && publicReply && (
                                         <div className="flex gap-2 ps-7">
-                                                <Avatar url={accountAvatarUrl} name={accountUsername} size={28} />
+                                                <IgAvatar size={39} src={accountAvatarUrl} label={accountUsername} />
                                                 <div className="min-w-0 flex-1">
                                                         <p className="text-[11px] text-black leading-snug">
                                                                 <span className="font-semibold">{accountUsername}</span>{' '}
                                                                 {publicReply}
                                                         </p>
-                                                        <div className="mt-0.5 flex items-center gap-3 text-[9px] text-black/40">
-                                                                <span>اکنون</span>
-                                                                <span>پاسخ</span>
+                                                        <div className="mt-0.5 flex items-center gap-3 text-[9px] text-[var(--text-muted)]">
+                                                                <span>now</span>
+                                                                <span>Reply</span>
                                                         </div>
                                                 </div>
-                                                <Heart className="mt-0.5 h-2.5 w-2.5 text-black/30" />
+                                                <Heart className="mt-0.5 h-2.5 w-2.5 text-[var(--text-muted)]" />
                                         </div>
                                 )}
 
@@ -871,29 +752,29 @@ function CommentScreen(props: ScreenProps) {
                                     unanswered when the reply goes to DM. */}
                                 {ackReply && (
                                         <div className="flex gap-2 ps-7">
-                                                <Avatar url={accountAvatarUrl} name={accountUsername} size={28} />
+                                                <IgAvatar size={39} src={accountAvatarUrl} label={accountUsername} />
                                                 <div className="min-w-0 flex-1">
                                                         <p className="text-[11px] text-black leading-snug">
                                                                 <span className="font-semibold">{accountUsername}</span>{' '}
                                                                 {ackReply}
                                                         </p>
-                                                        <div className="mt-0.5 flex items-center gap-3 text-[9px] text-black/40">
-                                                                <span>اکنون</span>
-                                                                <span>پاسخ</span>
+                                                        <div className="mt-0.5 flex items-center gap-3 text-[9px] text-[var(--text-muted)]">
+                                                                <span>now</span>
+                                                                <span>Reply</span>
                                                         </div>
                                                 </div>
-                                                <Heart className="mt-0.5 h-2.5 w-2.5 text-black/30" />
+                                                <Heart className="mt-0.5 h-2.5 w-2.5 text-[var(--text-muted)]" />
                                         </div>
                                 )}
 
                                 {replyMode === 'SILENT' && (
-                                        <div className="rounded-lg bg-black/[0.05] px-2.5 py-1.5 text-center text-[10px] text-black/50">
+                                        <div className="rounded-lg bg-black/[0.05] px-2.5 py-1.5 text-center text-[10px] text-[var(--text-muted)]">
                                                 کامنت بدون ریپلای رها می‌شود
                                         </div>
                                 )}
 
                                 {replyMode === 'MULTI_MESSAGE' && messages.length > 1 && (
-                                        <div className="rounded-lg bg-black/[0.05] px-2.5 py-1.5 text-[10px] text-black/60">
+                                        <div dir="rtl" className="rounded-lg bg-black/[0.05] px-2.5 py-1.5 text-[10px] text-[var(--text-secondary)]">
                                                 یکی از {messages.length.toLocaleString('fa-IR')} گزینه به‌صورت تصادفی ریپلای می‌شود
                                         </div>
                                 )}
@@ -901,18 +782,18 @@ function CommentScreen(props: ScreenProps) {
                                 {/* DM funnel — renders the builder sequence that will be
                                     delivered to the commenter's DM (v3.1: full rich preview). */}
                                 {dmOnComment && (
-                                        <div className="rounded-xl border border-[#dd2a7b]/30 p-2.5" style={{ background: IG_GRADIENT_SOFT }}>
+                                        <div dir="rtl" className="rounded-xl border border-[#dd2a7b]/30 p-2.5" style={{ background: IG_GRADIENT_SOFT }}>
                                                 <p className="flex items-center gap-1 text-[10px] font-semibold text-[#dd2a7b]">
                                                         <Send className="h-3 w-3 -rotate-12" />
-                                                        ارسال دایرکت
+                                                        {gate ? '۲. ارسال دایرکت' : 'ارسال دایرکت'}
                                                         {dmMessages.length > 0 && (
-                                                                <span className="font-normal text-black/40">
+                                                                <span className="font-normal text-[var(--text-muted)]">
                                                                         ({dmMessages.length.toLocaleString('fa-IR')} پیام)
                                                                 </span>
                                                         )}
                                                 </p>
                                                 {dmMessages.length === 0 ? (
-                                                        <p className="mt-1 text-[11px] text-black/50 leading-snug">
+                                                        <p className="mt-1 text-[11px] text-[var(--text-muted)] leading-snug">
                                                                 متن دایرکت نمونه…
                                                         </p>
                                                 ) : (
@@ -932,13 +813,11 @@ function CommentScreen(props: ScreenProps) {
                                         U
                                 </div>
                                 <div className="flex flex-1 items-center rounded-full border border-black/15 px-3 py-1.5">
-                                        <span className="text-[11px] text-black/40">افزودن کامنت…</span>
+                                        <span className="text-[11px] text-[var(--text-muted)]">Add a comment…</span>
                                 </div>
                                 <Plus className="h-4 w-4 text-[#3897f0]" />
                         </div>
 
-                        {/* Home indicator */}
-                        <div className="absolute bottom-[6px] left-1/2 z-30 h-[5px] w-[110px] -translate-x-1/2 rounded-full bg-black/30" />
                 </div>
         )
 }
@@ -989,7 +868,7 @@ function DmEntryRow({ message }: { message: AutomationMessage }) {
                                         message.type === 'QUICK_REPLY' && message.buttons?.length ? (
                                                 <>
                                                         {body}
-                                                        <span className="ms-1 text-black/45">
+                                                        <span className="ms-1 text-[var(--text-muted)]">
                                                                 + {message.buttons.length.toLocaleString('fa-IR')} کلید
                                                         </span>
                                                 </>
@@ -997,7 +876,7 @@ function DmEntryRow({ message }: { message: AutomationMessage }) {
                                                 body
                                         )
                                 ) : (
-                                        <span className="text-black/55">{label}</span>
+                                        <span className="text-[var(--text-secondary)]">{label}</span>
                                 )}
                         </p>
                 </div>
@@ -1019,14 +898,14 @@ function DmProductRow({ productId, count }: { productId: string; count: number }
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={img} alt={product?.name ?? ''} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                 ) : (
-                                        <ShoppingBag className="h-4 w-4 text-black/30" />
+                                        <ShoppingBag className="h-4 w-4 text-[var(--text-muted)]" />
                                 )}
                         </span>
                         <div className="min-w-0 flex-1">
                                 <p className="truncate text-[11px] font-medium leading-snug text-black">
                                         {product ? product.name : '…'}
                                 </p>
-                                <p className="text-[10px] leading-snug text-black/50">
+                                <p className="text-[10px] leading-snug text-[var(--text-muted)]">
                                         {product?.price != null
                                                 ? `${product.price.toLocaleString('fa-IR')} تومان`
                                                 : product === undefined
@@ -1040,102 +919,5 @@ function DmProductRow({ productId, count }: { productId: string; count: number }
                                 </span>
                         )}
                 </div>
-        )
-}
-
-// ── Shared atoms ─────────────────────────────────────────────────────────
-
-function Avatar({
-        url,
-        name,
-        size = 28,
-        ring = false,
-}: {
-        url?: string
-        name: string
-        size?: number
-        ring?: boolean
-}) {
-        const initial = (name || 'V').charAt(0).toUpperCase()
-        const [failedUrl, setFailedUrl] = useState<string | null>(null)
-        if (url && failedUrl !== url) {
-                return (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                                src={url}
-                                alt={name}
-                                width={size}
-                                height={size}
-                                loading="lazy"
-                                decoding="async"
-                                onError={() => setFailedUrl(url)}
-                                className={`shrink-0 rounded-full object-cover ${ring ? 'ring-2 ring-white p-[1.5px]' : ''}`}
-                                style={{ width: size, height: size }}
-                        />
-                )
-        }
-        return (
-                <div
-                        className={`flex shrink-0 items-center justify-center rounded-full text-white ${ring ? 'ring-2 ring-white p-[1.5px]' : ''}`}
-                        style={{
-                                width: size,
-                                height: size,
-                                background: IG_GRADIENT,
-                                fontSize: Math.max(10, size * 0.42),
-                                fontWeight: 600,
-                        }}
-                >
-                        {initial}
-                </div>
-        )
-}
-
-function Bubble({
-        side,
-        children,
-        flush = false,
-        muted = false,
-}: {
-        side: 'user' | 'bot'
-        children: React.ReactNode
-        flush?: boolean
-        muted?: boolean
-}) {
-        // In Instagram DMs, INCOMING messages (from the customer = "user" side)
-        // appear on the LEFT, and OUTGOING replies (from the business/bot) appear
-        // on the RIGHT. This matches the iPhone 16 Pro screenshot.
-        const isUser = side === 'user'
-        return (
-                <div className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
-                        <div
-                                className={`max-w-[78%] text-[11.5px] leading-relaxed ${
-                                        flush ? '' : 'px-2.5 py-1.5'
-                                } ${
-                                        isUser
-                                                ? `rounded-2xl rounded-bl-md bg-[#efefef] text-black ${muted ? 'opacity-60' : ''}`
-                                                : 'rounded-2xl rounded-br-md text-white shadow-sm'
-                                }`}
-                                style={!isUser ? { background: IG_BLUE } : undefined}
-                        >
-                                {children}
-                        </div>
-                </div>
-        )
-}
-
-function TypingDots() {
-        return (
-                <span className="inline-flex items-center gap-1 align-middle">
-                        {[0, 1, 2].map((i) => (
-                                <span
-                                        key={i}
-                                        className="inline-block h-1.5 w-1.5 rounded-full bg-white/85"
-                                        style={{
-                                                animation: 'blink 1.2s ease-in-out infinite',
-                                                animationDelay: `${i * 0.18}s`,
-                                        }}
-                                />
-                        ))}
-                </span>
         )
 }

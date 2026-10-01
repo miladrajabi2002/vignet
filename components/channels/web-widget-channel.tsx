@@ -6,7 +6,6 @@ import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
 import { Slider } from '@/components/ui/slider'
 import { useTranslations, useLocale } from 'next-intl'
 import {
-        Globe,
         Check,
         Copy,
         Loader2,
@@ -30,6 +29,7 @@ import {
         type WidgetFont,
 } from '@/lib/widget/config'
 import { WidgetPreview, WIDGET_ICON_COMPONENTS } from './widget-preview'
+import { ChannelMark } from '@/components/ui/channel-mark'
 
 /** Curated brand-color presets — one tap instead of fiddling with the picker. */
 const COLOR_PRESETS = [
@@ -179,11 +179,9 @@ export function WebWidgetChannel({
         const unprotected = liveSettings.allowedDomains.length === 0
 
         return (
-                <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+                <div className="spatial-surface rounded-card p-5 sm:p-6">
                         <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
-                                        <Globe className="h-5 w-5" />
-                                </div>
+                                <ChannelMark channel="WEB_WIDGET" />
                                 <div className="flex-1">
                                         <div className="font-medium text-[var(--text-primary)]">{t('webWidget')}</div>
                                         <div className="text-sm text-[var(--text-secondary)]">{t('widgetDesc')}</div>
@@ -205,7 +203,7 @@ export function WebWidgetChannel({
                                                         aria-expanded={detailsOpen}
                                                         aria-controls="web-widget-details"
                                                         aria-label={t(detailsOpen ? 'collapseConnection' : 'expandConnection')}
-                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                                                 >
                                                         <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${detailsOpen ? 'rotate-180' : ''}`} />
                                                 </button>
@@ -459,7 +457,7 @@ export function WebWidgetChannel({
                                                                                         />
                                                                                         <div className="flex items-center gap-1.5">
                                                                                                 <RotateCw className="h-3 w-3 text-[var(--text-muted)]" />
-                                                                                                <span className="text-[11px] text-[var(--text-muted)]">
+                                                                                                <span className="text-[12px] text-[var(--text-muted)]">
                                                                                                         {isRtl
                                                                                                                 ? '۰ = استفاده از پیش‌فرض (ملایم). می‌توانید از ۱ تا ۳۰ تنظیم کنید.'
                                                                                                                 : '0 = use preset (soft). Drag 1–30 for a custom radius.'}
@@ -471,7 +469,7 @@ export function WebWidgetChannel({
                                                                                                                 key={preset}
                                                                                                                 type="button"
                                                                                                                 onClick={() => patch({ cornerRadius: 0, corners: preset })}
-                                                                                                                className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
+                                                                                                                className={`rounded-md border px-2 py-1 text-[12px] transition-colors ${
                                                                                                                         settings.cornerRadius === 0 && settings.corners === preset
                                                                                                                                 ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
                                                                                                                                 : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -664,7 +662,7 @@ export function WebWidgetChannel({
                                                                         <span className="text-xs text-[var(--text-secondary)]">
                                                                                 {t('livePreview')}
                                                                         </span>
-                                                                        <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                                                                        <span className="inline-flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
                                                                                 <Smartphone className="h-3 w-3" />
                                                                                 {isRtl ? 'پیش‌نمایش تعاملی' : 'Interactive preview'}
                                                                         </span>

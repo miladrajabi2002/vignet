@@ -71,12 +71,6 @@ export function normalizeMessengerSettings(config: Prisma.JsonValue): MessengerS
 	return { quickReplies }
 }
 
-/** Read the webhook token from a stored config, or null. */
-export function readWebhookToken(config: Prisma.JsonValue): string | null {
-  const c = config as Partial<MessengerConfig> | null
-  return c?.webhookToken ?? null
-}
-
 /** Last 4 chars of a bot token, for a safe display hint. */
 export function botTokenHint(botToken: string): string {
   return botToken.length <= 6 ? '••••' : `…${botToken.slice(-6)}`

@@ -1,12 +1,11 @@
 import type { Plan } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import type { ModelAlias } from '@/lib/ai/models'
+import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
 
 export const PLATFORM_STT_MODEL = 'openai/gpt-transcribe'
 
 /** Pinned vision model for inbound photo understanding (A15 admin surface). */
-export const PLATFORM_VISION_MODEL =
-  process.env.OPENROUTER_VISION_MODEL?.trim() || 'google/gemini-3.1-flash-lite'
+export const PLATFORM_VISION_MODEL = 'deepseek/deepseek-v4.1-flash'
 
 export type ManagedPlanConfig = {
   priceIRR: number
@@ -32,87 +31,72 @@ export type PlatformCommercialConfig = {
   plans: Record<Plan, ManagedPlanConfig>
 }
 
-function positiveEnv(name: string, fallback: number): number {
-  const value = Number(process.env[name])
-  return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback
-}
-
-function nonNegativeEnv(name: string, fallback: number): number {
-  const value = Number(process.env[name])
-  return Number.isFinite(value) && value >= 0 ? Math.round(value) : fallback
-}
-
-function booleanEnv(name: string, fallback: boolean): boolean {
-  const value = process.env[name]?.trim().toLowerCase()
-  if (!value) return fallback
-  return value === '1' || value === 'true' || value === 'yes'
+/**
+ * Built-in defaults, used only until the owner saves the admin panel (the
+ * panel's values in PlatformAiSettings always win). These are deliberately
+ * not read from env: the admin panel is the single place to change them.
+ */
+export const DEFAULT_COMMERCIAL_CONFIG: PlatformCommercialConfig = {
+  sttModel: PLATFORM_STT_MODEL,
+  sttPricePerMinuteIRR: 100,
+  visionModel: PLATFORM_VISION_MODEL,
+  visionPricePerImageIRR: 800,
+  providerSort: 'price',
+  zeroDataRetention: true,
+  replyPricesIRR: {
+    fast: 4_000,
+    smart: 6_500,
+  },
+  trialCreditIRR: 1_000_000,
+  financeUsdToIRR: null,
+  plans: {
+    TRIAL: {
+      priceIRR: 0,
+      priceUSD: 0,
+      maxChannels: 1,
+      maxProducts: 50,
+      maxOrders: 100,
+      maxCustomers: 100,
+      replyDiscountBps: 0,
+      includedCreditIRR: 0,
+    },
+    STARTER: {
+      priceIRR: 8_900_000,
+      priceUSD: 6,
+      maxChannels: 2,
+      maxProducts: 500,
+      maxOrders: 2_000,
+      maxCustomers: 2_000,
+      replyDiscountBps: 0,
+      includedCreditIRR: 2_000_000,
+    },
+    PRO: {
+      priceIRR: 24_900_000,
+      priceUSD: 15,
+      maxChannels: 5,
+      maxProducts: 2_500,
+      maxOrders: 10_000,
+      maxCustomers: 10_000,
+      replyDiscountBps: 0,
+      includedCreditIRR: 6_000_000,
+    },
+    BUSINESS: {
+      priceIRR: 59_000_000,
+      priceUSD: 35,
+      maxChannels: 20,
+      maxProducts: 10_000,
+      maxOrders: 50_000,
+      maxCustomers: 50_000,
+      replyDiscountBps: 0,
+      includedCreditIRR: 15_000_000,
+    },
+  },
 }
 
 function fallbackConfig(): PlatformCommercialConfig {
-  const rate = Number(process.env.FINANCE_USD_TO_IRR)
-  return {
-    sttModel: PLATFORM_STT_MODEL,
-    sttPricePerMinuteIRR: 100,
-    visionModel: PLATFORM_VISION_MODEL,
-    visionPricePerImageIRR: positiveEnv('AI_VISION_PRICE_PER_IMAGE_IRR', 800),
-    providerSort: (['price', 'latency', 'throughput'].includes(process.env.OPENROUTER_PROVIDER_SORT || '')
-      ? process.env.OPENROUTER_PROVIDER_SORT
-      : 'price') as PlatformCommercialConfig['providerSort'],
-    zeroDataRetention: booleanEnv('OPENROUTER_ZDR', true),
-    replyPricesIRR: {
-      fast: positiveEnv('AI_REPLY_PRICE_FAST_IRR', 3_000),
-      standard: positiveEnv('AI_REPLY_PRICE_STANDARD_IRR', 4_500),
-      balanced: positiveEnv('AI_REPLY_PRICE_BALANCED_IRR', 6_500),
-      premium: positiveEnv('AI_REPLY_PRICE_PREMIUM_IRR', 30_000),
-    },
-    trialCreditIRR: positiveEnv('AI_TRIAL_CREDIT_IRR', 100_000),
-    financeUsdToIRR: Number.isFinite(rate) && rate > 0 ? Math.round(rate) : null,
-    plans: {
-      TRIAL: {
-        priceIRR: 0,
-        priceUSD: 0,
-        maxChannels: positiveEnv('PLAN_LIMIT_TRIAL_CHANNELS', positiveEnv('PLAN_LIMIT_TRIAL_AGENTS', 1)),
-        maxProducts: positiveEnv('PLAN_LIMIT_TRIAL_PRODUCTS', 50),
-        maxOrders: positiveEnv('PLAN_LIMIT_TRIAL_ORDERS', 100),
-        maxCustomers: positiveEnv('PLAN_LIMIT_TRIAL_CUSTOMERS', 100),
-        replyDiscountBps: 0,
-        includedCreditIRR: 0,
-      },
-      STARTER: {
-        priceIRR: positiveEnv('PLAN_PRICE_STARTER_IRR', 8_900_000),
-        priceUSD: positiveEnv('PLAN_PRICE_STARTER_USD', 9),
-        maxChannels: positiveEnv('PLAN_LIMIT_STARTER_CHANNELS', positiveEnv('PLAN_LIMIT_STARTER_AGENTS', 2)),
-        maxProducts: positiveEnv('PLAN_LIMIT_STARTER_PRODUCTS', 500),
-        maxOrders: positiveEnv('PLAN_LIMIT_STARTER_ORDERS', 2_000),
-        maxCustomers: positiveEnv('PLAN_LIMIT_STARTER_CUSTOMERS', 2_000),
-        replyDiscountBps: 0,
-        includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
-      },
-      PRO: {
-        priceIRR: positiveEnv('PLAN_PRICE_PRO_IRR', 24_900_000),
-        priceUSD: positiveEnv('PLAN_PRICE_PRO_USD', 25),
-        maxChannels: positiveEnv('PLAN_LIMIT_PRO_CHANNELS', positiveEnv('PLAN_LIMIT_PRO_AGENTS', 5)),
-        maxProducts: positiveEnv('PLAN_LIMIT_PRO_PRODUCTS', 2_500),
-        maxOrders: positiveEnv('PLAN_LIMIT_PRO_ORDERS', 10_000),
-        maxCustomers: positiveEnv('PLAN_LIMIT_PRO_CUSTOMERS', 10_000),
-        replyDiscountBps: 0,
-        includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
-      },
-      BUSINESS: {
-        priceIRR: positiveEnv('PLAN_PRICE_BUSINESS_IRR', 59_000_000),
-        priceUSD: positiveEnv('PLAN_PRICE_BUSINESS_USD', 59),
-        maxChannels: positiveEnv('PLAN_LIMIT_BUSINESS_CHANNELS', positiveEnv('PLAN_LIMIT_BUSINESS_AGENTS', 20)),
-        maxProducts: positiveEnv('PLAN_LIMIT_BUSINESS_PRODUCTS', 10_000),
-        maxOrders: positiveEnv('PLAN_LIMIT_BUSINESS_ORDERS', 50_000),
-        maxCustomers: positiveEnv('PLAN_LIMIT_BUSINESS_CUSTOMERS', 50_000),
-        replyDiscountBps: 0,
-        includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
-      },
-    },
-  }
+  return structuredClone(DEFAULT_COMMERCIAL_CONFIG)
 }
 
-const MODEL_ALIASES: ModelAlias[] = ['fast', 'standard', 'balanced', 'premium']
 const PLANS: Plan[] = ['TRIAL', 'STARTER', 'PRO', 'BUSINESS']
 let cache: { value: PlatformCommercialConfig; expiresAt: number } | null = null
 

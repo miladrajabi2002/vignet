@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { captureError } from '@/lib/errors/capture'
 import { notifyWorkspace } from '@/lib/notifications/create'
-import { getEffectiveReplyPriceIRR, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 
 /**
  * Trial quota alerting (A16).
@@ -142,25 +141,5 @@ export async function processTrialQuotaAlert(params: {
         } catch (error) {
                 captureError('billing:trial-quota-alert', error, { workspaceId: params.workspaceId })
                 return { kind: 'SKIP', reason: 'NOT_TRIAL' }
-        }
-}
-
-/**
- * Whether the workspace can currently afford even the cheapest reply — used by
- * the inbound gate to distinguish "out of money" from other block reasons.
- */
-export async function isCreditExhausted(workspaceId: string): Promise<boolean> {
-        try {
-                const [workspace, fastPrice] = await Promise.all([
-                        prisma.workspace.findUnique({
-                                where: { id: workspaceId },
-                                select: { aiCreditBalanceIRR: true },
-                        }),
-                        getEffectiveReplyPriceIRR(resolveModelAlias('fast') as ModelAlias),
-                ])
-                if (!workspace) return false
-                return workspace.aiCreditBalanceIRR < fastPrice
-        } catch {
-                return false
         }
 }

@@ -248,7 +248,8 @@ const OBJECTION_TERMS: Record<string, SignalGroup> = {
 const GENERAL_RISK_TERMS: Record<string, SignalGroup> = {
         SELF_HARM: ['خودکشی', 'به خودم آسیب', 'نمیخوام زنده باشم', 'suicide', 'self harm', 'hurt myself'],
         IMMEDIATE_DANGER: ['خطر جانی', 'تهدید جانی', 'جانم در خطر', 'immediate danger', 'life threatening'],
-        LEGAL_THREAT: ['شکایت رسمی', 'دادگاه', 'وکیل', 'پلیس', 'legal action', 'lawyer', 'report to police'],
+        // Not a bare «وکیل»: «بلوار وکیل‌آباد» (Mashhad) is a shipping address.
+        LEGAL_THREAT: ['شکایت رسمی', 'دادگاه', 'وکیلم', 'وکیل میگیرم', 'وکیل می گیرم', 'وکیل گرفتم', 'به وکیل', 'از طریق وکیل', 'وکیل من', 'پلیس', 'legal action', 'lawyer', 'report to police'],
         PAYMENT_DISPUTE: ['برداشت غیرمجاز', 'دوبار کم شده', 'پولم را خوردید', 'chargeback', 'unauthorized charge', 'charged twice'],
 }
 

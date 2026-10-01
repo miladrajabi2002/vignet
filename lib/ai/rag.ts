@@ -46,6 +46,7 @@ export interface CatalogService {
   description: string | null
   durationMinutes: number
   location: string | null
+  price: number | null
 }
 
 const CATALOG_QUERY_INTENT =
@@ -260,13 +261,14 @@ function buildServiceBlock(services: CatalogService[], isFa: boolean): string {
   const lines = services.map((service, index) => {
     const parts = [isFa ? `نام: ${service.name}` : `Name: ${service.name}`]
     parts.push(isFa ? `مدت معمول: ${service.durationMinutes} دقیقه` : `Typical duration: ${service.durationMinutes} minutes`)
+    if (service.price) parts.push(isFa ? `قیمت: ${formatPrice(service.price)}` : `Price: ${service.price.toLocaleString('en-US')} Toman`)
     if (service.location) parts.push(isFa ? `محل: ${sanitizeUntrusted(service.location, 120)}` : `Location: ${sanitizeUntrusted(service.location, 120)}`)
     if (service.description) parts.push(isFa ? `توضیح: ${sanitizeUntrusted(service.description, 300)}` : `Description: ${sanitizeUntrusted(service.description, 300)}`)
     return `${index + 1}. ${parts.join(' | ')}`
   })
   return isFa
-    ? `\n\n=== خدمات فعال کسب‌وکار ===\n${lines.join('\n')}\n============================\nفقط خدمات ثبت‌شده بالا را معرفی کن؛ جزئیات ناموجود را حدس نزن.`
-    : `\n\n=== Active business services ===\n${lines.join('\n')}\n================================\nOnly introduce the registered services above; do not invent missing details.`
+    ? `\n\n=== خدمات فعال کسب‌وکار ===\n${lines.join('\n')}\n============================\nفقط خدمات ثبت‌شده بالا را معرفی کن؛ جزئیات ناموجود را حدس نزن. اگر خدمتی قیمت ندارد، قیمت نگو و بگو همکارت قیمت دقیق را اعلام می‌کند.`
+    : `\n\n=== Active business services ===\n${lines.join('\n')}\n================================\nOnly introduce the registered services above; do not invent missing details. If a service has no price, do not quote one; say a colleague will confirm it.`
 }
 
 /**
