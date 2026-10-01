@@ -78,7 +78,7 @@ function NavCell({ icon: Icon, label, active = false, inverse = false }: NavCell
 			active && (inverse ? 'bg-white/[0.09] font-semibold text-white' : 'font-semibold text-black'),
 		)}>
 			<span className={cn(
-				'grid size-7 place-items-center rounded-[0.7rem]',
+				'grid size-7 place-items-center rounded-control',
 				active && (inverse ? 'bg-white text-black' : 'bg-black text-white'),
 			)}>
 				<Icon className="size-4" strokeWidth={active ? 2.2 : 1.8} />
@@ -96,12 +96,12 @@ function AccountCell({ signedIn, inverse = false }: { signedIn: boolean; inverse
 
 function OrbitNav({ signedIn }: { signedIn: boolean }) {
 	return (
-		<nav aria-hidden className="absolute inset-x-3 bottom-3 grid h-[4.65rem] grid-cols-5 items-end rounded-[1.65rem] border border-black/[0.08] bg-white/92 p-1.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+		<nav aria-hidden className="absolute inset-x-3 bottom-3 grid h-[4.65rem] grid-cols-5 items-end rounded-card border border-black/[0.08] bg-white/92 p-1.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
 			<NavCell icon={House} label="خانه" active />
 			<NavCell icon={BookOpenText} label="مستندات" />
 			<div className="relative h-full min-w-0">
 				<div className="absolute -top-5 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-[10px] font-bold text-black">
-					<span className="grid size-[3.35rem] place-items-center rounded-[1.15rem] border-[5px] border-[#f5f5f3] bg-black text-white shadow-[0_14px_28px_-12px_rgba(0,0,0,0.72)]">
+					<span className="grid size-[3.35rem] place-items-center rounded-card border-[5px] border-[#f5f5f3] bg-black text-white shadow-[0_14px_28px_-12px_rgba(0,0,0,0.72)]">
 						<Rocket className="size-5" strokeWidth={2} />
 					</span>
 					<span className="whitespace-nowrap leading-4">شروع رایگان</span>
@@ -115,10 +115,10 @@ function OrbitNav({ signedIn }: { signedIn: boolean }) {
 
 function FocusNav({ signedIn }: { signedIn: boolean }) {
 	return (
-		<nav aria-hidden className="absolute inset-x-3 bottom-3 grid h-[4.5rem] grid-cols-[1fr_1fr_1.55fr_1fr_1fr] gap-1 rounded-[1.5rem] border border-black/[0.08] bg-white/94 p-1.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.36)] backdrop-blur-2xl">
+		<nav aria-hidden className="absolute inset-x-3 bottom-3 grid h-[4.5rem] grid-cols-[1fr_1fr_1.55fr_1fr_1fr] gap-1 rounded-card border border-black/[0.08] bg-white/94 p-1.5 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.36)] backdrop-blur-2xl">
 			<NavCell icon={House} label="خانه" active />
 			<NavCell icon={PlayCircle} label="دمو" />
-			<div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.05rem] bg-black px-1 text-[10px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(0,0,0,0.8)]">
+			<div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-control bg-black px-1 text-[10px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(0,0,0,0.8)]">
 				<Rocket className="size-[1.1rem]" strokeWidth={2} />
 				<span className="max-w-full truncate leading-4">شروع رایگان</span>
 			</div>
@@ -131,14 +131,14 @@ function FocusNav({ signedIn }: { signedIn: boolean }) {
 function SplitNav({ signedIn }: { signedIn: boolean }) {
 	return (
 		<nav aria-hidden className="absolute inset-x-3 bottom-3 flex h-[4.5rem] gap-2">
-			<div className="grid min-w-0 flex-1 grid-cols-4 rounded-[1.5rem] border border-black/[0.08] bg-white/94 p-1.5 shadow-[0_18px_45px_-20px_rgba(0,0,0,0.34)] backdrop-blur-2xl">
+			<div className="grid min-w-0 flex-1 grid-cols-4 rounded-card border border-black/[0.08] bg-white/94 p-1.5 shadow-[0_18px_45px_-20px_rgba(0,0,0,0.34)] backdrop-blur-2xl">
 				<NavCell icon={House} label="خانه" active />
 				<NavCell icon={BookOpenText} label="مستندات" />
 				<NavCell icon={CircleDollarSign} label="تعرفه‌ها" />
 				<AccountCell signedIn={signedIn} />
 			</div>
-			<div className="flex w-[4.6rem] shrink-0 flex-col items-center justify-center gap-1 rounded-[1.5rem] bg-black text-[10px] font-bold text-white shadow-[0_16px_32px_-14px_rgba(0,0,0,0.72)]">
-				<span className="grid size-7 place-items-center rounded-[0.7rem] bg-white/12"><Rocket className="size-4" strokeWidth={2} /></span>
+			<div className="flex w-[4.6rem] shrink-0 flex-col items-center justify-center gap-1 rounded-card bg-black text-[10px] font-bold text-white shadow-[0_16px_32px_-14px_rgba(0,0,0,0.72)]">
+				<span className="grid size-7 place-items-center rounded-control bg-white/12"><Rocket className="size-4" strokeWidth={2} /></span>
 				<span className="leading-4">شروع</span>
 			</div>
 		</nav>
@@ -147,11 +147,11 @@ function SplitNav({ signedIn }: { signedIn: boolean }) {
 
 function ContrastNav({ signedIn }: { signedIn: boolean }) {
 	return (
-		<nav aria-hidden className="absolute inset-x-3 bottom-3 grid h-[4.65rem] grid-cols-5 gap-0.5 rounded-[1.65rem] border border-white/10 bg-[#111] p-1.5 shadow-[0_22px_48px_-18px_rgba(0,0,0,0.72)]">
+		<nav aria-hidden className="absolute inset-x-3 bottom-3 grid h-[4.65rem] grid-cols-5 gap-0.5 rounded-card border border-white/10 bg-[#111] p-1.5 shadow-[0_22px_48px_-18px_rgba(0,0,0,0.72)]">
 			<NavCell icon={House} label="خانه" active inverse />
 			<NavCell icon={BookOpenText} label="مستندات" inverse />
-			<div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.15rem] bg-white text-[10px] font-bold text-black shadow-[0_1px_0_rgba(255,255,255,0.7)_inset]">
-				<span className="grid size-7 place-items-center rounded-[0.7rem] bg-black text-white"><Rocket className="size-4" strokeWidth={2} /></span>
+			<div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-card bg-white text-[10px] font-bold text-black shadow-[0_1px_0_rgba(255,255,255,0.7)_inset]">
+				<span className="grid size-7 place-items-center rounded-control bg-black text-white"><Rocket className="size-4" strokeWidth={2} /></span>
 				<span className="max-w-full truncate leading-4">شروع کار</span>
 			</div>
 			<NavCell icon={PlayCircle} label="دمو" inverse />
@@ -187,17 +187,17 @@ function PhonePreview({ variant, signedIn }: { variant: VariantId; signedIn: boo
 						<span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-2.5 py-1 text-[9px] font-semibold text-black/55">
 							<Sparkles className="size-3" /> هوش مصنوعی فروش
 						</span>
-						<h2 className="mt-4 text-[1.7rem] font-semibold leading-[1.45] text-black">هر گفتگو،<br />یک فرصت واقعی</h2>
+						<h2 className="mt-4 text-[1.7rem] font-bold leading-[1.45] text-black">هر گفتگو،<br />یک فرصت واقعی</h2>
 						<p className="mt-3 max-w-[17rem] text-[10px] leading-6 text-black/42">فروش و پشتیبانی را از تمام کانال‌ها در یک فضای هوشمند مدیریت کنید.</p>
 					</div>
 
 					<div className="mt-10 grid grid-cols-2 gap-2.5">
-						<div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.32)]">
+						<div className="rounded-card border border-black/[0.07] bg-white p-3 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.32)]">
 							<span className="grid size-8 place-items-center rounded-xl bg-black text-white"><PlayCircle className="size-4" /></span>
 							<p className="mt-4 text-[10px] font-semibold">دموی محصول</p>
 							<p className="mt-1 text-[8px] text-black/35">کمتر از دو دقیقه</p>
 						</div>
-						<div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.32)]">
+						<div className="rounded-card border border-black/[0.07] bg-white p-3 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.32)]">
 							<span className="grid size-8 place-items-center rounded-xl bg-black/[0.055] text-black"><BookOpenText className="size-4" /></span>
 							<p className="mt-4 text-[10px] font-semibold">مستندات سریع</p>
 							<p className="mt-1 text-[8px] text-black/35">شروع قدم‌به‌قدم</p>
@@ -224,10 +224,10 @@ export function MobileNavShowcase() {
 					<div>
 						<Logo priority className="h-8 w-28" />
 						<p className="mt-8 text-[11px] font-semibold text-black/40">آزمایشگاه طراحی · منوی موبایل</p>
-						<h1 className="mt-3 max-w-2xl text-3xl font-semibold leading-[1.5] sm:text-4xl">چهار مسیر برای یک شروع بهتر</h1>
+						<h1 className="mt-3 max-w-2xl text-3xl font-bold leading-[1.5] sm:text-4xl">چهار مسیر برای یک شروع بهتر</h1>
 						<p className="mt-3 max-w-2xl text-sm leading-8 text-black/48">هر مدل پنج مقصد یا کمتر دارد، «شروع کار» را به اکشن اصلی تبدیل می‌کند و ورود را بعد از احراز هویت به داشبورد تغییر می‌دهد.</p>
 					</div>
-					<Link href="/" className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-xs font-semibold text-black/60 transition-colors hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-accent)]">
+					<Link href="/" className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-xs font-semibold text-black/60 transition-colors hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
 						بازگشت به سایت
 					</Link>
 				</header>
@@ -242,7 +242,7 @@ export function MobileNavShowcase() {
 								onClick={() => setSelected(item.id)}
 								aria-pressed={active}
 								className={cn(
-									'relative min-h-[7.5rem] rounded-[1.4rem] border p-4 text-start transition-[transform,background-color,border-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-accent)] focus-visible:ring-offset-2 motion-reduce:transition-none',
+									'relative min-h-[7.5rem] rounded-card border p-4 text-start transition-[transform,background-color,border-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 motion-reduce:transition-none',
 									active
 										? 'border-black bg-black text-white shadow-[0_18px_36px_-22px_rgba(0,0,0,0.65)]'
 										: 'border-black/[0.08] bg-white/70 text-black hover:-translate-y-0.5 hover:border-black/20 hover:bg-white motion-reduce:hover:translate-y-0',
@@ -261,11 +261,11 @@ export function MobileNavShowcase() {
 
 				<section className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-12 xl:gap-20">
 					<div className="order-2 lg:order-1">
-						<div className="rounded-[1.75rem] border border-black/[0.08] bg-white/80 p-5 shadow-[0_18px_45px_-34px_rgba(0,0,0,0.35)] sm:p-7">
+						<div className="rounded-sheet border border-black/[0.08] bg-white/80 p-5 shadow-[0_18px_45px_-34px_rgba(0,0,0,0.35)] sm:p-7">
 							<div className="flex flex-wrap items-center justify-between gap-3">
 								<div>
 									<p className="text-[11px] font-semibold text-black/35">مدل {variant.number}</p>
-									<h2 className="mt-2 text-2xl font-semibold">{variant.name}</h2>
+									<h2 className="mt-2 text-2xl font-bold">{variant.name}</h2>
 								</div>
 								<div className="inline-flex rounded-xl bg-black/[0.045] p-1" role="group" aria-label="وضعیت ورود کاربر">
 									<button type="button" onClick={() => setSignedIn(false)} aria-pressed={!signedIn} className={cn('min-h-10 rounded-lg px-3 text-[11px] font-semibold transition-colors', !signedIn ? 'bg-white text-black shadow-sm' : 'text-black/42')}>مهمان</button>

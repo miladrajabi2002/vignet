@@ -7,10 +7,10 @@ import type { HomeLocale } from './home-variants/shared/types'
 const loadMotionFeatures = () => import('./motion-features').then((module) => module.default)
 
 /** Heavy interactive demo boundary. This module is fetched only near viewport. */
-export function InstagramDemo({ locale }: { locale: HomeLocale }) {
+export function InstagramDemo({ locale, active = true }: { locale: HomeLocale; active?: boolean }) {
 	return (
 		<LazyMotion features={loadMotionFeatures} strict>
-			<InstagramMock locale={locale} inverse active />
+			<InstagramMock locale={locale} inverse active={active} />
 		</LazyMotion>
 	)
 }

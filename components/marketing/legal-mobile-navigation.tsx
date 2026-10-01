@@ -16,7 +16,7 @@ export function LegalMobileNavigation({ sections }: { sections: string[] }) {
 				onClick={() => setOpen(true)}
 				aria-expanded={open}
 				aria-haspopup="dialog"
-				className="spatial-press flex min-h-12 w-full items-center gap-3 rounded-[1.15rem] border border-black/[0.08] bg-white/95 px-4 text-start text-sm font-semibold text-black shadow-[0_12px_34px_rgba(0,0,0,0.09)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+				className="spatial-press flex min-h-12 w-full items-center gap-3 rounded-card border border-black/[0.08] bg-white/95 px-4 text-start text-sm font-semibold text-black shadow-[var(--elev-1)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
 			>
 				<span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-black text-white">
 					<ListTree className="h-4 w-4" aria-hidden="true" />

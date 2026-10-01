@@ -15,6 +15,8 @@ import {
         MessageCircle,
         Camera,
         Wrench,
+        Truck,
+        UtensilsCrossed,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -98,6 +100,18 @@ export const DOCS_NAV: DocNavItem[] = [
                 href: '/docs/woocommerce',
                 icon: ShoppingCart,
                 title: { fa: 'اتصال ووکامرس', en: 'WooCommerce integration' },
+        },
+        {
+                slug: 'chat-commerce',
+                href: '/docs/chat-commerce',
+                icon: Truck,
+                title: { fa: 'فروش و پیگیری سفارش در گفتگو', en: 'Selling and order updates in chat' },
+        },
+        {
+                slug: 'digital-menu',
+                href: '/docs/digital-menu',
+                icon: UtensilsCrossed,
+                title: { fa: 'منوی دیجیتال رستوران و کافه', en: 'Digital menu for restaurants and cafés' },
         },
         {
                 slug: 'models',

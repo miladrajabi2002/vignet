@@ -16,6 +16,8 @@ import {
         Camera,
         Wrench,
         Settings,
+        Truck,
+        UtensilsCrossed,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -30,6 +32,10 @@ export type DocBlock =
         | { type: 'code'; code: string; caption?: T }
         | { type: 'callout'; fa: string; en: string }
         | { type: 'image'; src: string; alt: T; caption?: T }
+        // A looping explainer from components/motion/explainers.tsx.
+        | { type: 'motion'; motion: DocMotion }
+
+export type DocMotion = 'credit' | 'knowledge' | 'handoff' | 'automation' | 'widget' | 'identify' | 'tone'
 
 export interface DocPage {
         slug: string
@@ -235,6 +241,7 @@ const ALL_DOCS: DocPage[] = [
                                 caption: { fa: 'نمونهٔ دستورالعمل', en: 'Example prompt' },
                                 code: "You are the friendly sales assistant for {{business}}.\nAlways answer politely and concisely.\nIf you don't know an answer, offer to connect the customer to a human.",
                         },
+                        { type: 'motion', motion: 'tone' },
                         { type: 'h2', fa: 'تنظیمات مدل', en: 'Model settings' },
                         {
                                 type: 'list',
@@ -271,6 +278,7 @@ const ALL_DOCS: DocPage[] = [
                                 fa: 'پایگاه دانش به ایجنت اجازه می‌دهد از داده‌های شما پاسخ دهد. هر منبعی که اضافه می‌کنید به قطعات کوچک تقسیم، به بردار تبدیل و در پایگاه دادهٔ برداری ذخیره می‌شود (RAG). هنگام گفتگو، مرتبط‌ترین قطعات بازیابی و به ایجنت داده می‌شوند.',
                                 en: 'The knowledge base lets your agent answer from your data. Each source you add is split into chunks, embedded into vectors, and stored in a vector database (RAG). During a conversation the most relevant chunks are retrieved and given to the agent.',
                         },
+                        { type: 'motion', motion: 'knowledge' },
                         { type: 'h2', fa: 'انواع منابع', en: 'Source types' },
                         {
                                 type: 'list',
@@ -458,6 +466,7 @@ const ALL_DOCS: DocPage[] = [
                                 fa: 'ویجنت به دایرکت‌ها، کامنت‌ها و استوری‌های اینستاگرام شما به‌صورت خودکار و در چند ثانیه پاسخ می‌دهد. برای شروع فقط یک‌بار اکانت اینستاگرام خود را وصل کنید.',
                                 en: 'Vigent replies to your Instagram DMs, comments, and story mentions automatically, in seconds. To get started, you only need to connect your Instagram account once.',
                         },
+                        { type: 'motion', motion: 'automation' },
                         {
                                 type: 'callout',
                                 fa: 'برای اتصال فقط روی دکمه «اتصال» بزنید — مستقیم به اینستاگرام می‌روید (نه فیسبوک)، اجازه می‌دهید و تمام. نیازی به ساخت اپ متا یا کپی توکن نیست. ویجنت اپ خود را دارد و شما فقط اجازه دسترسی می‌دهید.',
@@ -1193,6 +1202,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 fa: 'وقتی ایجنت نتوانست پاسخ بدهد یا مشتری درخواست اپراتور کرد، گفتگو به‌صورت خودکار (یا دستی) به یک اپراتور انسانی منتقل می‌شود. در این حالت هوش مصنوعی کنار می‌رود تا اپراتور مستقیماً پاسخ دهد.',
                                 en: 'When the agent can’t answer or the customer asks for a human, the conversation is escalated (automatically or manually) to a human operator. The AI steps aside so the operator can reply directly.',
                         },
+                        { type: 'motion', motion: 'handoff' },
                         { type: 'h2', fa: 'چه زمانی انتقال رخ می‌دهد؟', en: 'When does handoff happen?' },
                         {
                                 type: 'list',
@@ -1285,6 +1295,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 fa: 'شناسایی مشتری یعنی گرفتن نام و شماره تماس در ابتدای گفتگو، قبل از پاسخ اصلی. این کار به اپراتور کمک می‌کند مشتری را سریع پیدا کند و به فروش سریع‌تر برسد.',
                                 en: 'Customer identification means collecting the customer’s name and phone at the start of a conversation, before the substantive answer. This helps the operator follow up quickly and close sales faster.',
                         },
+                        { type: 'motion', motion: 'identify' },
                         { type: 'h2', fa: 'فعال‌سازی', en: 'Enabling it' },
                         {
                                 type: 'p',
@@ -1465,6 +1476,133 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 ],
         },
         {
+                slug: 'chat-commerce',
+                icon: Truck,
+                title: { fa: 'فروش و پیگیری سفارش در گفتگو', en: 'Selling and order updates in chat' },
+                description: {
+                        fa: 'رنگ و سایز، نگه‌داری یک‌ساعتهٔ سبد، لینک پرداخت و خبر خودکار تغییر وضعیت سفارش؛ چطور روشنشان کنید و دقیقاً چه کار می‌کنند.',
+                        en: 'Colour and size, one-hour cart hold, payment links and automatic order status updates: how to turn them on and exactly what they do.',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'همهٔ این قابلیت‌ها در صفحهٔ هر ایجنت، بخش «دسترسی ایجنت به فروشگاه» روشن و خاموش می‌شوند. پیش‌فرض همه خاموش است تا فقط چیزی اجرا شود که خودتان انتخاب کرده‌اید.',
+                                en: 'All of these are switched on and off per agent, in the “Store access” section of the agent page. Everything is off by default, so only what you choose runs.',
+                        },
+                        { type: 'h2', fa: 'خبر تغییر وضعیت سفارش', en: 'Order status updates' },
+                        {
+                                type: 'p',
+                                fa: 'وقتی مشتری در چت شمارهٔ سفارشش را می‌دهد و ایجنت وضعیت را برایش می‌خواند، همان گفتگو آن سفارش را «دنبال» می‌کند. از آن به بعد، هر بار که افزونهٔ ووکامرس وضعیت سفارش را تغییر دهد یا کد رهگیری ثبت شود، ایجنت جزئیات را در همان گفتگو برای مشتری می‌فرستد؛ مثلاً «بستهٔ سفارش #۱۰۴۸ ارسال شد — کد رهگیری و لینک پیگیری».',
+                                en: 'When a customer gives their order number in chat and the agent reads its status, that conversation starts following the order. From then on, each time the WooCommerce plugin changes the order status or a tracking code is added, the agent sends the details in the same conversation — for example “Order #1048 has shipped — tracking code and tracking link”.',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'دنبال کردن به گفتگو وابسته است، نه به شماره تلفن: اگر سفارش با شمارهٔ دیگری (مثلاً شمارهٔ همسر) ثبت شده باشد هم خبرها به همان کسی می‌رسد که پیگیری کرده.', en: 'Following is tied to the conversation, not the phone number: if the order was placed with another number (say, a spouse’s), updates still reach the person who asked.' },
+                                        { fa: 'یک گفتگو می‌تواند چند سفارش را هم‌زمان دنبال کند؛ کافی است مشتری شمارهٔ سفارش دیگرش را هم بپرسد.', en: 'One conversation can follow several orders; the customer just asks about the other order number too.' },
+                                        { fa: 'سفارش‌هایی که با لینک پرداخت داخل چت خریده می‌شوند، خودکار دنبال می‌شوند تا خبر ارسال به خریدار برسد.', en: 'Orders bought through an in-chat payment link are followed automatically, so the buyer hears when it ships.' },
+                                        { fa: 'هر خبر فقط یک بار فرستاده می‌شود و وضعیت «تکمیل‌شده» هرگز «تحویل داده شد» گفته نمی‌شود؛ فقط همان چیزی که فروشگاه ثبت کرده.', en: 'Each update is sent once, and “completed” is never reworded as “delivered”: only what the store recorded.' },
+                                        { fa: 'دنبال کردن ۳۰ روز بعد از آخرین پرسش مشتری یا بعد از لغو/بازپرداخت یا ثبت کد رهگیری روی سفارش تکمیل‌شده تمام می‌شود.', en: 'Following ends 30 days after the customer last asked, or after cancellation/refund, or once a completed order has its tracking code.' },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'محدودیت برنامه‌ها: در تلگرام، بله و روبیکا پیام هر زمان می‌رسد. اینستاگرام و واتس‌اپ فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهند؛ خبرهای بعد از آن فرستاده نمی‌شوند. در ویجت سایت و لینک چت، خبر در همان گفتگو ثبت می‌شود و مشتری با برگشتن به چت آن را می‌بیند. سفارشی که در ووکامرس لغو شود با نسخهٔ فعلی افزونه از ویجنت حذف می‌شود، بنابراین پیام لغو فرستاده نمی‌شود.',
+                                en: 'Channel limits: Telegram, Bale and Rubika deliver at any time. Instagram and WhatsApp only allow messages within 24 hours of the customer’s last message; later updates are not sent. On the website widget and chat link, the update is saved in the conversation and the customer sees it when they come back. With the current plugin a cancelled WooCommerce order is removed from Vigent, so no cancellation message is sent.',
+                        },
+                        { type: 'h2', fa: 'نگه‌داری سبد برای یک ساعت', en: 'One-hour cart hold' },
+                        {
+                                type: 'steps',
+                                items: [
+                                        { fa: 'مشتری اولین کالا را به سبد اضافه می‌کند و ایجنت در همان پاسخ می‌گوید: «این سبد تا ساعت ۱۸:۴۰ (یک ساعت) براتون رزرو شد».', en: 'The customer adds the first item and the agent says in the same reply: “I’m holding this cart for you until 18:40 (one hour).”' },
+                                        { fa: 'در این یک ساعت، همان تعداد برای مشتری‌های دیگری که در چت می‌پرسند ناموجود حساب می‌شود؛ پس دو نفر به آخرین عدد وعده داده نمی‌شوند.', en: 'For that hour, those units count as taken for other chat customers, so two people are never promised the last unit.' },
+                                        { fa: '۳۰ دقیقه مانده به پایان، ایجنت یک یادآوری با فهرست سبد می‌فرستد.', en: '30 minutes before the end, the agent sends one reminder listing the cart.' },
+                                        { fa: 'بعد از پایان رزرو، هر کالایی که در این فاصله ناموجود شده از سبد برداشته می‌شود و به مشتری خبر داده می‌شود. اگر همه‌چیز موجود مانده باشد، پیامی فرستاده نمی‌شود و سبد سر جایش می‌ماند.', en: 'When the hold ends, any item that sold out in the meantime leaves the cart and the customer is told. If everything is still available, no message is sent and the cart stays as it is.' },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'رزرو داخل گفتگوهای ویجنت اعمال می‌شود و خرید مستقیم روی سایت شما را متوقف نمی‌کند. اگر همان کالا در این فاصله روی سایت فروخته شود، موقع پرداخت با لینک، فروشگاه موجودی را دوباره می‌سنجد و کالای ناموجود با پیام از سبد برداشته می‌شود. هر سبد یک بار رزرو می‌شود؛ بعد از ارسال لینک پرداخت، مهلت و یادآوری خود لینک جایگزین رزرو است.',
+                                en: 'The hold applies inside Vigent chats; it does not stop direct purchases on your website. If the same item sells on the site meanwhile, the store re-checks stock when the payment link is opened and the sold-out item is removed with a message. Each cart is held once; after a payment link is sent, the link’s own deadline and reminder take over.',
+                        },
+                        { type: 'h2', fa: 'رنگ و سایز (تنوع محصول)', en: 'Colour and size (product variations)' },
+                        {
+                                type: 'p',
+                                fa: 'تنوع‌های محصولات متغیر ووکامرس با قیمت، موجودی و عکس جداگانه همگام می‌شوند. برای محصولات دستی، در فرم محصول بخش «ساخت خودکار تنوع‌ها» را باز کنید، ویژگی‌ها را بنویسید (مثلاً رنگ: مشکی، سفید — سایز: S، M، L) و همهٔ ترکیب‌ها با یک دکمه ساخته می‌شوند؛ بعد موجودی و قیمت هر ترکیب را وارد کنید.',
+                                en: 'Variations of WooCommerce variable products sync with their own price, stock and image. For manual products, open “Generate variations” in the product form, list the options (e.g. Colour: black, white — Size: S, M, L) and every combination is created with one click; then fill in each one’s stock and price.',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'اگر مشتری فقط یک ویژگی را بگوید («مشکی»)، ایجنت دیگر اولین مدل مشکی را حدسی در سبد نمی‌گذارد؛ فقط ویژگی باقی‌مانده را با گزینه‌های موجود همان رنگ می‌پرسد: «سایز رو بفرمایید: M، L».', en: 'If the customer names only one option (“black”), the agent no longer drops the first black variant into the cart; it asks only for the missing option, listing what is in stock for that colour: “Which size: M, L?”' },
+                                        { fa: 'اگر ترکیبی که مشتری خواسته ناموجود باشد، ایجنت همان را می‌گوید و ترکیب‌های موجود را پیشنهاد می‌دهد.', en: 'If the requested combination is sold out, the agent says so and offers the combinations in stock.' },
+                                        { fa: 'نام ویژگی‌های فارسیِ سفارشی ووکامرس (مثلاً «سایز» که به‌صورت %d8%b3… می‌رسید) درست نمایش داده می‌شوند.', en: 'Custom Persian WooCommerce attribute names (e.g. “سایز” that arrived as %d8%b3…) now display correctly.' },
+                                ],
+                        },
+                        { type: 'h2', fa: 'روشن کردن', en: 'Turning it on' },
+                        {
+                                type: 'steps',
+                                items: [
+                                        { fa: 'داشبورد ← ایجنت‌ها ← ایجنت موردنظر ← «دسترسی ایجنت به فروشگاه».', en: 'Dashboard → Agents → your agent → “Store access”.' },
+                                        { fa: '«خبر تغییر وضعیت سفارش» را روشن کنید (نیاز به روشن بودن «پیگیری سفارش‌ها» و سفارش‌های همگام‌شده دارد).', en: 'Turn on “Order status updates” (needs “Order tracking” on and synced orders).' },
+                                        { fa: '«نگه‌داری سبد برای یک ساعت» را روشن کنید (نیاز به روشن بودن «گرفتن سفارش در چت» دارد).', en: 'Turn on “Hold carts for one hour” (needs “Take orders in chat” on).' },
+                                ],
+                        },
+                ],
+        },
+        {
+                slug: 'digital-menu',
+                icon: UtensilsCrossed,
+                title: { fa: 'منوی دیجیتال رستوران و کافه', en: 'Digital menu for restaurants and cafés' },
+                description: {
+                        fa: 'منوی QR با تم و رنگ برند، کاور و لوگو، ساعت کاری، برچسب غذاها، QR هر میز و دکمهٔ «از منو بپرس».',
+                        en: 'A QR menu in your brand’s theme and colour, with cover and logo, opening hours, dish badges, a QR per table and an “Ask the menu” button.',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'منو از همان محصولات و دسته‌بندی‌های شما ساخته می‌شود؛ هر تغییر قیمت، موجودی یا «تمام شد» همان لحظه در منوی مشتری دیده می‌شود. از داشبورد ← «منوی دیجیتال» دو تب دارید: «آیتم‌ها» برای کارهای روزانه و «طراحی و اطلاعات» برای ظاهر منو.',
+                                en: 'The menu is built from your own products and categories; any price, stock or “sold out” change shows on the customer menu instantly. Dashboard → “Digital menu” has two tabs: “Items” for daily work and “Design & info” for the look.',
+                        },
+                        { type: 'h2', fa: 'طراحی', en: 'Design' },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'چهار تم: روشن مینیمال، شب، باغ و کافه؛ به‌علاوهٔ رنگ اصلی دلخواه (رنگ متن روی دکمه‌ها خودکار خوانا انتخاب می‌شود).', en: 'Four themes — Minimal, Night, Garden and Café — plus any accent colour (button text colour is picked automatically for legibility).' },
+                                        { fa: 'سه چیدمان: فهرست با عکس، کارت‌های بزرگ، و کلاسیک بدون عکس برای کافه‌هایی که عکس ندارند.', en: 'Three layouts: list with photos, large cards, and a classic photo-free layout for cafés without photos.' },
+                                        { fa: 'کاور و لوگو، جملهٔ معرفی و یک اطلاعیهٔ کوتاه بالای منو.', en: 'Cover and logo, a tagline and a short notice at the top.' },
+                                        { fa: 'پیش‌نمایش زنده در قاب گوشی با آیتم‌های واقعی، قبل از ذخیره.', en: 'A live preview in a phone frame with your real items, before saving.' },
+                                ],
+                        },
+                        { type: 'h2', fa: 'برای مشتری', en: 'For your guests' },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'وضعیت «باز است تا …» یا «بسته» از روی ساعت کاری (به وقت تهران).', en: '“Open until …” or “Closed” from your opening hours (Tehran time).' },
+                                        { fa: 'نوار دسته‌بندی چسبان که با اسکرول، دستهٔ فعلی را نشان می‌دهد، و جستجوی فارسی.', en: 'A sticky category bar that follows the scroll, and Persian-aware search.' },
+                                        { fa: 'صفحهٔ هر غذا با عکس بزرگ، توضیح کامل، سایز یا مدل‌ها با قیمت جدا.', en: 'A page per dish with a large photo, full description, and sizes or options with their own prices.' },
+                                        { fa: '«انتخاب‌های من»: مشتری غذاها را کنار هم می‌گذارد، جمع را می‌بیند و به گارسون نشان می‌دهد یا در گفتگو می‌فرستد.', en: '“My picks”: guests collect dishes, see the total, and show it to the waiter or send it in chat.' },
+                                        { fa: '«از منو بپرس» و «درباره این غذا بپرسید» گفتگوی ایجنت شما را با سؤال آماده باز می‌کند؛ همان ایجنتی که دایرکت و تلگرام را جواب می‌دهد.', en: '“Ask the menu” and “Ask about this dish” open your agent’s chat with the question typed in — the same agent that answers DMs and Telegram.' },
+                                ],
+                        },
+                        { type: 'h2', fa: 'برچسب غذاها', en: 'Dish badges' },
+                        {
+                                type: 'p',
+                                fa: 'در تب «آیتم‌ها»، زیر هر غذا «برچسب منو» را باز کنید و «پیشنهاد سرآشپز»، «پرطرفدار»، «جدید»، «تند» یا «گیاهی» را بزنید. غذاهای سرآشپز و پرطرفدار بالای منو در ردیف «پیشنهاد ما» هم می‌آیند. برچسب‌ها همان برچسب‌های محصول‌اند و در فرم محصول هم دیده می‌شوند.',
+                                en: 'In the “Items” tab, open “Menu badges” under a dish and pick “Chef’s pick”, “Popular”, “New”, “Spicy” or “Vegetarian”. Chef’s picks and popular dishes also appear in the “Our picks” row at the top. Badges are ordinary product tags, visible in the product form too.',
+                        },
+                        { type: 'h2', fa: 'QR هر میز', en: 'A QR per table' },
+                        {
+                                type: 'steps',
+                                items: [
+                                        { fa: 'در پنل اشتراک منو، شمارهٔ میز را بنویسید.', en: 'In the share panel, type the table number.' },
+                                        { fa: '«کارت رومیزی» را بگیرید؛ روی کارت «منوی دیجیتال · میز ۷» چاپ می‌شود.', en: 'Download the “Table card”; it prints “Digital menu · Table 7”.' },
+                                        { fa: 'مشتری با اسکن، «میز ۷» را بالای منو می‌بیند و همین شماره در پیام گفتگو و فهرست سفارشش می‌آید.', en: 'Guests see “Table 7” at the top of the menu, and the number is included in their chat message and order list.' },
+                                ],
+                        },
+                ],
+        },
+        {
                 slug: 'caching',
                 icon: Zap,
                 title: { fa: 'سیستم کش', en: 'Caching system' },
@@ -1600,7 +1738,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'با اولین ورود، یک ماه دورهٔ آزمایشی با همان اعتبار اولیهٔ پاسخ فعال می‌شود. در دورهٔ آزمایشی یا اشتراک فعال، اتوماسیون‌های ثابت اینستاگرام اعتبار مصرف نمی‌کنند؛ درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا تجاری را از بخش «صورتحساب» انتخاب کنید.',
+                                fa: 'با اولین ورود، یک ماه دورهٔ آزمایشی با همان اعتبار اولیهٔ پاسخ فعال می‌شود. در دورهٔ آزمایشی یا اشتراک فعال، اتوماسیون‌های ثابت اینستاگرام اعتبار مصرف نمی‌کنند؛ درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا بیزینس را از بخش «صورتحساب» انتخاب کنید.',
                                 en: 'Your first login starts a one-month trial with starter reply credit. During an active trial or subscription, static Instagram automations use no credit; successful AI requests—replies, analyses, and tests—consume credit. Afterwards, choose Starter, Pro or Business from Billing.',
                         },
                         { type: 'h2', fa: 'اعتبار پاسخ', en: 'Reply credit' },
@@ -1609,6 +1747,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 fa: 'اعتبار پاسخ موجودی پیش‌پرداخت جدا از اشتراک است، نه یک پلن مستقل. برای هر درخواست AI مبلغ مدل انتخابی موقتاً رزرو می‌شود؛ پس از موفقیت کسر نهایی انجام می‌شود و در صورت خطا یا لغو، مبلغ کامل برمی‌گردد.',
                                 en: 'Reply credit is a prepaid balance separate from the subscription, not a standalone plan. Each AI request temporarily reserves the selected model price; it is captured after success and fully returned after a failure or cancellation.',
                         },
+                        { type: 'motion', motion: 'credit' },
                         { type: 'h2', fa: 'روش‌های پرداخت', en: 'Payment methods' },
                         {
                                 type: 'list',
@@ -1649,6 +1788,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 fa: 'ویجت چت، ایجنت شما را روی هر وب‌سایتی قرار می‌دهد. کافی است از صفحهٔ کانال‌ها ← ویجت وب، کد اسکریپت را کپی و قبل از بستهٔ </body> سایت خود بچسبانید.',
                                 en: 'The chat widget puts your agent on any website. Copy the script tag from Channels → Web Widget and paste it before your site\'s closing </body> tag.',
                         },
+                        { type: 'motion', motion: 'widget' },
                         { type: 'h2', fa: 'شخصی‌سازی ظاهر', en: 'Appearance' },
                         {
                                 type: 'list',

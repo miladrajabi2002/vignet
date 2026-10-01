@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { BadgeCheck, ChevronDown, CreditCard, Sparkles } from 'lucide-react'
+import { BadgeCheck, ChevronDown, CreditCard, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { CreditFlowMotion } from '@/components/motion/explainers'
 import { getLocale } from 'next-intl/server'
 import { PricingSection } from '@/components/marketing/pricing-section'
 import { MarketingHeroPill, MarketingSectionPill } from '@/components/marketing/animated-pill'
@@ -21,21 +22,29 @@ const COPY = {
                 ogDescription: 'مقایسه شفاف پلن‌ها، اعتبار پاسخ هوش مصنوعی و امکانات هر سطح از ویجنت.',
                 heroEyebrow: 'VIGENT PRICING',
                 h1: 'قیمت و تعرفه ایجنت هوش مصنوعی ویجنت',
-                subtitle: 'از یک ماه رایگان شروع کنید، پلن مناسب تعداد کانال‌های خود را انتخاب کنید و مصرف پاسخ‌های هوش مصنوعی را شفاف ببینید.',
+                subtitle: 'رایگان شروع کنید، پلن مناسب تعداد برنامه‌های خود را انتخاب کنید و مصرف پاسخ‌های هوش مصنوعی را شفاف ببینید.',
                 assurancesLabel: 'مزایای تعرفه ویجنت',
                 assurances: [
-                        { title: 'یک ماه شروع رایگان', text: 'فرصت کافی برای راه‌اندازی و ارزیابی جریان واقعی کسب‌وکار.' },
+                        { title: 'شروع رایگان', text: 'ایجنت را قبل از خرید، روی جریان واقعی کسب‌وکارتان راه‌اندازی و ارزیابی کنید.' },
                         { title: 'مصرف شفاف اعتبار', text: 'اعتبار هوش مصنوعی فقط مطابق مصرف ثبت‌شده در داشبورد محاسبه می‌شود.' },
                         { title: 'بدون کسر اعتبار اتوماسیون', text: 'اتوماسیون ثابت اینستاگرام در دورهٔ آزمایشی یا اشتراک فعال اعتبار مصرف نمی‌کند و پاسخ ناموفق هم هزینه‌ای ندارد.' },
+                ],
+                creditEyebrow: 'مصرف اعتبار',
+                creditH2: 'اعتبار دقیقاً کجا خرج می‌شود؟',
+                creditIntro: 'اشتراک ماهانه امکانات پنل را باز می‌کند؛ اعتبار پاسخ فقط وقتی کم می‌شود که هوش مصنوعی واقعاً پاسخی بسازد.',
+                creditPoints: [
+                        'پاسخ موفق هوش مصنوعی: به اندازهٔ همان پاسخ از اعتبار کم می‌شود.',
+                        'اتوماسیون ثابت اینستاگرام: در دورهٔ آزمایشی یا اشتراک فعال، رایگان است.',
+                        'درخواست ناموفق یا انتقال به اپراتور: هیچ هزینه‌ای ندارد و مبلغ رزروشده برمی‌گردد.',
                 ],
                 faqEyebrow: 'سؤال‌های متداول',
                 faqH2: 'قبل از انتخاب پلن، شفاف بدانید',
                 faqIntro: 'پاسخ کوتاه سؤال‌هایی که خریداران قبل از شروع می‌پرسند. برای جزئیات بیشتر، مستندات پلن‌ها و پرداخت را ببینید.',
                 planNames: { STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'بیزینس' } as Record<PaidPlan, string>,
-                appDescription: 'ایجنت هوشمند فروش و پشتیبانی فارسی برای اینستاگرام، تلگرام، بله، روبیکا و وب‌سایت — با یک ماه شروع رایگان.',
+                appDescription: 'ایجنت هوشمند فروش و پشتیبانی فارسی برای اینستاگرام، تلگرام، بله، روبیکا و وب‌سایت — با شروع رایگان.',
                 offerName: (plan: string) => `پلن ${plan}`,
                 offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>
-                        `اشتراک ماهانه پلن ${plan} ویجنت (${priceToman} تومان در ماه) با ${creditToman} تومان اعتبار پاسخ هدیه در اولین خرید و تا ${channels} اتصال کانال فعال.`,
+                        `اشتراک ماهانه پلن ${plan} ویجنت (${priceToman} تومان در ماه) با ${creditToman} تومان اعتبار پاسخ هدیه در اولین خرید و تا ${channels} اتصال برنامهٔ فعال.`,
                 breadcrumbHome: 'ویجنت',
                 breadcrumbCurrent: 'تعرفه‌ها و پلن‌ها',
         },
@@ -46,18 +55,26 @@ const COPY = {
                 ogDescription: 'A transparent comparison of plans, AI reply credit and what each Vigent tier includes.',
                 heroEyebrow: 'VIGENT PRICING',
                 h1: 'Transparent pricing for real growth',
-                subtitle: 'Start with a free month, pick the plan that matches your number of channels, and see exactly what each AI reply costs.',
+                subtitle: 'Start free, pick the plan that matches your number of channels, and see exactly what each AI reply costs.',
                 assurancesLabel: 'What you get with every plan',
                 assurances: [
-                        { title: 'One month free to start', text: 'Enough time to set up and evaluate against your real business flow.' },
+                        { title: 'Free to start', text: 'Set up and evaluate the agent on your real business flow before you buy.' },
                         { title: 'Transparent credit usage', text: 'AI credit is billed exactly as the usage recorded in your dashboard.' },
                         { title: 'No automation credit charge', text: 'During an active trial or subscription, deterministic Instagram automation uses no credit, and failed replies cost nothing.' },
+                ],
+                creditEyebrow: 'Credit usage',
+                creditH2: 'Where exactly does credit go?',
+                creditIntro: 'The monthly plan unlocks the workspace; reply credit is only spent when the AI actually produces a reply.',
+                creditPoints: [
+                        'A successful AI reply: charged at that reply’s price.',
+                        'Fixed Instagram automation: free during an active trial or subscription.',
+                        'A failed request or a handoff to an operator: no charge — the held amount is returned.',
                 ],
                 faqEyebrow: 'Frequently asked questions',
                 faqH2: 'Know exactly what you get before choosing',
                 faqIntro: 'Short answers to the questions buyers ask before starting. For details, see the plans and billing documentation.',
                 planNames: { STARTER: 'Starter', PRO: 'Pro', BUSINESS: 'Business' } as Record<PaidPlan, string>,
-                appDescription: 'Persian AI sales and support agent for Instagram, Telegram, Bale, Rubika and the web — with a free first month.',
+                appDescription: 'Persian AI sales and support agent for Instagram, Telegram, Bale, Rubika and the web — free to start.',
                 offerName: (plan: string) => `${plan} plan`,
                 offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>
                         `Vigent ${plan} monthly subscription (${priceToman} toman/month) with ${creditToman} toman of gift reply credit on the first purchase and up to ${channels} active channel connections.`,
@@ -78,12 +95,16 @@ const PRICING_FAQ = {
                         a: 'اعتبار پاسخ به‌صورت پیش‌پرداخت شارژ می‌شود و فقط بعد از هر پاسخ موفق هوش مصنوعی، به اندازه همان پاسخ از اعتبار کم می‌شود. پاسخ ناموفق هزینه‌ای ندارد و اتوماسیون‌های ثابت اینستاگرام (مثل پاسخ خودکار به کامنت و استوری) در دورهٔ آزمایشی یا اشتراک فعال اعتبار مصرف نمی‌کنند. گزارش مصرف هم به‌صورت شفاف در داشبورد قابل مشاهده است.',
                 },
                 {
-                        q: 'ویجنت از چه کانال‌هایی پشتیبانی می‌کند؟',
+                        q: 'ویجنت از چه برنامه‌هایی پشتیبانی می‌کند؟',
                         a: 'اینستاگرام (دایرکت، کامنت و استوری)، تلگرام، بله، روبیکا، ویجت چت وب‌سایت و لینک چت اختصاصی. فروشگاه‌های ووکامرس هم می‌توانند محصولات خود را مستقیم به ایجنت متصل کنند. همه گفتگوها در یک صندوق یکپارچه مدیریت می‌شوند.',
                 },
                 {
+                        q: 'فروش و لینک پرداخت داخل گفتگو هزینه یا کارمزد جدا دارد؟',
+                        a: 'نه. سبد خرید و لینک پرداخت داخل گفتگو جزو قابلیت‌های همهٔ پلن‌هاست و ویجنت از فروش شما کارمزدی برنمی‌دارد. مشتری روی سایت خودتان و با درگاه‌های خود فروشگاه پرداخت می‌کند و پول مستقیم به حساب شما می‌رسد. برای این قابلیت افزونهٔ رسمی ویجنت روی ووکامرس ۷ یا بالاتر لازم است.',
+                },
+                {
                         q: 'راه‌اندازی چقدر طول می‌کشد و به دانش فنی نیاز دارد؟',
-                        a: 'راه‌اندازی معمولاً چند دقیقه طول می‌کشد و به هیچ دانش برنامه‌نویسی نیاز ندارد: ایجنت را می‌سازید، اطلاعات و محصولات کسب‌وکار را اضافه می‌کنید و کانال دلخواه را با چند کلیک وصل می‌کنید. از همان لحظه اتصال، ایجنت پاسخ‌گویی را شروع می‌کند.',
+                        a: 'راه‌اندازی معمولاً چند دقیقه طول می‌کشد و به هیچ دانش برنامه‌نویسی نیاز ندارد: ایجنت را می‌سازید، اطلاعات و محصولات کسب‌وکار را اضافه می‌کنید و برنامهٔ دلخواه را با چند کلیک وصل می‌کنید. از همان لحظه اتصال، ایجنت پاسخ‌گویی را شروع می‌کند.',
                 },
                 {
                         q: 'آیا اطلاعات کسب‌وکار من امن می‌ماند؟',
@@ -108,6 +129,10 @@ const PRICING_FAQ = {
                         a: 'Instagram (DMs, comments and stories), Telegram, Bale, Rubika, a website chat widget and a dedicated chat link. WooCommerce stores can connect their product catalog directly to the agent, and every conversation is managed in one unified inbox.',
                 },
                 {
+                        q: 'Does in-chat checkout cost extra or take a commission?',
+                        a: 'No. The in-chat cart and payment links are included in every plan and Vigent takes no commission on your sales. Customers pay on your own site with your store’s own gateways, so the money goes straight to your account. It needs the official Vigent plugin on WooCommerce 7 or later.',
+                },
+                {
                         q: 'How long does setup take? Does it need technical skills?',
                         a: 'Setup usually takes a few minutes and requires no programming: create your agent, add your business information and products, then connect your channel in a few clicks. From the moment it connects, the agent starts answering.',
                 },
@@ -127,6 +152,7 @@ const PRICING_FAQ = {
 } as const
 
 const ASSURANCE_ICONS = [Sparkles, CreditCard, BadgeCheck] as const
+const CREDIT_POINT_ICONS = [Sparkles, Zap, RefreshCw] as const
 
 // Per-request rendering: /pricing and /en/pricing share this route via the
 // middleware rewrite, and a statically prerendered shell would bake the fa
@@ -244,7 +270,7 @@ export default async function PricingPage() {
                                 <header className="marketing-page-hero marketing-grid-dark px-6 py-12 text-white sm:px-10 sm:py-16">
                                         <div className="relative z-10 mx-auto max-w-3xl text-center">
                                                 <MarketingHeroPill>{copy.heroEyebrow}</MarketingHeroPill>
-                                                <h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.2] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
+                                                <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.2] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
                                                         {copy.h1}
                                                 </h1>
                                                 <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50">
@@ -257,11 +283,11 @@ export default async function PricingPage() {
                                         {copy.assurances.map(({ title, text }, index) => {
                                                 const Icon = ASSURANCE_ICONS[index]
                                                 return (
-                                                        <article key={title} className="spatial-surface rounded-[1.5rem] bg-white p-5">
+                                                        <article key={title} className="spatial-surface rounded-card bg-white p-5">
                                                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white">
                                                                         <Icon className="h-4 w-4" />
                                                                 </span>
-                                                                <h2 className="mt-4 text-sm font-semibold text-black">{title}</h2>
+                                                                <h2 className="mt-4 text-sm font-bold text-black">{title}</h2>
                                                                 <p className="mt-2 text-xs leading-6 text-black/45">{text}</p>
                                                         </article>
                                                 )
@@ -273,11 +299,36 @@ export default async function PricingPage() {
                                 <PricingSection />
                         </Suspense>
 
+                        {/* How credit is spent, shown rather than told: the question
+                            buyers ask most before choosing a plan. */}
+                        <section aria-labelledby="credit-how-title" className="mx-auto mt-4 max-w-7xl px-3 sm:px-5">
+                                <div className="mx-auto grid max-w-6xl items-center gap-8 rounded-sheet border border-black/[0.08] bg-white px-6 py-10 shadow-[var(--elev-2)] sm:px-10 sm:py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
+                                        <div>
+                                                <MarketingSectionPill>{copy.creditEyebrow}</MarketingSectionPill>
+                                                <h2 id="credit-how-title" className="mt-4 text-3xl font-bold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">
+                                                        {copy.creditH2}
+                                                </h2>
+                                                <p className="mt-4 max-w-md text-sm leading-7 text-black/50">{copy.creditIntro}</p>
+                                                <ul className="mt-6 space-y-3">
+                                                        {copy.creditPoints.map((point, index) => {
+                                                                const Icon = CREDIT_POINT_ICONS[index]
+                                                                return (
+                                                                        <li key={point} className="flex items-start gap-3 text-sm leading-7 text-black/70">
+                                                                                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-black/[0.05] text-black"><Icon className="h-3.5 w-3.5" /></span>
+                                                                                {point}
+                                                                        </li>
+                                                                )
+                                                        })}
+                                                </ul>
+                                        </div>
+                                        <CreditFlowMotion locale={locale} />
+                                </div>
+                        </section>
                         <section aria-labelledby="pricing-faq-title" className="mx-auto mt-4 max-w-7xl px-3 sm:px-5">
-                                <div className="mx-auto grid max-w-6xl gap-10 rounded-[2rem] border border-black/[0.08] bg-white px-6 py-12 shadow-[0_18px_55px_rgba(0,0,0,0.06)] sm:px-10 sm:py-14 lg:grid-cols-[0.7fr_1.3fr]">
+                                <div className="mx-auto grid max-w-6xl gap-10 rounded-sheet border border-black/[0.08] bg-white px-6 py-12 shadow-[var(--elev-2)] sm:px-10 sm:py-14 lg:grid-cols-[0.7fr_1.3fr]">
                                         <div>
                                                 <MarketingSectionPill>{copy.faqEyebrow}</MarketingSectionPill>
-                                                <h2 id="pricing-faq-title" className="mt-4 text-3xl font-semibold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">
+                                                <h2 id="pricing-faq-title" className="mt-4 text-3xl font-bold leading-[1.35] tracking-[-0.035em] text-black rtl:tracking-normal sm:text-4xl">
                                                         {copy.faqH2}
                                                 </h2>
                                                 <p className="mt-4 max-w-sm text-sm leading-7 text-black/50">

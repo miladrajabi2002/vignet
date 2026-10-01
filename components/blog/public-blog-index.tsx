@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { useDeferredValue, useState } from 'react'
 import { Search, X } from 'lucide-react'
-import { PublicPostCard, type PublicPost } from '@/components/blog/public-post-card'
+import { PublicPostCard } from '@/components/blog/public-post-card'
+import type { SearchablePublicPost } from '@/lib/blog/public-post'
 
 type BlogCategory = {
 	id: string
@@ -25,7 +26,7 @@ export function PublicBlogIndex({
 	categories,
 	locale,
 }: {
-	posts: PublicPost[]
+	posts: SearchablePublicPost[]
 	categories: BlogCategory[]
 	locale: 'fa' | 'en'
 }) {
@@ -35,7 +36,7 @@ export function PublicBlogIndex({
 	const filteredPosts = normalizedQuery
 		? posts.filter((post) =>
 				normalizeSearch(
-					`${post.title} ${post.excerpt ?? ''} ${post.content} ${post.category?.name ?? ''}`,
+					`${post.title} ${post.excerpt} ${post.searchText} ${post.category?.name ?? ''}`,
 				).includes(normalizedQuery),
 			)
 		: posts
@@ -44,10 +45,10 @@ export function PublicBlogIndex({
 
 	return (
 		<>
-			<div className="mb-6 rounded-[1.35rem] border border-black/[0.08] bg-white p-2 shadow-[0_12px_36px_rgba(0,0,0,0.065)] sm:flex sm:items-center sm:gap-3 sm:p-3">
+			<div className="mb-6 rounded-card border border-black/[0.08] bg-white p-2 shadow-[var(--elev-1)] sm:flex sm:items-center sm:gap-3 sm:p-3">
 				<label className="relative block min-w-0 flex-1">
 					<span className="sr-only">{searchLabel}</span>
-					<Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40" aria-hidden="true" />
+					<Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
 					<input
 						type="search"
 						value={query}
@@ -60,13 +61,13 @@ export function PublicBlogIndex({
 							type="button"
 							onClick={() => setQuery('')}
 							aria-label={locale === 'fa' ? 'پاک کردن جست‌وجو' : 'Clear search'}
-							className="absolute end-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-black/40 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+							className="absolute end-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
 						>
 							<X className="h-4 w-4" aria-hidden="true" />
 						</button>
 					)}
 				</label>
-				<p className="px-3 py-2 text-xs text-black/45 sm:shrink-0 sm:py-0" aria-live="polite">
+				<p className="px-3 py-2 text-xs text-[var(--text-muted)] sm:shrink-0 sm:py-0" aria-live="polite">
 					{locale === 'fa'
 						? `${filteredPosts.length.toLocaleString('fa-IR')} مقاله`
 						: `${filteredPosts.length} articles`}
@@ -85,7 +86,7 @@ export function PublicBlogIndex({
 						<Link
 							key={category.id}
 							href={`/blog/category/${category.slug}`}
-							className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-black/10 bg-white px-4 text-xs text-black/55 transition-colors hover:border-black/20 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+							className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-black/10 bg-white px-4 text-xs text-[var(--text-secondary)] transition-colors hover:border-black/20 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
 						>
 							{category.name}
 						</Link>
@@ -94,8 +95,8 @@ export function PublicBlogIndex({
 			)}
 
 			{!featured ? (
-				<div className="rounded-[1.5rem] border border-dashed border-black/15 bg-[#f7f7f5] px-5 py-16 text-center text-black/45">
-					<p className="text-sm font-medium text-black/60">
+				<div className="rounded-card border border-dashed border-black/15 bg-[#f7f7f5] px-5 py-16 text-center text-[var(--text-muted)]">
+					<p className="text-sm font-medium text-[var(--text-secondary)]">
 						{normalizedQuery
 							? locale === 'fa' ? 'مقاله‌ای با این عبارت پیدا نشد.' : 'No article matches this search.'
 							: locale === 'fa' ? 'هنوز پستی منتشر نشده است.' : 'No posts published yet.'}

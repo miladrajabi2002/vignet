@@ -1,233 +1,151 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { unstable_cache } from 'next/cache'
 import { getLocale } from 'next-intl/server'
+import { BookOpen, Eye, Flame, TrendingUp } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { toPersianDigits, deriveExcerpt } from '@/lib/blog/helpers'
-import { Eye, ArrowLeft, Flame, TrendingUp } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { TrendSpark } from '@/components/blog/trend-spark'
-import { MarketingSectionPill } from '@/components/marketing/animated-pill'
+import { BlogImage } from '@/components/blog/blog-image'
+import { blogImageSources } from '@/lib/blog/image-variants'
+import { Container, ForwardArrow, SectionHead, btnGhost, toSiteLocale, type SiteLocale } from '@/components/marketing/site/ui'
+import { cn } from '@/lib/utils'
 
 /**
- * PopularPosts — server component that pulls the most-viewed published blog
- * posts and renders them as a simple horizontal row of three equal cards.
- * Sits on the homepage right before the pricing section, so visitors see
- * social proof (popular content) before being asked to upgrade.
- *
- * Returns null silently when there are fewer than 1 published posts.
- */
-/**
- * Fetch the popular posts, swallowing any DB error. This section is decorative
- * social-proof on the public homepage — a database hiccup must never take the
- * whole landing page down, so on failure we return an empty list (→ renders
- * nothing) instead of throwing.
+ * Homepage "most viewed" blog row. Server rendered from a 5-minute cache; a
+ * database hiccup renders nothing instead of breaking the landing page.
+ * Desktop cards show the (lazy, device-sized WebP) cover; phones get a lighter swipe row
+ * without images.
  */
 const loadPopularPosts = unstable_cache(async () => {
-        const workspace = await prisma.workspace.findFirst({
-                orderBy: { createdAt: 'asc' },
-                select: { id: true },
-        })
-        if (!workspace) return []
-
-        return prisma.blogPost.findMany({
-                where: { workspaceId: workspace.id, status: 'PUBLISHED' },
-                orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
-                take: 3,
-                select: {
-                        id: true,
-                        title: true,
-                        slug: true,
-                        excerpt: true,
-                        content: true,
-                        coverImage: true,
-                        views: true,
-                        publishedAt: true,
-                        createdAt: true,
-                        readingMinutes: true,
-                        category: { select: { name: true, slug: true } },
-                },
-        })
-}, ['marketing-popular-posts-v1'], {
-        revalidate: 300,
-        tags: ['marketing-popular-posts'],
-})
+	const workspace = await prisma.workspace.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } })
+	if (!workspace) return []
+	return prisma.blogPost.findMany({
+		where: { workspaceId: workspace.id, status: 'PUBLISHED' },
+		orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
+		take: 3,
+		select: {
+			id: true,
+			title: true,
+			slug: true,
+			excerpt: true,
+			content: true,
+			coverImage: true,
+			views: true,
+			publishedAt: true,
+			createdAt: true,
+			readingMinutes: true,
+		},
+	})
+}, ['marketing-popular-posts-v2'], { revalidate: 300, tags: ['marketing-popular-posts'] })
 
 async function getPopularPosts() {
-        try {
-                return await loadPopularPosts()
-        } catch (err) {
-                console.error('[PopularPosts] failed to load posts:', err)
-                return []
-        }
+	try {
+		return await loadPopularPosts()
+	} catch (err) {
+		console.error('[PopularPosts] failed to load posts:', err)
+		return []
+	}
 }
+
+type Post = Awaited<ReturnType<typeof getPopularPosts>>[number]
+
+const COPY = {
+	fa: {
+		pill: 'پربازدیدترین‌ها',
+		title: 'از وبلاگ ویجنت',
+		lead: 'راهنماها و تجربه‌های کاربردی دربارهٔ فروش، پشتیبانی و ایجنت‌های هوشمند.',
+		ranks: ['داغ‌ترین مقاله', 'رتبهٔ دوم', 'رتبهٔ سوم'],
+		all: 'مشاهدهٔ همهٔ مقاله‌ها',
+		views: (n: string) => `${n} بازدید`,
+		minutes: (n: string) => `${n} دقیقه`,
+	},
+	en: {
+		pill: 'Most viewed',
+		title: 'From the Vigent blog',
+		lead: 'Practical guides on sales, support and AI agents.',
+		ranks: ['Top read', '2nd most read', '3rd most read'],
+		all: 'View all articles',
+		views: (n: string) => `${n} views`,
+		minutes: (n: string) => `${n} min`,
+	},
+} as const
+
+const optimizable = (src: string) => src.startsWith('/') || /^https:\/\/[^/]+\.supabase\.co\//.test(src)
 
 export async function PopularPosts() {
-        const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-        const posts = await getPopularPosts()
+	const locale = toSiteLocale(await getLocale())
+	const posts = await getPopularPosts()
+	if (posts.length === 0) return null
+	const c = COPY[locale]
 
-        if (posts.length === 0) return null
-
-        const isFa = locale === 'fa'
-
-        return (
-                                <section id="popular" className="marketing-story-section marketing-section-posts bg-[var(--bg-base)] py-9 sm:py-20 lg:py-24">
-                                                <div className="mx-auto max-w-6xl px-5 sm:px-6">
-                                {/* Heading */}
-                                <div data-scroll-reveal="up" className="mx-auto max-w-2xl text-center">
-                                        <MarketingSectionPill>{isFa ? 'پر بازدیدترین‌ها' : 'Most viewed'}</MarketingSectionPill>
-                                        <h2 className="marketing-heading mx-auto mt-4">
-                                                {isFa ? 'محبوب‌ترین مقالات' : 'Popular articles'}
-                                        </h2>
-                                        <p className="marketing-subtitle mx-auto mt-4">
-                                                {isFa
-                                                        ? 'راهنماها و تجربه‌های کاربردی درباره فروش، پشتیبانی و ایجنت‌های هوشمند.'
-                                                        : 'Practical guides on sales, support and useful AI-agent workflows.'}
-                                        </p>
-                                </div>
-
-                                {/* Three equal cards in a horizontal row */}
-                                                                <div aria-label={isFa ? 'مقالات محبوب' : 'Popular articles'} className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-10 md:mt-14 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 lg:grid-cols-3">
-                                        {posts.map((p, i) => (
-                                                                                <PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} />
-                                        ))}
-                                </div>
-
-                                {/* CTA to the full blog */}
-                                <div className="mt-8 text-center sm:mt-12">
-                                        <Link
-                                                href="/blog"
-                                                className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
-                                        >
-                                                {isFa ? 'مشاهده همه مقالات' : 'View all articles'}
-                                                <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-                                        </Link>
-                                </div>
-                        </div>
-                </section>
-        )
+	return (
+		<section id="blog" aria-labelledby="blog-title" className="vg-cv scroll-mt-24 pt-12 lg:py-[110px]">
+			<Container className="px-0 sm:px-0 xl:px-0">
+				<SectionHead id="blog-title" className="vg-rv px-4 sm:px-6" pill={c.pill} icon={Flame} iconClassName="text-[#ea580c]" title={c.title} lead={c.lead} titleClassName="lg:text-[42px] lg:leading-[1.4]" />
+				<ul className="vg-rv-group vg-noscroll mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 sm:px-6 lg:mt-10 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible xl:px-0">
+					{posts.map((post, index) => <PostCard key={post.id} post={post} rank={index} locale={locale} />)}
+				</ul>
+				<div className="mt-3.5 flex justify-center lg:mt-10">
+					<Link href="/blog" className={cn(btnGhost, 'min-h-11 rounded-full px-[18px] text-[13.5px] lg:h-12 lg:px-6 lg:text-[14.5px]')}>
+						<BookOpen aria-hidden className="hidden size-[17px] lg:block" strokeWidth={1.8} />
+						{c.all}
+						<ForwardArrow locale={locale} className="size-[15px] lg:hidden" />
+					</Link>
+				</div>
+			</Container>
+		</section>
+	)
 }
 
-/* ───────────────────────────────────────────────────────────────────────
-   Card sub-component — single uniform card layout for all ranks
-   ─────────────────────────────────────────────────────────────────────── */
+function PostCard({ post, rank, locale }: { post: Post; rank: number; locale: SiteLocale }) {
+	const c = COPY[locale]
+	const fa = locale === 'fa'
+	const excerpt = post.excerpt || deriveExcerpt(post.content)
+	const cover = post.coverImage?.trim()
+	const views = fa ? toPersianDigits(post.views) : post.views.toLocaleString('en-US')
+	const minutes = fa ? toPersianDigits(post.readingMinutes) : String(post.readingMinutes)
+	const RankIcon = rank === 0 ? Flame : TrendingUp
 
-type PostPreview = {
-        id: string
-        title: string
-        slug: string
-        excerpt: string | null
-        content: string
-        coverImage: string | null
-        views: number
-        publishedAt: Date | null
-        createdAt: Date
-        readingMinutes: number
-        category: { name: string; slug: string } | null
-}
-
-function RankBadge({ rank, isFa }: { rank: number; isFa: boolean }) {
-        const labels = isFa
-                ? ['داغ‌ترین مقاله', 'رتبه دوم', 'رتبه سوم']
-                : ['Top read', '2nd most read', '3rd most read']
-        const label = labels[rank - 1] ?? labels[2]
-
-        if (rank === 1) {
-                return (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--white)] px-2.5 py-1 text-[10px] font-semibold text-[var(--bg-base)]">
-                                <Flame className="h-3 w-3" />
-                                {label}
-                        </span>
-                )
-        }
-        return (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
-                        <TrendingUp className="h-3 w-3" />
-                        {label}
-                </span>
-        )
-}
-
-function ViewsLabel({ views, isFa }: { views: number; isFa: boolean }) {
-        const formatted =
-                views >= 1000
-                        ? isFa
-                                ? `${toPersianDigits((views / 1000).toFixed(1))}هزار`
-                                : `${(views / 1000).toFixed(1)}k`
-                : isFa
-                        ? toPersianDigits(views)
-                        : views.toLocaleString('en-US')
-
-        return (
-                <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-                        <Eye className="h-3 w-3" />
-                        {isFa ? `${formatted} بازدید` : `${formatted} views`}
-                </span>
-        )
-}
-
-function PopularCard({
-        post,
-        rank,
-        locale,
-        isFa,
-        className = '',
-}: {
-        post: PostPreview
-        rank: number
-        locale: 'fa' | 'en'
-        isFa: boolean
-        className?: string
-}) {
-        const excerpt = post.excerpt || deriveExcerpt(post.content)
-        const time = relativeTime(post.publishedAt ?? post.createdAt, locale)
-        const coverImage = post.coverImage?.trim()
-
-        return (
-                <Link
-                        href={`/blog/${post.slug}`}
-                                                data-scroll-reveal="up"
-                                                className={`group flex min-h-44 min-w-[min(82vw,21rem)] snap-center flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 md:min-h-0 md:min-w-0 md:flex-col ${className}`}
-                >
-                        {coverImage && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                        src={coverImage}
-                                        alt={post.title}
-                                        width={560}
-                                        height={373}
-                                        loading="lazy"
-                                        decoding="async"
-                                                                                className="hidden aspect-[3/2] w-full shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] md:block"
-                                />
-                        )}
-                                                <div className="min-w-0 flex flex-1 flex-col p-4 sm:p-5">
-                                <div className="flex items-center justify-between gap-3">
-                                        <RankBadge rank={rank} isFa={isFa} />
-                                        {post.category && (
-                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)] rtl:tracking-normal">
-                                                        {post.category.name}
-                                                </span>
-                                        )}
-                                </div>
-                                <h3 className="mt-3 line-clamp-2 text-base font-medium leading-snug text-[var(--text-primary)]">
-                                        {post.title}
-                                </h3>
-                                                                <p className="mt-2 hidden flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2 sm:block">
-                                        {excerpt}
-                                </p>
-                                                                <div className="mt-auto flex items-center justify-between gap-3 pt-3 sm:mt-4 sm:pt-0">
-                                        <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
-                                                <ViewsLabel views={post.views} isFa={isFa} />
-                                                                                                <span className="hidden sm:inline">{time}</span>
-                                                                                                <span className="hidden sm:inline">
-                                                        {isFa
-                                                                ? `${toPersianDigits(post.readingMinutes)} دقیقه`
-                                                                : `${post.readingMinutes} min`}
-                                                </span>
-                                        </div>
-                                        <TrendSpark seed={post.id} />
-                                </div>
-                        </div>
-                </Link>
-        )
+	return (
+		<li className="w-[290px] shrink-0 snap-center lg:w-auto">
+			<Link
+				href={`/blog/${post.slug}`}
+				className="vg-press vg-lift vg-zoom flex h-full min-h-[176px] flex-col overflow-hidden rounded-card border border-vg-line bg-white text-vg-ink lg:rounded-3xl"
+			>
+				{cover ? (
+					<div className="relative hidden aspect-[3/2] overflow-hidden bg-vg-ink lg:block">
+						{blogImageSources(cover) ? (
+							// Pre-built device variants: no on-demand optimizer work per release.
+							<BlogImage src={cover} alt={post.title} sizes="(min-width: 1280px) 387px, 33vw" className="size-full object-cover" />
+						) : optimizable(cover) ? (
+							<Image src={cover} alt={post.title} fill sizes="(min-width: 1280px) 387px, 33vw" loading="lazy" className="object-cover" />
+						) : (
+							// eslint-disable-next-line @next/next/no-img-element
+							<img src={cover} alt={post.title} width={560} height={373} loading="lazy" decoding="async" className="size-full object-cover" />
+						)}
+					</div>
+				) : null}
+				<div className="flex grow flex-col p-[18px] text-start lg:px-[22px] lg:py-5">
+					<div>
+						<span className={cn('inline-flex h-[26px] items-center gap-[5px] rounded-full px-2.5 text-[12px]', rank === 0 ? 'bg-vg-ink font-bold text-white' : 'border border-black/10 bg-white font-medium text-vg-sub')}>
+							<RankIcon aria-hidden className={cn('size-[13px]', rank === 0 && 'text-[#fb923c]')} strokeWidth={2} />
+							{c.ranks[rank] ?? c.ranks[2]}
+						</span>
+					</div>
+					<h3 className="mt-3 line-clamp-2 text-[15.5px] font-bold leading-[1.8] lg:mt-3.5 lg:text-[17.5px] lg:leading-[1.75]">{post.title}</h3>
+					<p className="mt-2 hidden text-[14px] leading-[1.9] text-vg-sub lg:line-clamp-2">{excerpt}</p>
+					<div className="mt-auto flex items-center justify-between gap-3 pt-3 lg:pt-[18px]">
+						<span className="flex items-center gap-3 text-[12px] text-vg-cap">
+							<span className="inline-flex items-center gap-1"><Eye aria-hidden className="size-3.5" strokeWidth={1.8} />{c.views(views)}</span>
+							<span className="hidden lg:inline">{relativeTime(post.publishedAt ?? post.createdAt, locale)}</span>
+							<span>{c.minutes(minutes)}</span>
+						</span>
+						<TrendSpark seed={post.id} />
+					</div>
+				</div>
+			</Link>
+		</li>
+	)
 }

@@ -8,6 +8,8 @@
  * Output is HTML-escaped; XSS-safe.
  */
 
+import { blogImageSources } from '@/lib/blog/image-variants'
+
 const STOP_WORDS_FA = new Set([
 	'و',
 	'در',
@@ -204,7 +206,13 @@ export function renderMarkdown(markdown: string): string {
 		// images
 		t = t.replace(
 			/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*)&quot;)?\)/g,
-			(_m, alt, url) => `<img src="${url}" alt="${alt}" loading="lazy" decoding="async" />`,
+			(_m, alt, url) => {
+				// Uploaded images get device-sized WebP variants; others render as-is.
+				const responsive = blogImageSources(url)
+				return responsive
+					? `<img src="${responsive.src}" srcset="${responsive.srcSet}" sizes="(min-width: 800px) 704px, calc(100vw - 64px)" width="1600" height="1000" alt="${alt}" loading="lazy" decoding="async" />`
+					: `<img src="${url}" alt="${alt}" loading="lazy" decoding="async" />`
+			},
 		)
 		// links
 		// Internal links must keep their link equity and normal navigation:
@@ -384,13 +392,15 @@ export function renderMarkdown(markdown: string): string {
 			out.push('<hr />')
 			continue
 		}
-		// Ordered list
-		const ol = line.match(/^\s*(\d+)\.\s+(.*)$/)
+		// Ordered list — Persian writers number steps «۱.»; items separated
+		// by blank lines keep their number through the `start` attribute.
+		const ol = line.match(/^\s*([\d۰-۹]+)\.\s+(.*)$/)
 		if (ol) {
 			flushParagraph()
 			if (!inList || !inOrdered) {
 				closeList()
-				out.push('<ol>')
+				const start = Number(ol[1].replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))))
+				out.push(start > 1 ? `<ol start="${start}">` : '<ol>')
 				inList = true
 				inOrdered = true
 			}

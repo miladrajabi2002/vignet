@@ -79,7 +79,7 @@ export function PosterPromptDialog({
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
           <div className="flex min-w-0 items-center gap-2">
             <ImagePlus className="h-4 w-4 shrink-0 text-emerald-600" />
-            <h2 className="truncate text-sm font-semibold text-zinc-900">
+            <h2 className="truncate text-sm font-bold text-zinc-900">
               پرامپت پوستر برای «{post.title || post.slug}»
             </h2>
           </div>
@@ -93,7 +93,7 @@ export function PosterPromptDialog({
         </div>
 
         <div className="max-h-[calc(100vh-10rem)] space-y-3 overflow-y-auto p-5">
-          <p className="text-[11px] leading-relaxed text-zinc-500">
+          <p className="text-[12px] leading-relaxed text-zinc-500">
             این پست بدون عکس جلد ذخیره شده است. ۳ پرامپت آماده برای Grok
             Image / Midjourney / DALL-E از عنوان و خلاصه همین پست ساخته شده
             — هر کدام با یک رنگ accent ثابت، شامل ابعاد ۱۵۳۶×۱۰۲۴، اسم
@@ -117,20 +117,20 @@ export function PosterPromptDialog({
                         style={{ backgroundColor: v.color.hex }}
                         title={v.color.hex}
                       />
-                      <span className="shrink-0 text-[11px] font-medium text-zinc-800">
+                      <span className="shrink-0 text-[12px] font-medium text-zinc-800">
                         {v.color.labelFa}
                       </span>
-                      <span className="shrink-0 text-[10px] text-zinc-400" dir="ltr">
+                      <span className="shrink-0 text-[12px] text-zinc-400" dir="ltr">
                         {v.color.hex}
                       </span>
-                      <span className="hidden text-[10px] text-zinc-300 sm:inline">·</span>
-                      <span className="hidden truncate text-[10px] text-zinc-400 sm:inline">
+                      <span className="hidden text-[12px] text-zinc-300 sm:inline">·</span>
+                      <span className="hidden truncate text-[12px] text-zinc-400 sm:inline">
                         {v.color.moodFa}
                       </span>
                     </div>
                     <button
                       onClick={() => copyPrompt(v.color.key, v.prompt)}
-                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
                         isCopied
                           ? 'bg-emerald-100 text-emerald-700'
                           : 'bg-zinc-900 text-white hover:bg-zinc-800'
@@ -148,12 +148,12 @@ export function PosterPromptDialog({
                   </div>
                   {/* Prompt text (collapsible — it is long) */}
                   <details>
-                    <summary className="cursor-pointer text-[10px] text-zinc-400 hover:text-zinc-600">
+                    <summary className="cursor-pointer text-[12px] text-zinc-400 hover:text-zinc-600">
                       نمایش پرامپت — {v.prompt.length} کاراکتر
                     </summary>
                     <pre
                       dir="ltr"
-                      className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200 bg-white p-2 font-mono text-[10px] leading-relaxed text-zinc-600 text-left"
+                      className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200 bg-white p-2 font-mono text-[12px] leading-relaxed text-zinc-600 text-left"
                     >
                       {v.prompt}
                     </pre>
@@ -163,7 +163,7 @@ export function PosterPromptDialog({
             })}
           </div>
 
-          <p className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+          <p className="flex items-center gap-1.5 text-[12px] text-zinc-400">
             <Sparkles className="h-3 w-3 shrink-0" />
             پرامپت‌ها به‌صورت خودکار از محتوای همین پست ساخته می‌شوند.
           </p>

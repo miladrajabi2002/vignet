@@ -342,7 +342,7 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                                 // eslint-disable-next-line @next/next/no-img-element
                                                                 <img src={logo.imageUrl} alt={logo.name} className="h-8 w-auto max-w-24 rounded border border-zinc-100 bg-white object-contain px-1" />
                                                         ) : (
-                                                                <span className="grid h-8 w-10 place-items-center rounded border border-zinc-100 bg-zinc-50 text-[10px] text-zinc-400">متن</span>
+                                                                <span className="grid h-8 w-10 place-items-center rounded border border-zinc-100 bg-zinc-50 text-[11px] text-zinc-400">متن</span>
                                                         )}
                                                         <div className="min-w-0 flex-1">
                                                                 <p className="truncate text-xs font-semibold text-zinc-800">{logo.name}</p>

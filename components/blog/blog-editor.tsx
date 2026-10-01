@@ -415,7 +415,7 @@ export function BlogEditor({
 							<button
 								type="button"
 								onClick={() => patch({ excerpt: deriveExcerpt(post.content) })}
-								className="ms-1 text-[11px] text-zinc-400 underline hover:text-zinc-600"
+								className="ms-1 text-[12px] text-zinc-400 underline hover:text-zinc-600"
 							>
 								{t('autoFill')}
 							</button>
@@ -436,7 +436,7 @@ export function BlogEditor({
 					{/* SEO score */}
 					<div className="rounded-2xl border border-zinc-200 bg-white p-4">
 						<div className="flex items-center justify-between">
-							<h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900">
+							<h3 className="flex items-center gap-1.5 text-sm font-bold text-zinc-900">
 								<Sparkles className="h-4 w-4 text-amber-500" />
 								{t('seoScore')}
 							</h3>
@@ -456,7 +456,7 @@ export function BlogEditor({
 							{seo.checks.map((c, i) => (
 								<li key={i} className="flex items-start gap-2 text-xs">
 									{c.status === 'pass' ? (
-										<CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+										<CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--ok)]" />
 									) : c.status === 'warn' ? (
 										<AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
 									) : (
@@ -475,14 +475,14 @@ export function BlogEditor({
 
 					{/* SEO fields */}
 					<div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
-						<h3 className="text-sm font-semibold text-zinc-900">{t('seoFields')}</h3>
+						<h3 className="text-sm font-bold text-zinc-900">{t('seoFields')}</h3>
 						<label className="block">
 							<div className="mb-1 flex items-center justify-between">
 								<span className="text-xs text-zinc-600">{t('seoTitle')}</span>
 								<button
 									type="button"
 									onClick={() => patch({ seoTitle: deriveSeoTitle(post.title) })}
-									className="text-[10px] text-zinc-400 underline hover:text-zinc-600"
+									className="text-[12px] text-zinc-400 underline hover:text-zinc-600"
 								>
 									{t('autoFill')}
 								</button>
@@ -495,7 +495,7 @@ export function BlogEditor({
 								dir="auto"
 								className={inputCls}
 							/>
-							<div className="mt-0.5 text-end text-[10px] text-zinc-400">
+							<div className="mt-0.5 text-end text-[12px] text-zinc-400">
 								{(post.seoTitle ?? deriveSeoTitle(post.title)).length} / 60
 							</div>
 						</label>
@@ -509,7 +509,7 @@ export function BlogEditor({
 											seoDescription: deriveSeoDescription(post.excerpt, post.content),
 										})
 									}
-									className="text-[10px] text-zinc-400 underline hover:text-zinc-600"
+									className="text-[12px] text-zinc-400 underline hover:text-zinc-600"
 								>
 									{t('autoFill')}
 								</button>
@@ -522,7 +522,7 @@ export function BlogEditor({
 								dir="auto"
 								className={`w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100`}
 							/>
-							<div className="mt-0.5 text-end text-[10px] text-zinc-400">
+							<div className="mt-0.5 text-end text-[12px] text-zinc-400">
 								{
 									(
 										post.seoDescription ??
@@ -545,7 +545,7 @@ export function BlogEditor({
 											].slice(0, 20)
 											patch({ seoKeywords: merged })
 										}}
-										className="text-[10px] text-zinc-400 underline hover:text-zinc-600"
+										className="text-[12px] text-zinc-400 underline hover:text-zinc-600"
 									>
 										{t('addSuggested')}
 									</button>
@@ -583,7 +583,7 @@ export function BlogEditor({
 							/>
 							{suggestedKeywords.length > 0 && (
 								<div className="mt-2">
-									<div className="mb-1 text-[10px] text-zinc-400">{t('suggested')}:</div>
+									<div className="mb-1 text-[12px] text-zinc-400">{t('suggested')}:</div>
 									<div className="flex flex-wrap gap-1">
 										{suggestedKeywords
 											.filter((k) => !post.seoKeywords.includes(k))
@@ -593,7 +593,7 @@ export function BlogEditor({
 													key={k}
 													type="button"
 													onClick={() => addKeyword(k)}
-													className="rounded-full border border-dashed border-zinc-300 px-2 py-0.5 text-[10px] text-zinc-500 transition-colors hover:text-zinc-800"
+													className="rounded-full border border-dashed border-zinc-300 px-2 py-0.5 text-[12px] text-zinc-500 transition-colors hover:text-zinc-800"
 												>
 													+ {k}
 												</button>
@@ -606,7 +606,7 @@ export function BlogEditor({
 
 					{/* Publish settings */}
 					<div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
-						<h3 className="text-sm font-semibold text-zinc-900">{t('publishSettings')}</h3>
+						<h3 className="text-sm font-bold text-zinc-900">{t('publishSettings')}</h3>
 						<label className="block">
 							<span className="mb-1 block text-xs text-zinc-600">{t('category')}</span>
 							<MaterialSelect
@@ -727,7 +727,7 @@ export function BlogEditor({
 				>
 					<div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
 						<div className="mb-3 flex items-center justify-between">
-							<h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+							<h3 className="flex items-center gap-2 text-sm font-bold text-zinc-900">
 								<Link2 className="h-4 w-4" />
 								{isFa(t) ? 'درج عکس با لینک' : 'Insert image by URL'}
 							</h3>

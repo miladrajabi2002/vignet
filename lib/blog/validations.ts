@@ -42,13 +42,3 @@ export const blogPostSchema = z.object({
 	featured: z.boolean().default(false),
 	publishedAt: z.string().datetime().nullish(),
 })
-
-export const blogCategorySchema = z.object({
-	name: z.string().min(2).max(80),
-	slug: z
-		.string()
-		.min(3)
-		.max(80)
-		.regex(/^[\u0600-\u06FFa-z0-9-]+$/, 'invalid slug'),
-	description: z.string().max(500).nullish(),
-})

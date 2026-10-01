@@ -65,17 +65,17 @@ export async function PricingSection() {
                                 </div>
 
                                 <div className="mx-auto mt-9 hidden max-w-3xl gap-3 sm:grid sm:grid-cols-2">
-                                        <div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
+                                        <div className="spatial-surface flex items-start gap-3 rounded-card p-4">
                                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><InstagramIcon className="h-4 w-4" /></span>
-                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'اتوماسیون ثابت اینستاگرام بدون کسر اعتبار' : 'Instagram automation uses no AI credit'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'در طول اشتراک یا دورهٔ آزمایشی فعال، سناریوهای بدون AI اعتبار مصرف نمی‌کنند' : 'During an active subscription or trial, non-AI scenarios consume no credit'}</p></div>
+                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'اتوماسیون ثابت اینستاگرام بدون کسر اعتبار' : 'Instagram automation uses no AI credit'}</p><p className="mt-1 text-[12px] leading-5 text-black/45">{locale === 'fa' ? 'در طول اشتراک یا دورهٔ آزمایشی فعال، سناریوهای بدون هوش مصنوعی اعتبار مصرف نمی‌کنند' : 'During an active subscription or trial, non-AI scenarios consume no credit'}</p></div>
                                         </div>
-                                        <div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
+                                        <div className="spatial-surface flex items-start gap-3 rounded-card p-4">
                                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><MessageSquareText className="h-4 w-4" /></span>
-                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'هزینهٔ شفاف هر درخواست موفق AI' : 'Transparent pricing per successful AI request'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'پاسخ، تحلیل و تست با قیمت مدل؛ درخواست ناموفق بدون هزینه' : 'Replies, analyses, and tests use the model price; failed requests cost nothing'}</p></div>
+                                                <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'هزینهٔ شفاف هر درخواست موفق هوش مصنوعی' : 'Transparent pricing per successful AI request'}</p><p className="mt-1 text-[12px] leading-5 text-black/45">{locale === 'fa' ? 'پاسخ، تحلیل و تست با قیمت مدل؛ درخواست ناموفق بدون هزینه' : 'Replies, analyses, and tests use the model price; failed requests cost nothing'}</p></div>
                                         </div>
                                 </div>
 
-                                <div className="mx-auto mt-4 flex max-w-3xl flex-col items-center gap-3 rounded-[1.35rem] bg-black p-4 text-center text-white shadow-[0_20px_55px_rgba(0,0,0,0.13)] sm:flex-row sm:justify-between sm:p-5 sm:text-start">
+                                <div className="mx-auto mt-4 flex max-w-3xl flex-col items-center gap-3 rounded-card bg-black p-4 text-center text-white shadow-[var(--elev-2)] sm:flex-row sm:justify-between sm:p-5 sm:text-start">
                                                                                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
                                                                 <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black">
                                                                 <MessageSquareText className="h-4 w-4" />
@@ -97,9 +97,9 @@ export async function PricingSection() {
                                                         name="mobile-pricing-plan"
                                                         data-scroll-reveal="up"
                                                         style={{ '--reveal-order': index } as CSSProperties}
-                                                        className={`group rounded-[1.35rem] border bg-white shadow-[var(--shadow-sm)] ${view.recommended ? 'border-black/35 open:border-black' : 'border-[var(--border-default)] open:border-black/15'}`}
+                                                        className={`group rounded-card border bg-white shadow-[var(--shadow-sm)] ${view.recommended ? 'border-black/35 open:border-black' : 'border-[var(--border-default)] open:border-black/15'}`}
                                                 >
-                                                        <summary className="flex min-h-[4.5rem] cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue-accent)] [&::-webkit-details-marker]:hidden sm:min-h-20 sm:px-5 sm:py-4">
+                                                        <summary className="flex min-h-[4.5rem] cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] [&::-webkit-details-marker]:hidden sm:min-h-20 sm:px-5 sm:py-4">
                                                                 <MobilePlanHeader view={view} suffix={t('tomanPerMonth')} />
                                                                 <span className="grid size-9 shrink-0 place-items-center rounded-full border border-black/10 bg-black/[0.025] transition-transform duration-200 group-open:rotate-180"><ChevronDown className="size-4" aria-hidden /></span>
                                                         </summary>
@@ -119,11 +119,11 @@ export async function PricingSection() {
                                                 return (
                                                         <article
                                                                 key={plan}
-                                                                                className={`relative flex flex-col rounded-2xl border bg-white p-6 md:p-7 ${recommended ? 'border-black/45 shadow-[0_24px_60px_rgba(0,0,0,0.12)] md:-translate-y-2' : 'border-[var(--border-default)]'}`}
+                                                                                className={`relative flex flex-col rounded-2xl border bg-white p-6 md:p-7 ${recommended ? 'border-black/45 shadow-[var(--elev-2)] md:-translate-y-2' : 'border-[var(--border-default)]'}`}
                                                                                 style={recommended ? undefined : { boxShadow: 'var(--shadow-sm)' }}
                                                         >
                                                                                 {recommended ? (
-                                                                                        <span className="absolute start-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white">
+                                                                                        <span className="absolute start-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black px-3 py-1 text-[12px] font-semibold text-white">
                                                                                                 {locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'}
                                                                                         </span>
                                                                                 ) : null}
@@ -182,7 +182,7 @@ function MobilePlanHeader({ view, suffix }: { view: MobilePlanView; suffix: stri
         return (
                 <div className="min-w-0 text-start">
                         <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-lg font-semibold text-[var(--text-primary)]">{view.name}</h3>
+                                <h3 className="text-lg font-bold text-[var(--text-primary)]">{view.name}</h3>
                                 {view.recommended ? <span className="rounded-full bg-black px-2.5 py-1 text-[9px] font-semibold text-white">{view.recommendedLabel}</span> : null}
                         </div>
                         <p className="mt-1 line-clamp-1 text-xs leading-5 text-[var(--text-secondary)]">{view.audience}</p>
@@ -201,7 +201,7 @@ function MobilePlanDetails({ view }: { view: MobilePlanView }) {
                                 {view.features.map((feature) => <Feature key={feature}>{feature}</Feature>)}
                         </ul>
                         <p className="mt-4 border-t border-[var(--border-subtle)] pt-3 text-xs leading-5 text-[var(--text-muted)] sm:mt-5 sm:pt-4">{view.value}</p>
-                        <Link href={`/login?plan=${view.plan}`} className="marketing-pressable mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-black text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-accent)] focus-visible:ring-offset-2 sm:min-h-12 sm:mt-4">
+                        <Link href={`/login?plan=${view.plan}`} className="marketing-pressable mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-black text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 sm:min-h-12 sm:mt-4">
                                 {view.cta}
                         </Link>
                 </>

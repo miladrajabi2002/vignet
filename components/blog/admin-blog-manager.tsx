@@ -336,16 +336,16 @@ export function AdminBlogManager({
                                                                                 aria-label={isFa ? 'ساخت پرامپت پوستر' : 'Build poster prompts'}
                                                                                 className="group grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
                                                                         >
-                                                                                <ImagePlus className="h-5 w-5 text-zinc-300 transition-colors group-hover:text-emerald-500" />
-                                                                                <span className="text-[9px] font-medium text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
+                                                                                <ImagePlus className="h-5 w-5 text-zinc-300 transition-colors group-hover:text-[var(--ok)]" />
+                                                                                <span className="text-[12px] font-medium text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
                                                                         </button>
                                                                 )}
                                                                 <div className="min-w-0 flex-1">
                                                                         <div className="flex items-start justify-between gap-2">
                                                                                 <h3 className="line-clamp-2 text-sm font-bold text-zinc-900">{post.title || (isFa ? 'بدون عنوان' : 'Untitled')}</h3>
-                                                                                <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[10px] font-medium', STATUS_BADGE_CLS[post.status])}>{statusLabels[post.status]}</span>
+                                                                                <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[12px] font-medium', STATUS_BADGE_CLS[post.status])}>{statusLabels[post.status]}</span>
                                                                         </div>
-                                                                        <p dir="ltr" className="mt-1 truncate text-start text-[11px] text-zinc-400">/blog/{post.slug}</p>
+                                                                        <p dir="ltr" className="mt-1 truncate text-start text-[12px] text-zinc-400">/blog/{post.slug}</p>
                                                                         <p className="mt-2 truncate text-xs text-zinc-500">{post.workspace?.name ?? '—'} · {isFa ? toPersianDigits(post.views) : post.views.toLocaleString('en-US')} {isFa ? 'بازدید' : 'views'}</p>
                                                                 </div>
                                                         </div>
@@ -401,8 +401,8 @@ export function AdminBlogManager({
                                                                                                 aria-label={isFa ? 'ساخت پرامپت پوستر' : 'Build poster prompts'}
                                                                                                 className="group flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
                                                                                         >
-                                                                                                <ImagePlus className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-emerald-500" />
-                                                                                                <span className="text-[8px] font-medium leading-none text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
+                                                                                                <ImagePlus className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-[var(--ok)]" />
+                                                                                                <span className="text-[12px] font-medium leading-none text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
                                                                                         </button>
                                                                                 )}
                                                                         </td>
@@ -412,7 +412,7 @@ export function AdminBlogManager({
                                                                                                 {p.title || (isFa ? 'بدون عنوان' : 'Untitled')}
                                                                                         </span>
                                                                                         {p.featured && (
-                                                                                                <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200">
+                                                                                                <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[12px] font-medium text-amber-700 ring-1 ring-amber-200">
                                                                                                         {isFa ? 'ویژه' : 'Featured'}
                                                                                                 </span>
                                                                                         )}
@@ -427,7 +427,7 @@ export function AdminBlogManager({
                                                                         <td className="px-4 py-3">
                                                                                 <span
                                                                                         className={cn(
-                                                                                                'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium',
+                                                                                                'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-medium',
                                                                                                 STATUS_BADGE_CLS[p.status],
                                                                                         )}
                                                                                 >
@@ -481,7 +481,7 @@ export function AdminBlogManager({
                                                 className="min-h-dvh w-full max-w-5xl overflow-hidden rounded-none border border-zinc-200 bg-white shadow-2xl sm:my-8 sm:min-h-0 sm:rounded-2xl"
                                         >
                                                 <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
-                                                        <h2 className="text-sm font-semibold text-zinc-900">
+                                                        <h2 className="text-sm font-bold text-zinc-900">
                                                                 {editing ? t('editPost') : t('newPost')}
                                                         </h2>
                                                         <button

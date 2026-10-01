@@ -239,7 +239,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 								onChange={(e) => setForm((f) => ({ ...f, handle: e.target.value }))}
 								placeholder="aida.manto"
 							/>
-							<p className="mt-1 text-[10px] text-zinc-400">بدون @ — لینک کارت به این پیج می‌رود مگر اینکه لینک جدا بدهید.</p>
+							<p className="mt-1 text-[11px] text-zinc-400">بدون @ — لینک کارت به این پیج می‌رود مگر اینکه لینک جدا بدهید.</p>
 						</div>
 						<div>
 							<label className={labelClass} htmlFor="sc-url">لینک اختصاصی (اختیاری)</label>
@@ -300,7 +300,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									</button>
 								)}
 							</div>
-							<p className="mt-1 text-[10px] text-zinc-400">مربع، حداکثر ۴MB — png/jpg/webp</p>
+							<p className="mt-1 text-[11px] text-zinc-400">مربع، حداکثر ۴MB — png/jpg/webp</p>
 						</div>
 						<div className="sm:col-span-2">
 							<span className={labelClass}>کانال‌هایی که این مشتری استفاده می‌کند</span>
@@ -375,7 +375,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 								value={form.sortOrder}
 								onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
 							/>
-							<p className="mt-1 text-[10px] text-zinc-400">عدد کوچک‌تر اول نمایش داده می‌شود.</p>
+							<p className="mt-1 text-[11px] text-zinc-400">عدد کوچک‌تر اول نمایش داده می‌شود.</p>
 						</div>
 						<div className="flex items-end gap-4">
 							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
@@ -463,17 +463,17 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									</div>
 									<div className="mt-1 flex flex-wrap items-center gap-1.5">
 										{entry.channels.map((ch) => (
-											<span key={ch} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500">
+											<span key={ch} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500">
 												{CHANNEL_LABELS_FA[ch] ?? ch}
 											</span>
 										))}
 										{entry.metricValue && (
-											<span className="text-[10px] font-bold text-zinc-700">
+											<span className="text-[11px] font-bold text-zinc-700">
 												{entry.metricValue}{' '}
 												<span className="font-normal text-zinc-400">{entry.metricLabel}</span>
 											</span>
 										)}
-										<span className="text-[10px] text-zinc-300">ترتیب: {entry.sortOrder}</span>
+										<span className="text-[11px] text-zinc-300">ترتیب: {entry.sortOrder}</span>
 									</div>
 									{entry.quote && <p className="mt-1 truncate text-[11px] text-zinc-400">{entry.quote}</p>}
 								</div>

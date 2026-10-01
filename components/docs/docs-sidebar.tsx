@@ -35,7 +35,7 @@ function DocsSearchField({
     <label className="relative block">
       <span className="sr-only">{label}</span>
       <Search
-        className={cn('pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2', dark ? 'text-white/40' : 'text-black/40')}
+        className={cn('pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2', dark ? 'text-white/60' : 'text-[var(--text-muted)]')}
         aria-hidden="true"
       />
       <input
@@ -46,7 +46,7 @@ function DocsSearchField({
         className={cn(
           'min-h-11 w-full rounded-xl border ps-10 pe-10 text-base outline-none transition-[border-color,background-color,box-shadow] focus:ring-2 md:text-sm',
           dark
-            ? 'border-white/10 bg-white/[0.065] text-white placeholder:text-white/35 focus:border-white/25 focus:ring-white/15'
+            ? 'border-white/10 bg-white/[0.065] text-white placeholder:text-white/60 focus:border-white/25 focus:ring-white/15'
             : 'border-black/10 bg-black/[0.025] text-black placeholder:text-black/40 focus:border-black/25 focus:bg-white focus:ring-black/10',
         )}
       />
@@ -57,7 +57,7 @@ function DocsSearchField({
           aria-label={locale === 'fa' ? 'پاک کردن جست‌وجو' : 'Clear search'}
           className={cn(
             'absolute end-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2',
-            dark ? 'text-white/45 hover:text-white focus-visible:ring-white/60' : 'text-black/40 hover:text-black focus-visible:ring-black/60',
+            dark ? 'text-white/60 hover:text-white focus-visible:ring-[var(--focus-ring)]' : 'text-[var(--text-muted)] hover:text-black focus-visible:ring-[var(--focus-ring)]',
           )}
         >
           <X className="h-4 w-4" aria-hidden="true" />
@@ -96,7 +96,7 @@ export function DocsSidebar() {
         <span className="min-w-0 flex-1 truncate">
           {locale === 'fa' ? activeItem.title.fa : activeItem.title.en}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-black/50" aria-hidden="true" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
       </button>
 
       <nav className="hidden min-w-0 flex-col gap-1 md:flex" aria-label={locale === 'fa' ? 'فهرست مستندات' : 'Documentation navigation'}>
@@ -106,14 +106,14 @@ export function DocsSidebar() {
         {filteredItems.map(({ slug, href, icon: Icon, title }) => {
           const active = pathname === href
           return (
-            <Link key={slug} href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white', active ? 'bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.08)]' : 'text-white/50 hover:bg-white/[0.08] hover:text-white')}>
+            <Link key={slug} href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', active ? 'bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.08)]' : 'text-white/60 hover:bg-white/[0.08] hover:text-white')}>
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               {locale === 'fa' ? title.fa : title.en}
             </Link>
           )
         })}
         {filteredItems.length === 0 && (
-          <p className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs leading-6 text-white/45">
+          <p className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs leading-6 text-white/60">
             {locale === 'fa' ? 'راهنمایی با این عبارت پیدا نشد.' : 'No guide matches this search.'}
           </p>
         )}

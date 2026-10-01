@@ -27,18 +27,18 @@ export function LegalPage({
 				<header className="marketing-page-hero marketing-grid-dark px-6 py-10 text-white sm:px-9 sm:py-14">
 					<div className="relative z-10 max-w-3xl">
 						<MarketingHeroPill><span className="inline-flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5" />{eyebrow}</span></MarketingHeroPill>
-						<h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.25] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
+						<h1 className="mt-5 text-balance text-4xl font-bold leading-[1.25] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
 							{title}
 						</h1>
 						<p className="mt-4 max-w-2xl text-sm leading-7 text-white/55">{description}</p>
-						<p className="mt-6 text-[11px] text-white/35">{updatedAt}</p>
+						<p className="mt-6 text-[12px] text-white/35">{updatedAt}</p>
 					</div>
 				</header>
 
 				<div className="relative z-10 -mt-5 grid gap-4 px-3 sm:px-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
 					<LegalMobileNavigation sections={sections.map((section) => section.title)} />
 
-					<article className="spatial-surface rounded-[1.75rem] bg-white p-6 sm:p-9">
+					<article className="spatial-surface rounded-sheet bg-white p-6 sm:p-9">
 						<div className="mx-auto max-w-3xl space-y-10">
 							{sections.map((section, index) => (
 								<LegalSectionBlock key={section.title} index={index + 1} section={section} />
@@ -46,7 +46,7 @@ export function LegalPage({
 						</div>
 					</article>
 
-					<aside className="spatial-surface hidden rounded-[1.5rem] bg-white p-5 lg:sticky lg:top-24 lg:block">
+					<aside className="spatial-surface hidden rounded-card bg-white p-5 lg:sticky lg:top-24 lg:block">
 						<p className="text-xs font-semibold text-black">خلاصه سند</p>
 						<nav className="mt-3" aria-label="فهرست سند">
 							<ol className="space-y-1">
@@ -54,7 +54,7 @@ export function LegalPage({
 									<li key={section.title}>
 										<a
 											href={`#section-${index + 1}`}
-											className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-[11px] leading-5 text-black/50 transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+											className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-[12px] leading-5 text-black/50 transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
 										>
 										<span className="font-mono text-xs text-black/35">{String(index + 1).padStart(2, '0')}</span>
 											{section.title}
@@ -84,7 +84,7 @@ function LegalSectionBlock({
 					{String(index).padStart(2, '0')}
 				</span>
 				<div className="min-w-0 flex-1">
-					<h2 className="text-lg font-semibold text-black sm:text-xl">{section.title}</h2>
+					<h2 className="text-lg font-bold text-black sm:text-xl">{section.title}</h2>
 					{section.paragraphs?.map((paragraph) => (
 						<p key={paragraph} className="mt-4 text-sm leading-8 text-black/60">
 							{paragraph}

@@ -1,31 +1,23 @@
-import dynamicImport from 'next/dynamic'
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { Hero } from '@/components/marketing/hero'
-import { DashboardShowcase } from '@/components/marketing/dashboard-showcase'
-import { TrustedBySection } from '@/components/marketing/trusted-by-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
-import { SectionRevealController } from '@/components/marketing/section-reveal'
-import { CapabilitiesSection } from '@/components/marketing/capabilities-section'
-import { InstagramAutomationSection } from '@/components/marketing/instagram-automation-section'
-import { HomeOnboarding } from '@/components/marketing/home-onboarding'
-import { ShowcaseSection } from '@/components/marketing/showcase-section'
+import { Hero } from '@/components/marketing/site/home/hero'
+import { QuickFacts } from '@/components/marketing/site/home/quick-facts'
+import { Capabilities } from '@/components/marketing/site/home/capabilities'
+import { InstagramSection } from '@/components/marketing/site/home/instagram'
+import { Onboarding } from '@/components/marketing/site/home/onboarding'
+import { SolutionsStrip } from '@/components/marketing/site/home/solutions-strip'
+import { Pricing } from '@/components/marketing/site/home/pricing'
+import { Faq } from '@/components/marketing/site/faq'
 import { SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
-// Below-the-fold sections are split from the initial route bundle. Their
-// meaningful media also stays lazy, while server rendering keeps the content
-// available to search engines and no client hydration is added unnecessarily.
-const ChannelsSection = dynamicImport(() =>
-        import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
-)
-const PricingSection = dynamicImport(() =>
-        import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
-)
-const FaqSection = dynamicImport(() =>
-        import('@/components/marketing/faq-section').then((m) => m.FaqSection),
-)
+// Every section is server-rendered HTML (crawlable by search and answer
+// engines). Only three small islands hydrate: the Instagram demo (loaded near
+// the viewport), the desktop onboarding stepper and the phone plan tabs.
+// Below-the-fold sections use content-visibility, so they cost nothing until
+// the visitor scrolls toward them.
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/+$/, '')
 
 const HOME_METADATA_COPY = {
@@ -33,7 +25,7 @@ const HOME_METADATA_COPY = {
                 title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
                 description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
                                 openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
-                openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
+                openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه برنامه‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
                 twitterDescription: 'فروش، پشتیبانی، رزرو و CRM چندکاناله با هوش مصنوعی فارسی.',
         },
         en: {
@@ -109,10 +101,11 @@ const STRUCTURED_DATA_COPY = {
                         'صندوق گفتگو و CRM چندکاناله',
                         'اتوماسیون دایرکت، کامنت و استوری اینستاگرام',
                         'کاتالوگ محصول، ووکامرس و پیشنهاد خرید',
+                        'سبد خرید و لینک پرداخت داخل گفتگو، با ثبت سفارش در ووکامرس',
                         'رزرو و نوبت‌دهی بدون تداخل',
                         'تحویل گفتگو به اپراتور همراه خلاصه',
                 ],
-                offer: 'یک ماه دورهٔ آزمایشی همراه اعتبار اولیه پیام؛ اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند',
+                offer: 'شروع رایگان همراه اعتبار اولیهٔ پیام؛ اتوماسیون اینستاگرام اعتبار مصرف نمی‌کند',
         },
         en: {
                 alternateName: 'Vigent AI',
@@ -122,10 +115,11 @@ const STRUCTURED_DATA_COPY = {
                         'Omnichannel inbox and CRM',
                         'Instagram direct-message, comment and story automation',
                         'Product catalog, WooCommerce and purchase recommendations',
+                        'In-chat cart and payment links with orders placed in WooCommerce',
                         'Conflict-free booking and appointment scheduling',
                         'Human handoff with an automatic conversation summary',
                 ],
-                offer: 'One-month trial with initial AI reply credit; deterministic Instagram automation uses no credit while access is active.',
+                offer: 'Free start with initial AI reply credit; deterministic Instagram automation uses no credit while access is active.',
         },
 } as const
 
@@ -210,29 +204,23 @@ export default async function HomePage() {
 
         return (
                 <>
-                        <SectionRevealController />
                         <script
                                 type="application/ld+json"
                                 dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
                         />
-                        <Hero dashboard={<DashboardShowcase locale={locale} />} />
+                        <Hero locale={locale} />
+                        <QuickFacts locale={locale} />
+                        <Capabilities locale={locale} />
+                        <InstagramSection locale={locale} />
+                        <Onboarding locale={locale} />
+                        <SolutionsStrip locale={locale} />
                         <Suspense fallback={null}>
-                                <TrustedBySection locale={locale} />
+                                <Pricing locale={locale} />
                         </Suspense>
-                        <CapabilitiesSection locale={locale} />
-                        <ChannelsSection locale={locale} />
-                        <InstagramAutomationSection locale={locale} />
-                        <HomeOnboarding locale={locale} />
-                        <Suspense fallback={null}>
-                                <ShowcaseSection locale={locale} />
-                        </Suspense>
-                        <Suspense fallback={null}>
-                                <PricingSection />
-                        </Suspense>
-                        <FaqSection />
                         <Suspense fallback={null}>
                                 <PopularPosts />
                         </Suspense>
+                        <Faq locale={locale} items={faqItems} />
                 </>
         )
 }

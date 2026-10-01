@@ -1,104 +1,124 @@
-'use client'
-
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
-import { ArrowUpLeft, Phone } from 'lucide-react'
+import { getLocale } from 'next-intl/server'
+import { Phone } from 'lucide-react'
+import { InstagramIcon, SOCIAL_URLS, TelegramIcon } from '@/components/marketing/social-links'
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { Logo } from '@/components/ui/logo'
-import { SocialLinks } from '@/components/marketing/social-links'
-import { SUPPORT_PHONE_E164, SUPPORT_PHONE_DISPLAY } from '@/lib/marketing/contact'
+import { LanguageSwitcher } from '@/components/ui/language-switcher'
+import { faNum, toSiteLocale } from '@/components/marketing/site/ui'
 
 const COPY = {
-        fa: {
-                eyebrow: 'Vigento AI | هوش مصنوعی ویجنتو',
-                title: 'یک ماه فرصت دارید کسب‌وکارتان را هوشمندتر اداره کنید',
-                subtitle: 'اتوماسیون ثابت اینستاگرام با اشتراک فعال اعتبار مصرف نمی‌کند؛ پاسخ، تحلیل و تست موفق AI به قیمت مدل محاسبه می‌شوند',
-                button: 'شروع رایگان — یک ماه',
-                desc: 'سیستم‌عامل هوشمند کسب‌وکار برای فروش، پشتیبانی، CRM، رزرو و ارتباط با مشتری در همه کانال‌ها',
-                productTitle: 'محصول',
-                resourcesTitle: 'یادگیری',
-                productLinks: ['اتصال‌ها', 'قابلیت‌ها', 'Vigento AI', 'تعرفه‌ها'],
-                resourceLinks: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
-                status: 'همه سرویس‌ها فعال',
-                made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
-                support: 'پشتیبانی',
-                supportAriaLabel: `تماس با پشتیبانی ویجنت به شماره ${SUPPORT_PHONE_DISPLAY}`,
-        },
-        en: {
-                eyebrow: 'Vigento AI | Business intelligence core',
-                title: 'Take a month to run your business with an intelligent operating layer',
-                subtitle: 'With an active subscription, deterministic Instagram automation uses no credit; successful AI replies, analyses, and tests use model-priced credit',
-                button: 'Start free — one month',
-                desc: 'An intelligent operating system for sales, support, CRM, booking and customer conversations across every channel.',
-                productTitle: 'Product',
-                resourcesTitle: 'Learn',
-                productLinks: ['Connections', 'Features', 'Vigento AI', 'Pricing'],
-                resourceLinks: ['Documentation', 'Blog', 'Service status'],
-                status: 'All services operational',
-                made: 'Built for Iranian businesses',
-                support: 'Support',
-                supportAriaLabel: `Call Vigent support at ${SUPPORT_PHONE_DISPLAY}`,
-        },
+	fa: {
+tagline: 'ایجنت هوش مصنوعی برای فروش، پشتیبانی و CRM',
+		status: 'همهٔ سرویس‌ها فعال',
+		statusShort: 'سرویس‌ها فعال',
+		nav: 'پیوندهای پایین صفحه',
+		links: [
+			{ href: '/#capabilities', label: 'قابلیت‌ها' },
+			{ href: '/solutions', label: 'راهکارها' },
+			{ href: '/#pricing', label: 'قیمت‌ها' },
+			{ href: '/blog', label: 'بلاگ' },
+{ href: '/docs', label: 'مستندات' },
+			{ href: '/solutions/woocommerce', label: 'افزونهٔ وردپرس', desktop: true },
+		],
+		privacy: 'حریم خصوصی',
+		terms: 'شرایط استفاده',
+		termsShort: 'شرایط',
+		copyright: '© ۱۴۰۵ ویجنت',
+		call: 'تماس با پشتیبانی ویجنت به شماره',
+		instagram: 'اینستاگرام ویجنت',
+		telegram: 'تلگرام ویجنت',
+		current: 'فارسی',
+		other: 'English',
+	},
+	en: {
+tagline: 'An AI agent for sales, support and CRM',
+		status: 'All services operational',
+		statusShort: 'All systems go',
+		nav: 'Footer links',
+		links: [
+			{ href: '/en#capabilities', label: 'Features' },
+			{ href: '/en/solutions', label: 'Solutions' },
+			{ href: '/en#pricing', label: 'Pricing' },
+			{ href: '/en/blog', label: 'Blog' },
+			{ href: '/en/docs', label: 'Docs' },
+			{ href: '/en/solutions/woocommerce', label: 'WordPress plugin', desktop: true },
+		],
+		privacy: 'Privacy',
+		terms: 'Terms of use',
+		termsShort: 'Terms',
+		copyright: '© 2026 Vigent',
+		call: 'Call Vigent support at',
+		instagram: 'Vigent on Instagram',
+		telegram: 'Vigent on Telegram',
+		current: 'English',
+		other: 'فارسی',
+	},
 } as const
 
-export function Footer() {
-        const locale = useLocale() === 'en' ? 'en' : 'fa'
-        const copy = COPY[locale]
-        const t = useTranslations('marketing.footer')
-        const productHrefs = ['/#unified-system', '/#solutions', '/#vigento', '/pricing']
-        const resourceHrefs = ['/docs', '/blog', '/status']
+const iconBtn = 'vg-press inline-flex size-11 items-center justify-center rounded-full border border-vg-line bg-white text-vg-ink'
 
-        return (
-                <footer className="bg-[var(--bg-base)] px-3 pb-3 pt-6 sm:px-5 sm:pb-5 sm:pt-14">
-                        <div className="marketing-grid-dark relative mx-auto max-w-[1500px] overflow-hidden rounded-[2rem] bg-black text-white shadow-[0_30px_90px_rgba(0,0,0,0.18)]">
-                                <div className="relative mx-auto max-w-7xl px-5 py-7 sm:px-8 sm:py-14">
-                                        <div className="grid gap-6 py-6 sm:gap-8 sm:py-8 lg:grid-cols-[1.05fr_1.95fr] lg:gap-12 lg:py-10">
-                                                <div className="text-center lg:text-start">
-                                                        <Logo variant="white" className="mx-auto h-8 w-32 lg:mx-0" />
-                                                        <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-white/42 sm:mt-5 lg:mx-0">{copy.desc}</p>
-                                                        <a
-                                                                href={`tel:${SUPPORT_PHONE_E164}`}
-                                                                aria-label={copy.supportAriaLabel}
-                                                                className="mx-auto mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:mt-3 lg:mx-0"
-                                                        >
-                                                                <Phone className="h-4 w-4" aria-hidden="true" />
-                                                                <span>{copy.support}:</span>
-                                                                <bdi dir="ltr" className="font-medium tabular-nums">{SUPPORT_PHONE_DISPLAY}</bdi>
-                                                        </a>
-                                                        <SocialLinks variant="default" className="mt-3 justify-center sm:mt-5 lg:justify-start [&_a]:border-white/15 [&_a]:text-white/60 [&_a:hover]:text-white" />
-                                                </div>
-                                                <div className="hidden grid-cols-2 gap-6 sm:grid sm:gap-8">
-                                                        <FooterColumn title={copy.productTitle} labels={copy.productLinks} hrefs={productHrefs} />
-                                                        <FooterColumn title={copy.resourcesTitle} labels={copy.resourceLinks} hrefs={resourceHrefs} />
-                                                </div>
-                                        </div>
+/**
+ * Minimal public footer: brand line, status + socials, one row of links and
+ * the legal strip. Server-rendered with
+ * no client JavaScript; content-visibility keeps it out of the first paint.
+ */
+export async function Footer() {
+	const locale = toSiteLocale(await getLocale())
+	const c = COPY[locale]
+	const prefix = locale === 'en' ? '/en' : ''
 
-                                        <div className="flex flex-col items-center gap-4 border-t border-white/10 pt-4 text-center text-[10px] text-white/35 sm:flex-row sm:justify-between sm:pt-6 sm:text-start">
-                                                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-start">
-                                                        <span>{t('rights')}</span><span>{copy.made}</span>
-                                                        <Link href="/privacy" className="inline-flex min-h-11 items-center transition-colors hover:text-white">{locale === 'fa' ? 'حریم خصوصی' : 'Privacy'}</Link>
-                                                        <Link href="/terms" className="inline-flex min-h-11 items-center transition-colors hover:text-white">{locale === 'fa' ? 'شرایط استفاده' : 'Terms'}</Link>
-                                                </div>
-                                        <Link href="/status" className="inline-flex min-h-11 items-center gap-2 self-center rounded-full border border-white/10 px-3 transition-colors hover:border-white/25 hover:text-white sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{copy.status}</Link>
-                                        </div>
-                                </div>
-                        </div>
-                </footer>
-        )
-}
+	return (
+		<footer className="vg-cv overflow-hidden px-4 pb-6 pt-9 text-center lg:px-0 lg:pb-8 lg:pt-0 lg:text-start">
+			<div className="vg-rv mx-auto max-w-[1200px] border-t border-black/[0.08] lg:border-t-0">
+				<div className="flex flex-col items-center pt-8 lg:flex-row lg:justify-between lg:border-t lg:border-black/[0.08] lg:pb-[30px] lg:pt-11">
+					<div className="flex flex-col items-center gap-2.5 lg:flex-row lg:gap-[18px]">
+						<Logo className="h-6 w-[104px] lg:h-[26px] lg:w-[116px]" />
+						<span aria-hidden className="hidden h-[22px] w-px bg-black/[0.12] lg:block" />
+						<p className="text-[13px] leading-[1.9] text-vg-cap lg:text-[14px]">{c.tagline}</p>
+					</div>
+					<div className="order-last mt-3 flex items-center gap-2 lg:order-none lg:mt-0">
+						<Link href={`${prefix}/status`} className="vg-press inline-flex h-11 items-center gap-2 rounded-full border border-vg-line bg-white px-3.5 text-[12.5px] text-vg-sub lg:h-10 lg:text-[13px]">
+							<span aria-hidden className="vg-ping relative inline-flex size-2">
+								<span className="vg-ring absolute inset-0 rounded-full bg-[#22c55e]" />
+								<span className="relative size-2 rounded-full bg-[#16a34a]" />
+							</span>
+							<span className="lg:hidden">{c.statusShort}</span>
+							<span className="hidden lg:inline">{c.status}</span>
+						</Link>
+						<a href={SOCIAL_URLS.instagram} target="_blank" rel="noopener noreferrer" aria-label={c.instagram} className={iconBtn}><InstagramIcon className="size-5" /></a>
+						<a href={SOCIAL_URLS.telegram} target="_blank" rel="noopener noreferrer" aria-label={c.telegram} className={iconBtn}><TelegramIcon className="size-5 text-[#229ED9]" /></a>
+					</div>
+				</div>
 
-function FooterColumn({ title, labels, hrefs, className = '' }: { title: string; labels: readonly string[]; hrefs: string[]; className?: string }) {
-        return (
-                <nav className={className} aria-label={title}>
-                        <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.14em] text-white/30 rtl:tracking-normal">{title}</p>
-                        <ul>
-                                {labels.map((label, index) => (
-                                        <li key={label}>
-                                                <Link href={hrefs[index]} className="group inline-flex min-h-9 items-center gap-1.5 text-xs text-white/48 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:min-h-11">
-                                                        {label}<ArrowUpLeft className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-90 ltr:-rotate-90" />
-                                                </Link>
-                                        </li>
-                                ))}
-                        </ul>
-                </nav>
-        )
+				<nav aria-label={c.nav} className="mt-2.5 flex flex-col items-center lg:mt-0 lg:flex-row lg:justify-between">
+					<ul className="flex flex-wrap items-center justify-center gap-x-2.5 text-[13.5px] lg:gap-x-[30px] lg:text-[14px]">
+						{c.links.map((link, i) => (
+							<li key={link.href} className={'desktop' in link ? 'hidden lg:block' : 'flex items-center gap-x-2.5'}>
+								{i > 0 && !('desktop' in link) ? <span aria-hidden className="text-black/20 lg:hidden">·</span> : null}
+								<Link href={link.href} className="vg-flink inline-flex min-h-10 items-center text-vg-sub transition-colors duration-200 lg:min-h-0">{link.label}</Link>
+							</li>
+						))}
+					</ul>
+					<a href={`tel:${SUPPORT_PHONE_E164}`} aria-label={`${c.call} ${faNum(locale, SUPPORT_PHONE_DISPLAY)}`} className="mt-3 inline-flex min-h-10 items-center gap-2 text-[15px] font-medium text-vg-ink lg:mt-0">
+						<bdi dir="ltr">{faNum(locale, SUPPORT_PHONE_DISPLAY)}</bdi>
+						<Phone aria-hidden className="size-4 text-vg-cap" strokeWidth={1.8} />
+					</a>
+				</nav>
+
+				<div className="mt-1.5 flex flex-wrap justify-center gap-x-3.5 gap-y-1 text-[12px] text-vg-cap lg:mt-[26px] lg:justify-between lg:border-t lg:border-black/[0.06] lg:pt-[18px] lg:text-[12.5px]">
+					<span className="flex flex-wrap justify-center gap-x-3.5 lg:gap-4">
+						<span>{c.copyright}</span>
+						<Link href={`${prefix}/privacy`} className="vg-flink">{c.privacy}</Link>
+						<Link href={`${prefix}/terms`} className="vg-flink"><span className="lg:hidden">{c.termsShort}</span><span className="hidden lg:inline">{c.terms}</span></Link>
+					</span>
+					<span className="flex gap-3.5">
+						<span className="hidden font-medium text-vg-ink lg:inline">{c.current}</span>
+						<LanguageSwitcher bare className="vg-flink cursor-pointer">{c.other}</LanguageSwitcher>
+					</span>
+				</div>
+
+			</div>
+		</footer>
+	)
 }

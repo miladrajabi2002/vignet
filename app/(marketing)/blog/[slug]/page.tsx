@@ -15,6 +15,7 @@ import { SocialLinks } from '@/components/marketing/social-links'
 import { TrendSpark } from '@/components/blog/trend-spark'
 import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 import { ViewBeacon } from '@/components/blog/view-beacon'
+import { BlogImage } from '@/components/blog/blog-image'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
 // ISR: posts are rendered on demand and cached; edits/publishes via the admin
@@ -162,7 +163,7 @@ export default async function PublicBlogPostPage(props: Props) {
                         />
             <ViewBeacon slug={post.slug} />
             {/* Header */}
-                        <header className="marketing-page-hero marketing-grid-dark mb-10 px-6 py-10 sm:px-9 sm:py-14">
+                        <header className="relative mx-auto mb-10 max-w-5xl px-1 pt-2 sm:px-2 sm:pt-4">
                                 {post.category ? (
                                         <MarketingHeroPill href={`/blog/category/${post.category.slug}`} showArrow className="relative z-10">
                                                 {post.category.name}
@@ -170,12 +171,12 @@ export default async function PublicBlogPostPage(props: Props) {
                                 ) : (
                                         <MarketingHeroPill className="relative z-10">Vigent Journal</MarketingHeroPill>
                                 )}
-                                <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-4xl font-semibold leading-[1.18] tracking-[-0.04em] text-white sm:text-5xl rtl:tracking-normal">
+                                <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-4xl font-bold leading-[1.18] tracking-[-0.04em] text-vg-ink sm:text-5xl rtl:leading-[1.4] rtl:tracking-normal">
                                         {post.title}
                                 </h1>
-                                <p className="relative z-10 mt-5 max-w-3xl text-[15px] leading-8 text-white/50">{plainExcerpt}</p>
-                                <div className="relative z-10 mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
-                                        <div className="flex flex-wrap items-center gap-4 text-xs text-white/35">
+                                <p className="relative z-10 mt-5 max-w-3xl text-[16px] leading-8 text-vg-sub">{plainExcerpt}</p>
+                                <div className="relative z-10 mt-6 flex items-center justify-between gap-4 border-t border-black/[0.08] pt-5">
+                                        <div className="flex flex-wrap items-center gap-4 text-[13px] text-vg-cap">
                                                 <span className="inline-flex items-center gap-1">
                                                         <Calendar className="h-3.5 w-3.5" />
                                                         {relativeTime(post.publishedAt ?? post.createdAt, locale)}
@@ -187,27 +188,27 @@ export default async function PublicBlogPostPage(props: Props) {
                                                                 : `${post.readingMinutes} min read`}
                                                 </span>
                                         </div>
-                                        <div className="rounded-full bg-white px-3 py-1"><TrendSpark seed={post.id} width={80} height={26} /></div>
+                                        <div className="rounded-full border border-black/[0.06] bg-white px-3 py-1"><TrendSpark seed={post.id} width={80} height={26} /></div>
                                 </div>
                         </header>
             {post.coverImage && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                (<img
+                                // LCP image: device-sized WebP, fetched with high priority.
+                                <BlogImage
                                         src={post.coverImage}
                                         alt={post.title}
-                                        loading="eager"
-                                        decoding="async"
-                                        className="mx-auto mb-10 aspect-[16/10] w-full max-w-5xl rounded-[1.75rem] border border-black/10 object-cover shadow-[0_22px_65px_rgba(0,0,0,0.12)]"
-                                />)
+                                        priority
+                                        sizes="(min-width: 1064px) 1024px, calc(100vw - 24px)"
+                                        className="mx-auto mb-10 aspect-[16/10] h-auto w-full max-w-5xl rounded-sheet border border-black/10 bg-black/[0.035] object-cover shadow-[var(--elev-2)]"
+                                />
                         )}
             {/* Body */}
             <div
                                 dir={locale === 'fa' ? 'rtl' : 'ltr'}
-                                className={`blog-content mx-auto max-w-3xl rounded-[1.75rem] border border-black/[0.07] bg-white p-5 text-[15px] leading-8 text-[var(--text-primary)] shadow-[0_14px_45px_rgba(0,0,0,0.055)] sm:p-8 ${locale === 'fa' ? 'text-right' : 'text-left'}`}
+                                className={`blog-content mx-auto max-w-[40rem] px-1 text-[16px] leading-[2.05] text-[#1f2937] sm:text-[17px] sm:leading-[2.1] ${locale === 'fa' ? 'text-right' : 'text-left'}`}
                                 dangerouslySetInnerHTML={{ __html: html }}
                         />
             {/* Social follow bar — keep readers connected after they finish */}
-            <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-5 shadow-[0_10px_35px_rgba(0,0,0,0.05)] sm:flex-row sm:justify-between">
+            <div className="mx-auto mt-10 flex max-w-[40rem] flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-5 shadow-[var(--elev-1)] sm:flex-row sm:justify-between">
                                 <div>
                                         <p className="text-sm font-medium text-[var(--text-primary)]">
                                                 {locale === 'fa' ? 'ما را دنبال کنید' : 'Follow us'}
@@ -221,7 +222,7 @@ export default async function PublicBlogPostPage(props: Props) {
                                 <SocialLinks variant="default" />
                         </div>
             {/* Footer nav */}
-            <footer className="mx-auto mt-12 max-w-3xl border-t border-[var(--border-default)] pt-6">
+            <footer className="mx-auto mt-12 max-w-[40rem] border-t border-[var(--border-default)] pt-6">
                                 <div className="grid gap-4 sm:grid-cols-2">
                                         {prev ? (
                                                 <Link
@@ -230,7 +231,7 @@ export default async function PublicBlogPostPage(props: Props) {
                                                 >
                                                         <ArrowRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
                                                         <div>
-                                                                <div className="text-[11px] text-[var(--text-muted)]">
+                                                                <div className="text-[12px] text-[var(--text-muted)]">
                                                                         {locale === 'fa' ? 'قبلی' : 'Previous'}
                                                                 </div>
                                                                 <div className="text-sm text-[var(--text-primary)]">{prev.title}</div>
@@ -245,7 +246,7 @@ export default async function PublicBlogPostPage(props: Props) {
                                                         className="group flex items-center justify-end gap-3 rounded-xl border border-[var(--border-default)] p-3 text-end hover:border-[var(--border-hover)]"
                                                 >
                                                         <div>
-                                                                <div className="text-[11px] text-[var(--text-muted)]">
+                                                                <div className="text-[12px] text-[var(--text-muted)]">
                                                                         {locale === 'fa' ? 'بعدی' : 'Next'}
                                                                 </div>
                                                                 <div className="text-sm text-[var(--text-primary)]">{next.title}</div>

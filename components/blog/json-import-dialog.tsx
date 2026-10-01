@@ -275,7 +275,7 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
           <div className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-emerald-600" />
-            <h2 className="text-sm font-semibold text-zinc-900">
+            <h2 className="text-sm font-bold text-zinc-900">
               {t('jsonImportTitle') || 'افزودن پست از JSON'}
             </h2>
           </div>
@@ -293,7 +293,7 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
           <p className="text-xs leading-relaxed text-zinc-500">
             JSON خروجی Grok (یا هر ابزار AI) را اینجا بچسبانید. سیستم خودکار
             <strong className="text-zinc-700"> newline‌های واقعی</strong> را از
-            <code className="mx-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600">{'\\n'}</code>
+            <code className="mx-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[12px] text-zinc-600">{'\\n'}</code>
             استخراج می‌کند و <strong className="text-zinc-700">slug</strong> را
             به انگلیسی امن تبدیل می‌کند. سپس با یک کلیک همه فیلدهای ادیتور پر می‌شوند.
           </p>
@@ -305,14 +305,14 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
               <div className="flex gap-1.5">
                 <button
                   onClick={handlePaste}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[12px] text-zinc-600 transition-colors hover:bg-zinc-50"
                 >
                   <ClipboardPaste className="h-3 w-3" />
                   جای‌گذاری
                 </button>
                 <button
                   onClick={handleLoadExample}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[12px] text-zinc-600 transition-colors hover:bg-zinc-50"
                 >
                   <Sparkles className="h-3 w-3" />
                   نمونه
@@ -372,10 +372,10 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                 {checks.map((c, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[11px]"
+                    className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[12px]"
                   >
                     {c.status === 'pass' && (
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--ok)]" />
                     )}
                     {c.status === 'warn' && (
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
@@ -404,14 +404,14 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                   maxLength={160}
                 />
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-                  <div className="mb-1 text-[10px] font-medium uppercase text-zinc-500">
+                  <div className="mb-1 text-[12px] font-medium uppercase text-zinc-500">
                     کلمات کلیدی ({parsed.seoKeywords?.length || 0})
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {(parsed.seoKeywords || []).map((k, i) => (
                       <span
                         key={i}
-                        className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] text-zinc-600"
+                        className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[12px] text-zinc-600"
                       >
                         {k}
                       </span>
@@ -434,13 +434,13 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                   </div>
                   <button
                     onClick={buildPosterPrompts}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] text-zinc-700 transition-colors hover:bg-zinc-100"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[12px] text-zinc-700 transition-colors hover:bg-zinc-100"
                   >
                     <Wand2 className="h-3 w-3" />
                     ساخت ۳ پرامپت رنگی
                   </button>
                 </div>
-                <p className="text-[11px] leading-relaxed text-zinc-500">
+                <p className="text-[12px] leading-relaxed text-zinc-500">
                   ۳ پرامپت آماده برای Grok Image / Midjourney / DALL-E — هر کدام با یک رنگ accent ثابت.
                   شامل ابعاد ۱۵۳۶×۱۰۲۴، اسم دوزبانه «ویجنت / VIGENT»، آدرس vigent.ir.
                   رنگی که می‌خواهی را انتخاب کن و دکمه کپی آن را بزن.
@@ -448,10 +448,10 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
 
                 {imagePrompt && (
                   <details className="rounded-md border border-zinc-200 bg-white p-2">
-                    <summary className="cursor-pointer text-[11px] text-zinc-500 hover:text-zinc-700">
+                    <summary className="cursor-pointer text-[12px] text-zinc-500 hover:text-zinc-700">
                       پرامپت عکس خروجی Grok (اصل) — {imagePrompt.length} کاراکتر
                     </summary>
-                    <p dir="ltr" className="mt-2 whitespace-pre-wrap break-words font-mono text-[10px] text-zinc-500 text-left">
+                    <p dir="ltr" className="mt-2 whitespace-pre-wrap break-words font-mono text-[12px] text-zinc-500 text-left">
                       {imagePrompt}
                     </p>
                   </details>
@@ -474,20 +474,20 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                                 style={{ backgroundColor: v.color.hex }}
                                 title={v.color.hex}
                               />
-                              <span className="text-[11px] font-medium text-zinc-800">
+                              <span className="text-[12px] font-medium text-zinc-800">
                                 {v.color.labelFa}
                               </span>
-                              <span className="text-[10px] text-zinc-400" dir="ltr">
+                              <span className="text-[12px] text-zinc-400" dir="ltr">
                                 {v.color.hex}
                               </span>
-                              <span className="text-[10px] text-zinc-300">·</span>
-                              <span className="text-[10px] text-zinc-400">
+                              <span className="text-[12px] text-zinc-300">·</span>
+                              <span className="text-[12px] text-zinc-400">
                                 {v.color.moodFa}
                               </span>
                             </div>
                             <button
                               onClick={() => copyPosterPrompt(v.color.key, v.prompt)}
-                              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
                                 isCopied
                                   ? 'bg-emerald-100 text-emerald-700'
                                   : 'bg-zinc-900 text-white hover:bg-zinc-800'
@@ -505,12 +505,12 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                           </div>
                           {/* Prompt text (collapsible) */}
                           <details>
-                            <summary className="cursor-pointer text-[10px] text-zinc-400 hover:text-zinc-600">
+                            <summary className="cursor-pointer text-[12px] text-zinc-400 hover:text-zinc-600">
                               نمایش پرامپت — {v.prompt.length} کاراکتر
                             </summary>
                             <pre
                               dir="ltr"
-                              className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200 bg-zinc-50 p-2 font-mono text-[10px] leading-relaxed text-zinc-600 text-left"
+                              className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200 bg-zinc-50 p-2 font-mono text-[12px] leading-relaxed text-zinc-600 text-left"
                             >
                               {v.prompt}
                             </pre>
@@ -561,7 +561,7 @@ function FieldPreview({
   const display = maxLength ? value.slice(0, maxLength) : value
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-      <div className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase text-zinc-500">
+      <div className="mb-1 flex items-center justify-between text-[12px] font-medium uppercase text-zinc-500">
         <span>{label}</span>
         <span>{value.length} کاراکتر</span>
       </div>

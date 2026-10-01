@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { SocialLinks } from '@/components/marketing/social-links'
 import { PublicBlogIndex } from '@/components/blog/public-blog-index'
 import { MarketingHeroPill } from '@/components/marketing/animated-pill'
+import { toSearchablePublicPost } from '@/lib/blog/public-post'
 
 // ISR: the index re-renders at most every 5 minutes (publishing a post via the
 // admin API revalidates it immediately). Post content is Persian, so the page
@@ -54,30 +55,30 @@ export default async function PublicBlogIndexPage() {
         return (
                 <div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
                         <div className="mx-auto max-w-7xl">
-                        <header className="marketing-page-hero marketing-grid-dark relative mb-10 px-6 py-12 text-white sm:px-10 sm:py-16">
+                        <header className="relative mb-10 border-b border-black/[0.08] px-1 pb-9 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
                                 <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
                                 <div>
                                 <MarketingHeroPill>Vigent Journal</MarketingHeroPill>
-                                <h1 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl lg:text-6xl">
+                                <h1 className="mt-5 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl lg:text-6xl">
                                         بلاگ ویجنت
                                 </h1>
-                                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-[15px]">
+                                <p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub sm:text-[17px]">
                                         مقالات و آموزش‌های هوش مصنوعی، چت‌بات‌ها و اتوماسیون فروش
                                 </p>
                                 </div>
-                                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.06] px-5 py-5 backdrop-blur-sm">
+                                <div className="rounded-card border border-black/[0.08] bg-white px-5 py-5 shadow-[var(--elev-1)]">
                                         <div>
-                                                <p className="text-sm font-medium text-white">ما را دنبال کنید</p>
-                                                <p className="mt-1 text-xs leading-5 text-white/40">
+                                                <p className="text-sm font-bold text-vg-ink">ما را دنبال کنید</p>
+                                                <p className="mt-1 text-[13px] leading-6 text-vg-cap">
                                                         جدیدترین مقالات در اینستاگرام و تلگرام
                                                 </p>
                                         </div>
-                                        <SocialLinks variant="default" className="mt-4 [&_a]:border-white/15 [&_a]:text-white/60" />
+                                        <SocialLinks variant="default" className="mt-4" />
                                 </div>
                                 </div>
                         </header>
 
-                        <PublicBlogIndex posts={posts} categories={categories} locale="fa" />
+                        <PublicBlogIndex posts={posts.map(toSearchablePublicPost)} categories={categories} locale="fa" />
                         </div>
                 </div>
         )

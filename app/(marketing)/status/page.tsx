@@ -29,6 +29,9 @@ const STATUS_COPY = {
         infraSubtitle: 'بررسی زنده اتصال و زمان پاسخ هر سرویس',
 } as const
 
+const HEART_TRACE = 'M0 20 H130 L142 20 L150 8 L160 33 L170 4 L180 27 L188 20 H270 L278 20 L284 13 L290 26 L296 20 H400'
+const FLAT_TRACE = 'M0 20 H400'
+
 const META: Record<HealthReport['status'], { color: string; Icon: typeof CheckCircle2; tone: string }> = {
         operational: { color: 'var(--success)', Icon: CheckCircle2, tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300' },
         degraded: { color: 'var(--warning)', Icon: AlertTriangle, tone: 'border-amber-400/20 bg-amber-400/10 text-amber-300' },
@@ -51,11 +54,21 @@ export default async function StatusPage() {
                                         <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                                                 <div>
                                                 <MarketingHeroPill><span className="inline-flex items-center gap-2"><Activity className="h-3.5 w-3.5" />Vigent System Status</span></MarketingHeroPill>
-                                                        <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t.title}</h1>
+                                                        <h1 className="mt-5 text-4xl font-bold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t.title}</h1>
                                                         <p className="mt-4 max-w-2xl text-sm leading-7 text-white/50">{t.subtitle}</p>
+                                                        {/* A live trace: the pulse runs while services answer; a
+                                                            full outage shows a flat line instead of a heartbeat. */}
+                                                        <svg aria-hidden viewBox="0 0 400 40" fill="none" className="vg-anim mt-6 h-8 w-full max-w-md">
+                                                                <path d={report.status === 'down' ? FLAT_TRACE : HEART_TRACE} stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeLinejoin="round" />
+                                                                {report.status !== 'down' ? <path className="vg-beat" d={HEART_TRACE} pathLength={400} style={{ stroke: color }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> : null}
+                                                        </svg>
                                                 </div>
                                                 <div className={`inline-flex min-h-12 items-center gap-3 self-start rounded-full border px-5 text-sm font-medium lg:self-auto ${tone}`}>
-                                                        <Icon className="h-5 w-5" />{t[report.status]}
+                                                        <span className="relative inline-flex">
+                                                                {report.status !== 'down' ? <span aria-hidden className="vg-ring absolute -inset-1 rounded-full border border-current" /> : null}
+                                                                <Icon className="relative h-5 w-5" />
+                                                        </span>
+                                                        {t[report.status]}
                                                 </div>
                                         </div>
                                 </header>
@@ -66,10 +79,10 @@ export default async function StatusPage() {
                                         <Metric icon={Clock3} label={t.lastChecked} value={checkedAt} small />
                                 </section>
 
-                                <section className="mt-10 overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-white shadow-[0_18px_55px_rgba(0,0,0,0.07)]">
+                                <section className="mt-10 overflow-hidden rounded-sheet border border-black/[0.08] bg-white shadow-[var(--elev-2)]">
                                         <div className="flex items-center justify-between border-b border-black/[0.07] px-5 py-4 sm:px-6">
                                                 <div>
-                                                        <h2 className="text-sm font-semibold text-black">{t.infraTitle}</h2>
+                                                        <h2 className="text-sm font-bold text-black">{t.infraTitle}</h2>
                                                         <p className="mt-1 text-xs text-black/45">{t.infraSubtitle}</p>
                                                 </div>
                                                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 0 6px color-mix(in srgb, ${color} 12%, transparent)` }} />
@@ -97,7 +110,7 @@ export default async function StatusPage() {
 
 function Metric({ icon: Icon, label, value, small = false }: { icon: typeof Activity; label: string; value: string; small?: boolean }) {
         return (
-                <div className="spatial-surface flex min-h-28 items-center gap-4 rounded-[1.4rem] p-4 sm:p-5">
+                <div className="spatial-surface flex min-h-28 items-center gap-4 rounded-card p-4 sm:p-5">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><Icon className="h-4 w-4" /></span>
                 <div className="min-w-0"><p className="text-xs text-black/45">{label}</p><p className={`mt-1 font-semibold text-black ${small ? 'truncate text-xs' : 'text-lg tabular-nums'}`}>{value}</p></div>
                 </div>

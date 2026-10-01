@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { PublicPostCard } from '@/components/blog/public-post-card'
+import { toPublicPost } from '@/lib/blog/public-post'
 import { getMainWorkspaceId } from '@/lib/blog/workspace'
 import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 
@@ -61,13 +62,13 @@ export default async function PublicBlogCategoryPage(props: Props) {
     return (
         <div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
                         <div className="mx-auto max-w-7xl">
-                        <header className="marketing-page-hero marketing-grid-dark mb-10 px-6 py-12 text-center text-white sm:px-10 sm:py-14">
+                        <header className="relative mb-10 border-b border-black/[0.08] px-1 pb-9 pt-2 sm:px-2 sm:pb-12 sm:pt-4 text-center">
                                 <MarketingHeroPill>Vigent Journal</MarketingHeroPill>
-                                <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+                                <h1 className="mt-4 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl">
                                         {category.name}
                                 </h1>
                                 {category.description && (
-                                        <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-white/50">{category.description}</p>
+                                        <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-8 text-vg-sub">{category.description}</p>
                                 )}
                         </header>
 
@@ -81,11 +82,11 @@ export default async function PublicBlogCategoryPage(props: Props) {
                         </div>
 
                         {posts.length === 0 ? (
-                                <div className="rounded-[1.5rem] border border-dashed border-black/15 bg-[#f7f7f5] p-16 text-center text-black/40">
+                                <div className="rounded-card border border-dashed border-black/15 bg-[#f7f7f5] p-16 text-center text-black/40">
                                         {locale === 'fa' ? 'هیچ پستی در این دسته نیست.' : 'No posts in this category.'}
                                 </div>
                         ) : (
-                                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{posts.map((post) => <PublicPostCard key={post.id} post={post} locale={locale} />)}</div>
+                                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{posts.map((post) => <PublicPostCard key={post.id} post={toPublicPost(post)} locale={locale} />)}</div>
                         )}
                         </div>
                 </div>

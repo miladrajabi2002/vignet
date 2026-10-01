@@ -7,6 +7,7 @@ import { FutureCta } from '@/components/marketing/future-cta'
 import { BackToTop } from '@/components/marketing/back-to-top'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { MARKETING_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
+import { MotionPauser } from '@/components/marketing/site/motion-pauser'
 
 const SESSION_COOKIE_NAMES = ['authjs.session-token', '__Secure-authjs.session-token'] as const
 
@@ -23,12 +24,12 @@ export default async function MarketingLayout({ children }: { children: ReactNod
 	// the dashboard and admin.
 	return (
 		<ScopedIntlProvider messagePaths={MARKETING_CLIENT_MESSAGE_PATHS}>
-		<div className="min-h-screen overflow-x-clip bg-[var(--bg-base)] pb-[calc(7rem+env(safe-area-inset-bottom))] text-[var(--text-primary)] lg:pb-0">
+		<div className="vg-motion min-h-screen overflow-x-clip bg-[var(--bg-base)] pb-[calc(7rem+env(safe-area-inset-bottom))] text-[var(--text-primary)] lg:pb-0">
 			{/* Entrance animations SSR with opacity:0 and only reveal after JS runs.
 			    Without JS (or if hydration fails) that text would stay invisible on
 			    the white page — force it visible. */}
 			<noscript>
-				<style>{`[style*="opacity:0"]{opacity:1!important;transform:none!important}`}</style>
+				<style>{`[style*="opacity:0"]{opacity:1!important;transform:none!important}.vg-anim *,.vg-anim *::after,.vg-sp>*,.vg-hp>*,.vg-sheen::after,.vg-ping>*{animation-play-state:running!important}`}</style>
 			</noscript>
 			<a href="#marketing-main" className="fixed start-4 top-3 z-[100] -translate-y-20 rounded-xl bg-black px-4 py-2 text-sm text-white transition-transform focus:translate-y-0">
 				{locale === 'fa' ? 'رفتن به محتوای اصلی' : 'Skip to main content'}
@@ -38,6 +39,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
 			<FutureCta />
 			<Footer />
 			<BackToTop />
+			<MotionPauser />
 		</div>
 		</ScopedIntlProvider>
 	)

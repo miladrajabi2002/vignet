@@ -1,9 +1,29 @@
-import type { DocPage, Locale } from '@/lib/docs/content'
+import type { ComponentType } from 'react'
+import type { DocMotion, DocPage, Locale } from '@/lib/docs/content'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { DOCS_NAV } from '@/lib/docs/nav'
 import { CopyButton } from '@/components/ui/copy-button'
 import { MarketingHeroPill } from '@/components/marketing/animated-pill'
+import {
+  AutomationMotion,
+  CreditFlowMotion,
+  HandoffMotion,
+  IdentifyMotion,
+  KnowledgeFlowMotion,
+  ToneMotion,
+  WidgetInstallMotion,
+} from '@/components/motion/explainers'
+
+const DOC_MOTIONS: Record<DocMotion, ComponentType<{ locale: Locale; className?: string }>> = {
+  credit: CreditFlowMotion,
+  knowledge: KnowledgeFlowMotion,
+  handoff: HandoffMotion,
+  automation: AutomationMotion,
+  widget: WidgetInstallMotion,
+  identify: IdentifyMotion,
+  tone: ToneMotion,
+}
 
 function pick(t: { fa: string; en: string }, locale: Locale) {
   return locale === 'fa' ? t.fa : t.en
@@ -23,12 +43,12 @@ export function DocContent({
   const BackArrow = locale === 'fa' ? ArrowRight : ArrowLeft
 
   return (
-    <article className="max-w-4xl rounded-[1.75rem] border border-black/[0.08] bg-white p-4 shadow-[0_22px_65px_rgba(0,0,0,0.07)] sm:p-7 lg:p-9">
-      <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-[1.5rem] bg-black px-5 py-8 text-white shadow-[0_18px_50px_rgba(0,0,0,0.16)] sm:px-8 sm:py-11">
+    <article className="max-w-4xl rounded-sheet border border-black/[0.08] bg-white p-4 shadow-[var(--elev-2)] sm:p-7 lg:p-9">
+      <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-card bg-black px-5 py-8 text-white shadow-[var(--elev-2)] sm:px-8 sm:py-11">
         <div className="relative">
         <MarketingHeroPill>Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</MarketingHeroPill>
-        <h1 className="mt-4 text-balance text-4xl font-semibold leading-[1.2] tracking-[-0.04em] rtl:tracking-normal">{pick(page.title, locale)}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">{pick(page.description, locale)}</p>
+        <h1 className="mt-4 text-balance text-4xl font-bold leading-[1.2] tracking-[-0.04em] rtl:tracking-normal">{pick(page.title, locale)}</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">{pick(page.description, locale)}</p>
         </div>
       </header>
 
@@ -37,7 +57,7 @@ export function DocContent({
           switch (block.type) {
             case 'h2':
               return (
-                <h2 key={i} className="border-t border-black/[0.07] pt-7 text-xl font-semibold text-[var(--text-primary)]">
+                <h2 key={i} className="border-t border-black/[0.07] pt-7 text-xl font-bold text-[var(--text-primary)]">
                   {pick(block, locale)}
                 </h2>
               )
@@ -90,7 +110,7 @@ export function DocContent({
                   />
                   <pre
                     dir="ltr"
-                    className="overflow-x-auto rounded-2xl border border-white/10 bg-black px-5 pb-5 pt-16 text-sm leading-relaxed text-white/70 shadow-[0_16px_45px_rgba(0,0,0,0.12)]"
+                    className="overflow-x-auto rounded-2xl border border-white/10 bg-black px-5 pb-5 pt-16 text-sm leading-relaxed text-white/70 shadow-[var(--elev-2)]"
                   >
                     <code>{block.code}</code>
                   </pre>
@@ -123,6 +143,10 @@ export function DocContent({
                   )}
                 </figure>
               )
+            case 'motion': {
+              const Motion = DOC_MOTIONS[block.motion]
+              return <Motion key={i} locale={locale} className="mx-auto max-w-2xl" />
+            }
             default:
               return null
           }
