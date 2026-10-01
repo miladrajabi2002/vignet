@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Sparkline } from "@/components/admin/sparkline";
+import { TableLabels } from "@/components/admin/table-labels";
 import { cn } from "@/lib/utils";
 import { PERSIAN_DATE_LOCALE } from "@/lib/localized-date";
+import { PageHeader as DashboardPageHeader } from "@/components/dashboard/page-header";
 
 // ─── FORMATTERS ───────────────────────────────────────────────────
 
@@ -58,7 +60,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "admin-card spatial-surface rounded-[1.5rem]",
+        "admin-card spatial-surface rounded-card",
         pad && "p-4 sm:p-6",
         className,
       )}
@@ -92,7 +94,7 @@ export function Panel({
         <div>
           <h2 className="text-sm font-bold text-black">{title}</h2>
           {subtitle && (
-            <p className="mt-1 text-[11px] leading-5 text-black/40">
+            <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
               {subtitle}
             </p>
           )}
@@ -100,7 +102,7 @@ export function Panel({
         {href && linkLabel ? (
           <Link
             href={href}
-            className="shrink-0 rounded-lg px-2 py-1.5 text-[11px] font-bold text-black/55 transition-colors hover:bg-black/[0.045] hover:text-black"
+            className="shrink-0 rounded-lg px-2 py-1.5 text-[12px] font-bold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.045] hover:text-black"
           >
             {linkLabel}
           </Link>
@@ -169,7 +171,7 @@ export function StatCard({
     <Card className="group relative min-h-[8.25rem] overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-float)] active:scale-[.995]">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-black/45">{label}</p>
+          <p className="text-[12px] font-medium text-[var(--text-muted)]">{label}</p>
           <p
             className={cn(
               "mt-2 flex flex-wrap items-baseline gap-x-1 text-[clamp(0.9rem,3.4vw,1.8rem)] font-bold leading-tight tracking-tight tabular-nums sm:gap-x-1.5",
@@ -179,7 +181,7 @@ export function StatCard({
             {unitMatch ? (
               <>
                 <span className="whitespace-nowrap">{unitMatch[1]}</span>
-                <span className="whitespace-nowrap text-[clamp(0.6rem,1.6vw,0.85rem)] font-semibold tracking-normal text-black/50">
+                <span className="whitespace-nowrap text-[clamp(0.6rem,1.6vw,0.85rem)] font-semibold tracking-normal text-[var(--text-muted)]">
                   {unitMatch[2]}
                 </span>
               </>
@@ -188,7 +190,7 @@ export function StatCard({
             )}
           </p>
           {sub && (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-black/40">
+            <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">
               {sub}
             </p>
           )}
@@ -208,7 +210,7 @@ export function StatCard({
         <div className="mt-3 flex items-center gap-1.5">
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
+              "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[12px] font-semibold",
               trend.value >= 0
                 ? "bg-zinc-100 text-zinc-800"
                 : "bg-zinc-900 text-white",
@@ -218,7 +220,7 @@ export function StatCard({
             {Math.abs(trend.value).toLocaleString("fa-IR")}٪
           </span>
           {trend.label && (
-            <span className="text-[11px] text-zinc-400">{trend.label}</span>
+            <span className="text-[12px] text-zinc-400">{trend.label}</span>
           )}
         </div>
       )}
@@ -245,13 +247,14 @@ export function StatCard({
 type BadgeTone =
   "default" | "success" | "warning" | "danger" | "info" | "muted";
 
+// Shared chip palette (app/ui-system.css) so admin and dashboard agree.
 const BADGE_TONES: Record<BadgeTone, string> = {
-  default: "bg-zinc-900 text-white",
-  success: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80",
-  warning: "bg-amber-50 text-amber-800 ring-1 ring-amber-200/80",
-  danger: "bg-red-50 text-red-700 ring-1 ring-red-200/80",
-  info: "bg-blue-50 text-blue-700 ring-1 ring-blue-200/80",
-  muted: "bg-zinc-100 text-zinc-600",
+default: "ui-chip ui-chip-live",
+success: "ui-chip ui-chip-ok",
+warning: "ui-chip ui-chip-warn",
+danger: "ui-chip ui-chip-danger",
+info: "ui-chip ui-chip-signal",
+muted: "ui-chip ui-chip-neutral",
 };
 
 export function Badge({
@@ -266,7 +269,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-medium",
         BADGE_TONES[tone],
         className,
       )}
@@ -299,7 +302,7 @@ export function Th({
     <th
       title={title}
       className={cn(
-        "whitespace-nowrap px-4 py-3.5 text-start text-[11px] font-semibold text-zinc-500",
+        "whitespace-nowrap px-4 py-3.5 text-start text-[12px] font-semibold text-zinc-500",
         className,
       )}
     >
@@ -336,10 +339,13 @@ export function TableShell({
     // thead (globals.css .admin-table-shell table thead) actually engages
     // while long user/payment tables scroll — instead of being inert behind
     // an overflow-x-only ancestor.
-    <div className="admin-table-shell spatial-surface max-h-[min(70dvh,44rem)] overflow-auto overscroll-contain rounded-[1.5rem] [scrollbar-width:thin]">
-      <table className="w-full" style={{ minWidth }}>
-        {children}
-      </table>
+    // Below md the rows stack into labelled cards (ط۱۵, app/ui-system.css).
+    <div className="admin-table-shell ui-rtable spatial-surface max-h-[min(70dvh,44rem)] overflow-auto overscroll-contain rounded-card [scrollbar-width:thin] max-md:max-h-none max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+      <TableLabels>
+        <table className="w-full md:[min-width:var(--table-min)]" style={{ "--table-min": `${minWidth}px` } as React.CSSProperties}>
+          {children}
+        </table>
+      </TableLabels>
     </div>
   );
 }
@@ -374,70 +380,29 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  back,
   breadcrumbs,
-  icon: Icon,
+  icon,
 }: {
   title: string;
   subtitle?: React.ReactNode;
   action?: React.ReactNode;
+  /** Round back control at the start of the title row. */
+  back?: { href: string; label: string };
   breadcrumbs?: { label: string; href?: string }[];
-  /** Optional icon shown in a black square to the left of the title —
-   *  mirrors the user-dashboard PageHeader pattern. */
+  /** Optional ink tile beside the title — same as the user dashboard. */
   icon?: React.ComponentType<{ className?: string }>;
 }) {
+  // One header for both panels: the admin keeps its `action` prop name.
   return (
-    <header className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
-      {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="breadcrumb" className="mb-3">
-          <ol className="flex flex-wrap items-center gap-1 text-[11px] text-zinc-400">
-            {breadcrumbs.map((crumb, index) => {
-              const last = index === breadcrumbs.length - 1;
-              return (
-                <li key={`${crumb.label}-${index}`} className="flex items-center gap-1">
-                  {crumb.href && !last ? (
-                    <Link
-                      href={crumb.href}
-                      className="rounded-md px-1 py-0.5 transition-colors hover:text-zinc-700 hover:underline"
-                    >
-                      {crumb.label}
-                    </Link>
-                  ) : (
-                    <span aria-current={last ? "page" : undefined} className={last ? "font-semibold text-zinc-600" : "px-1"}>
-                      {crumb.label}
-                    </span>
-                  )}
-                  {!last && <ChevronLeft aria-hidden className="h-3 w-3 text-zinc-300" />}
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-      )}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          {Icon && (
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
-              <Icon className="h-5 w-5" />
-            </span>
-          )}
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
-                {subtitle}
-              </p>
-            )}
-          </div>
-        </div>
-        {action && (
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-            {action}
-          </div>
-        )}
-      </div>
-    </header>
+    <DashboardPageHeader
+      title={title}
+      subtitle={subtitle}
+      actions={action}
+      back={back}
+      breadcrumbs={breadcrumbs}
+      icon={icon}
+    />
   );
 }
 

@@ -101,7 +101,7 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
         aria-label="باز کردن منوی مدیریت"
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/[0.08] bg-white/75 text-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
+        className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/[0.08] bg-white/75 text-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
       </button>
@@ -110,7 +110,7 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
       {mounted && createPortal(
         <nav
           aria-label="ناوبری اصلی مدیریت"
-          className="fixed inset-x-3 z-50 mx-auto grid max-w-lg grid-cols-5 gap-1 rounded-[1.45rem] border border-black/10 bg-white/92 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.2)] backdrop-blur-xl [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+          className="fixed inset-x-3 z-50 mx-auto grid max-w-lg grid-cols-5 gap-1 rounded-card border border-black/10 bg-white/92 p-1.5 shadow-[var(--elev-2)] backdrop-blur-xl [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
         >
           {PRIMARY_ITEMS.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href)
@@ -120,8 +120,8 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[10px] font-bold transition-colors',
-                  active ? 'bg-black text-white' : 'text-black/50 hover:bg-black/[0.045] hover:text-black',
+                  'inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[12px] font-bold transition-colors',
+                  active ? 'bg-black text-white' : 'text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-black',
                 )}
               >
                 <Icon className="h-[1.05rem] w-[1.05rem]" aria-hidden="true" />
@@ -135,14 +135,14 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
             aria-haspopup="dialog"
             aria-expanded={open}
             className={cn(
-              'relative inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[10px] font-bold transition-colors',
-              open || !isPrimary ? 'bg-black text-white' : 'text-black/50 hover:bg-black/[0.045] hover:text-black',
+              'relative inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[12px] font-bold transition-colors',
+              open || !isPrimary ? 'bg-black text-white' : 'text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-black',
             )}
           >
             <Menu className="h-[1.05rem] w-[1.05rem]" aria-hidden="true" />
             <span>بیشتر</span>
             {mailUnreadCount > 0 && (
-              <span className="absolute end-2 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[8px] text-white ring-2 ring-white">
+              <span className="absolute end-2 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10.5px] text-white ring-2 ring-white">
                 {Math.min(mailUnreadCount, 99).toLocaleString('fa-IR')}
               </span>
             )}
@@ -167,7 +167,7 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
             aria-modal="true"
             aria-label="منوی مدیریت"
             tabIndex={-1}
-            className="dashboard-mobile-sheet spatial-surface absolute start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[2rem] p-4 shadow-[var(--shadow-lift)] outline-none [bottom:max(0.75rem,env(safe-area-inset-bottom))] [top:max(0.75rem,env(safe-area-inset-top))]"
+            className="dashboard-mobile-sheet spatial-surface absolute start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-sheet p-4 shadow-[var(--shadow-lift)] outline-none [bottom:max(0.75rem,env(safe-area-inset-bottom))] [top:max(0.75rem,env(safe-area-inset-top))]"
           >
             <div className="mb-3 flex min-h-12 items-center justify-between gap-3 border-b border-black/[0.07] pb-3">
               <div className="min-w-0 flex-1"><BrandHeader /></div>
@@ -176,7 +176,7 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="بستن منوی مدیریت"
-                className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/[0.08] text-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
+                className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/[0.08] text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
               </button>

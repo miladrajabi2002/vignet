@@ -13,8 +13,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
-
-type ModelAlias = 'fast' | 'standard' | 'balanced' | 'premium'
+import { Switch } from '@/components/ui/switch'
+import type { ModelAlias } from '@/lib/ai/models'
 
 type ModelOption = {
   alias: ModelAlias
@@ -159,7 +159,7 @@ export function AiModelPolicyForm({
   }
 
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+    <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export function AiModelPolicyForm({
 
       <fieldset className="mt-5">
         <legend className="text-xs font-semibold text-zinc-700">مدل‌های مجاز و مدل پیش‌فرض</legend>
-        <div className="mt-3 grid gap-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
           {models.map((model) => {
             const enabled = enabledModels.includes(model.alias)
             const isDefault = defaultModel === model.alias
@@ -199,7 +199,7 @@ export function AiModelPolicyForm({
                 key={model.alias}
                 className={cn(
                   'rounded-2xl border p-3.5 transition-[border-color,background-color,box-shadow,transform] duration-200',
-                  enabled ? 'border-zinc-300 bg-zinc-50/80 shadow-[0_10px_30px_-26px_rgba(0,0,0,.35)]' : 'border-zinc-200 bg-white opacity-65',
+                  enabled ? 'border-zinc-300 bg-zinc-50/80 shadow-[var(--elev-1)]' : 'border-zinc-200 bg-white opacity-65',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -207,24 +207,19 @@ export function AiModelPolicyForm({
                     <p className="truncate whitespace-nowrap text-xs font-bold text-zinc-900" title={model.name}>{model.name}</p>
                     <p className="mt-0.5 text-xs text-zinc-500">{model.providerLabel}</p>
                   </div>
-                  <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={() => toggleModel(model.alias)}
-                      className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
-                    />
-                    فعال
-                  </label>
+                  <span className="flex min-h-11 shrink-0 items-center gap-2 text-xs font-semibold text-zinc-700">
+                    {enabled ? 'فعال' : 'غیرفعال'}
+                    <Switch checked={enabled} onChange={() => toggleModel(model.alias)} aria-label={`فعال بودن ${model.name}`} />
+                  </span>
                 </div>
-                <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-zinc-500">{model.description}</p>
+                <p className="mt-2 text-[12px] leading-5 text-zinc-500">{model.description}</p>
                 <label className="mt-2 block">
                   <span className="sr-only">OpenRouter model id</span>
                   <input
                     dir="ltr"
                     value={providerModels[model.alias] ?? model.providerId}
                     onChange={(event) => setProviderModels((current) => ({ ...current, [model.alias]: event.target.value }))}
-                    className="h-8 w-full rounded-lg border border-zinc-200 bg-white px-2 text-left font-mono text-[11px] text-zinc-700 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100"
+                    className="h-8 w-full rounded-lg border border-zinc-200 bg-white px-2 text-left font-mono text-[12px] text-zinc-700 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100"
                     aria-label={`OpenRouter model id for ${model.name}`}
                   />
                 </label>
@@ -265,7 +260,7 @@ export function AiModelPolicyForm({
             className="mt-2"
             options={models.map((model) => ({ value: model.alias, label: model.name }))}
           />
-          <span className="mt-1 block text-[11px] font-normal leading-5 text-zinc-500">
+          <span className="mt-1 block text-[12px] font-normal leading-5 text-zinc-500">
             این مدل مستقل از فعال/غیرفعال بودن مدل‌های پلن‌های پولی انتخاب می‌شود؛ بقیه مدل‌ها در پلن آزمایشی بسته نمایش داده می‌شوند.
           </span>
         </label>
@@ -283,7 +278,7 @@ export function AiModelPolicyForm({
               label: `${model.name} · ${providerModels[model.alias] ?? model.providerId}`,
             }))}
           />
-          <span className="mt-1 block text-[11px] font-normal leading-5 text-zinc-600">
+          <span className="mt-1 block text-[12px] font-normal leading-5 text-zinc-600">
             فقط برای دستیار مدیریتی /admin/vigento استفاده می‌شود و از مدل پیش‌فرض کاربران مستقل است.
           </span>
         </label>
@@ -295,7 +290,7 @@ export function AiModelPolicyForm({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-zinc-700">سقف هزینهٔ ماهانه OpenRouter</p>
-              <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+              <p className="mt-1 text-[12px] leading-5 text-zinc-500">
                 پس از رسیدن هزینه واقعی ماه جاری به سقف، درخواست جدید اجرا نمی‌شود.
               </p>
             </div>
@@ -340,7 +335,7 @@ export function AiModelPolicyForm({
                 placeholder="100"
                 className="h-10 min-w-0 flex-1 bg-transparent px-2 text-left text-sm font-semibold text-zinc-900 outline-none disabled:text-zinc-400"
               />
-              <span className="text-[11px] text-zinc-400">دلار در ماه</span>
+              <span className="text-[12px] text-zinc-400">دلار در ماه</span>
             </div>
           </label>
         </div>
@@ -367,7 +362,7 @@ export function AiModelPolicyForm({
                   style={{ width: `${budgetPercent}%` }}
                 />
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+              <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-zinc-500">
                 <span>{budgetPercent.toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪ مصرف شده</span>
                 <span>{formatUSD(remainingBudget ?? 0)} باقی‌مانده</span>
               </div>

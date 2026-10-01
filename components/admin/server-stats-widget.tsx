@@ -87,15 +87,15 @@ export function ServerStatsWidget() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {/* CPU chart */}
-      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+      <div className="spatial-surface rounded-card p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-800">
               <Cpu className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">بار پردازنده</h3>
-              <p className="text-[11px] text-zinc-500">
+              <h3 className="text-sm font-bold text-zinc-900">بار پردازنده</h3>
+              <p className="text-[12px] text-zinc-500">
                 {metrics ? `${metrics.cpuCount.toLocaleString('fa-IR')} هسته · load ${metrics.load1.toFixed(2)}` : 'در حال بارگذاری…'}
               </p>
             </div>
@@ -150,15 +150,15 @@ export function ServerStatsWidget() {
       </div>
 
       {/* RAM chart */}
-      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+      <div className="spatial-surface rounded-card p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-800">
               <MemoryStick className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">مصرف حافظه</h3>
-              <p className="text-[11px] text-zinc-500">
+              <h3 className="text-sm font-bold text-zinc-900">مصرف حافظه</h3>
+              <p className="text-[12px] text-zinc-500">
                 {metrics ? `${fmtBytes(metrics.memUsed)} / ${fmtBytes(metrics.memTotal)}` : 'در حال بارگذاری…'}
               </p>
             </div>

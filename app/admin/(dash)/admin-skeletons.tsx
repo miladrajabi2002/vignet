@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -14,10 +14,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 /** Mirrors PageHeader: icon square + title + subtitle + optional action control. */
 export function PageHeaderSkeleton({ action = true }: { action?: boolean }) {
   return (
-    <div className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+    <div className="dashboard-page-header">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-11 w-11 shrink-0 rounded-2xl" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
           <div className="space-y-2">
             <Skeleton className="h-7 w-44 max-w-full rounded-lg" />
             <Skeleton className="h-4 w-64 max-w-full rounded-lg" />
@@ -32,7 +32,7 @@ export function PageHeaderSkeleton({ action = true }: { action?: boolean }) {
 /** Mirrors StatCard: label + big value + sub + tone icon + sparkline strip. */
 export function StatCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="admin-card spatial-surface min-h-[8.25rem] rounded-[1.5rem] p-4 sm:p-6">
+    <div className="admin-card spatial-surface min-h-[8.25rem] rounded-card p-4 sm:p-6">
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <Skeleton delay={delay} className="h-3.5 w-24 rounded-md" />
@@ -58,7 +58,7 @@ export function ChartSkeleton({
 }) {
   const style: CSSProperties = { height }
   return (
-    <div className={cn('admin-card spatial-surface rounded-[1.5rem] p-4 sm:p-6', className)}>
+    <div className={cn('admin-card spatial-surface rounded-card p-4 sm:p-6', className)}>
       <div className="mb-4 flex items-start justify-between">
         <div className="space-y-2">
           <Skeleton delay={delay} className="h-4 w-52 max-w-full rounded-md" />
@@ -74,7 +74,7 @@ export function ChartSkeleton({
 /** Mirrors a generic Panel with a few content rows. */
 export function PanelSkeleton({ delay = 0, rows = 4 }: { delay?: number; rows?: number }) {
   return (
-    <div className="admin-card spatial-surface rounded-[1.5rem] p-4 sm:p-6">
+    <div className="admin-card spatial-surface rounded-card p-4 sm:p-6">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="space-y-2">
           <Skeleton delay={delay} className="h-4 w-44 max-w-full rounded-md" />
@@ -111,7 +111,7 @@ export function TableSkeleton({
   minWidth?: number
 }) {
   return (
-    <div className="admin-table-shell spatial-surface overflow-x-auto rounded-[1.5rem] [scrollbar-width:thin]">
+    <div className="admin-table-shell spatial-surface overflow-x-auto rounded-card [scrollbar-width:thin]">
       <table className="w-full" style={{ minWidth }}>
         <thead className="border-b border-zinc-200 bg-zinc-50/70">
           <tr>
@@ -147,10 +147,10 @@ export function TableSkeleton({
 /** Mirrors the agent cards grid on /admin/agents. */
 export function AgentCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="admin-card spatial-surface group relative overflow-hidden rounded-[1.5rem] transition-[border-color,box-shadow]">
+    <div className="admin-card spatial-surface group relative overflow-hidden rounded-card transition-[border-color,box-shadow]">
       <div className="relative space-y-4 p-5">
-        <div className="flex items-start gap-3">
-          <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-2xl" />
+        <div className="flex items-center gap-3">
+          <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center gap-2">
               <Skeleton delay={delay} className="h-4 w-32 max-w-full rounded-md" />
@@ -189,6 +189,73 @@ export function ModelCardSkeleton({ delay = 0 }: { delay?: number }) {
         <Skeleton delay={delay} className="h-2.5 w-24 rounded-md" />
         <Skeleton delay={delay} className="h-3.5 w-full rounded-md" />
       </div>
+    </div>
+  )
+}
+
+/** Mirrors the sticky search + filter bar on list pages (users, payments). */
+export function SearchBarSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <div className="flex gap-2 rounded-card border border-black/[0.07] bg-white/72 p-2 shadow-[var(--shadow-soft)]">
+      <Skeleton delay={delay} className="h-11 min-w-0 flex-1 rounded-xl" />
+      <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-xl md:w-64" />
+    </div>
+  )
+}
+
+/** Mirrors the phone card list that replaces a table below md. */
+export function MobileCardsSkeleton({ delay = 0, count = 4 }: { delay?: number; count?: number }) {
+  return (
+    <div className="grid gap-3 md:hidden">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+          <div className="flex items-start gap-3">
+            <Skeleton delay={delay - index * 80} className="h-11 w-11 shrink-0 rounded-xl" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton delay={delay - index * 80} className="h-4 w-32 max-w-full rounded-md" />
+              <Skeleton delay={delay - index * 80} className="h-3 w-24 rounded-md" />
+            </div>
+            <Skeleton delay={delay - index * 80} className="h-6 w-16 shrink-0 rounded-full" />
+          </div>
+          <Skeleton delay={delay - index * 80} className="mt-3 h-9 w-full rounded-xl" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** A grid of N stat-card skeletons in the same grid the page uses. */
+export function StatGridSkeleton({ count, className = 'grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4' }: { count: number; className?: string }) {
+  return (
+    <div className={className}>
+      {Array.from({ length: count }).map((_, index) => (
+        <StatCardSkeleton key={index} delay={-index * 110} />
+      ))}
+    </div>
+  )
+}
+
+/** A plain card of given height (manager components, editors, consoles). */
+export function BlockSkeleton({ delay = 0, className }: { delay?: number; className?: string }) {
+  return (
+    <div className={cn('admin-card spatial-surface rounded-card p-4 sm:p-6', className)}>
+      <Skeleton delay={delay} className="h-4 w-48 max-w-full rounded-md" />
+      <Skeleton delay={delay} className="mt-2 h-3 w-64 max-w-full rounded-md" />
+      <div className="mt-5 space-y-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} delay={delay - index * 70} className="h-12 w-full rounded-xl" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Wrapper every admin loading.tsx shares (busy state + sr-only status). */
+export function AdminLoadingShell({ children, className = 'space-y-6' }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={className} aria-busy="true">
+      <span className="sr-only" role="status">در حال بارگذاری اطلاعات…</span>
+      {children}
     </div>
   )
 }

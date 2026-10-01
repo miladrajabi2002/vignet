@@ -62,7 +62,7 @@ function NavList({ onNavigate, mailUnreadCount = 0 }: { onNavigate?: () => void;
       >
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/12"><Sparkles className="h-4 w-4" /></span>
         <span className="flex-1">Vigento AI</span>
-        <span className="text-[11px] font-normal text-white/65">مدیریت هوشمند</span>
+        <span className="text-[12px] font-normal text-white/65">مدیریت هوشمند</span>
       </Link>
     <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain pe-1 [scrollbar-width:thin]" aria-label="ناوبری مدیریت">
       {NAV_ITEMS.map(({ href, label, icon: Icon, exact, openInNewTab }) => {
@@ -90,7 +90,7 @@ function NavList({ onNavigate, mailUnreadCount = 0 }: { onNavigate?: () => void;
                   <span className="truncate">{label}</span>
                   {href === '/admin/mail' && mailUnreadCount > 0 ? (
                     <span className={cn(
-                      'ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[9px] font-bold tabular-nums',
+                      'ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[12px] font-bold tabular-nums',
                       active ? 'bg-white text-black' : 'bg-black text-white',
                     )}>
                       {Math.min(mailUnreadCount, 99).toLocaleString('fa-IR')}
@@ -113,7 +113,7 @@ function BrandHeader({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/admin" aria-label="داشبورد مدیریت" className="flex min-h-12 items-center justify-center px-2">
       <Logo priority className={compact ? 'h-7 w-24' : 'h-7 w-28'} />
-      {!compact && <span className="ms-2 rounded-full bg-black px-2 py-0.5 text-[9px] font-semibold text-white">ADMIN</span>}
+      {!compact && <span className="ms-2 rounded-full bg-black px-2 py-0.5 text-[12px] font-semibold text-white">ADMIN</span>}
     </Link>
   )
 }

@@ -76,7 +76,7 @@ const PLAN_LABELS: Record<string, string> = {
   TRIAL: 'آزمایشی',
   STARTER: 'استارتر',
   PRO: 'حرفه‌ای',
-  BUSINESS: 'سازمانی',
+  BUSINESS: 'بیزینس',
 }
 
 function parseRange(value: string | undefined): UsageRange {
@@ -125,10 +125,10 @@ function RangeTabs({ current }: { current: UsageRange }) {
           scroll={false}
           aria-current={current === range ? 'page' : undefined}
           className={cn(
-            'inline-flex min-h-10 items-center rounded-lg px-3 text-[11px] font-bold transition-[background-color,color,transform,box-shadow] duration-200 active:scale-[.97]',
+            'inline-flex min-h-10 items-center rounded-lg px-3 text-[12px] font-bold transition-[background-color,color,transform,box-shadow] duration-200 active:scale-[.97]',
             current === range
               ? 'bg-black text-white shadow-[var(--shadow-control)]'
-              : 'text-black/45 hover:bg-black/[0.045] hover:text-black',
+              : 'text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-black',
           )}
         >
           {RANGE_LABELS[range]}
@@ -240,7 +240,7 @@ function AccountStatus({
             </div>
           </dl>
           {account.keyLabel && (
-            <p className="truncate text-[11px] text-zinc-400">
+            <p className="truncate text-[12px] text-zinc-400">
               برچسب کلید: <bdi dir="ltr" className="font-mono">{account.keyLabel}</bdi>
             </p>
           )}
@@ -254,10 +254,10 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
   return (
     <Panel
       title="مدل‌های مدیریت‌شده"
-      subtitle="چهار سطح پایدار برای ایجنت‌ها؛ شناسه فعال هر سطح مستقیماً از سیاست ذخیره‌شده پنل خوانده می‌شود"
-      action={<Badge tone="info">۴ مدل تعریف‌شده</Badge>}
+      subtitle="دو سطح پایدار برای ایجنت‌ها؛ شناسه فعال هر سطح مستقیماً از سیاست ذخیره‌شده پنل خوانده می‌شود"
+      action={<Badge tone="info">{config.models.length.toLocaleString('fa-IR')} مدل تعریف‌شده</Badge>}
     >
-      <div className="grid gap-2 xl:grid-cols-4">
+      <div className="grid gap-2 md:grid-cols-2">
         {config.models.map((model, index) => (
           <article
             key={model.alias}
@@ -270,8 +270,8 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h3 className="truncate whitespace-nowrap text-xs font-bold text-zinc-900" title={model.name}>{model.name}</h3>
-                  <Badge tone={model.configurationSource === 'panel' ? 'success' : model.configurationSource === 'environment' ? 'warning' : 'muted'}>
-                    {model.configurationSource === 'panel' ? 'تنظیم پنل' : model.configurationSource === 'environment' ? 'تنظیم محیطی' : 'مقدار پیش‌فرض'}
+                  <Badge tone={model.configurationSource === 'panel' ? 'success' : 'muted'}>
+                    {model.configurationSource === 'panel' ? 'تنظیم پنل' : 'مقدار پیش‌فرض'}
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">{model.providerLabel}</p>
@@ -280,10 +280,10 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
 
             <p className="mt-3 text-xs leading-6 text-zinc-600">{model.description}</p>
             <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
-              <p className="text-[11px] text-zinc-400">شناسهٔ فعال OpenRouter</p>
+              <p className="text-[12px] text-zinc-400">شناسهٔ فعال OpenRouter</p>
               <code
                 dir="ltr"
-                className="mt-1 block break-all text-left font-mono text-[11px] leading-5 text-zinc-800"
+                className="mt-1 block break-all text-left font-mono text-[12px] leading-5 text-zinc-800"
               >
                 {model.providerId}
               </code>
@@ -299,13 +299,13 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
               <div className="rounded-xl bg-white p-2.5 ring-1 ring-zinc-200">
                 <dt className="text-zinc-400">منبع تنظیم</dt>
                 <dd className="mt-1 font-semibold text-zinc-900">
-                  {model.configurationSource === 'panel' ? 'پنل مدیریت' : model.configurationSource === 'environment' ? 'محیط سرور' : 'پیش‌فرض سیستم'}
+                  {model.configurationSource === 'panel' ? 'پنل مدیریت' : 'پیش‌فرض سیستم'}
                 </dd>
               </div>
             </dl>
 
             <div className="mt-auto pt-3">
-              <p className="text-[11px] text-zinc-500">این کارت از همان منبعی خوانده می‌شود که اجرای واقعی درخواست‌ها استفاده می‌کند.</p>
+              <p className="text-[12px] text-zinc-500">این کارت از همان منبعی خوانده می‌شود که اجرای واقعی درخواست‌ها استفاده می‌کند.</p>
             </div>
           </article>
         ))}
@@ -340,7 +340,7 @@ function ModelUsageTable({
                   <p className="text-sm font-bold text-zinc-900">
                     {managed?.name ?? 'مدل ثبت‌شده'}
                   </p>
-                  <code dir="ltr" className="mt-1 block break-all text-left text-[11px] text-zinc-500">
+                  <code dir="ltr" className="mt-1 block break-all text-left text-[12px] text-zinc-500">
                     {row.model}
                   </code>
                 </div>
@@ -380,7 +380,7 @@ function ModelUsageTable({
                         <span className="font-semibold text-zinc-900">{managed?.name ?? 'سایر'}</span>
                         {managed && <Badge tone="info">{managed.alias}</Badge>}
                       </div>
-                      <code dir="ltr" className="mt-1 block truncate text-left text-[11px] text-zinc-400" title={row.model}>
+                      <code dir="ltr" className="mt-1 block truncate text-left text-[12px] text-zinc-400" title={row.model}>
                         {row.model}
                       </code>
                     </div>
@@ -427,7 +427,7 @@ function WorkspaceUsageTable({ rows }: { rows: AiWorkspaceUsage[] }) {
               <div><dt className="text-zinc-400">هزینه واقعی</dt><dd dir="ltr" className="mt-1 text-left font-semibold">{formatProviderUSD(row.providerCostUSD)}</dd></div>
               <div><dt className="text-zinc-400">کسر از اعتبار</dt><dd className="mt-1 font-semibold">{formatRial(row.chargedIRR)}</dd></div>
             </dl>
-            <p className="mt-4 flex items-center gap-1.5 border-t border-zinc-100 pt-3 text-[11px] text-zinc-400">
+            <p className="mt-4 flex items-center gap-1.5 border-t border-zinc-100 pt-3 text-[12px] text-zinc-400">
               <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
               آخرین مصرف {fmtDate(row.lastUsedAt)}
             </p>
@@ -455,7 +455,7 @@ function WorkspaceUsageTable({ rows }: { rows: AiWorkspaceUsage[] }) {
                   <Link href={`/admin/workspaces/${row.workspaceId}`} className="font-semibold text-zinc-900 hover:underline">
                     {row.workspaceName}
                   </Link>
-                  <p className="mt-0.5 max-w-52 truncate text-[11px] text-zinc-400">
+                  <p className="mt-0.5 max-w-52 truncate text-[12px] text-zinc-400">
                     {row.ownerLabel ?? 'مالک نامشخص'} · {fa(row.userCount)} عضو
                   </p>
                 </Td>
@@ -491,7 +491,7 @@ function RecentUsageList({ rows }: { rows: RecentAiUsage[] }) {
                 </Link>
                 <Badge tone="muted">{TYPE_LABELS[row.type] ?? row.type}</Badge>
               </div>
-              <p dir="ltr" className="mt-1 truncate text-left font-mono text-[11px] text-zinc-400">
+              <p dir="ltr" className="mt-1 truncate text-left font-mono text-[12px] text-zinc-400">
                 {row.model ?? 'model-not-recorded'}
               </p>
             </div>
@@ -499,10 +499,10 @@ function RecentUsageList({ rows }: { rows: RecentAiUsage[] }) {
               <p className="text-xs font-semibold text-zinc-900">
                 {fa(totalTokens(row))} توکن
               </p>
-              <p className="mt-1 text-[11px] text-zinc-400">{fmtDate(row.date)}</p>
+              <p className="mt-1 text-[12px] text-zinc-400">{fmtDate(row.date)}</p>
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
             <span>هزینه دقیق OpenRouter: <bdi dir="ltr" className="font-mono font-semibold text-zinc-800">{formatRequestUSD(row.providerCostUSD)}</bdi></span>
             <span>کسرشده: <strong className="font-semibold text-zinc-700">{formatRial(row.chargedIRR)}</strong></span>
             {row.reasoningTokens > 0 && <span>استدلال: {fa(row.reasoningTokens)}</span>}

@@ -15,7 +15,7 @@ export default function AdminConversationsLoading() {
       {/* Search + filters — mirrors AdminConversationFilters:
           mobile = search + bottom-sheet button, desktop = search + status
           and channel selects + handed-off pill. */}
-      <div className="spatial-surface rounded-[1.35rem] p-2 shadow-[var(--shadow-soft)] md:p-3">
+      <div className="spatial-surface rounded-card p-2 shadow-[var(--shadow-soft)] md:p-3">
         <div className="flex items-center gap-2 md:hidden">
           <Skeleton className="h-11 min-w-[12rem] flex-1 rounded-xl" />
           <Skeleton delay={-90} className="h-11 w-11 shrink-0 rounded-xl" />

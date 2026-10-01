@@ -37,7 +37,7 @@ const PLAN_BADGE: Record<
   TRIAL: { tone: 'muted', label: 'آزمایشی' },
   STARTER: { tone: 'info', label: 'استارتر' },
   PRO: { tone: 'success', label: 'حرفه‌ای' },
-  BUSINESS: { tone: 'default', label: 'سازمانی' },
+  BUSINESS: { tone: 'default', label: 'بیزینس' },
 }
 
 const GATEWAY_BADGE: Record<string, { tone: 'info' | 'default'; label: string }> = {
@@ -88,7 +88,7 @@ function StatusSummary({
     { icon: React.ReactNode; tone: 'success' | 'warning' | 'danger' | 'muted'; label: string }
   > = {
     PAID: {
-      icon: <CheckCircle className="h-12 w-12 text-emerald-500" />,
+      icon: <CheckCircle className="h-12 w-12 text-[var(--ok)]" />,
       tone: 'success',
       label: 'پرداخت‌شده',
     },
@@ -171,15 +171,7 @@ export default async function AdminPaymentDetailPage(
           { label: 'پرداخت‌ها', href: '/admin/payments' },
           { label: `#${shortId}` },
         ]}
-        action={
-          <Link
-            href="/admin/payments"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50"
-          >
-            <ChevronRight className="h-4 w-4" />
-            بازگشت به پرداخت‌ها
-          </Link>
-        }
+        back={{ href: '/admin/payments', label: 'پرداخت‌ها' }}
       />
 
       <div className="grid gap-5 lg:grid-cols-3">

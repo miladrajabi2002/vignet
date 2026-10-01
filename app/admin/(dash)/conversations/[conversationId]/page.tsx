@@ -45,14 +45,14 @@ export default async function AdminConversationDetailPage({ params }: { params: 
       <PageHeader
         title={`گفتگو با ${contactName}`}
         subtitle={`${conversation.workspace.name} · ${conversation.agent.name}`}
-        action={<Link href="/admin/conversations" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"><ArrowRight className="h-4 w-4" /> بازگشت</Link>}
+        back={{ href: '/admin/conversations', label: 'گفتگوها' }}
       />
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
         <Card className="overflow-hidden p-0">
           <div className="flex items-center gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3">
             <div className="grid h-9 w-9 place-items-center rounded-2xl bg-black text-white"><MessageSquare className="h-4 w-4" /></div>
-            <div className="min-w-0 flex-1"><div className="truncate text-sm font-bold text-zinc-900">متن کامل گفتگو</div><div className="mt-0.5 text-[10px] text-zinc-400">{fa(conversation.messages.length)} پیام ثبت‌شده</div></div>
+            <div className="min-w-0 flex-1"><div className="truncate text-sm font-bold text-zinc-900">متن کامل گفتگو</div><div className="mt-0.5 text-[12px] text-zinc-400">{fa(conversation.messages.length)} پیام ثبت‌شده</div></div>
             <Badge tone="muted">{STATUS_LABEL[conversation.status] ?? conversation.status}</Badge>
           </div>
 
@@ -61,7 +61,7 @@ export default async function AdminConversationDetailPage({ params }: { params: 
               surface. Each piece of Persian copy inside keeps its own dir=auto. */}
           <div dir="ltr" className="max-h-[68vh] min-h-[460px] space-y-4 overflow-y-auto bg-white p-4 sm:p-6">
             {conversation.messages.length ? conversation.messages.map((message) => {
-              if (message.role === 'SYSTEM') return <div key={message.id} dir="auto" className="mx-auto max-w-xl break-words rounded-xl bg-zinc-100 px-3 py-2 text-center text-[11px] leading-6 text-zinc-500">{message.content}</div>
+              if (message.role === 'SYSTEM') return <div key={message.id} dir="auto" className="mx-auto max-w-xl break-words rounded-xl bg-zinc-100 px-3 py-2 text-center text-[12px] leading-6 text-zinc-500">{message.content}</div>
               const isUser = message.role === 'USER'
               const showcase = isUser
                 ? { text: message.content, products: [] }
@@ -81,7 +81,7 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                       >
                         {showcase.text && <ConversationText text={showcase.text} className="block" />}
                         {message.audioUrl && <audio controls src={message.audioUrl} className="mt-2 max-w-full" />}
-                        <time dir="auto" className={`mt-2 block text-[9px] ${isUser ? 'text-zinc-400' : 'text-white/45'}`}>{fmtDate(message.createdAt)}</time>
+                        <time dir="auto" className={`mt-2 block text-[12px] ${isUser ? 'text-zinc-400' : 'text-white/60'}`}>{fmtDate(message.createdAt)}</time>
                       </ConversationBubble>
                     )}
                     {!isUser && hasShowcase && (
@@ -93,7 +93,7 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                       />
                     )}
                     {!isUser && hasShowcase && !showcase.text && !message.audioUrl && (
-                      <time dir="auto" className="mt-0.5 block px-1 text-[9px] text-zinc-400">{fmtDate(message.createdAt)}</time>
+                      <time dir="auto" className="mt-0.5 block px-1 text-[12px] text-zinc-400">{fmtDate(message.createdAt)}</time>
                     )}
                   </div>
                   {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-zinc-100"><UserRound className="h-3.5 w-3.5" /></div>}

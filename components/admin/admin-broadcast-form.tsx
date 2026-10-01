@@ -76,13 +76,13 @@ export function AdminBroadcastDialog({ users }: { users: UserOption[] }) {
             if (event.target === event.currentTarget) setOpen(false)
           }}
         >
-          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="ارسال پیام به کاربران" className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overscroll-contain overflow-y-auto rounded-[1.75rem] bg-white p-2 shadow-[0_32px_100px_-34px_rgba(0,0,0,.65)] sm:max-h-[92dvh]">
-            <div className="sticky top-0 z-10 flex items-center justify-between rounded-[1.35rem] bg-white/90 px-3 py-2 backdrop-blur-xl">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="ارسال پیام به کاربران" className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overscroll-contain overflow-y-auto rounded-sheet bg-white p-2 shadow-[var(--elev-2)] sm:max-h-[92dvh]">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-card bg-white/90 px-3 py-2 backdrop-blur-xl">
               <div>
                 <h2 className="text-sm font-bold text-zinc-950">ارسال پیام</h2>
-                <p className="mt-0.5 text-[10px] text-zinc-400">ارسال تکی یا گروهی اعلان داخل پنل</p>
+                <p className="mt-0.5 text-[12px] text-zinc-400">ارسال تکی یا گروهی اعلان داخل پنل</p>
               </div>
-              <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label="بستن" className="grid h-11 w-11 place-items-center rounded-xl bg-zinc-100 text-zinc-600 outline-none transition-colors hover:bg-zinc-200 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+              <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label="بستن" className="grid h-11 w-11 place-items-center rounded-xl bg-zinc-100 text-zinc-600 outline-none transition-colors hover:bg-zinc-200 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -124,17 +124,17 @@ export function AdminBroadcastForm({ users }: { users: UserOption[] }) {
   }
 
   return (
-    <form onSubmit={submit} className="overflow-hidden rounded-[26px] border border-black/[0.08] bg-white shadow-sm">
+    <form onSubmit={submit} className="overflow-hidden rounded-card border border-black/[0.08] bg-white shadow-sm">
       <div className="grid border-b border-zinc-100 sm:grid-cols-2">
         {(['single', 'bulk'] as const).map((item) => <button key={item} type="button" onClick={() => setMode(item)} className={`min-h-12 text-xs font-bold transition-colors ${mode === item ? 'bg-black text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50'}`}>{item === 'single' ? 'ارسال تکی' : 'ارسال گروهی'}</button>)}
       </div>
       <div className="space-y-5 p-5 sm:p-6">
         <div>
           <label className="mb-2 block text-xs font-bold text-zinc-800">مخاطب</label>
-          {mode === 'single' ? <select required value={userId} onChange={(e) => setUserId(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="">انتخاب کاربر</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} · {displayPhone(user.phone)} · {user.workspace}</option>)}</select> : <select value={audience} onChange={(e) => setAudience(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="all">تمام کسب‌وکارها</option><option value="paid">پلن‌های پولی</option><option value="trial">کاربران آزمایشی</option><option value="onboarding">تکمیل‌نکرده‌های راه‌اندازی</option><option value="plan:STARTER">فقط پلن شروع</option><option value="plan:PRO">فقط پلن حرفه‌ای</option><option value="plan:BUSINESS">فقط پلن سازمانی</option></select>}
+          {mode === 'single' ? <select required value={userId} onChange={(e) => setUserId(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="">انتخاب کاربر</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} · {displayPhone(user.phone)} · {user.workspace}</option>)}</select> : <select value={audience} onChange={(e) => setAudience(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="all">تمام کسب‌وکارها</option><option value="paid">پلن‌های پولی</option><option value="trial">کاربران آزمایشی</option><option value="onboarding">تکمیل‌نکرده‌های راه‌اندازی</option><option value="plan:STARTER">فقط پلن استارتر</option><option value="plan:PRO">فقط پلن حرفه‌ای</option><option value="plan:BUSINESS">فقط پلن بیزینس</option></select>}
         </div>
         <div><label className="mb-2 block text-xs font-bold text-zinc-800">عنوان</label><input required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان کوتاه و روشن" className="min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-xs outline-none focus:border-black" /></div>
-        <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold text-zinc-800">متن پیام</label><span className="text-[10px] text-zinc-400">{new Intl.NumberFormat('fa-IR').format(message.length)} / ۱۰۰۰</span></div><textarea required maxLength={1000} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="پیام شما…" className="w-full resize-y rounded-xl border border-zinc-200 p-3 text-xs leading-6 outline-none focus:border-black" /></div>
+        <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold text-zinc-800">متن پیام</label><span className="text-[12px] text-zinc-400">{new Intl.NumberFormat('fa-IR').format(message.length)} / ۱۰۰۰</span></div><textarea required maxLength={1000} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="پیام شما…" className="w-full resize-y rounded-xl border border-zinc-200 p-3 text-xs leading-6 outline-none focus:border-black" /></div>
         {error && <p className="rounded-xl bg-zinc-100 p-3 text-xs font-semibold text-zinc-700">{error}</p>}
         {result && <p className="flex items-center gap-2 rounded-xl bg-black p-3 text-xs font-semibold text-white"><CheckCircle2 className="h-4 w-4" />{result}</p>}
         <button disabled={pending} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white transition-[opacity,transform] hover:opacity-85 active:scale-[.99] disabled:opacity-45"><Send className="h-4 w-4" />{pending ? 'در حال ثبت ارسال…' : mode === 'single' ? 'ارسال به کاربر' : 'ارسال به گروه'}</button>

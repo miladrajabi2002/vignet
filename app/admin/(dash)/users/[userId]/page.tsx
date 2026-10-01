@@ -68,7 +68,7 @@ const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   TRIAL: { label: 'آزمایشی', tone: 'muted' },
   STARTER: { label: 'استارتر', tone: 'info' },
   PRO: { label: 'حرفه‌ای', tone: 'success' },
-  BUSINESS: { label: 'سازمانی', tone: 'default' },
+  BUSINESS: { label: 'بیزینس', tone: 'default' },
 }
 
 const CONV_STATUS_LABEL: Record<string, string> = {
@@ -652,6 +652,7 @@ export default async function AdminUserDetailPage(
           { label: 'کاربران', href: '/admin/users' },
           { label: userName },
         ]}
+        back={{ href: '/admin/users', label: 'کاربران' }}
         action={user.platformRole === 'USER'
           ? <StartImpersonationButton userId={user.id} />
           : undefined}
@@ -660,7 +661,7 @@ export default async function AdminUserDetailPage(
       {/* ─── tab bar (works on mobile: horizontal scroll) ─── */}
       <nav
         aria-label="بخش‌های پرونده کاربر"
-        className="sticky top-20 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-[1.35rem] border border-black/[0.07] bg-white/90 p-1.5 shadow-[var(--shadow-soft)] backdrop-blur-xl [scrollbar-width:none] md:static md:bg-white/72 [&::-webkit-scrollbar]:hidden"
+        className="sticky top-20 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-card border border-black/[0.07] bg-white/90 p-1.5 shadow-[var(--shadow-soft)] backdrop-blur-xl [scrollbar-width:none] md:static md:bg-white/72 [&::-webkit-scrollbar]:hidden"
       >
         {TABS.map(({ key, label }) => (
           <Link
@@ -676,7 +677,7 @@ export default async function AdminUserDetailPage(
           >
             {label}
             <span className={cn(
-              'rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums',
+              'rounded-full px-1.5 py-0.5 text-[12px] font-bold tabular-nums',
               tab === key ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500',
             )}>
               {key === 'channels' && fa(activeChannelCount)}
@@ -691,20 +692,20 @@ export default async function AdminUserDetailPage(
       {/* ═══ TAB: OVERVIEW ═══ */}
       {tab === 'overview' && (
         <>
-          <section className="admin-panel overflow-hidden rounded-[1.6rem]" aria-labelledby="user-journey-title">
+          <section className="admin-panel overflow-hidden rounded-card" aria-labelledby="user-journey-title">
             <div className="grid lg:grid-cols-[.34fr_.66fr]">
               <div className="border-b border-black/[0.06] bg-[#111214] p-5 text-white lg:border-b-0 lg:border-l sm:p-6">
-                <p className="text-[10px] font-bold text-white/60">مسیر فعالیت کاربر</p>
-                <h2 id="user-journey-title" className="mt-2 text-xl font-black">گزارش مسیر کاربر</h2>
-                <p className="mt-2 text-xs leading-6 text-white/45">مرحله فعلی، نقاط توقف و رویدادهای مهم از داده واقعی همین کسب‌وکار استخراج شده‌اند.</p>
+                <p className="text-[12px] font-bold text-white/60">مسیر فعالیت کاربر</p>
+                <h2 id="user-journey-title" className="mt-2 text-xl font-bold">گزارش مسیر کاربر</h2>
+                <p className="mt-2 text-xs leading-6 text-white/60">مرحله فعلی، نقاط توقف و رویدادهای مهم از داده واقعی همین کسب‌وکار استخراج شده‌اند.</p>
                 <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.055] p-4">
-                  <div className="flex items-end justify-between gap-3"><div><p className="text-[10px] text-white/40">اقدام بعدی پیشنهادی</p><p className="mt-1 text-sm font-bold">{currentStage}</p></div><span className="text-2xl font-black tabular-nums">{fa(journeyProgress)}٪</span></div>
+                  <div className="flex items-end justify-between gap-3"><div><p className="text-[12px] text-white/60">اقدام بعدی پیشنهادی</p><p className="mt-1 text-sm font-bold">{currentStage}</p></div><span className="text-2xl font-bold tabular-nums">{fa(journeyProgress)}٪</span></div>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${journeyProgress}%` }} /></div>
-                  <div className="mt-4 flex items-center justify-between text-[10px] text-white/38"><span>{fa(completedSteps)} از {fa(journeySteps.length)} مرحله</span><span>{latestActivityAt ? `آخرین فعالیت ${fmtDate(latestActivityAt)}` : 'بدون فعالیت'}</span></div>
+                  <div className="mt-4 flex items-center justify-between text-[12px] text-white/60"><span>{fa(completedSteps)} از {fa(journeySteps.length)} مرحله</span><span>{latestActivityAt ? `آخرین فعالیت ${fmtDate(latestActivityAt)}` : 'بدون فعالیت'}</span></div>
                 </div>
                 {currentStepIndex !== -1 && (
                   <div className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] p-3.5">
-                    <p className="text-[10px] font-bold text-amber-200">نیازمند پیگیری</p>
+                    <p className="text-[12px] font-bold text-amber-200">نیازمند پیگیری</p>
                     <p className="mt-1 text-xs leading-5 text-white/60">اولین مرحله ناقص «{journeySteps[currentStepIndex].label}» است: {journeySteps[currentStepIndex].detail}</p>
                   </div>
                 )}
@@ -713,9 +714,9 @@ export default async function AdminUserDetailPage(
                 {journeySteps.map((step, index) => {
                   const Icon = step.icon
                   return (
-                    <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-[1.15rem] border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === currentStepIndex ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
+                    <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-card border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === currentStepIndex ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
                       <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', step.done ? 'bg-emerald-600 text-white' : index === currentStepIndex ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-400')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
-                      <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-black text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === currentStepIndex && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-bold text-zinc-700">اقدام بعدی</span>}</div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{step.detail}</p><p className="mt-1 text-[10px] text-black/35">{step.at ? fmtDate(step.at) : '—'}</p></div>
+                      <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-bold text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === currentStepIndex && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[12px] font-bold text-zinc-700">اقدام بعدی</span>}</div><p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">{step.detail}</p><p className="mt-1 text-[12px] text-[var(--text-muted)]">{step.at ? fmtDate(step.at) : '—'}</p></div>
                     </div>
                   )
                 })}
@@ -794,7 +795,7 @@ export default async function AdminUserDetailPage(
                           <span key={serviceName} className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-black/[0.07] bg-zinc-50 px-3 text-xs font-semibold text-zinc-700">
                             {serviceName}
                             {operationalService && (
-                              <span className="text-[10px] font-normal text-zinc-400">
+                              <span className="text-[12px] font-normal text-zinc-400">
                                 {fa(operationalService.durationMinutes)} دقیقه{operationalService.location ? ` · ${operationalService.location}` : ''}{!operationalService.active ? ' · غیرفعال' : ''}
                               </span>
                             )}
@@ -848,7 +849,7 @@ export default async function AdminUserDetailPage(
                     icon={<Cable className="h-4 w-4" />}
                   />
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[11px] sm:grid-cols-4">
+                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[12px] sm:grid-cols-4">
                   <Link href={conversationsListHref} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">گفتگوهای این کاربر</Link>
                   <Link href={tabHref('channels')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">کانال‌های فعال</Link>
                   <Link href={tabHref('knowledge')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">دانش‌نامه‌ها</Link>
@@ -915,11 +916,11 @@ export default async function AdminUserDetailPage(
                 </div>
                 {storeIntegration.lastSyncError && (
                   <div className="mt-4 rounded-xl border border-red-200 bg-red-50/70 px-4 py-3">
-                    <p className="text-[11px] font-bold text-red-800">خطای آخرین همگام‌سازی</p>
-                    <p dir="ltr" className="mt-1 break-words text-left text-[10px] leading-5 text-red-700">{storeIntegration.lastSyncError}</p>
+                    <p className="text-[12px] font-bold text-red-800">خطای آخرین همگام‌سازی</p>
+                    <p dir="ltr" className="mt-1 break-words text-left text-[12px] leading-5 text-red-700">{storeIntegration.lastSyncError}</p>
                   </div>
                 )}
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[11px] sm:grid-cols-3">
+                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[12px] sm:grid-cols-3">
                   <Link href={tabHref('products')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black"><Package className="h-3.5 w-3.5" /> محصولات فروشگاه</Link>
                   <Link href={tabHref('orders')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black"><ShoppingCart className="h-3.5 w-3.5" /> سفارش‌های همگام‌شده</Link>
                   <span className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-500"><Webhook className="h-3.5 w-3.5" /> آخرین push: {storeIntegration.lastWebhookAt ? relativeTime(storeIntegration.lastWebhookAt) : '—'}</span>
@@ -930,7 +931,7 @@ export default async function AdminUserDetailPage(
                 <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-zinc-100 text-zinc-400"><PlugZap className="h-5 w-5" /></span>
                   <p className="text-sm font-semibold text-zinc-600">افزونه‌ای نصب نشده است</p>
-                  <p className="text-[11px] text-zinc-400">این کاربر هنوز فروشگاه ووکامرسی به ویجنت متصل نکرده است.</p>
+                  <p className="text-[12px] text-zinc-400">این کاربر هنوز فروشگاه ووکامرسی به ویجنت متصل نکرده است.</p>
                 </div>
               </Panel>
               )}
@@ -980,13 +981,13 @@ export default async function AdminUserDetailPage(
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-2">
                                 <span dir="auto" className="truncate text-sm font-bold text-zinc-950">{item.who}</span>
-                                <span className="shrink-0 text-[10px] text-zinc-400">{relativeTime(item.when, 'fa')}</span>
+                                <span className="shrink-0 text-[12px] text-zinc-400">{relativeTime(item.when, 'fa')}</span>
                               </div>
                               <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">{item.preview}</p>
                               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                                 <ConversationStatusBadge status={item.displayStatus} label={item.statusLabel} attention={item.attention} />
                                 <ChannelBadge type={item.channel} />
-                                <span className="text-[10px] text-zinc-400">{fa(item.messageCount)} پیام · {item.agentName}</span>
+                                <span className="text-[12px] text-zinc-400">{fa(item.messageCount)} پیام · {item.agentName}</span>
                               </div>
                             </div>
                           </div>
@@ -1005,12 +1006,12 @@ export default async function AdminUserDetailPage(
                           <div className="min-w-0">
                             <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                               <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-zinc-800">{item.who}</span>
-                              {item.handle && item.who !== item.handle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500">@{item.handle}</span>}
-                              <span className="hidden shrink-0 text-[10px] text-zinc-400 lg:inline">ایجنت: {item.agentName}</span>
+                              {item.handle && item.who !== item.handle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-zinc-100 px-1.5 py-0.5 text-[12px] text-zinc-500">@{item.handle}</span>}
+                              <span className="hidden shrink-0 text-[12px] text-zinc-400 lg:inline">ایجنت: {item.agentName}</span>
                             </div>
                             <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">{item.preview}</p>
                           </div>
-                          <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-zinc-500">
+                          <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[12px] leading-5 text-zinc-500">
                             <ConversationStatusBadge status={item.displayStatus} label={item.statusLabel} attention={item.attention} />
                             <ChannelBadge type={item.channel} />
                             <span className="tabular-nums">{fa(item.messageCount)} پیام</span>
@@ -1020,7 +1021,7 @@ export default async function AdminUserDetailPage(
                       ))}
                     </div>
                     {ws._count.conversations > inboxItems.length && (
-                      <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[11px] text-zinc-400">{fa(inboxItems.length)} گفتگوی آخر — <Link href={conversationsListHref} className="font-bold text-zinc-600 underline">مشاهده همه</Link></p>
+                      <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[12px] text-zinc-400">{fa(inboxItems.length)} گفتگوی آخر — <Link href={conversationsListHref} className="font-bold text-zinc-600 underline">مشاهده همه</Link></p>
                     )}
                   </>
                 )}
@@ -1044,11 +1045,11 @@ export default async function AdminUserDetailPage(
                         </span>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-zinc-800">{e.isNewUser ? 'ثبت‌نام و اولین ورود' : 'ورود موفق به پنل'}</p>
-                          <p className="mt-0.5 text-[11px] text-zinc-500">{describeDevice(e.userAgent)}</p>
+                          <p className="mt-0.5 text-[12px] text-zinc-500">{describeDevice(e.userAgent)}</p>
                         </div>
                         <div className="ms-auto text-end">
-                          <p className="text-[11px] font-medium text-zinc-600">{fmtDate(e.createdAt)}</p>
-                          <p className="mt-0.5 text-[10px] text-zinc-400">
+                          <p className="text-[12px] font-medium text-zinc-600">{fmtDate(e.createdAt)}</p>
+                          <p className="mt-0.5 text-[12px] text-zinc-400">
                             {e.ip ? <span dir="ltr" className="font-mono">{e.ip}</span> : 'بدون IP'} · {relativeTime(e.createdAt, 'fa')}
                           </p>
                         </div>
@@ -1057,7 +1058,7 @@ export default async function AdminUserDetailPage(
                   </ul>
                 )}
                 {loginCount > overviewLogins.length && (
-                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[11px] text-zinc-400">{fa(overviewLogins.length)} ورود از {fa(loginCount)} — ۱۲ مورد آخر</p>
+                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[12px] text-zinc-400">{fa(overviewLogins.length)} ورود از {fa(loginCount)} — ۱۲ مورد آخر</p>
                 )}
               </Panel>
 
@@ -1119,7 +1120,7 @@ export default async function AdminUserDetailPage(
                           </span>
                           <Badge tone={kind.tone}>{kind.label}</Badge>
                           <Badge tone={sent ? 'success' : 'danger'}>{sent ? 'ارسال‌شده' : 'ناموفق'}</Badge>
-                          {s.ip && <span dir="ltr" className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">{s.ip}</span>}
+                          {s.ip && <span dir="ltr" className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[12px] text-zinc-500">{s.ip}</span>}
                           <span className="ms-auto text-xs text-zinc-500">{fmtDate(s.createdAt)} · {relativeTime(s.createdAt, 'fa')}</span>
                         </li>
                       )
@@ -1127,7 +1128,7 @@ export default async function AdminUserDetailPage(
                   </ul>
                 )}
                 {smsCount > overviewSms.length && (
-                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[11px] text-zinc-400">{fa(overviewSms.length)} پیامک از {fa(smsCount)} — ۱۲ مورد آخر</p>
+                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[12px] text-zinc-400">{fa(overviewSms.length)} پیامک از {fa(smsCount)} — ۱۲ مورد آخر</p>
                 )}
               </Panel>
             </div>
@@ -1398,7 +1399,7 @@ export default async function AdminUserDetailPage(
                 </TableShell>
               </div>
               {productsTab.total > productsTab.rows.length && (
-                <p className="text-center text-[11px] text-zinc-400">{fa(productsTab.rows.length)} محصول از {fa(productsTab.total)} — ۳۰ مورد آخر</p>
+                <p className="text-center text-[12px] text-zinc-400">{fa(productsTab.rows.length)} محصول از {fa(productsTab.total)} — ۳۰ مورد آخر</p>
               )}
             </>
           )}
@@ -1431,7 +1432,7 @@ export default async function AdminUserDetailPage(
                         </div>
                         <Badge tone={st.tone}>{st.label}</Badge>
                       </div>
-                      {o.itemsSummary && <p className="mt-2 line-clamp-2 rounded-xl bg-zinc-50 p-3 text-[11px] leading-5 text-zinc-600">{o.itemsSummary}</p>}
+                      {o.itemsSummary && <p className="mt-2 line-clamp-2 rounded-xl bg-zinc-50 p-3 text-[12px] leading-5 text-zinc-600">{o.itemsSummary}</p>}
                       <dl className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
                         <div><dt className="text-zinc-400">مبلغ</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{fmtStoreMoney(o.total, o.currency)}</dd></div>
                         <div><dt className="text-zinc-400">اقلام</dt><dd className="mt-1 font-medium text-zinc-700">{fa(o.itemCount)}</dd></div>
@@ -1471,7 +1472,7 @@ export default async function AdminUserDetailPage(
                 </TableShell>
               </div>
               {orderStats.total > ordersTab.rows.length && (
-                <p className="text-center text-[11px] text-zinc-400">{fa(ordersTab.rows.length)} سفارش از {fa(orderStats.total)} — ۳۰ مورد آخر</p>
+                <p className="text-center text-[12px] text-zinc-400">{fa(ordersTab.rows.length)} سفارش از {fa(orderStats.total)} — ۳۰ مورد آخر</p>
               )}
             </>
           )}

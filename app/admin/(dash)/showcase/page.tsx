@@ -89,7 +89,7 @@ export default async function AdminShowcasePage() {
                                 <AdminShowcaseManager initialEntries={rows} />
                         </Card>
 
-                        <p className="text-[11px] leading-6 text-zinc-400">
+                        <p className="text-[12px] leading-6 text-zinc-400">
                                 {withInstagram > 0
                                         ? `${fa(withInstagram)} مشتری اینستاگرامی ثبت شده است.`
                                         : 'هنوز مشتری اینستاگرامی ثبت نشده است.'}{' '}
@@ -102,7 +102,7 @@ export default async function AdminShowcasePage() {
                                 </div>
                         </Card>
 
-                        <p className="text-[11px] leading-6 text-zinc-400">
+                        <p className="text-[12px] leading-6 text-zinc-400">
                                 {activeLogos > 0
                                         ? `${fa(activeLogos)} لوگوی فعال در بخش «اعتماد بهترین‌های صنعت» بالای صفحه اصلی نمایش داده می‌شود.`
                                         : 'هنوز لوگوی فعالی ثبت نشده است؛ بخش اعتماد تا اولین لوگوی فعال روی صفحه اصلی مخفی است.'}{' '}

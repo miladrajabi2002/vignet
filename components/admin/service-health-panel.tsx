@@ -100,8 +100,8 @@ export function ServiceHealthPanel() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-black text-black">نقشه سلامت سرویس‌ها</p>
-          <p className="mt-1 text-[11px] text-black/45">پروب زنده دیتابیس، Redis، صف‌ها، فضای ذخیره‌سازی و Provider</p>
+          <p className="text-sm font-bold text-black">نقشه سلامت سرویس‌ها</p>
+          <p className="mt-1 text-[12px] text-[var(--text-muted)]">پروب زنده دیتابیس، Redis، صف‌ها، فضای ذخیره‌سازی و Provider</p>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={loading} className="admin-toolbar-button">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -115,14 +115,14 @@ export function ServiceHealthPanel() {
         {services.map(({ key, label, icon: Icon, value }) => {
           const meta = STATE_META[value.state]
           return (
-            <article key={key} className={cn('rounded-[1.35rem] border p-4 shadow-[0_14px_38px_-34px_rgba(0,0,0,.7)]', meta.panel)}>
+            <article key={key} className={cn('rounded-card border p-4 shadow-[var(--elev-1)]', meta.panel)}>
               <div className="flex items-start justify-between gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-white text-black shadow-sm"><Icon className="h-4 w-4" /></span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white/80 px-2 py-1 text-[10px] font-bold text-black/55"><span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />{meta.label}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white/80 px-2 py-1 text-[12px] font-bold text-[var(--text-secondary)]"><span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />{meta.label}</span>
               </div>
-              <h3 className="mt-4 text-sm font-black text-black">{label}</h3>
-              <p className="mt-1 min-h-9 text-[11px] leading-5 text-black/50">{value.detail}</p>
-              <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-black/40">
+              <h3 className="mt-4 text-sm font-bold text-black">{label}</h3>
+              <p className="mt-1 min-h-9 text-[12px] leading-5 text-[var(--text-muted)]">{value.detail}</p>
+              <div className="mt-3 flex items-center justify-between gap-2 text-[12px] text-[var(--text-muted)]">
                 <span>{value.latencyMs === null ? '—' : `${value.latencyMs.toLocaleString('fa-IR')} میلی‌ثانیه`}</span>
                 {typeof value.creditsRemainingUSD === 'number' && <span>${value.creditsRemainingUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })} اعتبار</span>}
               </div>
@@ -132,34 +132,34 @@ export function ServiceHealthPanel() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
-        <section className="admin-panel overflow-hidden rounded-[1.5rem]">
+        <section className="admin-panel overflow-hidden rounded-card">
           <div className="flex items-center gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-black text-white"><ServerCog className="h-4 w-4" /></span>
-            <div><h3 className="text-sm font-black text-black">صف‌ها و پردازشگرها</h3><p className="mt-0.5 text-[10px] text-black/40">حالت اجرا: {data?.queueMode === 'inline' ? 'درون‌خطی؛ بدون پردازشگر جدا' : 'پردازشگر صف فعال'}</p></div>
-            {data && <span className="ms-auto rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-800">{data.queueSummary.failed.toLocaleString('fa-IR')} ناموفق</span>}
+            <div><h3 className="text-sm font-bold text-black">صف‌ها و پردازشگرها</h3><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">حالت اجرا: {data?.queueMode === 'inline' ? 'درون‌خطی؛ بدون پردازشگر جدا' : 'پردازشگر صف فعال'}</p></div>
+            {data && <span className="ms-auto rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-bold text-zinc-800">{data.queueSummary.failed.toLocaleString('fa-IR')} ناموفق</span>}
           </div>
           <div className="grid gap-2 p-3 md:hidden">
             {(data?.queues ?? []).map((queue) => (
               <article key={queue.name} className="rounded-2xl border border-black/[0.07] bg-zinc-50 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="truncate text-xs font-black text-black">{QUEUE_LABELS[queue.name] ?? queue.name}</h4>
-                  <span className={cn('rounded-full px-2 py-1 text-[10px] font-bold', queue.failed > 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700')}>{queue.failed.toLocaleString('fa-IR')} ناموفق</span>
+                  <h4 className="truncate text-xs font-bold text-black">{QUEUE_LABELS[queue.name] ?? queue.name}</h4>
+                  <span className={cn('rounded-full px-2 py-1 text-[12px] font-bold', queue.failed > 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700')}>{queue.failed.toLocaleString('fa-IR')} ناموفق</span>
                 </div>
                 <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div><dt className="text-[9px] text-black/35">فعال</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.active.toLocaleString('fa-IR')}</dd></div>
-                  <div><dt className="text-[9px] text-black/35">در انتظار</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.waiting.toLocaleString('fa-IR')}</dd></div>
-                  <div><dt className="text-[9px] text-black/35">با تأخیر</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.delayed.toLocaleString('fa-IR')}</dd></div>
+                  <div><dt className="text-[12px] text-[var(--text-muted)]">فعال</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.active.toLocaleString('fa-IR')}</dd></div>
+                  <div><dt className="text-[12px] text-[var(--text-muted)]">در انتظار</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.waiting.toLocaleString('fa-IR')}</dd></div>
+                  <div><dt className="text-[12px] text-[var(--text-muted)]">با تأخیر</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.delayed.toLocaleString('fa-IR')}</dd></div>
                 </dl>
               </article>
             ))}
-            {data && data.queues.length === 0 && <p className="py-6 text-center text-xs text-black/40">{data.queueMode === 'inline' ? 'صف‌ها در حالت Inline اجرا می‌شوند.' : 'اطلاعات صف دریافت نشد.'}</p>}
+            {data && data.queues.length === 0 && <p className="py-6 text-center text-xs text-[var(--text-muted)]">{data.queueMode === 'inline' ? 'صف‌ها در حالت Inline اجرا می‌شوند.' : 'اطلاعات صف دریافت نشد.'}</p>}
           </div>
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] text-xs">
-              <thead className="bg-black/[0.025] text-[10px] text-black/40"><tr><th className="px-5 py-3 text-start">صف</th><th className="px-3 py-3">فعال</th><th className="px-3 py-3">در انتظار</th><th className="px-3 py-3">با تأخیر</th><th className="px-3 py-3">ناموفق</th><th className="px-3 py-3">تکمیل</th></tr></thead>
+              <thead className="bg-black/[0.025] text-[12px] text-[var(--text-muted)]"><tr><th className="px-5 py-3 text-start">صف</th><th className="px-3 py-3">فعال</th><th className="px-3 py-3">در انتظار</th><th className="px-3 py-3">با تأخیر</th><th className="px-3 py-3">ناموفق</th><th className="px-3 py-3">تکمیل</th></tr></thead>
               <tbody className="divide-y divide-black/[0.055]">
-                {(data?.queues ?? []).map((queue) => <tr key={queue.name}><td className="px-5 py-3 font-bold text-black">{QUEUE_LABELS[queue.name] ?? queue.name}</td><td className="px-3 py-3 text-center tabular-nums">{queue.active.toLocaleString('fa-IR')}</td><td className="px-3 py-3 text-center tabular-nums">{queue.waiting.toLocaleString('fa-IR')}</td><td className="px-3 py-3 text-center tabular-nums">{queue.delayed.toLocaleString('fa-IR')}</td><td className={cn('px-3 py-3 text-center font-bold tabular-nums', queue.failed > 0 && 'text-red-600')}>{queue.failed.toLocaleString('fa-IR')}</td><td className="px-3 py-3 text-center tabular-nums text-black/45">{queue.completed.toLocaleString('fa-IR')}</td></tr>)}
-                {data && data.queues.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-black/40">{data.queueMode === 'inline' ? 'صف‌ها در حالت Inline اجرا می‌شوند.' : 'اطلاعات صف دریافت نشد.'}</td></tr>}
+                {(data?.queues ?? []).map((queue) => <tr key={queue.name}><td className="px-5 py-3 font-bold text-black">{QUEUE_LABELS[queue.name] ?? queue.name}</td><td className="px-3 py-3 text-center tabular-nums">{queue.active.toLocaleString('fa-IR')}</td><td className="px-3 py-3 text-center tabular-nums">{queue.waiting.toLocaleString('fa-IR')}</td><td className="px-3 py-3 text-center tabular-nums">{queue.delayed.toLocaleString('fa-IR')}</td><td className={cn('px-3 py-3 text-center font-bold tabular-nums', queue.failed > 0 && 'text-red-600')}>{queue.failed.toLocaleString('fa-IR')}</td><td className="px-3 py-3 text-center tabular-nums text-[var(--text-muted)]">{queue.completed.toLocaleString('fa-IR')}</td></tr>)}
+                {data && data.queues.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-[var(--text-muted)]">{data.queueMode === 'inline' ? 'صف‌ها در حالت Inline اجرا می‌شوند.' : 'اطلاعات صف دریافت نشد.'}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -167,39 +167,39 @@ export function ServiceHealthPanel() {
             {(data?.queues ?? []).filter((queue) => queue.failedJobs.length > 0).map((queue) => (
               <details key={`logs-${queue.name}`} className="group overflow-hidden rounded-2xl border border-black/[0.08] bg-zinc-50/70">
                 <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1"><p className="text-xs font-bold text-black">لاگ ناموفق · {QUEUE_LABELS[queue.name] ?? queue.name}</p><p className="mt-0.5 text-[10px] text-black/40">{queue.failedJobs.length.toLocaleString('fa-IR')} مورد اخیر برای بررسی</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs font-bold text-black">لاگ ناموفق · {QUEUE_LABELS[queue.name] ?? queue.name}</p><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{queue.failedJobs.length.toLocaleString('fa-IR')} مورد اخیر برای بررسی</p></div>
                   <div className="flex flex-wrap justify-end gap-2">
-                    <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'retryFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[10px]">{queueAction === `${queue.name}:retryFailed` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} تلاش مجدد</button>
-                    <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'clearFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[10px]">پاک‌کردن لاگ</button>
+                    <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'retryFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[12px]">{queueAction === `${queue.name}:retryFailed` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} تلاش مجدد</button>
+                    <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'clearFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[12px]">پاک‌کردن لاگ</button>
                   </div>
                 </summary>
                 <div className="space-y-2 border-t border-black/[0.06] p-3">
                   {queue.failedJobs.map((job) => (
                     <details key={job.id} className="rounded-xl border border-black/[0.07] bg-white p-3">
-                      <summary className="cursor-pointer list-none text-xs"><span className="font-bold text-black">{job.name}</span><span className="mx-2 text-black/25">·</span><span className="text-black/55">{job.failedReason}</span><span className="ms-2 text-[10px] text-black/35">{formatLocalizedDateTime(job.finishedOn ?? job.timestamp, 'fa')}</span></summary>
-                      <div className="mt-3 grid gap-2 lg:grid-cols-2"><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black p-3 text-left text-[10px] leading-5 text-white/70">{job.stacktrace.join('\n') || job.failedReason}</pre><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-black/[0.08] bg-zinc-50 p-3 text-left text-[10px] leading-5 text-black/60">{JSON.stringify(job.data, null, 2)}</pre></div>
+                      <summary className="cursor-pointer list-none text-xs"><span className="font-bold text-black">{job.name}</span><span className="mx-2 text-[var(--text-muted)]">·</span><span className="text-[var(--text-secondary)]">{job.failedReason}</span><span className="ms-2 text-[12px] text-[var(--text-muted)]">{formatLocalizedDateTime(job.finishedOn ?? job.timestamp, 'fa')}</span></summary>
+                      <div className="mt-3 grid gap-2 lg:grid-cols-2"><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black p-3 text-left text-[12px] leading-5 text-white/70">{job.stacktrace.join('\n') || job.failedReason}</pre><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-black/[0.08] bg-zinc-50 p-3 text-left text-[12px] leading-5 text-[var(--text-secondary)]">{JSON.stringify(job.data, null, 2)}</pre></div>
                     </details>
                   ))}
                 </div>
               </details>
             ))}
-            {data && data.queues.every((queue) => queue.failedJobs.length === 0) && <p className="py-4 text-center text-xs text-black/40">لاگ ناموفقی برای نمایش وجود ندارد.</p>}
+            {data && data.queues.every((queue) => queue.failedJobs.length === 0) && <p className="py-4 text-center text-xs text-[var(--text-muted)]">لاگ ناموفقی برای نمایش وجود ندارد.</p>}
           </div>
         </section>
 
-        <section className="admin-panel rounded-[1.5rem] p-4 sm:p-5">
-          <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-black text-white"><Bot className="h-4 w-4" /></span><div><h3 className="text-sm font-black text-black">شبکه‌های اجتماعی</h3><p className="mt-0.5 text-[10px] text-black/40">اتصال‌های ثبت‌شده در پلتفرم</p></div></div>
+        <section className="admin-panel rounded-card p-4 sm:p-5">
+          <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-black text-white"><Bot className="h-4 w-4" /></span><div><h3 className="text-sm font-bold text-black">شبکه‌های اجتماعی</h3><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">اتصال‌های ثبت‌شده در پلتفرم</p></div></div>
           <div className="mt-4 space-y-2">
-            {(data?.channels ?? []).map((channel) => <div key={`${channel.type}-${channel.active}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-black/[0.06] bg-black/[0.018] px-3"><span className={cn('h-2 w-2 rounded-full', channel.active ? 'bg-emerald-500' : 'bg-zinc-300')} /><span className="text-xs font-semibold text-black/65">{CHANNEL_LABELS[channel.type] ?? channel.type}</span><span className="ms-auto text-xs font-bold tabular-nums text-black">{channel.count.toLocaleString('fa-IR')}</span></div>)}
-            {data && data.channels.length === 0 && <p className="py-6 text-center text-xs text-black/40">کانالی ثبت نشده است.</p>}
+            {(data?.channels ?? []).map((channel) => <div key={`${channel.type}-${channel.active}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-black/[0.06] bg-black/[0.018] px-3"><span className={cn('h-2 w-2 rounded-full', channel.active ? 'bg-emerald-500' : 'bg-zinc-300')} /><span className="text-xs font-semibold text-[var(--text-secondary)]">{CHANNEL_LABELS[channel.type] ?? channel.type}</span><span className="ms-auto text-xs font-bold tabular-nums text-black">{channel.count.toLocaleString('fa-IR')}</span></div>)}
+            {data && data.channels.length === 0 && <p className="py-6 text-center text-xs text-[var(--text-muted)]">کانالی ثبت نشده است.</p>}
           </div>
         </section>
       </div>
 
       {data && data.attention.length > 0 && (
-        <section className="rounded-[1.4rem] border border-black/10 bg-zinc-50 p-4">
-          <div className="flex items-center gap-2 text-xs font-black text-black"><ServerCog className="h-4 w-4" /> موارد نیازمند توجه</div>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">{data.attention.map((item) => <li key={item} className="flex items-center gap-2 text-xs text-black/65"><span className="h-1.5 w-1.5 rounded-full bg-black" />{item}</li>)}</ul>
+        <section className="rounded-card border border-black/10 bg-zinc-50 p-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-black"><ServerCog className="h-4 w-4" /> موارد نیازمند توجه</div>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">{data.attention.map((item) => <li key={item} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-black" />{item}</li>)}</ul>
         </section>
       )}
     </div>

@@ -46,7 +46,7 @@ export function AdminFilterSheet({
         <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
         {title}
         {activeCount > 0 && (
-          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-black px-1 text-[9px] text-white">
+          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-black px-1 text-[12px] text-white">
             {activeCount.toLocaleString('fa-IR')}
           </span>
         )}

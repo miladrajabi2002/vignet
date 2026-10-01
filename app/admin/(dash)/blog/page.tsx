@@ -136,7 +136,7 @@ export default async function AdminBlogPage() {
             <ul className="space-y-2.5">
               {topPostsByViews.map((p, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[11px] font-bold text-zinc-600">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[12px] font-bold text-zinc-600">
                     {fa(i + 1)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-zinc-700">{p.title}</span>

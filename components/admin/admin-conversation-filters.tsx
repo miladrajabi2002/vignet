@@ -169,15 +169,15 @@ export function AdminConversationFilters({
             aria-expanded={filterOpen}
             aria-label="فیلترهای گفتگو"
             className={cn(
-              'relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
+              'relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
               activeFacetCount > 0
                 ? 'border-black bg-black text-white'
-                : 'border-black/10 text-black/55',
+                : 'border-black/10 text-[var(--text-secondary)]',
             )}
           >
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
             {activeFacetCount > 0 && (
-              <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[10px] font-bold tabular-nums text-black">
+              <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[12px] font-bold tabular-nums text-black">
                 {nf.format(activeFacetCount)}
               </span>
             )}
@@ -243,7 +243,7 @@ export function AdminConversationFilters({
           }
           aria-pressed={activeStatus === 'HANDED_OFF'}
           className={cn(
-            'inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.75rem] border px-3 text-xs font-semibold transition-[background-color,border-color,color] duration-150',
+            'inline-flex min-h-11 items-center justify-center gap-2 rounded-control border px-3 text-xs font-semibold transition-[background-color,border-color,color] duration-150',
             activeStatus === 'HANDED_OFF'
               ? 'border-amber-400 bg-amber-400 text-black'
               : 'border-amber-400/25 bg-amber-400/[0.08] text-amber-700 hover:bg-amber-400/[0.14]',
@@ -251,7 +251,7 @@ export function AdminConversationFilters({
         >
           <MessageCircleWarning className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden lg:inline">تحویل به اپراتور</span>
-          <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] tabular-nums">
+          <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[12px] tabular-nums">
             {nf.format(operatorCount)}
           </span>
         </button>
@@ -261,7 +261,7 @@ export function AdminConversationFilters({
             type="button"
             onClick={clearAll}
             aria-label="پاک‌کردن فیلترها"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-[0.75rem] border border-black/[0.08] bg-white text-black/45 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-control border border-black/[0.08] bg-white text-[var(--text-muted)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -282,14 +282,14 @@ export function AdminConversationFilters({
               type="button"
               onClick={clearAll}
               disabled={!hasActiveFilter}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-black/10 px-4 text-xs font-semibold text-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 disabled:opacity-40"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-black/10 px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"
             >
               پاک‌کردن
             </button>
             <button
               type="button"
               onClick={() => setFilterOpen(false)}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               نمایش نتایج ({nf.format(resultCount)})
             </button>
@@ -354,12 +354,12 @@ function AdminSearchField({
     <div className={cn('relative min-w-0 flex-1', className)}>
       {loading ? (
         <Loader2
-          className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-black/30 motion-reduce:animate-none"
+          className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none"
           aria-hidden="true"
         />
       ) : (
         <Search
-          className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30"
+          className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
           aria-hidden="true"
         />
       )}
@@ -378,7 +378,7 @@ function AdminSearchField({
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-black/30 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+          className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
           aria-label={clearLabel}
         >
           <X className="h-4 w-4" aria-hidden="true" />
@@ -399,7 +399,7 @@ function ActiveFilterChip({
     <button
       type="button"
       onClick={onRemove}
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
     >
       <span className="max-w-36 truncate">{label}</span>
       <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -416,7 +416,7 @@ function FilterField({
 }) {
   return (
     <div>
-      <span className="mb-1.5 block text-xs font-semibold text-black/60">{label}</span>
+      <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{label}</span>
       {children}
     </div>
   )

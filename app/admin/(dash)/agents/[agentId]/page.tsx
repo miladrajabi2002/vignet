@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowRight, Bot, BrainCircuit, Cable, MessageSquare, WalletCards } from 'lucide-react'
+import { Bot, BrainCircuit, Cable, MessageSquare, WalletCards } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { TrendChart } from '@/components/admin/trend-chart'
@@ -56,14 +56,14 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
       <PageHeader
         title={agent.name}
         subtitle={`${agent.workspace.name} · جزئیات عملکرد و پیکربندی ایجنت`}
-        action={<Link href="/admin/agents" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"><ArrowRight className="h-4 w-4" /> بازگشت</Link>}
+        back={{ href: '/admin/agents', label: 'ایجنت‌ها' }}
       />
 
-      <div className="relative overflow-hidden rounded-[28px] bg-black p-5 text-white sm:p-6">
+      <div className="relative overflow-hidden rounded-sheet bg-black p-5 text-white sm:p-6">
         <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-white/[0.08] blur-3xl" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="relative grid h-16 w-16 place-items-center rounded-3xl border border-white/15 bg-white/10"><Bot className="h-8 w-8" /><span className="absolute inset-0 rounded-3xl border border-white/10 motion-safe:animate-ping" /></div>
-          <div className="flex-1"><div className="flex items-center gap-2"><h2 className="text-xl font-black">{agent.name}</h2><span className="rounded-full border border-white/20 px-2 py-1 text-[10px]">{agent.active ? 'فعال' : 'غیرفعال'}</span></div><p className="mt-2 max-w-2xl text-sm leading-7 text-white/60">{agent.description || 'توضیحی برای این ایجنت ثبت نشده است.'}</p></div>
+          <div className="flex-1"><div className="flex items-center gap-2"><h2 className="text-xl font-bold">{agent.name}</h2><span className="rounded-full border border-white/20 px-2 py-1 text-[12px]">{agent.active ? 'فعال' : 'غیرفعال'}</span></div></div>
           <div className="grid grid-cols-2 gap-2 text-xs text-white/65"><span>مدل: {agent.model || 'پیش‌فرض'}</span><span>زبان: {agent.language}</span></div>
         </div>
       </div>

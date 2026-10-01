@@ -101,7 +101,7 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
         <div className="flex flex-wrap items-center justify-end gap-2">
           <form action="/admin/system" method="get" className="flex min-w-0 flex-1 items-end gap-2 sm:flex-initial">
             <div className="min-w-0 flex-1 sm:w-72">
-              <label htmlFor="error-log-search" className="mb-1 block text-[11px] font-medium text-zinc-600">
+              <label htmlFor="error-log-search" className="mb-1 block text-[12px] font-medium text-zinc-600">
                 جست‌وجو در پیام، منبع یا workspace
               </label>
               <div className="relative">
@@ -117,7 +117,7 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
               </div>
             </div>
             {activeLevel ? <input type="hidden" name="errorLevel" value={activeLevel} /> : null}
-            <button type="submit" className="min-h-11 shrink-0 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2">
+            <button type="submit" className="min-h-11 shrink-0 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
               جست‌وجو
             </button>
           </form>
@@ -155,17 +155,17 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
                   <LevelBadge level={error.level} />
                   <span className="text-xs text-zinc-500">{error.source ?? '—'}</span>
                   {spark && <span className="hidden sm:inline-block"><Sparkline data={spark.series} color="#18181b" width={64} height={20} /></span>}
-                  <span className="ms-auto text-[11px] text-zinc-400">{fmtDate(error.createdAt)}</span>
+                  <span className="ms-auto text-[12px] text-zinc-400">{fmtDate(error.createdAt)}</span>
                 </summary>
                 <p className="mt-2 text-sm text-zinc-700">{error.message}</p>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-zinc-500" dir="ltr">
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[12px] text-zinc-500" dir="ltr">
                   <span>event: {error.id}</span>
                   <time dateTime={error.createdAt.toISOString()}>{error.createdAt.toISOString()}</time>
                 </div>
                 {error.workspaceId && <p className="mt-1 text-xs text-zinc-400">workspace: {error.workspaceId}</p>}
                 {error.metadata && (
                   <div className="mt-2">
-                    <p className="mb-1 text-[11px] font-semibold text-zinc-500">متادیتای رخداد</p>
+                    <p className="mb-1 text-[12px] font-semibold text-zinc-500">متادیتای رخداد</p>
                     <pre dir="ltr" className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-700">
                       {JSON.stringify(error.metadata, null, 2)}
                     </pre>

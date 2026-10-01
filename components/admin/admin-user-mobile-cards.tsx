@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { CopyButton } from '@/components/ui/copy-button'
-import { cn } from '@/lib/utils'
+import { LEGACY_TONE, StatusChip } from '@/components/ui/status-chip'
 
 type Tone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
@@ -39,23 +39,8 @@ export interface AdminMobileUser {
   }
 }
 
-const TONE_CLASSES: Record<Tone, { badge: string; dot: string }> = {
-  default: { badge: 'bg-zinc-900 text-white', dot: 'bg-white' },
-  info: { badge: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200', dot: 'bg-blue-500' },
-  muted: { badge: 'bg-zinc-100 text-zinc-600', dot: 'bg-zinc-400' },
-  success: { badge: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', dot: 'bg-emerald-500' },
-  warning: { badge: 'bg-amber-50 text-amber-800 ring-1 ring-amber-200', dot: 'bg-amber-500' },
-  danger: { badge: 'bg-red-50 text-red-700 ring-1 ring-red-200', dot: 'bg-red-500' },
-}
-
 function StatusBadge({ label, tone }: { label: string; tone: Tone }) {
-  const styles = TONE_CLASSES[tone]
-  return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold', styles.badge)}>
-      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', styles.dot)} aria-hidden="true" />
-      {label}
-    </span>
-  )
+  return <StatusChip tone={LEGACY_TONE[tone] ?? 'neutral'} dot>{label}</StatusChip>
 }
 
 export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
@@ -79,7 +64,7 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
             type="button"
             onClick={(event) => openDetails(event, user.id)}
             aria-haspopup="dialog"
-            className="spatial-press w-full rounded-2xl border border-black/[0.07] bg-white p-4 text-start shadow-[var(--shadow-soft)] outline-none transition-[border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-black/50"
+            className="spatial-press w-full rounded-2xl border border-black/[0.07] bg-white p-4 text-start shadow-[var(--shadow-soft)] outline-none transition-[border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <span className="flex items-start gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-600">
@@ -98,15 +83,15 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
                   <StatusBadge label={user.workspace.statusLabel} tone={user.workspace.statusTone} />
                 </span>
                 <span className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <span><span className="block text-[11px] text-zinc-500">اتصال</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.connections}</strong></span>
-                  <span><span className="block text-[11px] text-zinc-500">گفتگو</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.conversations}</strong></span>
-                  <span><span className="block text-[11px] text-zinc-500">محصول</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.products}</strong></span>
+                  <span><span className="block text-[12px] text-zinc-500">اتصال</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.connections}</strong></span>
+                  <span><span className="block text-[12px] text-zinc-500">گفتگو</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.conversations}</strong></span>
+                  <span><span className="block text-[12px] text-zinc-500">محصول</span><strong className="mt-1 block text-sm tabular-nums text-zinc-900">{user.workspace.counts.products}</strong></span>
                 </span>
               </span>
             )}
 
             <span className="mt-3 flex min-h-11 items-center justify-between border-t border-zinc-100 pt-3">
-              <span className="text-[11px] text-zinc-500">عضویت: {user.joinedAt}</span>
+              <span className="text-[12px] text-zinc-500">عضویت: {user.joinedAt}</span>
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-900">
                 جزئیات سریع
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -137,13 +122,13 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
       >
         {selected && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1" role="tablist" aria-label="بخش‌های جزئیات کاربر">
+            <div className="ui-seg grid-cols-2" role="tablist" aria-label="بخش‌های جزئیات کاربر">
               <button
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'overview'}
                 onClick={() => setActiveTab('overview')}
-                className={cn('min-h-11 rounded-lg px-3 text-xs font-bold transition-colors', activeTab === 'overview' ? 'bg-white text-black shadow-sm' : 'text-zinc-500')}
+                className="ui-seg-tab px-3 text-xs"
               >
                 اطلاعات کلی
               </button>
@@ -152,7 +137,7 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
                 role="tab"
                 aria-selected={activeTab === 'relations'}
                 onClick={() => setActiveTab('relations')}
-                className={cn('min-h-11 rounded-lg px-3 text-xs font-bold transition-colors', activeTab === 'relations' ? 'bg-white text-black shadow-sm' : 'text-zinc-500')}
+                className="ui-seg-tab px-3 text-xs"
               >
                 زیرمجموعه‌ها
               </button>
@@ -164,15 +149,15 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-600"><Phone className="h-4 w-4" aria-hidden="true" /></span>
-                      <div className="min-w-0"><p className="text-[11px] text-zinc-500">شماره تلفن</p><p dir="ltr" className="mt-1 truncate text-start text-sm font-bold text-zinc-900">{selected.phone}</p></div>
+                      <div className="min-w-0"><p className="text-[12px] text-zinc-500">شماره تلفن</p><p dir="ltr" className="mt-1 truncate text-start text-sm font-bold text-zinc-900">{selected.phone}</p></div>
                     </div>
                     <CopyButton value={selected.phone} label="کپی شماره تلفن" copiedLabel="شماره کپی شد" />
                   </div>
                 </section>
 
                 <section className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-zinc-200 p-4"><CalendarDays className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[11px] text-zinc-500">تاریخ عضویت</p><p className="mt-1 text-xs font-bold text-zinc-900">{selected.joinedAt}</p></div>
-                  <div className="rounded-2xl border border-zinc-200 p-4"><Package className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[11px] text-zinc-500">محصولات</p><p className="mt-1 text-xs font-bold text-zinc-900">{selected.workspace?.counts.products ?? '—'}</p></div>
+                  <div className="rounded-2xl border border-zinc-200 p-4"><CalendarDays className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[12px] text-zinc-500">تاریخ عضویت</p><p className="mt-1 text-xs font-bold text-zinc-900">{selected.joinedAt}</p></div>
+                  <div className="rounded-2xl border border-zinc-200 p-4"><Package className="h-4 w-4 text-zinc-500" aria-hidden="true" /><p className="mt-3 text-[12px] text-zinc-500">محصولات</p><p className="mt-1 text-xs font-bold text-zinc-900">{selected.workspace?.counts.products ?? '—'}</p></div>
                 </section>
 
                 {selected.workspace && (
@@ -218,7 +203,7 @@ function RelationCard({
   return (
     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
       <Icon className="h-5 w-5 text-zinc-500" aria-hidden="true" />
-      <p className="mt-4 text-[11px] text-zinc-500">{label}</p>
+      <p className="mt-4 text-[12px] text-zinc-500">{label}</p>
       <strong className="mt-1 block text-xl tabular-nums text-zinc-950">{value}</strong>
     </div>
   )

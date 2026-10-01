@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
-import { ADMIN_VISIBLE_WORKSPACE_WHERE, adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
+import { adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 export interface DailyPoint {
@@ -259,26 +259,6 @@ export interface Slice {
         value: number
 }
 
-/** Workspace count grouped by plan. */
-export async function planDistribution(): Promise<Slice[]> {
-        const rows = await prisma.workspace.groupBy({
-                by: ['plan'],
-                where: ADMIN_VISIBLE_WORKSPACE_WHERE,
-                _count: { _all: true },
-        })
-        const labels: Record<string, string> = {
-                TRIAL: 'آزمایشی',
-                STARTER: 'استارتر',
-                PRO: 'حرفه‌ای',
-                BUSINESS: 'سازمانی',
-        }
-        return rows.map((r) => ({
-                key: r.plan,
-                label: labels[r.plan] ?? r.plan,
-                value: r._count._all,
-        }))
-}
-
 /** One revenue slice per subscription plan (successful payments only). */
 export interface PlanRevenueSlice {
         key: string
@@ -289,19 +269,15 @@ export interface PlanRevenueSlice {
 
 /**
  * Collected subscription revenue grouped by plan, all-time, in IRR.
- * USD payments are converted with the platform commercial rate (DB
- * override first, then FINANCE_USD_TO_IRR env) — matching the finance
+ * USD payments are converted with the USD rate set in the admin panel
+ * (platform commercial config) — matching the finance
  * summary on this dashboard. Hidden workspaces are excluded.
  */
 export async function revenueByPlan(): Promise<PlanRevenueSlice[]> {
         const commercialConfig = await getPlatformCommercialConfig()
-        const usdToIrr =
-                (commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
-                        ? commercialConfig.financeUsdToIRR
-                        : null) ??
-                (Number(process.env.FINANCE_USD_TO_IRR) > 0
-                        ? Math.round(Number(process.env.FINANCE_USD_TO_IRR))
-                        : 0)
+        const usdToIrr = commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
+                ? commercialConfig.financeUsdToIRR
+                : 0
 
         const rows = await prisma.$queryRaw<{
                 plan: string | null
@@ -327,7 +303,7 @@ export async function revenueByPlan(): Promise<PlanRevenueSlice[]> {
                 TRIAL: 'آزمایشی',
                 STARTER: 'استارتر',
                 PRO: 'حرفه‌ای',
-                BUSINESS: 'سازمانی',
+                BUSINESS: 'بیزینس',
         }
         return rows.map((r) => ({
                 key: r.plan ?? 'UNKNOWN',
@@ -557,18 +533,13 @@ export interface NetRevenuePoint {
 export async function revenueNetDaily(days = 7): Promise<NetRevenuePoint[]> {
         const since = new Date(Date.now() - days * 86_400_000)
 
-        // Resolve USD→IRR rate from platform commercial config (DB override)
-        // falling back to FINANCE_USD_TO_IRR env var. When neither is set we
+        // Resolve the USD→IRR rate set in the admin panel. When it is not set we
         // can't compute a meaningful net, so we report cost as 0 and surface
         // only the gross number — better than silently using a wrong rate.
         const commercialConfig = await getPlatformCommercialConfig()
-        const usdToIrr =
-                (commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
-                        ? commercialConfig.financeUsdToIRR
-                        : null) ??
-                (Number(process.env.FINANCE_USD_TO_IRR) > 0
-                        ? Math.round(Number(process.env.FINANCE_USD_TO_IRR))
-                        : 0)
+        const usdToIrr = commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
+                ? commercialConfig.financeUsdToIRR
+                : 0
 
         const rows = await prisma.$queryRaw<{ d: string; gross: bigint; costUSD: number | null }[]>`
     SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,

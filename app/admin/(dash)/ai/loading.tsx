@@ -12,7 +12,7 @@ export default function AdminAiLoading() {
       </span>
       <PageHeaderSkeleton />
 
-      <div className="admin-card spatial-surface overflow-hidden rounded-[1.5rem] p-0">
+      <div className="admin-card spatial-surface overflow-hidden rounded-card p-0">
         <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-4 border-b border-zinc-200 p-5 sm:p-6 lg:border-b-0 lg:border-l">
             <div className="flex items-start gap-4">

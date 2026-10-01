@@ -71,25 +71,25 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
 
   if (!items.length) {
     return (
-      <div className="spatial-surface rounded-[1.5rem] px-6 py-20 text-center">
+      <div className="spatial-surface rounded-card px-6 py-20 text-center">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-black text-white">
           <Mail className="h-5 w-5" />
         </span>
         <h2 className="mt-4 text-base font-bold text-black">صندوق خالی است</h2>
-        <p className="mt-1 text-sm text-black/45">اولین پیام info@vigent.ir اینجا نمایش داده می‌شود.</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">اولین پیام info@vigent.ir اینجا نمایش داده می‌شود.</p>
       </div>
     )
   }
 
   return (
     <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:min-h-[36rem] lg:grid-cols-[minmax(17rem,.78fr)_minmax(0,1.4fr)]">
-      <section aria-label="فهرست ایمیل‌ها" className={cn('spatial-surface overflow-hidden rounded-[1.5rem]', mobileDetailOpen ? 'hidden lg:block' : 'block')}>
+      <section aria-label="فهرست ایمیل‌ها" className={cn('spatial-surface overflow-hidden rounded-card', mobileDetailOpen ? 'hidden lg:block' : 'block')}>
         <div className="flex items-center justify-between border-b border-black/[0.07] px-4 py-3.5">
           <div>
             <h2 className="text-sm font-bold text-black">پیام‌ها</h2>
-            <p className="mt-0.5 text-[11px] text-black/40">جدیدترین پیام‌ها در بالا</p>
+            <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">جدیدترین پیام‌ها در بالا</p>
           </div>
-          <span className="rounded-full bg-black px-2.5 py-1 text-[10px] font-bold text-white">
+          <span className="rounded-full bg-black px-2.5 py-1 text-[12px] font-bold text-white">
             {items.filter((item) => !item.readAt).length.toLocaleString('fa-IR')} خوانده‌نشده
           </span>
         </div>
@@ -108,7 +108,7 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
               >
                 <span className={cn(
                   'grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-bold',
-                  active ? 'bg-white/12 text-white' : 'bg-black/[0.055] text-black/65',
+                  active ? 'bg-white/12 text-white' : 'bg-black/[0.055] text-[var(--text-secondary)]',
                 )}>
                   {senderInitial(item.from)}
                 </span>
@@ -120,10 +120,10 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
                   <span className={cn('mt-1 block truncate text-sm', item.readAt ? 'font-medium' : 'font-bold')}>
                     {item.subject}
                   </span>
-                  <span className={cn('mt-1 line-clamp-2 text-[11px] leading-5', active ? 'text-white/58' : 'text-black/40')}>
+                  <span className={cn('mt-1 line-clamp-2 text-[12px] leading-5', active ? 'text-white/58' : 'text-[var(--text-muted)]')}>
                     {item.preview}
                   </span>
-                  <span className={cn('mt-2 flex items-center gap-2 text-[10px]', active ? 'text-white/45' : 'text-black/35')}>
+                  <span className={cn('mt-2 flex items-center gap-2 text-[12px]', active ? 'text-white/60' : 'text-[var(--text-muted)]')}>
                     {formatLocalizedDateTime(item.receivedAt, 'fa')}
                     {item.attachmentCount > 0 && <><Paperclip className="h-3 w-3" />{item.attachmentCount.toLocaleString('fa-IR')}</>}
                     {item.repliedAt && <><Check className="h-3 w-3" />پاسخ داده‌شده</>}
@@ -135,25 +135,25 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
         </div>
       </section>
 
-      <section className={cn('spatial-surface min-w-0 flex-col overflow-hidden rounded-[1.5rem]', mobileDetailOpen ? 'flex' : 'hidden', 'lg:flex')}>
+      <section className={cn('spatial-surface min-w-0 flex-col overflow-hidden rounded-card', mobileDetailOpen ? 'flex' : 'hidden', 'lg:flex')}>
         {selected ? (
           <>
             <header className="border-b border-black/[0.07] px-5 py-5 sm:px-6">
               <button
                 type="button"
                 onClick={() => setMobileDetailOpen(false)}
-                className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-bold text-black/65 lg:hidden"
+                className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-bold text-[var(--text-secondary)] lg:hidden"
               >
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 بازگشت به پیام‌ها
               </button>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p dir="ltr" className="truncate text-xs font-semibold text-black/45">{selected.from}</p>
+                  <p dir="ltr" className="truncate text-xs font-semibold text-[var(--text-muted)]">{selected.from}</p>
                   <h2 className="mt-1 text-xl font-bold tracking-tight text-black">{selected.subject}</h2>
-                  <p className="mt-2 text-[11px] text-black/38">به {selected.to.join('، ')}</p>
+                  <p className="mt-2 text-[12px] text-[var(--text-muted)]">به {selected.to.join('، ')}</p>
                 </div>
-                <time className="shrink-0 rounded-lg bg-black/[0.045] px-2.5 py-1.5 text-[10px] text-black/45">
+                <time className="shrink-0 rounded-lg bg-black/[0.045] px-2.5 py-1.5 text-[12px] text-[var(--text-muted)]">
                   {formatLocalizedDateTime(selected.receivedAt, 'fa')}
                 </time>
               </div>
@@ -163,12 +163,12 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
             </div>
             {selected.replyText && (
               <div className="mx-5 mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:mx-6">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800"><Reply className="h-3.5 w-3.5" />پاسخ شما</p>
+                <p className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-800"><Reply className="h-3.5 w-3.5" />پاسخ شما</p>
                 <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-emerald-900/75">{selected.replyText}</p>
               </div>
             )}
             <form onSubmit={replyToMessage} className="sticky border-t border-black/[0.07] bg-white/95 p-4 backdrop-blur-xl [bottom:calc(5rem+env(safe-area-inset-bottom))] sm:p-5 lg:static lg:bg-black/[0.018]">
-              <label htmlFor="admin-mail-reply" className="mb-2 block text-xs font-bold text-black/65">پاسخ از info@vigent.ir</label>
+              <label htmlFor="admin-mail-reply" className="mb-2 block text-xs font-bold text-[var(--text-secondary)]">پاسخ از info@vigent.ir</label>
               <textarea
                 id="admin-mail-reply"
                 value={replyText}
@@ -179,7 +179,7 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
                 className="input min-h-28 resize-y text-sm leading-7"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
-                <p role="status" className={cn('text-[11px]', notice?.includes('نشد') ? 'text-red-600' : 'text-emerald-700')}>{notice}</p>
+                <p role="status" className={cn('text-[12px]', notice?.includes('نشد') ? 'text-red-600' : 'text-emerald-700')}>{notice}</p>
                 <button
                   type="submit"
                   disabled={sending || !replyText.trim()}

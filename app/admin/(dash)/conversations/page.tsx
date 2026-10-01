@@ -150,7 +150,7 @@ export default async function AdminConversationsPage(
 
       {/* Search + filters — same UX as the user dashboard conversations tab:
           desktop = inline selects, mobile = search + bottom-sheet. */}
-      <div className="spatial-surface rounded-[1.35rem] p-2 shadow-[var(--shadow-soft)] md:p-3">
+      <div className="spatial-surface rounded-card p-2 shadow-[var(--shadow-soft)] md:p-3">
         <AdminConversationFilters
           statusOptions={[
             { key: 'ALL', label: 'همه', count: totalCount },
@@ -220,7 +220,7 @@ export default async function AdminConversationsPage(
                   <div className="col-span-2"><dt className="text-zinc-400">کاربر پنل</dt><dd className="mt-1 truncate font-medium text-zinc-700">{user ? (user.name || displayPhone(user.phone)) : conversation.workspace.name}</dd></div>
                 </dl>
                 <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
-                  <span className="text-[11px] text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span>
+                  <span className="text-[12px] text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span>
                   <Link href={`/admin/conversations/${conversation.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-xs font-bold text-zinc-900"><Eye className="h-4 w-4" /> مشاهده گفتگو</Link>
                 </div>
               </article>
@@ -278,7 +278,7 @@ export default async function AdminConversationsPage(
                     {fmtDate(c.lastMessageAt ?? c.createdAt)}
                   </Td>
                   <Td>
-                    <Link href={`/admin/conversations/${c.id}`} aria-label="مشاهده گفتگو" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-semibold text-black/65 transition-[background-color,transform] hover:bg-black/[0.04] active:scale-[.97]"><Eye className="h-4 w-4" /> گفتگو</Link>
+                    <Link href={`/admin/conversations/${c.id}`} aria-label="مشاهده گفتگو" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-[background-color,transform] hover:bg-black/[0.04] active:scale-[.97]"><Eye className="h-4 w-4" /> گفتگو</Link>
                   </Td>
                 </tr>
               )

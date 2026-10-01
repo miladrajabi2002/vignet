@@ -54,18 +54,18 @@ function SparkTooltipBubble({
   return (
     <div
       dir="rtl"
-      className="pointer-events-none -translate-y-1 flex items-center gap-1.5 whitespace-nowrap rounded-md border border-white/10 bg-zinc-900/95 px-2 py-1 shadow-[0_4px_12px_rgba(0,0,0,0.22)]"
+      className="pointer-events-none -translate-y-1 flex items-center gap-1.5 whitespace-nowrap rounded-md border border-white/10 bg-zinc-900/95 px-2 py-1 shadow-[var(--shadow-xs)]"
     >
-      <span className="text-[10px] font-medium leading-none text-white/55">
+      <span className="text-[12px] font-medium leading-none text-white/55">
         {label}
       </span>
       <span
         aria-hidden="true"
-        className="text-[10px] leading-none text-white/25"
+        className="text-[12px] leading-none text-white/25"
       >
         ·
       </span>
-      <span className="text-[11px] font-bold leading-none tabular-nums text-white">
+      <span className="text-[12px] font-bold leading-none tabular-nums text-white">
         {formatHoverValue(value, kind)}
       </span>
     </div>
@@ -118,7 +118,7 @@ export function Sparkline({
   const gradId = `spark-${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   if (!data || data.length === 0) {
-    return <span className="text-[11px] text-[var(--text-muted)]">—</span>;
+    return <span className="text-[12px] text-[var(--text-muted)]">—</span>;
   }
 
   // Determine stroke color.

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import {
   TrendingUp,
   Wallet,
@@ -41,7 +42,7 @@ const PLAN_BADGE: Record<
   TRIAL: { tone: 'muted', label: 'آزمایشی' },
   STARTER: { tone: 'info', label: 'استارتر' },
   PRO: { tone: 'success', label: 'حرفه‌ای' },
-  BUSINESS: { tone: 'default', label: 'سازمانی' },
+  BUSINESS: { tone: 'default', label: 'بیزینس' },
 }
 
 function PlanBadge({ plan }: { plan: string }) {
@@ -85,7 +86,7 @@ export default async function AdminRevenuePage() {
       >
         {!finance.usdToIRR && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
-            برای نمایش سود تلفیقی، نرخ صریح <bdi dir="ltr" className="font-mono">FINANCE_USD_TO_IRR</bdi> (ریال به‌ازای هر دلار) را تنظیم کنید. تا آن زمان عدد سود نمایش داده نمی‌شود تا گزارش گمراه‌کننده نباشد.
+            برای نمایش سود تلفیقی، «نرخ هر دلار آمریکا» را در <Link href="/admin/settings" className="font-semibold underline underline-offset-2">تنظیمات پلتفرم</Link> وارد کنید. تا آن زمان عدد سود نمایش داده نمی‌شود تا گزارش گمراه‌کننده نباشد.
           </div>
         )}
         {finance.usdToIRR && (
@@ -189,8 +190,8 @@ export default async function AdminRevenuePage() {
                     <h3 className="min-w-0 truncate text-xs font-bold text-zinc-900">{workspace.name}</h3>
                     <PlanBadge plan={workspace.plan} />
                   </div>
-                  <p className="mt-3 text-lg font-black tabular-nums text-zinc-950">{fmtIRR(workspace.revenueIRR)}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-400">
+                  <p className="mt-3 text-lg font-bold tabular-nums text-zinc-950">{fmtIRR(workspace.revenueIRR)}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-zinc-400">
                     <span>روند ۷ روز</span>
                     <span className="flex items-center gap-2"><Sparkline data={spark?.series ?? []} color="#18181b" width={82} height={24} />{spark ? fa(spark.total) : '۰'}</span>
                   </div>
@@ -227,7 +228,7 @@ export default async function AdminRevenuePage() {
                           width={58}
                           height={24}
                         />
-                        <span className="text-[11px] tabular-nums text-zinc-500">
+                        <span className="text-[12px] tabular-nums text-zinc-500">
                           {spark ? fa(spark.total) : '۰'}
                         </span>
                       </div>
@@ -253,9 +254,9 @@ export default async function AdminRevenuePage() {
               <article key={row.plan} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                 <div className="flex items-center justify-between gap-2"><PlanBadge plan={row.plan} /><strong className="text-sm tabular-nums text-zinc-950">{fmtIRR(row.revenueIRR)}</strong></div>
                 <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div><dt className="text-[9px] text-zinc-400">کسب‌وکار</dt><dd className="mt-1 text-xs font-bold">{fa(row.workspaceCount)}</dd></div>
-                  <div><dt className="text-[9px] text-zinc-400">پرداخت</dt><dd className="mt-1 text-xs font-bold">{fa(row.paymentCount)}</dd></div>
-                  <div><dt className="text-[9px] text-zinc-400">ماهانه</dt><dd className="mt-1 truncate text-[10px] font-bold">{fmtIRR(row.monthlyPriceIRR)}</dd></div>
+                  <div><dt className="text-[12px] text-zinc-400">کسب‌وکار</dt><dd className="mt-1 text-xs font-bold">{fa(row.workspaceCount)}</dd></div>
+                  <div><dt className="text-[12px] text-zinc-400">پرداخت</dt><dd className="mt-1 text-xs font-bold">{fa(row.paymentCount)}</dd></div>
+                  <div><dt className="text-[12px] text-zinc-400">ماهانه</dt><dd className="mt-1 truncate text-[12px] font-bold">{fmtIRR(row.monthlyPriceIRR)}</dd></div>
                 </dl>
               </article>
             ))}
@@ -265,8 +266,8 @@ export default async function AdminRevenuePage() {
             <thead className="border-b border-zinc-200 bg-zinc-50/50">
               <tr>
                 <Th>پلن</Th>
-                <Th className="px-2 text-[11px]">کسب‌وکار</Th>
-                <Th className="px-2 text-[11px]">پرداخت</Th>
+                <Th className="px-2 text-[12px]">کسب‌وکار</Th>
+                <Th className="px-2 text-[12px]">پرداخت</Th>
                 <Th>درآمد کل</Th>
                 <Th>قیمت ماهانه</Th>
               </tr>

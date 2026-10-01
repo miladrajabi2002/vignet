@@ -94,7 +94,7 @@ function EvidenceDetails({ evidence }: { evidence: Record<string, unknown> }) {
       nodes.push(
         <li key={`s${nodes.length}`} className="border-s-2 border-zinc-200 ps-3">
           <span className="text-[12px] leading-6 text-zinc-600">«{row.text.slice(0, 180)}»</span>
-          {typeof row.at === 'string' ? <span className="ms-2 text-[10px] text-zinc-400">{fmtDate(new Date(row.at))}</span> : null}
+          {typeof row.at === 'string' ? <span className="ms-2 text-[12px] text-zinc-400">{fmtDate(new Date(row.at))}</span> : null}
         </li>,
       )
     }
@@ -139,7 +139,7 @@ function EvidenceDetails({ evidence }: { evidence: Record<string, unknown> }) {
   }
   const messageIds = Array.isArray(evidence.messageIds) ? evidence.messageIds : []
   if (messageIds.length && !nodes.length) {
-    nodes.push(<div key="ids" className="text-[11px] text-zinc-400">{fa(messageIds.length)} پیام شاهد در گفتگو ثبت شده است.</div>)
+    nodes.push(<div key="ids" className="text-[12px] text-zinc-400">{fa(messageIds.length)} پیام شاهد در گفتگو ثبت شده است.</div>)
   }
   if (!nodes.length) return null
   return <div className="mt-3 space-y-2 rounded-xl bg-zinc-50 p-3">{nodes}</div>
@@ -170,7 +170,7 @@ function FindingCard({ finding, onStatus }: { finding: FindingView; onStatus: (i
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-600"><Icon className="h-4 w-4" /></span>
           <div className="min-w-0">
             <h3 className="text-[13px] font-bold leading-6 text-black">{finding.title}</h3>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-black/45">
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--text-muted)]">
               <span>{skillNameFa(finding.skillKey)}</span>
               {finding.agentName ? <span>· ایجنت «{finding.agentName}»</span> : null}
               {finding.workspaceName ? <span>· {finding.workspaceName}</span> : null}
@@ -188,26 +188,26 @@ function FindingCard({ finding, onStatus }: { finding: FindingView; onStatus: (i
       {finding.evidence ? <EvidenceDetails evidence={finding.evidence} /> : null}
       {finding.suggestedAction ? <SuggestedActionBox action={finding.suggestedAction} /> : null}
       {finding.resolvedNote && closed ? (
-        <p className="mt-3 rounded-xl bg-zinc-50 p-2.5 text-[11px] leading-5 text-zinc-500">✓ {finding.resolvedNote}</p>
+        <p className="mt-3 rounded-xl bg-zinc-50 p-2.5 text-[12px] leading-5 text-zinc-500">✓ {finding.resolvedNote}</p>
       ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {finding.conversationId ? (
-          <Link href={`/admin/conversations/${finding.conversationId}`} className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-black">مشاهدهٔ گفتگو</Link>
+          <Link href={`/admin/conversations/${finding.conversationId}`} className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-black">مشاهدهٔ گفتگو</Link>
         ) : null}
         {finding.agentId ? (
-          <Link href={`/admin/agents/${finding.agentId}`} className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-black">ایجنت</Link>
+          <Link href={`/admin/agents/${finding.agentId}`} className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-black">ایجنت</Link>
         ) : null}
         <span className="flex-1" />
         {finding.status === 'OPEN' ? (
-          <button type="button" onClick={() => onStatus(finding.id, 'ACKNOWLEDGED')} className="rounded-lg bg-zinc-100 px-3 py-1.5 text-[11px] font-bold text-zinc-700 transition-colors hover:bg-zinc-200">در بررسی</button>
+          <button type="button" onClick={() => onStatus(finding.id, 'ACKNOWLEDGED')} className="rounded-lg bg-zinc-100 px-3 py-1.5 text-[12px] font-bold text-zinc-700 transition-colors hover:bg-zinc-200">در بررسی</button>
         ) : null}
         {!closed ? (
           <>
-            <button type="button" onClick={() => onStatus(finding.id, 'RESOLVED')} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />رفع شد</button>
-            <button type="button" onClick={() => onStatus(finding.id, 'DISMISSED')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"><EyeOff className="h-3.5 w-3.5" />نادیده</button>
+            <button type="button" onClick={() => onStatus(finding.id, 'RESOLVED')} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:bg-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />رفع شد</button>
+            <button type="button" onClick={() => onStatus(finding.id, 'DISMISSED')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"><EyeOff className="h-3.5 w-3.5" />نادیده</button>
           </>
         ) : (
-          <button type="button" onClick={() => onStatus(finding.id, 'OPEN')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-black"><RotateCcw className="h-3.5 w-3.5" />بازگشانی</button>
+          <button type="button" onClick={() => onStatus(finding.id, 'OPEN')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-black"><RotateCcw className="h-3.5 w-3.5" />بازگشانی</button>
         )}
       </div>
     </Card>
@@ -321,7 +321,7 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
               type="button"
               onClick={() => startRun('FREE')}
               disabled={busyMode !== null}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-black px-3.5 py-2 text-[11px] font-bold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-black px-3.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
             >
               {busyMode === 'FREE' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               اجرای اسکیل‌های رایگان
@@ -330,7 +330,7 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
               type="button"
               onClick={() => startRun('DEEP')}
               disabled={busyMode !== null}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-white px-3.5 py-2 text-[11px] font-bold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-white px-3.5 py-2 text-[12px] font-bold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50"
               title="هزینه از بودجهٔ AI پلتفرم — نه کیف پول کاربران"
             >
               {busyMode === 'DEEP' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -348,15 +348,15 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
                 key={skill.key}
                 type="button"
                 onClick={() => setSkillFilter((current) => (current === skill.key ? 'ALL' : skill.key))}
-                className={`admin-card spatial-surface rounded-[1.25rem] p-4 text-start transition-[border-color,box-shadow,transform] duration-200 hover:shadow-[var(--shadow-float)] active:scale-[.99] ${skillFilter === skill.key ? 'ring-2 ring-black' : ''}`}
+                className={`admin-card spatial-surface rounded-card p-4 text-start transition-[border-color,box-shadow,transform] duration-200 hover:shadow-[var(--shadow-float)] active:scale-[.99] ${skillFilter === skill.key ? 'ring-2 ring-black' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="grid h-9 w-9 place-items-center rounded-xl bg-zinc-900 text-white"><Icon className="h-4 w-4" /></span>
                   <Badge tone={skill.cost === 'FREE' ? 'success' : 'warning'}>{skill.cost === 'FREE' ? 'رایگان' : 'عمیق (هزینه AI)'}</Badge>
                 </div>
                 <h3 className="mt-3 text-[13px] font-bold text-black">{skill.nameFa}</h3>
-                <p className="mt-1.5 text-[11px] leading-5 text-black/50">{skill.descFa}</p>
-                <p className="mt-3 text-[11px] font-semibold text-zinc-500">
+                <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">{skill.descFa}</p>
+                <p className="mt-3 text-[12px] font-semibold text-zinc-500">
                   {openCount > 0 ? `${fa(openCount)} یافتهٔ باز — کلیک برای فیلتر` : 'یافتهٔ بازی ندارد'}
                 </p>
               </button>
@@ -375,13 +375,13 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
                 key={value}
                 type="button"
                 onClick={() => setStatusFilter(value)}
-                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors ${statusFilter === value ? 'bg-black text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
+                className={`rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition-colors ${statusFilter === value ? 'bg-black text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
               >
                 {value === 'ACTIVE' ? 'در رسیدگی' : value === 'RESOLVED' ? 'بسته‌شده' : 'همه'}
               </button>
             ))}
             {skillFilter !== 'ALL' ? (
-              <button type="button" onClick={() => setSkillFilter('ALL')} className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-[11px] font-bold text-zinc-600 hover:bg-zinc-200">حذف فیلتر اسکیل</button>
+              <button type="button" onClick={() => setSkillFilter('ALL')} className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-[12px] font-bold text-zinc-600 hover:bg-zinc-200">حذف فیلتر اسکیل</button>
             ) : null}
           </div>
         }
@@ -401,7 +401,7 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
         {runs.length ? (
           <div className="space-y-2">
             {runs.map((run) => (
-              <div key={run.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[11px] text-zinc-600">
+              <div key={run.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[12px] text-zinc-600">
                 <Badge tone={run.status === 'DONE' ? 'success' : run.status === 'ERROR' ? 'danger' : 'info'}>
                   {run.status === 'DONE' ? 'کامل' : run.status === 'ERROR' ? `خطا${run.error ? ` (${run.error})` : ''}` : 'در جریان'}
                 </Badge>

@@ -35,7 +35,7 @@ const PLAN_BADGE: Record<
   TRIAL: { tone: 'muted', label: 'آزمایشی' },
   STARTER: { tone: 'info', label: 'استارتر' },
   PRO: { tone: 'success', label: 'حرفه‌ای' },
-  BUSINESS: { tone: 'default', label: 'سازمانی' },
+  BUSINESS: { tone: 'default', label: 'بیزینس' },
 }
 
 const GATEWAY_BADGE: Record<string, { tone: 'info' | 'default'; label: string }> = {
@@ -187,7 +187,7 @@ export default async function AdminPaymentsPage(
       />
 
       {/* Live search + adaptive filters */}
-      <div className="sticky top-20 z-20 flex gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72">
+      <div className="sticky top-20 z-20 flex gap-2 rounded-card border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72">
         <AdminUsersSearchForm
           defaultQuery={q}
           placeholder="جستجوی کاربر، شناسه یا کد پرداخت…"
@@ -255,7 +255,7 @@ export default async function AdminPaymentsPage(
                     <p className="truncate text-sm font-bold text-zinc-950">
                       {user ? (user.name || displayPhone(user.phone)) : 'کاربر نامشخص'}
                     </p>
-                    <p dir="ltr" className="mt-1 truncate text-start text-[11px] text-zinc-400">#{payment.id}</p>
+                    <p dir="ltr" className="mt-1 truncate text-start text-[12px] text-zinc-400">#{payment.id}</p>
                   </div>
                   <StatusBadge status={payment.status} />
                 </div>

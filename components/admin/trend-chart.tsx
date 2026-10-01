@@ -1,21 +1,20 @@
 'use client'
 
 import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  LabelList,
+	ResponsiveContainer,
+	AreaChart,
+	Area,
+	BarChart,
+	Bar,
+	LineChart,
+	Line,
+	PieChart,
+	Pie,
+	Cell,
+	XAxis,
+	YAxis,
+	Tooltip,
+	CartesianGrid,
 } from 'recharts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 
@@ -148,9 +147,9 @@ export function TrendChart({
   const gradId = `grad-${title.replace(/\s/g, '')}-${variant}`
 
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-[13px] font-semibold text-zinc-900">{title}</h3>
+        <h3 className="text-[13px] font-bold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
       <div style={{ height }}>
@@ -232,9 +231,9 @@ export function DonutChart({
   const fmt = (v: number) => formatValue(v, format === 'irr' ? 'irr' : 'number')
 
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-4">
@@ -269,7 +268,7 @@ export function DonutChart({
               <span className="text-xl font-bold text-zinc-900">
                 {typeof centerValue === 'number' ? centerValue.toLocaleString('fa-IR') : centerValue}
               </span>
-              {centerLabel && <span className="text-[11px] text-zinc-500">{centerLabel}</span>}
+              {centerLabel && <span className="text-[12px] text-zinc-500">{centerLabel}</span>}
             </div>
           )}
         </div>
@@ -296,46 +295,6 @@ export function DonutChart({
   )
 }
 
-/** Ordered activation stages rendered as a compact horizontal funnel. */
-export function ActivationFunnel({
-  title,
-  subtitle,
-  data,
-  total,
-}: {
-  title: string
-  subtitle?: string
-  data: NamedPoint[]
-  total: number
-}) {
-  const rows = data.map((item) => ({
-    ...item,
-    percent: total > 0 ? Math.round((item.value / total) * 100) : 0,
-  }))
-
-  return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div><h3 className="text-sm font-semibold text-zinc-900">{title}</h3>{subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}</div>
-        <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold text-zinc-600">مبنا {total.toLocaleString('fa-IR')}</span>
-      </div>
-      <div className="h-[13rem]" dir="ltr">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart layout="vertical" data={rows} margin={{ top: 0, right: 42, bottom: 0, left: 8 }} barCategoryGap={11}>
-            <XAxis type="number" domain={[0, 100]} hide />
-            <YAxis type="category" dataKey="label" width={118} tick={{ ...AXIS, textAnchor: 'end' }} axisLine={false} tickLine={false} />
-            <Tooltip {...TOOLTIP} formatter={(_value, _name, item) => [`${item.payload.value.toLocaleString('fa-IR')} کسب‌وکار · ${item.payload.percent.toLocaleString('fa-IR')}٪`, 'فعال‌سازی']} />
-            <Bar dataKey="percent" radius={[0, 8, 8, 0]} isAnimationActive={false} barSize={18}>
-              {rows.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
-              <LabelList dataKey="percent" position="right" formatter={(value) => `${Number(value ?? 0).toLocaleString('fa-IR')}٪`} style={{ fill: '#52525b', fontSize: 10, fontFamily: 'IRANSansWeb' }} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
-
 /** Horizontal bar list — compact ranking chart (top workspaces, top models). */
 export function BarList({
   title,
@@ -353,9 +312,9 @@ export function BarList({
   const max = Math.max(1, ...data.map((d) => d.value))
 
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
       <ul className="space-y-3">
@@ -398,9 +357,9 @@ export function MonthlyBarChart({
   format?: FormatKind
 }) {
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
       <div style={{ height }}>
@@ -467,13 +426,13 @@ export function NetRevenueChart({
   const grossTotal = data.reduce((total, day) => total + day.grossIRR, 0)
 
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-zinc-600">
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-zinc-600">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-sm bg-zinc-900" />
           سود خالص (پس از کسر هزینه AI)

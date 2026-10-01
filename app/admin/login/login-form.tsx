@@ -37,12 +37,12 @@ export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
       />
       <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-zinc-900/5 blur-3xl" />
 
-      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white shadow-[0_32px_100px_-48px_rgba(0,0,0,.65)] lg:grid-cols-2">
+      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-sheet border border-black/[0.08] bg-white shadow-[var(--elev-2)] lg:grid-cols-2">
         <div className="relative hidden min-h-[560px] overflow-hidden bg-black p-8 text-white lg:block">
           <div className="admin-vigento-grid absolute inset-0 opacity-60" />
-          <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white"><Logo className="h-4 w-auto max-w-7" /></span><div><p className="text-sm font-bold">Vigent</p><p className="mt-1 text-[11px] text-white/55">OWNER OPERATIONS</p></div></div>
+          <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white"><Logo className="h-4 w-auto max-w-7" /></span><div><p className="text-sm font-bold">Vigent</p><p className="mt-1 text-[12px] text-white/55">OWNER OPERATIONS</p></div></div>
           <div className="relative mt-24"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08]"><Sparkles className="h-5 w-5" /></span><h2 className="mt-6 text-3xl font-bold leading-[1.45]">تمام پلتفرم،<br />در یک مرکز فرمان.</h2><p className="mt-4 max-w-sm text-xs leading-7 text-white/55">آمار زنده، هزینه‌ها، کاربران، فایل‌های امن و عملیات تأییدشونده فقط برای مالک ویجنت.</p></div>
-          <p className="absolute bottom-8 text-[11px] text-white/25">VIGENT · SECURE ADMIN SESSION</p>
+          <p className="absolute bottom-8 text-[12px] text-white/25">VIGENT · SECURE ADMIN SESSION</p>
         </div>
         <div className="p-6 sm:p-10">
           <div className="flex flex-col items-center text-center">
@@ -50,7 +50,7 @@ export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
               <ShieldCheck className="h-7 w-7" />
             </div>
             <h1 className="mt-5 text-xl font-bold text-black">ورود مالک پلتفرم</h1>
-            <p className="mt-1.5 text-xs text-black/45">دسترسی امن مدیریت پلتفرم</p>
+            <p className="mt-1.5 text-xs text-[var(--text-muted)]">دسترسی امن مدیریت پلتفرم</p>
           </div>
 
           <form action={formAction} className="mt-7 space-y-3">
@@ -95,7 +95,7 @@ export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
               <SubmitButton />
             </div>
           </form>
-          <p className="mt-8 text-center text-[11px] text-black/30">© ویجنت — نشست امضاشده و زمان‌دار</p>
+          <p className="mt-8 text-center text-[12px] text-[var(--text-muted)]">© ویجنت — نشست امضاشده و زمان‌دار</p>
         </div>
       </div>
     </div>

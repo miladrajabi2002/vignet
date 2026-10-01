@@ -25,6 +25,7 @@ import { AdminBroadcastDialog } from '@/components/admin/admin-broadcast-form'
 import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
 import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
 import { AdminUserMobileCards, type AdminMobileUser } from '@/components/admin/admin-user-mobile-cards'
+import { searchVariants } from '@/lib/search/persian'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,14 +37,14 @@ const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   TRIAL: { label: 'آزمایشی', tone: 'muted' },
   STARTER: { label: 'استارتر', tone: 'info' },
   PRO: { label: 'حرفه‌ای', tone: 'success' },
-  BUSINESS: { label: 'سازمانی', tone: 'default' },
+  BUSINESS: { label: 'بیزینس', tone: 'default' },
 }
 
 const PLAN_OPTIONS = [
   { value: 'TRIAL', label: 'آزمایشی' },
   { value: 'STARTER', label: 'استارتر' },
   { value: 'PRO', label: 'حرفه‌ای' },
-  { value: 'BUSINESS', label: 'سازمانی' },
+  { value: 'BUSINESS', label: 'بیزینس' },
 ] as const
 
 const VALID_PLANS = ['TRIAL', 'STARTER', 'PRO', 'BUSINESS'] as const
@@ -74,11 +75,11 @@ export default async function AdminUsersPage(
 
   const where: Prisma.UserWhereInput = { AND: [ADMIN_VISIBLE_USER_WHERE] }
   if (q) {
-    where.OR = [
-      { phone: { contains: q } },
-      { name: { contains: q, mode: 'insensitive' } },
-      { workspace: { name: { contains: q, mode: 'insensitive' } } },
-    ]
+    where.OR = searchVariants(q).flatMap((term): Prisma.UserWhereInput[] => [
+      { phone: { contains: term } },
+      { name: { contains: term, mode: 'insensitive' } },
+      { workspace: { name: { contains: term, mode: 'insensitive' } } },
+    ])
   }
   if (planFilter) {
     where.workspace = { plan: planFilter }
@@ -268,7 +269,7 @@ export default async function AdminUsersPage(
         }
       />
 
-      <div className="sticky top-20 z-20 flex gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72 lg:items-center">
+      <div className="sticky top-20 z-20 flex gap-2 rounded-card border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72 lg:items-center">
         <AdminUsersSearchForm
           defaultQuery={q}
           placeholder="جستجوی نام، تلفن یا کسب‌وکار…"
@@ -364,8 +365,8 @@ export default async function AdminUsersPage(
               return (
                 <tr key={u.id} className="hover:bg-zinc-50">
                   <Td>
-                    <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-black/20">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[.9rem] border border-black/[0.06] bg-[radial-gradient(circle_at_35%_25%,#fff_0%,#f4f4f5_58%,#e4e4e7_100%)] text-zinc-600 shadow-[inset_0_1px_0_white,0_4px_12px_rgba(0,0,0,.055)]">
+                    <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-control border border-black/[0.06] bg-[radial-gradient(circle_at_35%_25%,#fff_0%,#f4f4f5_58%,#e4e4e7_100%)] text-zinc-600 shadow-[var(--shadow-xs)]">
                         <UserRound className="h-4 w-4 stroke-[1.8]" />
                       </span>
                       <div className="min-w-0">

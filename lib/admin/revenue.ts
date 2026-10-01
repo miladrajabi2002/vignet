@@ -232,7 +232,7 @@ export async function getPlanRevenue(): Promise<PlanRevenueRow[]> {
     TRIAL: 'آزمایشی',
     STARTER: 'استارتر',
     PRO: 'حرفه‌ای',
-    BUSINESS: 'سازمانی',
+    BUSINESS: 'بیزینس',
   }
 
   const [revByPlan, wsByPlan] = await Promise.all([
