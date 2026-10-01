@@ -75,7 +75,7 @@ export function DashboardDonut({
               }}
               labelStyle={{ color: 'var(--text-secondary)', fontWeight: 600 }}
               formatter={(v, n) => [
-                `${Number(v).toLocaleString('fa-IR')} (${total > 0 ? Math.round((Number(v) / total) * 100) : 0}٪)`,
+                `${Number(v).toLocaleString('fa-IR')} (${(total > 0 ? Math.round((Number(v) / total) * 100) : 0).toLocaleString('fa-IR')}٪)`,
                 n,
               ]}
             />
@@ -104,7 +104,7 @@ export function DashboardDonut({
               {d.value.toLocaleString('fa-IR')}
             </span>
             <span className="w-10 text-end text-[var(--text-muted)]">
-              {total > 0 ? Math.round((d.value / total) * 100) : 0}٪
+              {(total > 0 ? Math.round((d.value / total) * 100) : 0).toLocaleString('fa-IR')}٪
             </span>
           </li>
         ))}

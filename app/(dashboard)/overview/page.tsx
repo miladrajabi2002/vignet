@@ -328,7 +328,6 @@ export default async function OverviewPage() {
 
       <OpsCenter
         locale={lang}
-        ownerName={user.name}
         businessName={displayName}
         businessLabel={businessLabel}
         connectedApps={activeChannels}
@@ -496,7 +495,7 @@ export default async function OverviewPage() {
         </DashboardPanel>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_0.72fr]">
+      <section className="grid items-start gap-4 xl:grid-cols-[1fr_0.72fr]">
         <CapabilityStatusPanel capabilities={capabilities} readiness={readiness} fa={fa} />
 
         <DashboardPanel
@@ -571,8 +570,27 @@ function OutcomeCard({
         )}
       </p>
       <p className="mt-1 min-h-4 text-[12px] leading-5 text-[var(--text-muted)]">{hint}</p>
-      {series?.length ? <div className="mt-2 h-7"><Sparkline data={series} color="#111111" height={28} fluid /></div> : null}
+      {series?.length ? <MiniBars series={series} /> : null}
     </Link>
+  )
+}
+
+/**
+ * One bar per day. A smoothed line turns a week of sparse counts into the
+ * same single bump on every card; bars keep each day readable on its own.
+ */
+function MiniBars({ series }: { series: number[] }) {
+  const max = Math.max(...series, 1)
+  return (
+    <div aria-hidden className="mt-3 flex h-7 items-end gap-1">
+      {series.map((value, index) => (
+        <span
+          key={index}
+          className={cn('flex-1 rounded-sm', value > 0 ? 'bg-[var(--signal)]' : 'bg-[var(--border-default)]')}
+          style={{ height: value > 0 ? `${Math.max(14, Math.round((value / max) * 100))}%` : '2px', opacity: value > 0 && index < series.length - 1 ? 0.55 : 1 }}
+        />
+      ))}
+    </div>
   )
 }
 

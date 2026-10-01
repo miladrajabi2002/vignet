@@ -15,7 +15,7 @@ import {
         conversationsDailyByWorkspace,
 } from '@/lib/dashboard/charts'
 import { smartTime, formatDateTime } from '@/lib/format'
-import { stripProductTokens } from '@/lib/widget/config'
+import { conversationPreviewText } from '@/lib/conversations/preview'
 import {
         contactDisplayName,
         channelHandleFor,
@@ -382,8 +382,8 @@ export default async function ConversationsPage(props: {
                                                         undoKind="conversation"
                                                         entityLabel={isFa ? 'گفتگو' : 'conversation'}
                                                         entitySingularLabel={isFa ? 'گفتگو' : 'conversation'}
-                                                        buttonLabel={isFa ? 'حذف همه گفتگوها' : 'Delete all'}
-                                                        compactOnMobile
+                                                        buttonLabel={t('deleteAll')}
+                                                        variant="menu"
                                                         extraWarning={isFa
                                                                 ? 'تاریخچه پیام‌ها حذف می‌شود اما بلافاصله بعد از حذف، چند ثانیه فرصت «بازگردانی» کامل خواهید داشت. اطلاعات مشتریان حفظ می‌شود.'
                                                                 : 'Message history is removed, but you get a few seconds to fully undo right after the delete. Customer info is preserved.'}
@@ -392,26 +392,33 @@ export default async function ConversationsPage(props: {
                                 }
                         />
 
-                        {agents.length > 0 && (
-                          <div className="space-y-2">
-                            <ImprovementGuide agentId={agents.find((agent) => agent.id === agentFilter)?.id ?? agents[0].id} isFa={isFa} compact />
-                            {agents.length > 1 && <div className="flex flex-wrap gap-2">{agents.map((agent) => <Link key={agent.id} href={`/agents/${agent.id}/improve`} className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-xs">{isFa ? `بهبود ${agent.name}` : `Improve ${agent.name}`}</Link>)}</div>}
-                          </div>
-                        )}
-
-                        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-                                <DashboardPanel
-                                        title={isFa ? 'وضعیت گفتگوها' : 'Conversation status'}
-                                        subtitle={isFa ? 'نمای کلی پرونده‌های باز، حل‌شده و تحویل‌شده' : 'Open, resolved and handed-off cases'}
-                                >
-                                        <DashboardDonut data={statusDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
-                                </DashboardPanel>
-                                <DashboardPanel
-                                        title={isFa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
-                                        subtitle={isFa ? `${convTrend.total.toLocaleString('fa-IR')} گفتگو در این دوره` : `${convTrend.total} conversations in this period`}
-                                >
-                                        <ConversationChart data={convTrendPoints} />
-                                </DashboardPanel>
+                        {/* Counts first, as one quiet row: the list below is why people open this page. */}
+                        <div className="flex flex-wrap items-center gap-2">
+                                {[
+                                        { key: 'HANDED_OFF', label: statusLabels.HANDED_OFF, count: handedOffCount, urgent: handedOffCount > 0 },
+                                        { key: 'OPEN', label: statusLabels.OPEN, count: openCount, urgent: false },
+                                        { key: 'RESOLVED', label: statusLabels.RESOLVED, count: resolvedCount, urgent: false },
+                                ].map((item) => (
+                                        <Link
+                                                key={item.key}
+                                                href={statusFilter === item.key ? '/conversations' : `/conversations?status=${item.key}`}
+                                                aria-current={statusFilter === item.key ? 'true' : undefined}
+                                                className={cn(
+                                                        'inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-xs font-medium transition-colors',
+                                                        statusFilter === item.key
+                                                                ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
+                                                                : item.urgent
+                                                                        ? 'border-amber-300/70 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                                                                        : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+                                                )}
+                                        >
+                                                <span className="text-sm font-bold tabular-nums">{item.count.toLocaleString(isFa ? 'fa-IR' : 'en-US')}</span>
+                                                {item.label}
+                                        </Link>
+                                ))}
+                                <Link href="/analytics" className="ms-auto inline-flex min-h-10 items-center px-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]">
+                                        {t('fullStats')} <span aria-hidden className="ms-1 rtl:rotate-180">→</span>
+                                </Link>
                         </div>
 
                         {/* ─── Filters: search + status + channel + agent (handed-off prioritized) ─── */}
@@ -519,7 +526,7 @@ export default async function ConversationsPage(props: {
                                                                         statusLabel={statusLabel}
                                                                         attention={attention}
                                                                         locale={locale}
-                                                                        lastMessage={last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
+                                                                        lastMessage={last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
                                                                         reactionEmoji={reactionEmoji}
                                                                 />
                                                         </LiveArrivalItem>
@@ -560,13 +567,14 @@ export default async function ConversationsPage(props: {
                                                                                                         {reactionEmoji}
                                                                                                 </span>
                                                                                         )}
-                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-xs leading-5 [overflow-wrap:anywhere]', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={last ? stripProductTokens(last.content) : c.agent.name}>{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
+                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-xs leading-5 [overflow-wrap:anywhere]', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={last ? conversationPreviewText(last.content) : c.agent.name}>{last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
                                                                                 </div>
                                                                         </div>
                                                                         <span className="flex shrink-0 items-center gap-3 text-[12px] leading-5 text-[var(--text-muted)]">
                                                                                 <span className="flex max-w-xs flex-wrap items-center justify-end gap-1.5">
                                                                                         {!attention && <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />}
-                                                                                        <ChannelBadge type={c.channel} />
+                                                                                        {/* The source chip beside the name already names the app. */}
+                                                                                        {!sourceLabel && <ChannelBadge type={c.channel} />}
                                                                                         {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
                                                                                 </span>
                                                                                 {/* Time and size share one end-aligned column so they scan down the list. */}
@@ -599,6 +607,29 @@ export default async function ConversationsPage(props: {
                                         return qs ? `/conversations?${qs}` : '/conversations'
                                 }}
                         />
+
+                        {agents.length > 0 && (
+                          <div className="space-y-2">
+                            <ImprovementGuide agentId={agents.find((agent) => agent.id === agentFilter)?.id ?? agents[0].id} isFa={isFa} compact />
+                            {agents.length > 1 && <div className="flex flex-wrap gap-2">{agents.map((agent) => <Link key={agent.id} href={`/agents/${agent.id}/improve`} className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-xs">{isFa ? `بهبود ${agent.name}` : `Improve ${agent.name}`}</Link>)}</div>}
+                          </div>
+                        )}
+
+                        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                                <DashboardPanel
+                                        title={isFa ? 'وضعیت گفتگوها' : 'Conversation status'}
+                                        subtitle={isFa ? 'نمای کلی پرونده‌های باز، حل‌شده و تحویل‌شده' : 'Open, resolved and handed-off cases'}
+                                >
+                                        <DashboardDonut data={statusDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
+                                </DashboardPanel>
+                                <DashboardPanel
+                                        title={isFa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
+                                        subtitle={isFa ? `${convTrend.total.toLocaleString('fa-IR')} گفتگو در این دوره` : `${convTrend.total} conversations in this period`}
+                                >
+                                        <ConversationChart data={convTrendPoints} />
+                                </DashboardPanel>
+                        </div>
+
 
                         <MetricsExplainer
                                 title={

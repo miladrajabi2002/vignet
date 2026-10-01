@@ -37,6 +37,7 @@ export default async function AgentChannelsPage(
   const user = await requireUser()
   const t = await getTranslations('channels')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+  const nf = new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fa-IR')
 
   const [agent, workspace, planDefs, usedChannels] = await Promise.all([
     prisma.agent.findFirst({
@@ -190,6 +191,10 @@ export default async function AgentChannelsPage(
 
   return (
     <div className="space-y-6">
+      {/* A full quota is one message with one action, not a meter plus a warning. */}
+      {usedChannels >= maxChannels ? (
+        <PlanLimitNotice limit={channelLimit} locale={locale} />
+      ) : (
       <section className="spatial-surface rounded-card p-5 sm:p-6" aria-labelledby="channel-quota-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -202,10 +207,10 @@ export default async function AgentChannelsPage(
           </div>
           <div className="shrink-0 text-start sm:text-end">
             <p className="text-lg font-bold tabular-nums text-[var(--text-primary)]">
-              {t('quotaUsage', { used: usedChannels, limit: maxChannels })}
+              {t('quotaUsage', { used: nf.format(usedChannels), limit: nf.format(maxChannels) })}
             </p>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-              {usedChannels >= maxChannels ? t('quotaFull') : t('quotaRemaining', { count: maxChannels - usedChannels })}
+              {t('quotaRemaining', { count: nf.format(maxChannels - usedChannels) })}
             </p>
           </div>
         </div>
@@ -218,14 +223,11 @@ export default async function AgentChannelsPage(
           aria-label={t('quotaTitle')}
         >
           <div
-            className={`h-full rounded-full ${usedChannels >= maxChannels ? 'bg-danger' : 'bg-[var(--text-primary)]'}`}
+            className="h-full rounded-full bg-[var(--text-primary)]"
             style={{ width: `${channelUsagePercent}%` }}
           />
         </div>
       </section>
-
-      {usedChannels >= maxChannels && (
-        <PlanLimitNotice limit={channelLimit} locale={locale} />
       )}
 
       {/* ── Instagram OAuth status banners ──────────────────────────────── */}
@@ -234,17 +236,16 @@ export default async function AgentChannelsPage(
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-success">
-              اکانت اینستاگرام با موفقیت متصل شد.
+              {t('igConnectedTitle')}
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-success/80">
-              حالا می‌توانید اتوماسیون‌های دایرکت و کامنت را در صفحه مدیریت
-              اینستاگرام فعال کنید.
+              {t('igConnectedBody')}
             </p>
             <Link
               href="/instagram"
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-success hover:underline"
             >
-              مدیریت اتوماسیون اینستاگرام
+              {t('igManage')}
               <ArrowRight className="h-3 w-3 rtl:rotate-180" />
             </Link>
           </div>
@@ -255,13 +256,13 @@ export default async function AgentChannelsPage(
         <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-danger">اتصال ناموفق بود.</p>
+            <p className="text-sm font-medium text-danger">{t('igFailedTitle')}</p>
             <p className="mt-0.5 text-xs leading-relaxed text-danger/80">
-              دوباره تلاش کنید یا راهنما را بخوانید.{' '}
-              {igError === 'denied' && '(دسترسی لغو شد)'}
-              {igError === 'exchange' && '(خطا در تأیید کد)'}
-              {igError === 'state' && '(نشست نامعتبر)'}
-              {igError === 'channel_limit' && '(سهمیهٔ اتصال برنامه‌های پلن شما تکمیل شده است)'}
+              {t('igFailedBody')}{' '}
+              {igError === 'denied' && t('igErrorDenied')}
+              {igError === 'exchange' && t('igErrorExchange')}
+              {igError === 'state' && t('igErrorState')}
+              {igError === 'channel_limit' && t('igErrorChannelLimit')}
             </p>
             <a
               href="/docs/instagram-connection"
@@ -269,7 +270,7 @@ export default async function AgentChannelsPage(
               rel="noopener noreferrer"
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger hover:underline"
             >
-              راهنمای اتصال اینستاگرام
+              {t('igGuide')}
               <ArrowRight className="h-3 w-3 rtl:rotate-180" />
             </a>
           </div>

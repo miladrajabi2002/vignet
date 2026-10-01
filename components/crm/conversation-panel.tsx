@@ -1,5 +1,6 @@
 'use client'
 
+import { channelLabel } from '@/components/crm/channel-badge'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -8,11 +9,7 @@ import {
         User,
         Phone,
         Bot,
-        Send,
-        MessagesSquare,
-        Radio,
         MessageCircle,
-        Link2,
         Loader2,
         CheckCircle2,
         Sparkles,
@@ -44,20 +41,6 @@ export interface HandoffAlertProp {
         contactName: string | null
         contactPhone: string | null
         summary: string | null
-}
-
-const MESSENGER_META: Record<
-        ChannelType,
-        { label: string; icon: typeof Send }
-> = {
-        TELEGRAM: { label: 'تلگرام', icon: Send },
-        BALE: { label: 'بله', icon: MessagesSquare },
-        RUBIKA: { label: 'روبیکا', icon: Radio },
-        WHATSAPP: { label: 'واتساپ', icon: MessageCircle },
-        INSTAGRAM: { label: 'اینستاگرام', icon: MessageCircle },
-        WEB_WIDGET: { label: 'وب‌ویجت', icon: Send },
-        API: { label: 'API', icon: Send },
-        CHAT_LINK: { label: 'لینک چت', icon: Link2 },
 }
 
 export function ConversationPanel({
@@ -172,7 +155,7 @@ export function ConversationPanel({
                                         <Snap
                                                 icon={<MessageCircle className="h-3.5 w-3.5" />}
                                                 label={t('customerChannel')}
-                                                value={MESSENGER_META[channel]?.label ?? channel}
+                                                value={channelLabel(channel, locale)}
                                         />
                                         <Snap
                                                 icon={<Bot className="h-3.5 w-3.5" />}

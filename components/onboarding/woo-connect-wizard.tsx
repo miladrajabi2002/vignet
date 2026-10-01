@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale } from 'next-intl'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
@@ -59,6 +60,7 @@ const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 5 * 60 * 1000 // give up after 5 minutes
 
 export function WooConnectWizard({ onConnected, onDismiss }: Props) {
+  const fa = useLocale() !== 'en'
   const reduceMotion = useReducedMotion()
   const [step, setStep] = useState<WizardStep>('url')
   const [storeUrl, setStoreUrl] = useState('')
@@ -85,14 +87,14 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
 
     const trimmed = storeUrl.trim()
     if (!trimmed) {
-      setError('آدرس سایت را وارد کنید.')
+      setError((fa ? 'آدرس سایت را وارد کنید.' : 'Enter your site address.'))
       return
     }
     try {
       // eslint-disable-next-line no-new
       new URL(trimmed)
     } catch {
-      setError('آدرس سایت نامعتبر است. مثال: https://example.com')
+      setError((fa ? 'آدرس سایت نامعتبر است. مثال: https://example.com' : 'The site address is not valid. Example: https://example.com'))
       return
     }
 
@@ -111,12 +113,12 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
       if (!res.ok) {
         setError(
           data.error === 'INVALID'
-            ? 'آدرس سایت نامعتبر است.'
+            ? (fa ? 'آدرس سایت نامعتبر است.' : 'The site address is not valid.')
             : data.error === 'UNSAFE_STORE_URL'
-              ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.'
+              ? (fa ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.' : 'This site address cannot be accepted for security reasons.')
               : data.error === 'PLAN_BLOCKED'
-                ? 'پلن شما اجازه اتصال سایت را نمی‌دهد.'
-                : 'خطا در ساخت اتصال.',
+                ? (fa ? 'پلن شما اجازه اتصال سایت را نمی‌دهد.' : 'Your plan does not include a site connection.')
+                : (fa ? 'خطا در ساخت اتصال.' : 'The connection could not be created.'),
         )
         return
       }
@@ -133,7 +135,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
       pollStoppedRef.current = false
       setPolling(true)
     } catch {
-      setError('خطا در ارتباط با سرور.')
+      setError((fa ? 'خطا در ارتباط با سرور.' : 'Could not reach the server.'))
     } finally {
       setSubmitting(false)
     }
@@ -232,12 +234,12 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
           </span>
           <div>
             <h2 className="text-sm font-bold text-[var(--text-primary)]">
-              اتصال سایت وردپرس / ووکامرس
+              {fa ? 'اتصال سایت وردپرس / ووکامرس' : 'Connect a WordPress / WooCommerce site'}
             </h2>
             <p className="text-[12px] text-[var(--text-muted)]">
-              {step === 'url' && 'مرحله ۱ از ۳ — آدرس سایت'}
-              {step === 'install' && 'مرحله ۲ از ۳ — نصب افزونه و اتصال'}
-              {step === 'success' && 'مرحله ۳ از ۳ — اتصال موفق'}
+              {step === 'url' && (fa ? 'مرحله ۱ از ۳ — آدرس سایت' : 'Step 1 of 3: site address')}
+              {step === 'install' && (fa ? 'مرحله ۲ از ۳ — نصب افزونه و اتصال' : 'Step 2 of 3: install the plugin and connect')}
+              {step === 'success' && (fa ? 'مرحله ۳ از ۳ — اتصال موفق' : 'Step 3 of 3: connected')}
             </p>
           </div>
         </div>
@@ -260,10 +262,10 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                   <Globe className="h-5 w-5" />
                 </span>
                 <h3 className="mt-3 text-base font-bold text-[var(--text-primary)]">
-                  آدرس سایت خود را وارد کنید
+                  {fa ? 'آدرس سایت خود را وارد کنید' : 'Enter your site address'}
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-5 text-[var(--text-muted)]">
-                  سایت وردپرسی یا فروشگاه ووکامرسی خود را وارد کنید. ما اتصال را برای شما می‌سازیم.
+                  {fa ? 'سایت وردپرسی یا فروشگاه ووکامرسی خود را وارد کنید. ما اتصال را برای شما می‌سازیم.' : 'Enter your WordPress site or WooCommerce store. We create the connection for you.'}
                 </p>
               </div>
 
@@ -291,7 +293,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                   className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  {submitting ? 'در حال ایجاد اتصال…' : 'ادامه'}
+                  {submitting ? (fa ? 'در حال ایجاد اتصال…' : 'Creating the connection…') : (fa ? 'ادامه' : 'Continue')}
                 </button>
               </form>
             </motion.div>
@@ -318,8 +320,8 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
               <ol className="space-y-3">
                 <StepRow
                   num={1}
-                  title="افزونه ویجنت را دانلود و نصب کنید"
-                  desc="در وردپرس: افزونه‌ها → افزودن → بارگذاری افزونه → این فایل را انتخاب کنید."
+                  title={fa ? 'افزونه ویجنت را دانلود و نصب کنید' : 'Download and install the Vigent plugin'}
+                  desc={fa ? 'در وردپرس: افزونه‌ها → افزودن → بارگذاری افزونه → این فایل را انتخاب کنید.' : 'In WordPress: Plugins → Add New → Upload Plugin → choose this file.'}
                   action={
                     <a
                       href={pluginDownloadHref}
@@ -327,19 +329,19 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                       className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
                     >
                       <Download className="h-3.5 w-3.5" />
-                      دانلود افزونه
+                      {fa ? 'دانلود افزونه' : 'Download plugin'}
                     </a>
                   }
                 />
                 <StepRow
                   num={2}
-                  title="در افزونه دکمه «اتصال» را بزنید"
-                  desc="به صفحه «ویجنت» در منوی وردپرس بروید و دکمه بزرگ «اتصال» را بزنید. همه چیز خودکار است."
+                  title={fa ? 'در افزونه دکمه «اتصال» را بزنید' : 'Press “Connect” in the plugin'}
+                  desc={fa ? 'به صفحه «ویجنت» در منوی وردپرس بروید و دکمه بزرگ «اتصال» را بزنید. همه چیز خودکار است.' : 'Open the “Vigent” page in the WordPress menu and press the large “Connect” button. The rest is automatic.'}
                 />
                 <StepRow
                   num={3}
-                  title="منتظر بمانید تا اتصال برقرار شود"
-                  desc="ما به‌صورت خودکار اتصال را تشخیص می‌دهیم — نیازی به کاری ندارید."
+                  title={fa ? 'منتظر بمانید تا اتصال برقرار شود' : 'Wait for the connection'}
+                  desc={fa ? 'ما به‌صورت خودکار اتصال را تشخیص می‌دهیم — نیازی به کاری ندارید.' : 'We detect the connection automatically. There is nothing else to do.'}
                 />
               </ol>
 
@@ -349,14 +351,14 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                   <>
                     <Loader2 className="h-4 w-4 animate-spin text-[var(--text-secondary)]" />
                     <span className="text-xs font-medium text-[var(--text-secondary)]">
-                      در انتظار اتصال افزونه…
+                      {fa ? 'در انتظار اتصال افزونه…' : 'Waiting for the plugin…'}
                     </span>
                   </>
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 text-[var(--text-muted)]" />
                     <span className="text-xs text-[var(--text-muted)]">
-                      اتصال قطع شد — دوباره تلاش کنید
+                      {fa ? 'اتصال قطع شد — دوباره تلاش کنید' : 'The connection dropped. Try again'}
                     </span>
                   </>
                 )}
@@ -385,17 +387,17 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
 
               <div>
                 <h3 className="text-lg font-bold text-[var(--text-primary)]">
-                  با موفقیت وصل شد!
+                  {fa ? 'با موفقیت وصل شد!' : 'Connected!'}
                 </h3>
                 <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-[var(--text-secondary)]">
-                  سایت شما به ویجنت متصل شد. محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند. در حال ادامه راه‌اندازی…
+                  {fa ? 'سایت شما به ویجنت متصل شد. محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند. در حال ادامه راه‌اندازی…' : 'Your site is connected to Vigent. Products and orders sync automatically. Continuing setup…'}
                 </p>
               </div>
 
               {/* Spinner while we auto-advance */}
               <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ادامه به مرحله بعد…
+                {fa ? 'ادامه به مرحله بعد…' : 'Continuing to the next step…'}
               </div>
             </motion.div>
           )}
@@ -409,7 +411,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
               className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               <ArrowLeft className="h-4 w-4 rotate-180" />
-              بازگشت به محصولات و خدمات
+              {fa ? 'بازگشت به محصولات و خدمات' : 'Back to products and services'}
             </button>
           </div>
         )}

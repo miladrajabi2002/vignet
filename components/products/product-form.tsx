@@ -552,7 +552,7 @@ export function ProductForm({
         className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 motion-reduce:transform-none sm:w-auto"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        {mode === 'edit' ? t('save') : submitting ? t('creating') : returnTo ? 'ذخیره و ادامه' : t('create')}
+        {mode === 'edit' ? t('save') : submitting ? t('creating') : returnTo ? t('saveAndContinue') : t('create')}
       </button>
     </div>
   )

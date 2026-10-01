@@ -476,7 +476,7 @@ function StatusPill({ tone, children }: { tone: Tone; children: React.ReactNode 
   )
 }
 
-/** Thin progress bar. With `warnWhenFull` it turns amber from 80% and red at the cap. */
+/** Thin progress bar. With `warnWhenFull` it turns amber from 80% and a deeper amber at the cap: a full allowance is a limit, not an error. */
 function Meter({ ratio, warnWhenFull, className }: { ratio: number; warnWhenFull?: boolean; className?: string }) {
   const clamped = Math.min(1, Math.max(0, Number.isFinite(ratio) ? ratio : 0))
   return (
@@ -485,7 +485,7 @@ function Meter({ ratio, warnWhenFull, className }: { ratio: number; warnWhenFull
         className={cn(
           'h-full rounded-full bg-[var(--text-primary)]',
           warnWhenFull && clamped >= 0.8 && 'bg-amber-500',
-          warnWhenFull && clamped >= 1 && 'bg-red-500',
+          warnWhenFull && clamped >= 1 && 'bg-amber-600',
         )}
         style={{ width: `${clamped * 100}%` }}
       />

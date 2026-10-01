@@ -154,11 +154,11 @@ export default async function OrdersPage({
               undoKind="order"
               entityLabel={locale === 'en' ? 'orders' : 'سفارش'}
               entitySingularLabel={locale === 'en' ? 'order' : 'سفارش'}
-              buttonLabel={locale === 'en' ? 'Delete all' : 'حذف همه سفارشات'}
-              compactOnMobile
+              buttonLabel={t('deleteAll')}
+              variant="menu"
             />
             <span className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
-              {t('total', { count: totalOrders })}
+              {t('total', { count: totalOrders.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}
             </span>
           </>
         }

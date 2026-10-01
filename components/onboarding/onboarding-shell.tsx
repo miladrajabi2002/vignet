@@ -3,15 +3,16 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { Bot, Check, ChevronLeft, Package, Plug, Store } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { cn } from '@/lib/utils'
 
 const STEPS = [
-  { label: 'کسب‌وکار', icon: Store },
-  { label: 'ایجنت', icon: Bot },
-  { label: 'محصولات و خدمات', icon: Package },
-  { label: 'اتصال برنامه', icon: Plug },
+  { label: 'کسب‌وکار', en: 'Business', icon: Store },
+  { label: 'ایجنت', en: 'Agent', icon: Bot },
+  { label: 'محصولات و خدمات', en: 'Products & services', icon: Package },
+  { label: 'اتصال برنامه', en: 'Connect an app', icon: Plug },
 ] as const
 
 export function OnboardingShell({
@@ -28,6 +29,7 @@ export function OnboardingShell({
   children: ReactNode
 }) {
   const pathname = usePathname()
+  const fa = useLocale() !== 'en'
   const completed = [profileComplete, hasAgent, hasKnowledge, hasChannel]
   const pathStep = pathname.startsWith('/agents')
     ? 1
@@ -45,10 +47,10 @@ export function OnboardingShell({
     <div className="min-h-dvh bg-[var(--bg-base)]">
       <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5">
         <div className="spatial-control mx-auto flex max-w-6xl items-center gap-3 rounded-card px-3 py-2.5 sm:px-4">
-          <Link href="/onboarding" aria-label="مسیر راه‌اندازی" className="hidden shrink-0 sm:block">
+          <Link href="/onboarding" aria-label={fa ? 'مسیر راه‌اندازی' : 'Setup'} className="hidden shrink-0 sm:block">
             <Logo priority className="h-6 w-24" />
           </Link>
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-1 sm:gap-2" aria-label="مراحل راه‌اندازی">
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1 sm:gap-2" aria-label={fa ? 'مراحل راه‌اندازی' : 'Setup steps'}>
             {STEPS.map((step, index) => {
               const Icon = step.icon
               const done = completed[index]
@@ -62,7 +64,7 @@ export function OnboardingShell({
                     )}>
                       {done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                     </span>
-                    <span className={cn('hidden truncate text-[12px] font-semibold lg:block', active || done ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{step.label}</span>
+                    <span className={cn('hidden truncate text-[12px] font-semibold lg:block', active || done ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{fa ? step.label : step.en}</span>
                   </div>
                   {index < STEPS.length - 1 && <span className={cn('mx-1.5 h-px min-w-3 flex-1 sm:mx-3', completed[index] ? 'bg-black' : 'bg-[var(--border-default)]')} />}
                 </div>
@@ -71,8 +73,8 @@ export function OnboardingShell({
           </div>
           {away ? (
             <Link href="/onboarding" className="spatial-press inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-black px-3 text-[12px] font-semibold text-white shadow-[var(--shadow-control)] sm:text-xs">
-              {setupReady ? 'اتصال‌ها تمام شد؛ ادامه' : 'ادامه راه‌اندازی'}
-              <ChevronLeft className="h-3.5 w-3.5" />
+              {setupReady ? (fa ? 'اتصال‌ها تمام شد؛ ادامه' : 'Connections done; continue') : (fa ? 'ادامه راه‌اندازی' : 'Continue setup')}
+              <ChevronLeft className="h-3.5 w-3.5 ltr:rotate-180" />
             </Link>
           ) : <span className="hidden w-24 sm:block" />}
         </div>

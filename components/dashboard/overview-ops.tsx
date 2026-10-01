@@ -39,7 +39,6 @@ function fmt(locale: Locale, value: number) {
 
 export function OpsCenter({
 	locale,
-	ownerName,
 	businessName,
 	businessLabel,
 	connectedApps,
@@ -49,7 +48,6 @@ export function OpsCenter({
 	flow,
 }: {
 	locale: Locale
-	ownerName?: string | null
 	businessName: string
 	businessLabel: string
 	connectedApps: number
@@ -61,7 +59,6 @@ export function OpsCenter({
 	const fa = locale === 'fa'
 	const Arrow = fa ? ArrowLeft : ArrowRight
 	const urgentCount = attention.filter((tile) => tile.urgent).reduce((sum, tile) => sum + tile.value, 0)
-	const firstName = ownerName?.trim().split(/\s+/)[0]
 	const today = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 	const PrimaryIcon = primaryAction.icon
 	const SecondaryIcon = secondaryAction.icon
@@ -78,15 +75,15 @@ export function OpsCenter({
 								? fa ? `${fmt(locale, connectedApps)} برنامه متصل` : `${fmt(locale, connectedApps)} apps connected`
 								: fa ? 'هنوز برنامه‌ای وصل نیست' : 'No app connected yet'}
 						</span>
-						<span className="ms-auto hidden text-[12px] text-[var(--text-muted)] sm:inline">{today}</span>
 					</div>
 
 					<h1 id="ops-title" className="ui-h1 mt-5">
-						{firstName ? (fa ? `سلام ${firstName}` : `Hi ${firstName}`) : fa ? 'مرکز عملیات' : 'Operations center'}
+						{/* The header already greets the owner by name; this title says what today needs. */}
+						{urgentCount === 0
+							? fa ? 'همه‌چیز روی روال است' : 'Everything is on track'
+							: fa ? `${fmt(locale, urgentCount)} مورد منتظر شماست` : `${fmt(locale, urgentCount)} items are waiting for you`}
 						<span className="block text-[15px] font-medium leading-7 text-[var(--text-muted)] lg:text-[17px]">
-							{urgentCount === 0
-								? fa ? `همه‌چیز در ${businessName} روی روال است.` : `Everything at ${businessName} is on track.`
-								: fa ? `امروز ${fmt(locale, urgentCount)} مورد در ${businessName} منتظر شماست.` : `${fmt(locale, urgentCount)} items at ${businessName} are waiting for you.`}
+							{businessName} · {today}
 						</span>
 					</h1>
 
@@ -217,7 +214,7 @@ export function LiveFlow({
 									<span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', outputTone[output.tone])}><Icon className="h-3.5 w-3.5" /></span>
 									<span className="min-w-0">
 										<b className="block text-[14px] font-bold leading-5 tabular-nums text-[var(--text-primary)]">{fmt(locale, output.value)}</b>
-										<span className="block truncate text-[11.5px] text-[var(--text-muted)]">{output.label}</span>
+										<span className="block truncate text-[12px] text-[var(--text-muted)]">{output.label}</span>
 									</span>
 								</Link>
 							</li>
@@ -258,7 +255,7 @@ export function LiveFlow({
 									<span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', outputTone[output.tone])}><Icon className="h-4 w-4" /></span>
 									<span className="min-w-0">
 										<b className="block text-[15px] font-bold leading-5 tabular-nums">{fmt(locale, output.value)}</b>
-										<span className="block truncate text-[11.5px] text-[var(--text-muted)]">{output.label}</span>
+										<span className="block truncate text-[12px] text-[var(--text-muted)]">{output.label}</span>
 									</span>
 								</Link>
 							</li>
@@ -280,7 +277,7 @@ function AgentNode({ locale, agentName, automationRate, compact = false }: { loc
 				<span className={cn('relative grid place-items-center rounded-full border border-[var(--border-default)] bg-white shadow-[0_20px_40px_-20px_rgba(91,61,232,0.6)]', compact ? 'h-[4.5rem] w-[4.5rem]' : 'h-24 w-24')}>
 					<span className={cn('flex flex-col items-center justify-center gap-0.5 rounded-full bg-[var(--text-primary)] text-white', compact ? 'h-14 w-14' : 'h-[4.5rem] w-[4.5rem]')}>
 						<Bot className="h-5 w-5 text-[#b9adff]" strokeWidth={1.8} />
-						<span className="max-w-[4rem] truncate text-[10.5px] font-bold">{agentName}</span>
+						<span className="max-w-[4rem] truncate text-[12px] font-bold">{agentName}</span>
 					</span>
 				</span>
 			</div>
@@ -320,7 +317,7 @@ export function VigentoCard({
 							<p className="text-[12.5px] text-white/60">{fa ? 'دستیار هوشمند پنل شما' : 'Your panel’s AI assistant'}</p>
 						</div>
 					</div>
-					<p className="mt-4 max-w-md text-[14px] leading-7 text-white/75">
+					<p className="mt-4 hidden max-w-md text-[14px] leading-7 text-white/75 sm:block">
 						{fa
 							? 'به‌جای گشتن بین صفحه‌ها، بپرسید. ویجنتو گفتگوها، مشتری‌ها، فروشگاه، نوبت‌ها و هزینهٔ هوش مصنوعی را از دادهٔ زنده بررسی می‌کند و جواب کوتاه و دقیق می‌دهد.'
 							: 'Instead of hunting through pages, ask. Vigento reads conversations, customers, store, bookings and AI cost from live data and answers briefly and precisely.'}
@@ -341,8 +338,8 @@ export function VigentoCard({
 				</div>
 
 				{/* A short real exchange on a 10s loop: question → thinking → answer. */}
-				<div aria-hidden className="vg-anim rounded-card border border-white/10 bg-white/[0.04] p-4 [--vg-T:11s]" dir={fa ? 'rtl' : 'ltr'}>
-					<div className="flex items-center gap-2 text-[11.5px] text-white/55">
+				<div aria-hidden className="vg-anim hidden rounded-card border border-white/10 bg-white/[0.04] p-4 [--vg-T:11s] sm:block" dir={fa ? 'rtl' : 'ltr'}>
+					<div className="flex items-center gap-2 text-[12px] text-white/55">
 						<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
 						{fa ? 'ویجنتو · داده زنده' : 'Vigento · live data'}
 					</div>
@@ -356,7 +353,7 @@ export function VigentoCard({
 							<p className="vg-t2 max-w-[92%] rounded-2xl rounded-bl-md bg-[#26262c] px-3.5 py-2.5 text-[13px] leading-6 text-white/90">{liveAnswer}</p>
 						</div>
 						<div dir={fa ? 'rtl' : 'ltr'} className="vg-t4 flex flex-wrap gap-1.5">
-							<span className="rounded-full bg-[rgba(199,189,240,0.14)] px-2.5 py-1 text-[11px] text-[#d5cdff]">{fa ? 'منبع: گفتگوهای امروز' : 'Source: today’s chats'}</span>
+							<span className="rounded-full bg-[rgba(199,189,240,0.14)] px-2.5 py-1 text-[12px] text-[#d5cdff]">{fa ? 'منبع: گفتگوهای امروز' : 'Source: today’s chats'}</span>
 						</div>
 					</div>
 				</div>
@@ -435,7 +432,8 @@ export function OperatorBotCard({ locale, connected = false, paused = false, bot
 						</div>
 					</div>
 
-					<div className="mt-4 border-t border-[var(--border-subtle)] pt-4 sm:mt-5 sm:pt-5">
+					{/* Phones get the one-line pitch and the button; the feature tour starts at md. */}
+					<div className="mt-4 hidden border-t border-[var(--border-subtle)] pt-4 sm:mt-5 sm:pt-5 md:block">
 						<p className="mb-2 text-[12.5px] font-bold text-[var(--text-primary)]">
 							{connected ? (fa ? 'در ربات شما فعال است' : 'Live in your bot') : (fa ? 'این ربات چه کارهایی می‌کند؟' : 'What the bot does')}
 						</p>
@@ -466,7 +464,7 @@ export function OperatorBotCard({ locale, connected = false, paused = false, bot
 					</div>
 				</div>
 
-				{connected ? <TelegramBriefPreview fa={fa} /> : <TelegramReplyPreview fa={fa} />}
+				<div className="hidden md:contents">{connected ? <TelegramBriefPreview fa={fa} /> : <TelegramReplyPreview fa={fa} />}</div>
 			</div>
 		</section>
 	)

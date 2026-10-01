@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/sidebar'
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
   children: ReactNode
 }) {
   const user = await requireUser()
+  const t = await getTranslations('dashboard')
 
   const workspace = await prisma.workspace.findUnique({
     where: { id: user.workspaceId },
@@ -112,7 +114,7 @@ export default async function DashboardLayout({
         href="#dashboard-main"
         className="sr-only focus:not-sr-only focus:fixed focus:inset-x-0 focus:top-2 focus:z-[80] focus:m-auto focus:block focus:w-fit focus:rounded-xl focus:bg-black focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
-        پرش به محتوای اصلی
+        {t('skipToContent')}
       </a>
       <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -131,11 +133,11 @@ export default async function DashboardLayout({
           <div className="dashboard-shell-content mt-3">
             <div className="dashboard-main flex flex-col gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-amber-950 shadow-[var(--shadow-xs)] sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold">اطلاعات شما محفوظ است؛ فضای کاری در حالت فقط‌خواندنی قرار دارد.</p>
-                <p className="mt-0.5 text-xs leading-6 text-amber-900/75">مشاهده گزارش‌ها و داده‌های قبلی ادامه دارد، اما پاسخ خودکار و تغییرات جدید تا فعال‌سازی پلن متوقف می‌ماند.</p>
+                <p className="text-sm font-bold">{t('readOnlyTitle')}</p>
+                <p className="mt-0.5 text-xs leading-6 text-amber-900/75">{t('readOnlyBody')}</p>
               </div>
               <Link href="/billing" className="spatial-press inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-black px-4 text-xs font-bold text-white">
-                فعال‌سازی دوباره
+                {t('readOnlyAction')}
               </Link>
             </div>
           </div>

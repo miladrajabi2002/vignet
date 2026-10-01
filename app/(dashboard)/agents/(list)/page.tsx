@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import {
         Bot,
         Plus,
@@ -20,6 +20,7 @@ import { LiveEmptyState } from '@/components/ui/live-empty-state'
 export default async function AgentsPage() {
         const user = await requireUser()
         const t = await getTranslations('agents')
+        const nf = new Intl.NumberFormat((await getLocale()) === 'en' ? 'en-US' : 'fa-IR')
 
         const [agents, agentSparks] = await Promise.all([
                 prisma.agent.findMany({
@@ -99,21 +100,18 @@ export default async function AgentsPage() {
                                                         </h3>
 
                                                         {/* Stats */}
-                                                        <div className="mt-4 flex items-center gap-3 text-xs text-[var(--text-muted)]">
-                                                                <span
-                                                                        className="inline-flex items-center gap-1"
-                                                                        title={t('conversations')}
-                                                                >
+                                                        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                                                                <span className="inline-flex items-center gap-1">
                                                                         <MessagesSquare className="h-3.5 w-3.5" />
-                                                                        {agent._count.conversations}
+                                                                        {t('statConversations', { count: nf.format(agent._count.conversations) })}
                                                                 </span>
-                                                                <span className="inline-flex items-center gap-1" title={t('channels')}>
+                                                                <span className="inline-flex items-center gap-1">
                                                                         <Share2 className="h-3.5 w-3.5" />
-                                                                        {agent._count.channels}
+                                                                        {t('statChannels', { count: nf.format(agent._count.channels) })}
                                                                 </span>
-                                                                <span className="inline-flex items-center gap-1" title={t('knowledge')}>
+                                                                <span className="inline-flex items-center gap-1">
                                                                         <Database className="h-3.5 w-3.5" />
-                                                                        {agent._count.knowledgeBases}
+                                                                        {t('statKnowledge', { count: nf.format(agent._count.knowledgeBases) })}
                                                                 </span>
                                                         </div>
 
@@ -125,7 +123,7 @@ export default async function AgentsPage() {
                                                                         <div className="mt-3 flex items-center gap-2">
                                                                                 <Sparkline data={spark.series} color="#111111" width={100} height={24} fluid />
                                                                                 <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
-                                                                                        {spark.total.toLocaleString('fa-IR')} در ۷ روز
+                                                                                        {t('lastWeek', { count: nf.format(spark.total) })}
                                                                                 </span>
                                                                         </div>
                                                                 )
@@ -138,7 +136,7 @@ export default async function AgentsPage() {
                                                                         {t('settings')}
                                                                 </span>
                                                                 <span className="ms-auto inline-flex items-center gap-1 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)]">
-                                                                        {agent.language === 'fa' ? 'مشاهده' : 'Open'}
+                                                                        {t('open')}
                                                                         <span className="rtl:rotate-180">→</span>
                                                                 </span>
                                                         </div>
@@ -153,22 +151,12 @@ export default async function AgentsPage() {
                                         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
                                         <div className="text-[var(--text-secondary)]">
                                                 <p className="font-medium text-[var(--text-primary)]">
-                                                        {agent_hint_title(agents.length)}
+                                                        {agents.length === 1 ? t('hintOneTitle') : t('hintManyTitle', { count: nf.format(agents.length) })}
                                                 </p>
-                                                <p className="mt-1 text-xs">{agent_hint_body(agents.length)}</p>
+                                                <p className="mt-1 text-xs">{agents.length === 1 ? t('hintOneBody') : t('hintManyBody')}</p>
                                         </div>
                                 </div>
                         )}
                 </div>
         )
-}
-
-function agent_hint_title(n: number): string {
-        return n === 1 ? 'ایجنت شما آماده است' : `${n} ایجنت فعال دارید`
-}
-
-function agent_hint_body(n: number): string {
-        return n === 1
-                ? 'برای تست، روی کارت بزنید. از بخش «برنامه‌ها» می‌توانید آن را به وب‌سایت یا تلگرام وصل کنید.'
-                : 'روی هر کارت بزنید تا تنظیمات، پایگاه دانش و برنامه‌های آن را ببینید. می‌توانید ایجنت‌های مختلف برای کارهای مختلف بسازید.'
 }

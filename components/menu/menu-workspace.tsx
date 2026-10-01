@@ -7,7 +7,7 @@ import Link from 'next/link'
 import QRCode from 'qrcode'
 import {
   AlertTriangle,
-  ArrowDown,
+  ArrowDown, ChevronDown,
   Tag,
   ArrowUp,
   Check,
@@ -121,6 +121,8 @@ export function MenuWorkspace({
       }))
       .filter((group) => group.items.length > 0)
   }, [items, categories, query, filter])
+
+  const searching = query.trim() !== '' || filter !== 'all'
 
   // The design tab's live preview renders the real menu (visible items only).
   const previewSections = useMemo(() => buildMenuSections(
@@ -247,26 +249,27 @@ export function MenuWorkspace({
                 <p className="rounded-xl bg-amber-500/[0.08] px-3.5 py-2.5 text-[12.5px] leading-6 text-amber-900">آیتم‌های داخل منو که قیمت یا عکس ندارند. مشتری برای آیتم بی‌قیمت «برای قیمت پیام دهید» می‌بیند و آیتم با عکس بیشتر انتخاب می‌شود.</p>
               )}
 
-              {sections.length ? sections.map((section) => {
+              {sections.length ? sections.map((section, index) => {
                 const position = orderable.findIndex((category) => category.id === section.id)
                 return (
-                  <section key={section.id} className="spatial-surface rounded-card p-3 sm:p-4" aria-label={section.name}>
-                    <div className="flex items-center gap-2 px-1 pb-2">
-                      <h2 className="ui-h3 min-w-0 flex-1 truncate">{section.name}</h2>
-                      <span className="text-[12px] text-[var(--text-muted)]">{fa(section.total)} آیتم در منو</span>
-                      {section.real && orderable.length > 1 && (
-                        <span className="flex items-center gap-0.5">
-                          <OrderButton label={`بالاتر بردن ${section.name}`} disabled={position <= 0 || busy !== null} onClick={() => void moveCategory(section.id, -1)}><ArrowUp className="h-3.5 w-3.5" /></OrderButton>
-                          <OrderButton label={`پایین‌تر بردن ${section.name}`} disabled={position < 0 || position >= orderable.length - 1 || busy !== null} onClick={() => void moveCategory(section.id, 1)}><ArrowDown className="h-3.5 w-3.5" /></OrderButton>
-                        </span>
-                      )}
-                    </div>
-                    <ul className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white">
-                      {section.items.map((item) => (
-                        <ItemRow key={item.id} item={item} busy={busy === item.id} onPatch={(data) => void patchItem(item, data)} />
-                      ))}
-                    </ul>
-                  </section>
+                  <MenuSection
+                    // Searching or filtering is a hunt across categories, so every match opens.
+                    key={`${section.id}:${searching ? 'all' : 'first'}`}
+                    name={section.name}
+                    total={section.total}
+                    count={section.items.length}
+                    defaultOpen={searching || index === 0}
+                    order={section.real && orderable.length > 1 ? (
+                      <span className="flex items-center gap-0.5">
+                        <OrderButton label={`بالاتر بردن ${section.name}`} disabled={position <= 0 || busy !== null} onClick={() => void moveCategory(section.id, -1)}><ArrowUp className="h-4 w-4" /></OrderButton>
+                        <OrderButton label={`پایین‌تر بردن ${section.name}`} disabled={position < 0 || position >= orderable.length - 1 || busy !== null} onClick={() => void moveCategory(section.id, 1)}><ArrowDown className="h-4 w-4" /></OrderButton>
+                      </span>
+                    ) : null}
+                  >
+                    {(limit) => section.items.slice(0, limit).map((item) => (
+                      <ItemRow key={item.id} item={item} busy={busy === item.id} onPatch={(data) => void patchItem(item, data)} />
+                    ))}
+                  </MenuSection>
                 )
               }) : (
                 <div className="grid min-h-40 place-items-center rounded-card border border-dashed border-[var(--border-default)] bg-white/60 p-8 text-center">
@@ -354,7 +357,7 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
         </details>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <Link href={`/products/${item.id}/edit`} aria-label={`ویرایش ${item.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-hint)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+        <Link href={`/products/${item.id}/edit`} aria-label={`ویرایش ${item.name}`} className="grid h-11 w-11 place-items-center rounded-lg text-[var(--text-hint)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] sm:h-9 sm:w-9">
           <Pencil className="h-4 w-4" />
         </Link>
         {busy ? <Loader2 className="mx-2.5 h-4 w-4 animate-spin text-[var(--text-hint)]" /> : (
@@ -365,9 +368,60 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
   )
 }
 
+const SECTION_PAGE = 20
+
+/**
+ * One category of the menu. A real menu runs to hundreds of items, so a
+ * category opens on demand and shows twenty rows at a time; the page stays
+ * a list of categories instead of one endless scroll.
+ */
+function MenuSection({
+  name,
+  total,
+  count,
+  defaultOpen,
+  order,
+  children,
+}: {
+  name: string
+  total: number
+  count: number
+  defaultOpen: boolean
+  order: React.ReactNode
+  children: (limit: number) => React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const [limit, setLimit] = useState(SECTION_PAGE)
+  const rest = count - limit
+  return (
+    <section className="spatial-surface rounded-card p-3 sm:p-4" aria-label={name}>
+      <div className="flex items-center gap-1 px-1">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-start">
+          <ChevronDown className={cn('h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform', !open && 'rtl:rotate-90 ltr:-rotate-90')} aria-hidden />
+          <h2 className="ui-h3 min-w-0 flex-1 truncate">{name}</h2>
+          <span className="shrink-0 text-[12px] text-[var(--text-muted)]">{fa(total)} آیتم در منو</span>
+        </button>
+        {order}
+      </div>
+      {open && (
+        <>
+          <ul className="mt-2 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white">
+            {children(limit)}
+          </ul>
+          {rest > 0 && (
+            <button type="button" onClick={() => setLimit((value) => value + SECTION_PAGE)} className="mt-2 min-h-11 w-full rounded-xl text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]">
+              نمایش {fa(Math.min(rest, SECTION_PAGE))} آیتم بعدی از {fa(rest)}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
 function OrderButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30">
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className="grid h-11 w-11 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 sm:h-9 sm:w-9">
       {children}
     </button>
   )

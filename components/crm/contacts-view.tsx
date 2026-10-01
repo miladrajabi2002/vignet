@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, Search, SlidersHorizontal, Users, X } from 'lucide-react'
 import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
@@ -301,6 +301,19 @@ export function ContactsView({
                 }).catch(() => {})
         }
 
+        const exportLink = (
+                <a
+                        href={exportHref}
+                        download
+                        title={t('exportDescription')}
+                        aria-label={t('exportExcel')}
+                        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-4 sm:text-sm"
+                >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        <span>{t('exportExcel')}</span>
+                </a>
+        )
+
         return (
                 <LiveArrivalProvider key={liveScope} ids={rows.map((row) => row.id)}>
                 <LiveRefreshProbe
@@ -320,16 +333,17 @@ export function ContactsView({
                                                         limitReached={customerLimitReached}
                                                         upgradeHref={upgradeHref}
                                                 />
-                                                <a
-                                                        href={exportHref}
-                                                        download
-                                                        title={t('exportDescription')}
-                                                        aria-label={t('exportExcel')}
-                                                        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-4 sm:text-sm"
-                                                >
-                                                        <Download className="h-4 w-4" aria-hidden="true" />
-                                                        <span className="hidden sm:inline">{t('exportExcel')}</span>
-                                                </a>
+                                                <CampaignLaunchButton
+                                                        audience={campaignAudience}
+                                                        locale={locale}
+                                                        disabled={filtered.length === 0}
+                                                        compactOnMobile
+                                                        label={selected.size > 0
+                                                                ? locale === 'fa'
+                                                                        ? `ارسال پیام به ${selected.size.toLocaleString('fa-IR')} مشتری`
+                                                                        : `Message ${selected.size} customers`
+                                                                : undefined}
+                                                />
                                                 <BulkDeleteButton
                                                         countEndpoint="/api/contacts/bulk"
                                                         deleteEndpoint="/api/contacts/bulk"
@@ -351,28 +365,18 @@ export function ContactsView({
                                                         extraWarning={locale === 'fa'
                                                                 ? 'گفتگوهای مشتریان حفظ می‌شوند؛ با حذف یا بازگردانی، لینک گفتگوها هم به همان شکل برمی‌گردد.'
                                                                 : 'Conversations are preserved; restoring also brings their links back.'}
+                                                        // A selection makes delete the task at hand, so it steps out of the menu.
+                                                        variant={selected.size > 0 ? 'button' : 'menu'}
+                                                        menuItems={exportLink}
                                                         compactOnMobile
                                                         undoKind="contact"
                                                         onDeleted={() => setSelected(new Set())}
-                                                />
-                                                <CampaignLaunchButton
-                                                        audience={campaignAudience}
-                                                        locale={locale}
-                                                        disabled={filtered.length === 0}
-                                                        compactOnMobile
-                                                        label={selected.size > 0
-                                                                ? locale === 'fa'
-                                                                        ? `ارسال پیام به ${selected.size.toLocaleString('fa-IR')} مشتری`
-                                                                        : `Message ${selected.size} customers`
-                                                                : undefined}
                                                 />
                                         </>
                                 }
                         />
 
                         {limitNotice}
-
-                        {insights}
 
                         <div className="flex flex-wrap items-center justify-end gap-2">
                                 <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
@@ -523,6 +527,9 @@ export function ContactsView({
                         )}
 
                         {footer && view === 'list' ? footer : null}
+
+                        {/* Charts sit under the list: people come here for the customers, not the summary. */}
+                        {insights}
 
                         <ContactDetailSheet
                                 contactId={detailContactId ?? null}
@@ -840,6 +847,7 @@ function PipelineView({
         onMove: (id: string, s: Stage) => void
 }) {
         const t = useTranslations('contacts')
+        const locale = useLocale()
         const [dragId, setDragId] = useState<string | null>(null)
         const [overStage, setOverStage] = useState<Stage | null>(null)
 
@@ -943,7 +951,7 @@ function PipelineView({
                                                                                                 href={`/contacts/${c.id}`}
                                                                                                 className="text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                                                                                         >
-                                                                                                {c.conversationCount} {t('conversations')}
+                                                                                                {c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} {t('conversations')}
                                                                                         </Link>
                                                                                         <div onClick={(e) => e.stopPropagation()}>
                                                                                                 <StageSelect value={c.stage} onChange={(s) => onMove(c.id, s)} />

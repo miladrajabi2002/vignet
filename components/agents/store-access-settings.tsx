@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   BellRing,
   CheckCircle2,
@@ -45,6 +45,7 @@ export function StoreAccessSettings({
   orderCount: number
 }) {
   const t = useTranslations('agents.storeAccess')
+  const numberLocale = useLocale() === 'en' ? 'en-US' : 'fa-IR'
   const [productAccessEnabled, setProductAccessEnabled] = useState(
     initialProductAccessEnabled,
   )
@@ -130,7 +131,7 @@ export function StoreAccessSettings({
               icon={Package}
               title={t('productsTitle')}
               description={t('productsDescription')}
-              badge={t('productsCount', { count: productCount })}
+              badge={t('productsCount', { count: productCount.toLocaleString(numberLocale) })}
               checked={productCount > 0 && productAccessEnabled}
               pending={saving === 'productAccessEnabled'}
               disabled={saving !== null || productCount === 0}
@@ -142,7 +143,7 @@ export function StoreAccessSettings({
               icon={ShoppingBag}
               title={t('ordersTitle')}
               description={t('ordersDescription')}
-              badge={t('ordersCount', { count: orderCount })}
+              badge={t('ordersCount', { count: orderCount.toLocaleString(numberLocale) })}
               checked={orderCount > 0 && orderTrackingEnabled}
               pending={saving === 'orderTrackingEnabled'}
               disabled={saving !== null || orderCount === 0}

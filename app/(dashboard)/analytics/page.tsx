@@ -9,7 +9,6 @@ import {
   MessagesSquare,
   Sparkles,
   Star,
-  TrendingUp,
   Zap,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
@@ -18,7 +17,7 @@ import { DashboardPanel } from '@/components/dashboard/panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { ConversationChart, ChannelDonut, SatisfactionGauge } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
-import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
+import { channelLabel } from '@/components/crm/channel-badge'
 import { cn } from '@/lib/utils'
 
 const TREND_DAYS = 30
@@ -129,7 +128,7 @@ export default async function AnalyticsPage() {
   }))
 
   const channelData = channelCounts.map((c) => ({
-    label: CHANNEL_LABELS[c.channel as keyof typeof CHANNEL_LABELS] ?? c.channel,
+    label: channelLabel(c.channel, locale),
     value: c._count._all,
   }))
 
@@ -174,7 +173,7 @@ export default async function AnalyticsPage() {
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
         icon={BarChart3}
-        title={fa ? 'تحلیل عمیق گفتگوها و عملکرد' : 'Deep performance analytics'}
+        title={fa ? 'تحلیل گفتگوها' : 'Conversation analytics'}
         subtitle={fa ? `۳۰ روز گذشته · ${workspace.name}` : `Last 30 days · ${workspace.name}`}
         actions={
           <Link
@@ -200,12 +199,11 @@ export default async function AnalyticsPage() {
                 <span
                   className={cn(
                     'grid h-9 w-9 place-items-center rounded-xl',
-                    kpi.tone === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]',
+                    kpi.tone === 'success' ? 'bg-[var(--signal-soft)] text-[var(--signal-strong)]' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]',
                   )}
                 >
                   <Icon className="h-4 w-4" />
                 </span>
-                <TrendingUp className="h-3.5 w-3.5 text-[var(--text-muted)]" />
               </div>
               <p className="mt-3 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{kpi.value}</p>
               <p className="mt-0.5 text-[12px] font-medium text-[var(--text-secondary)]">{kpi.label}</p>
@@ -292,10 +290,10 @@ export default async function AnalyticsPage() {
         >
           <div className="space-y-3 py-2">
             {[
-              { label: fa ? 'گفتگو دریافت شد' : 'Conversations received', value: totalConversations, color: 'bg-[var(--text-primary)]' },
-              { label: fa ? 'توسط ایجنت پاسخ داده شد' : 'Answered by agent', value: totalConversations - handedOff, color: 'bg-emerald-500' },
-              { label: fa ? 'حل شد' : 'Resolved', value: resolvedConversations, color: 'bg-emerald-600' },
-              { label: fa ? 'تحویل اپراتور' : 'Handed to operator', value: handedOff, color: 'bg-amber-500' },
+              { label: fa ? 'گفتگو دریافت شد' : 'Conversations received', value: totalConversations, color: 'bg-[color-mix(in_srgb,var(--signal)_30%,white)]' },
+              { label: fa ? 'توسط ایجنت پاسخ داده شد' : 'Answered by agent', value: totalConversations - handedOff, color: 'bg-[color-mix(in_srgb,var(--signal)_62%,white)]' },
+              { label: fa ? 'حل شد' : 'Resolved', value: resolvedConversations, color: 'bg-[var(--signal)]' },
+              { label: fa ? 'تحویل اپراتور' : 'Handed to operator', value: handedOff, color: 'bg-amber-600' },
             ].map((step) => {
               const max = totalConversations || 1
               const pct = Math.round((step.value / max) * 100)
@@ -330,7 +328,16 @@ export default async function AnalyticsPage() {
               />
             </div>
           ) : (
-            <div className="grid h-40 place-items-center text-sm text-[var(--text-muted)]">{fa ? 'هنوز امتیازی ثبت نشده' : 'No ratings yet'}</div>
+            <div className="grid h-40 place-items-center px-2 text-center">
+              <div>
+                <p className="text-sm font-medium text-[var(--text-secondary)]">{fa ? 'هنوز امتیازی ثبت نشده' : 'No ratings yet'}</p>
+                <p className="mx-auto mt-1.5 max-w-xs text-xs leading-6 text-[var(--text-muted)]">
+                  {fa
+                    ? 'امتیازها از پسند و نپسندی می‌آیند که زیر پاسخ‌های ایجنت ثبت می‌شود. با اولین امتیاز، میانگین همین‌جا دیده می‌شود.'
+                    : 'Ratings come from the thumbs up or down left under agent replies. The average appears here after the first one.'}
+                </p>
+              </div>
+            </div>
           )}
         </DashboardPanel>
 

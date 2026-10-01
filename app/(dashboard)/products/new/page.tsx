@@ -27,9 +27,9 @@ export default async function NewProductPage({
         <div className="spatial-surface flex items-center gap-3 rounded-card p-4">
           <span className="grid h-10 w-10 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Package className="h-4 w-4" /></span>
           <div>
-            <p className="text-[12px] font-bold text-[var(--text-muted)]">مرحله ۳ از ۴</p>
-            <h1 className="mt-1 text-lg font-bold text-[var(--text-primary)]">اولین محصول یا خدمت را اضافه کنید</h1>
-            <p className="mt-1 text-xs text-[var(--text-muted)]">بعد از ذخیره، مستقیم به ادامه مسیر راه‌اندازی برمی‌گردید.</p>
+            <p className="text-[12px] font-bold text-[var(--text-muted)]">{t('onboardingStep')}</p>
+            <h1 className="mt-1 text-lg font-bold text-[var(--text-primary)]">{t('onboardingTitle')}</h1>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">{t('onboardingHint')}</p>
           </div>
         </div>
       ) : <PageHeader icon={Package} title={t('new')} back={{ href: '/products', label: t('title') }} />}

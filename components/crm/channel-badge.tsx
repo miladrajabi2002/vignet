@@ -7,6 +7,7 @@ import {
   MessageCircleCheck,
   Webhook,
 } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 // Single-colour outline glyphs (Tabler brand set, MIT) so every channel badge
@@ -93,12 +94,30 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   CHAT_LINK: 'Link',
 }
 
+export const CHANNEL_LABELS_FA: Record<ChannelType, string> = {
+  WEB_WIDGET: 'ویجت سایت',
+  TELEGRAM: 'تلگرام',
+  BALE: 'بله',
+  RUBIKA: 'روبیکا',
+  WHATSAPP: 'واتساپ',
+  INSTAGRAM: 'اینستاگرام',
+  API: 'اتصال مستقیم',
+  CHAT_LINK: 'لینک چت',
+}
+
+/** Channel name in the panel's language; unknown values fall back to the raw key. */
+export function channelLabel(type: string, locale: string): string {
+  const labels: Record<string, string> = locale === 'en' ? CHANNEL_LABELS : CHANNEL_LABELS_FA
+  return labels[type] ?? type
+}
+
 export function ChannelBadge({ type }: { type: ChannelType }) {
   const Icon = ICONS[type]
+  const locale = useLocale()
   return (
     <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-white px-1.5 text-[12px] font-medium leading-none text-[var(--text-secondary)]">
       <Icon aria-hidden="true" className={cn('h-3.5 w-3.5 shrink-0', ICON_TONES[type])} />
-      {CHANNEL_LABELS[type]}
+      {channelLabel(type, locale)}
     </span>
   )
 }
@@ -124,13 +143,14 @@ function WooCommerceIcon({ className }: { className?: string }) {
 }
 
 export function WooCommerceBadge() {
+  const fa = useLocale() !== 'en'
   return (
     <span
       className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[12px] font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-purple-300"
-      title="مشتری از طریق افزونه ووکامرس وارد شده است"
+      title={fa ? 'مشتری از طریق افزونه ووکامرس وارد شده است' : 'This customer came in through the WooCommerce plugin'}
     >
       <WooCommerceIcon className="h-3 w-3" />
-      افزونه
+      {fa ? 'افزونه' : 'Plugin'}
     </span>
   )
 }

@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { Camera, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -76,6 +77,7 @@ async function InstagramAutomationContent({
         igError: string | null
 }) {
         const user = await requireUser()
+        const tc = await getTranslations('channels')
 
         const agent = await prisma.agent.findFirst({
                 where: { id: agentId, workspaceId: user.workspaceId },
@@ -98,12 +100,12 @@ async function InstagramAutomationContent({
                 <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
                         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
                         <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-danger">اتصال ناموفق بود.</p>
+                                <p className="text-sm font-medium text-danger">{tc('igFailedTitle')}</p>
                                 <p className="mt-0.5 text-xs leading-relaxed text-danger/80">
-                                        دوباره تلاش کنید.{' '}
-                                        {igError === 'denied' && '(دسترسی لغو شد)'}
-                                        {igError === 'exchange' && '(خطا در تأیید کد)'}
-                                        {igError === 'state' && '(نشست نامعتبر)'}
+                                        {tc('igFailedBodyShort')}{' '}
+                                        {igError === 'denied' && tc('igErrorDenied')}
+                                        {igError === 'exchange' && tc('igErrorExchange')}
+                                        {igError === 'state' && tc('igErrorState')}
                                 </p>
                         </div>
                 </div>
@@ -112,10 +114,10 @@ async function InstagramAutomationContent({
                         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
                         <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-success">
-                                        اکانت اینستاگرام با موفقیت متصل شد.
+                                        {tc('igConnectedTitle')}
                                 </p>
                                 <p className="mt-0.5 text-xs leading-relaxed text-success/80">
-                                        حالا می‌توانید اتوماسیون‌های دایرکت و کامنت را فعال کنید.
+                                        {tc('igConnectedBodyShort')}
                                 </p>
                         </div>
                 </div>
@@ -134,10 +136,10 @@ async function InstagramAutomationContent({
                                         </div>
                                         <div>
                                                 <h1 className="text-base font-bold text-[var(--text-primary)]">
-                                                        اتصال اینستاگرام
+                                                        {tc('igConnectTitle')}
                                                 </h1>
                                                 <p className="text-xs text-[var(--text-secondary)]">
-                                                        اتوماسیون اینستاگرام با اشتراک فعال، بدون کسر اعتبار اجرا می‌شود.
+                                                        {tc('igConnectHint')}
                                                 </p>
                                         </div>
                                 </div>

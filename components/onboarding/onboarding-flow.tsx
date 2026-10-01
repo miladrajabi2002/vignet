@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale } from 'next-intl'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
@@ -119,6 +120,7 @@ export function OnboardingFlow({
   businessProfile,
   agentTemplate,
 }: Props) {
+  const fa = useLocale() !== 'en'
   const router = useRouter()
   const phaseContentRef = useRef<HTMLDivElement>(null)
   const [direction, setDirection] = useState(1)
@@ -257,24 +259,24 @@ export function OnboardingFlow({
               <CtaStep
                 icon={Plug}
                 step={4}
-                title="در صورت تمایل یک برنامه متصل کنید"
-                subtitle="می‌توانید ایجنت را به اینستاگرام، تلگرام یا گفتگوی سایت متصل کنید"
-                tip="این مرحله اختیاری است. با اتصال یک برنامه، پیام مشتری مستقیماً به ایجنت می‌رسد؛ هر زمان بخواهید از پنل هم می‌توانید این کار را انجام دهید."
-                ctaLabel="اتصال یک برنامه"
+                title={fa ? 'در صورت تمایل یک برنامه متصل کنید' : 'Connect an app if you like'}
+                subtitle={fa ? 'می‌توانید ایجنت را به اینستاگرام، تلگرام یا گفتگوی سایت متصل کنید' : 'You can connect the agent to Instagram, Telegram or your website chat'}
+                tip={fa ? 'این مرحله اختیاری است. با اتصال یک برنامه، پیام مشتری مستقیماً به ایجنت می‌رسد؛ هر زمان بخواهید از پنل هم می‌توانید این کار را انجام دهید.' : 'This step is optional. Once an app is connected, customer messages reach the agent directly. You can also do this later from the panel.'}
+                ctaLabel={fa ? 'اتصال یک برنامه' : 'Connect an app'}
                 ctaHref={businessType === 'SOCIAL'
                   ? '/instagram'
                   : resolvedAgentId ? `/agents/${resolvedAgentId}/channels` : '/agents'}
                 done={hasChannel}
-                skipLabel="فعلاً بدون اتصال ادامه می‌دهم"
+                skipLabel={fa ? 'فعلاً بدون اتصال ادامه می‌دهم' : 'Continue without connecting for now'}
                 onSkip={async () => {
                   await skipSetupStep('SKIP_CHANNEL', router)
                   setDirection(1)
                   setPhaseOverride('done')
                 }}
-                backLabel="بازگشت به محصولات و خدمات"
+                backLabel={fa ? 'بازگشت به محصولات و خدمات' : 'Back to products and services'}
                 onBack={() => { setDirection(-1); setWooJustConnected(false); setPhaseOverride('knowledge') }}
                 onContinue={() => { setDirection(1); setWooJustConnected(false); setPhaseOverride('done') }}
-                successBanner={wooJustConnected ? 'با موفقیت سایت شما به ویجنت وصل شد' : undefined}
+                successBanner={wooJustConnected ? (fa ? 'با موفقیت سایت شما به ویجنت وصل شد' : 'Your site is now connected to Vigent') : undefined}
               />
             )}
 
@@ -294,17 +296,18 @@ function TypeStep({
   selectedType: BusinessTypeValue | null
   onSelect: (type: BusinessTypeValue) => void
 }) {
+  const fa = useLocale() !== 'en'
   return (
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          شروع راه‌اندازی
+          {fa ? 'شروع راه‌اندازی' : 'Getting started'}
         </p>
         <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-          کسب‌وکار شما چیست؟
+          {fa ? 'کسب‌وکار شما چیست؟' : 'What is your business?'}
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
-          نوع کسب‌وکار خود را انتخاب کنید تا ویژگی‌های مناسب شما فعال شود
+          {fa ? 'نوع کسب‌وکار خود را انتخاب کنید تا ویژگی‌های مناسب شما فعال شود' : 'Pick your business type so the right features are turned on'}
         </p>
       </motion.div>
 
@@ -387,6 +390,7 @@ function DetailsStep({
   onBack: () => void
   onNext: () => void
 }) {
+  const fa = useLocale() !== 'en'
   const pack = getVerticalPack(initialType)
   const suggestions = getBusinessServiceOptions(initialType)
   const [businessName, setBusinessName] = useState(initialProfile?.businessName ?? '')
@@ -416,7 +420,7 @@ function DetailsStep({
     }
     setNameInvalid(false)
     if (capabilities.length === 0) {
-      setError('حداقل یک قابلیت را انتخاب کنید')
+      setError((fa ? 'حداقل یک قابلیت را انتخاب کنید' : 'Choose at least one capability'))
       return
     }
     setSaving(true)
@@ -430,13 +434,13 @@ function DetailsStep({
           businessName: businessName.trim(),
           capabilities,
           extras: initialProfile?.extras ?? [],
-          locale: 'fa',
+          locale: fa ? 'fa' : 'en',
         }),
       })
       if (!res.ok) throw new Error()
       onNext()
     } catch {
-      setError('ذخیره ناموفق بود، دوباره تلاش کنید')
+      setError((fa ? 'ذخیره ناموفق بود، دوباره تلاش کنید' : 'Could not save. Try again'))
     } finally {
       setSaving(false)
     }
@@ -446,13 +450,13 @@ function DetailsStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          مرحله ۱ از ۴
+          {fa ? 'مرحله ۱ از ۴' : 'Step 1 of 4'}
         </p>
         <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-          اطلاعات کسب‌وکار
+          {fa ? 'اطلاعات کسب‌وکار' : 'Business details'}
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
-          نام و خدمات اصلی کسب‌وکار خود را وارد کنید
+          {fa ? 'نام و خدمات اصلی کسب‌وکار خود را وارد کنید' : 'Enter your business name and what it mainly offers'}
         </p>
       </motion.div>
 
@@ -477,7 +481,7 @@ function DetailsStep({
               nameInvalid ? 'text-red-600' : 'text-[var(--text-primary)]',
             )}
           >
-            نام کسب‌وکار
+            {fa ? 'نام کسب‌وکار' : 'Business name'}
           </label>
           <input
             ref={businessNameRef}
@@ -489,7 +493,7 @@ function DetailsStep({
               if (nameInvalid) setNameInvalid(nextName.trim().length < 2)
               setError('')
             }}
-            placeholder="مثلاً فروشگاه رزین‌مهر"
+            placeholder={fa ? 'مثلاً فروشگاه رزین‌مهر' : 'e.g. Rose Garden Shop'}
             required
             aria-invalid={nameInvalid}
             aria-describedby={nameInvalid ? 'business-name-error' : undefined}
@@ -507,8 +511,8 @@ function DetailsStep({
             >
               <CircleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
               {businessName.trim().length === 0
-                ? 'این فیلد خالی است؛ لطفاً نام کسب‌وکار را وارد کنید.'
-                : 'نام کسب‌وکار باید حداقل دو حرف داشته باشد.'}
+                ? (fa ? 'این فیلد خالی است؛ لطفاً نام کسب‌وکار را وارد کنید.' : 'This field is empty. Enter your business name.')
+                : (fa ? 'نام کسب‌وکار باید حداقل دو حرف داشته باشد.' : 'The business name needs at least two characters.')}
             </p>
           )}
         </div>
@@ -518,9 +522,9 @@ function DetailsStep({
           options={suggestions}
           selected={capabilities}
           businessType={initialType}
-          locale="fa"
-          title="قابلیت‌های موردنیاز"
-          hint="نوع کسب‌وکار فقط نقطه شروع است؛ هر قابلیت را می‌توانید همین‌جا یا بعداً در تنظیمات روشن و خاموش کنید."
+          locale={fa ? 'fa' : 'en'}
+          title={fa ? 'قابلیت‌های موردنیاز' : 'Capabilities you need'}
+          hint={fa ? 'نوع کسب‌وکار فقط نقطه شروع است؛ هر قابلیت را می‌توانید همین‌جا یا بعداً در تنظیمات روشن و خاموش کنید.' : 'The business type is only a starting point. You can turn each capability on or off here, or later in Settings.'}
           onToggle={(key) => {
             setCapabilities((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
             setError('')
@@ -540,7 +544,7 @@ function DetailsStep({
             className="inline-flex min-h-12 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-5 text-[13px] font-medium text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--bg-surface)]"
           >
             <ArrowLeft className="h-4 w-4 rtl:rotate-0" />
-            بازگشت
+            {fa ? 'بازگشت' : 'Back'}
           </button>
           <button
             type="button"
@@ -549,7 +553,7 @@ function DetailsStep({
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-8 text-[13px] font-medium text-white transition-colors duration-200 hover:bg-black disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saving ? 'در حال ذخیره…' : 'ذخیره و ادامه'}
+            {saving ? (fa ? 'در حال ذخیره…' : 'Saving…') : (fa ? 'ذخیره و ادامه' : 'Save and continue')}
           </button>
         </div>
       </motion.div>
@@ -573,6 +577,7 @@ function AgentStep({
   onContinue: () => void
   onRecommendedCreated: (agentId: string) => void
 }) {
+  const fa = useLocale() !== 'en'
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
@@ -592,7 +597,7 @@ function AgentStep({
       if (typeof createdAgentId !== 'string' || !createdAgentId) throw new Error('INVALID_AGENT')
       onRecommendedCreated(createdAgentId)
     } catch {
-      setError('ساخت ایجنت انجام نشد؛ دوباره تلاش کنید.')
+      setError((fa ? 'ساخت ایجنت انجام نشد؛ دوباره تلاش کنید.' : 'The agent could not be created. Try again.'))
       setCreating(false)
     }
   }
@@ -620,18 +625,18 @@ function AgentStep({
       </motion.div>
 
       <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-        مرحله ۲ از ۴
+        {fa ? 'مرحله ۲ از ۴' : 'Step 2 of 4'}
       </motion.p>
       <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-        {done ? 'ایجنت شما ساخته شد' : 'ایجنت هوشمند خود را بسازید'}
+        {done ? (fa ? 'ایجنت شما ساخته شد' : 'Your agent is ready') : (fa ? 'ایجنت هوشمند خود را بسازید' : 'Build your AI agent')}
       </motion.h2>
       <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
         {done
-          ? 'ایجنت آماده است؛ حالا اطلاعات کسب‌وکارتان را اضافه کنید. بعد از اولین گفتگوها، می‌توانید پاسخ‌هایش را بهتر کنید.'
-          : `یک ایجنت آماده و متناسب با «${businessLabel}» بسازید یا جزئیات را خودتان شخصی‌سازی کنید.`}
+          ? (fa ? 'ایجنت آماده است؛ حالا اطلاعات کسب‌وکارتان را اضافه کنید. بعد از اولین گفتگوها، می‌توانید پاسخ‌هایش را بهتر کنید.' : 'The agent is ready. Now add your business information. After the first conversations you can improve its answers.')
+          : (fa ? `یک ایجنت آماده و متناسب با «${businessLabel}» بسازید یا جزئیات را خودتان شخصی‌سازی کنید.` : `Build a ready agent tailored to “${businessLabel}”, or customize the details yourself.`)}
       </motion.p>
       <motion.p variants={staggerChild} className="mx-auto mt-4 max-w-lg spatial-inset rounded-2xl border border-black/[0.055] bg-white/60 p-4 text-sm leading-7 text-[var(--text-secondary)]">
-        برای شروع، تنظیمات پیشنهادی کافی است. بعد از راه‌اندازی و تست گفتگو توسط خودتان یا مشتری‌ها، از «بهبود ایجنت» می‌توانید با موتور ۶ لایه، لحن و رفتار را مطابق نیازتان تنظیم کنید و با دانش و یادگیری، پاسخ‌ها را کامل‌تر کنید. لازم نیست همین حالا همه تنظیمات را بشناسید.
+        {fa ? 'برای شروع، تنظیمات پیشنهادی کافی است. بعد از راه‌اندازی و تست گفتگو توسط خودتان یا مشتری‌ها، از «بهبود ایجنت» می‌توانید با موتور ۶ لایه، لحن و رفتار را مطابق نیازتان تنظیم کنید و با دانش و یادگیری، پاسخ‌ها را کامل‌تر کنید. لازم نیست همین حالا همه تنظیمات را بشناسید.' : 'The suggested settings are enough to start. After setup, once you or your customers have tested a few conversations, “Improve agent” lets you tune tone and behavior with the 6-layer engine and make answers more complete through knowledge and learning. You do not need to know every setting right now.'}
       </motion.p>
 
       {done ? (
@@ -641,7 +646,7 @@ function AgentStep({
           onClick={onContinue}
           className="spatial-press mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
         >
-          ادامه به محصولات و خدمات
+          {fa ? 'ادامه به محصولات و خدمات' : 'Continue to products and services'}
           <ArrowLeft className="h-4 w-4" />
         </motion.button>
       ) : (
@@ -657,13 +662,13 @@ function AgentStep({
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             </span>
             <span className="flex min-w-0 flex-1 self-stretch flex-col items-start">
-              <span className="rounded-full bg-white/15 px-2 py-1 text-[12px] font-semibold text-white/90">پیشنهاد ویجنت</span>
+              <span className="rounded-full bg-white/15 px-2 py-1 text-[12px] font-semibold text-white/90">{fa ? 'پیشنهاد ویجنت' : 'Vigent recommends'}</span>
               <span className="mt-3 text-sm font-semibold leading-6">
-                {creating ? 'در حال ساخت ایجنت…' : 'ساخت ایجنت هوشمند متناسب با کسب‌وکار من'}
+                {creating ? (fa ? 'در حال ساخت ایجنت…' : 'Creating the agent…') : (fa ? 'ساخت ایجنت هوشمند متناسب با کسب‌وکار من' : 'Build an agent tailored to my business')}
               </span>
-              <span className="mt-1 text-[12px] leading-5 text-white/70">نام، نقش و رفتار پیشنهادی به‌صورت خودکار تنظیم می‌شود.</span>
+              <span className="mt-1 text-[12px] leading-5 text-white/70">{fa ? 'نام، نقش و رفتار پیشنهادی به‌صورت خودکار تنظیم می‌شود.' : 'The name, role and suggested behavior are set up automatically.'}</span>
               <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[12px] font-semibold text-white">
-                {creating ? 'لطفاً صبر کنید' : 'ساخت خودکار ایجنت'}
+                {creating ? (fa ? 'لطفاً صبر کنید' : 'Please wait') : (fa ? 'ساخت خودکار ایجنت' : 'Build it automatically')}
                 {!creating && <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />}
               </span>
             </span>
@@ -677,11 +682,11 @@ function AgentStep({
               <Settings2 className="h-4 w-4" />
             </span>
             <span className="flex min-w-0 flex-1 self-stretch flex-col items-start">
-              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[12px] font-semibold text-[var(--text-secondary)]">انتخاب شخصی‌سازی‌شده</span>
-              <span className="mt-3 text-sm font-semibold leading-6 text-[var(--text-primary)]">ساخت ایجنت با شخصی‌سازی</span>
-              <span className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">نام، نقش، لحن، زبان و قواعد پاسخ‌گویی را خودتان تنظیم کنید.</span>
+              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[12px] font-semibold text-[var(--text-secondary)]">{fa ? 'انتخاب شخصی‌سازی‌شده' : 'Custom option'}</span>
+              <span className="mt-3 text-sm font-semibold leading-6 text-[var(--text-primary)]">{fa ? 'ساخت ایجنت با شخصی‌سازی' : 'Build a customized agent'}</span>
+              <span className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'نام، نقش، لحن، زبان و قواعد پاسخ‌گویی را خودتان تنظیم کنید.' : 'Set the name, role, tone, language and reply rules yourself.'}</span>
               <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[12px] font-semibold text-[var(--text-primary)]">
-                انتخاب و شخصی‌سازی
+                {fa ? 'انتخاب و شخصی‌سازی' : 'Choose and customize'}
                 <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
               </span>
             </span>
@@ -698,7 +703,7 @@ function AgentStep({
         className="spatial-press mx-auto mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
       >
         <ArrowLeft className="h-4 w-4 rotate-180" />
-        بازگشت به اطلاعات کسب‌وکار
+        {fa ? 'بازگشت به اطلاعات کسب‌وکار' : 'Back to business details'}
       </motion.button>
     </motion.div>
   )
@@ -741,6 +746,7 @@ function CtaStep({
    */
   successBanner?: string
 }) {
+  const fa = useLocale() !== 'en'
   const [skipping, setSkipping] = useState(false)
 
   async function skip() {
@@ -758,7 +764,7 @@ function CtaStep({
   // matches the user's request. Earlier steps use Persian digits to stay
   // consistent with the rest of the onboarding flow.
   const stepBadge =
-    step === 4 ? 'مرحله آخر' : `مرحله ${TO_FA_DIGIT[step]} از ۴`
+    step === 4 ? (fa ? 'مرحله آخر' : 'Last step') : (fa ? `مرحله ${TO_FA_DIGIT[step]} از ۴` : `Step ${step} of 4`)
 
   return (
     <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-center">
@@ -834,7 +840,7 @@ function CtaStep({
             >
               <Check className="h-4 w-4" strokeWidth={3} />
             </motion.span>
-            ادامه به مرحله بعد
+            {fa ? 'ادامه به مرحله بعد' : 'Continue to the next step'}
             <ArrowLeft className="h-4 w-4" />
           </button>
         ) : (
@@ -854,7 +860,7 @@ function CtaStep({
                 className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-5 text-[13px] font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] transition-[border-color,color,box-shadow] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] hover:shadow-[var(--shadow-control)] disabled:cursor-wait disabled:opacity-50"
               >
                 {skipping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {skipping ? 'در حال ثبت…' : skipLabel}
+                {skipping ? (fa ? 'در حال ثبت…' : 'Saving…') : skipLabel}
                 {!skipping && <ArrowLeft className="h-4 w-4" />}
               </button>
             )}
@@ -893,6 +899,7 @@ function KnowledgeStep({
    */
   onWooConnected?: () => void
 }) {
+  const fa = useLocale() !== 'en'
   const [skipping, setSkipping] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
 
@@ -931,15 +938,15 @@ function KnowledgeStep({
           </motion.div>
 
           <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-            مرحله ۳ از ۴
+            {fa ? 'مرحله ۳ از ۴' : 'Step 3 of 4'}
           </motion.p>
 
           <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-            محصولات و خدمات کسب‌وکار
+            {fa ? 'محصولات و خدمات کسب‌وکار' : 'Your products and services'}
           </motion.h2>
 
           <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
-            این مرحله اختیاری است. پس از پایان راه‌اندازی هم می‌توانید محصولات و خدمات را از منوی پنل اضافه کنید.
+            {fa ? 'این مرحله اختیاری است. پس از پایان راه‌اندازی هم می‌توانید محصولات و خدمات را از منوی پنل اضافه کنید.' : 'This step is optional. You can also add products and services from the panel menu after setup.'}
           </motion.p>
         </>
       )}
@@ -967,17 +974,17 @@ function KnowledgeStep({
                 <Link2 className="h-4 w-4" strokeWidth={2} />
               </span>
               <span className="rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2.5 py-1 text-[12px] font-bold text-[var(--accent-strong)]">
-                پیشنهادی در صورت داشتن سایت
+                {fa ? 'پیشنهادی در صورت داشتن سایت' : 'Recommended if you have a website'}
               </span>
             </div>
             <h3 className="mt-4 text-[15px] font-bold text-[var(--text-primary)]">
-              اتصال سایت وردپرس یا فروشگاه ووکامرس
+              {fa ? 'اتصال سایت وردپرس یا فروشگاه ووکامرس' : 'Connect a WordPress site or WooCommerce store'}
             </h3>
             <p className="mt-1.5 text-[12px] leading-6 text-[var(--text-muted)]">
-              اگر سایت وردپرسی دارید یا محصولاتتان در ووکامرس ثبت شده، سایت را متصل کنید تا محصولات و سفارش‌ها خودکار وارد و همگام شوند.
+              {fa ? 'اگر سایت وردپرسی دارید یا محصولاتتان در ووکامرس ثبت شده، سایت را متصل کنید تا محصولات و سفارش‌ها خودکار وارد و همگام شوند.' : 'If you have a WordPress site or your products are in WooCommerce, connect the site so products and orders are imported and kept in sync automatically.'}
             </p>
             <span className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold text-white shadow-[var(--shadow-control)]">
-              برای اتصال کلیک کنید
+              {fa ? 'برای اتصال کلیک کنید' : 'Click to connect'}
               <ArrowLeft className="h-3.5 w-3.5" />
             </span>
           </button>
@@ -994,7 +1001,7 @@ function KnowledgeStep({
                 className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
               >
                 <Check className="h-4 w-4" strokeWidth={3} />
-                ادامه به برنامه‌های متصل
+                {fa ? 'ادامه به برنامه‌های متصل' : 'Continue to connected apps'}
                 <ArrowLeft className="h-4 w-4" />
               </button>
             ) : (
@@ -1005,7 +1012,7 @@ function KnowledgeStep({
                 className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-5 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:cursor-wait disabled:opacity-50"
               >
                 {skipping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {skipping ? 'در حال ثبت…' : 'فعلاً سایت، محصول یا خدمتی برای اتصال ندارم'}
+                {skipping ? (fa ? 'در حال ثبت…' : 'Saving…') : (fa ? 'فعلاً سایت، محصول یا خدمتی برای اتصال ندارم' : 'I have no site, product or service to connect yet')}
               </button>
             )}
           </motion.div>
@@ -1016,7 +1023,7 @@ function KnowledgeStep({
             className="spatial-press mx-auto mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
           >
             <ArrowLeft className="h-4 w-4 rotate-180" />
-            بازگشت به مرحله ایجنت
+            {fa ? 'بازگشت به مرحله ایجنت' : 'Back to the agent step'}
           </motion.button>
         </>
       )}
@@ -1026,6 +1033,7 @@ function KnowledgeStep({
 
 // ─── Final step ─────────────────────────────────────────────────
 function DoneStep() {
+  const fa = useLocale() !== 'en'
   const router = useRouter()
   const reduce = useReducedMotion()
   const [leaving, setLeaving] = useState(false)
@@ -1073,11 +1081,11 @@ function DoneStep() {
       </motion.div>
 
       <motion.h2 variants={staggerChild} className="mt-6 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-        راه‌اندازی کامل شد!
+        {fa ? 'راه‌اندازی کامل شد!' : 'Setup is complete!'}
       </motion.h2>
 
       <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[var(--text-muted)]">
-        ایجنت شما آماده است. ابتدا خودتان یک گفتگو را امتحان کنید؛ سپس پاسخ‌های مشتری‌ها را بررسی کنید و از «بهبود ایجنت»، دانش، لحن و رفتار آن را به‌مرور بهتر کنید.
+        {fa ? 'ایجنت شما آماده است. ابتدا خودتان یک گفتگو را امتحان کنید؛ سپس پاسخ‌های مشتری‌ها را بررسی کنید و از «بهبود ایجنت»، دانش، لحن و رفتار آن را به‌مرور بهتر کنید.' : 'Your agent is ready. Try a conversation yourself first, then review customer replies and improve its knowledge, tone and behavior over time from “Improve agent”.'}
       </motion.p>
 
       <motion.div variants={staggerChild} className="mt-8">
@@ -1087,7 +1095,7 @@ function DoneStep() {
           disabled={leaving}
           className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-8 text-[13px] font-medium text-white shadow-[var(--shadow-control)] hover:bg-black disabled:opacity-70"
         >
-          {leaving ? 'در حال آماده‌سازی داشبورد…' : 'ورود به داشبورد'}
+          {leaving ? (fa ? 'در حال آماده‌سازی داشبورد…' : 'Preparing the dashboard…') : (fa ? 'ورود به داشبورد' : 'Go to the dashboard')}
           <ArrowLeft className="h-4 w-4 rtl:rotate-0" />
         </button>
       </motion.div>
@@ -1101,7 +1109,7 @@ function DoneStep() {
           >
             <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
               <Sparkles className="mx-auto h-6 w-6" />
-              <p className="mt-3 text-sm font-semibold">Vigento AI | هوش مصنوعی ویجنتو</p>
+              <p className="mt-3 text-sm font-semibold">{fa ? 'Vigento AI | هوش مصنوعی ویجنتو' : 'Vigento AI'}</p>
             </motion.div>
           </motion.div>
         )}

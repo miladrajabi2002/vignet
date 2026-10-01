@@ -118,7 +118,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {products.map((p) => {
           const stockLabel =
             p.stock === null
@@ -126,19 +126,22 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
               : p.stock > 0
                 ? t('inStock')
                 : t('outOfStock')
-          const stockClass =
+          // The badge sits on a photo, so it carries its own solid ground and
+          // says the state with a dot instead of tinted text.
+          const stockDot =
             p.stock === null
-              ? 'text-[var(--text-muted)]'
+              ? 'bg-[var(--text-hint)]'
               : p.stock > 0
-                ? 'text-success'
-                : 'text-danger'
+                ? 'bg-success'
+                : 'bg-danger'
           return (
             <Link
               key={p.id}
               href={`/products/${p.id}`}
-              className="spatial-surface group flex flex-col overflow-hidden rounded-card transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+              className="spatial-surface group flex flex-row overflow-hidden rounded-card transition-[border-color,transform] sm:flex-col hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
-              <div className="relative aspect-video bg-[var(--bg-muted)]">
+              {/* Phones get a compact row (small photo beside the text) so several products fit one screen. */}
+              <div className="relative m-3 me-0 size-20 shrink-0 overflow-hidden rounded-2xl bg-[var(--bg-muted)] sm:m-0 sm:aspect-video sm:size-auto sm:rounded-none">
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.images[0]} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
@@ -147,19 +150,24 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                     <Package className="h-8 w-8" />
                   </div>
                 )}
-                <span className={cn('absolute end-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs backdrop-blur', stockClass)}>
+                <span className="absolute end-2 top-2 hidden items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-[0_1px_3px_rgba(17,17,17,0.22)] sm:inline-flex">
+                  <span aria-hidden className={cn('size-1.5 rounded-full', stockDot)} />
                   {stockLabel}
                 </span>
               </div>
 
-              <div className="flex flex-1 flex-col p-4">
+              <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
                 {/* Title — no underline on hover; the whole card is the link. */}
-                <h3 className="truncate font-medium text-[var(--text-primary)]">
+                <h3 className="line-clamp-2 font-medium leading-7 text-[var(--text-primary)]" title={p.name}>
                   {p.name}
                 </h3>
-                {p.category && (
-                  <span className="mt-0.5 text-xs text-[var(--text-muted)]">{p.category.name}</span>
-                )}
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--text-muted)]">
+                  {p.category && <span>{p.category.name}</span>}
+                  <span className="inline-flex items-center gap-1.5 sm:hidden">
+                    <span aria-hidden className={cn('size-1.5 rounded-full', stockDot)} />
+                    {stockLabel}
+                  </span>
+                </span>
                 <div className="mt-2 flex items-baseline gap-2">
                   {p.price != null && (
                     <span className="text-[var(--text-primary)]">
@@ -171,16 +179,16 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                   )}
                 </div>
 
-                <div className="mt-auto flex items-center justify-between pt-4">
+                <div className="mt-auto flex items-center justify-between pt-2 sm:pt-4">
                   <span className="text-xs text-[var(--text-muted)]">
-                    {t('queries', { count: p.queryCount })}
+                    {p.queryCount > 0 ? t('queries', { count: fmt(p.queryCount) }) : t('noQueries')}
                   </span>
                   <div className="flex items-center gap-2">
                     {/* Edit button — stops propagation so it doesn't trigger the card link. */}
                     <Link
                       href={`/products/${p.id}/edit`}
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] sm:min-h-9"
                       aria-label={t('edit')}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -192,7 +200,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                         e.stopPropagation()
                         openDelete(p, e.currentTarget)
                       }}
-                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-danger hover:text-danger"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-danger hover:text-danger sm:min-h-9 sm:min-w-0"
                       aria-label={t('delete')}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

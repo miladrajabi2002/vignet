@@ -15,6 +15,7 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import { contactLiveVersion } from '@/lib/crm/live-version'
 import { contactPhoneLookupVariants } from '@/lib/phone'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { cleanContactName } from '@/lib/crm/display'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
@@ -232,7 +233,7 @@ export default async function ContactsPage(
     if (c.instagramUsername) channelUsernames.INSTAGRAM = c.instagramUsername
     return {
       id: c.id,
-      name: c.name,
+      name: cleanContactName(c.name),
       phone: c.phone,
       stage: c.stage,
       tags: c.tags,
@@ -254,6 +255,7 @@ export default async function ContactsPage(
       value: g._count._all,
     }))
     .sort((a, b) => b.value - a.value)
+  const activeStages = stageDonut.filter((item) => item.value > 0)
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -282,11 +284,20 @@ export default async function ContactsPage(
               title={isFa ? 'قیف فروش' : 'Sales Pipeline'}
               subtitle={isFa ? 'توزیع مشتریان بر اساس مرحله' : 'Customers by pipeline stage'}
             >
-              <DashboardDonut
-                data={stageDonut}
-                centerValue={totalCount}
-                centerLabel={isFa ? 'مشتری' : 'customers'}
-              />
+              {activeStages.length === 1 ? (
+                // One stage holds everyone: a ring with a single slice says nothing a sentence can't.
+                <p className="py-6 text-sm leading-7 text-[var(--text-secondary)]">
+                  {isFa
+                    ? `هر ${totalCount.toLocaleString('fa-IR')} مشتری در مرحلهٔ «${activeStages[0].label}» هستند. با جابه‌جا کردن مشتری‌ها بین مرحله‌ها، قیف فروش اینجا شکل می‌گیرد.`
+                    : `All ${totalCount} customers are in the “${activeStages[0].label}” stage. Move customers between stages and the pipeline takes shape here.`}
+                </p>
+              ) : (
+                <DashboardDonut
+                  data={stageDonut}
+                  centerValue={totalCount}
+                  centerLabel={isFa ? 'مشتری' : 'customers'}
+                />
+              )}
             </DashboardPanel>
             <DashboardPanel
               title={isFa ? 'مشتریان جدید ۱۴ روز اخیر' : 'New customers, last 14 days'}

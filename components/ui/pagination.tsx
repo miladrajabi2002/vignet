@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 
 /**
@@ -25,6 +25,7 @@ export async function Pagination({
   makeHref: (page: number) => string
 }) {
   const t = await getTranslations('common')
+  const numberLocale = (await getLocale()) === 'en' ? 'en-US' : 'fa-IR'
   // If the caller didn't supply totalPages we can still render the simple
   // prev/next pager (used by other pages that haven't been migrated yet).
   const hasTotal = typeof totalPages === 'number' && totalPages > 0
@@ -86,7 +87,7 @@ export async function Pagination({
 
       {!hasTotal && (
         <span className="text-xs text-[var(--text-muted)]">
-          {t('page', { page })}
+          {t('page', { page: page.toLocaleString(numberLocale) })}
         </span>
       )}
 

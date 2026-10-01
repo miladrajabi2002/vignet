@@ -17,6 +17,19 @@ import { displayPhone } from '@/lib/phone'
  * For Telegram/Bale/Rubika the webhook already carries the full name + @handle,
  * so this fallback is rarely needed there — but it's a safe last resort.
  */
+const PLACEHOLDER_NAMES = new Set(['none', 'null', 'undefined', 'n/a', 'nan'])
+
+/**
+ * Some channels hand over a literal placeholder ("None", "null") as the
+ * profile name. Treat those as "no name" so the list falls back to the
+ * handle or the per-channel label instead of printing the raw value.
+ */
+export function cleanContactName(name?: string | null): string | null {
+	const trimmed = name?.trim()
+	if (!trimmed || PLACEHOLDER_NAMES.has(trimmed.toLowerCase())) return null
+	return trimmed
+}
+
 export function contactDisplayName(params: {
 	name?: string | null
 	phone?: string | null
@@ -25,8 +38,9 @@ export function contactDisplayName(params: {
 	channelId?: string | null
 	anonymousLabel: string
 }): string {
-	const { name, phone, handle, channel, channelId, anonymousLabel } = params
-	if (name && name.trim()) return name.trim()
+	const { phone, handle, channel, channelId, anonymousLabel } = params
+	const name = cleanContactName(params.name)
+	if (name) return name
 	const formattedPhone = displayPhone(phone)
 	if (formattedPhone) return formattedPhone
 	if (handle && handle.trim()) return handle.trim()

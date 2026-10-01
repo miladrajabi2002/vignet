@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale } from 'next-intl'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -60,6 +61,7 @@ export function StoreIntegrationsSection({
     planLimits?: PlanLimitInfo[]
     locale?: 'fa' | 'en'
 }) {
+    const fa = useLocale() !== 'en'
     const router = useRouter()
     const [integrations, setIntegrations] = useState(initial)
     const [showForm, setShowForm] = useState(false)
@@ -115,7 +117,7 @@ export function StoreIntegrationsSection({
         })
         if (!res.ok) {
             const data = await res.json().catch(() => ({}))
-            setNotice({ type: 'err', msg: data.error === 'INVALID' ? 'آدرس نامعتبر است.' : 'خطا در ایجاد اتصال.' })
+            setNotice({ type: 'err', msg: data.error === 'INVALID' ? (fa ? 'آدرس نامعتبر است.' : 'The address is not valid.') : (fa ? 'خطا در ایجاد اتصال.' : 'The connection could not be created.') })
             return
         }
         onDone()
@@ -129,14 +131,14 @@ export function StoreIntegrationsSection({
             const res = await fetch(`/api/sync/woocommerce?integrationId=${integration.id}`, { method: 'POST' })
             const data = await res.json().catch(() => ({}))
             if (!res.ok) {
-                setNotice({ type: 'err', msg: 'خطا در هم‌گام‌سازی.' })
+                setNotice({ type: 'err', msg: (fa ? 'خطا در هم‌گام‌سازی.' : 'Sync failed.') })
                 return
             }
 
             setNotice(formatWooSyncResult(data))
             router.refresh()
         } catch {
-            setNotice({ type: 'err', msg: 'خطا در ارتباط با سرور.' })
+            setNotice({ type: 'err', msg: (fa ? 'خطا در ارتباط با سرور.' : 'Could not reach the server.') })
         } finally {
             setSyncingId(null)
         }
@@ -167,8 +169,8 @@ export function StoreIntegrationsSection({
             setNotice({
                 type: 'err',
                 msg: nextActive
-                    ? 'فعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.'
-                    : 'غیرفعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.',
+                    ? (fa ? 'فعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be enabled. Try again.')
+                    : (fa ? 'غیرفعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be disabled. Try again.'),
             })
         } finally {
             setTogglingId(null)
@@ -184,7 +186,7 @@ export function StoreIntegrationsSection({
             router.refresh()
         } catch {
             setDeleteTarget(null)
-            setNotice({ type: 'err', msg: 'حذف اتصال انجام نشد؛ دوباره تلاش کنید.' })
+            setNotice({ type: 'err', msg: (fa ? 'حذف اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be deleted. Try again.') })
         } finally {
             setDeletingId(null)
         }
@@ -194,14 +196,14 @@ export function StoreIntegrationsSection({
         <div id="online-store" className="scroll-mt-24 space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-[var(--text-secondary)]">سایت (وردپرس/ووکامرس)</h2>
+                <h2 className="text-sm font-bold text-[var(--text-secondary)]">{fa ? 'سایت (وردپرس/ووکامرس)' : 'Website (WordPress/WooCommerce)'}</h2>
                 {integrations.length > 0 && (
                     <button
                         onClick={() => setShowForm(true)}
                         className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                     >
                         <Plus className="h-3.5 w-3.5" />
-                        افزودن سایت
+                        {fa ? 'افزودن سایت' : 'Add a site'}
                     </button>
                 )}
             </div>
@@ -236,16 +238,16 @@ export function StoreIntegrationsSection({
                     <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
                         <Globe className="h-5 w-5" />
                     </span>
-                    <h3 className="mt-4 text-base font-bold tracking-tight text-[var(--text-primary)]">سایت خود را وصل کنید</h3>
+                    <h3 className="mt-4 text-base font-bold tracking-tight text-[var(--text-primary)]">{fa ? 'سایت خود را وصل کنید' : 'Connect your site'}</h3>
                     <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-                        فقط آدرس سایت را وارد کنید — محصولات و سفارش‌ها خودکار همگام می‌شوند.
+                        {fa ? 'فقط آدرس سایت را وارد کنید — محصولات و سفارش‌ها خودکار همگام می‌شوند.' : 'Just enter your site address. Products and orders sync automatically.'}
                     </p>
                     <button
                         onClick={() => setShowForm(true)}
                         className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
                     >
                         <Plus className="h-4 w-4" />
-                        اتصال سایت
+                        {fa ? 'اتصال سایت' : 'Connect site'}
                     </button>
                 </section>
             )}
@@ -269,13 +271,13 @@ export function StoreIntegrationsSection({
             <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
                 <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-[var(--text-muted)]">
-                        افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید — همه چیز خودکار است.
+                        {fa ? 'افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید — همه چیز خودکار است.' : 'Install the plugin in WordPress and press “Connect”. The rest is automatic.'}
                     </p>
                     <Link
                         href="/docs/woocommerce"
                         className="shrink-0 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
-                        راهنما
+                        {fa ? 'راهنما' : 'Guide'}
                     </Link>
                 </div>
             </div>
@@ -284,13 +286,13 @@ export function StoreIntegrationsSection({
                 native confirm(): focus trap, Esc, scroll lock, focus return). */}
             <ConfirmDialog
                 open={deleteTarget !== null}
-                title="حذف اتصال سایت"
+                title={fa ? 'حذف اتصال سایت' : 'Delete site connection'}
                 description={
                     deleteTarget
-                        ? `اتصال به ${deleteTarget.storeUrl} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.`
+                        ? (fa ? `اتصال به ${deleteTarget.storeUrl} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.` : `The connection to ${deleteTarget.storeUrl} will be deleted; its orders and sync settings leave the panel.`)
                         : undefined
                 }
-                confirmLabel="حذف اتصال"
+                confirmLabel={fa ? 'حذف اتصال' : 'Delete connection'}
                 tone="danger"
                 busy={deletingId !== null}
                 onConfirm={() => deleteTarget && remove(deleteTarget)}
@@ -309,6 +311,7 @@ function AddSiteForm({
     onDone: () => void
     onSubmit: (url: string, onDone: () => void) => Promise<void>
 }) {
+    const fa = useLocale() !== 'en'
     const [storeUrl, setStoreUrl] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
@@ -322,7 +325,7 @@ function AddSiteForm({
     return (
         <form onSubmit={submit} className="spatial-surface rounded-card p-5 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[var(--text-primary)]">آدرس سایت را وارد کنید</h3>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'آدرس سایت را وارد کنید' : 'Enter your site address'}</h3>
                 <button type="button" onClick={onDone} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                     <X className="h-4 w-4" />
                 </button>
@@ -344,7 +347,7 @@ function AddSiteForm({
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {submitting ? 'در حال ایجاد…' : 'ایجاد اتصال'}
+                    {submitting ? (fa ? 'در حال ایجاد…' : 'Creating…') : (fa ? 'ایجاد اتصال' : 'Create connection')}
                 </button>
             </div>
         </form>
@@ -372,18 +375,19 @@ function IntegrationCard({
     onDelete: () => void
     planLimits: PlanLimitInfo[]
 }) {
+    const fa = useLocale() !== 'en'
     const limitFromError = planLimitFromError(integration.lastSyncError, planLimits)
     const visibleLogs = integration.syncLogs.filter((log) => log.outcome !== 'ok' || log.count > 0)
     const hasPlanLimitError = isResourceLimitError(integration.lastSyncError)
     const isPluginConfigured = isIntegrationConnected(integration) || hasPlanLimitError
     const syncPausedByPlan = limitFromError !== null
     const statusLabel = !integration.active
-        ? 'غیرفعال'
+        ? (fa ? 'غیرفعال' : 'Disabled')
         : syncPausedByPlan
-            ? 'متصل · محدودیت پلن'
+            ? (fa ? 'متصل · محدودیت پلن' : 'Connected · plan limit')
         : isPluginConfigured
-            ? 'متصل'
-            : 'در انتظار اتصال افزونه'
+            ? (fa ? 'متصل' : 'Connected')
+            : (fa ? 'در انتظار اتصال افزونه' : 'Waiting for the plugin')
 
     return (
         <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
@@ -417,7 +421,7 @@ function IntegrationCard({
                             {isPluginConfigured && (
                                 <span suppressHydrationWarning className="text-xs tabular-nums text-[var(--text-muted)]">
                                     {integration._count.orders.toLocaleString('fa-IR')} سفارش
-                                    {integration.lastSyncAt ? ` · آخرین همگام‌سازی ${relativeTime(integration.lastSyncAt)}` : ''}
+                                    {integration.lastSyncAt ? (fa ? ` · آخرین همگام‌سازی ${relativeTime(integration.lastSyncAt, fa)}` : ` · last synced ${relativeTime(integration.lastSyncAt, fa)}`) : ''}
                                 </span>
                             )}
                         </div>
@@ -432,7 +436,7 @@ function IntegrationCard({
                         className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-40"
                     >
                         {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        بروزرسانی
+                        {fa ? 'بروزرسانی' : 'Sync now'}
                     </button>
                     <button
                         type="button"
@@ -442,7 +446,7 @@ function IntegrationCard({
                         className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
                         {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        {integration.active ? 'غیرفعال' : 'فعال'}
+                        {integration.active ? (fa ? 'غیرفعال' : 'Disabled') : (fa ? 'فعال' : 'Enable')}
                     </button>
                     <button
                         type="button"
@@ -451,13 +455,13 @@ function IntegrationCard({
                         className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger disabled:opacity-50"
                     >
                         {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                        حذف
+                        {fa ? 'حذف' : 'Delete'}
                     </button>
                 </div>
             </div>
 
             <nav
-                aria-label="مدیریت اطلاعات فروشگاه"
+                aria-label={fa ? 'مدیریت اطلاعات فروشگاه' : 'Manage store data'}
                 className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"
             >
                 <Link
@@ -465,23 +469,23 @@ function IntegrationCard({
                     className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
                 >
                     <Package className="h-4 w-4" />
-                    مشاهده محصولات
+                    {fa ? 'مشاهده محصولات' : 'View products'}
                 </Link>
                 <Link
                     href="/products/orders"
                     className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
                 >
                     <ShoppingBag className="h-4 w-4" />
-                    مشاهده سفارش‌ها
+                    {fa ? 'مشاهده سفارش‌ها' : 'View orders'}
                 </Link>
             </nav>
 
             {/* Pending state */}
             {!isPluginConfigured && integration.active && (
                 <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
-                    <p className="text-sm font-semibold text-yellow-800">در انتظار اتصال افزونه</p>
+                    <p className="text-sm font-semibold text-yellow-800">{fa ? 'در انتظار اتصال افزونه' : 'Waiting for the plugin'}</p>
                     <p className="mt-1 text-xs leading-relaxed text-yellow-700">
-                        افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید — پس از اتصال، وضعیت خودکار به‌روز می‌شود.
+                        {fa ? 'افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید — پس از اتصال، وضعیت خودکار به‌روز می‌شود.' : 'Install the plugin in WordPress and press “Connect”. The status updates by itself once connected.'}
                     </p>
                 </div>
             )}
@@ -491,8 +495,8 @@ function IntegrationCard({
             {isPluginConfigured && visibleLogs.length > 0 && (
                 <div className="mt-4">
                     <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                        تغییرات دریافت‌شده از سایت
-                        <span className="ms-2 text-[var(--text-muted)]">· ۳ روز اخیر</span>
+                        {fa ? 'تغییرات دریافت‌شده از سایت' : 'Changes received from the site'}
+                        <span className="ms-2 text-[var(--text-muted)]">{fa ? '· ۳ روز اخیر' : '· last 3 days'}</span>
                     </p>
                     <div className="max-h-64 space-y-1 overflow-y-auto">
                         {visibleLogs.map((log) => (
@@ -502,8 +506,8 @@ function IntegrationCard({
                                 ) : (
                                     <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                                 )}
-                                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{logLabel(log)}</span>
-                                <time suppressHydrationWarning dateTime={log.createdAt} className="shrink-0 tabular-nums text-[var(--text-muted)]">{relativeTime(log.createdAt)}</time>
+                                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{logLabel(log, fa)}</span>
+                                <time suppressHydrationWarning dateTime={log.createdAt} className="shrink-0 tabular-nums text-[var(--text-muted)]">{relativeTime(log.createdAt, fa)}</time>
                             </div>
                         ))}
                     </div>
@@ -513,38 +517,43 @@ function IntegrationCard({
             {/* Error */}
             {integration.lastSyncStatus === 'error' && integration.lastSyncError && !hasPlanLimitError && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs leading-relaxed text-red-700">
-                    <strong>خطا:</strong> {integration.lastSyncError}
+                    <strong>{fa ? 'خطا:' : 'Error:'}</strong> {integration.lastSyncError}
                 </div>
             )}
         </section>
     )
 }
 
-function logLabel(log: SyncLogEntry): string {
-    const count = log.count.toLocaleString('fa-IR')
-    if (log.outcome !== 'ok') return log.entity === 'batch' ? 'دریافت تغییرات از سایت ناموفق بود' : `همگام‌سازی ${entityLabel(log.entity)} ناموفق بود`
-    if (log.entity === 'batch') return `${count} تغییر از سایت اعمال شد`
-    return `${count} ${entityLabel(log.entity)} همگام شد`
-}
-
-function relativeTime(iso: string): string {
-    const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
-    if (minutes < 1) return 'همین حالا'
-    if (minutes < 60) return `${minutes.toLocaleString('fa-IR')} دقیقه پیش`
-    const hours = Math.round(minutes / 60)
-    if (hours < 24) return `${hours.toLocaleString('fa-IR')} ساعت پیش`
-    return `${Math.round(hours / 24).toLocaleString('fa-IR')} روز پیش`
-}
-
-function entityLabel(entity: string): string {
-    const map: Record<string, string> = {
-        products: 'محصولات',
-        orders: 'سفارش‌ها',
-        product_update: 'محصول',
-        order_update: 'سفارش',
-        content_update: 'محتوا',
+function logLabel(log: SyncLogEntry, fa: boolean): string {
+    const count = log.count.toLocaleString(fa ? 'fa-IR' : 'en-US')
+    const entity = entityLabel(log.entity, fa)
+    if (log.outcome !== 'ok') {
+        if (log.entity === 'batch') return fa ? 'دریافت تغییرات از سایت ناموفق بود' : 'Receiving changes from the site failed'
+        return fa ? `همگام‌سازی ${entity} ناموفق بود` : `Syncing ${entity} failed`
     }
-    return map[entity] ?? entity
+    if (log.entity === 'batch') return fa ? `${count} تغییر از سایت اعمال شد` : `${count} changes from the site applied`
+    return fa ? `${count} ${entity} همگام شد` : `${count} ${entity} synced`
+}
+
+function relativeTime(iso: string, fa: boolean): string {
+    const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
+    if (minutes < 1) return fa ? 'همین حالا' : 'just now'
+    if (minutes < 60) return fa ? `${minutes.toLocaleString('fa-IR')} دقیقه پیش` : `${minutes} min ago`
+    const hours = Math.round(minutes / 60)
+    if (hours < 24) return fa ? `${hours.toLocaleString('fa-IR')} ساعت پیش` : `${hours} h ago`
+    const days = Math.round(hours / 24)
+    return fa ? `${days.toLocaleString('fa-IR')} روز پیش` : `${days} d ago`
+}
+
+function entityLabel(entity: string, fa: boolean): string {
+    const map: Record<string, [string, string]> = {
+        products: ['محصولات', 'products'],
+        orders: ['سفارش‌ها', 'orders'],
+        product_update: ['محصول', 'product'],
+        order_update: ['سفارش', 'order'],
+        content_update: ['محتوا', 'content'],
+    }
+    return map[entity]?.[fa ? 0 : 1] ?? entity
 }
 
 function isIntegrationConnected(integration: StoreIntegrationItem): boolean {

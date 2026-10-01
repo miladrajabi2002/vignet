@@ -227,8 +227,8 @@ export default async function ProductsPage(
               undoKind="product"
               entityLabel={fa ? 'محصولات' : 'products'}
               entitySingularLabel={fa ? 'محصول' : 'product'}
-              buttonLabel={fa ? 'حذف همه محصولات' : 'Delete all'}
-              compactOnMobile
+              buttonLabel={t('deleteAll')}
+              variant="menu"
             />
           </>
         }
@@ -260,7 +260,29 @@ export default async function ProductsPage(
         />
       )}
 
-      {/* ─── 7-day trend chart + top products (hidden when filtering/searching) ─── */}
+      {products.length === 0 && !q && !categoryId && !stock ? (
+        <LiveEmptyState icon={Package} preview="cards" title={t('empty')} description={t('emptyDesc')} action={{ href: '/products/new', label: t('new') }} />
+      ) : (
+        <>
+          <ProductsToolbar
+            categories={categories}
+            defaultQuery={q}
+            defaultSort={sort}
+            defaultCategory={categoryId}
+            defaultStock={stock}
+            totalResults={totalProducts}
+          />
+          <ProductGrid products={pageProducts} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            hasNext={hasNext}
+            makeHref={makeHref}
+          />
+        </>
+      )}
+
+      {/* ─── 7-day trend chart + top products: under the list, hidden when filtering/searching ─── */}
       {!q && !categoryId && !stock && (
         <div className="grid gap-4 lg:grid-cols-2">
           <DashboardPanel
@@ -291,28 +313,6 @@ export default async function ProductsPage(
             />
           </DashboardPanel>
         </div>
-      )}
-
-      {products.length === 0 && !q && !categoryId && !stock ? (
-        <LiveEmptyState icon={Package} preview="cards" title={t('empty')} description={t('emptyDesc')} action={{ href: '/products/new', label: t('new') }} />
-      ) : (
-        <>
-          <ProductsToolbar
-            categories={categories}
-            defaultQuery={q}
-            defaultSort={sort}
-            defaultCategory={categoryId}
-            defaultStock={stock}
-            totalResults={totalProducts}
-          />
-          <ProductGrid products={pageProducts} />
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            hasNext={hasNext}
-            makeHref={makeHref}
-          />
-        </>
       )}
     </div>
   )

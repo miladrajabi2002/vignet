@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { reportClientError } from '@/lib/observability/client-error'
 import { recoverFromChunkLoadError } from '@/lib/observability/chunk-load-recovery'
 
@@ -24,6 +25,7 @@ export default function DashboardError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const t = useTranslations('dashboard')
   const [autoRetrying, setAutoRetrying] = useState(true)
   const retried = useRef(false)
 
@@ -50,12 +52,12 @@ export default function DashboardError({
       />
       {autoRetrying ? (
         <p className="text-sm text-[var(--text-secondary)]">
-          در حال بارگذاری دوباره…
+          {t('errorRetrying')}
         </p>
       ) : (
         <>
           <p className="text-sm text-[var(--text-secondary)]">
-            بارگذاری صفحه با مشکل مواجه شد.
+            {t('errorFailed')}
           </p>
           <button
             onClick={() => {
@@ -66,7 +68,7 @@ export default function DashboardError({
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--border-hover)]"
           >
             <RefreshCw className="h-4 w-4" />
-            تلاش دوباره
+            {t('errorRetry')}
           </button>
         </>
       )}

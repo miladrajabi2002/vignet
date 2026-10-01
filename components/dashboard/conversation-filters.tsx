@@ -256,6 +256,7 @@ export function ConversationFilters({
                                         value={activeStatus ?? ''}
                                         onValueChange={(status) => navigate({ status })}
                                         ariaLabel={isFa ? 'وضعیت گفتگو' : 'Conversation status'}
+                                        label={isFa ? 'وضعیت' : 'Status'}
                                         className="min-w-40"
                                         options={statusOptions.map((option) => ({
                                                 value: option.key === 'ALL' ? '' : option.key,
@@ -269,6 +270,7 @@ export function ConversationFilters({
                                                 value={activeChannel ?? ''}
                                                 onValueChange={(channel) => navigate({ channel })}
                                                 ariaLabel={isFa ? 'برنامهٔ گفتگو' : 'Conversation channel'}
+                                                label={isFa ? 'برنامه' : 'App'}
                                                 className="min-w-40"
                                                 options={channelOptions.map((option) => ({
                                                         value: option.key === 'ALL' ? '' : option.key,

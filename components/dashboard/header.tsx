@@ -10,6 +10,7 @@ import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner
 import { cn } from '@/lib/utils'
 import { PERIOD_DAYS } from '@/lib/billing/plans'
 import { ImprovementActivityIndicator } from '@/components/dashboard/improvement-activity-indicator'
+import { AnimatedNumber } from '@/components/dashboard/animated-number'
 import { SupportButton } from '@/components/dashboard/support-button'
 
 const PLAN_PRESENTATION = {
@@ -135,7 +136,7 @@ function HeaderPlan({
           'block min-w-0 truncate whitespace-nowrap text-[12px] leading-4 text-[var(--text-muted)]',
           compact ? 'mt-0.5' : 'mt-1 xl:text-[12px]',
         )}>
-          <span className="font-bold tabular-nums text-[var(--text-secondary)]">{nf.format(creditToman)}</span>
+          <span className="font-bold tabular-nums text-[var(--text-secondary)]"><AnimatedNumber value={creditToman} locale={fa ? 'fa-IR' : 'en-US'} /></span>
           <span className="ms-1">{fa ? 'تومان' : 'toman'}</span>
           {active && daysLeft !== null && (
             <>

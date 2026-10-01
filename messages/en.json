@@ -134,7 +134,19 @@
     "vigentoTagline": "Panel assistant",
     "navGroupDaily": "Daily work",
     "navGroupBusiness": "Business",
-    "navGroupSetup": "Setup"
+    "navGroupSetup": "Setup",
+    "moduleOffTitle": "“{capability}” is turned off",
+    "moduleOffBody": "That is why “{section}” is not in your menu. Turn the capability on and this section joins the menu.",
+    "moduleOffFailed": "Could not turn it on. Try again, or turn it on from Settings.",
+    "moduleOffEnable": "Turn it on",
+    "moduleOffSettings": "Capability settings",
+    "skipToContent": "Skip to main content",
+    "readOnlyTitle": "Your data is safe; the workspace is read-only.",
+    "readOnlyBody": "You can still see reports and past data, but automatic replies and new changes are paused until a plan is active.",
+    "readOnlyAction": "Reactivate",
+    "errorRetrying": "Loading again…",
+    "errorFailed": "This page could not be loaded.",
+    "errorRetry": "Try again"
   },
   "onboarding": {
     "title": "Set up Vigent",
@@ -221,7 +233,7 @@
   },
   "agents": {
     "title": "Agents",
-    "subtitle": "Your AI agents — click any card to see its settings",
+    "subtitle": "Tap an agent to see its settings.",
     "new": "New agent",
     "empty": "No agents yet",
     "emptyDesc": "Create your first smart agent to talk to your customers",
@@ -254,7 +266,7 @@
     "products": "Products",
     "storeAccessTab": "Store access",
     "learning": "Learning",
-    "channels": "Connections",
+    "channels": "Apps",
     "analytics": "Analytics",
     "conversations": "Conversations",
     "active": "Active",
@@ -493,7 +505,16 @@
       "advanced": "Vigent AI modes",
       "customHint": "Choose one of Vigent's two modes (Fast & economical, Smart & precise); the provider model is managed on the server",
       "free": "Free"
-    }
+    },
+    "statConversations": "{count} conversations",
+    "statChannels": "{count} apps",
+    "statKnowledge": "{count} knowledge sources",
+    "lastWeek": "{count} in 7 days",
+    "open": "Open",
+    "hintOneTitle": "Your agent is ready",
+    "hintManyTitle": "You have {count} active agents",
+    "hintOneBody": "Tap the card to test it. Connect it to your website or Telegram from “Apps”.",
+    "hintManyBody": "Tap a card to see its settings, knowledge base and apps. You can build different agents for different jobs."
   },
   "channels": {
     "title": "Connections",
@@ -650,7 +671,21 @@
     "healthOk": "Channel is healthy",
     "healthDegraded": "Recent check error",
     "healthDown": "Channel is down",
-    "healthChecked": "checked {time}"
+    "healthChecked": "checked {time}",
+    "igConnectedTitle": "Instagram account connected.",
+    "igConnectedBody": "You can now turn on DM and comment automations from the Instagram page.",
+    "igConnectedBodyShort": "You can now turn on DM and comment automations.",
+    "igManage": "Manage Instagram automations",
+    "igFailedTitle": "Connection failed.",
+    "igFailedBody": "Try again or read the guide.",
+    "igFailedBodyShort": "Try again.",
+    "igErrorDenied": "(access was cancelled)",
+    "igErrorExchange": "(the code could not be verified)",
+    "igErrorState": "(the session was not valid)",
+    "igErrorChannelLimit": "(your plan has no app connections left)",
+    "igGuide": "Instagram connection guide",
+    "igConnectTitle": "Connect Instagram",
+    "igConnectHint": "With an active subscription, Instagram automations run without using reply credit."
   },
   "conversations": {
     "title": "Conversations",
@@ -697,7 +732,11 @@
     "aiControlOperatorOnly": "Automatic agent replies are paused; only operator replies are sent to the customer.",
     "aiControlClosed": "The conversation is closed. Reopen it before enabling replies.",
     "aiControlHint": "On: the agent replies — Off: only the operator replies",
-    "aiControlError": "The reply mode could not be changed. Please try again."
+    "aiControlError": "The reply mode could not be changed. Please try again.",
+    "deleteAll": "Delete all conversations",
+    "fullStats": "Full stats in Analytics",
+    "filterStatus": "Status",
+    "filterChannel": "App"
   },
   "operatorChannel": {
     "title": "Telegram manager bot",
@@ -733,7 +772,8 @@
     "agentActivity": "Agent activity",
     "noData": "No data yet",
     "unansweredQueries": "Unanswered questions",
-    "noUnanswered": "All questions were answered"
+    "noUnanswered": "All questions were answered",
+    "pageTitle": "Conversation analytics"
   },
   "contacts": {
     "title": "Customers",
@@ -828,7 +868,9 @@
       "deleteConfirm": "Delete customer",
       "deleting": "Deleting…",
       "deleteFailed": "The customer could not be deleted. Please try again."
-    }
+    },
+    "wooBadge": "Plugin",
+    "wooBadgeTitle": "This customer came in through the WooCommerce plugin"
   },
   "billing": {
     "title": "Plan & credit",
@@ -1046,7 +1088,8 @@
         "refunded": "Refunded",
         "failed": "Failed"
       },
-      "requestsTab": "Chat requests"
+      "requestsTab": "Chat requests",
+      "deleteAll": "Delete all orders"
     },
     "form": {
       "create": "Create product",
@@ -1191,7 +1234,13 @@
         "EXPIRED": "Expired"
       },
       "actionError": "That didn’t work; please try again."
-    }
+    },
+    "deleteAll": "Delete all products",
+    "noQueries": "No searches yet",
+    "onboardingStep": "Step 3 of 4",
+    "onboardingTitle": "Add your first product or service",
+    "onboardingHint": "After saving you go straight back to setup.",
+    "saveAndContinue": "Save and continue"
   },
   "marketing": {
     "hero": {

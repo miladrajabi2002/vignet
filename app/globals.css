@@ -569,6 +569,16 @@
                 animation-delay: 55ms;
         }
 
+        /* Switching between an agent's tabs: the body fades in, nothing moves. */
+        .agent-tab-fade {
+                animation: agent-tab-fade 150ms ease-out both;
+        }
+
+        @keyframes agent-tab-fade {
+                from { opacity: 0; }
+                to { opacity: 1; }
+        }
+
         /* Page title bar — no card: the title sits on the canvas and a
            hairline that fades at both ends separates it from the content. */
         .dashboard-page-header {
@@ -794,23 +804,12 @@
                 transform: scale(0.97);
         }
 
+        /* Inner public pages (pricing, status, legal) open the same way the
+           home page and the blog do: light, on the canvas, closed by a hairline. */
         .marketing-page-hero {
                 position: relative;
-                overflow: hidden;
-                border-radius: var(--radius-sheet);
-                background: #050505;
-                color: white;
-                box-shadow: 0 30px 90px rgba(0, 0, 0, 0.18);
-        }
-
-        .marketing-page-hero::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                pointer-events: none;
-                background:
-                        radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.12), transparent 30%),
-                        linear-gradient(120deg, transparent 45%, rgba(255, 255, 255, 0.045), transparent 62%);
+                border-bottom: 1px solid rgba(17, 17, 17, 0.08);
+                color: var(--text-primary);
         }
 
         .marketing-page-shell {
@@ -1181,6 +1180,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+        .agent-tab-fade,
         .dashboard-arrival,
         .dashboard-arrival--core,
         .dashboard-page-header,
@@ -1605,6 +1605,11 @@ html[dir='rtl'] .undo-indeterminate {
 		transition: color 160ms ease;
 	}
 	.ui-link:hover { color: var(--signal-strong); }
+	/* Touch screens: a 40px-tall hit area without moving the text. The
+	   negative margin gives the padding back to the layout. */
+	@media (pointer: coarse) {
+		.ui-link { min-height: 2.5rem; margin-block: -0.5rem; padding-inline: 0.25rem; margin-inline: -0.25rem; }
+	}
 	.ui-link svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
 
 	/* ── ط۱۷ Type scale (the public site's rhythm, sized for an app) ──── */

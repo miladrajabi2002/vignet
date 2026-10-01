@@ -22,10 +22,10 @@
  * is the real security gate; this button is just UX.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { Trash2, AlertTriangle, Ellipsis } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { queueUndo, type UndoKind } from '@/lib/undo-queue'
 
@@ -58,6 +58,14 @@ interface BulkDeleteButtonProps {
   onDeleted?: () => void
   /** Use an icon-only trigger on narrow screens to keep action rails on one row. */
   compactOnMobile?: boolean
+  /**
+   * `menu` tucks the delete action inside a quiet «⋯» overflow menu, so a
+   * once-a-year destructive action does not sit beside the page's daily
+   * primary button. `button` keeps the standalone red trigger.
+   */
+  variant?: 'button' | 'menu'
+  /** Extra rows shown above the delete action inside the «⋯» menu. */
+  menuItems?: React.ReactNode
 }
 
 export function BulkDeleteButton({
@@ -74,6 +82,8 @@ export function BulkDeleteButton({
   extraWarning,
   onDeleted,
   compactOnMobile = false,
+  variant = 'button',
+  menuItems,
 }: BulkDeleteButtonProps) {
   const router = useRouter()
   const locale = useLocale()
@@ -83,6 +93,24 @@ export function BulkDeleteButton({
   const [error, setError] = useState<string | null>(null)
   const [count, setCount] = useState<number | null>(null)
   const [countLoading, setCountLoading] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointer = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   // When the dialog opens, fetch the actual record count so the user
   // sees «۱۲۳ محصول حذف می‌شود» instead of a generic warning. This
@@ -165,18 +193,53 @@ export function BulkDeleteButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={buttonLabel}
-        title={buttonLabel}
-        className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 ${compactOnMobile ? 'w-11 px-0 sm:w-auto sm:px-3' : 'px-3'}`}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        <span className={compactOnMobile ? 'hidden sm:inline' : undefined}>
-          {buttonLabel}
-        </span>
-      </button>
+      {variant === 'menu' ? (
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((value) => !value)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={fa ? 'کارهای بیشتر' : 'More actions'}
+            title={fa ? 'کارهای بیشتر' : 'More actions'}
+            className="inline-flex size-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          >
+            <Ellipsis className="h-4 w-4" />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              onClick={() => setMenuOpen(false)}
+              className="absolute end-0 top-full z-40 mt-2 min-w-52 max-sm:fixed max-sm:inset-x-3 max-sm:bottom-24 max-sm:top-auto max-sm:mt-0 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-1.5 shadow-[var(--elev-2)] [&_a]:flex [&_a]:min-h-11 [&_a]:w-full [&_a]:items-center [&_a]:justify-start [&_a]:gap-2 [&_a]:rounded-xl [&_a]:border-0 [&_a]:bg-transparent [&_a]:px-3 [&_a]:text-xs [&_a]:font-medium [&_a]:text-[var(--text-primary)] [&_a]:shadow-none [&_a:hover]:bg-[var(--bg-hover)]"
+            >
+              {menuItems}
+              {menuItems ? <div aria-hidden className="my-1 h-px bg-[var(--border-subtle)]" /> : null}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setOpen(true)}
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-start text-xs font-medium text-red-700 transition-colors hover:bg-red-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {buttonLabel}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={buttonLabel}
+          title={buttonLabel}
+          className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 ${compactOnMobile ? 'w-11 px-0 sm:w-auto sm:px-3' : 'px-3'}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className={compactOnMobile ? 'hidden sm:inline' : undefined}>
+            {buttonLabel}
+          </span>
+        </button>
+      )}
 
       <ConfirmDialog
         open={open}

@@ -23,7 +23,7 @@ import {
   ChannelDonut,
 } from '@/components/dashboard/charts/lazy'
 import { BarList } from '@/components/dashboard/charts/bar-list'
-import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
+import { channelLabel } from '@/components/crm/channel-badge'
 import { dateLocaleTag } from '@/lib/localized-date'
 
 const DAYS = 14
@@ -115,7 +115,7 @@ export default async function AgentAnalyticsPage(
   }))
 
   const channels = channelGroups
-    .map((g) => ({ label: CHANNEL_LABELS[g.channel] ?? g.channel, value: g._count._all }))
+    .map((g) => ({ label: channelLabel(g.channel, locale), value: g._count._all }))
     .sort((a, b) => b.value - a.value)
 
   const avgRating = ratingAgg._avg.rating
