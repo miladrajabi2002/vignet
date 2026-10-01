@@ -89,7 +89,7 @@ describe('Instagram long-lived token endpoints', () => {
     vi.unstubAllEnvs()
   })
 
-  it('exchanges the short-lived token with GET query parameters', async () => {
+  it('exchanges the short-lived token with a POST form body', async () => {
     vi.stubEnv('INSTAGRAM_APP_SECRET', 'app-secret')
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -109,15 +109,15 @@ describe('Instagram long-lived token endpoints', () => {
       string | URL,
       RequestInit,
     ]
-    const url = new URL(requestUrl)
-    expect(url.pathname).toBe('/access_token')
-    expect(url.searchParams.get('grant_type')).toBe('ig_exchange_token')
-    expect(url.searchParams.get('client_secret')).toBe('app-secret')
-    expect(url.searchParams.get('access_token')).toBe('short-token')
-    expect(requestInit).toEqual({ method: 'GET' })
+    expect(String(requestUrl)).toBe('https://graph.instagram.com/access_token')
+    expect(requestInit.method).toBe('POST')
+    const body = requestInit.body as URLSearchParams
+    expect(body.get('grant_type')).toBe('ig_exchange_token')
+    expect(body.get('client_secret')).toBe('app-secret')
+    expect(body.get('access_token')).toBe('short-token')
   })
 
-  it('refreshes the long-lived token with GET query parameters', async () => {
+  it('refreshes the long-lived token with a POST form body', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -136,10 +136,12 @@ describe('Instagram long-lived token endpoints', () => {
       string | URL,
       RequestInit,
     ]
-    const url = new URL(requestUrl)
-    expect(url.pathname).toBe('/refresh_access_token')
-    expect(url.searchParams.get('grant_type')).toBe('ig_refresh_token')
-    expect(url.searchParams.get('access_token')).toBe('long-token')
-    expect(requestInit).toEqual({ method: 'GET' })
+    expect(String(requestUrl)).toBe(
+      'https://graph.instagram.com/refresh_access_token',
+    )
+    expect(requestInit.method).toBe('POST')
+    const body = requestInit.body as URLSearchParams
+    expect(body.get('grant_type')).toBe('ig_refresh_token')
+    expect(body.get('access_token')).toBe('long-token')
   })
 })

@@ -258,6 +258,27 @@ export async function exchangeCodeForUserToken(
 }
 
 /**
+ * graph.instagram.com token endpoints reject GET with "Unsupported request -
+ * method type: get" (IGApiException code 100) in production, so POST a
+ * form-encoded body first. Fall back to GET only if POST itself is refused.
+ */
+async function igTokenRequest(
+  endpoint: string,
+  params: Record<string, string>,
+): Promise<Response> {
+  const post = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params),
+  })
+  if (post.ok || post.status < 400 || post.status >= 500) return post
+  const url = new URL(endpoint)
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
+  const get = await fetch(url, { method: 'GET' })
+  return get.ok ? get : post
+}
+
+/**
  * Exchange a short-lived IG token for a long-lived one (~60 days).
  * Long-lived tokens can be refreshed indefinitely (see {@link refreshLongLivedToken}).
  */
@@ -265,11 +286,11 @@ export async function exchangeForLongLivedToken(
   shortToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
   const clientSecret = instagramAppSecret()
-  const url = new URL('https://graph.instagram.com/access_token')
-  url.searchParams.set('grant_type', 'ig_exchange_token')
-  url.searchParams.set('client_secret', clientSecret)
-  url.searchParams.set('access_token', shortToken)
-  const res = await fetch(url, { method: 'GET' })
+  const res = await igTokenRequest('https://graph.instagram.com/access_token', {
+    grant_type: 'ig_exchange_token',
+    client_secret: clientSecret,
+    access_token: shortToken,
+  })
   const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(
@@ -290,10 +311,10 @@ export async function exchangeForLongLivedToken(
 export async function refreshLongLivedToken(
   longToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
-  const url = new URL('https://graph.instagram.com/refresh_access_token')
-  url.searchParams.set('grant_type', 'ig_refresh_token')
-  url.searchParams.set('access_token', longToken)
-  const res = await fetch(url, { method: 'GET' })
+  const res = await igTokenRequest(
+    'https://graph.instagram.com/refresh_access_token',
+    { grant_type: 'ig_refresh_token', access_token: longToken },
+  )
   const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(`Token refresh failed: ${JSON.stringify(data)}`)
