@@ -169,7 +169,7 @@ export class WorkspaceVigentoRepository {
         where: { workspaceId, active: true },
         orderBy: { createdAt: 'asc' },
         take: 30,
-        select: { id: true, name: true, durationMinutes: true, timezone: true, location: true },
+        select: { id: true, name: true, durationMinutes: true, timezone: true, location: true, price: true },
       }),
       prisma.appointment.findMany({
         where: {

@@ -6,39 +6,43 @@ import {
   listBookingServices,
 } from '@/lib/bookings/service'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
+import { getDashboardModuleLabel } from '@/lib/verticals/registry'
+import { remindersFromMetadata } from '@/components/bookings/booking-model'
 import { AppointmentsWorkspace } from '@/components/bookings/appointments-workspace'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AppointmentsPage() {
+export default async function AppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; edit?: string }>
+}) {
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const today = dateKeyInTimeZone(new Date(), 'Asia/Tehran')
-  const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60_000)
+  const { tab, edit } = await searchParams
 
-  const [services, appointments, upcomingCount, pendingCount] = await Promise.all([
+  const [workspace, services, appointments] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { businessType: true, bookingRemindersEnabled: true } }),
     listBookingServices(user.workspaceId),
-    listAppointmentsForDate({
-      workspaceId: user.workspaceId,
-      dateKey: today,
-    }),
-    prisma.appointment.count({
-      where: {
-        workspaceId: user.workspaceId,
-        startsAt: { gte: new Date(), lt: weekEnd },
-        status: { in: ['PENDING', 'CONFIRMED'] },
-      },
-    }),
-    prisma.appointment.count({
-      where: { workspaceId: user.workspaceId, status: 'PENDING' },
-    }),
+    listAppointmentsForDate({ workspaceId: user.workspaceId, dateKey: today }),
   ])
+
+  // Same label the sidebar shows, so the page and the menu never disagree.
+  const title = getDashboardModuleLabel(
+    'appointments',
+    workspace?.businessType,
+    locale,
+    locale === 'fa' ? 'رزروها و خدمات' : 'Bookings & services',
+  )
 
   return (
     <AppointmentsWorkspace
       locale={locale}
+      title={title}
+      initialTab={tab === 'services' || edit ? 'services' : 'schedule'}
+      initialEditId={edit}
       initialDate={today}
-      initialStats={{ upcomingCount, pendingCount }}
       initialServices={services.map((service) => ({
         id: service.id,
         name: service.name,
@@ -50,6 +54,7 @@ export default async function AppointmentsPage() {
         capacity: service.capacity,
         timezone: service.timezone,
         location: service.location,
+        price: service.price,
         active: service.active,
         appointmentCount: service._count.appointments,
         weeklyRules: service.weeklyRules.map((rule) => ({
@@ -74,6 +79,7 @@ export default async function AppointmentsPage() {
         serviceId: appointment.serviceId,
         serviceName: appointment.service.name,
         serviceLocation: appointment.service.location,
+        contactId: appointment.contactId,
         customerName: appointment.customerName,
         customerPhone: appointment.customerPhone,
         startsAt: appointment.startsAt.toISOString(),
@@ -83,7 +89,9 @@ export default async function AppointmentsPage() {
         status: appointment.status,
         source: appointment.source,
         notes: appointment.notes,
+        reminders: remindersFromMetadata(appointment.metadata),
       }))}
+      remindersEnabled={workspace?.bookingRemindersEnabled ?? true}
     />
   )
 }

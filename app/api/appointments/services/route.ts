@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       ...data,
       description: data.description || null,
       location: data.location || null,
+      price: data.price || null,
       weeklyRules: {
         create: weeklyRules.map((rule) => ({
           ...rule,

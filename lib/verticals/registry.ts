@@ -18,6 +18,7 @@ export type DashboardModuleKey =
   | 'services'
   | 'menu'
   | 'appointments'
+  | 'courses'
   | 'conversations'
   | 'contacts'
   | 'analytics'
@@ -43,8 +44,12 @@ export interface VerticalPack {
   featuresEn: readonly string[]
   /** Modules every Vigent workspace receives, regardless of vertical. */
   coreModules: readonly DashboardModuleKey[]
-  /** Operational modules highlighted for this vertical. */
-  optionalModules: readonly DashboardModuleKey[]
+  /**
+   * Capabilities switched on when a business of this type is created. Only a
+   * starting point: every one of them can be turned off later, and the type
+   * never forces a section into the menu on its own.
+   */
+  defaultCapabilities: readonly CapabilityKey[]
   capabilities: readonly CapabilityPackKey[]
   suggestedServicesFa: readonly string[]
   suggestedServicesEn: readonly string[]
@@ -52,10 +57,25 @@ export interface VerticalPack {
   agentTemplate: 'commerce' | 'food' | 'appointments' | 'services' | 'education' | 'support' | 'instagram' | 'custom'
 }
 
+/** Stable capability identifiers stored on the business profile. */
+export const CAPABILITY_KEYS = [
+  'instagram',
+  'products',
+  'bookings',
+  'services',
+  'digital-menu',
+  'courses',
+  'support',
+] as const
+
+export type CapabilityKey = (typeof CAPABILITY_KEYS)[number]
+
 export interface BusinessServiceOption {
-  key: string
+  key: CapabilityKey
   fa: string
   en: string
+  /** Earlier labels of this option, still found in older stored profiles. */
+  aliases?: readonly string[]
   descriptionFa: string
   descriptionEn: string
   modules: readonly DashboardModuleKey[]
@@ -63,12 +83,12 @@ export interface BusinessServiceOption {
 }
 
 export const BUSINESS_SERVICE_OPTIONS: readonly BusinessServiceOption[] = [
-  { key: 'instagram', fa: 'مدیریت و فروش در اینستاگرام', en: 'Instagram sales & management', descriptionFa: 'پاسخ دایرکت، مدیریت کامنت، فروش در دایرکت و اتوماسیون بدون کسر اعتبار', descriptionEn: 'DM replies, comment management, in-DM sales and no-credit automations with an active subscription', modules: ['instagram'], recommendedFor: ['SOCIAL', 'COMMERCE', 'FOOD', 'SERVICES', 'EDUCATION'] },
+  { key: 'instagram', fa: 'مدیریت و فروش در اینستاگرام', en: 'Instagram sales & management', descriptionFa: 'پاسخ دایرکت، مدیریت کامنت، فروش در دایرکت و اتوماسیون بدون کسر اعتبار', descriptionEn: 'DM replies, comment management, in-DM sales and no-credit automations with an active subscription', modules: ['instagram', 'products'], recommendedFor: ['SOCIAL', 'COMMERCE', 'FOOD', 'SERVICES', 'EDUCATION'] },
   { key: 'products', fa: 'فروش و مدیریت محصولات', en: 'Product sales & management', descriptionFa: 'کاتالوگ، قیمت، موجودی و پیشنهاد محصول در پاسخ ایجنت', descriptionEn: 'Catalog, pricing, stock and product recommendations', modules: ['products'], recommendedFor: ['COMMERCE', 'SOCIAL', 'FOOD'] },
   { key: 'bookings', fa: 'رزرو و نوبت‌دهی', en: 'Bookings & appointments', descriptionFa: 'تقویم، ظرفیت، زمان آزاد و ثبت نوبت بدون تداخل', descriptionEn: 'Calendar, capacity, availability and conflict-free booking', modules: ['appointments', 'services'], recommendedFor: ['APPOINTMENTS', 'FOOD', 'SERVICES', 'EDUCATION'] },
   { key: 'services', fa: 'معرفی و مدیریت خدمات', en: 'Service catalog & management', descriptionFa: 'ثبت خدمات، مدت، محل ارائه و استفاده مستقیم توسط ایجنت', descriptionEn: 'Service catalog, duration, location and direct agent usage', modules: ['services'], recommendedFor: ['SERVICES', 'APPOINTMENTS', 'EDUCATION', 'SUPPORT'] },
   { key: 'digital-menu', fa: 'منوی دیجیتال و سفارش‌گیری', en: 'Digital menu & ordering', descriptionFa: 'لینک عمومی، QR Code و منوی حرفه‌ای متصل به کاتالوگ', descriptionEn: 'Public link, QR code and a catalog-connected menu', modules: ['menu', 'products'], recommendedFor: ['FOOD'] },
-  { key: 'courses', fa: 'دوره، مشاوره و ثبت‌نام', en: 'Courses, consulting & enrollment', descriptionFa: 'معرفی دوره و جلسه، دریافت درخواست و هماهنگی ثبت‌نام', descriptionEn: 'Courses and sessions, lead capture and enrollment', modules: ['services', 'appointments'], recommendedFor: ['EDUCATION', 'SERVICES'] },
+  { key: 'courses', fa: 'دوره و ثبت‌نام', en: 'Courses & enrollment', aliases: ['دوره، مشاوره و ثبت‌نام', 'Courses, consulting & enrollment'], descriptionFa: 'دوره با ظرفیت و جلسات، ثبت‌نام در گفتگو و فهرست ثبت‌نام‌شدگان', descriptionEn: 'Courses with capacity and sessions, in-chat enrollment and a roster', modules: ['courses'], recommendedFor: ['EDUCATION', 'SERVICES'] },
   { key: 'support', fa: 'پشتیبانی و پیگیری مشتری', en: 'Customer support & follow-up', descriptionFa: 'پاسخ دانش‌محور، ثبت درخواست و تحویل موارد حساس به اپراتور', descriptionEn: 'Knowledge-grounded support, requests and safe handoff', modules: [], recommendedFor: ['SUPPORT', 'COMMERCE', 'SERVICES'] },
 ] as const
 
@@ -100,7 +120,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['کاتالوگ و موجودی زنده', 'مشاوره و مقایسه محصول', 'پیگیری سفارش', 'فروش در همه کانال‌ها'],
     featuresEn: ['Live catalog & stock', 'Product advice & comparison', 'Order tracking', 'Omnichannel sales'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['products'],
+    defaultCapabilities: ['products'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['فروش محصول', 'مشاوره خرید', 'پیگیری سفارش'],
     suggestedServicesEn: ['Product sales', 'Buying advice', 'Order tracking'],
@@ -115,7 +135,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['منو دیجیتال', 'ثبت سفارش بیرون‌بر', 'رزرو میز', 'پشتیبانی سریع سفارش'],
     featuresEn: ['Digital menu', 'Takeaway ordering', 'Table booking', 'Fast order support'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['products', 'menu'],
+    defaultCapabilities: ['digital-menu'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['سفارش بیرون‌بر', 'رزرو میز', 'پشتیبانی سفارش'],
     suggestedServicesEn: ['Takeaway orders', 'Table booking', 'Order support'],
@@ -127,10 +147,10 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     titleEn: 'Booking & appointments',
     descriptionFa: 'تقویم، ظرفیت، زمان‌های آزاد و رزرو بدون تداخل برای هر خدمت',
     descriptionEn: 'Calendar, capacity, free slots and conflict-free booking per service',
-    featuresFa: ['تقویم و ظرفیت زنده', 'رزرو بدون تداخل', 'یادآوری خودکار', 'مدیریت لغو و تغییر'],
-    featuresEn: ['Live calendar & capacity', 'Conflict-free booking', 'Auto reminders', 'Cancel & reschedule'],
+    featuresFa: ['تقویم و ظرفیت زنده', 'رزرو بدون تداخل', 'اعلان فوری رزرو', 'مدیریت لغو و تغییر'],
+    featuresEn: ['Live calendar & capacity', 'Conflict-free booking', 'Instant booking alerts', 'Cancel & reschedule'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['appointments', 'services'],
+    defaultCapabilities: ['bookings'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['مشاوره', 'ویزیت', 'خدمات زیبایی', 'رزرو جلسه'],
     suggestedServicesEn: ['Consultation', 'Visit', 'Beauty service', 'Meeting'],
@@ -140,12 +160,12 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     key: 'SERVICES',
     titleFa: 'خدمات حرفه‌ای',
     titleEn: 'Professional services',
-    descriptionFa: 'جمع‌آوری نیاز، ثبت درخواست، پیگیری مشتری و هماهنگی انجام کار',
-    descriptionEn: 'Qualify requests, capture leads and coordinate service delivery',
-    featuresFa: ['جمع‌آوری نیاز و سرنخ', 'ثبت درخواست', 'پیگیری مشتری', 'هماهنگی انجام کار'],
-    featuresEn: ['Lead & need capture', 'Request logging', 'Customer follow-up', 'Work coordination'],
+    descriptionFa: 'جمع‌آوری نیاز، ثبت سرنخ در CRM، پیگیری مشتری و رزرو بازدید',
+    descriptionEn: 'Qualify needs, capture leads in CRM, follow up and book visits',
+    featuresFa: ['جمع‌آوری نیاز و سرنخ', 'ثبت سرنخ در CRM', 'پیگیری مشتری', 'رزرو بازدید و جلسه'],
+    featuresEn: ['Lead & need capture', 'CRM lead capture', 'Customer follow-up', 'Visit & meeting booking'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['services'],
+    defaultCapabilities: ['services'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['برآورد و مشاوره', 'ثبت درخواست', 'بازدید حضوری'],
     suggestedServicesEn: ['Estimate & consultation', 'Service request', 'On-site visit'],
@@ -155,12 +175,12 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     key: 'EDUCATION',
     titleFa: 'آموزش و دوره',
     titleEn: 'Education & courses',
-    descriptionFa: 'راهنمای انتخاب دوره، ثبت‌نام، پاسخ به سؤالات و پیگیری دانشجو',
-    descriptionEn: 'Course guidance, enrollment, Q&A and learner follow-up',
-    featuresFa: ['راهنمای انتخاب دوره', 'ثبت‌نام آنلاین', 'پاسخ به سؤالات', 'پیگیری دانشجو'],
-    featuresEn: ['Course selection guide', 'Online enrollment', 'Q&A support', 'Learner follow-up'],
+    descriptionFa: 'راهنمای انتخاب دوره، ثبت متقاضی، پاسخ به سؤالات و پیگیری دانشجو',
+    descriptionEn: 'Course guidance, applicant capture, Q&A and learner follow-up',
+    featuresFa: ['راهنمای انتخاب دوره', 'ثبت متقاضی و رزرو جلسه', 'پاسخ به سؤالات', 'پیگیری دانشجو'],
+    featuresEn: ['Course selection guide', 'Applicant capture & session booking', 'Q&A support', 'Learner follow-up'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['services'],
+    defaultCapabilities: ['courses'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['مشاوره دوره', 'ثبت‌نام', 'پشتیبانی دانشجو'],
     suggestedServicesEn: ['Course advice', 'Enrollment', 'Learner support'],
@@ -170,15 +190,15 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     key: 'SUPPORT',
     titleFa: 'پشتیبانی مشتری',
     titleEn: 'Customer support',
-    descriptionFa: 'تیکت، اولویت‌بندی، SLA و پاسخ‌گویی دانش‌محور به مشتری',
-    descriptionEn: 'Tickets, priority, SLA and knowledge-driven customer support',
-    featuresFa: ['مدیریت تیکت', 'اولویت‌بندی و SLA', 'پاسخ دانش‌محور', 'گزارش عملکرد'],
-    featuresEn: ['Ticket management', 'Priority & SLA', 'Knowledge-driven replies', 'Performance reports'],
+    descriptionFa: 'پاسخ دانش‌محور، تشخیص موارد حساس و تحویل به‌موقع به اپراتور',
+    descriptionEn: 'Knowledge-grounded answers, sensitive-case detection and timely operator handoff',
+    featuresFa: ['پاسخ دانش‌محور', 'تحویل به اپراتور', 'پیگیری در ربات تلگرام', 'گزارش عملکرد'],
+    featuresEn: ['Knowledge-grounded replies', 'Operator handoff', 'Follow-up via Telegram bot', 'Performance reports'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: [],
+    defaultCapabilities: ['support'],
     capabilities: CORE_CAPABILITY_PACKS,
-    suggestedServicesFa: ['پشتیبانی فنی', 'پاسخ به سؤال', 'پیگیری تیکت'],
-    suggestedServicesEn: ['Technical support', 'Q&A', 'Ticket follow-up'],
+    suggestedServicesFa: ['پشتیبانی فنی', 'پاسخ به سؤال', 'پیگیری درخواست'],
+    suggestedServicesEn: ['Technical support', 'Q&A', 'Request follow-up'],
     agentTemplate: 'support',
   },
   SOCIAL: {
@@ -190,7 +210,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['پاسخ خودکار دایرکت', 'مدیریت کامنت', 'اتوماسیون فروش', 'کاتالوگ در دایرکت'],
     featuresEn: ['Auto DM replies', 'Comment management', 'Sales automation', 'In-DM catalog'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['products', 'instagram'],
+    defaultCapabilities: ['instagram'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['پاسخ دایرکت', 'فروش در دایرکت', 'مدیریت کامنت'],
     suggestedServicesEn: ['DM replies', 'In-DM sales', 'Comment management'],
@@ -205,7 +225,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['انتخاب آزاد ماژول‌ها', 'پاسخ‌گویی هوشمند', 'قابل تغییر بعداً'],
     featuresEn: ['Free module selection', 'Smart replies', 'Changeable later'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: [],
+    defaultCapabilities: [],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['پاسخ‌گویی', 'فروش', 'رزرو', 'پیگیری مشتری'],
     suggestedServicesEn: ['Support', 'Sales', 'Booking', 'Customer follow-up'],
@@ -220,6 +240,7 @@ const MODULE_ORDER: readonly DashboardModuleKey[] = [
   'services',
   'menu',
   'appointments',
+  'courses',
   'conversations',
   'contacts',
   'analytics',
@@ -237,34 +258,100 @@ export function getVerticalPack(value: unknown): VerticalPack {
   return PACKS[isBusinessType(value) ? value : 'CUSTOM']
 }
 
+export function isCapabilityKey(value: unknown): value is CapabilityKey {
+  return typeof value === 'string' && (CAPABILITY_KEYS as readonly string[]).includes(value)
+}
+
+export function getCapabilityOption(key: CapabilityKey): BusinessServiceOption {
+  return BUSINESS_SERVICE_OPTIONS.find((option) => option.key === key)!
+}
+
+/** The option a stored label belongs to, current or earlier wording. */
+export function findCapabilityByLabel(label: string): BusinessServiceOption | undefined {
+  const text = label.trim()
+  return BUSINESS_SERVICE_OPTIONS.find(
+    (option) => option.fa === text || option.en === text || option.aliases?.includes(text),
+  )
+}
+
+export function capabilityLabel(key: CapabilityKey, locale: string): string {
+  const option = getCapabilityOption(key)
+  return locale === 'en' ? option.en : option.fa
+}
+
+/** Deduplicated, known keys in the canonical order. */
+export function normalizeCapabilities(values: readonly unknown[]): CapabilityKey[] {
+  const set = new Set(values.filter(isCapabilityKey))
+  return CAPABILITY_KEYS.filter((key) => set.has(key))
+}
+
+export function getDefaultCapabilities(value: unknown): CapabilityKey[] {
+  return [...getVerticalPack(value).defaultCapabilities]
+}
+
+// ─── Profiles saved before capabilities were stored as keys ─────────────────
+// Those profiles hold display labels (and free text) only, and the menu used
+// to be derived from them plus sections each business type forced on. The
+// mapping below reproduces that menu exactly, so nobody's panel moves when
+// the profile is read in the new shape; the next save stores real keys.
+
+const LEGACY_TYPE_CAPABILITIES: Record<BusinessTypeValue, readonly CapabilityKey[]> = {
+  COMMERCE: ['products'],
+  FOOD: ['digital-menu'],
+  APPOINTMENTS: ['bookings'],
+  SERVICES: ['services'],
+  EDUCATION: ['services'],
+  SUPPORT: [],
+  SOCIAL: ['instagram'],
+  CUSTOM: [],
+}
+
 const PRODUCT_INTENT = /(محصول|فروش|کالا|منو|سفارش|product|store|shop|catalog|menu|order|commerce)/i
 const BOOKING_INTENT = /(رزرو|نوبت|وقت|قرار|جلسه|ملاقات|booking|appointment|reservation|schedule|meeting)/i
 const SERVICE_INTENT = /(خدمت|خدمات|مشاوره|دوره|ویزیت|بازدید|درخواست|service|consult|course|visit)/i
 const MENU_INTENT = /(منو|غذا|کافه|رستوران|menu|food|restaurant|cafe)/i
 const INSTAGRAM_INTENT = /(اینستاگرام|دایرکت|کامنت|instagram|direct|\bdm\b|comment)/i
 
-/**
- * Resolve visible modules from the vertical plus every additive capability the
- * owner selected. Capabilities never replace each other: a business can sell
- * products, offer services, accept bookings and use Instagram at the same time.
- */
-export function getDashboardModules(
-  value: unknown,
-  services: readonly string[] = [],
-): DashboardModuleKey[] {
-  const pack = getVerticalPack(value)
-  const enabled = new Set<DashboardModuleKey>([
-    ...pack.coreModules,
-    ...pack.optionalModules,
-  ])
+export function legacyCapabilities(type: unknown, services: readonly string[] = []): CapabilityKey[] {
+  const pack = getVerticalPack(type)
+  const found = new Set<CapabilityKey>(LEGACY_TYPE_CAPABILITIES[pack.key])
+  for (const service of services) {
+    const option = findCapabilityByLabel(service)
+    if (!option) continue
+    found.add(option.key)
+    // The old courses option opened the bookings workspace.
+    if (option.key === 'courses') found.add('bookings')
+  }
+  const text = services.join(' ')
+  if (PRODUCT_INTENT.test(text)) found.add('products')
+  if (BOOKING_INTENT.test(text)) found.add('bookings')
+  if (SERVICE_INTENT.test(text)) found.add('services')
+  if (MENU_INTENT.test(text)) found.add('digital-menu')
+  if (INSTAGRAM_INTENT.test(text)) found.add('instagram')
+  return normalizeCapabilities([...found])
+}
 
-  const serviceText = services.join(' ')
-  if (PRODUCT_INTENT.test(serviceText)) enabled.add('products')
-  if (BOOKING_INTENT.test(serviceText)) { enabled.add('appointments'); enabled.add('services') }
-  if (SERVICE_INTENT.test(serviceText)) enabled.add('services')
-  if (MENU_INTENT.test(serviceText)) { enabled.add('menu'); enabled.add('products') }
-  if (INSTAGRAM_INTENT.test(serviceText)) enabled.add('instagram')
+/**
+ * Visible modules: the core every workspace has, plus exactly the sections
+ * the enabled capabilities declare. Capabilities never replace each other: a
+ * business can sell products, offer services, take bookings and use
+ * Instagram at the same time. The business type plays no part here.
+ */
+export function getDashboardModules(capabilities: readonly CapabilityKey[] = []): DashboardModuleKey[] {
+  const enabled = new Set<DashboardModuleKey>(CORE_DASHBOARD_MODULES)
+  for (const key of capabilities) {
+    if (isCapabilityKey(key)) getCapabilityOption(key).modules.forEach((module) => enabled.add(module))
+  }
   return MODULE_ORDER.filter((module) => enabled.has(module))
+}
+
+/** Enabled capabilities other than `except` that also bring `module`. */
+export function capabilitiesBringingModule(
+  module: DashboardModuleKey,
+  capabilities: readonly CapabilityKey[],
+  except?: CapabilityKey,
+): CapabilityKey[] {
+  return capabilities.filter((key) => key !== except && getCapabilityOption(key).modules.includes(module))
 }
 
 /**
@@ -281,16 +368,15 @@ export function collapseDashboardNavigationModules(
 }
 
 export function getDashboardNavigationModules(
-  value: unknown,
-  services: readonly string[] = [],
+  capabilities: readonly CapabilityKey[] = [],
 ): DashboardModuleKey[] {
-  return collapseDashboardNavigationModules(getDashboardModules(value, services))
+  return collapseDashboardNavigationModules(getDashboardModules(capabilities))
 }
 
 /** All useful cross-business capabilities, with the relevant ones shown first. */
 export function getBusinessServiceOptions(value: unknown): BusinessServiceOption[] {
   const type = getVerticalPack(value).key
-  const priority: Record<BusinessTypeValue, readonly string[]> = {
+  const priority: Record<BusinessTypeValue, readonly CapabilityKey[]> = {
     COMMERCE: ['products', 'instagram', 'support', 'bookings', 'services'],
     FOOD: ['digital-menu', 'products', 'bookings', 'instagram', 'services'],
     APPOINTMENTS: ['bookings', 'services', 'instagram', 'support'],
@@ -316,10 +402,10 @@ export function getDashboardModuleLabel(
 ): string {
   const fa = locale !== 'en'
   if (module === 'services') {
-    if (businessType === 'EDUCATION') return fa ? 'دوره‌ها و خدمات' : 'Courses & services'
     return fa ? 'خدمات' : 'Services'
   }
   if (module === 'menu') return fa ? 'منوی دیجیتال' : 'Digital menu'
+  if (module === 'courses') return fa ? 'دوره‌ها' : 'Courses'
   if (module === 'appointments') {
     if (businessType === 'FOOD') return fa ? 'رزرو میز' : 'Table bookings'
     if (businessType === 'SERVICES') return fa ? 'خدمات و زمان‌بندی' : 'Services & schedule'

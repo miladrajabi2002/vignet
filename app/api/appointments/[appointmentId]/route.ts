@@ -63,3 +63,15 @@ export async function PATCH(request: Request, props: Props) {
   }
   return NextResponse.json({ appointment: updated })
 }
+
+/** Permanently removes a booking from the calendar and history. */
+export async function DELETE(_request: Request, props: Props) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  const { appointmentId } = await props.params
+  const result = await prisma.appointment.deleteMany({
+    where: { id: appointmentId, workspaceId: user.workspaceId },
+  })
+  if (!result.count) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+  return NextResponse.json({ ok: true })
+}

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import {
-  AlertCircle,
+  ArrowLeftRight,
   Bot,
   CalendarCheck2,
   CalendarClock,
@@ -11,1217 +12,879 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock3,
-  Coffee,
+  LayoutGrid,
   Loader2,
   MapPin,
-  Moon,
-  Pencil,
+  MoreHorizontal,
+  Phone,
   Plus,
-  Settings2,
   Sparkles,
-  Sun,
-  Trash2,
-  UserRound,
+  UserX,
   Users,
+  Trash2,
   XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DialogShell } from '@/components/ui/dialog-shell'
-import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
+import { PageHeader } from '@/components/dashboard/page-header'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { StatusChip } from '@/components/ui/status-chip'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
 import { dateLocaleTag, formatDateKey } from '@/lib/localized-date'
 import { displayPhone } from '@/lib/phone'
+import { BookingMotion } from '@/components/bookings/booking-motion'
+import { formatClock } from '@/components/ui/time-picker'
+import { BookingDialog } from '@/components/bookings/booking-dialog'
+import { SERVICE_TEMPLATES, ServiceEditor, type ServiceTemplate } from '@/components/bookings/service-editor'
+import { ServicesBoard } from '@/components/bookings/services-board'
+import { DeleteServiceDialog } from '@/components/bookings/delete-service'
+import { ReminderSettingsCard, ReminderStatusLine } from '@/components/bookings/reminder-settings'
+import {
+  DAY_PARTS,
+  STATUS_META,
+  appointmentFromApi,
+  dayPartOfMinute,
+  isClosedDate,
+  localMinuteOf,
+  num,
+  serviceAccent,
+  shiftDateKey,
+  type AppointmentRow,
+  type AppointmentStatus,
+  type DayPart,
+  type DaySummary,
+  type Locale,
+  type ServiceRow,
+} from '@/components/bookings/booking-model'
 
-type Locale = 'fa' | 'en'
-type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW'
-
-interface ServiceRow {
-  id: string
-  name: string
-  description: string | null
-  durationMinutes: number
-  slotIntervalMinutes: number
-  bufferBeforeMinutes: number
-  bufferAfterMinutes: number
-  capacity: number
-  timezone: string
-  location: string | null
-  active: boolean
-  appointmentCount: number
-  weeklyRules: Array<{
-    weekday: number
-    startMinute: number
-    endMinute: number
-    capacity: number | null
-    active: boolean
-  }>
-  exceptions: Array<{
-    id: string
-    date: string
-    closed: boolean
-    startMinute: number | null
-    endMinute: number | null
-    capacity: number | null
-    note: string | null
-  }>
-}
-
-interface AppointmentRow {
-  id: string
-  serviceId: string
-  serviceName: string
-  serviceLocation: string | null
-  customerName: string
-  customerPhone: string | null
-  startsAt: string
-  endsAt: string
-  timezone: string
-  partySize: number
-  status: AppointmentStatus
-  source: string
-  notes: string | null
-}
-
-interface SlotRow {
-  startMinute: number
-  startsAt: string
-  endsAt: string
-  remainingCapacity: number
-}
-
-const STATUS_COPY: Record<AppointmentStatus, { fa: string; en: string; tone: string; dot: string }> = {
-  PENDING: { fa: 'در انتظار تأیید', en: 'Pending', tone: 'bg-amber-500/10 text-amber-700 ring-amber-500/20', dot: 'bg-amber-500' },
-  CONFIRMED: { fa: 'تأییدشده', en: 'Confirmed', tone: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20', dot: 'bg-emerald-500' },
-  CANCELLED: { fa: 'لغوشده', en: 'Cancelled', tone: 'bg-red-500/10 text-red-600 ring-red-500/20', dot: 'bg-red-400' },
-  COMPLETED: { fa: 'انجام‌شده', en: 'Completed', tone: 'bg-blue-500/10 text-blue-700 ring-blue-500/20', dot: 'bg-blue-500' },
-  NO_SHOW: { fa: 'عدم حضور', en: 'No show', tone: 'bg-zinc-500/10 text-zinc-600 ring-zinc-500/20', dot: 'bg-zinc-400' },
-}
-
-const WEEKDAYS = [
-  { value: 6, fa: 'ش', en: 'Sat' },
-  { value: 0, fa: 'ی', en: 'Sun' },
-  { value: 1, fa: 'د', en: 'Mon' },
-  { value: 2, fa: 'س', en: 'Tue' },
-  { value: 3, fa: 'چ', en: 'Wed' },
-  { value: 4, fa: 'پ', en: 'Thu' },
-  { value: 5, fa: 'ج', en: 'Fri' },
-]
-
-// Deterministic accent color per service — keeps the schedule visually scannable
-// without requiring the user to read every service name. Hue derived from a
-// stable hash of the service id so a given service always renders the same
-// accent across days and reloads.
-const SERVICE_ACCENTS = [
-  { ring: 'ring-black/15', bar: 'bg-[var(--text-primary)]', chip: 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]' },
-  { ring: 'ring-emerald-500/25', bar: 'bg-emerald-500', chip: 'bg-emerald-500/10 text-emerald-700' },
-  { ring: 'ring-blue-500/25', bar: 'bg-blue-500', chip: 'bg-blue-500/10 text-blue-700' },
-  { ring: 'ring-amber-500/25', bar: 'bg-amber-500', chip: 'bg-amber-500/10 text-amber-700' },
-  { ring: 'ring-violet-500/25', bar: 'bg-violet-500', chip: 'bg-violet-500/10 text-violet-700' },
-  { ring: 'ring-rose-500/25', bar: 'bg-rose-500', chip: 'bg-rose-500/10 text-rose-700' },
-  { ring: 'ring-teal-500/25', bar: 'bg-teal-500', chip: 'bg-teal-500/10 text-teal-700' },
-]
-
-function serviceAccent(serviceId: string) {
-  let hash = 0
-  for (let i = 0; i < serviceId.length; i++) {
-    hash = (hash * 31 + serviceId.charCodeAt(i)) >>> 0
-  }
-  return SERVICE_ACCENTS[hash % SERVICE_ACCENTS.length]
-}
-
-function shiftDateKey(dateKey: string, amount: number): string {
-  const date = new Date(`${dateKey}T12:00:00.000Z`)
-  date.setUTCDate(date.getUTCDate() + amount)
-  return date.toISOString().slice(0, 10)
-}
-
-function minuteLabel(value: number): string {
-  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
-}
-
-function timeToMinute(value: string): number {
-  const [hour, minute] = value.split(':').map(Number)
-  return hour * 60 + minute
-}
-
-function appointmentFromApi(value: Record<string, unknown>): AppointmentRow {
-  const service = (value.service ?? {}) as Record<string, unknown>
-  return {
-    id: String(value.id),
-    serviceId: String(value.serviceId),
-    serviceName: String(service.name ?? ''),
-    serviceLocation: typeof service.location === 'string' ? service.location : null,
-    customerName: String(value.customerName ?? ''),
-    customerPhone: typeof value.customerPhone === 'string' ? value.customerPhone : null,
-    startsAt: String(value.startsAt),
-    endsAt: String(value.endsAt),
-    timezone: String(value.timezone ?? 'Asia/Tehran'),
-    partySize: Number(value.partySize) || 1,
-    status: value.status as AppointmentStatus,
-    source: String(value.source ?? 'dashboard'),
-    notes: typeof value.notes === 'string' ? value.notes : null,
-  }
-}
-
-function serviceFromApi(raw: Record<string, unknown>): ServiceRow {
-  const count = (raw._count ?? {}) as Record<string, unknown>
-  const exceptions = Array.isArray(raw.exceptions) ? raw.exceptions : []
-  return {
-    id: String(raw.id),
-    name: String(raw.name),
-    description: typeof raw.description === 'string' ? raw.description : null,
-    durationMinutes: Number(raw.durationMinutes),
-    slotIntervalMinutes: Number(raw.slotIntervalMinutes),
-    bufferBeforeMinutes: Number(raw.bufferBeforeMinutes),
-    bufferAfterMinutes: Number(raw.bufferAfterMinutes),
-    capacity: Number(raw.capacity),
-    timezone: String(raw.timezone),
-    location: typeof raw.location === 'string' ? raw.location : null,
-    active: Boolean(raw.active),
-    appointmentCount: Number(count.appointments) || 0,
-    weeklyRules: (raw.weeklyRules as ServiceRow['weeklyRules']) ?? [],
-    exceptions: exceptions.map((value) => {
-      const exception = value as Record<string, unknown>
-      return {
-        id: String(exception.id),
-        date: String(exception.date).slice(0, 10),
-        closed: Boolean(exception.closed),
-        startMinute: typeof exception.startMinute === 'number' ? exception.startMinute : null,
-        endMinute: typeof exception.endMinute === 'number' ? exception.endMinute : null,
-        capacity: typeof exception.capacity === 'number' ? exception.capacity : null,
-        note: typeof exception.note === 'string' ? exception.note : null,
-      }
-    }),
-  }
-}
-
-type TimeSlotKey = 'morning' | 'afternoon' | 'evening'
-
-/** Group appointments into morning / afternoon / evening buckets by start hour. */
-function groupByTimeSlot(items: AppointmentRow[]): Array<{ key: TimeSlotKey; items: AppointmentRow[] }> {
-  const morning: AppointmentRow[] = []
-  const afternoon: AppointmentRow[] = []
-  const evening: AppointmentRow[] = []
-  for (const item of items) {
-    const hour = new Date(item.startsAt).toLocaleString('en-US', { timeZone: item.timezone, hour: '2-digit', hour12: false })
-    const h = Number(hour)
-    if (h < 12) morning.push(item)
-    else if (h < 17) afternoon.push(item)
-    else evening.push(item)
-  }
-  const groups: Array<{ key: TimeSlotKey; items: AppointmentRow[] }> = [
-    { key: 'morning', items: morning },
-    { key: 'afternoon', items: afternoon },
-    { key: 'evening', items: evening },
-  ]
-  return groups.filter((group) => group.items.length > 0)
-}
-
-const TIME_SLOT_COPY: Record<TimeSlotKey, { fa: string; en: string; Icon: typeof Sun }> = {
-  morning: { fa: 'صبح', en: 'Morning', Icon: Sun },
-  afternoon: { fa: 'بعدازظهر', en: 'Afternoon', Icon: Coffee },
-  evening: { fa: 'شب', en: 'Evening', Icon: Moon },
-}
+type Tab = 'schedule' | 'services'
+const TZ = 'Asia/Tehran'
 
 export function AppointmentsWorkspace({
   locale,
+  title,
+  initialTab = 'schedule',
   initialDate,
-  initialStats,
   initialServices,
   initialAppointments,
+  initialEditId,
+  remindersEnabled = true,
 }: {
   locale: Locale
+  title: string
+  /** Workspace switch: customer reminders 24 h / 2 h before, in-chat. */
+  remindersEnabled?: boolean
+  initialTab?: Tab
+  /** Opens this service's editor on arrival (hand-off from /services). */
+  initialEditId?: string
   initialDate: string
-  initialStats: { upcomingCount: number; pendingCount: number }
   initialServices: ServiceRow[]
   initialAppointments: AppointmentRow[]
 }) {
   const fa = locale === 'fa'
+  const todayKey = useMemo(() => dateKeyInTimeZone(new Date(), TZ), [])
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [services, setServices] = useState(initialServices)
   const [appointments, setAppointments] = useState(initialAppointments)
   const [selectedDate, setSelectedDate] = useState(initialDate)
+  const [weekStart, setWeekStart] = useState(initialDate)
   const [serviceFilter, setServiceFilter] = useState('')
   const [loadingDay, setLoadingDay] = useState(false)
-  const [bookingOpen, setBookingOpen] = useState(false)
-  const [servicesOpen, setServicesOpen] = useState(initialServices.length === 0)
-  const [cancelId, setCancelId] = useState<string | null>(null)
-  const [cancelReason, setCancelReason] = useState('')
-  const [actionId, setActionId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [dayCounts, setDayCounts] = useState<Record<string, number>>({})
-  // Week navigation — start of the 7-day window currently in view. Defaults to
-  // today so the first paint shows the current week.
-  const [weekStart, setWeekStart] = useState(initialDate)
+  const [week, setWeek] = useState<Record<string, DaySummary>>({})
+  const [stats, setStats] = useState<Record<string, DaySummary>>({})
+  const [booking, setBooking] = useState<{ open: boolean; reschedule?: AppointmentRow | null; serviceId?: string }>({ open: false })
+  const [editor, setEditor] = useState<{ open: boolean; service?: ServiceRow | null; template?: ServiceTemplate | null }>(() => {
+    const service = initialEditId ? initialServices.find((item) => item.id === initialEditId) : undefined
+    return service ? { open: true, service } : { open: false }
+  })
+  const [deleting, setDeleting] = useState<ServiceRow | null>(null)
+  const dayRequest = useRef(0)
 
-  const todayKey = useMemo(() => dateKeyInTimeZone(new Date(), 'Asia/Tehran'), [])
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStart, index)),
-    [weekStart],
-  )
-  const activeServices = services.filter((service) => service.active)
-  const activeToday = appointments.filter((item) => ['PENDING', 'CONFIRMED'].includes(item.status))
-  const usedCapacity = activeToday.reduce((sum, item) => sum + item.partySize, 0)
+  const activeServices = useMemo(() => services.filter((service) => service.active), [services])
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStart, index)), [weekStart])
 
-  // Daily summary for the currently selected day — shown above the list so the
-  // manager can see the shape of the day at a glance.
-  const daySummary = useMemo(() => {
-    const pending = appointments.filter((item) => item.status === 'PENDING').length
-    const confirmed = appointments.filter((item) => item.status === 'CONFIRMED').length
-    const completed = appointments.filter((item) => item.status === 'COMPLETED').length
-    const cancelled = appointments.filter((item) => ['CANCELLED', 'NO_SHOW'].includes(item.status)).length
-    return { total: appointments.length, pending, confirmed, completed, cancelled }
-  }, [appointments])
+  const switchTab = useCallback((next: Tab) => {
+    setTab(next)
+    try {
+      const url = new URL(window.location.href)
+      if (next === 'schedule') url.searchParams.delete('tab')
+      else url.searchParams.set('tab', next)
+      window.history.replaceState(window.history.state, '', url)
+    } catch { /* URL sync is a convenience only */ }
+  }, [])
 
-  // Fetch appointment counts for the whole 14-day window (current + next week)
-  // so each day chip can show a numeric badge. Runs on mount, week navigation,
-  // and whenever the service filter changes.
-  useEffect(() => {
-    let cancelled = false
-    const windowDays = Array.from({ length: 14 }, (_, index) => shiftDateKey(weekStart, index))
-    Promise.all(
-      windowDays.map(async (date) => {
-        try {
-          const query = new URLSearchParams({ date })
-          if (serviceFilter) query.set('serviceId', serviceFilter)
-          const response = await fetch(`/api/appointments?${query.toString()}`)
-          const data = (await response.json()) as { appointments?: unknown[] }
-          return [date, (data.appointments ?? []).length] as const
-        } catch {
-          return [date, 0] as const
-        }
-      }),
-    ).then((entries) => {
-      if (cancelled) return
-      setDayCounts((prev) => ({ ...prev, ...Object.fromEntries(entries) }))
-    })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceFilter, weekStart])
+  const loadWeek = useCallback(async (start: string, filter: string) => {
+    try {
+      const query = new URLSearchParams({ from: start, days: '7' })
+      if (filter) query.set('serviceId', filter)
+      const response = await fetch(`/api/appointments/summary?${query}`)
+      const data = await response.json() as { days?: Record<string, DaySummary> }
+      if (response.ok && data.days) setWeek(data.days)
+    } catch { /* strip keeps its last known counts */ }
+  }, [])
 
-  async function loadDay(date: string, nextService = serviceFilter) {
+  const loadStats = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/appointments/summary?${new URLSearchParams({ from: todayKey, days: '7' })}`)
+      const data = await response.json() as { days?: Record<string, DaySummary> }
+      if (response.ok && data.days) setStats(data.days)
+    } catch { /* keep last stats */ }
+  }, [todayKey])
+
+  useEffect(() => { void loadWeek(weekStart, serviceFilter) }, [loadWeek, weekStart, serviceFilter])
+  useEffect(() => { void loadStats() }, [loadStats])
+
+  const loadDay = useCallback(async (date: string, filter: string) => {
+    const request = ++dayRequest.current
     setLoadingDay(true)
     setError('')
+    setSelectedDate(date)
     try {
       const query = new URLSearchParams({ date })
-      if (nextService) query.set('serviceId', nextService)
-      const response = await fetch(`/api/appointments?${query.toString()}`)
+      if (filter) query.set('serviceId', filter)
+      const response = await fetch(`/api/appointments?${query}`)
       const data = await response.json() as { appointments?: Array<Record<string, unknown>> }
-      if (!response.ok || !data.appointments) throw new Error('load failed')
-      const nextAppointments = data.appointments.map(appointmentFromApi)
-      setAppointments(nextAppointments)
-      setDayCounts((current) => ({ ...current, [date]: nextAppointments.length }))
-      setSelectedDate(date)
+      if (!response.ok || !data.appointments) throw new Error()
+      if (request === dayRequest.current) setAppointments(data.appointments.map(appointmentFromApi))
     } catch {
-      setError(fa ? 'بارگذاری تقویم انجام نشد.' : 'Could not load the calendar.')
+      if (request === dayRequest.current) setError(fa ? 'بارگذاری برنامه این روز انجام نشد. دوباره تلاش کنید.' : 'Could not load this day. Try again.')
     } finally {
-      setLoadingDay(false)
+      if (request === dayRequest.current) setLoadingDay(false)
     }
+  }, [fa])
+
+  const refreshAll = useCallback(async (date = selectedDate) => {
+    await Promise.all([loadDay(date, serviceFilter), loadWeek(weekStart, serviceFilter), loadStats()])
+  }, [loadDay, loadStats, loadWeek, selectedDate, serviceFilter, weekStart])
+
+  function selectDate(date: string) {
+    void loadDay(date, serviceFilter)
   }
 
-  async function updateStatus(id: string, status: AppointmentStatus, reason?: string) {
-    setActionId(id)
+  function moveWeek(amount: number) {
+    const nextStart = shiftDateKey(weekStart, amount)
+    setWeekStart(nextStart)
+    void loadDay(nextStart, serviceFilter)
+  }
+
+  function goToday() {
+    setWeekStart(todayKey)
+    void loadDay(todayKey, serviceFilter)
+  }
+
+  function changeFilter(value: string) {
+    setServiceFilter(value)
+    void loadDay(selectedDate, value)
+  }
+
+  async function updateStatus(id: string, status: AppointmentStatus, reason?: string): Promise<boolean> {
     setError('')
+    // Optimistic: the row flips immediately and rolls back on failure.
+    const previous = appointments
+    setAppointments((rows) => rows.map((row) => (row.id === id ? { ...row, status } : row)))
     try {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, ...(reason ? { cancellationReason: reason } : {}) }),
       })
-      if (!response.ok) throw new Error('update failed')
-      setCancelId(null)
-      setCancelReason('')
-      await loadDay(selectedDate)
+      if (!response.ok) throw new Error()
+      void loadWeek(weekStart, serviceFilter)
+      void loadStats()
+      return true
     } catch {
+      setAppointments(previous)
       setError(fa ? 'تغییر وضعیت ذخیره نشد.' : 'The status could not be updated.')
-    } finally {
-      setActionId(null)
+      return false
     }
   }
 
-  function goPrevWeek() {
-    setWeekStart((current) => shiftDateKey(current, -7))
-  }
-  function goNextWeek() {
-    setWeekStart((current) => shiftDateKey(current, 7))
-  }
-  function goToday() {
-    setWeekStart(todayKey)
-    void loadDay(todayKey)
+  async function toggleService(service: ServiceRow, active: boolean) {
+    const response = await fetch(`/api/appointments/services/${service.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    })
+    if (response.ok) setServices((rows) => rows.map((row) => (row.id === service.id ? { ...row, active } : row)))
   }
 
-  // Human-friendly month label for the current week window, e.g. "تیر ۱۴۰۴"
-  // or spans two months when the week straddles a boundary.
-  const weekMonthLabel = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'long', timeZone: 'UTC' })
+  function serviceDeleted(serviceId: string) {
+    setServices((rows) => rows.filter((row) => row.id !== serviceId))
+    setAppointments((rows) => rows.filter((row) => row.serviceId !== serviceId))
+    setEditor({ open: false })
+    setDeleting(null)
+    if (serviceFilter === serviceId) changeFilter('')
+    void loadWeek(weekStart, serviceFilter === serviceId ? '' : serviceFilter)
+    void loadStats()
+  }
+
+  async function deleteAppointment(id: string): Promise<boolean> {
+    setError('')
+    const previous = appointments
+    setAppointments((rows) => rows.filter((row) => row.id !== id))
+    const response = await fetch(`/api/appointments/${id}`, { method: 'DELETE' }).catch(() => null)
+    if (!response?.ok && response?.status !== 404) {
+      setAppointments(previous)
+      setError(fa ? 'حذف نوبت انجام نشد؛ دوباره تلاش کنید.' : 'The booking could not be deleted.')
+      return false
+    }
+    setServices((rows) => rows.map((row) => {
+      const removed = previous.find((item) => item.id === id)
+      return removed && row.id === removed.serviceId ? { ...row, appointmentCount: Math.max(0, row.appointmentCount - 1) } : row
+    }))
+    void loadWeek(weekStart, serviceFilter)
+    void loadStats()
+    return true
+  }
+
+  const selectedLabel = formatDateKey(selectedDate, locale, { weekday: 'long', day: 'numeric', month: 'long' })
+  const monthLabel = useMemo(() => {
+    const month = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'long', timeZone: 'UTC' })
+    const year = new Intl.DateTimeFormat(dateLocaleTag(locale), { year: 'numeric', timeZone: 'UTC' })
     const first = new Date(`${weekDays[0]}T12:00:00Z`)
     const last = new Date(`${weekDays[6]}T12:00:00Z`)
-    const m1 = fmt.format(first)
-    const m2 = fmt.format(last)
-    const yearFmt = new Intl.DateTimeFormat(dateLocaleTag(locale), { year: 'numeric', timeZone: 'UTC' })
-    const year = yearFmt.format(last)
-    if (m1 === m2) return `${m1} ${year}`
-    return `${m1} – ${m2} ${year}`
+    const a = month.format(first)
+    const b = month.format(last)
+    return a === b ? `${a} ${year.format(last)}` : `${a} – ${b} ${year.format(last)}`
   }, [weekDays, locale])
 
-  const selectedDateLabel = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(dateLocaleTag(locale), {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      timeZone: 'UTC',
-    })
-    return fmt.format(new Date(`${selectedDate}T12:00:00Z`))
-  }, [selectedDate, locale])
+  const statTotals = useMemo(() => {
+    const values = Object.values(stats)
+    return {
+      today: stats[todayKey]?.active ?? 0,
+      week: values.reduce((sum, day) => sum + day.active, 0),
+      pending: values.reduce((sum, day) => sum + day.pending, 0),
+      people: stats[todayKey]?.people ?? 0,
+    }
+  }, [stats, todayKey])
 
-  const dayWindow = useMemo(() => {
-    const active = appointments
-      .filter((appointment) => !['CANCELLED', 'NO_SHOW'].includes(appointment.status))
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
-    if (!active.length) return fa ? 'برنامه فعالی ندارد' : 'No active schedule'
-    const format = new Intl.DateTimeFormat(dateLocaleTag(locale), {
-      timeZone: active[0].timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    return `${format.format(new Date(active[0].startsAt))} ${fa ? 'تا' : 'to'} ${format.format(new Date(active[active.length - 1].endsAt))}`
-  }, [appointments, fa, locale])
+  const dayCounts = useMemo(() => ({
+    active: appointments.filter((row) => row.status === 'PENDING' || row.status === 'CONFIRMED').length,
+    pending: appointments.filter((row) => row.status === 'PENDING').length,
+    done: appointments.filter((row) => row.status === 'COMPLETED').length,
+    people: appointments.filter((row) => row.status === 'PENDING' || row.status === 'CONFIRMED').reduce((sum, row) => sum + row.partySize, 0),
+  }), [appointments])
 
-  const selectedServiceName = services.find((service) => service.id === serviceFilter)?.name
+  const maxWeek = Math.max(3, ...weekDays.map((key) => week[key]?.active ?? 0))
+  const selectedClosed = isClosedDate(services, selectedDate)
+  const noServices = services.length === 0
 
-  const groupedAppointments = useMemo(() => groupByTimeSlot(appointments), [appointments])
+  const openCreate = (template?: ServiceTemplate | null) => setEditor({ open: true, service: null, template: template ?? null })
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      {/* ── Page header — unified with all other dashboard tabs ── */}
-      <header className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
-              <CalendarCheck2 className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                {fa ? 'رزروها و خدمات' : 'Bookings & services'}
-              </h1>
-              <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
-                {fa
-                  ? 'ایجنت زمان آزاد را می‌خواند، اطلاعات مشتری را می‌گیرد، بدون تداخل رزرو می‌کند و همان لحظه اعلان می‌دهد.'
-                  : 'The agent reads live availability, captures customer details, books without conflicts, and alerts the manager immediately.'}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setServicesOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-              <Settings2 className="h-4 w-4" />{fa ? 'تعریف و مدیریت خدمات' : 'Manage services'}
+    <div className="mx-auto max-w-6xl space-y-5">
+      {/* ── Header ── */}
+      <PageHeader
+        icon={CalendarCheck2}
+        title={title}
+        subtitle={fa
+          ? 'خدمت و ساعت کاری را تعریف کنید؛ ایجنت در گفتگو زمان آزاد واقعی را پیشنهاد می‌دهد، بدون تداخل رزرو می‌کند و به شما خبر می‌دهد.'
+          : 'Define services and hours; the agent offers real free times in chat, books without conflicts and alerts you.'}
+        actions={noServices ? undefined : (
+          <>
+            <button type="button" onClick={() => openCreate()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+              <Plus className="h-4 w-4" />{fa ? 'خدمت جدید' : 'New service'}
             </button>
-            <button type="button" onClick={() => setBookingOpen(true)} disabled={activeServices.length === 0} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-              <Plus className="h-4 w-4" />{fa ? 'ثبت نوبت' : 'New appointment'}
+            <button type="button" onClick={() => setBooking({ open: true })} disabled={!activeServices.length} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45">
+              <CalendarCheck2 className="h-4 w-4" />{fa ? 'ثبت نوبت' : 'Book'}
             </button>
-          </div>
-        </div>
-      </header>
+          </>
+        )}
+      />
 
-      {/* ── Stat cards row — 4 compact spatial-surface tiles ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={CalendarCheck2} label={fa ? 'هفت روز آینده' : 'Next 7 days'} value={initialStats.upcomingCount} locale={locale} />
-        <StatCard icon={AlertCircle} label={fa ? 'نیازمند تأیید' : 'Pending'} value={initialStats.pendingCount} locale={locale} tone="amber" />
-        <StatCard icon={Clock3} label={fa ? 'روز انتخاب‌شده' : 'Selected day'} value={activeToday.length} locale={locale} />
-        <StatCard icon={Users} label={fa ? 'نفر رزروشده' : 'Booked people'} value={usedCapacity} locale={locale} />
-      </div>
-
-      <section className="space-y-4">
-        {/* ── Daily schedule — main panel (redesigned) ── */}
-        <div className="spatial-surface min-w-0 rounded-[1.5rem] p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{fa ? 'برنامه روزانه' : 'Daily schedule'}</h2>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">{fa ? 'زمان‌ها با منطقه زمانی تهران نمایش داده می‌شوند.' : 'Times are shown in the service timezone.'}</p>
-            </div>
-            <div className="sticky top-[5.25rem] z-20 -mx-1 w-[calc(100%+0.5rem)] rounded-xl bg-[var(--bg-surface)]/95 p-1 backdrop-blur-xl sm:static sm:mx-0 sm:w-auto sm:bg-transparent sm:p-0">
-              <MaterialSelect value={serviceFilter} onValueChange={(value) => { setServiceFilter(value); void loadDay(selectedDate, value) }} ariaLabel={fa ? 'فیلتر خدمات' : 'Filter services'} className="w-full sm:min-w-48" options={[{ value: '', label: fa ? 'همه خدمات' : 'All services' }, ...services.map((service) => ({ value: service.id, label: service.name }))]} />
-            </div>
-          </div>
-
-          {/* ── Week navigator — month label + prev/next/today ── */}
-          <div className="mt-4 flex items-center justify-between gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2">
-            <button
-              type="button"
-              onClick={goPrevWeek}
-              disabled={loadingDay}
-              aria-label={fa ? 'هفته قبل' : 'Previous week'}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
-              <span className="truncate text-sm font-bold text-[var(--text-primary)]">{weekMonthLabel}</span>
-              <button
-                type="button"
-                onClick={goToday}
-                disabled={weekStart === todayKey && selectedDate === todayKey}
-                className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-40 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-base)] disabled:hover:text-[var(--text-secondary)]"
-                aria-label={fa ? 'رفتن به امروز' : 'Jump to today'}
-              >
-                <CalendarCheck2 className="h-3 w-3" />
-                {fa ? 'رفتن به امروز' : 'Today'}
+      {noServices ? (
+        <Onboarding fa={fa} onCreate={openCreate} />
+      ) : (
+        <>
+          {/* ── Tabs + KPIs ── */}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="ui-seg w-full grid-cols-2 lg:w-[22rem]" role="tablist" aria-label={fa ? 'بخش‌ها' : 'Sections'}>
+              <button type="button" role="tab" aria-selected={tab === 'schedule'} onClick={() => switchTab('schedule')} className="ui-seg-tab text-sm">
+                <CalendarClock className="h-4 w-4" />{fa ? 'برنامه نوبت‌ها' : 'Schedule'}
+              </button>
+              <button type="button" role="tab" aria-selected={tab === 'services'} onClick={() => switchTab('services')} className="ui-seg-tab text-sm">
+                <LayoutGrid className="h-4 w-4" />{fa ? 'خدمات' : 'Services'}
+                <span className="rounded-full bg-black/[0.07] px-1.5 text-[12px] tabular-nums">{num(services.length, fa)}</span>
               </button>
             </div>
-            <button
-              type="button"
-              onClick={goNextWeek}
-              disabled={loadingDay}
-              aria-label={fa ? 'هفته بعد' : 'Next week'}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+            <dl className="grid grid-cols-4 divide-x divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white/80 rtl:divide-x-reverse lg:min-w-[30rem]">
+              <Kpi label={fa ? 'امروز' : 'Today'} value={statTotals.today} fa={fa} />
+              <Kpi label={fa ? '۷ روز آینده' : 'Next 7 days'} value={statTotals.week} fa={fa} />
+              <Kpi label={fa ? 'در انتظار تأیید' : 'Pending'} value={statTotals.pending} fa={fa} tone={statTotals.pending ? 'warn' : undefined} />
+              <Kpi label={fa ? 'نفر امروز' : 'People today'} value={statTotals.people} fa={fa} />
+            </dl>
           </div>
 
-          {/* ── Day selector — 7-day grid (no horizontal scroll) ── */}
-          <div className="mt-3 grid grid-cols-7 gap-1.5 sm:gap-2" role="list" aria-label={fa ? 'انتخاب روز' : 'Choose a day'}>
-            {weekDays.map((date) => {
-              const isSelected = selectedDate === date
-              const isToday = date === todayKey
-              const count = dayCounts[date] ?? 0
-              const dateObj = new Date(`${date}T12:00:00Z`)
-              const weekdayShort = new Intl.DateTimeFormat(dateLocaleTag(locale), { weekday: 'short', timeZone: 'UTC' }).format(dateObj)
-              const dayNum = new Intl.DateTimeFormat(dateLocaleTag(locale), { day: 'numeric', timeZone: 'UTC' }).format(dateObj)
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  onClick={() => void loadDay(date)}
-                  aria-pressed={isSelected}
-                  aria-label={`${weekdayShort} ${dayNum}${count > 0 ? ` — ${count} ${fa ? 'نوبت' : 'appointments'}` : ''}`}
-                  className={cn(
-                    'group relative flex flex-col items-center rounded-2xl border px-1 py-2.5 text-center transition-[border-color,background-color,transform] hover:-translate-y-0.5 motion-reduce:transform-none sm:px-2',
-                    isSelected
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]'
-                      : isToday
-                        ? 'border-emerald-500/40 bg-emerald-500/5 text-[var(--text-primary)]'
-                        : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
+          {tab === 'services' ? (
+            <ServicesBoard
+              locale={locale}
+              services={services}
+              onEdit={(service) => setEditor({ open: true, service })}
+              onDelete={setDeleting}
+              onCreate={() => openCreate()}
+              onToggle={toggleService}
+            />
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+              <section className="spatial-surface min-w-0 rounded-card p-4 sm:p-5" aria-label={fa ? 'برنامه روزانه' : 'Daily schedule'}>
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <IconButton label={fa ? 'هفته قبل' : 'Previous week'} onClick={() => moveWeek(-7)}><ChevronRight className="h-4 w-4 rtl:rotate-0 ltr:rotate-180" /></IconButton>
+                    <IconButton label={fa ? 'هفته بعد' : 'Next week'} onClick={() => moveWeek(7)}><ChevronLeft className="h-4 w-4 rtl:rotate-0 ltr:rotate-180" /></IconButton>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="ui-h3 truncate">{monthLabel}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={goToday}
+                    disabled={weekStart === todayKey && selectedDate === todayKey}
+                    className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-40"
+                  >
+                    {fa ? 'امروز' : 'Today'}
+                  </button>
+                  {services.length > 1 && (
+                    <MaterialSelect
+                      value={serviceFilter}
+                      onValueChange={changeFilter}
+                      ariaLabel={fa ? 'فیلتر خدمت' : 'Filter by service'}
+                      className="w-full sm:w-48"
+                      options={[{ value: '', label: fa ? 'همه خدمات' : 'All services' }, ...services.map((service) => ({ value: service.id, label: service.name }))]}
+                    />
                   )}
-                >
-                  <span className={cn('block text-[10px] font-medium uppercase tracking-wide sm:text-[11px]', isSelected ? 'text-[var(--bg-base)]/70' : 'text-[var(--text-muted)]')}>
-                    {weekdayShort}
-                  </span>
-                  <span className="mt-0.5 block text-base font-bold tabular-nums sm:text-lg">
-                    {dayNum}
-                  </span>
-                  {/* Count badge — replaces the ambiguous density dots */}
-                  <span className="mt-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums">
-                    {count > 0 ? (
-                      <span className={cn(
-                        'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1',
-                        isSelected ? 'bg-[var(--bg-base)]/20 text-[var(--bg-base)]' : 'bg-[var(--text-primary)]/8 text-[var(--text-primary)]',
-                      )}>
-                        {count.toLocaleString(fa ? 'fa-IR' : 'en-US')}
-                      </span>
-                    ) : (
-                      <span className={cn('h-1 w-1 rounded-full', isSelected ? 'bg-[var(--bg-base)]/30' : 'bg-[var(--border-strong)] opacity-50')} />
-                    )}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* ── Selected day operational summary ── */}
-          <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)]">
-                  <CalendarCheck2 className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <h3 className="truncate text-base font-bold text-[var(--text-primary)]">{selectedDateLabel}</h3>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    {selectedServiceName ? `${fa ? 'فقط' : 'Only'} ${selectedServiceName} · ` : ''}{dayWindow}
-                  </p>
                 </div>
-              </div>
-              <button type="button" onClick={() => setBookingOpen(true)} disabled={activeServices.length === 0} className="spatial-press inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-[var(--bg-base)] disabled:opacity-40">
-                <Plus className="h-3.5 w-3.5" />{fa ? 'نوبت در این روز' : 'Book this day'}
-              </button>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <DayMetric count={daySummary.total} label={fa ? 'کل نوبت‌ها' : 'Total'} tone="neutral" fa={fa} />
-              <DayMetric count={daySummary.pending} label={fa ? 'نیازمند تأیید' : 'Pending'} tone="amber" fa={fa} />
-              <DayMetric count={daySummary.confirmed} label={fa ? 'تأییدشده' : 'Confirmed'} tone="emerald" fa={fa} />
-              <DayMetric count={daySummary.completed} label={fa ? 'انجام‌شده' : 'Completed'} tone="blue" fa={fa} />
-              <DayMetric count={daySummary.cancelled} label={fa ? 'لغو یا عدم حضور' : 'Cancelled'} tone="rose" fa={fa} />
-            </div>
-          </div>
 
-          {error && <p role="alert" className="mt-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600">{error}</p>}
+                {/* Week strip with load bars */}
+                <div className="mt-4 grid grid-cols-7 gap-1.5 sm:gap-2" role="listbox" aria-label={fa ? 'انتخاب روز' : 'Choose a day'}>
+                  {weekDays.map((key) => {
+                    const active = week[key]?.active ?? 0
+                    const pending = week[key]?.pending ?? 0
+                    const selected = key === selectedDate
+                    const isToday = key === todayKey
+                    const closed = isClosedDate(services, key)
+                    const dateObj = new Date(`${key}T12:00:00Z`)
+                    const weekday = new Intl.DateTimeFormat(dateLocaleTag(locale), { weekday: 'short', timeZone: 'UTC' }).format(dateObj)
+                    const day = new Intl.DateTimeFormat(dateLocaleTag(locale), { day: 'numeric', timeZone: 'UTC' }).format(dateObj)
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => selectDate(key)}
+                        aria-label={`${formatDateKey(key, locale, { weekday: 'long', day: 'numeric', month: 'long' })} — ${closed ? (fa ? 'تعطیل' : 'closed') : `${num(active, fa)} ${fa ? 'نوبت' : 'bookings'}`}`}
+                        className={cn(
+                          'relative flex flex-col items-center rounded-2xl border px-1 pb-2 pt-2.5 transition-[background-color,border-color,transform] hover:-translate-y-0.5 motion-reduce:hover:translate-y-0',
+                          selected
+                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)]'
+                            : closed
+                              ? 'border-dashed border-[var(--border-default)] bg-transparent text-[var(--text-hint)]'
+                              : 'border-[var(--border-default)] bg-white text-[var(--text-primary)] hover:border-[var(--border-strong)]',
+                        )}
+                      >
+                        <span className={cn('text-[12px] font-medium', selected ? 'text-white/70' : 'text-[var(--text-muted)]')}>{weekday}</span>
+                        <span className="text-lg font-bold leading-7 tabular-nums">{day}</span>
+                        {closed ? (
+                          <span className={cn('mt-1 text-[12px]', selected ? 'text-white/70' : 'text-[var(--text-hint)]')}>{fa ? 'تعطیل' : 'Off'}</span>
+                        ) : (
+                          <span className="mt-1.5 flex w-full items-center gap-1 px-1.5 sm:px-2.5" dir="ltr">
+                            <span className={cn('h-1 flex-1 overflow-hidden rounded-full', selected ? 'bg-white/20' : 'bg-black/[0.06]')}>
+                              <span className={cn('block h-full rounded-full transition-[width] duration-500', selected ? 'bg-white' : 'bg-[var(--text-primary)]')} style={{ width: `${Math.min(100, (active / maxWeek) * 100)}%` }} />
+                            </span>
+                            <span className={cn('text-[12px] font-bold tabular-nums', selected ? 'text-white' : active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{num(active, fa)}</span>
+                          </span>
+                        )}
+                        {isToday && <span className={cn('absolute top-1.5 h-1.5 w-1.5 rounded-full end-1.5', selected ? 'bg-white' : 'bg-[var(--signal)]')} aria-hidden />}
+                        {pending > 0 && !selected && <span className="absolute -top-1 start-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" aria-hidden />}
+                      </button>
+                    )
+                  })}
+                </div>
 
-          {/* ── Appointment list — grouped by time slot (morning/afternoon/evening) ── */}
-          <div className="relative mt-4 min-h-48">
-            {loadingDay && (
-              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-[var(--bg-surface)]/80 backdrop-blur-sm">
-                <Loader2 className="h-5 w-5 animate-spin text-[var(--text-primary)]" />
-              </div>
-            )}
-            {appointments.length === 0 ? (
-              <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-8 text-center">
-                <div>
-                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--bg-surface)] ring-1 ring-[var(--border-subtle)]">
-                    <CalendarClock className="h-6 w-6 text-[var(--text-muted)]" />
-                  </span>
-                  <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">{fa ? 'برای این روز نوبتی ثبت نشده' : 'No appointments for this day'}</p>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">{fa ? 'می‌توانید دستی ثبت کنید یا ایجنت از گفتگو رزرو کند.' : 'Create one here or let the agent book from a conversation.'}</p>
-                  {activeServices.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setBookingOpen(true)}
-                      className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      {fa ? 'ثبت اولین نوبت' : 'Book first appointment'}
+                {/* Selected day header */}
+                <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-[var(--border-subtle)] pt-4">
+                  <h2 className="ui-h2">{selectedDate === todayKey ? (fa ? `امروز، ${selectedLabel}` : `Today, ${selectedLabel}`) : selectedLabel}</h2>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectedClosed ? (
+                      <StatusChip tone="neutral"><CalendarOff className="h-3 w-3" />{fa ? 'روز تعطیل' : 'Closed day'}</StatusChip>
+                    ) : (
+                      <>
+                        <StatusChip tone="neutral">{fa ? `${num(dayCounts.active, true)} نوبت فعال` : `${dayCounts.active} active`}</StatusChip>
+                        {dayCounts.pending > 0 && <StatusChip tone="warn" dot>{fa ? `${num(dayCounts.pending, true)} در انتظار` : `${dayCounts.pending} pending`}</StatusChip>}
+                        {dayCounts.people > dayCounts.active && <StatusChip tone="neutral"><Users className="h-3 w-3" />{fa ? `${num(dayCounts.people, true)} نفر` : `${dayCounts.people} people`}</StatusChip>}
+                        {dayCounts.done > 0 && <StatusChip tone="ok">{fa ? `${num(dayCounts.done, true)} انجام‌شده` : `${dayCounts.done} done`}</StatusChip>}
+                      </>
+                    )}
+                  </div>
+                  {!selectedClosed && selectedDate >= todayKey && (
+                    <button type="button" onClick={() => setBooking({ open: true, serviceId: serviceFilter || undefined })} className="ms-auto inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]">
+                      <Plus className="h-3.5 w-3.5" />{fa ? 'نوبت در این روز' : 'Book this day'}
                     </button>
                   )}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {groupedAppointments.map((group) => {
-                  const slotCopy = TIME_SLOT_COPY[group.key]
-                  const Icon = slotCopy.Icon
-                  return (
-                    <div key={group.key}>
-                      {/* Time-slot header */}
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className="grid h-6 w-6 place-items-center rounded-lg bg-[var(--bg-base)] ring-1 ring-[var(--border-subtle)]">
-                          <Icon className="h-3 w-3 text-[var(--text-secondary)]" />
-                        </span>
-                        <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                          {fa ? slotCopy.fa : slotCopy.en}
-                        </h3>
-                        <span className="rounded-full bg-[var(--bg-base)] px-2 py-0.5 text-[10px] font-bold tabular-nums text-[var(--text-muted)] ring-1 ring-[var(--border-subtle)]">
-                          {group.items.length.toLocaleString(fa ? 'fa-IR' : 'en-US')}
-                        </span>
-                        <div className="ms-2 h-px flex-1 bg-[var(--border-subtle)]" aria-hidden />
-                      </div>
-                      {/* Vertical timeline line for this slot */}
-                      <div className="relative space-y-2">
-                        <div className="pointer-events-none absolute bottom-2 start-[26px] top-2 w-px bg-[var(--border-subtle)] sm:start-[30px]" aria-hidden />
-                        {group.items.map((appointment) => (
-                          <AppointmentCard
-                            key={appointment.id}
-                            appointment={appointment}
-                            locale={locale}
-                            busy={actionId === appointment.id}
-                            cancelling={cancelId === appointment.id}
-                            cancellationReason={cancelReason}
-                            onCancellationReason={setCancelReason}
-                            onStartCancel={() => setCancelId(appointment.id)}
-                            onStopCancel={() => { setCancelId(null); setCancelReason('') }}
-                            onStatus={(status, reason) => void updateStatus(appointment.id, status, reason)}
-                          />
-                        ))}
-                      </div>
+
+                {error && (
+                  <p role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs font-medium text-red-700">
+                    {error}
+                    <button type="button" onClick={() => void refreshAll()} className="min-h-8 rounded-lg px-2 font-bold underline-offset-2 hover:underline">{fa ? 'تلاش دوباره' : 'Retry'}</button>
+                  </p>
+                )}
+
+                <div className="relative mt-4 min-h-40" aria-busy={loadingDay}>
+                  {loadingDay && (
+                    <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-white/70 backdrop-blur-[2px]">
+                      <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
                     </div>
-                  )
-                })}
+                  )}
+                  <DayTimeline
+                    locale={locale}
+                    appointments={appointments}
+                    isToday={selectedDate === todayKey}
+                    closed={selectedClosed}
+                    canBook={!selectedClosed && selectedDate >= todayKey && activeServices.length > 0}
+                    onBook={() => setBooking({ open: true, serviceId: serviceFilter || undefined })}
+                    onStatus={updateStatus}
+                    onDelete={deleteAppointment}
+                    onReschedule={(appointment) => setBooking({ open: true, reschedule: appointment })}
+                  />
+                </div>
+              </section>
+
+              <AgentPanel fa={fa} services={activeServices} onManage={() => switchTab('services')} remindersEnabled={remindersEnabled} />
+            </div>
+          )}
+        </>
+      )}
+
+      {booking.open && (
+        <BookingDialog
+          locale={locale}
+          services={booking.reschedule ? services : activeServices}
+          initialDate={selectedDate}
+          initialServiceId={booking.serviceId}
+          reschedule={booking.reschedule}
+          onClose={() => setBooking({ open: false })}
+          onDone={(date) => {
+            setBooking({ open: false })
+            setServiceFilter('')
+            setWeekStart((start) => (date >= start && date < shiftDateKey(start, 7) ? start : date))
+            void loadDay(date, '')
+            void loadStats()
+            void loadWeek(date >= weekStart && date < shiftDateKey(weekStart, 7) ? weekStart : date, '')
+          }}
+        />
+      )}
+      {editor.open && (
+        <ServiceEditor
+          locale={locale}
+          service={editor.service}
+          template={editor.template}
+          onClose={() => setEditor({ open: false })}
+          onDeleted={serviceDeleted}
+          onSaved={(saved, created, keepOpen) => {
+            setServices((rows) => (created ? [...rows, saved] : rows.map((row) => (row.id === saved.id ? saved : row))))
+            if (keepOpen) return
+            setEditor({ open: false })
+            if (created) switchTab('services')
+          }}
+        />
+      )}
+      {deleting && (
+        <DeleteServiceDialog
+          locale={locale}
+          service={deleting}
+          onCancel={() => setDeleting(null)}
+          onDeleted={serviceDeleted}
+          onPause={async () => { await toggleService(deleting, false); setDeleting(null) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function Kpi({ label, value, fa, tone }: { label: string; value: number; fa: boolean; tone?: 'warn' }) {
+  return (
+    <div className="flex min-w-0 flex-col-reverse px-2 py-2.5 text-center sm:px-3">
+      <dt className="truncate text-[12px] text-[var(--text-muted)]">{label}</dt>
+      <dd className={cn('text-lg font-bold tabular-nums leading-7', tone === 'warn' ? 'text-amber-700' : 'text-[var(--text-primary)]')}>{num(value, fa)}</dd>
+    </div>
+  )
+}
+
+function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} className="grid h-10 w-10 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+      {children}
+    </button>
+  )
+}
+
+function DayTimeline({
+  locale,
+  appointments,
+  isToday,
+  closed,
+  canBook,
+  onBook,
+  onStatus,
+  onDelete,
+  onReschedule,
+}: {
+  locale: Locale
+  appointments: AppointmentRow[]
+  isToday: boolean
+  closed: boolean
+  canBook: boolean
+  onBook: () => void
+  onStatus: (id: string, status: AppointmentStatus, reason?: string) => Promise<boolean>
+  onDelete: (id: string) => Promise<boolean>
+  onReschedule: (appointment: AppointmentRow) => void
+}) {
+  const fa = locale === 'fa'
+  const [nowMinute, setNowMinute] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isToday) { setNowMinute(null); return }
+    const tick = () => setNowMinute(localMinuteOf(new Date().toISOString(), TZ))
+    tick()
+    const timer = window.setInterval(tick, 60_000)
+    return () => window.clearInterval(timer)
+  }, [isToday])
+
+  const groups = useMemo(() => {
+    const sorted = [...appointments].sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+    const map: Record<DayPart, AppointmentRow[]> = { morning: [], afternoon: [], evening: [] }
+    for (const row of sorted) map[dayPartOfMinute(localMinuteOf(row.startsAt, row.timezone))].push(row)
+    return (Object.keys(map) as DayPart[]).filter((key) => map[key].length).map((key) => ({ key, items: map[key] }))
+  }, [appointments])
+  const nextId = nowMinute === null
+    ? null
+    : groups.flatMap((group) => group.items).find((row) => localMinuteOf(row.startsAt, row.timezone) > nowMinute)?.id ?? null
+
+  if (!appointments.length) {
+    return (
+      <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-8 text-center">
+        <div>
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white ring-1 ring-[var(--border-subtle)]">
+            {closed ? <CalendarOff className="h-5 w-5 text-[var(--text-muted)]" /> : <CalendarClock className="h-5 w-5 text-[var(--text-muted)]" />}
+          </span>
+          <p className="mt-3 text-sm font-bold text-[var(--text-primary)]">
+            {closed ? (fa ? 'این روز برای رزرو بسته است' : 'This day is closed for booking') : (fa ? 'هنوز نوبتی ثبت نشده' : 'No appointments yet')}
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            {closed
+              ? (fa ? 'ساعت کاری یا تعطیلی را از بخش «خدمات» تغییر دهید.' : 'Change hours or closures under Services.')
+              : (fa ? 'ایجنت از گفتگوها رزرو می‌کند؛ دستی هم می‌توانید ثبت کنید.' : 'The agent books from chats; you can also add one.')}
+          </p>
+          {canBook && (
+            <button type="button" onClick={onBook} className="spatial-press mt-4 inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-white">
+              <Plus className="h-3.5 w-3.5" />{fa ? 'ثبت نوبت' : 'Book'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {groups.map((group) => {
+        const part = DAY_PARTS[group.key]
+        return (
+          <div key={group.key}>
+            <p className="mb-2 flex items-center gap-2 text-[12px] font-bold text-[var(--text-muted)]">
+              <part.Icon className="h-3.5 w-3.5" />{fa ? part.fa : part.en}
+              <span className="h-px flex-1 bg-[var(--border-subtle)]" aria-hidden />
+            </p>
+            <ol className="space-y-2">
+              {group.items.map((appointment) => {
+                return (
+                  <li key={appointment.id}>
+                    {appointment.id === nextId && nowMinute !== null && <NowLine fa={fa} minute={nowMinute} />}
+                    <AppointmentItem locale={locale} appointment={appointment} onStatus={onStatus} onDelete={onDelete} onReschedule={onReschedule} />
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function NowLine({ fa, minute }: { fa: boolean; minute: number }) {
+  return (
+    <div className="my-2 flex items-center gap-2" aria-label={fa ? 'اکنون' : 'Now'}>
+      <span className="rounded-full bg-[var(--signal)] px-2 py-0.5 text-[12px] font-bold tabular-nums text-white" dir="ltr">
+        {formatClock(minute, fa)}
+      </span>
+      <span className="h-px flex-1 bg-[var(--signal)]/50" />
+    </div>
+  )
+}
+
+const CANCEL_REASONS_FA = ['درخواست مشتری', 'تعطیلی یا مشکل پیش‌آمده', 'رزرو تکراری']
+const CANCEL_REASONS_EN = ['Customer request', 'Unexpected closure', 'Duplicate booking']
+
+function AppointmentItem({
+  locale,
+  appointment,
+  onStatus,
+  onDelete,
+  onReschedule,
+}: {
+  locale: Locale
+  appointment: AppointmentRow
+  onStatus: (id: string, status: AppointmentStatus, reason?: string) => Promise<boolean>
+  onDelete: (id: string) => Promise<boolean>
+  onReschedule: (appointment: AppointmentRow) => void
+}) {
+  const fa = locale === 'fa'
+  const [menu, setMenu] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const timeFmt = useMemo(() => new Intl.DateTimeFormat(dateLocaleTag(locale), { timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit' }), [appointment.timezone, locale])
+  const terminal = appointment.status === 'CANCELLED' || appointment.status === 'COMPLETED' || appointment.status === 'NO_SHOW'
+  const meta = STATUS_META[appointment.status]
+  const accent = serviceAccent(appointment.serviceId)
+  const past = new Date(appointment.endsAt).getTime() < Date.now()
+
+  useEffect(() => {
+    if (!menu) return
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent) { if (event.key === 'Escape') setMenu(false); return }
+      if (!menuRef.current?.contains(event.target as Node)) setMenu(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [menu])
+
+  async function run(status: AppointmentStatus, cancelReason?: string) {
+    setBusy(true)
+    setMenu(false)
+    const ok = await onStatus(appointment.id, status, cancelReason)
+    setBusy(false)
+    if (ok) { setCancelling(false); setReason('') }
+  }
+
+  const primary = appointment.status === 'PENDING'
+    ? { status: 'CONFIRMED' as const, label: fa ? 'تأیید' : 'Confirm', Icon: CheckCircle2 }
+    : appointment.status === 'CONFIRMED' && past
+      ? { status: 'COMPLETED' as const, label: fa ? 'انجام شد' : 'Done', Icon: Check }
+      : null
+
+  return (
+    <article className={cn(
+      'relative grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-3 transition-colors hover:border-[var(--border-strong)] sm:grid-cols-[4.75rem_minmax(0,1fr)_auto] sm:items-center sm:p-3.5',
+      terminal && 'bg-[var(--bg-base)]',
+    )}>
+      <div className={cn('flex flex-col items-center justify-center rounded-xl py-2', terminal ? 'bg-black/[0.03]' : accent.soft)}>
+        <span className={cn('text-sm font-bold tabular-nums', terminal && 'text-[var(--text-muted)] line-through decoration-black/20')} dir="ltr">{timeFmt.format(new Date(appointment.startsAt))}</span>
+        <span className="text-[12px] tabular-nums text-[var(--text-muted)]" dir="ltr">{timeFmt.format(new Date(appointment.endsAt))}</span>
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {appointment.contactId ? (
+            <Link href={`/contacts/${appointment.contactId}`} className={cn('truncate text-sm font-bold hover:underline', terminal ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]')}>{appointment.customerName}</Link>
+          ) : (
+            <span className={cn('truncate text-sm font-bold', terminal ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]')}>{appointment.customerName}</span>
+          )}
+          <StatusChip tone={meta.tone} dot>{fa ? meta.fa : meta.en}</StatusChip>
+          {appointment.source === 'agent' && <StatusChip tone="signal"><Sparkles className="h-3 w-3" />{fa ? 'ایجنت' : 'Agent'}</StatusChip>}
+        </div>
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--text-muted)]">
+          <span className="inline-flex items-center gap-1.5"><span className={cn('h-2 w-2 rounded-full', accent.bar)} aria-hidden />{appointment.serviceName}</span>
+          {appointment.partySize > 1 && <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{fa ? `${num(appointment.partySize, true)} نفر` : `${appointment.partySize} people`}</span>}
+          {appointment.customerPhone && (
+            <a href={`tel:${appointment.customerPhone}`} dir="ltr" className="inline-flex items-center gap-1 tabular-nums hover:text-[var(--text-primary)]"><Phone className="h-3.5 w-3.5" />{displayPhone(appointment.customerPhone)}</a>
+          )}
+          {appointment.serviceLocation && <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{appointment.serviceLocation}</span></span>}
+        </p>
+        {appointment.notes && <p className="mt-1.5 line-clamp-2 text-[12px] leading-6 text-[var(--text-secondary)]">{appointment.notes}</p>}
+        {!terminal && <ReminderStatusLine fa={fa} reminders={appointment.reminders} />}
+      </div>
+
+      {!cancelling && !confirmingDelete && (
+        <div className="col-span-2 flex items-center justify-end gap-1.5 sm:col-span-1">
+          {!terminal && primary && (
+            <button type="button" disabled={busy} onClick={() => void run(primary.status)} className="spatial-press inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <primary.Icon className="h-3.5 w-3.5" />}{primary.label}
+            </button>
+          )}
+          {!terminal && (
+            <button type="button" disabled={busy} onClick={() => onReschedule(appointment)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+              <ArrowLeftRight className="h-3.5 w-3.5" /><span className="hidden sm:inline">{fa ? 'جابه‌جایی' : 'Move'}</span>
+            </button>
+          )}
+          <div className="relative" ref={menuRef}>
+            <button type="button" onClick={() => setMenu((value) => !value)} aria-haspopup="menu" aria-expanded={menu} aria-label={fa ? 'گزینه‌های بیشتر' : 'More actions'} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+              {busy && !primary ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+            </button>
+            {menu && (
+              <div role="menu" className="absolute end-0 top-11 z-20 w-48 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-1 shadow-[var(--elev-1)]">
+                {!terminal && (<>
+                  {appointment.status === 'CONFIRMED' && !past && (
+                    <MenuItem onClick={() => void run('COMPLETED')} Icon={Check}>{fa ? 'انجام شد' : 'Mark done'}</MenuItem>
+                  )}
+                  <MenuItem onClick={() => void run('NO_SHOW')} Icon={UserX}>{fa ? 'مشتری حاضر نشد' : 'No-show'}</MenuItem>
+                  <MenuItem danger onClick={() => { setMenu(false); setCancelling(true) }} Icon={XCircle}>{fa ? 'لغو نوبت' : 'Cancel'}</MenuItem>
+                  <div className="my-1 h-px bg-[var(--border-subtle)]" role="separator" />
+                </>)}
+                <MenuItem danger onClick={() => { setMenu(false); setConfirmingDelete(true) }} Icon={Trash2}>{fa ? 'حذف نوبت' : 'Delete'}</MenuItem>
               </div>
             )}
           </div>
         </div>
-
-        {/* ── Supporting information — kept below the schedule so the day stays wide ── */}
-        <aside className="grid gap-4 lg:grid-cols-2">
-          <div className="spatial-surface rounded-[1.5rem] p-5">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Bot className="h-5 w-5" /></span>
-            <h2 className="mt-4 text-sm font-bold text-[var(--text-primary)]">{fa ? 'ایجنت رزرو آماده است' : 'Booking agent is ready'}</h2>
-            <p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{fa ? 'چهار ابزار امن برای دیدن خدمات، بررسی ظرفیت، ثبت و لغو نوبت به موتور گفتگو وصل است.' : 'Four safe tools connect service lookup, live capacity, booking, and cancellation to chat.'}</p>
-            <ul className="mt-4 space-y-2 text-xs text-[var(--text-secondary)]">
-              {[fa ? 'تأیید صریح قبل از ثبت' : 'Explicit confirmation before booking', fa ? 'جلوگیری اتمیک از تداخل' : 'Atomic conflict protection', fa ? 'اعلان پنل و ربات مدیر' : 'Dashboard and manager-bot alerts'].map((item) => <li key={item} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" />{item}</li>)}
-            </ul>
-          </div>
-          <div className="spatial-surface rounded-[1.5rem] p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'خدمات فعال' : 'Active services'}</h2>
-              <span className="rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-xs font-bold tabular-nums text-[var(--text-secondary)]">{activeServices.length.toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">{activeServices.slice(0, 4).map((service) => {
-              const accent = serviceAccent(service.id)
-              return (
-                <div key={service.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--bg-base)] p-3">
-                  <span className={cn('h-8 w-1 shrink-0 rounded-full', accent.bar)} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-[var(--text-primary)]">{service.name}</p>
-                    <p className="mt-1 text-[11px] text-[var(--text-muted)]">{service.durationMinutes.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'دقیقه' : 'min'} · {fa ? 'ظرفیت' : 'capacity'} {service.capacity.toLocaleString(fa ? 'fa-IR' : 'en-US')}</p>
-                  </div>
-                </div>
-              )
-            })}</div>
-            <button type="button" onClick={() => setServicesOpen(true)} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
-              <Settings2 className="h-3.5 w-3.5" />{fa ? 'مدیریت خدمت، ظرفیت و ساعت کاری' : 'Manage services and availability'}
-            </button>
-          </div>
-        </aside>
-      </section>
-
-      {bookingOpen && (
-        <BookingDialog
-          locale={locale}
-          services={activeServices}
-          initialDate={selectedDate}
-          onClose={() => setBookingOpen(false)}
-          onCreated={(date) => {
-            setBookingOpen(false)
-            setServiceFilter('')
-            void loadDay(date, '')
-          }}
-        />
       )}
-      {servicesOpen && (
-        <ServicesDialog
-          locale={locale}
-          services={services}
-          onClose={() => setServicesOpen(false)}
-          onChange={setServices}
-        />
-      )}
-    </div>
-  )
-}
 
-function DayMetric({ count, label, tone, fa }: { count: number; label: string; tone: 'neutral' | 'amber' | 'emerald' | 'blue' | 'rose'; fa: boolean }) {
-  const tones: Record<typeof tone, string> = {
-    neutral: 'border-[var(--border-subtle)] bg-white text-[var(--text-secondary)]',
-    amber: 'border-amber-500/20 bg-amber-500/[0.07] text-amber-700',
-    emerald: 'border-emerald-500/20 bg-emerald-500/[0.07] text-emerald-700',
-    blue: 'border-blue-500/20 bg-blue-500/[0.07] text-blue-700',
-    rose: 'border-rose-500/20 bg-rose-500/[0.06] text-rose-700',
-  }
-  return (
-    <div className={cn('rounded-xl border px-3 py-2.5', tones[tone])}>
-      <p className="text-lg font-bold tabular-nums">{count.toLocaleString(fa ? 'fa-IR' : 'en-US')}</p>
-      <p className="mt-0.5 truncate text-[10px] font-medium opacity-80">{label}</p>
-    </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, locale, tone }: { icon: typeof CalendarCheck2; label: string; value: number; locale: Locale; tone?: 'amber' }) {
-  return (
-    <div className="spatial-surface flex items-center gap-3 rounded-[1.5rem] p-4">
-      <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', tone === 'amber' ? 'bg-amber-500/10 text-amber-600' : 'bg-black text-white')}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xl font-bold tabular-nums text-[var(--text-primary)]">
-          {value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">{label}</p>
-      </div>
-    </div>
-  )
-}
-
-function AppointmentCard({ appointment, locale, busy, cancelling, cancellationReason, onCancellationReason, onStartCancel, onStopCancel, onStatus }: { appointment: AppointmentRow; locale: Locale; busy: boolean; cancelling: boolean; cancellationReason: string; onCancellationReason: (value: string) => void; onStartCancel: () => void; onStopCancel: () => void; onStatus: (status: AppointmentStatus, reason?: string) => void }) {
-  const fa = locale === 'fa'
-  const timeFmt = useMemo(
-    () => new Intl.DateTimeFormat(dateLocaleTag(locale), { timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit' }),
-    [appointment.timezone, locale],
-  )
-  const start = timeFmt.format(new Date(appointment.startsAt))
-  const end = timeFmt.format(new Date(appointment.endsAt))
-  const terminal = ['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(appointment.status)
-  const copy = STATUS_COPY[appointment.status]
-  const accent = serviceAccent(appointment.serviceId)
-  const dimmed = terminal
-  return (
-    <article className={cn(
-      'relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border bg-[var(--bg-base)] p-3.5 transition-colors hover:border-[var(--border-strong)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4 sm:p-4',
-      'border-[var(--border-default)]',
-      dimmed && 'opacity-65',
-    )}>
-      {/* Service accent bar — left edge, replaces the abstract timeline dot */}
-      <div className={cn('absolute inset-y-3 start-0 w-1 rounded-e-full', accent.bar)} aria-hidden />
-
-      {/* Time block — start + end on one card */}
-      <div className="relative z-10 flex shrink-0 flex-col items-center justify-center">
-        <div className={cn(
-          'flex h-14 w-14 flex-col items-center justify-center rounded-2xl ring-1 sm:h-16 sm:w-16',
-          terminal ? 'bg-[var(--bg-surface)] ring-[var(--border-subtle)]' : 'bg-[var(--bg-surface)] ' + accent.ring,
-        )}>
-          <span dir="ltr" className="text-xs font-bold tabular-nums text-[var(--text-primary)] sm:text-sm">{start}</span>
-          <span dir="ltr" className="mt-0.5 text-[9px] font-medium tabular-nums text-[var(--text-muted)] sm:text-[10px]">
-            {fa ? 'تا' : 'to'} {end}
-          </span>
-        </div>
-      </div>
-
-      <div className="min-w-0 flex-1">
-        {/* Row 1 — customer name + status + source badge */}
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-bold text-[var(--text-primary)]">{appointment.customerName}</h3>
-          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', copy.tone)}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', copy.dot)} aria-hidden />
-            {fa ? copy.fa : copy.en}
-          </span>
-          {appointment.source === 'agent' && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-600">
-              <Sparkles className="h-3 w-3" />{fa ? 'رزرو ایجنت' : 'Agent booked'}
-            </span>
-          )}
-        </div>
-
-        {/* Row 2 — service chip (colored) + meta line */}
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-[var(--text-secondary)]">
-          <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium', accent.chip)}>
-            <CalendarCheck2 className="h-3 w-3" />
-            {appointment.serviceName}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            {appointment.partySize.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'نفر' : 'ppl'}
-          </span>
-          {appointment.customerPhone && (
-            <span dir="ltr" className="inline-flex items-center gap-1">
-              <UserRound className="h-3.5 w-3.5" />
-              {displayPhone(appointment.customerPhone)}
-            </span>
-          )}
-          {appointment.serviceLocation && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              {appointment.serviceLocation}
-            </span>
-          )}
-        </div>
-
-        {/* Row 3 — notes (if any) */}
-        {appointment.notes && (
-          <p className="mt-2 line-clamp-2 rounded-lg bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-muted)]">
-            {appointment.notes}
+      {confirmingDelete && (
+        <div role="alertdialog" aria-label={fa ? 'حذف نوبت' : 'Delete booking'} className="col-span-full rounded-xl border border-red-500/20 bg-red-50/60 p-3">
+          <p className="text-xs font-bold text-red-700">{fa ? 'این نوبت برای همیشه حذف شود؟' : 'Delete this booking for good?'}</p>
+          <p className="mt-1 text-[12px] leading-6 text-red-800/80">
+            {!terminal && !past
+              ? (fa ? 'نوبت هنوز فعال است و مشتری از حذف باخبر نمی‌شود. اگر می‌خواهید زمان آزاد شود و سابقه بماند، «لغو نوبت» بهتر است.' : 'It is still active and the customer is not told. Cancelling frees the time and keeps the record.')
+              : (fa ? 'از برنامه و سابقه مشتری پاک می‌شود و برنمی‌گردد.' : 'It disappears from the schedule and history.')}
           </p>
-        )}
-      </div>
-
-      {/* Actions — only for non-terminal appointments */}
-      {!terminal && !cancelling && (
-        <div className="col-span-2 flex flex-wrap justify-end gap-1.5 sm:col-span-1">
-          {appointment.status === 'PENDING' && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onStatus('CONFIRMED')}
-              className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-500/20 px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {fa ? 'تأیید نوبت' : 'Confirm'}
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button type="button" autoFocus disabled={busy} onClick={async () => { setBusy(true); const ok = await onDelete(appointment.id); setBusy(false); if (!ok) setConfirmingDelete(false) }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-red-600 px-4 text-sm font-bold text-white disabled:opacity-50">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{fa ? 'حذف برای همیشه' : 'Delete'}
             </button>
-          )}
-          {appointment.status === 'CONFIRMED' && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onStatus('COMPLETED')}
-              className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-500/20 px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {fa ? 'انجام شد' : 'Done'}
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onStatus('NO_SHOW')}
-            aria-label={fa ? 'عدم حضور' : 'No show'}
-            className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            <XCircle className="h-3.5 w-3.5" />
-            <span>{fa ? 'حاضر نشد' : 'No-show'}</span>
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onStartCancel}
-            className="grid min-h-10 min-w-10 place-items-center rounded-xl border border-red-500/20 text-red-500 transition-colors hover:bg-red-50"
-            aria-label={fa ? 'لغو نوبت' : 'Cancel appointment'}
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-          </button>
+            {!terminal && !past && (
+              <button type="button" onClick={() => { setConfirmingDelete(false); setCancelling(true) }} className="min-h-11 rounded-xl border border-red-500/25 bg-white px-4 text-sm font-bold text-red-700">{fa ? 'لغو نوبت به‌جای حذف' : 'Cancel instead'}</button>
+            )}
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm text-[var(--text-secondary)]">{fa ? 'بازگشت' : 'Back'}</button>
+          </div>
         </div>
       )}
+
       {cancelling && (
-        <div className="col-span-full flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-50/50 p-3 sm:flex-row sm:items-center">
-          <input
-            autoFocus
-            value={cancellationReason}
-            onChange={(event) => onCancellationReason(event.target.value)}
-            placeholder={fa ? 'دلیل لغو را بنویسید…' : 'Cancellation reason…'}
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm outline-none focus:border-red-500/30"
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onStatus('CANCELLED', cancellationReason.trim())}
-              disabled={cancellationReason.trim().length < 2 || busy}
-              className="min-h-11 rounded-xl bg-red-500 px-4 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {fa ? 'تأیید لغو' : 'Confirm cancel'}
-            </button>
-            <button
-              type="button"
-              onClick={onStopCancel}
-              className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm text-[var(--text-secondary)]"
-            >
-              {fa ? 'انصراف' : 'Back'}
-            </button>
+        <div className="col-span-full rounded-xl border border-red-500/20 bg-red-50/60 p-3">
+          <p className="text-xs font-bold text-red-700">{fa ? 'دلیل لغو' : 'Cancellation reason'}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(fa ? CANCEL_REASONS_FA : CANCEL_REASONS_EN).map((item) => (
+              <button key={item} type="button" onClick={() => setReason(item)} aria-pressed={reason === item} className={cn('min-h-9 rounded-lg border px-2.5 text-xs transition-colors', reason === item ? 'border-red-600 bg-red-600 text-white' : 'border-red-500/20 bg-white text-red-700 hover:bg-red-50')}>{item}</button>
+            ))}
           </div>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input autoFocus value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder={fa ? 'یا دلیل را بنویسید…' : 'Or type a reason…'} className="input min-h-11 min-w-0 flex-1 bg-white" />
+            <div className="flex gap-2">
+              <button type="button" disabled={reason.trim().length < 2 || busy} onClick={() => void run('CANCELLED', reason.trim())} className="min-h-11 flex-1 rounded-xl bg-red-600 px-4 text-sm font-bold text-white disabled:opacity-45 sm:flex-none">
+                {busy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : (fa ? 'لغو نوبت' : 'Cancel it')}
+              </button>
+              <button type="button" onClick={() => { setCancelling(false); setReason('') }} className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm text-[var(--text-secondary)]">{fa ? 'بازگشت' : 'Back'}</button>
+            </div>
+          </div>
+          <p className="mt-2 text-[12.5px] text-red-700/80">{fa ? 'زمان آزاد می‌شود و به شما اعلان داده می‌شود.' : 'The time frees up and you get a notification.'}</p>
         </div>
       )}
     </article>
   )
 }
 
-function BookingDialog({ locale, services, initialDate, onClose, onCreated }: { locale: Locale; services: ServiceRow[]; initialDate: string; onClose: () => void; onCreated: (date: string) => void }) {
-  const fa = locale === 'fa'
-  const [serviceId, setServiceId] = useState(services[0]?.id ?? '')
-  const [date, setDate] = useState(initialDate)
-  const [partySize, setPartySize] = useState(1)
-  const [slots, setSlots] = useState<SlotRow[]>([])
-  const [slot, setSlot] = useState<number | null>(null)
-  const [loadingSlots, setLoadingSlots] = useState(false)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const selectedService = services.find((service) => service.id === serviceId)
-  const minimumDate = dateKeyInTimeZone(new Date(), selectedService?.timezone ?? 'Asia/Tehran')
-
-  useEffect(() => {
-    if (!serviceId || !date) return
-    const controller = new AbortController()
-    setLoadingSlots(true); setSlot(null); setError('')
-    fetch(`/api/appointments/slots?${new URLSearchParams({ serviceId, date, partySize: String(partySize) })}`, { signal: controller.signal })
-      .then(async (response) => { const data = await response.json() as { slots?: SlotRow[] }; if (!response.ok || !data.slots) throw new Error(); setSlots(data.slots) })
-      .catch((reason) => { if (reason instanceof DOMException && reason.name === 'AbortError') return; setSlots([]); setError(fa ? 'زمان‌های آزاد دریافت نشد.' : 'Could not load available times.') })
-      .finally(() => setLoadingSlots(false))
-    return () => controller.abort()
-  }, [serviceId, date, partySize, fa])
-
-  async function submit() {
-    if (slot === null || name.trim().length < 2 || phone.trim().length < 7) return
-    setSaving(true); setError('')
-    try {
-      const response = await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serviceId, localDate: date, startMinute: slot, partySize, customerName: name.trim(), customerPhone: phone.trim(), notes: notes.trim() || undefined, source: 'dashboard', idempotencyKey: `dashboard:${crypto.randomUUID()}` }) })
-      const data = await response.json() as { error?: string }
-      if (!response.ok) throw new Error(data.error ?? 'FAILED')
-      onCreated(date)
-    } catch (reason) {
-      setError(reason instanceof Error && reason.message === 'CAPACITY_EXCEEDED' ? (fa ? 'این زمان همین حالا پر شد؛ زمان دیگری را انتخاب کنید.' : 'That time just filled up. Choose another slot.') : (fa ? 'ثبت نوبت انجام نشد؛ اطلاعات را بررسی کنید.' : 'The appointment could not be created.'))
-    } finally { setSaving(false) }
-  }
-
+function MenuItem({ onClick, Icon, danger = false, children }: { onClick: () => void; Icon: typeof Check; danger?: boolean; children: React.ReactNode }) {
   return (
-    <DialogShell title={fa ? 'ثبت نوبت جدید' : 'New appointment'} subtitle={fa ? 'زمان‌های قابل انتخاب مستقیماً از ظرفیت واقعی محاسبه می‌شوند.' : 'Selectable times come directly from live capacity.'} onClose={onClose}>
-      <div className="space-y-5">
-        {/* ── Service + date + party size ── */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label={fa ? 'خدمت' : 'Service'}>
-            <MaterialSelect value={serviceId} onValueChange={setServiceId} ariaLabel={fa ? 'انتخاب خدمت' : 'Select service'} options={services.map((service) => ({ value: service.id, label: service.name }))} />
-          </Field>
-          <Field label={fa ? 'تاریخ' : 'Date'}>
-            <LocalizedDatePicker
-              value={date}
-              onValueChange={setDate}
-              locale={locale}
-              min={minimumDate}
-              timeZone={selectedService?.timezone ?? 'Asia/Tehran'}
-              ariaLabel={fa ? 'انتخاب تاریخ نوبت' : 'Choose appointment date'}
-            />
-          </Field>
-          <Field label={fa ? 'تعداد نفرات' : 'Party size'}>
-            <input type="number" min={1} max={100} value={partySize} onChange={(event) => setPartySize(Math.max(1, Number(event.target.value) || 1))} className="input min-h-11 w-full" />
-          </Field>
-        </div>
-
-        {/* ── Customer info ── */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={fa ? 'نام مشتری' : 'Customer name'}>
-            <input value={name} onChange={(event) => setName(event.target.value)} className="input min-h-11 w-full" placeholder={fa ? 'نام و نام خانوادگی' : 'Full name'} />
-          </Field>
-          <Field label={fa ? 'شماره تماس' : 'Phone'}>
-            <input dir="ltr" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09…" className="input min-h-11 w-full text-left" />
-          </Field>
-        </div>
-        <Field label={fa ? 'یادداشت' : 'Notes'}>
-          <input value={notes} onChange={(event) => setNotes(event.target.value)} className="input min-h-11 w-full" placeholder={fa ? 'توضیح اختیاری…' : 'Optional note…'} />
-        </Field>
-
-        {/* ── Available slots ── */}
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-          <p className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'زمان آزاد' : 'Available time'}</p>
-          <div className="mt-3 flex min-h-16 flex-wrap gap-2">
-            {loadingSlots ? (
-              <Loader2 className="m-auto h-5 w-5 animate-spin text-[var(--text-primary)]" />
-            ) : slots.length ? (
-              slots.map((item) => (
-                <button
-                  key={item.startMinute}
-                  type="button"
-                  onClick={() => setSlot(item.startMinute)}
-                  className={cn(
-                    'spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm transition-colors',
-                    slot === item.startMinute
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]'
-                      : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                  )}
-                >
-                  <span dir="ltr" className="font-semibold">{minuteLabel(item.startMinute)}</span>
-                  <span className={cn('text-[11px]', slot === item.startMinute ? 'text-[var(--bg-base)]/60' : 'text-[var(--text-muted)]')}>
-                    {fa ? `${item.remainingCapacity.toLocaleString('fa-IR')} ظرفیت` : `${item.remainingCapacity} left`}
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="m-auto text-xs text-[var(--text-muted)]">{fa ? 'برای این روز زمان آزادی باقی نمانده است.' : 'No availability remains for this day.'}</p>
-            )}
-          </div>
-        </div>
-
-        {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600">{error}</p>}
-
-        <button
-          type="button"
-          onClick={submit}
-          disabled={saving || slot === null || name.trim().length < 2 || phone.trim().length < 7}
-          className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck2 className="h-4 w-4" />}
-          {fa ? 'تأیید و ثبت در تقویم' : 'Confirm and add to calendar'}
-        </button>
-      </div>
-    </DialogShell>
+    <button type="button" role="menuitem" onClick={onClick} className={cn('flex min-h-10 w-full items-center gap-2 rounded-xl px-2.5 text-start text-[13px] font-medium transition-colors', danger ? 'text-red-600 hover:bg-red-50' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]')}>
+      <Icon className="h-4 w-4" />{children}
+    </button>
   )
 }
 
-function ServicesDialog({ locale, services, onClose, onChange }: { locale: Locale; services: ServiceRow[]; onClose: () => void; onChange: (services: ServiceRow[]) => void }) {
-  const fa = locale === 'fa'
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [duration, setDuration] = useState(60)
-  const [interval, setInterval] = useState(30)
-  const [capacity, setCapacity] = useState(1)
-  const [location, setLocation] = useState('')
-  const [days, setDays] = useState<Set<number>>(() => new Set([6, 0, 1, 2, 3, 4]))
-  const [startTime, setStartTime] = useState('09:00')
-  const [endTime, setEndTime] = useState('17:00')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [exceptionDate, setExceptionDate] = useState('')
-  const [exceptionBusy, setExceptionBusy] = useState(false)
-  const editingService = services.find((service) => service.id === editingId) ?? null
-  const exceptionMinDate = dateKeyInTimeZone(new Date(), editingService?.timezone ?? 'Asia/Tehran')
-
-  function resetForm() {
-    setEditingId(null)
-    setName('')
-    setDescription('')
-    setDuration(60)
-    setInterval(30)
-    setCapacity(1)
-    setLocation('')
-    setDays(new Set([6, 0, 1, 2, 3, 4]))
-    setStartTime('09:00')
-    setEndTime('17:00')
-    setExceptionDate('')
-    setError('')
-  }
-
-  function editService(service: ServiceRow) {
-    const rules = service.weeklyRules.filter((rule) => rule.active)
-    setEditingId(service.id)
-    setName(service.name)
-    setDescription(service.description ?? '')
-    setDuration(service.durationMinutes)
-    setInterval(service.slotIntervalMinutes)
-    setCapacity(service.capacity)
-    setLocation(service.location ?? '')
-    setDays(new Set(rules.map((rule) => rule.weekday)))
-    setStartTime(minuteLabel(rules[0]?.startMinute ?? 9 * 60))
-    setEndTime(minuteLabel(rules[0]?.endMinute ?? 17 * 60))
-    setExceptionDate('')
-    setError('')
-  }
-
-  async function updateException(payload: { exception?: { date: string; closed: true }; removeExceptionDate?: string }) {
-    if (!editingId) return
-    setExceptionBusy(true)
-    setError('')
-    try {
-      const response = await fetch(`/api/appointments/services/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const data = await response.json() as { service?: Record<string, unknown> }
-      if (!response.ok || !data.service) throw new Error()
-      const next = serviceFromApi(data.service)
-      onChange(services.map((service) => service.id === editingId ? next : service))
-      setExceptionDate('')
-    } catch {
-      setError(fa ? 'تغییرات تاریخ‌های خاص ذخیره نشد. دوباره تلاش کنید.' : 'Date exception changes could not be saved. Try again.')
-    } finally {
-      setExceptionBusy(false)
-    }
-  }
-
-  async function saveService() {
-    if (name.trim().length < 2 || days.size === 0 || timeToMinute(endTime) <= timeToMinute(startTime)) return
-    setSaving(true); setError('')
-    try {
-      const response = await fetch(
-        editingId ? `/api/appointments/services/${editingId}` : '/api/appointments/services',
-        { method: editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), description: description.trim() || (editingId ? null : undefined), durationMinutes: duration, slotIntervalMinutes: interval, capacity, timezone: 'Asia/Tehran', location: location.trim() || (editingId ? null : undefined), weeklyRules: [...days].map((weekday) => ({ weekday, startMinute: timeToMinute(startTime), endMinute: timeToMinute(endTime), active: true })) }) },
-      )
-      const data = await response.json() as { service?: Record<string, unknown> }
-      if (!response.ok || !data.service) throw new Error()
-      const next = serviceFromApi(data.service)
-      onChange(editingId
-        ? services.map((service) => service.id === editingId ? next : service)
-        : [...services, next])
-      resetForm()
-    } catch { setError(fa ? 'خدمت ساخته نشد؛ اطلاعات را بررسی کنید.' : 'The service could not be created.') } finally { setSaving(false) }
-  }
-
-  async function toggle(service: ServiceRow) {
-    const response = await fetch(`/api/appointments/services/${service.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !service.active }) })
-    if (response.ok) onChange(services.map((item) => item.id === service.id ? { ...item, active: !item.active } : item))
-  }
-
+function AgentPanel({ fa, services, onManage, remindersEnabled }: { fa: boolean; services: ServiceRow[]; onManage: () => void; remindersEnabled: boolean }) {
+  const steps = fa
+    ? ['مشتری در دایرکت یا سایت وقت می‌خواهد', 'ایجنت ظرفیت واقعی را می‌خواند', 'بعد از تأیید مشتری، بدون تداخل ثبت می‌کند', 'شما در پنل و ربات تلگرام خبردار می‌شوید']
+    : ['A customer asks for a time in DM or on site', 'The agent reads live capacity', 'It books conflict-free after the customer confirms', 'You get a dashboard and Telegram alert']
   return (
-    <DialogShell wide title={fa ? 'خدمات و ظرفیت رزرو' : 'Booking services and capacity'} subtitle={fa ? 'هر خدمت تقویم، مدت، فاصله زمانی و ظرفیت مستقل دارد.' : 'Each service has its own calendar, duration, interval, and capacity.'} onClose={onClose}>
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        {/* ── Left: services list ── */}
-        <div>
-          <h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'خدمات فعلی' : 'Current services'}</h3>
-          <div className="mt-3 space-y-2">
-            {services.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--border-default)] p-6 text-center text-xs text-[var(--text-muted)]">{fa ? 'هنوز خدمتی تعریف نشده است.' : 'No services yet.'}</div>
-            ) : services.map((service) => (
-              <article key={service.id} className={cn('flex items-center gap-3 rounded-2xl border bg-[var(--bg-base)] p-3 transition-colors', editingId === service.id ? 'border-[var(--text-primary)]' : 'border-[var(--border-default)]')}>
-                <span className={cn('grid h-10 w-10 place-items-center rounded-xl', service.active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-zinc-500/10 text-zinc-500')}><CalendarClock className="h-4 w-4" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">{service.name}</p>
-                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">{service.durationMinutes.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'دقیقه' : 'min'} · {service.appointmentCount.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'رزرو' : 'bookings'}</p>
-                </div>
-                <button type="button" onClick={() => editService(service)} className="grid min-h-10 min-w-10 place-items-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]" aria-label={fa ? 'ویرایش خدمت' : 'Edit service'}><Pencil className="h-3.5 w-3.5" /></button>
-                <button type="button" onClick={() => void toggle(service)} className={cn('min-h-10 rounded-xl border px-3 text-xs transition-colors', service.active ? 'border-emerald-500/20 text-emerald-700 hover:bg-emerald-50' : 'border-[var(--border-default)] text-[var(--text-secondary)]')}>{service.active ? (fa ? 'فعال' : 'Active') : (fa ? 'آرشیو' : 'Archived')}</button>
-              </article>
-            ))}
+    <aside className="space-y-4">
+      <section className="spatial-surface rounded-card p-4">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-white"><Bot className="h-4 w-4" /></span>
+          <div className="min-w-0">
+            <p className="ui-h3 leading-6">{fa ? 'ایجنت رزرو فعال است' : 'Booking agent is on'}</p>
+            <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? `${num(services.length, true)} خدمت قابل رزرو` : `${services.length} bookable services`}</p>
           </div>
+          <StatusChip tone="ok" pulse className="ms-auto">{fa ? 'زنده' : 'Live'}</StatusChip>
         </div>
-        {/* ── Right: form ── */}
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">{editingId ? <Pencil className="h-4 w-4 text-[var(--text-primary)]" /> : <Plus className="h-4 w-4 text-[var(--text-primary)]" />}{editingId ? (fa ? 'ویرایش خدمت' : 'Edit service') : (fa ? 'خدمت جدید' : 'New service')}</h3>
-            {editingId && <button type="button" onClick={resetForm} className="min-h-9 rounded-lg px-2 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)]">{fa ? 'انصراف' : 'Cancel'}</button>}
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <Field label={fa ? 'نام خدمت' : 'Service name'}><input value={name} onChange={(event) => setName(event.target.value)} className="input min-h-11 w-full" /></Field>
-            <Field label={fa ? 'محل یا لینک' : 'Location or link'}><input value={location} onChange={(event) => setLocation(event.target.value)} className="input min-h-11 w-full" /></Field>
-            <Field label={fa ? 'مدت (دقیقه)' : 'Duration (min)'}><input type="number" min={10} max={480} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="input min-h-11 w-full" /></Field>
-            <Field label={fa ? 'فاصله شروع‌ها' : 'Slot interval'}><input type="number" min={5} max={240} value={interval} onChange={(event) => setInterval(Number(event.target.value))} className="input min-h-11 w-full" /></Field>
-            <Field label={fa ? 'ظرفیت هم‌زمان' : 'Concurrent capacity'}><input type="number" min={1} max={100} value={capacity} onChange={(event) => setCapacity(Number(event.target.value))} className="input min-h-11 w-full" /></Field>
-            <Field label={fa ? 'توضیح کوتاه' : 'Short description'}><input value={description} onChange={(event) => setDescription(event.target.value)} className="input min-h-11 w-full" /></Field>
-          </div>
-          <section className="mt-4 rounded-2xl border border-[var(--border-default)] bg-white p-4">
-            <div className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)]"><CalendarClock className="h-4 w-4" /></span>
-              <div>
-                <p className="text-xs font-bold text-[var(--text-primary)]">{fa ? 'برنامه هفتگی' : 'Weekly schedule'}</p>
-                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? 'روزها و ساعت‌های قابل رزرو را مشخص کنید.' : 'Choose the days and hours customers can book.'}</p>
-              </div>
-            </div>
-            <p className="mt-4 text-xs font-medium text-[var(--text-primary)]">{fa ? 'روزهای کاری' : 'Working days'}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {WEEKDAYS.map((day) => (
-                <button key={day.value} type="button" aria-pressed={days.has(day.value)} onClick={() => setDays((current) => { const next = new Set(current); if (next.has(day.value)) next.delete(day.value); else next.add(day.value); return next })} className={cn('min-h-10 min-w-10 rounded-xl border px-2 text-xs transition-colors', days.has(day.value) ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]')}>{fa ? day.fa : day.en}</button>
+        <ol className="relative mt-4 space-y-3 ps-1">
+          <span className="lf lf-vline absolute bottom-3 start-[0.95rem] top-3 w-0.5" aria-hidden />
+          {steps.map((step, index) => (
+            <li key={step} className="relative flex items-start gap-3">
+              <span className={cn('relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold ring-4 ring-white', index === steps.length - 1 ? 'bg-[var(--ok)] text-white' : 'bg-[var(--signal-soft)] text-[var(--signal-strong)]')}>
+                {index === steps.length - 1 ? <Check className="h-3 w-3" strokeWidth={3} /> : num(index + 1, fa)}
+              </span>
+              <span className="pt-0.5 text-[12.5px] leading-6 text-[var(--text-secondary)]">{step}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+      <ReminderSettingsCard fa={fa} initialEnabled={remindersEnabled} />
+      <section className="spatial-surface rounded-card p-4">
+        <p className="ui-h3">{fa ? 'قوانین ایمنی رزرو' : 'Booking safeguards'}</p>
+        <ul className="mt-2 space-y-1.5 text-[12.5px] leading-6 text-[var(--text-secondary)]">
+          {(fa
+            ? ['پیش از ثبت، خلاصه را از مشتری تأیید می‌گیرد', 'قفل تراکنشی: دو نفر یک زمان را نمی‌گیرند', 'لغو و جابه‌جایی فقط برای نوبت خود مشتری']
+            : ['Confirms a summary with the customer first', 'Transactional lock: no double booking', 'Cancel/move only the customer’s own booking']
+          ).map((item) => <li key={item} className="flex items-start gap-2"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--ok)]" />{item}</li>)}
+        </ul>
+        <button type="button" onClick={onManage} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+          <LayoutGrid className="h-3.5 w-3.5" />{fa ? 'ساعت کاری و ظرفیت خدمات' : 'Service hours & capacity'}
+        </button>
+      </section>
+    </aside>
+  )
+}
+
+function Onboarding({ fa, onCreate }: { fa: boolean; onCreate: (template?: ServiceTemplate | null) => void }) {
+  return (
+    <section className="spatial-surface overflow-hidden rounded-sheet p-5 sm:p-7">
+      <div className="grid items-center gap-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div>
+          <StatusChip tone="signal" dot>{fa ? 'رزرو خودکار با ایجنت' : 'Agent-powered booking'}</StatusChip>
+          <h2 className="mt-3 text-[22px] font-bold leading-10 text-[var(--text-primary)] sm:text-[26px]">
+            {fa ? 'اولین خدمت را بسازید؛ بقیه‌اش با ایجنت.' : 'Create your first service. The agent does the rest.'}
+          </h2>
+          <p className="ui-body mt-2">
+            {fa
+              ? 'مدت، ظرفیت و ساعت کاری را یک‌بار تعریف کنید. از همان لحظه ایجنت در اینستاگرام، تلگرام و سایت زمان آزاد واقعی پیشنهاد می‌دهد و نوبت را بدون تداخل ثبت می‌کند.'
+              : 'Set length, capacity and hours once. From then on the agent offers real free times on Instagram, Telegram and your site and books without conflicts.'}
+          </p>
+          <ol className="mt-5 space-y-2.5">
+            {(fa
+              ? ['خدمت و ساعت کاری را تعریف کنید (۱ دقیقه)', 'ایجنت زمان آزاد را به مشتری پیشنهاد می‌دهد', 'نوبت‌ها اینجا و در ربات تلگرام به شما می‌رسد']
+              : ['Define a service and hours (1 minute)', 'The agent offers free times to customers', 'Bookings land here and in your Telegram bot']
+            ).map((step, index) => (
+              <li key={step} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-xs font-bold text-white">{num(index + 1, fa)}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          <button type="button" onClick={() => onCreate()} className="spatial-press mt-6 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90">
+            <Plus className="h-4 w-4" />{fa ? 'ساخت اولین خدمت' : 'Create first service'}
+          </button>
+          <div className="mt-5">
+            <p className="ui-caption mb-2">{fa ? 'یا با یک الگوی آماده شروع کنید:' : 'Or start from a template:'}</p>
+            <div className="flex flex-wrap gap-2">
+              {SERVICE_TEMPLATES.map((template) => (
+                <button key={template.key} type="button" onClick={() => onCreate(template)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]">
+                  {fa ? template.fa : template.en}
+                  <span className="font-normal text-[var(--text-hint)]">· {fa ? template.hintFa : template.hintEn}</span>
+                </button>
               ))}
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <Field label={fa ? 'شروع' : 'Starts'}><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className="input min-h-11 w-full" /></Field>
-              <Field label={fa ? 'پایان' : 'Ends'}><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="input min-h-11 w-full" /></Field>
-            </div>
-          </section>
-          <section className="mt-3 rounded-2xl border border-[var(--border-default)] bg-white p-4">
-            <div className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/10 text-red-600"><CalendarOff className="h-4 w-4" /></span>
-              <div>
-                <p className="text-xs font-bold text-[var(--text-primary)]">{fa ? 'تعطیلی‌ها و تاریخ‌های خاص' : 'Closures and date exceptions'}</p>
-                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? 'روزهایی را که این خدمت نباید رزرو شود ببندید.' : 'Close dates when this service should not be bookable.'}</p>
-              </div>
-            </div>
-            {editingService ? (
-              <>
-                <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <LocalizedDatePicker
-                    value={exceptionDate}
-                    onValueChange={setExceptionDate}
-                    locale={locale}
-                    min={exceptionMinDate}
-                    timeZone={editingService.timezone}
-                    ariaLabel={fa ? 'انتخاب تاریخ تعطیلی خدمت' : 'Choose a service closure date'}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void updateException({ exception: { date: exceptionDate, closed: true } })}
-                    disabled={!exceptionDate || exceptionBusy}
-                    className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/20 px-4 text-xs font-bold text-red-600 transition-colors hover:bg-red-500/5 disabled:opacity-50"
-                  >
-                    {exceptionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarOff className="h-4 w-4" />}
-                    {fa ? 'ثبت تعطیلی' : 'Close date'}
-                  </button>
-                </div>
-                {editingService.exceptions.filter((exception) => exception.closed).length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {editingService.exceptions.filter((exception) => exception.closed).map((exception) => (
-                      <div key={exception.id} className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-[var(--bg-subtle)] px-3">
-                        <span className="text-xs font-medium text-[var(--text-secondary)]">
-                          {formatDateKey(exception.date, locale, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void updateException({ removeExceptionDate: exception.date })}
-                          disabled={exceptionBusy}
-                          className="grid min-h-10 min-w-10 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
-                          aria-label={fa ? 'حذف تاریخ تعطیلی' : 'Remove closure date'}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="mt-4 rounded-xl bg-[var(--bg-subtle)] px-3 py-2.5 text-[11px] leading-5 text-[var(--text-muted)]">
-                {fa ? 'ابتدا خدمت را بسازید؛ سپس از همین بخش تاریخ‌های تعطیل را با تقویم شمسی ثبت کنید.' : 'Create the service first, then add closure dates here with the Gregorian calendar.'}
-              </p>
-            )}
-          </section>
-          {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-          <button type="button" onClick={saveService} disabled={saving || name.trim().length < 2 || days.size === 0 || timeToMinute(endTime) <= timeToMinute(startTime)} className="spatial-press mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {editingId ? (fa ? 'ذخیره تغییرات خدمت' : 'Save service changes') : (fa ? 'ساخت خدمت و فعال‌سازی رزرو' : 'Create service and enable booking')}
-          </button>
+          </div>
         </div>
+        <BookingMotion fa={fa} />
       </div>
-    </DialogShell>
+    </section>
   )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">{label}</span>{children}</label>
 }

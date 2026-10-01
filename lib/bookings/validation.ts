@@ -80,6 +80,7 @@ export const serviceCreateSchema = z.object({
   capacity: z.number().int().min(1).max(100).default(1),
   timezone: timezoneSchema.default('Asia/Tehran'),
   location: z.string().trim().max(250).optional(),
+  price: z.number().min(0).max(100_000_000_000).optional(),
   weeklyRules: weeklyRulesSchema.default([]),
 })
 
@@ -93,6 +94,7 @@ export const serviceUpdateSchema = z.object({
   capacity: z.number().int().min(1).max(100).optional(),
   timezone: timezoneSchema.optional(),
   location: z.string().trim().max(250).nullable().optional(),
+  price: z.number().min(0).max(100_000_000_000).nullable().optional(),
   active: z.boolean().optional(),
   weeklyRules: weeklyRulesSchema.optional(),
   exception: dateExceptionSchema.optional(),

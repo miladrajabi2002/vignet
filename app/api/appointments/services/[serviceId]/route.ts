@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { dateKeyToDatabaseDate } from '@/lib/bookings/time'
 import { serviceUpdateSchema } from '@/lib/bookings/validation'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { deleteService, serviceDeletionImpact } from '@/lib/bookings/service'
 
 type Props = { params: Promise<{ serviceId: string }> }
 
@@ -14,10 +15,16 @@ async function ownedService(workspaceId: string, serviceId: string) {
   })
 }
 
-export async function GET(_request: Request, props: Props) {
+export async function GET(request: Request, props: Props) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const { serviceId } = await props.params
+  // `?impact=1`: what a delete would remove, for the confirmation step.
+  if (new URL(request.url).searchParams.get('impact')) {
+    const impact = await serviceDeletionImpact(user.workspaceId, serviceId)
+    if (!impact) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+    return NextResponse.json({ impact })
+  }
   const service = await prisma.service.findFirst({
     where: { id: serviceId, workspaceId: user.workspaceId },
     include: {
@@ -108,15 +115,19 @@ export async function PATCH(request: Request, props: Props) {
   return NextResponse.json({ service })
 }
 
-/** Services with appointment history are archived rather than hard-deleted. */
+/**
+ * Permanently deletes a service with its hours, closures and past bookings.
+ * Refused while customers still hold upcoming bookings for it.
+ */
 export async function DELETE(_request: Request, props: Props) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const { serviceId } = await props.params
-  const result = await prisma.service.updateMany({
-    where: { id: serviceId, workspaceId: user.workspaceId },
-    data: { active: false },
-  })
-  if (!result.count) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-  return NextResponse.json({ ok: true })
+  const result = await deleteService(user.workspaceId, serviceId)
+  if (!result.ok) {
+    return result.error === 'NOT_FOUND'
+      ? NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+      : NextResponse.json({ error: 'HAS_UPCOMING', upcoming: result.upcoming }, { status: 409 })
+  }
+  return NextResponse.json({ ok: true, appointments: result.appointments })
 }

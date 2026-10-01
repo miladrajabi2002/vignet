@@ -1,5 +1,4 @@
 import {
-  AppointmentStatSkeleton,
   DashboardHeaderSkeleton,
   DayPickerSkeleton,
   SlotRowSkeleton,
@@ -7,76 +6,46 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 
 /**
- * Route-level skeleton for /appointments — an exact mirror of the page:
- * header, 4 horizontal stat tiles, the calendar panel (title + arrows +
- * 7-day picker + slot rows), then the pending/services aside.
+ * Route-level skeleton for /appointments — mirrors the workspace: header,
+ * tabs + KPI strip, the schedule card (toolbar, week strip, day list) and the
+ * agent panel beside it on wide screens.
  */
 export default function AppointmentsLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-5">
       <DashboardHeaderSkeleton actions={2} />
 
-      {/* Stat tiles — horizontal icon + label/value */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <AppointmentStatSkeleton />
-        <AppointmentStatSkeleton delay={-110} />
-        <AppointmentStatSkeleton delay={-220} />
-        <AppointmentStatSkeleton delay={-330} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Skeleton className="h-[3.25rem] w-full rounded-2xl lg:w-[22rem]" />
+        <Skeleton delay={-120} className="h-[3.6rem] w-full rounded-2xl lg:w-[30rem]" />
       </div>
 
-      {/* Calendar panel: title + arrows + day picker + slots */}
-      <div className="spatial-surface min-w-0 rounded-[1.5rem] p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-32 rounded-md" />
-            <Skeleton delay={-90} className="h-3 w-44 rounded-md" />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="spatial-surface min-w-0 rounded-card p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-20 rounded-xl" />
+            <Skeleton delay={-90} className="h-4 w-32 flex-1 rounded-md sm:flex-none" />
+            <Skeleton delay={-180} className="ms-auto h-10 w-16 rounded-xl" />
           </div>
-          <div className="flex items-center gap-2">
-            <Skeleton delay={-90} className="h-11 w-11 rounded-xl" />
-            <Skeleton delay={-180} className="h-11 w-11 rounded-xl" />
-          </div>
-        </div>
-        <DayPickerSkeleton />
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="rounded-2xl border border-[var(--border-subtle)] p-3 text-center">
-              <Skeleton delay={-index * 90} className="mx-auto h-2.5 w-12 rounded-full" />
-              <div className="mx-auto mt-2 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--bg-surface)]">
-                <Skeleton delay={-index * 90} className="h-8 w-8 rounded-lg" />
-              </div>
-              <Skeleton delay={-index * 90} className="mx-auto mt-2 h-3 w-16 rounded-full" />
-            </div>
-          ))}
-        </div>
-        <div className="mt-5 space-y-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <SlotRowSkeleton key={index} delay={-index * 110} />
-          ))}
-        </div>
-      </div>
-
-      {/* Aside: pending requests + services */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="spatial-surface rounded-[1.5rem] p-5">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-36 rounded-md" />
-            <Skeleton delay={-90} className="h-3 w-44 rounded-md" />
-          </div>
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 2 }).map((_, index) => (
+          <DayPickerSkeleton />
+          <Skeleton delay={-200} className="mt-5 h-6 w-52 rounded-md" />
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 3 }).map((_, index) => (
               <SlotRowSkeleton key={index} delay={-index * 110} />
             ))}
           </div>
         </div>
-        <div className="spatial-surface rounded-[1.5rem] p-5">
-          <div className="space-y-2">
-            <Skeleton delay={-130} className="h-4 w-32 rounded-md" />
-            <Skeleton delay={-220} className="h-3 w-40 rounded-md" />
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="space-y-4">
+          <div className="spatial-surface space-y-3 rounded-card p-4">
+            <Skeleton className="h-9 w-40 rounded-xl" />
             {Array.from({ length: 4 }).map((_, index) => (
-              <SlotRowSkeleton key={index} delay={-130 - index * 90} />
+              <Skeleton key={index} delay={-index * 90} className="h-4 w-full rounded-md" />
             ))}
+          </div>
+          <div className="spatial-surface space-y-2 rounded-card p-4">
+            <Skeleton className="h-4 w-32 rounded-md" />
+            <Skeleton delay={-90} className="h-3 w-full rounded-md" />
+            <Skeleton delay={-180} className="h-3 w-4/5 rounded-md" />
           </div>
         </div>
       </div>
