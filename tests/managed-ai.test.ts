@@ -15,14 +15,25 @@ afterEach(() => {
 
 describe('managed model policy', () => {
   it('maps historical or arbitrary provider slugs into a safe alias', () => {
-    expect(resolveModelAlias('openai/gpt-4o')).toBe('premium')
+    expect(resolveModelAlias('openai/gpt-4o')).toBe('smart')
+    expect(resolveModelAlias('deepseek/deepseek-v4-flash')).toBe('fast')
+    expect(resolveModelAlias('deepseek/deepseek-v4.1-flash')).toBe('smart')
     expect(resolveModelAlias('unknown/very-expensive-model')).toBe(DEFAULT_MODEL)
     expect(resolveModelAlias(null)).toBe('fast')
   })
 
-  it('resolves provider models from server-only env overrides', () => {
-    vi.stubEnv('OPENROUTER_MODEL_FAST', 'vendor/safe-fast')
-    expect(resolveModelId('fast')).toBe('vendor/safe-fast')
+  it('resolves provider models from the admin panel, not env', () => {
+    vi.stubEnv('OPENROUTER_MODEL_FAST', 'vendor/ignored')
+    expect(resolveModelId('fast')).toBe('deepseek/deepseek-v4-flash')
+    expect(resolveModelId('fast', { fast: 'vendor/panel-fast' })).toBe('vendor/panel-fast')
+  })
+
+  it('maps the retired managed modes onto the two current ones', () => {
+    expect(resolveModelAlias('standard')).toBe('smart')
+    expect(resolveModelAlias('balanced')).toBe('smart')
+    expect(resolveModelAlias('premium')).toBe('smart')
+    expect(resolveModelId('premium')).toBe('deepseek/deepseek-v4.1-flash')
+    expect(resolveModelId(null)).toBe('deepseek/deepseek-v4-flash')
   })
 
   it('rejects raw model slugs and strips legacy client completion controls', () => {
@@ -40,22 +51,17 @@ describe('managed model policy', () => {
     if (oversized.success) expect(oversized.data).not.toHaveProperty('maxTokens')
   })
 
-  it('uses the configured fixed reply prices', () => {
-    // Keep this contract test independent from the developer/production .env.
-    vi.stubEnv('AI_REPLY_PRICE_FAST_IRR', '4000')
-    vi.stubEnv('AI_REPLY_PRICE_BALANCED_IRR', '7500')
-    vi.stubEnv('AI_REPLY_PRICE_PREMIUM_IRR', '30000')
+  it('uses the catalog reply prices (the admin panel overrides them at runtime)', () => {
+    vi.stubEnv('AI_REPLY_PRICE_FAST_IRR', '1')
     expect(getReplyPriceIRR('fast')).toBe(4_000)
-    expect(getReplyPriceIRR('balanced')).toBe(7_500)
-    expect(getReplyPriceIRR('premium')).toBe(30_000)
+    expect(getReplyPriceIRR('smart')).toBe(6_500)
+    expect(getReplyPriceIRR('premium')).toBe(6_500)
   })
 })
 
 describe('OpenRouter platform wrapper', () => {
   it('enforces privacy, price routing and output caps and captures exact cost', async () => {
     vi.stubEnv('OPENROUTER_API_KEY', 'test-platform-key')
-    // Do not let a developer/production .env override this contract test.
-    vi.stubEnv('OPENROUTER_ZDR', 'true')
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({

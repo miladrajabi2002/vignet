@@ -13,6 +13,7 @@ import {
 import {
   getDashboardModules,
   getVerticalPack,
+  legacyCapabilities,
 } from '@/lib/verticals/registry'
 import { buildTurnReceipts } from '@/lib/conversations/activity'
 import { isMarketingOptOutMessage } from '@/lib/crm/marketing-consent'
@@ -20,17 +21,17 @@ import { campaignDeliveryText } from '@/lib/campaigns/process'
 
 describe('vertical workspace registry', () => {
   it('keeps common modules and adds specialist capabilities without enabling unselected booking', () => {
-    expect(getDashboardModules('APPOINTMENTS')).toContain('appointments')
-    expect(getDashboardModules('APPOINTMENTS')).not.toContain('products')
-    expect(getDashboardModules('COMMERCE')).toContain('products')
-    expect(getDashboardModules('COMMERCE')).not.toContain('appointments')
-    expect(getDashboardModules('FOOD')).toEqual(expect.arrayContaining(['products', 'menu']))
-    expect(getDashboardModules('FOOD')).not.toContain('appointments')
-    expect(getDashboardModules('FOOD', ['رزرو و نوبت‌دهی'])).toContain('appointments')
-    expect(getDashboardModules('CUSTOM')).not.toContain('appointments')
-    expect(getDashboardModules('CUSTOM', ['مشاوره و رزرو وقت'])).toContain('appointments')
-    expect(getDashboardModules('CUSTOM', ['فروش محصولات دست‌ساز'])).toContain('products')
-    expect(getDashboardModules('EDUCATION')).toEqual(expect.arrayContaining([
+    expect(getDashboardModules(legacyCapabilities('APPOINTMENTS'))).toContain('appointments')
+    expect(getDashboardModules(legacyCapabilities('APPOINTMENTS'))).not.toContain('products')
+    expect(getDashboardModules(legacyCapabilities('COMMERCE'))).toContain('products')
+    expect(getDashboardModules(legacyCapabilities('COMMERCE'))).not.toContain('appointments')
+    expect(getDashboardModules(legacyCapabilities('FOOD'))).toEqual(expect.arrayContaining(['products', 'menu']))
+    expect(getDashboardModules(legacyCapabilities('FOOD'))).not.toContain('appointments')
+    expect(getDashboardModules(legacyCapabilities('FOOD', ['رزرو و نوبت‌دهی']))).toContain('appointments')
+    expect(getDashboardModules(legacyCapabilities('CUSTOM'))).not.toContain('appointments')
+    expect(getDashboardModules(legacyCapabilities('CUSTOM', ['مشاوره و رزرو وقت']))).toContain('appointments')
+    expect(getDashboardModules(legacyCapabilities('CUSTOM', ['فروش محصولات دست‌ساز']))).toContain('products')
+    expect(getDashboardModules(legacyCapabilities('EDUCATION'))).toEqual(expect.arrayContaining([
       'agents',
       'conversations',
       'contacts',

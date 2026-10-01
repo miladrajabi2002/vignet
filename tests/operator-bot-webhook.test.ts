@@ -68,6 +68,8 @@ describe('operator bot webhook callbacks', () => {
       state: 'open',
     })
     mocks.alertUpdate.mockResolvedValue({ state: 'claimed' })
+    // The tapped message is the pushed alert itself (its buttons are edited).
+    mocks.alertCount.mockResolvedValue(1)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
   })
 

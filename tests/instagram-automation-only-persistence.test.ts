@@ -68,7 +68,6 @@ vi.mock('@/lib/ai/handoff', () => ({
 vi.mock('@/lib/notifications/create', () => ({ notifyWorkspace: mocks.notifyWorkspace }))
 vi.mock('@/lib/billing/trial-quota-alert', () => ({
   processTrialQuotaAlert: vi.fn(),
-  isCreditExhausted: vi.fn(),
 }))
 vi.mock('@/lib/billing/entitlements', () => ({
   checkWorkspaceActive: mocks.checkWorkspaceActive,

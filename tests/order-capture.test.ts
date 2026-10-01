@@ -5,6 +5,7 @@ import {
   composeOrderAsk,
   composeOrderSubmitted,
   composeOrderSummary,
+  composeShippingQuestion,
   detectOrderIntent,
   extractOrderSlots,
   formatOrderForOperator,
@@ -12,6 +13,8 @@ import {
   isOrderConfirmation,
   isOrderDecline,
   isQuestion,
+  matchShippingChoice,
+  mentionsShippingMethod,
   missingOrderSlots,
   newDraftCode,
   orderInProgressInstruction,
@@ -218,5 +221,41 @@ describe('ordinal choice', () => {
 
   it('out of range is null', () => {
     expect(parseOrdinalChoice('پنجمی', 3)).toBeNull()
+  })
+})
+
+describe('shipping method choice', () => {
+  const options = [
+    { id: 'WC_Courier_Method:3', label: 'پست پیشتاز', cost: 65_000 },
+    { id: 'WC_Custom_Method:4', label: 'پست سفارشی', cost: 45_000 },
+    { id: 'flat_rate:7', label: 'تیپاکس (پس‌کرایه)', cost: 0 },
+  ]
+
+  it('lists the store methods with their prices', () => {
+    const text = composeShippingQuestion(options, 'fa')
+    expect(text).toContain('روش ارسال رو انتخاب کنید')
+    expect(text).toContain('۱. پست پیشتاز — ۶۵٬۰۰۰ تومان')
+    expect(text).toContain('۳. تیپاکس (پس‌کرایه) — رایگان')
+  })
+
+  it('picks by number, ordinal, name, «ارزون‌ترین» and «رایگان»', () => {
+    expect(matchShippingChoice('۲', options)?.id).toBe('WC_Custom_Method:4')
+    expect(matchShippingChoice('اولی', options)?.id).toBe('WC_Courier_Method:3')
+    expect(matchShippingChoice('با پیشتاز بفرستید', options)?.id).toBe('WC_Courier_Method:3')
+    expect(matchShippingChoice('تیپاکس', options)?.id).toBe('flat_rate:7')
+    expect(matchShippingChoice('ارزون‌ترین', options)?.id).toBe('flat_rate:7')
+    expect(matchShippingChoice('رایگان باشه', options)?.id).toBe('flat_rate:7')
+  })
+
+  it('never guesses on shared words or bare numbers outside the list', () => {
+    expect(matchShippingChoice('پست', options)).toBeNull()
+    expect(matchShippingChoice('نمیدونم', options)).toBeNull()
+    expect(matchShippingChoice('۲', options, false)).toBeNull()
+  })
+
+  it('spots a request to change the method', () => {
+    expect(mentionsShippingMethod('روش ارسال رو عوض کنید')).toBe(true)
+    expect(mentionsShippingMethod('نوع ارسال چیه؟')).toBe(true)
+    expect(mentionsShippingMethod('کی ارسال می‌شه؟')).toBe(false)
   })
 })

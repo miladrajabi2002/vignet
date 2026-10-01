@@ -15,13 +15,16 @@ function sourceFiles(directory: string): string[] {
 describe('localized date picker UI contract', () => {
   it('keeps Solar Hijri and Gregorian calendars in the same responsive sheet', () => {
     const picker = read('components/ui/localized-date-picker.tsx')
-    const styles = read('app/globals.css')
+    // Picker styles ship with the picker, not in the site-wide stylesheet.
+    const styles = read('components/ui/localized-date-picker.css')
 
     expect(picker).toContain('<MobileBottomSheet')
     expect(picker).toContain('mobileOnly={false}')
     expect(picker).toContain('<div className="vigent-calendar-stage">')
     expect(picker).toContain('<DoranCalendar')
     expect(picker).toContain('<GregorianDayPicker')
+    expect(picker).toContain("import './localized-date-picker.css'")
+    expect(read('app/globals.css')).not.toContain('.vigent-calendar-stage')
     expect(styles).toContain('.vigent-calendar-stage')
     expect(styles).toContain('.vigent-date-calendar .rdp-week')
     expect(styles).toContain('grid-template-columns: repeat(7, minmax(0, 1fr))')
@@ -30,10 +33,13 @@ describe('localized date picker UI contract', () => {
   })
 
   it('uses the shared picker on every editable date surface', () => {
-    const bookings = read('components/bookings/appointments-workspace.tsx')
+    // Booking date surfaces: the new/move dialog and the service closures.
+    const bookingDialog = read('components/bookings/booking-dialog.tsx')
+    const serviceEditor = read('components/bookings/service-editor.tsx')
     const improvements = read('components/agents/improvement-center.tsx')
 
-    expect(bookings.match(/<LocalizedDatePicker/g)).toHaveLength(2)
+    expect(bookingDialog.match(/<LocalizedDatePicker/g)).toHaveLength(1)
+    expect(serviceEditor.match(/<LocalizedDatePicker/g)).toHaveLength(1)
     expect(improvements.match(/<LocalizedDatePicker/g)).toHaveLength(1)
 
     const nativeDateInput = /type\s*=\s*["'](?:date|datetime-local|month|week)["']/

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { telegramMarkdownToHtml } from '@/lib/channels/telegram-like'
 import { isHumanOwnedConversation } from '@/lib/ai/conversation'
-import { getBusinessServiceOptions, getDashboardModules, getDashboardNavigationModules } from '@/lib/verticals/registry'
+import { getBusinessServiceOptions, getDashboardModules, getDashboardNavigationModules, legacyCapabilities } from '@/lib/verticals/registry'
 
 describe('operator ownership gate', () => {
   it('keeps both handed-off representations under human control', () => {
@@ -30,20 +30,20 @@ describe('Telegram response formatting', () => {
 
 describe('additive business capabilities', () => {
   it('does not remove products when booking is selected', () => {
-    const modules = getDashboardModules('COMMERCE', ['رزرو و نوبت‌دهی'])
+    const modules = getDashboardModules(legacyCapabilities('COMMERCE', ['رزرو و نوبت‌دهی']))
     expect(modules).toContain('products')
     expect(modules).toContain('appointments')
     expect(modules).toContain('services')
   })
 
   it('keeps services as a capability without showing a duplicate destination', () => {
-    expect(getDashboardModules('APPOINTMENTS')).toContain('services')
-    expect(getDashboardNavigationModules('APPOINTMENTS')).toContain('appointments')
-    expect(getDashboardNavigationModules('APPOINTMENTS')).not.toContain('services')
+    expect(getDashboardModules(legacyCapabilities('APPOINTMENTS'))).toContain('services')
+    expect(getDashboardNavigationModules(legacyCapabilities('APPOINTMENTS'))).toContain('appointments')
+    expect(getDashboardNavigationModules(legacyCapabilities('APPOINTMENTS'))).not.toContain('services')
   })
 
   it('enables the real food menu and Instagram together', () => {
-    const modules = getDashboardModules('FOOD', ['مدیریت و فروش در اینستاگرام'])
+    const modules = getDashboardModules(legacyCapabilities('FOOD', ['مدیریت و فروش در اینستاگرام']))
     expect(modules).toEqual(expect.arrayContaining(['menu', 'products', 'instagram']))
   })
 

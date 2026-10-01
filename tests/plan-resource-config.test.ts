@@ -1,11 +1,20 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getPlanDefs, recommendedUpgradePlan } from '@/lib/billing/plans'
+import { getPlanDefs, recommendedUpgradePlan, type PlanDef } from '@/lib/billing/plans'
+import type { Plan } from '@prisma/client'
 
 const ORIGINAL_ENV = { ...process.env }
 
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV }
 })
+
+function withProducts(limits: Partial<Record<Plan, number>>): Record<Plan, PlanDef> {
+  const plans = getPlanDefs()
+  for (const [plan, maxProducts] of Object.entries(limits) as [Plan, number][]) {
+    plans[plan] = { ...plans[plan], maxProducts }
+  }
+  return plans
+}
 
 describe('plan resource and reply-price configuration', () => {
   it('keeps plan reply discounts disabled for every plan', () => {
@@ -17,15 +26,13 @@ describe('plan resource and reply-price configuration', () => {
     expect(Object.values(plans).map((plan) => plan.replyDiscountBps)).toEqual([0, 0, 0, 0])
   })
 
-  it('reads independent product, order, and customer limits from env', () => {
+  it('ignores env for limits the admin panel manages', () => {
     process.env.PLAN_LIMIT_STARTER_PRODUCTS = '321'
-    process.env.PLAN_LIMIT_STARTER_ORDERS = '654'
-    process.env.PLAN_LIMIT_STARTER_CUSTOMERS = '987'
 
     expect(getPlanDefs().STARTER).toMatchObject({
-      maxProducts: 321,
-      maxOrders: 654,
-      maxCustomers: 987,
+      maxProducts: 500,
+      maxOrders: 2_000,
+      maxCustomers: 2_000,
     })
   })
 
@@ -39,10 +46,8 @@ describe('plan resource and reply-price configuration', () => {
   })
 
   it('skips a higher tier when its customized allowance is still too small', () => {
-    process.env.PLAN_LIMIT_STARTER_PRODUCTS = '60'
-    process.env.PLAN_LIMIT_PRO_PRODUCTS = '80'
-    process.env.PLAN_LIMIT_BUSINESS_PRODUCTS = '1000'
+    const plans = withProducts({ STARTER: 60, PRO: 80, BUSINESS: 1000 })
 
-    expect(recommendedUpgradePlan(getPlanDefs(), 'TRIAL', 'products', 80)).toBe('BUSINESS')
+    expect(recommendedUpgradePlan(plans, 'TRIAL', 'products', 80)).toBe('BUSINESS')
   })
 })

@@ -8,7 +8,6 @@ afterEach(() => {
 
 describe('included plan credit grant', () => {
   it('grants once per payment id and only for the workspace’s first subscription payment', async () => {
-    vi.stubEnv('PLAN_INCLUDED_CREDIT_STARTER_IRR', '2000000')
     let balanceIRR = 100_000
     const entries = new Map<string, { amountIRR: number; balanceAfterIRR: number }>()
     // Workspace → list of PAID SUBSCRIPTION payment ids (first-purchase marker #2).

@@ -139,7 +139,8 @@ describe('admin control-center regressions', () => {
     expect(layout).toContain('md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]')
     expect(nav).toContain('Vigento AI')
     expect(nav).toContain('min-h-[2.38rem]')
-    expect(ui).toContain('rounded-[1.5rem] p-5 sm:p-6')
+    // Admin and dashboard share one page header (title bar + inline back).
+    expect(ui).toContain('<DashboardPageHeader')
   })
 
   it('opens a read-only allow-listed Prisma explorer', () => {

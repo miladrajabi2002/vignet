@@ -34,7 +34,6 @@ const validEnv = {
   IPPANEL_ADMIN_SUBSCRIPTION_PURCHASED_PATTERN_CODE: 'admin-purchase-pattern',
   IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE: 'admin-renewal-pattern',
   IPPANEL_ADMIN_CREDIT_TOPPED_UP_PATTERN_CODE: 'admin-credit-pattern',
-  FINANCE_USD_TO_IRR: '900000',
 }
 
 describe('production environment gate', () => {

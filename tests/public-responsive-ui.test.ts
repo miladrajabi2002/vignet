@@ -25,7 +25,7 @@ describe('public adaptive UI contracts', () => {
     const docsContent = source('components/docs/doc-content.tsx')
 
     expect(legal).toContain('<LegalMobileNavigation')
-    expect(legal).toContain('hidden rounded-[1.5rem]')
+    expect(legal).toContain('hidden rounded-card')
     expect(legalNav).toContain('<MobileBottomSheet')
     expect(docsNav).toContain('type="search"')
     expect(docsNav).toContain('filteredItems')

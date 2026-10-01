@@ -30,7 +30,7 @@ describe('omnichannel CRM user-visible contract', () => {
     const createRoute = source('app/api/contacts/route.ts')
     const exportRoute = source('app/api/contacts/export/route.ts')
 
-    expect(view).toContain('sticky top-[5.35rem]')
+    expect(view).toContain('sticky top-[4rem]')
     expect(view).toContain('md:hidden')
     expect(view).toContain('hidden divide-y')
     expect(view).toContain('params.set(\'contact\', id)')
@@ -82,7 +82,7 @@ describe('omnichannel CRM user-visible contract', () => {
     const detailLayout = source('components/crm/conversation-mobile-layout.tsx')
     const mobileNav = source('components/dashboard/mobile-nav.tsx')
 
-    expect(list).toContain('sticky top-[5.35rem]')
+    expect(list).toContain('sticky top-[4rem]')
     expect(list).toContain('key={`mobile-${c.id}`}')
     expect(list).toContain('key={`desktop-${c.id}`}')
     expect(list).toContain('<ConversationStatusBadge')
@@ -115,10 +115,14 @@ describe('CRM avatar and customer deletion contract', () => {
 
   it('provides an accessible customer deletion dialog with explicit history semantics', () => {
     const action = source('components/crm/contact-delete-action.tsx')
+    const dialog = source('components/ui/confirm-dialog.tsx')
     const route = source('app/api/contacts/[contactId]/route.ts')
 
-    expect(action).toContain('aria-modal="true"')
-    expect(action).toContain("event.key === 'Escape'")
+    // The action renders the shared, accessible confirm dialog.
+    expect(action).toContain('<ConfirmDialog')
+    expect(action).toContain("undoNote={t('deleteUndoNote')}")
+    expect(dialog).toContain('aria-modal="true"')
+    expect(dialog).toContain("event.key === 'Escape'")
     expect(action).toContain("returnTo = '/contacts'")
     expect(action).toContain('router.replace(returnTo)')
     expect(route).toContain('data: { contactId: null }')

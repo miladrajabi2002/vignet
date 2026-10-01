@@ -31,8 +31,8 @@ describe('shared adaptive mobile UI contract', () => {
 
     expect(dialog).toContain('flex items-end justify-center')
     expect(dialog).toContain('sm:grid sm:place-items-center')
-    expect(dialog).toContain('rounded-t-[1.75rem]')
-    expect(dialog).toContain('sm:rounded-[1.5rem]')
+    expect(dialog).toContain('rounded-t-sheet')
+    expect(dialog).toContain('sm:rounded-card')
     expect(dialog).toContain('env(safe-area-inset-bottom)')
     expect(dialog).toContain("event.key === 'Escape'")
   })
@@ -42,7 +42,7 @@ describe('shared adaptive mobile UI contract', () => {
     const productForm = source('components/products/product-form.tsx')
     const page = source('app/(dashboard)/products/(list)/page.tsx')
 
-    expect(products).toContain('sticky top-[5.35rem]')
+    expect(products).toContain('sticky top-[4rem]')
     expect(products).toContain('<MobileBottomSheet')
     expect(products).toContain('activeFacetCount')
     expect(products).toContain('text-base sm:text-sm')
@@ -58,15 +58,15 @@ describe('shared adaptive mobile UI contract', () => {
     const search = source('components/products/orders-search-form.tsx')
     const tabs = source('components/products/commerce-tabs.tsx')
 
-    expect(search).toContain('sticky top-[5.35rem]')
+    expect(search).toContain('sticky top-[4rem]')
     expect(search).toContain('<MobileBottomSheet')
     expect(search).toContain('<MaterialSelect')
     expect(search).not.toContain('aria-live="polite"')
     expect(orders).toContain('<MobileOrderCard')
     expect(mobileOrder).toContain('<MobileBottomSheet')
     expect(mobileOrder).toContain('aria-haspopup="dialog"')
-    expect(orders).toContain('spatial-surface hidden overflow-hidden rounded-[1.5rem] !bg-white')
-    expect(search).toContain('spatial-surface rounded-[1.35rem] !bg-white')
+    expect(orders).toContain('spatial-surface hidden overflow-hidden rounded-card !bg-white')
+    expect(search).toContain('spatial-surface rounded-card !bg-white')
     expect(tabs).toContain('spatial-surface grid gap-1')
     // Products / orders / chat requests share one segmented control.
     expect(tabs).toContain("items.length === 3 ? 'grid-cols-3")
@@ -194,7 +194,7 @@ describe('shared adaptive mobile UI contract', () => {
   it('keeps plan status beside notifications and derives its ring from subscription days', () => {
     const dashboardHeader = source('components/dashboard/header.tsx')
     const actionGroupStart = dashboardHeader.indexOf(
-      '<div className="flex shrink-0 items-center justify-end gap-1.5 xl:gap-2.5">',
+      '<div className="flex shrink-0 items-center justify-end gap-1">',
     )
     const actionGroup = dashboardHeader.slice(actionGroupStart)
 
@@ -219,6 +219,8 @@ describe('shared adaptive mobile UI contract', () => {
     expect(improvementTabs).toContain('<NavigationCountBadge')
     expect(agentTabs).not.toContain('absolute -end-1 -top-1')
     expect(countBadge).toContain("count > 99 ? `${formatter.format(99)}+`")
-    expect(countBadge).toContain("active\n          ? 'bg-white text-black ring-white'")
+    // Counts are soft lavender; solid violet is reserved for live / AI states.
+    expect(countBadge).toContain("'bg-[var(--signal-tint)] text-[var(--signal-strong)]'")
+    expect(countBadge).not.toContain('bg-[var(--signal)] text-white')
   })
 })
