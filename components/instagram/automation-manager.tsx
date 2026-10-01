@@ -253,7 +253,7 @@ className="ui-seg-tab group min-h-[4.5rem] justify-start gap-3 px-3.5 py-3 text-
                                                                 <span className="min-w-0 flex-1">
                                                                         <span className="flex items-center justify-between gap-2">
                                                                                 <span className="text-sm font-semibold">{t(labelKey)}</span>
-<span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums ${active ? 'bg-[var(--signal-soft)] text-[var(--signal-strong)]' : 'bg-black/[0.06] text-[var(--text-secondary)]'}`}>
+<span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums ${active ? 'bg-[var(--text-primary)] text-white' : 'bg-black/[0.06] text-[var(--text-secondary)]'}`}>
                                                                                         {activeCount.toLocaleString(numLocale)}
                                                                                 </span>
                                                                         </span>

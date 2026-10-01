@@ -392,7 +392,7 @@ export function NotificationBell() {
 				aria-expanded={open}
 				aria-haspopup="dialog"
 				className={cn(
-					'relative inline-flex h-10 w-10 items-center justify-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+					'spatial-press relative inline-flex h-12 w-12 items-center justify-center rounded-card border border-black/[0.07] bg-white/80 text-[var(--text-muted)] shadow-[var(--elev-1)] transition-colors hover:border-black/[0.12] hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 xl:h-14 xl:w-14 xl:rounded-card',
 					open && 'border-black bg-black text-white hover:border-black hover:bg-black hover:text-white',
 				)}
 			>
@@ -415,7 +415,7 @@ export function NotificationBell() {
 							exit={{ opacity: 0, scale: 0.8 }}
 							transition={{ type: 'spring', bounce: 0, duration: 0.28 }}
 							aria-hidden="true"
-							className="absolute -end-1.5 -top-1.5 flex h-[1.2rem] min-w-[1.2rem] items-center justify-center rounded-full bg-[var(--signal-tint)] text-[var(--signal-strong)] px-1 text-[11.5px] font-bold tabular-nums shadow-sm ring-2 ring-white"
+							className="absolute -end-1.5 -top-1.5 flex h-[1.2rem] min-w-[1.2rem] items-center justify-center rounded-full bg-[var(--notif)] text-[var(--notif-ink)] px-1 text-[11.5px] font-bold tabular-nums shadow-sm ring-2 ring-white"
 						>
 							{formatCount(unread)}
 						</motion.span>
@@ -445,7 +445,7 @@ export function NotificationBell() {
 								transition={reduceMotion
 									? { duration: 0.16 }
 									: { type: 'spring', bounce: 0, duration: 0.34 }}
-								className="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[101] mx-auto max-w-md overflow-hidden rounded-card border border-black/[0.08] bg-white/95 shadow-[0_18px_48px_-20px_rgba(17,17,17,0.45)] backdrop-blur-xl sm:inset-x-auto sm:end-5 sm:top-[4rem] sm:mx-0 sm:w-[24rem] sm:bg-white"
+								className="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[101] mx-auto max-w-md overflow-hidden rounded-card border border-black/[0.08] bg-white/95 shadow-[0_18px_48px_-20px_rgba(17,17,17,0.45)] backdrop-blur-xl sm:inset-x-auto sm:end-5 sm:top-[5.75rem] sm:mx-0 sm:w-[24rem] sm:bg-white xl:top-[6.75rem]"
 							>
 								<div className="flex items-start gap-1 p-1.5">
 									{toast.link ? (
@@ -551,7 +551,7 @@ export function NotificationBell() {
 												<h2 id="notification-panel-title" className="flex items-center gap-2 text-[16px] font-bold leading-6 text-[var(--text-primary)]">
 													{t('title')}
 													{unread > 0 && (
-														<span className="rounded-full bg-[var(--signal-tint)] text-[var(--signal-strong)] px-2 py-px text-[11.5px] font-bold tabular-nums">
+														<span className="rounded-full bg-[var(--notif)] text-[var(--notif-ink)] px-2 py-px text-[11.5px] font-bold tabular-nums">
 															{formatCount(unread)}
 														</span>
 													)}
@@ -712,7 +712,7 @@ function NotificationRow({
 	const relative = smartTime(item.createdAt, locale)
 	const rowClass = cn(
 		'flex w-full min-w-0 items-start gap-3 py-3 pe-12 ps-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:rounded-[14px]',
-		item.read ? 'hover:bg-black/[0.03]' : 'bg-violet-50/45 hover:bg-violet-50/80',
+		item.read ? 'hover:bg-black/[0.03]' : 'bg-[var(--notif-soft)] hover:bg-[var(--notif-tint)]',
 	)
 	const content = (
 		<>
@@ -754,7 +754,7 @@ function NotificationRow({
 			)}
 			{!item.read && (
 				<>
-					<span aria-hidden="true" className="pointer-events-none absolute end-[1.15rem] top-[1.35rem] h-2 w-2 rounded-full bg-[var(--signal,#6e56cf)] transition-opacity [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:hover)]:group-hover:opacity-0" />
+					<span aria-hidden="true" className="pointer-events-none absolute end-[1.15rem] top-[1.35rem] h-2 w-2 rounded-full bg-[var(--notif)] ring-1 ring-[var(--notif-strong)] transition-opacity [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:hover)]:group-hover:opacity-0" />
 					<button
 						type="button"
 						disabled={reading}
@@ -794,10 +794,10 @@ function ToastContent({ item, label }: { item: NotificationItem; label: string }
 		<>
 			<span className={cn('relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-[12px] ring-1 ring-inset', meta.tone)}>
 				<Icon className="h-[1.05rem] w-[1.05rem]" />
-				<span aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--signal,#6e56cf)] ring-2 ring-white" />
+				<span aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--notif)] ring-2 ring-white" />
 			</span>
 			<span className="min-w-0 flex-1">
-				<span className="block text-[11.5px] font-semibold text-[var(--signal,#6e56cf)]">{label}</span>
+				<span className="block text-[11.5px] font-semibold text-[var(--notif-strong)]">{label}</span>
 				<span className="mt-0.5 line-clamp-2 block text-[14px] font-bold leading-6 text-black">{item.title}</span>
 				{item.body && (
 					<span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-[var(--text-secondary)]">

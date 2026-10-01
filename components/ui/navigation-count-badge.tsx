@@ -2,7 +2,6 @@ import { cn } from '@/lib/utils'
 
 export function NavigationCountBadge({
   count,
-  active = false,
   locale = 'fa-IR',
   label,
   className,
@@ -21,11 +20,10 @@ export function NavigationCountBadge({
   return (
     <span
       className={cn(
-        // Counts are soft lavender everywhere; solid violet stays reserved for
-        // live / AI states. On an active (ink) row the tint pill still reads.
-        'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[12px] font-bold leading-none tabular-nums ring-1 ring-inset',
-        'bg-[var(--signal-tint)] text-[var(--signal-strong)]',
-        active ? 'ring-[var(--signal-tint)]' : 'ring-[var(--signal-border)]',
+        // Counts are neutral ink everywhere; violet stays reserved for live /
+        // AI states and gold for notifications.
+        'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[12px] font-bold leading-none tabular-nums',
+        'bg-[var(--text-primary)] text-white',
         className,
       )}
     >

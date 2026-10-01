@@ -580,7 +580,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       else if (event.key === 'ArrowRight') n = (i + (fa ? -1 : 1) + 2) % 2
       else return
       event.preventDefault(); setTab(keys[n]); document.getElementById(`analysis-tab-${keys[n]}`)?.focus()
-    }} className="ui-seg-tab min-h-12 gap-1.5 px-1.5 text-xs sm:gap-2 sm:text-sm"><Icon className="h-4 w-4 shrink-0" aria-hidden="true" />{t(f, e)}{key === 'suggestions' && !!data?.pendingCount && <span className={cn('ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[12px] font-bold', 'bg-[var(--signal-tint)] text-[var(--signal-strong)]')}>{number(data.pendingCount)}</span>}</button>)}</div>
+    }} className="ui-seg-tab min-h-12 gap-1.5 px-1.5 text-xs sm:gap-2 sm:text-sm"><Icon className="h-4 w-4 shrink-0" aria-hidden="true" />{t(f, e)}{key === 'suggestions' && !!data?.pendingCount && <span className={cn('ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[12px] font-bold', 'bg-[var(--text-primary)] text-white')}>{number(data.pendingCount)}</span>}</button>)}</div>
     {!data && (
       <div role="status" className="space-y-3">
         <span className="sr-only">{t('در حال دریافت اطلاعات…', 'Loading…')}</span>
