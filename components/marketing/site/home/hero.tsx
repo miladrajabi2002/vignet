@@ -20,7 +20,7 @@ pill: 'ایجنت هوش مصنوعی برای کسب‌وکارها',
 		incoming: [
 			{ who: 'سارا · دایرکت اینستاگرام', color: '#be185d', text: 'سلام! کت گرامی مشکی سایز M موجوده؟' },
 			{ who: 'امیر · تلگرام', color: '#0369a1', text: 'سفارش پیتزای من کی می‌رسه؟' },
-			{ who: 'نگار · ویجت سایت', color: '#6e56cf', text: 'جمعه ساعت ۵ وقت مشاوره دارید؟' },
+			{ who: 'نگار · ویجت سایت', color: '#5b3de8', text: 'جمعه ساعت ۵ وقت مشاوره دارید؟' },
 		],
 		replies: [
 			{ text: 'بله سارا جان، M و L موجوده؛ ۲٬۴۸۰٬۰۰۰ تومان. کارت محصول رو فرستادم.', source: 'منبع: کاتالوگ محصولات' },
@@ -51,7 +51,7 @@ pill: 'An AI agent for businesses',
 		incoming: [
 			{ who: 'Sara · Instagram DM', color: '#be185d', text: 'Hi! Is the black cardigan in size M?' },
 			{ who: 'Amir · Telegram', color: '#0369a1', text: 'When will my pizza order arrive?' },
-			{ who: 'Negar · Website widget', color: '#6e56cf', text: 'Any consultation slot Friday at 5?' },
+			{ who: 'Negar · Website widget', color: '#5b3de8', text: 'Any consultation slot Friday at 5?' },
 		],
 		replies: [
 			{ text: 'Yes Sara, M and L are in stock — 2,480,000 toman. I sent the product card.', source: 'Source: product catalog' },
@@ -90,7 +90,7 @@ const RESULT_LIT = ['vg-l1', 'vg-l3', 'vg-l2', '']
    an annotation on the answer it describes. */
 const CHIP_ICONS: { icon: IconType; color: string }[] = [
 	{ icon: PackageCheck, color: '#15803d' },
-	{ icon: MoonStar, color: '#6e56cf' },
+	{ icon: MoonStar, color: '#5b3de8' },
 	{ icon: CircleCheck, color: '#1d4ed8' },
 ]
 const REPLY_CLOCK = ['vg-r1', 'vg-r2', 'vg-r3']
@@ -134,8 +134,8 @@ export function Hero({ locale }: { locale: SiteLocale }) {
 				    same timer glyph that section's pill carries. */}
 				<a href="#what" className={cn(btnGhost, btnLg, 'w-full sm:w-auto lg:px-6')}>
 					<svg aria-hidden viewBox="0 0 36 36" className="size-[18px] shrink-0">
-						<circle cx="18" cy="18" r="15" fill="none" stroke="rgba(110,86,207,0.18)" strokeWidth="4" />
-						<circle cx="18" cy="18" r="15" fill="none" stroke="#6e56cf" strokeWidth="4" strokeDasharray="70 100" strokeLinecap="round" transform="rotate(-90 18 18)" />
+						<circle cx="18" cy="18" r="15" fill="none" stroke="rgba(91,61,232,0.18)" strokeWidth="4" />
+						<circle cx="18" cy="18" r="15" fill="none" stroke="#5b3de8" strokeWidth="4" strokeDasharray="70 100" strokeLinecap="round" transform="rotate(-90 18 18)" />
 					</svg>
 					{copy.how}
 				</a>
@@ -175,14 +175,14 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 		<div className="hidden justify-center lg:flex">
 			<div className="vg-stage vg-dots relative h-[480px] w-[1200px] shrink-0 overflow-hidden rounded-sheet border border-vg-line bg-white text-start shadow-[0_50px_90px_-56px_rgba(17,17,17,0.45)]" aria-hidden>
 				<svg width={W} height={480} viewBox={`0 0 ${W} 480`} fill="none" className="absolute inset-0">
-					{inPaths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#6e56cf" strokeOpacity={0.35} strokeWidth={1.5} />)}
+					{inPaths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#5b3de8" strokeOpacity={0.35} strokeWidth={1.5} />)}
 					{outPaths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#15803d" strokeOpacity={0.35} strokeWidth={1.5} />)}
 				</svg>
 				{/* One packet per real event: each message leaves its own channel just
 				    before its bubble appears, and each recorded result is sent the
 				    moment its reply lands (see HERO_BEATS). */}
 				{HERO_BEATS.map((beat) => (
-					<div key={`in-${beat.channel}`} className="vg-pkt vg-shot" style={{ background: '#6e56cf', boxShadow: '0 0 0 4px rgba(110,86,207,0.15)', offsetPath: `path('${inPaths[beat.channel]}')`, animationDelay: `${beat.inAt}s` }} />
+					<div key={`in-${beat.channel}`} className="vg-pkt vg-shot" style={{ background: '#5b3de8', boxShadow: '0 0 0 4px rgba(91,61,232,0.15)', offsetPath: `path('${inPaths[beat.channel]}')`, animationDelay: `${beat.inAt}s` }} />
 				))}
 				{HERO_BEATS.map((beat) => (
 					<div key={`out-${beat.result}`} className="vg-pkt vg-shot" style={{ background: '#15803d', boxShadow: '0 0 0 4px rgba(21,128,61,0.15)', offsetPath: `path('${outPaths[beat.result]}')`, animationDelay: `${beat.outAt}s` }} />
@@ -213,11 +213,11 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 					</div>
 				))}
 
-				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(110,86,207,0.45)]" style={place({ x: 516, y: 156, w: 168, h: 168 }, m)} />
-				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(110,86,207,0.45)] [animation-delay:1.4s]" style={place({ x: 516, y: 156, w: 168, h: 168 }, m)} />
-				<div className="flex items-center justify-center rounded-full border border-vg-line bg-white shadow-[0_24px_50px_-24px_rgba(110,86,207,0.6)]" style={place({ x: 526, y: 166, w: 148, h: 148 }, m)}>
+				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)]" style={place({ x: 516, y: 156, w: 168, h: 168 }, m)} />
+				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)] [animation-delay:1.4s]" style={place({ x: 516, y: 156, w: 168, h: 168 }, m)} />
+				<div className="flex items-center justify-center rounded-full border border-vg-line bg-white shadow-[0_24px_50px_-24px_rgba(91,61,232,0.6)]" style={place({ x: 526, y: 166, w: 148, h: 148 }, m)}>
 					<div className="flex size-[104px] flex-col items-center justify-center gap-0.5 rounded-full bg-vg-ink text-white">
-						<Sparkles className="vg-spin size-6 text-[#c7bdf0]" strokeWidth={1.8} />
+						<Sparkles className="vg-spin size-6 text-[#b9adff]" strokeWidth={1.8} />
 						<span className="text-[15px] font-bold">{copy.agent}</span>
 					</div>
 				</div>
@@ -232,7 +232,7 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 						style={{ ...place({ x: 468, y: 378, w: 264 }, m), borderRadius: bubbleOut }}
 					>
 						{reply.text}
-						<div className="mt-0.5 text-[12px] text-[#c7bdf0]">{reply.source}</div>
+						<div className="mt-0.5 text-[12px] text-[#b9adff]">{reply.source}</div>
 					</div>
 				))}
 				{copy.chips.map((chip, i) => (
@@ -270,7 +270,7 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 
 function Thinking({ label, small = false }: { label: string; small?: boolean }) {
 	return (
-		<span className={cn('inline-flex items-center rounded-full bg-vg-tint font-medium text-[#5746af]', small ? 'h-[26px] gap-[7px] px-[11px] text-[11.5px]' : 'h-[30px] gap-2 px-3 text-[12px]')}>
+		<span className={cn('inline-flex items-center rounded-full bg-vg-tint font-medium text-[#4c2fd0]', small ? 'h-[26px] gap-[7px] px-[11px] text-[11.5px]' : 'h-[30px] gap-2 px-3 text-[12px]')}>
 			<span className="inline-flex gap-[3px]">
 				{[0, 0.2, 0.4].map((delay) => (
 					<span key={delay} className={cn('vg-tdot rounded-full bg-vg-signal', small ? 'size-1' : 'size-[5px]')} style={{ animationDelay: `${delay}s` }} />
@@ -298,11 +298,11 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 		<div className="flex justify-center lg:hidden">
 			<div className="vg-mstage vg-dots relative h-[606px] w-[358px] shrink-0 overflow-hidden rounded-sheet border border-vg-line bg-white shadow-[0_40px_70px_-48px_rgba(17,17,17,0.5)]" aria-hidden>
 				<svg width={MW} height={606} viewBox={`0 0 ${MW} 606`} fill="none" className="absolute inset-0">
-					{paths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#6e56cf" strokeOpacity={0.32} strokeWidth={1.4} />)}
+					{paths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#5b3de8" strokeOpacity={0.32} strokeWidth={1.4} />)}
 					<path className="vg-flow" d="M179 456 L 179 474" stroke="#15803d" strokeOpacity={0.4} strokeWidth={1.4} />
 				</svg>
 				{HERO_BEATS.map((beat) => (
-					<div key={beat.channel} className="vg-pkt vg-shot" style={{ background: '#6e56cf', boxShadow: '0 0 0 4px rgba(110,86,207,0.15)', offsetPath: `path('${paths[beat.channel]}')`, animationDelay: `${beat.inAt}s` }} />
+					<div key={beat.channel} className="vg-pkt vg-shot" style={{ background: '#5b3de8', boxShadow: '0 0 0 4px rgba(91,61,232,0.15)', offsetPath: `path('${paths[beat.channel]}')`, animationDelay: `${beat.inAt}s` }} />
 				))}
 				<div className="absolute inset-x-0 top-3.5 text-center text-[11.5px] font-medium text-vg-cap">{copy.inputs}</div>
 				{CHANNELS.map((channel, i) => (
@@ -323,11 +323,11 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 						{msg.text}
 					</div>
 				))}
-				<div className="vg-ring absolute left-[131px] top-[228px] size-24 rounded-full border-[1.5px] border-[rgba(110,86,207,0.45)]" />
-				<div className="vg-ring absolute left-[131px] top-[228px] size-24 rounded-full border-[1.5px] border-[rgba(110,86,207,0.45)] [animation-delay:1.4s]" />
-				<div className="absolute left-[131px] top-[228px] flex size-24 items-center justify-center rounded-full border border-vg-line bg-white shadow-[0_20px_40px_-20px_rgba(110,86,207,0.6)]">
+				<div className="vg-ring absolute left-[131px] top-[228px] size-24 rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)]" />
+				<div className="vg-ring absolute left-[131px] top-[228px] size-24 rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)] [animation-delay:1.4s]" />
+				<div className="absolute left-[131px] top-[228px] flex size-24 items-center justify-center rounded-full border border-vg-line bg-white shadow-[0_20px_40px_-20px_rgba(91,61,232,0.6)]">
 					<div className="flex size-[70px] flex-col items-center justify-center gap-px rounded-full bg-vg-ink text-white">
-						<Sparkles className="vg-spin size-[18px] text-[#c7bdf0]" strokeWidth={1.8} />
+						<Sparkles className="vg-spin size-[18px] text-[#b9adff]" strokeWidth={1.8} />
 						<span className="text-[12px] font-bold">{copy.agent}</span>
 					</div>
 				</div>
@@ -339,7 +339,7 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 						style={{ ...place({ x: 40, y: 368, w: 278 }, m, MW), borderRadius: bubbleOut }}
 					>
 						{reply.text}
-						<div className="text-[11px] text-[#c7bdf0]">{reply.source}</div>
+						<div className="text-[11px] text-[#b9adff]">{reply.source}</div>
 					</div>
 				))}
 				{copy.chips.map((chip, i) => (

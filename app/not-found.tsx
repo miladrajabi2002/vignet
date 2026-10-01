@@ -133,7 +133,7 @@ export default async function NotFound() {
 					<aside className="flex w-full flex-col gap-3.5 lg:w-[460px] lg:shrink-0">
 						<div className="flex grow flex-col gap-3 rounded-card border border-vg-line bg-white p-4 text-start shadow-[var(--elev-2)] lg:p-[22px]">
 							<div className="hidden items-center gap-2.5 lg:flex">
-								<span aria-hidden className="inline-flex size-10 items-center justify-center rounded-full bg-vg-ink text-[#c7bdf0]"><Sparkles className="size-[18px]" strokeWidth={1.8} /></span>
+								<span aria-hidden className="inline-flex size-10 items-center justify-center rounded-full bg-vg-ink text-[#b9adff]"><Sparkles className="size-[18px]" strokeWidth={1.8} /></span>
 								<div><p className="text-[15px] font-bold">{c.assistant}</p><p className="text-[12.5px] text-vg-cap">{c.assistantSub}</p></div>
 							</div>
 							<p className="flex items-center gap-2 text-[13px] font-bold text-vg-sub lg:hidden"><Sparkles aria-hidden className="size-4 text-vg-signal" strokeWidth={1.8} />{c.assistantMobile}</p>
@@ -195,7 +195,7 @@ function RouteBox({ locale, width, desktop = false }: { locale: SiteLocale; widt
 		<div aria-hidden className={cn('justify-center', desktop ? 'hidden lg:flex' : 'flex lg:hidden')}>
 			<div className={cn('vg-dots relative shrink-0 overflow-hidden rounded-3xl border border-vg-line bg-white', !desktop && 'vg-mstage')} style={{ width, height: g.height }}>
 				<svg width={width} height={g.height} viewBox={`0 0 ${width} ${g.height}`} fill="none" className="absolute inset-0">
-					<path className="vg-flow" d={lost} stroke="#6e56cf" strokeOpacity={0.4} strokeWidth={1.5} />
+					<path className="vg-flow" d={lost} stroke="#5b3de8" strokeOpacity={0.4} strokeWidth={1.5} />
 					<path d={`M${x(g.deadStart)} 70 L ${x(g.end)} 70`} stroke="#111111" strokeOpacity={0.12} strokeWidth={1.5} strokeDasharray="3 9" />
 					<path className="vg-flow" d={found} stroke="#15803d" strokeOpacity={0.45} strokeWidth={1.5} />
 				</svg>

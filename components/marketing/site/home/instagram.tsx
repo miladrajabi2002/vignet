@@ -35,7 +35,7 @@ export function InstagramSection({ locale }: { locale: SiteLocale }) {
 	return (
 		<section id="instagram" aria-labelledby="instagram-title" className="relative mt-12 scroll-mt-20 overflow-hidden bg-[#070707] px-4 py-12 text-white lg:mt-0 lg:py-[120px]">
 			<div aria-hidden className="vg-dark-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_80%_50%_at_50%_60%,#000,transparent)] lg:[mask-image:radial-gradient(ellipse_70%_60%_at_50%_45%,#000,transparent)]" />
-			<div aria-hidden className="pointer-events-none absolute left-1/2 top-[300px] size-[510px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(170,153,236,0.22),rgba(236,72,153,0.07)_55%,rgba(7,7,7,0))] lg:left-[220px] lg:top-40 lg:size-[640px] lg:translate-x-0" />
+			<div aria-hidden className="pointer-events-none absolute left-1/2 top-[300px] size-[510px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(150,133,251,0.22),rgba(236,72,153,0.07)_55%,rgba(7,7,7,0))] lg:left-[220px] lg:top-40 lg:size-[640px] lg:translate-x-0" />
 
 			<div className="relative mx-auto grid w-full max-w-[1200px] gap-5 lg:grid-cols-[440px_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-[72px] lg:gap-y-[26px]">
 				<header className="vg-rv flex flex-col items-center text-center lg:col-start-1 lg:row-start-1 lg:items-start lg:self-end lg:text-start">

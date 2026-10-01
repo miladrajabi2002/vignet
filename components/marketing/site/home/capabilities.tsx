@@ -55,7 +55,7 @@ const COPY = {
 			{ text: 'سارا — کت مشکی موجوده؟', ch: 'اینستاگرام', color: '#be185d' },
 			{ text: 'امیر — سفارشم کی میرسه؟', ch: 'تلگرام', color: '#0369a1' },
 			{ text: 'مهدی — قرارداد سازمانی', ch: 'بله', color: '#00a37a' },
-			{ text: 'نگار — وقت جمعه', ch: 'سایت', color: '#6e56cf' },
+			{ text: 'نگار — وقت جمعه', ch: 'سایت', color: '#5b3de8' },
 		],
 		voiceTitle: 'پیام صوتی فارسی را می‌فهمد',
 		voiceBody: 'مشتری هرجا راحت‌تر است صحبت می‌کند؛ ایجنت می‌فهمد و در برنامه‌هایی که پشتیبانی می‌کنند، صوتی جواب می‌دهد.',
@@ -146,7 +146,7 @@ repBody: 'نرخ حل گفتگو، رضایت، سهم برنامه‌ها و ه
 			{ text: 'Sara — black cardigan in stock?', ch: 'Instagram', color: '#be185d' },
 			{ text: 'Amir — when does my order arrive?', ch: 'Telegram', color: '#0369a1' },
 			{ text: 'Mehdi — enterprise contract', ch: 'Bale', color: '#00a37a' },
-			{ text: 'Negar — Friday slot', ch: 'Website', color: '#6e56cf' },
+			{ text: 'Negar — Friday slot', ch: 'Website', color: '#5b3de8' },
 		],
 		voiceTitle: 'Understands Persian voice notes',
 		voiceBody: 'Customers talk however they like; the agent understands and, on channels that support it, replies by voice.',
@@ -197,7 +197,7 @@ const MOBILE_ICONS: Record<CueKey, IconType> = {
 	crm: ArrowLeftRight, bot: TelegramIcon as IconType, lang: Languages, ctrl: SlidersHorizontal, rep: ChartColumn,
 }
 const BAR_HEIGHTS = [45, 62, 54, 78, 70, 92, 84]
-const BAR_COLORS = ['#e4e4e7', '#e4e4e7', '#e4e4e7', '#c7bdf0', '#e4e4e7', '#6e56cf', '#e4e4e7']
+const BAR_COLORS = ['#e4e4e7', '#e4e4e7', '#e4e4e7', '#b9adff', '#e4e4e7', '#5b3de8', '#e4e4e7']
 const WAVE_DELAYS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.15, 0.35, 0.05, 0.25, 0.45, 0.12]
 
 const bento = 'vg-lift flex flex-col rounded-card border border-vg-line bg-white p-7'
@@ -226,7 +226,7 @@ const INBOX_DOTS = [
 	{ color: '#be185d', cls: 'vg-in1' },
 	{ color: '#0369a1', cls: 'vg-in2' },
 	{ color: '#047857', cls: 'vg-in3' },
-	{ color: '#6e56cf', cls: 'vg-in4' },
+	{ color: '#5b3de8', cls: 'vg-in4' },
 ]
 
 /**
@@ -264,15 +264,15 @@ function MiniCue({ cue, locale }: { cue: CueKey; locale: SiteLocale }) {
 		case 'voice':
 			return (
 				<div aria-hidden className={cn(box, 'gap-[3px] rounded-lg bg-[#1f1f23] px-2')}>
-					{WAVE_DELAYS.slice(0, 10).map((delay) => <span key={delay} className="vg-wave h-3.5 w-[2.5px] rounded bg-[#c7bdf0]" style={{ animationDelay: `${delay}s` }} />)}
+					{WAVE_DELAYS.slice(0, 10).map((delay) => <span key={delay} className="vg-wave h-3.5 w-[2.5px] rounded bg-[#b9adff]" style={{ animationDelay: `${delay}s` }} />)}
 					<span className="ms-1 text-[10px] tabular-nums text-[#a1a1aa]">{m.time}</span>
 				</div>
 			)
 		case 'pre':
 			return (
-				<div aria-hidden className={cn(box, 'gap-1.5 text-[10.5px] font-medium text-[#5746af]')}>
+				<div aria-hidden className={cn(box, 'gap-1.5 text-[10.5px] font-medium text-[#4c2fd0]')}>
 					<span className="relative inline-flex size-5 items-center justify-center">
-						<span className="vg-ring absolute inset-0 rounded-full border border-[rgba(110,86,207,0.45)]" />
+						<span className="vg-ring absolute inset-0 rounded-full border border-[rgba(91,61,232,0.45)]" />
 						<Bell className="relative size-3" strokeWidth={2.2} />
 					</span>
 					{m.notify}
@@ -281,7 +281,7 @@ function MiniCue({ cue, locale }: { cue: CueKey; locale: SiteLocale }) {
 		case 'crm':
 			return (
 				<div aria-hidden className={cn(box, 'gap-1.5')}>
-					<span className="inline-flex size-5 items-center justify-center rounded-full bg-vg-soft text-[10px] font-bold text-[#5746af]">{m.initial}</span>
+					<span className="inline-flex size-5 items-center justify-center rounded-full bg-vg-soft text-[10px] font-bold text-[#4c2fd0]">{m.initial}</span>
 					<span className="vg-sq2 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[10px] leading-none text-[#166534]">{m.tag}</span>
 				</div>
 			)
@@ -437,7 +437,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						return (
 							<li key={item.t} className={cn('relative flex flex-col items-center gap-2 rounded-card px-3 pb-3.5 pt-[18px] text-center', dark ? 'bg-vg-ink text-white' : 'border border-vg-line bg-white', i === MOBILE_KEYS.length - 1 && MOBILE_KEYS.length % 2 === 1 && 'col-span-2')}>
 								{cue === 'sell' ? <span className="absolute start-2.5 top-2.5 rounded-full bg-vg-signal px-[7px] py-0.5 text-[11px] text-white">{c.preNew}</span> : null}
-								<span aria-hidden className={cn('inline-flex size-[42px] items-center justify-center rounded-control', dark ? 'bg-white/10 text-[#c7bdf0]' : 'bg-vg-ink text-white')}>
+								<span aria-hidden className={cn('inline-flex size-[42px] items-center justify-center rounded-control', dark ? 'bg-white/10 text-[#b9adff]' : 'bg-vg-ink text-white')}>
 									<Icon className="size-[19px]" strokeWidth={1.8} />
 								</span>
 								<h3 className="text-[14px] font-bold leading-[1.6]">{item.t}</h3>
@@ -459,7 +459,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						<div aria-hidden className="flex grow flex-col gap-2.5 rounded-card bg-vg-bg p-[18px]">
 							<div className="flex justify-between text-[12px] text-vg-cap"><span>{c.learnCenter}</span><span className="text-[#b45309]">{c.learnNew}</span></div>
 							<div className="vg-sq1 rounded-control bg-white px-3.5 py-3 text-[13px] leading-[1.8]"><span className="text-vg-cap">{c.learnAsked}</span> {c.learnQ}</div>
-							<div className="vg-sq2 rounded-control border border-[rgba(110,86,207,0.3)] bg-white px-3.5 py-3 text-[13px] leading-[1.8]"><span className="font-medium text-vg-signal">{c.learnSuggest}</span> {c.learnA} <span className="text-[#9ca3af]">{c.learnSrc}</span></div>
+							<div className="vg-sq2 rounded-control border border-[rgba(91,61,232,0.3)] bg-white px-3.5 py-3 text-[13px] leading-[1.8]"><span className="font-medium text-vg-signal">{c.learnSuggest}</span> {c.learnA} <span className="text-[#9ca3af]">{c.learnSrc}</span></div>
 							<div className="vg-sq3 flex gap-2">
 								<span className="inline-flex h-9 items-center gap-1.5 rounded-chip bg-vg-ink px-3.5 text-[12px] text-white"><Check className="size-3.5" strokeWidth={2.2} />{c.learnApprove}</span>
 								<span className="inline-flex h-9 items-center rounded-chip border border-black/10 bg-white px-3.5 text-[12px]">{c.learnEdit}</span>
@@ -491,7 +491,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 							</div>
 							<div className="flex items-center gap-2">
 								<span className="vg-sq3 inline-flex h-7 items-center gap-1.5 rounded-full bg-[#dcfce7] px-2.5 text-[12px] font-medium text-[#166534]"><Check className="size-3.5" strokeWidth={2.4} />{c.sellPaid}</span>
-								<span className="vg-sq4 inline-flex h-7 min-w-0 items-center gap-1.5 truncate rounded-full bg-vg-tint px-2.5 text-[12px] font-medium text-[#5746af]"><PackageCheck className="size-3.5 shrink-0" strokeWidth={2} /><span className="truncate">{c.sellOrder}</span></span>
+								<span className="vg-sq4 inline-flex h-7 min-w-0 items-center gap-1.5 truncate rounded-full bg-vg-tint px-2.5 text-[12px] font-medium text-[#4c2fd0]"><PackageCheck className="size-3.5 shrink-0" strokeWidth={2} /><span className="truncate">{c.sellOrder}</span></span>
 							</div>
 						</div>
 					</article>
@@ -504,12 +504,12 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 							<div className="vg-sq1 self-start rounded-[14px_14px_4px_14px] bg-[#f4f4f5] px-3 py-[7px] text-[12px] ltr:self-end ltr:rounded-[14px_14px_14px_4px]">{c.bookAsk}</div>
 							<div className="vg-sq2 flex gap-1.5">
 								{c.bookSlots.map((slot, i) => (
-									<span key={slot} className={cn('flex h-9 grow items-center justify-center rounded-xl border text-[12.5px] font-semibold tabular-nums', i === 0 ? 'border-transparent bg-vg-bg text-vg-dim line-through' : i === 1 ? 'border-vg-signal bg-vg-tint text-[#5746af] shadow-[0_0_0_3px_rgba(110,86,207,0.08)]' : 'border-vg-line bg-white')}>{slot}</span>
+									<span key={slot} className={cn('flex h-9 grow items-center justify-center rounded-xl border text-[12.5px] font-semibold tabular-nums', i === 0 ? 'border-transparent bg-vg-bg text-vg-dim line-through' : i === 1 ? 'border-vg-signal bg-vg-tint text-[#4c2fd0] shadow-[0_0_0_3px_rgba(91,61,232,0.08)]' : 'border-vg-line bg-white')}>{slot}</span>
 								))}
 							</div>
 							<div className="flex flex-wrap items-center gap-1.5">
 								<span className="vg-sq3 inline-flex h-7 items-center gap-1.5 rounded-full bg-[#dcfce7] px-2.5 text-[12px] font-medium text-[#166534]"><CalendarCheck className="size-3.5" strokeWidth={2} />{c.bookDone}</span>
-								<span className="vg-sq4 inline-flex h-7 items-center gap-1.5 rounded-full bg-vg-tint px-2.5 text-[12px] font-medium text-[#5746af]"><BellRing className="size-3.5" strokeWidth={2} />{c.bookTeam}</span>
+								<span className="vg-sq4 inline-flex h-7 items-center gap-1.5 rounded-full bg-vg-tint px-2.5 text-[12px] font-medium text-[#4c2fd0]"><BellRing className="size-3.5" strokeWidth={2} />{c.bookTeam}</span>
 							</div>
 						</div>
 					</article>
@@ -555,7 +555,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 							<div className="absolute inset-0 flex flex-col gap-1.5">
 								{[0, 1, 2, 3].map((slot) => (
 									<div key={slot} className="relative h-10 shrink-0 rounded-xl bg-vg-bg">
-										{slot === 0 ? <span className="vg-land absolute inset-0 rounded-xl bg-vg-tint ring-1 ring-[rgba(110,86,207,0.18)]" /> : null}
+										{slot === 0 ? <span className="vg-land absolute inset-0 rounded-xl bg-vg-tint ring-1 ring-[rgba(91,61,232,0.18)]" /> : null}
 									</div>
 								))}
 							</div>
@@ -576,10 +576,10 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						<p className="mt-2 text-[14px] leading-[1.9] text-[#d4d4d8]">{c.voiceBody}</p>
 						<div aria-hidden className="mt-auto rounded-card bg-[#1f1f23] p-4">
 							<div className="flex h-10 items-center gap-1">
-								{WAVE_DELAYS.map((delay) => <span key={delay} className="vg-wave h-9 w-1 rounded bg-[#c7bdf0]" style={{ animationDelay: `${delay}s` }} />)}
+								{WAVE_DELAYS.map((delay) => <span key={delay} className="vg-wave h-9 w-1 rounded bg-[#b9adff]" style={{ animationDelay: `${delay}s` }} />)}
 								<span className="ms-auto text-[12px] text-[#a1a1aa]">{c.voiceTime}</span>
 							</div>
-							<div className="mt-2 h-[3px] overflow-hidden rounded-full bg-white/10"><span className="vg-scan block h-full rounded-full bg-[#c7bdf0]" /></div>
+							<div className="mt-2 h-[3px] overflow-hidden rounded-full bg-white/10"><span className="vg-scan block h-full rounded-full bg-[#b9adff]" /></div>
 							<div className="mt-2.5 text-[13px] leading-[1.8] text-[#e4e4e7]">{c.voiceQuote}</div>
 						</div>
 					</article>
@@ -590,7 +590,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						<div aria-hidden className="mt-auto flex flex-col gap-2">
 							<div className="vg-sq1 self-end rounded-[14px_14px_14px_4px] bg-vg-ink px-3 py-[9px] text-[12px] leading-[1.8] text-white ltr:self-start">{c.preAgent}</div>
 							<div className="vg-sq2 self-start rounded-[14px_14px_4px_14px] bg-[#f4f4f5] px-3 py-[9px] text-[12px] ltr:self-end">{c.preUser}</div>
-							<div className="vg-sq3 flex items-center gap-2 rounded-xl bg-vg-tint px-3 py-2.5 text-[12px] font-medium text-[#5746af]"><Bell className="size-[15px]" strokeWidth={1.8} />{c.preDone}</div>
+							<div className="vg-sq3 flex items-center gap-2 rounded-xl bg-vg-tint px-3 py-2.5 text-[12px] font-medium text-[#4c2fd0]"><Bell className="size-[15px]" strokeWidth={1.8} />{c.preDone}</div>
 						</div>
 					</article>
 
@@ -599,7 +599,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.crmBody}</p>
 						<div aria-hidden className="mt-auto flex flex-col gap-2.5 rounded-card bg-vg-bg p-3.5">
 							<div className="flex items-center gap-2.5">
-								<span className="inline-flex size-[34px] items-center justify-center rounded-full bg-vg-soft text-[13px] font-bold text-[#5746af]">{c.crmInitial}</span>
+								<span className="inline-flex size-[34px] items-center justify-center rounded-full bg-vg-soft text-[13px] font-bold text-[#4c2fd0]">{c.crmInitial}</span>
 								<div className="grow"><div className="text-[13px] font-bold">{c.crmName}</div><div className="text-[12px] text-vg-cap">{c.crmChannels}</div></div>
 								<span className="vg-sq2 rounded-full bg-[#dcfce7] px-2 py-1 text-[12px] text-[#166534]">{c.crmTag}</span>
 							</div>

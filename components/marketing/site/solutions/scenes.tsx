@@ -54,7 +54,7 @@ function Frame({ children, className, clock }: { children: ReactNode; className?
 	)
 }
 
-function Head({ icon: Icon, title, meta, tint = '#f5f3fd', color = '#6e56cf' }: { icon: IconType; title: string; meta?: ReactNode; tint?: string; color?: string }) {
+function Head({ icon: Icon, title, meta, tint = '#f3f1ff', color = '#5b3de8' }: { icon: IconType; title: string; meta?: ReactNode; tint?: string; color?: string }) {
 	return (
 		<div className="flex items-center gap-2.5">
 			<span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl" style={{ background: tint, color }}><Icon className="size-[18px]" strokeWidth={1.8} /></span>
@@ -73,7 +73,7 @@ function Typing({ step, className }: { step: number; className?: string }) {
 }
 
 function Chip({ step, children, tone = 'ok', className }: { step: number; children: ReactNode; tone?: 'ok' | 'violet' | 'warn' | 'ink'; className?: string }) {
-	const tones = { ok: 'bg-[#dcfce7] text-[#166534]', violet: 'bg-vg-tint text-[#5746af]', warn: 'bg-[#fef3c7] text-[#92400e]', ink: 'bg-vg-ink text-white' }
+	const tones = { ok: 'bg-[#dcfce7] text-[#166534]', violet: 'bg-vg-tint text-[#4c2fd0]', warn: 'bg-[#fef3c7] text-[#92400e]', ink: 'bg-vg-ink text-white' }
 	return <span className={cn(`vg-t${step}`, 'inline-flex h-7 w-fit items-center gap-1.5 rounded-full px-2.5 text-[11.5px] font-medium lg:text-[12px]', tones[tone], className)}>{children}</span>
 }
 
@@ -116,12 +116,12 @@ function UnifiedInboxScene({ locale }: { locale: SiteLocale }) {
 					})}
 				</div>
 				<div className="vg-t6 hidden w-[200px] shrink-0 flex-col gap-2 rounded-2xl bg-vg-bg p-3 lg:flex">
-					<div className="flex items-center gap-2"><span className="inline-flex size-9 items-center justify-center rounded-full bg-vg-soft font-bold text-[#5746af]">{t('س', 'S')}</span><div><div className="text-[13px] font-bold">{t('سارا', 'Sara')}</div><div className="text-[11px] text-vg-cap">{t('۳ برنامه', '3 channels')}</div></div></div>
+					<div className="flex items-center gap-2"><span className="inline-flex size-9 items-center justify-center rounded-full bg-vg-soft font-bold text-[#4c2fd0]">{t('س', 'S')}</span><div><div className="text-[13px] font-bold">{t('سارا', 'Sara')}</div><div className="text-[11px] text-vg-cap">{t('۳ برنامه', '3 channels')}</div></div></div>
 					<div className="flex gap-1">{[0, 4, 1].map((c) => <ChannelBadge key={c} channel={CHANNELS[c]} size={24} iconSize={12} radius={7} />)}</div>
 					<div className="rounded-xl bg-white p-2 text-[11.5px] leading-[1.8] text-vg-sub">{t('۲ سفارش قبلی · آخرین خرید: کت کرم', '2 past orders · last: cream coat')}</div>
 					<span className="vg-t7 w-fit rounded-full bg-[#dcfce7] px-2 py-0.5 text-[11px] text-[#166534]">{t('قصد خرید بالا', 'High intent')}</span>
 					<span className="vg-t8 mt-auto flex flex-col gap-1 rounded-xl bg-vg-ink p-2.5 text-[11.5px] leading-[1.7] text-white">
-						<Inbox className="size-4 text-[#c7bdf0]" strokeWidth={2} />
+						<Inbox className="size-4 text-[#b9adff]" strokeWidth={2} />
 						{t('۶ برنامه، ۱ صندوق؛ هیچ پیامی گم نمی‌شود', '6 channels, 1 inbox — nothing gets lost')}
 					</span>
 				</div>
@@ -157,7 +157,7 @@ function PersianChatbotScene({ locale }: { locale: SiteLocale }) {
 					</div>
 					<div className="vg-t4 flex flex-wrap justify-end gap-1.5 ltr:justify-start">
 						<span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] text-vg-sub"><FileText className="size-3" strokeWidth={2} />{t('منبع: قوانین ارسال', 'Source: shipping policy')}</span>
-						<span className="inline-flex items-center gap-1 rounded-full bg-vg-tint px-2 py-0.5 text-[11px] text-[#5746af]"><Zap className="size-3" strokeWidth={2} />{t('۳ ثانیه', '3 sec')}</span>
+						<span className="inline-flex items-center gap-1 rounded-full bg-vg-tint px-2 py-0.5 text-[11px] text-[#4c2fd0]"><Zap className="size-3" strokeWidth={2} />{t('۳ ثانیه', '3 sec')}</span>
 					</div>
 					<div className={cn(IN, 'vg-t5 bg-white')}>{t('عالیه، مرسی 🙏 مرجوعی چطوره؟', 'Great, thanks 🙏 What about returns?')}</div>
 					<div className="relative flex flex-col">
@@ -170,7 +170,7 @@ function PersianChatbotScene({ locale }: { locale: SiteLocale }) {
 					{sources.map(({ icon: Icon, label, glow }) => (
 						<span key={label} className="relative flex items-center gap-2 rounded-xl border border-vg-line bg-white p-2.5 text-[12.5px]">
 							<Icon className="size-4 text-vg-signal" strokeWidth={1.8} />{label}
-							{glow ? <span className={cn(glow, 'absolute -inset-px rounded-xl border-[1.5px] border-vg-signal shadow-[0_0_0_4px_rgba(110,86,207,0.1)]')} /> : null}
+							{glow ? <span className={cn(glow, 'absolute -inset-px rounded-xl border-[1.5px] border-vg-signal shadow-[0_0_0_4px_rgba(91,61,232,0.1)]')} /> : null}
 						</span>
 					))}
 					<span className="mt-auto rounded-xl bg-vg-bg p-2.5 text-[11.5px] leading-[1.8] text-vg-sub">{t('لحن: صمیمی و مؤدب · فقط از دانش تأییدشده', 'Tone: warm and polite · approved knowledge only')}</span>
@@ -276,8 +276,8 @@ function SupportScene({ locale }: { locale: SiteLocale }) {
 				</div>
 			</div>
 			<div className="vg-t7 flex items-center justify-center gap-4 rounded-2xl bg-vg-ink px-3 py-2.5 text-[12px] text-white">
-				<span className="inline-flex items-center gap-1.5"><Bot className="size-3.5 text-[#c7bdf0]" strokeWidth={2} />{t('۸۶٪ خودکار', '86% automated')}</span>
-				<span className="inline-flex items-center gap-1.5"><Clock className="size-3.5 text-[#c7bdf0]" strokeWidth={2} />{t('پاسخ در ۴ ثانیه', '4 sec replies')}</span>
+				<span className="inline-flex items-center gap-1.5"><Bot className="size-3.5 text-[#b9adff]" strokeWidth={2} />{t('۸۶٪ خودکار', '86% automated')}</span>
+				<span className="inline-flex items-center gap-1.5"><Clock className="size-3.5 text-[#b9adff]" strokeWidth={2} />{t('پاسخ در ۴ ثانیه', '4 sec replies')}</span>
 			</div>
 		</Frame>
 	)

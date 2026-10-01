@@ -108,7 +108,7 @@ export async function Pricing({ locale }: { locale: SiteLocale }) {
 					className="vg-rv"
 				/>
 
-				<div className="vg-rv mt-4 flex flex-col items-center gap-1.5 rounded-card border border-[rgba(110,86,207,0.2)] bg-vg-tint px-4 py-[18px] text-center lg:mt-9 lg:flex-row lg:justify-between lg:gap-4 lg:px-7 lg:py-[22px] lg:text-start">
+				<div className="vg-rv mt-4 flex flex-col items-center gap-1.5 rounded-card border border-[rgba(91,61,232,0.2)] bg-vg-tint px-4 py-[18px] text-center lg:mt-9 lg:flex-row lg:justify-between lg:gap-4 lg:px-7 lg:py-[22px] lg:text-start">
 					<div className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-4">
 						<span aria-hidden className="inline-flex size-10 items-center justify-center rounded-xl bg-vg-signal text-white lg:size-12 lg:rounded-control"><Sparkles className="size-[19px] lg:size-[22px]" strokeWidth={1.8} /></span>
 						<div>
@@ -129,7 +129,7 @@ export async function Pricing({ locale }: { locale: SiteLocale }) {
 							key={plan.id}
 							className={cn('relative flex flex-col rounded-card border bg-white p-[30px]', plan.recommended ? 'border-vg-ink shadow-[0_0_0_1px_#111111,var(--elev-2)]' : 'vg-lift border-black/10')}
 						>
-							{plan.recommended ? <span className="absolute end-6 top-6 rounded-full bg-vg-soft px-3 py-[5px] text-[12px] font-medium text-[#5746af]">{plan.badge}</span> : null}
+							{plan.recommended ? <span className="absolute end-6 top-6 rounded-full bg-vg-soft px-3 py-[5px] text-[12px] font-medium text-[#4c2fd0]">{plan.badge}</span> : null}
 							<h3 className="text-[20px] font-bold">{plan.name}</h3>
 							<p className="mt-1.5 text-[14px] leading-[1.8] text-vg-cap">{plan.audience}</p>
 							<p className="mt-[22px] flex items-baseline gap-2"><span className="text-[38px] font-bold tabular-nums">{plan.price}</span><span className="text-[14px] text-vg-cap">{plan.unit}</span></p>

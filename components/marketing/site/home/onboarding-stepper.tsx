@@ -75,7 +75,7 @@ export function OnboardingStepper({ steps, panels, label }: { steps: StepperStep
 							<span className="flex w-full items-center gap-3.5">
 								<span className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-[15px] font-bold', on ? 'bg-vg-signal text-white' : 'border border-black/10 bg-white text-vg-sub')}>{step.num}</span>
 								<span className="grow text-[16px] font-bold">{step.title}</span>
-								<span className={cn('shrink-0 text-[12px]', on ? 'rounded-full bg-vg-tint px-2.5 py-1 font-medium text-[#5746af]' : 'text-vg-cap')}>{step.duration}</span>
+								<span className={cn('shrink-0 text-[12px]', on ? 'rounded-full bg-vg-tint px-2.5 py-1 font-medium text-[#4c2fd0]' : 'text-vg-cap')}>{step.duration}</span>
 							</span>
 							<span hidden={!on}>
 								<span className={cn('mt-2 block ps-[50px] text-[14px] font-normal leading-[1.9] text-vg-sub', on && 'vg-pop')}>{step.desc}</span>

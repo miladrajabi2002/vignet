@@ -295,10 +295,10 @@ export default async function SolutionsIndexPage() {
 										)}
 									>
 										<span className="flex items-center justify-between">
-											<span aria-hidden className={cn('inline-flex size-[46px] items-center justify-center rounded-control', featured ? 'bg-white/10 text-[#c7bdf0]' : 'bg-vg-tint text-vg-signal')}>
+											<span aria-hidden className={cn('inline-flex size-[46px] items-center justify-center rounded-control', featured ? 'bg-white/10 text-[#b9adff]' : 'bg-vg-tint text-vg-signal')}>
 												<span className="inline-flex size-[21px]"><Icon className="size-full" strokeWidth={1.8} /></span>
 											</span>
-											{featured ? <span className="text-[12px] text-[#c7bdf0]">{copy.popular}</span> : null}
+											{featured ? <span className="text-[12px] text-[#b9adff]">{copy.popular}</span> : null}
 										</span>
 										<h3 className="mt-1 text-[19px] font-bold lg:text-[20px]">{meta.name[locale]}</h3>
 										<p className={cn('max-w-[560px] text-[14px] leading-[1.9] lg:text-[14.5px]', featured ? 'text-[#d4d4d8]' : 'text-vg-sub')}>{meta.card[locale]}</p>

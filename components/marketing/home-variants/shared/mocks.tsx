@@ -679,7 +679,7 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 										aria-selected={selected}
 										onClick={() => setMode(id)}
 										className={cn(
-											'relative flex min-h-[58px] touch-manipulation flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[11.5px] font-semibold transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#aa99ec]',
+											'relative flex min-h-[58px] touch-manipulation flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[11.5px] font-semibold transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9685fb]',
 											selected
 												? inverse
 													? 'bg-white text-black shadow-[0_5px_16px_rgba(0,0,0,0.24)]'
@@ -719,7 +719,7 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 										aria-selected={selected}
 										onClick={() => setMode(id)}
 										className={cn(
-											'relative flex w-full touch-manipulation items-center gap-3 overflow-hidden rounded-2xl border p-3 text-start transition-[background-color,border-color,transform] duration-200 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#aa99ec]',
+											'relative flex w-full touch-manipulation items-center gap-3 overflow-hidden rounded-2xl border p-3 text-start transition-[background-color,border-color,transform] duration-200 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9685fb]',
 											selected
 												? inverse
 													? 'border-white/15 bg-white/[0.07]'

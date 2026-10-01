@@ -9,7 +9,7 @@ const COPY = {
 title: 'ویجنت را در ۳۰ ثانیه بشناسید',
 		lead: 'کوتاه، دقیق و بدون اصطلاح فنی — تا در نیم دقیقه بدانید ویجنت برای کسب‌وکار شما چه می‌کند.',
 		whatQ: 'ویجنت چیست؟',
-		what: <>یک <em className="not-italic text-[#c7bdf0]">ایجنت هوش مصنوعی</em> که پیام مشتری‌ها را در همهٔ برنامه‌ها و به زبان خودشان جواب می‌دهد، می‌فروشد، نوبت ثبت می‌کند و هر گفتگو را در <em className="not-italic text-[#c7bdf0]">یک CRM مشترک</em> نگه می‌دارد.</>,
+		what: <>یک <em className="not-italic text-[#b9adff]">ایجنت هوش مصنوعی</em> که پیام مشتری‌ها را در همهٔ برنامه‌ها و به زبان خودشان جواب می‌دهد، می‌فروشد، نوبت ثبت می‌کند و هر گفتگو را در <em className="not-italic text-[#b9adff]">یک CRM مشترک</em> نگه می‌دارد.</>,
 		verbs: ['پاسخ می‌دهد', 'می‌فروشد', 'رزرو می‌کند', 'در CRM ثبت می‌کند', 'به انسان می‌سپارد'],
 		whereQ: 'کجا کار می‌کند؟',
 		where: 'هر جا مشتری‌تان هست',
@@ -43,7 +43,7 @@ inbox: 'همه در یک صندوق پیام',
 title: 'Get to know Vigent in 30 seconds',
 		lead: 'Short, precise and jargon-free — so in half a minute you know what Vigent does for your business.',
 		whatQ: 'What is Vigent?',
-		what: <>An <em className="not-italic text-[#c7bdf0]">AI agent</em> that answers customers on every app, in their own language, sells, books appointments and keeps every conversation in <em className="not-italic text-[#c7bdf0]">one shared CRM</em>.</>,
+		what: <>An <em className="not-italic text-[#b9adff]">AI agent</em> that answers customers on every app, in their own language, sells, books appointments and keeps every conversation in <em className="not-italic text-[#b9adff]">one shared CRM</em>.</>,
 		verbs: ['Answers', 'Sells', 'Books', 'Logs to CRM', 'Hands off to people'],
 		whereQ: 'Where does it work?',
 		where: 'Wherever your customers are',
@@ -81,9 +81,9 @@ const SEGMENT_ICONS: IconType[] = [Store, Utensils, CalendarDays, GraduationCap,
 const SETUP_BAR = [
 	{ grow: 1, color: '#111111', fill: 'vg-f0' },
 	{ grow: 2, color: '#3f3f46', fill: 'vg-f2' },
-	{ grow: 4, color: '#6e56cf', fill: 'vg-f4' },
-	{ grow: 4, color: '#aa99ec', fill: 'vg-f6' },
-	{ grow: 2, color: '#c7bdf0', fill: 'vg-f8' },
+	{ grow: 4, color: '#5b3de8', fill: 'vg-f4' },
+	{ grow: 4, color: '#9685fb', fill: 'vg-f6' },
+	{ grow: 2, color: '#b9adff', fill: 'vg-f8' },
 ]
 // "Where": the channels light one after another (desktop tiles only).
 const CHANNEL_GLOW = ['vg-lg-g1', '', 'vg-lg-g2', '', 'vg-lg-g3', '']
@@ -103,7 +103,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 							<span aria-hidden className="vg-sp-spin" />
 							<span aria-hidden className="vg-sp-surface" />
 							<span className="inline-flex h-8 items-center gap-[7px] px-3 text-[12px] font-medium lg:h-[34px] lg:px-3.5 lg:text-[13px]">
-								<svg aria-hidden viewBox="0 0 36 36" className="size-3.5 lg:size-4"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(110,86,207,0.18)" strokeWidth="4" /><circle cx="18" cy="18" r="15" fill="none" stroke="#6e56cf" strokeWidth="4" strokeDasharray="70 100" strokeLinecap="round" transform="rotate(-90 18 18)" /></svg>
+								<svg aria-hidden viewBox="0 0 36 36" className="size-3.5 lg:size-4"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(91,61,232,0.18)" strokeWidth="4" /><circle cx="18" cy="18" r="15" fill="none" stroke="#5b3de8" strokeWidth="4" strokeDasharray="70 100" strokeLinecap="round" transform="rotate(-90 18 18)" /></svg>
 								{copy.pill}
 							</span>
 						</span>
@@ -115,7 +115,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 				<div className="vg-anim vg-rv-group mt-[18px] grid grid-cols-2 gap-2.5 lg:mt-10 lg:grid-cols-12 lg:gap-4" style={{ '--vg-T': '10s' } as CSSProperties}>
 					{/* A — definition: the one-paragraph answer to "what is Vigent?" */}
 					<article className="relative col-span-2 flex flex-col overflow-hidden rounded-card bg-[#0f0f12] px-5 py-6 text-center text-white lg:col-span-7 lg:h-[390px] lg:rounded-sheet lg:p-[34px] lg:text-start">
-						<div aria-hidden className="pointer-events-none absolute -top-[110px] start-[30px] h-[260px] w-[300px] rounded-[50%] bg-[radial-gradient(closest-side,rgba(110,86,207,0.4),rgba(15,15,18,0))] lg:-top-[140px] lg:start-auto lg:end-[-100px] lg:h-[420px] lg:w-[420px]" />
+						<div aria-hidden className="pointer-events-none absolute -top-[110px] start-[30px] h-[260px] w-[300px] rounded-[50%] bg-[radial-gradient(closest-side,rgba(91,61,232,0.4),rgba(15,15,18,0))] lg:-top-[140px] lg:start-auto lg:end-[-100px] lg:h-[420px] lg:w-[420px]" />
 						<h3 className="relative text-[12px] font-normal text-[#a1a1aa] lg:text-[13px]">{copy.whatQ}</h3>
 						<p className="relative mt-2 text-[18px] font-medium leading-[1.9] lg:mt-3.5 lg:text-[27px] lg:leading-[1.8]">{copy.what}</p>
 						<ul className="relative mt-3.5 flex flex-wrap justify-center gap-1.5 text-[12px] lg:mt-auto lg:justify-start lg:gap-2 lg:text-[13px]">
@@ -124,7 +124,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 								return (
 									<li key={verb} className="relative inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.07] px-[11px] py-1.5 lg:h-[34px] lg:px-3 lg:py-0">
 										<span aria-hidden className={cn(VERB_BEAT[i], 'absolute -inset-px rounded-full bg-[rgba(199,189,240,0.16)] ring-1 ring-[rgba(199,189,240,0.55)]')} />
-										<Icon aria-hidden className="relative hidden size-3.5 text-[#c7bdf0] lg:block" strokeWidth={1.8} />
+										<Icon aria-hidden className="relative hidden size-3.5 text-[#b9adff] lg:block" strokeWidth={1.8} />
 										<span className="relative">{verb}</span>
 									</li>
 								)
@@ -156,7 +156,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 						</ul>
 						<div className="mt-3 flex items-center justify-center gap-2.5 text-[13px] font-medium lg:mt-auto lg:justify-start lg:rounded-2xl lg:bg-vg-bg lg:px-3.5 lg:py-3 lg:text-[14px] lg:font-normal">
 							<span aria-hidden className="relative hidden size-[18px] lg:inline-flex">
-								<span className="vg-ring absolute -inset-1.5 rounded-full border border-[rgba(110,86,207,0.4)]" />
+								<span className="vg-ring absolute -inset-1.5 rounded-full border border-[rgba(91,61,232,0.4)]" />
 								<Inbox className="relative size-full" strokeWidth={1.8} />
 							</span>
 							<span><b className="font-bold">{copy.inbox}</b> <span className="text-vg-cap">{copy.inboxSub}</span></span>

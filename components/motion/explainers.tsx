@@ -74,7 +74,7 @@ function Frame({ label, clock = '12s', dark = false, alwaysOn = false, className
 	)
 }
 
-function Head({ icon: Icon, title, meta, tint = '#f5f3fd', color = '#6e56cf' }: { icon: typeof Bot; title: string; meta?: ReactNode; tint?: string; color?: string }) {
+function Head({ icon: Icon, title, meta, tint = '#f3f1ff', color = '#5b3de8' }: { icon: typeof Bot; title: string; meta?: ReactNode; tint?: string; color?: string }) {
 	return (
 		<div className="flex items-center gap-2.5">
 			<span className="inline-flex size-8 shrink-0 items-center justify-center rounded-chip" style={{ background: tint, color }}><Icon className="size-4" strokeWidth={1.9} /></span>
@@ -95,7 +95,7 @@ function Dots({ className }: { className?: string }) {
 /** Typing bubble on the agent's side, visible only during `step`. */
 function Typing({ step, label }: { step: number; label?: string }) {
 	return (
-		<span className={cn(`vg-x${step}`, 'inline-flex h-7 items-center gap-1.5 self-end rounded-full bg-vg-tint px-2.5 text-[11px] font-medium text-[#5746af] ltr:self-start')}>
+		<span className={cn(`vg-x${step}`, 'inline-flex h-7 items-center gap-1.5 self-end rounded-full bg-vg-tint px-2.5 text-[11px] font-medium text-[#4c2fd0] ltr:self-start')}>
 			<span className="inline-flex gap-[3px]">
 				{[0, 0.2, 0.4].map((delay) => <span key={delay} className="vg-tdot size-1 rounded-full bg-vg-signal" style={{ animationDelay: `${delay}s` }} />)}
 			</span>
@@ -106,7 +106,7 @@ function Typing({ step, label }: { step: number; label?: string }) {
 
 const TONES = {
 	ok: 'bg-[#dcfce7] text-[#166534]',
-	violet: 'bg-vg-tint text-[#5746af]',
+	violet: 'bg-vg-tint text-[#4c2fd0]',
 	warn: 'bg-[#fef3c7] text-[#92400e]',
 	ink: 'bg-vg-ink text-white',
 	danger: 'bg-[#fef2f2] text-[#b91c1c]',
@@ -134,7 +134,7 @@ export function CreditFlowMotion({ locale, className }: { locale: MotionLocale; 
 	const t = tr(locale)
 	const lanes = [
 		{
-			icon: Sparkles, tint: '#f5f3fd', color: '#6e56cf',
+			icon: Sparkles, tint: '#f3f1ff', color: '#5b3de8',
 			title: t('پاسخ هوش مصنوعی', 'AI reply'),
 			sub: t('«قیمت کت مشکی؟» ← پاسخ داده شد', '“Black coat price?” → answered'),
 			show: 0, wait: 1, result: 2,
@@ -217,7 +217,7 @@ export function KnowledgeFlowMotion({ locale, className }: { locale: MotionLocal
 								<span className={cn(until, 'inline-flex items-center gap-1 text-vg-cap [grid-area:1/1]')}><RefreshCw className="size-3" strokeWidth={2} />{t('پردازش', 'Processing')}</span>
 								<span className={cn(ready, 'inline-flex items-center gap-1 font-medium text-vg-ok [grid-area:1/1]')}><Check className="size-3" strokeWidth={2.6} />{t('آماده', 'Ready')}</span>
 							</span>
-							{glow ? <span className={cn(glow, 'absolute -inset-px rounded-xl border-[1.5px] border-vg-signal shadow-[0_0_0_4px_rgba(110,86,207,0.1)]')} /> : null}
+							{glow ? <span className={cn(glow, 'absolute -inset-px rounded-xl border-[1.5px] border-vg-signal shadow-[0_0_0_4px_rgba(91,61,232,0.1)]')} /> : null}
 						</span>
 					))}
 				</div>
@@ -266,7 +266,7 @@ export function LearningLoopMotion({ locale, className }: { locale: MotionLocale
 						<CircleAlert className="mt-0.5 size-4 shrink-0 text-[#b45309]" strokeWidth={2} />
 						<span>{t('۳ مشتری پرسیدند «جمعه‌ها باز هستید؟» و ایجنت جوابی نداشت.', '3 customers asked “Are you open Fridays?” and the agent had no answer.')}</span>
 					</div>
-					<div className="vg-t3 rounded-2xl border border-[rgba(110,86,207,0.3)] bg-white p-2.5 text-[12px] leading-[1.8]">
+					<div className="vg-t3 rounded-2xl border border-[rgba(91,61,232,0.3)] bg-white p-2.5 text-[12px] leading-[1.8]">
 						<span className="font-medium text-vg-signal">{t('پیشنهاد دانش:', 'Knowledge fix:')}</span> {t('جمعه‌ها ۱۰ تا ۱۴ باز هستیم.', 'We’re open Fridays 10–14.')}
 						<div className="mt-2 flex gap-1.5">
 							<span className="relative inline-flex h-8 items-center gap-1 rounded-chip bg-vg-ink px-3 text-[11.5px] text-white"><Check className="size-3.5" strokeWidth={2.4} />{t('تأیید', 'Approve')}<Tap step={4} /></span>
@@ -426,13 +426,13 @@ export function WorkspaceAssemblyMotion({ locale, className }: { locale: MotionL
 			</div>
 			<div className="flex h-1 gap-1">
 				{modules.map((module, i) => (
-					<span key={module.label} className="relative grow overflow-hidden rounded-full bg-white/10"><span className={cn('vg-fx absolute inset-0 rounded-full bg-[#c7bdf0]', `vg-f${i + 1}`)} /></span>
+					<span key={module.label} className="relative grow overflow-hidden rounded-full bg-white/10"><span className={cn('vg-fx absolute inset-0 rounded-full bg-[#b9adff]', `vg-f${i + 1}`)} /></span>
 				))}
 			</div>
 			<ul className="grid grid-cols-2 gap-1.5 xl:grid-cols-3">
 				{modules.map(({ icon: Icon, label }, i) => (
 					<li key={label} className={cn(`vg-t${i + 1}`, 'flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11.5px] text-white/80')}>
-						<span className="inline-flex size-4 shrink-0 text-[#c7bdf0]"><Icon className="size-full" strokeWidth={1.9} /></span>
+						<span className="inline-flex size-4 shrink-0 text-[#b9adff]"><Icon className="size-full" strokeWidth={1.9} /></span>
 						<span className="min-w-0 grow truncate">{label}</span>
 						<Check className="size-3.5 shrink-0 text-emerald-300" strokeWidth={2.6} />
 					</li>
@@ -450,7 +450,7 @@ export function WidgetInstallMotion({ locale, className }: { locale: MotionLocal
 	return (
 		<Frame label={t('نصب ویجت: یک خط کد در سایت قرار می‌گیرد، حباب چت ظاهر می‌شود و ایجنت به بازدیدکننده پاسخ می‌دهد.', 'Widget install: one line of code goes on your site, the chat bubble appears and the agent answers visitors.')} clock="14s" className={className}>
 			<div className="vg-t0 flex items-center gap-2 overflow-hidden rounded-xl bg-[#0f0f12] px-3 py-2">
-				<Code2 className="size-3.5 shrink-0 text-[#aa99ec]" strokeWidth={2} />
+				<Code2 className="size-3.5 shrink-0 text-[#9685fb]" strokeWidth={2} />
 				<code dir="ltr" className="min-w-0 grow truncate text-start font-mono text-[11px] text-white/75">{'<script src="https://vigent.ir/widget/loader.js" data-agent-id="…"></script>'}</code>
 				<span className="vg-x1 shrink-0 rounded-md bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-300">{t('ذخیره شد', 'Saved')}</span>
 			</div>
@@ -475,7 +475,7 @@ export function WidgetInstallMotion({ locale, className }: { locale: MotionLocal
 				</div>
 				<div className="vg-x3 absolute bottom-[3.75rem] end-3 max-w-[180px] rounded-2xl rounded-ee-[5px] border border-vg-line bg-white px-2.5 py-1.5 text-[11.5px] shadow-[0_12px_24px_-16px_rgba(17,17,17,0.5)]">{t('سلام! سؤالی دارید؟ 👋', 'Hi! Any questions? 👋')}</div>
 				<span className="vg-t2 absolute bottom-3 end-3 inline-flex size-10 items-center justify-center rounded-full bg-vg-ink text-white shadow-[0_12px_24px_-10px_rgba(17,17,17,0.6)]">
-					<span className="vg-ring absolute inset-0 rounded-full border-[1.5px] border-[rgba(110,86,207,0.5)]" />
+					<span className="vg-ring absolute inset-0 rounded-full border-[1.5px] border-[rgba(91,61,232,0.5)]" />
 					<MessageCircle className="relative size-[18px]" strokeWidth={2} />
 				</span>
 			</div>
@@ -500,7 +500,7 @@ export function IdentifyMotion({ locale, className }: { locale: MotionLocale; cl
 					<div className="vg-t3 flex flex-col gap-2 rounded-2xl border border-vg-line bg-white p-2.5">
 						<div className="flex items-center gap-2 text-[11.5px] font-medium text-vg-cap"><UserPlus className="size-3.5 text-vg-signal" strokeWidth={2} />{t('مخاطب جدید در CRM', 'New CRM contact')}</div>
 						<div className="flex items-center gap-2">
-							<span className="inline-flex size-8 items-center justify-center rounded-full bg-vg-soft text-[12px] font-bold text-[#5746af]">{t('س', 'S')}</span>
+							<span className="inline-flex size-8 items-center justify-center rounded-full bg-vg-soft text-[12px] font-bold text-[#4c2fd0]">{t('س', 'S')}</span>
 							<span className="min-w-0"><span className="block text-[12.5px] font-bold">{t('سارا محمدی', 'Sara Mohammadi')}</span><span dir="ltr" className="block text-start text-[11px] text-vg-cap">0912•••4567</span></span>
 						</div>
 						<span className="vg-t4 inline-flex w-fit items-center gap-1 rounded-full bg-[#fdf2f8] px-2 py-0.5 text-[11px] text-[#be185d]"><InstagramIcon className="size-3" />{t('اینستاگرام', 'Instagram')}</span>

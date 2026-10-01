@@ -68,17 +68,17 @@
 }
 .vg-hp-spark {
 	position: absolute; inset: -250%; z-index: -2;
-	background: conic-gradient(from 0deg, transparent 0deg 342deg, rgba(255, 255, 255, .98) 356deg, #c7bdf0 360deg);
+	background: conic-gradient(from 0deg, transparent 0deg 342deg, rgba(255, 255, 255, .98) 356deg, #b9adff 360deg);
 	animation: vg-spin 4.2s linear infinite;
 }
 .vg-hp-surface {
 	position: absolute; inset: 1px; z-index: -1; border-radius: inherit;
-	background: radial-gradient(circle at 15% 120%, rgba(110, 86, 207, .3), transparent 48%), #0b0b0e;
+	background: radial-gradient(circle at 15% 120%, rgba(91, 61, 232, .3), transparent 48%), #0b0b0e;
 }
 .vg-sp { position: relative; isolation: isolate; display: inline-grid; overflow: hidden; border-radius: 9999px; padding: 1px; background: rgba(17, 17, 17, .08); }
 .vg-sp-spin {
 	position: absolute; inset: -300%; z-index: -2;
-	background: conic-gradient(from 0deg, transparent 0deg 300deg, #aa99ec 340deg, #6e56cf 360deg);
+	background: conic-gradient(from 0deg, transparent 0deg 300deg, #9685fb 340deg, #5b3de8 360deg);
 	animation: vg-spin 5s linear infinite;
 }
 .vg-sp-surface { position: absolute; inset: 1px; z-index: -1; border-radius: inherit; background: #ffffff; }
@@ -127,7 +127,7 @@
 .vg-in3 { animation: vg-in3 8s ease-in-out infinite; }
 .vg-in4 { animation: vg-in4 8s ease-in-out infinite; }
 .vg-pkt-l, .vg-pkt-f { position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-radius: 99px; offset-rotate: 0deg; }
-.vg-pkt-l { background: #6e56cf; box-shadow: 0 0 0 5px rgba(110, 86, 207, .15); animation: vg-lost 5s cubic-bezier(.45, .05, .55, .95) infinite; }
+.vg-pkt-l { background: #5b3de8; box-shadow: 0 0 0 5px rgba(91, 61, 232, .15); animation: vg-lost 5s cubic-bezier(.45, .05, .55, .95) infinite; }
 .vg-pkt-f { background: #15803d; box-shadow: 0 0 0 5px rgba(21, 128, 61, .15); opacity: 0; animation: vg-found 5s cubic-bezier(.45, .05, .55, .95) infinite; }
 .vg-gap { animation: vg-gap 5s ease-in-out infinite; }
 .vg-caret { animation: vg-caret .9s steps(1) infinite; }
@@ -156,7 +156,7 @@
 @keyframes vg-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes vg-lit {
 	0%, 26%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: 0 1px 2px rgba(17, 17, 17, .04); }
-	6%, 20% { border-color: rgba(110, 86, 207, .5); box-shadow: 0 0 0 4px rgba(110, 86, 207, .09), 0 20px 40px -24px rgba(110, 86, 207, .55); }
+	6%, 20% { border-color: rgba(91, 61, 232, .5); box-shadow: 0 0 0 4px rgba(91, 61, 232, .09), 0 20px 40px -24px rgba(91, 61, 232, .55); }
 }
 @keyframes vg-wave { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
 @keyframes vg-grow {
@@ -182,9 +182,9 @@
 @keyframes vg-r1 { 0%, 11% { opacity: 0; transform: translateY(8px); } 14%, 29% { opacity: 1; transform: none; } 33%, 100% { opacity: 0; } }
 @keyframes vg-r2 { 0%, 44% { opacity: 0; transform: translateY(8px); } 47%, 62% { opacity: 1; transform: none; } 66%, 100% { opacity: 0; } }
 @keyframes vg-r3 { 0%, 77% { opacity: 0; transform: translateY(8px); } 80%, 95% { opacity: 1; transform: none; } 99%, 100% { opacity: 0; } }
-@keyframes vg-g1 { 0%, 30%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: none; } 4%, 26% { border-color: rgba(110, 86, 207, .55); box-shadow: 0 0 0 4px rgba(110, 86, 207, .08); } }
-@keyframes vg-g2 { 0%, 34%, 63%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: none; } 37%, 59% { border-color: rgba(110, 86, 207, .55); box-shadow: 0 0 0 4px rgba(110, 86, 207, .08); } }
-@keyframes vg-g3 { 0%, 67%, 96%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: none; } 70%, 92% { border-color: rgba(110, 86, 207, .55); box-shadow: 0 0 0 4px rgba(110, 86, 207, .08); } }
+@keyframes vg-g1 { 0%, 30%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: none; } 4%, 26% { border-color: rgba(91, 61, 232, .55); box-shadow: 0 0 0 4px rgba(91, 61, 232, .08); } }
+@keyframes vg-g2 { 0%, 34%, 63%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: none; } 37%, 59% { border-color: rgba(91, 61, 232, .55); box-shadow: 0 0 0 4px rgba(91, 61, 232, .08); } }
+@keyframes vg-g3 { 0%, 67%, 96%, 100% { border-color: rgba(17, 17, 17, .08); box-shadow: none; } 70%, 92% { border-color: rgba(91, 61, 232, .55); box-shadow: 0 0 0 4px rgba(91, 61, 232, .08); } }
 @keyframes vg-scale-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* Arrivals drop in from above with a slight settle (new items land on top of
    a list), so they read the same in RTL and LTR. */
@@ -251,7 +251,7 @@
 	inset: 8% -2.5rem 6%; border-radius: 3rem;
 	background:
 		radial-gradient(55% 60% at 0% 55%, rgba(139, 118, 220, .42), transparent 72%),
-		radial-gradient(55% 60% at 100% 55%, rgba(170, 153, 236, .42), transparent 72%),
+		radial-gradient(55% 60% at 100% 55%, rgba(150, 133, 251, .42), transparent 72%),
 		radial-gradient(45% 35% at 50% 0%, rgba(139, 118, 220, .22), transparent 75%);
 	filter: blur(42px);
 	animation: vg-cta-breathe 7s ease-in-out infinite;
@@ -264,7 +264,7 @@
 @media (prefers-reduced-motion: reduce) { .vg-cta-glow { animation: none; } }
 .vg-cta > .marketing-grid::after {
 	content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-	background: radial-gradient(circle at 50% 12%, rgba(170, 153, 236, .1), transparent 26rem), linear-gradient(to bottom, transparent 50%, rgba(110, 86, 207, .025));
+	background: radial-gradient(circle at 50% 12%, rgba(150, 133, 251, .1), transparent 26rem), linear-gradient(to bottom, transparent 50%, rgba(91, 61, 232, .025));
 }
 /* One-line title fitted to its own container width (cqw), capped. */
 .vg-oneline { white-space: nowrap; font-size: var(--title-fallback, 1rem); font-size: min(var(--title-max, 2rem), var(--title-fit, 5cqw)); }

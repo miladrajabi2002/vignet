@@ -38,7 +38,7 @@ export function HeroPill({ children, className }: { children: ReactNode; classNa
 			<span aria-hidden className="vg-hp-spark" />
 			<span aria-hidden className="vg-hp-surface" />
 			<span className="relative inline-flex min-h-9 items-center gap-2 whitespace-nowrap px-4 text-[12px] font-medium text-white lg:min-h-[42px] lg:px-5 lg:text-[13px]">
-				<Sparkles aria-hidden className="size-3.5 text-[#c7bdf0]" strokeWidth={1.8} />
+				<Sparkles aria-hidden className="size-3.5 text-[#b9adff]" strokeWidth={1.8} />
 				{children}
 			</span>
 		</span>
@@ -151,7 +151,7 @@ export const CHANNELS: { id: ChannelId; icon: IconType; tint: string; color: str
 	{ id: 'telegram', icon: TelegramIcon as IconType, tint: '#eff6ff', color: '#0369a1', label: { fa: 'تلگرام', en: 'Telegram' }, short: { fa: 'تلگرام', en: 'Telegram' } },
 	{ id: 'bale', icon: BaleIcon as IconType, tint: '#e6f7f1', color: '#00a37a', label: { fa: 'بله', en: 'Bale' }, short: { fa: 'بله', en: 'Bale' } },
 	{ id: 'rubika', icon: RubikaIcon as IconType, tint: '#fff7ed', color: '#c2410c', label: { fa: 'روبیکا', en: 'Rubika' }, short: { fa: 'روبیکا', en: 'Rubika' } },
-	{ id: 'site', icon: Globe, tint: '#f5f3fd', color: '#6e56cf', label: { fa: 'ویجت سایت', en: 'Website widget' }, short: { fa: 'سایت', en: 'Website' } },
+	{ id: 'site', icon: Globe, tint: '#f3f1ff', color: '#5b3de8', label: { fa: 'ویجت سایت', en: 'Website widget' }, short: { fa: 'سایت', en: 'Website' } },
 	{ id: 'link', icon: Link2, tint: '#f4f4f5', color: '#3f3f46', label: { fa: 'لینک چت بیو', en: 'Bio chat link' }, short: { fa: 'لینک چت', en: 'Chat link' } },
 ]
 

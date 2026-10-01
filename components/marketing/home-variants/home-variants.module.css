@@ -48,7 +48,7 @@
 .capabilityCanvas {
 	isolation: isolate;
 	background:
-		radial-gradient(circle at 82% 10%, rgba(110, 86, 207, 0.1), transparent 25rem),
+		radial-gradient(circle at 82% 10%, rgba(91, 61, 232, 0.1), transparent 25rem),
 		radial-gradient(circle at 12% 42%, rgba(251, 113, 133, 0.08), transparent 28rem),
 		linear-gradient(145deg, #fbfaff 0%, #f8f6fc 54%, #fcfbff 100%);
 	box-shadow:
@@ -76,7 +76,7 @@
 }
 
 .capabilityConnector {
-	background-image: linear-gradient(90deg, rgba(110, 86, 207, 0.5) 50%, transparent 50%);
+	background-image: linear-gradient(90deg, rgba(91, 61, 232, 0.5) 50%, transparent 50%);
 	background-size: 8px 1px;
 }
 

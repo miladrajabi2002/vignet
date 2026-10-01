@@ -69,7 +69,7 @@ function Panels({ locale }: { locale: SiteLocale }) {
 	const channelIcons: { icon: IconType; color: string }[] = [
 		{ icon: InstagramIcon as IconType, color: '#be185d' },
 		{ icon: Send, color: '#0369a1' },
-		{ icon: Globe, color: '#6e56cf' },
+		{ icon: Globe, color: '#5b3de8' },
 		{ icon: MessageSquare, color: '#047857' },
 	]
 	return [
@@ -78,7 +78,7 @@ function Panels({ locale }: { locale: SiteLocale }) {
 			<div className="text-[13px] text-vg-cap">{c.p0.sent}</div>
 			<div dir="ltr" className="flex gap-2.5">
 				{c.p0.code.map((digit) => <span key={digit} className="flex h-14 w-12 items-center justify-center rounded-control border-[1.5px] border-vg-ink text-[22px] font-bold">{digit}</span>)}
-				<span className="flex h-14 w-12 items-center justify-center rounded-control border-[1.5px] border-vg-signal shadow-[0_0_0_4px_rgba(110,86,207,0.12)]"><Caret className="h-[22px]" /></span>
+				<span className="flex h-14 w-12 items-center justify-center rounded-control border-[1.5px] border-vg-signal shadow-[0_0_0_4px_rgba(91,61,232,0.12)]"><Caret className="h-[22px]" /></span>
 				<span className="h-14 w-12 rounded-control border-[1.5px] border-black/[0.12]" />
 			</div>
 			<span className="mt-1.5 inline-flex h-11 items-center rounded-xl bg-vg-ink px-7 text-[14px] font-medium text-white">{c.p0.cta}</span>
@@ -96,11 +96,11 @@ function Panels({ locale }: { locale: SiteLocale }) {
 					)
 				})}
 			</div>
-			<div className="mt-auto flex items-center gap-2.5 rounded-control bg-vg-tint px-3.5 py-3 text-[13px] text-[#5746af]"><Sparkles className="size-4" strokeWidth={1.8} />{c.p1.ready}</div>
+			<div className="mt-auto flex items-center gap-2.5 rounded-control bg-vg-tint px-3.5 py-3 text-[13px] text-[#4c2fd0]"><Sparkles className="size-4" strokeWidth={1.8} />{c.p1.ready}</div>
 		</div>,
 		<div key="p2" className="vg-pop flex grow flex-col gap-3.5">
 			<div className="text-[18px] font-bold">{c.p2.title}</div>
-			<div className="rounded-2xl border-[1.5px] border-vg-signal p-3.5 text-[13px] leading-[1.9] shadow-[0_0_0_4px_rgba(110,86,207,0.08)]"><span className="text-vg-cap">{c.p2.say}</span> {c.p2.prompt}<Caret /></div>
+			<div className="rounded-2xl border-[1.5px] border-vg-signal p-3.5 text-[13px] leading-[1.9] shadow-[0_0_0_4px_rgba(91,61,232,0.08)]"><span className="text-vg-cap">{c.p2.say}</span> {c.p2.prompt}<Caret /></div>
 			<div className="flex flex-col gap-2 text-[13px]">
 				<div className="flex items-center justify-between"><span className="text-vg-cap">{c.p2.tone}</span><span className="flex rounded-chip bg-[#f4f4f5] p-[3px]"><span className="rounded-lg bg-white px-3.5 py-[5px] font-medium shadow-[var(--shadow-xs)]">{c.p2.tones[0]}</span><span className="px-3.5 py-[5px] text-vg-cap">{c.p2.tones[1]}</span></span></div>
 				<div className="flex items-center justify-between"><span className="text-vg-cap">{c.p2.goals}</span><span className="flex gap-1.5">{c.p2.goalList.map((goal, i) => <span key={goal} className={cn('rounded-full px-2.5 py-1 text-[12px]', i < 2 ? 'bg-vg-ink text-white' : 'bg-[#f4f4f5]')}>{goal}</span>)}</span></div>
@@ -182,14 +182,14 @@ export function Onboarding({ locale }: { locale: SiteLocale }) {
 								</span>
 							) : null}
 							<span className={cn('relative inline-flex size-[34px] shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-white', i === steps.length - 1 ? 'bg-vg-signal' : 'bg-vg-ink')}>
-								<span aria-hidden className={cn(`vg-x${i * 2}`, 'absolute -inset-[5px] rounded-full border-2 border-[rgba(110,86,207,0.35)]')} />
+								<span aria-hidden className={cn(`vg-x${i * 2}`, 'absolute -inset-[5px] rounded-full border-2 border-[rgba(91,61,232,0.35)]')} />
 								{step.num}
 							</span>
 							<span className="grow">
 								<span className="block text-[14.5px] font-bold">{step.title}</span>
 								<span className="mt-px block text-[12.5px] text-vg-sub">{step.result}</span>
 							</span>
-							<span className="shrink-0 rounded-full bg-vg-tint px-[9px] py-1 text-[12.5px] text-[#5746af]">{step.duration}</span>
+							<span className="shrink-0 rounded-full bg-vg-tint px-[9px] py-1 text-[12.5px] text-[#4c2fd0]">{step.duration}</span>
 						</li>
 					))}
 				</ol>
