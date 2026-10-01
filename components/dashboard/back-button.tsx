@@ -1,22 +1,22 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { ChevronLeft, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
- * Unified "back" navigation button — Apple ChatGPT iOS inspired.
+ * Unified "back" control for the dashboard and the admin panel.
  *
- * Design language:
- *  - Capsule / pill shape (rounded-full) matching the iOS back chevron affordance.
- *  - Frosted-glass surface: semi-transparent white + backdrop-blur, so it floats
- *    calmly over the spatial canvas without competing with content cards.
- *  - A single chevron (not a full arrow) + the destination label, exactly like
- *    the iOS ChatGPT back control which shows ‹ + previous-screen title.
- *  - RTL-aware: the chevron auto-flips to point right (the "back" direction
- *    in Persian / RTL layouts) via `rtl:rotate-180`.
- *  - Tactile micro-interactions: hover lifts the surface + darkens text; active
- *    scales down 2.5% (matches the existing `.spatial-press` feel).
+ * Two looks built from the same round chevron:
+ *  - `variant="label"` (default) — a ghost breadcrumb: the chevron sits in a
+ *    small white disc followed by the destination's name. Used above detail
+ *    heroes (agent, contact, conversation, product).
+ *  - `variant="icon"` — the disc alone, sized as a 40px touch target. Used
+ *    inline at the start of PageHeader; `label` becomes its accessible name.
+ *
+ * On hover the disc inks in (black with a white chevron) — one quiet, precise
+ * affordance instead of a bordered pill. The chevron flips for RTL.
  *
  * Behaviour — "scroll is state":
  *  When the user arrived here through an in-app navigation (list → detail),
@@ -27,21 +27,24 @@ import { cn } from '@/lib/utils'
  * Usage:
  *
  *   <BackButton href="/agents" label={t('title')} />
- *   <BackButton href="/products" label="محصولات" icon={Package} />
+ *   <BackButton href="/instagram" label="اینستاگرام" variant="icon" />
  */
 export function BackButton({
   href,
   label,
   icon: Icon,
+  variant = 'label',
   className,
 }: {
   href: string
   label: string
-  /** Optional leading icon (defaults to a chevron, iOS-style). */
+  /** Optional glyph instead of the chevron. */
   icon?: LucideIcon
+  variant?: 'label' | 'icon'
   className?: string
 }) {
   const router = useRouter()
+  const fa = useLocale() !== 'en'
 
   function handleBack() {
     // `idx` is the Next.js App Router history index. idx > 0 means this page
@@ -56,31 +59,43 @@ export function BackButton({
     }
   }
 
+  const Glyph = Icon ?? ChevronLeft
+  const iconOnly = variant === 'icon'
+
   return (
     <button
       type="button"
       onClick={handleBack}
+      aria-label={iconOnly ? (fa ? `بازگشت به ${label}` : `Back to ${label}`) : undefined}
+      title={iconOnly ? label : undefined}
       className={cn(
-        'group/back inline-flex items-center gap-1.5 rounded-full',
-        'border border-black/[0.06] bg-white/70 backdrop-blur-xl',
-        'px-3.5 py-2 text-[13px] font-medium text-[var(--text-secondary)]',
-        'shadow-[0_1px_2px_rgba(0,0,0,0.04)]',
-        'transition-all duration-150 ease-out',
-        'hover:bg-white hover:text-[var(--text-primary)]',
-        'hover:shadow-[0_4px_14px_-6px_rgba(0,0,0,0.12)]',
-        'hover:border-black/[0.10]',
-        'active:scale-[0.975]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)]/20 focus-visible:ring-offset-1',
-        'motion-reduce:transition-none motion-reduce:active:scale-100',
+        'group/back inline-flex shrink-0 items-center rounded-full text-[13px] font-semibold text-[var(--text-secondary)]',
+        'transition-colors duration-150 hover:text-[var(--text-primary)]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]',
+        'active:scale-[0.96] motion-reduce:active:scale-100',
+        iconOnly ? 'h-10 w-10 justify-center' : 'min-h-10 gap-2 pe-2',
         className,
       )}
     >
-      {Icon ? (
-        <Icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 rtl:rotate-180 rtl:group-hover/back:-translate-x-0.5 group-hover/back:-translate-x-0.5" />
-      ) : (
-        <ChevronLeft className="h-4 w-4 shrink-0 transition-transform duration-150 rtl:rotate-180 rtl:group-hover/back:translate-x-0.5 group-hover/back:-translate-x-0.5" />
-      )}
-      <span className="max-w-[12rem] truncate">{label}</span>
+      <span
+        className={cn(
+          'grid shrink-0 place-items-center rounded-full border border-black/[0.08] bg-white text-[var(--text-primary)]',
+          'shadow-[var(--elev-1)]',
+          'transition-[background-color,border-color,color,box-shadow] duration-150',
+          'group-hover/back:border-[var(--text-primary)] group-hover/back:bg-[var(--text-primary)] group-hover/back:text-white',
+          iconOnly ? 'h-10 w-10' : 'h-8 w-8',
+        )}
+      >
+        <Glyph
+          aria-hidden="true"
+          className={cn(
+            'shrink-0 transition-transform duration-150 rtl:rotate-180',
+            iconOnly ? 'h-[1.15rem] w-[1.15rem]' : 'h-4 w-4',
+            'ltr:group-hover/back:-translate-x-0.5 rtl:group-hover/back:translate-x-0.5',
+          )}
+        />
+      </span>
+      {!iconOnly && <span className="max-w-[14rem] truncate">{label}</span>}
     </button>
   )
 }

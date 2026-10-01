@@ -36,7 +36,7 @@ export function ContactStageBadge({
   return (
     <span
       className={cn(
-        'inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-4',
+        'inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold leading-4',
         STAGE_TONE[normalized],
         className,
       )}

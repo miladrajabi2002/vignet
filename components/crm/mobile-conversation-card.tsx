@@ -49,7 +49,7 @@ export function MobileConversationCard({
     <>
       <article
         className={cn(
-          'spatial-surface overflow-hidden rounded-[1.35rem] transition-[border-color,box-shadow] duration-150',
+          'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
           attention &&
             'border-amber-300/70 bg-amber-50/35 shadow-[0_14px_34px_rgba(245,158,11,0.08)]',
         )}
@@ -61,7 +61,7 @@ export function MobileConversationCard({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={`${isFa ? 'نمایش جزئیات گفتگو با' : 'Show conversation details for'} ${who}`}
-          className="spatial-press block min-h-16 w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+          className="spatial-press block min-h-16 w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
         >
           <div className="flex min-w-0 items-center gap-3">
             <ContactAvatar src={avatarSrc} alt={who} size="md" />
@@ -73,7 +73,7 @@ export function MobileConversationCard({
                 >
                   {who}
                 </span>
-                <span className="shrink-0 text-[11px] text-[var(--text-muted)]">
+                <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
                   {relativeTimeLabel}
                 </span>
               </div>
@@ -124,13 +124,13 @@ export function MobileConversationCard({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
               {isFa ? 'انصراف' : 'Cancel'}
             </button>
             <Link
               href={`/conversations/${conversationId}`}
-              className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+              className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               {isFa ? 'ورود به گفتگو' : 'Open conversation'}
               <ArrowLeft className="h-4 w-4 ltr:rotate-180" aria-hidden="true" />
@@ -163,7 +163,7 @@ export function MobileConversationCard({
 
           <dl className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/[0.03] p-3.5">
-              <dt className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+              <dt className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
                 <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
                 {isFa ? 'تعداد پیام‌ها' : 'Messages'}
               </dt>
@@ -172,7 +172,7 @@ export function MobileConversationCard({
               </dd>
             </div>
             <div className="rounded-2xl bg-black/[0.03] p-3.5">
-              <dt className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+              <dt className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
                 <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
                 {isFa ? 'آخرین فعالیت' : 'Last activity'}
               </dt>

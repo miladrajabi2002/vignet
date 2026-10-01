@@ -144,7 +144,7 @@ export default async function ContactDetailPage(
       <BackButton href="/contacts" label={t('title')} />
 
       {/* Header card — avatar + name + channels + phone + delete action */}
-      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+      <div className="spatial-surface rounded-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <ContactAvatar
@@ -182,9 +182,9 @@ export default async function ContactDetailPage(
 
       {/* Per-channel identities */}
       {identities.length > 0 && (
-        <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
+        <div className="spatial-surface rounded-card p-4 sm:p-5">
           <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
-            {locale === 'fa' ? 'هویت در کانال‌ها' : 'Channel identities'}
+            {locale === 'fa' ? 'هویت در برنامه‌ها' : 'Channel identities'}
           </h2>
           <div className="flex flex-wrap gap-3">
             {identities.map((id) => (
@@ -215,7 +215,7 @@ export default async function ContactDetailPage(
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+          <p className="mt-2 text-[12px] text-[var(--text-muted)]">
             {locale === 'fa'
               ? `آخرین فعالیت: ${relativeTime(lastActivity, locale)}`
               : `Last activity: ${relativeTime(lastActivity, locale)}`}
@@ -235,7 +235,7 @@ export default async function ContactDetailPage(
         />
 
         {/* Conversation history */}
-        <div className="spatial-surface rounded-[1.5rem] p-5">
+        <div className="spatial-surface rounded-card p-5">
           <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
             {t('detail.history')}
           </h2>

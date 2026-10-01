@@ -98,9 +98,9 @@ export function DashboardCompletionChecklist({
     },
     {
       key: 'operator',
-      title: fa ? 'تحویل امن به اپراتور' : 'Safe operator handoff',
-      description: fa ? 'تلگرام اپراتور را برای موارد حساس و فوری متصل کنید.' : 'Connect operator Telegram for sensitive and urgent cases.',
-      cta: fa ? 'اتصال اپراتور' : 'Connect operator',
+      title: fa ? 'ربات مدیریت تلگرام' : 'Telegram manager bot',
+      description: fa ? 'گفتگوهای حساس، سفارش‌ها و گزارش‌ها را داخل تلگرام خودتان مدیریت کنید.' : 'Manage sensitive chats, orders and reports right inside your Telegram.',
+      cta: fa ? 'اتصال ربات مدیریت' : 'Connect manager bot',
       href: '/settings#telegram-operator',
       done: facts.hasOperator,
       optional: true,
@@ -138,7 +138,7 @@ export function DashboardCompletionChecklist({
   return (
     <section
       aria-labelledby="dashboard-checklist-title"
-      className="dashboard-arrival spatial-surface relative isolate overflow-hidden rounded-[1.75rem]"
+      className="dashboard-arrival spatial-surface relative isolate overflow-hidden rounded-sheet"
     >
       <div aria-hidden className="pointer-events-none absolute -start-24 -top-28 h-64 w-64 rounded-full bg-[var(--accent-soft)] opacity-70 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -end-20 top-0 h-48 w-48 rounded-full bg-emerald-100/60 blur-3xl" />
@@ -147,10 +147,10 @@ export function DashboardCompletionChecklist({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex min-h-7 items-center rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2.5 text-[10px] font-bold text-[var(--accent-strong)]">
+              <span className="inline-flex min-h-7 items-center rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2.5 text-[12px] font-bold text-[var(--accent-strong)]">
                 {fa ? 'مسیر پیشنهادی شروع' : 'Recommended launch path'}
               </span>
-              <span className="text-[11px] font-medium text-[var(--text-muted)]">
+              <span className="text-[12px] font-medium text-[var(--text-muted)]">
                 {fa
                   ? `${remainingCount.toLocaleString('fa-IR')} کار اصلی باقی مانده`
                   : `${remainingCount} essential ${remainingCount === 1 ? 'task' : 'tasks'} remaining`}
@@ -177,7 +177,7 @@ export function DashboardCompletionChecklist({
               aria-valuenow={progress}
               aria-label={fa ? 'پیشرفت آماده‌سازی' : 'Setup progress'}
             >
-              <div className="flex items-center justify-between gap-4 text-[11px]">
+              <div className="flex items-center justify-between gap-4 text-[12px]">
                 <span className="font-medium text-[var(--text-secondary)]">
                   {fa ? `${completedCount.toLocaleString('fa-IR')} از ${requiredItems.length.toLocaleString('fa-IR')} انجام شد` : `${completedCount} of ${requiredItems.length} complete`}
                 </span>
@@ -217,7 +217,7 @@ export function DashboardCompletionChecklist({
             <li key={item.key} className="bg-[var(--bg-surface)]">
               <Link
                 href={item.href}
-                className="group flex min-h-full items-start gap-3 p-4 transition-colors hover:bg-white focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--text-primary)] sm:p-5"
+                className="group flex min-h-full items-start gap-3 p-4 transition-colors hover:bg-white focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:p-5"
               >
                 <span className={cn(
                   'mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors',
@@ -231,14 +231,14 @@ export function DashboardCompletionChecklist({
                   <span className="flex flex-wrap items-center gap-1.5">
                     <span className="text-sm font-bold text-[var(--text-primary)]">{item.title}</span>
                     {item.optional && (
-                      <span className="rounded-full bg-[var(--bg-muted)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--text-muted)]">
+                      <span className="rounded-full bg-[var(--bg-muted)] px-1.5 py-0.5 text-[12px] font-bold text-[var(--text-muted)]">
                         {fa ? 'پیشنهادی' : 'Optional'}
                       </span>
                     )}
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{item.description}</span>
                   <span className={cn(
-                    'mt-3 inline-flex min-h-6 items-center gap-1 text-[11px] font-bold',
+                    'mt-3 inline-flex min-h-6 items-center gap-1 text-[12px] font-bold',
                     item.done ? 'text-emerald-700' : 'text-[var(--text-primary)]',
                   )}>
                     {item.done ? (fa ? 'انجام شده' : 'Completed') : item.cta}

@@ -1,11 +1,11 @@
 'use client'
 
 import { useLocale } from 'next-intl'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Languages } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export function LanguageSwitcher({ className }: { className?: string }) {
+export function LanguageSwitcher({ className, children, bare = false }: { className?: string; children?: ReactNode; bare?: boolean }) {
   const locale = useLocale()
   const [isPending, setIsPending] = useState(false)
 
@@ -63,14 +63,22 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       type="button"
       onClick={toggle}
       disabled={isPending}
-      aria-label={locale === 'fa' ? 'تغییر زبان' : 'Switch language'}
+      // Custom children carry their own visible (or sr-only) name; a
+      // different aria-label would hide it from voice-control users.
+      aria-label={children ? undefined : locale === 'fa' ? 'تغییر زبان' : 'Switch language'}
       className={cn(
-        'inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-2.5 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-50',
+        bare
+          ? 'disabled:opacity-50'
+          : 'inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-2.5 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-50',
         className,
       )}
     >
-      <Languages className="h-4 w-4" />
-      <span className="font-mono uppercase">{locale === 'fa' ? 'EN' : 'فا'}</span>
+      {children ?? (
+        <>
+          <Languages className="h-4 w-4" />
+          <span className="font-mono uppercase">{locale === 'fa' ? 'EN' : 'فا'}</span>
+        </>
+      )}
     </button>
   )
 }

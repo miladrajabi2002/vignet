@@ -45,7 +45,7 @@ export function SalesInsightBackfill({
 
   if (!active) return null
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]" role="status">
+    <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]" role="status">
       <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
       {locale === 'fa'
         ? `در حال تحلیل ${Math.min(missingCount, 50).toLocaleString('fa-IR')} گفتگوی قبلی`

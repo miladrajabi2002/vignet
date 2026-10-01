@@ -1,16 +1,11 @@
 import type { ConvStatus } from '@prisma/client'
-import { cn } from '@/lib/utils'
+import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
 
-const STATUS_TONE: Record<ConvStatus, string> = {
-  OPEN: 'border-sky-200 bg-sky-50 text-sky-700',
-  RESOLVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  HANDED_OFF: 'border-amber-200 bg-amber-50 text-amber-800',
-}
-
-const DOT_TONE: Record<ConvStatus, string> = {
-  OPEN: 'bg-sky-500',
-  RESOLVED: 'bg-emerald-500',
-  HANDED_OFF: 'bg-amber-500',
+/** Open = live work in progress (violet), resolved = green, handoff = amber. */
+const STATUS_TONE: Record<ConvStatus, ChipTone> = {
+  OPEN: 'signal',
+  RESOLVED: 'ok',
+  HANDED_OFF: 'warn',
 }
 
 export function ConversationStatusBadge({
@@ -25,30 +20,8 @@ export function ConversationStatusBadge({
   className?: string
 }) {
   return (
-    <span
-      className={cn(
-        'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-4',
-        STATUS_TONE[status],
-        className,
-      )}
-    >
-      <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
-        {attention && (
-          <span
-            className={cn(
-              'absolute inline-flex h-full w-full animate-ping rounded-full opacity-70 motion-reduce:animate-none',
-              DOT_TONE[status],
-            )}
-          />
-        )}
-        <span
-          className={cn(
-            'relative inline-flex h-1.5 w-1.5 rounded-full',
-            DOT_TONE[status],
-          )}
-        />
-      </span>
+    <StatusChip tone={STATUS_TONE[status]} dot pulse={attention} className={className}>
       {label}
-    </span>
+    </StatusChip>
   )
 }

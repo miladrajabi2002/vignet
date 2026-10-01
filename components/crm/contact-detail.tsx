@@ -97,7 +97,7 @@ export function ContactDetailEditor({
     <div
       className={cn(
         'space-y-4',
-        !embedded && 'spatial-surface rounded-[1.5rem] p-5 sm:p-6',
+        !embedded && 'spatial-surface rounded-card p-5 sm:p-6',
       )}
     >
       <div>
@@ -109,7 +109,7 @@ export function ContactDetailEditor({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('anonymous')}
-          className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-black/10 sm:text-sm"
+          className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
         />
       </div>
 
@@ -123,7 +123,7 @@ export function ContactDetailEditor({
         />
         <span>
           <span className="block text-sm text-[var(--text-primary)]">{t('detail.consentLabel')}</span>
-          <span className="mt-1 block text-[11px] leading-5 text-[var(--text-muted)]">{t('detail.consentHint')}</span>
+          <span className="mt-1 block text-[12px] leading-5 text-[var(--text-muted)]">{t('detail.consentHint')}</span>
         </span>
       </label>
 
@@ -150,7 +150,7 @@ export function ContactDetailEditor({
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           placeholder={t('detail.tagsPlaceholder')}
-          className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-black/10 sm:text-sm"
+          className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
         />
       </div>
 
@@ -164,7 +164,7 @@ export function ContactDetailEditor({
           onChange={(e) => setNotes(e.target.value)}
           rows={4}
           placeholder={t('detail.notesPlaceholder')}
-          className="mt-1 w-full resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-black/10 sm:text-sm"
+          className="mt-1 w-full resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
         />
       </div>
 
@@ -185,7 +185,7 @@ export function ContactDetailEditor({
           type="button"
           onClick={save}
           disabled={busy}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50"
         >
           {busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
           {t('detail.save')}

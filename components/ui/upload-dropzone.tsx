@@ -231,7 +231,7 @@ export function UploadDropzone<T = unknown>({
         }}
         className={cn(
           'flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-5 text-center transition-colors duration-150',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-2',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
           dragOver
             ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/[0.045]'
             : 'border-[var(--border-hover)] bg-[var(--bg-muted)]/40 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)]/60',
@@ -305,7 +305,7 @@ export function UploadDropzone<T = unknown>({
                     <p dir="ltr" className="min-w-0 truncate text-start text-xs font-semibold text-[var(--text-primary)]" title={item.file.name}>
                       {middleTruncate(item.file.name, 36)}
                     </p>
-                    <span className="shrink-0 text-[11px] tabular-nums text-[var(--text-muted)]">
+                    <span className="shrink-0 text-[12px] tabular-nums text-[var(--text-muted)]">
                       {formatSize(item.file.size, locale)}
                     </span>
                   </div>
@@ -327,12 +327,12 @@ export function UploadDropzone<T = unknown>({
                         style={{ width: `${item.progress}%` }}
                       />
                     </div>
-                    <span className="w-9 shrink-0 text-end text-[10px] font-semibold tabular-nums text-[var(--text-muted)]">
+                    <span className="w-9 shrink-0 text-end text-[12px] font-semibold tabular-nums text-[var(--text-muted)]">
                       {item.status === 'done' ? '✓' : `${item.progress}%`}
                     </span>
                   </div>
                   {item.status === 'error' && (
-                    <p className="mt-1 text-[11px] text-danger">{item.error ?? labels.failed}</p>
+                    <p className="mt-1 text-[12px] text-danger">{item.error ?? labels.failed}</p>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -342,7 +342,7 @@ export function UploadDropzone<T = unknown>({
                       type="button"
                       onClick={() => void runUpload(item)}
                       aria-label={`${labels.retry}: ${item.file.name}`}
-                      className="grid h-9 w-9 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
+                      className="grid h-9 w-9 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
                       <RotateCcw className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -354,7 +354,7 @@ export function UploadDropzone<T = unknown>({
                       onFileRemoved?.(item)
                     }}
                     aria-label={`${labels.remove}: ${item.file.name}`}
-                    className="grid h-9 w-9 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
+                    className="grid h-9 w-9 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   >
                     <X className="h-4 w-4" aria-hidden="true" />
                   </button>
@@ -366,7 +366,7 @@ export function UploadDropzone<T = unknown>({
       )}
 
       {activeCount > 0 && (
-        <p className="mt-2 text-[11px] text-[var(--text-muted)]" role="status">
+        <p className="mt-2 text-[12px] text-[var(--text-muted)]" role="status">
           {locale === 'fa' ? `${activeCount.toLocaleString('fa-IR')} فایل در حال آپلود…` : `${activeCount} file(s) uploading…`}
         </p>
       )}

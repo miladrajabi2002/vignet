@@ -109,7 +109,7 @@ export function ConversationPanel({
                         {/* Alert banner */}
                         <div
                                 className={cn(
-                                        'spatial-surface rounded-[1.5rem] p-5',
+                                        'spatial-surface rounded-card p-5',
                                         resolved
                                                 ? 'opacity-70'
                                                 : 'border-[var(--amber)] bg-[var(--white-05)]',
@@ -130,7 +130,7 @@ export function ConversationPanel({
                                                                 </p>
                                                         )}
                                                         {handoffAlert && (
-                                                                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                                                                <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
                                                                         {relativeTime(new Date(handoffAlert.createdAt), locale)}
                                                                 </p>
                                                         )}
@@ -154,7 +154,7 @@ export function ConversationPanel({
                         </div>
 
                         {/* Customer snapshot card */}
-                        <div className="spatial-surface rounded-[1.5rem] p-5">
+                        <div className="spatial-surface rounded-card p-5">
                                 <div className="mb-3 text-xs font-medium text-[var(--text-secondary)]">
                                         {t('customerSnapshot')}
                                 </div>
@@ -182,7 +182,7 @@ export function ConversationPanel({
                                 </div>
                                 {(summary || handoffAlert?.summary) && (
                                         <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
-                                                <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                <div className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-secondary)]">
                                                         <Sparkles className="h-3 w-3" />
                                                         {t('summary')}
                                                 </div>
@@ -216,7 +216,7 @@ function Snap({
                                 {icon}
                         </span>
                         <div className="min-w-0">
-                                <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
+                                <div className="text-[12px] text-[var(--text-muted)]">{label}</div>
                                 <div className="truncate text-[13px] text-[var(--text-primary)]" dir="auto">
                                         {value}
                                 </div>

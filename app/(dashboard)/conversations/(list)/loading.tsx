@@ -39,7 +39,7 @@ export default function ConversationsLoading() {
       </div>
 
       {/* Sticky filter card */}
-      <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
+      <div className="sticky top-[4rem] z-20 md:static md:z-auto">
         <ConversationFiltersSkeleton selects={4} />
       </div>
 

@@ -8,7 +8,9 @@ import {
   CalendarX2,
   CircleCheck,
   ExternalLink,
+  GraduationCap,
   Headphones,
+  ListOrdered,
   PackageCheck,
   Scale,
   Send,
@@ -31,6 +33,9 @@ type Receipt = {
     | 'slots_checked'
     | 'appointment_booked'
     | 'appointment_cancelled'
+    | 'course_enrolled'
+    | 'course_waitlisted'
+    | 'enrollment_cancelled'
     | 'model_error'
   count?: number
 }
@@ -55,6 +60,9 @@ function asReceipt(value: unknown): Receipt | null {
     'slots_checked',
     'appointment_booked',
     'appointment_cancelled',
+    'course_enrolled',
+    'course_waitlisted',
+    'enrollment_cancelled',
     'model_error',
   ]
   if (!kinds.includes(row.kind as Receipt['kind'])) return null
@@ -86,6 +94,12 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
         return 'Appointment confirmed and recorded'
       case 'appointment_cancelled':
         return 'Appointment cancellation recorded'
+      case 'course_enrolled':
+        return 'Course enrollment recorded'
+      case 'course_waitlisted':
+        return 'Added to the course waitlist'
+      case 'enrollment_cancelled':
+        return 'Course enrollment cancelled'
       case 'model_error':
         return 'AI service error — reply not generated from knowledge'
     }
@@ -110,6 +124,12 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
       return 'نوبت تأیید و در تقویم ثبت شد'
     case 'appointment_cancelled':
       return 'لغو نوبت در تقویم ثبت شد'
+    case 'course_enrolled':
+      return 'ثبت‌نام در دوره ثبت شد'
+    case 'course_waitlisted':
+      return 'به فهرست انتظار دوره اضافه شد'
+    case 'enrollment_cancelled':
+      return 'انصراف از دوره ثبت شد'
     case 'model_error':
       return 'خطای سرویس هوش مصنوعی — پاسخ از پایگاه دانش تولید نشد'
   }
@@ -125,6 +145,9 @@ const receiptIcons: Record<Receipt['kind'], typeof BadgeCheck> = {
   slots_checked: CalendarClock,
   appointment_booked: CalendarCheck2,
   appointment_cancelled: CalendarX2,
+  course_enrolled: GraduationCap,
+  course_waitlisted: ListOrdered,
+  enrollment_cancelled: CalendarX2,
   model_error: TriangleAlert,
 }
 
@@ -170,7 +193,7 @@ export function MessageActivityReceipts({
             key={`${receipt.kind}-${index}`}
             role="listitem"
             className={cn(
-              'inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] leading-4',
+              'inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] leading-4',
               receipt.kind === 'model_error'
                 ? 'border border-amber-500/20 bg-amber-500/[0.08] text-amber-700 dark:text-amber-300'
                 : 'border border-emerald-500/15 bg-emerald-500/[0.07] text-emerald-700 dark:text-emerald-300',
@@ -182,27 +205,27 @@ export function MessageActivityReceipts({
         )
       })}
       {deliveryStatus === 'sent' && (
-        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[11px] leading-4 text-emerald-700 dark:text-emerald-300">
+        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[12px] leading-4 text-emerald-700 dark:text-emerald-300">
           <CircleCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {locale === 'fa' ? 'ارسال‌شده به کانال' : 'Sent to channel'}
+          {locale === 'fa' ? 'ارسال‌شده به برنامه' : 'Sent to channel'}
         </span>
       )}
       {storedInConversation && (
-        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[11px] leading-4 text-emerald-700 dark:text-emerald-300">
+        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[12px] leading-4 text-emerald-700 dark:text-emerald-300">
           <CircleCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {locale === 'fa' ? 'ثبت‌شده در گفتگو' : 'Added to conversation'}
         </span>
       )}
       {deliveryStatus === 'failed' && (
-        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[11px] leading-4 text-amber-700 dark:text-amber-300">
+        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[12px] leading-4 text-amber-700 dark:text-amber-300">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {locale === 'fa' ? 'ارسال به کانال ناموفق بود' : 'Channel delivery failed'}
+          {locale === 'fa' ? 'ارسال به برنامه ناموفق بود' : 'Channel delivery failed'}
         </span>
       )}
       {deliveryStatus === 'unavailable' && !storedInConversation && (
-        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[11px] leading-4 text-amber-700 dark:text-amber-300">
+        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[12px] leading-4 text-amber-700 dark:text-amber-300">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {locale === 'fa' ? 'کانال آمادهٔ ارسال نیست' : 'Channel is not ready to send'}
+          {locale === 'fa' ? 'برنامه آمادهٔ ارسال نیست' : 'Channel is not ready to send'}
         </span>
       )}
     </div>
@@ -261,7 +284,7 @@ function timelineCopy(activity: TimelineActivity, locale: Locale): {
   }
   if (activity.kind === 'operator_reply') return {
     title: 'پاسخ اپراتور ارسال شد',
-    detail: activity.source === 'telegram_bot' ? 'از ربات مدیر تلگرام' : 'از پنل گفتگوها',
+    detail: activity.source === 'telegram_bot' ? 'از ربات مدیریت تلگرام' : 'از پنل گفتگوها',
   }
   return { title: 'پیام کمپین تحویل شد', detail: 'در همین گفتگو ثبت شد' }
 }
@@ -304,7 +327,7 @@ export function ConversationTimelineActivity({
         </span>
         <span className="min-w-0">
           <span className="block text-xs font-medium text-[var(--text-primary)]">{copy.title}</span>
-          <span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">
+          <span className="mt-0.5 block text-[12px] text-[var(--text-muted)]">
             {copy.detail} · {dateLabel}
           </span>
         </span>

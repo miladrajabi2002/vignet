@@ -6,15 +6,17 @@ import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
 import { computeOnboarding } from '@/lib/onboarding'
-import { readBusinessProfile } from '@/lib/verticals/profile'
+import { readBusinessProfile, workspaceCapabilities } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
 import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-notice'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
-import { BackToTop } from '@/components/marketing/back-to-top'
 import { GlobalUndoToast } from '@/components/ui/global-undo-toast'
 import { ScrollRestoration } from '@/components/dashboard/scroll-restoration'
+import { DashboardPageEffects } from '@/components/dashboard/dashboard-page-effects'
+import { ModuleAccessBanner } from '@/components/dashboard/module-access-banner'
+import { MotionPauser } from '@/components/marketing/site/motion-pauser'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -48,7 +50,8 @@ export default async function DashboardLayout({
   })
 
   const onboardingDone = workspace?.onboardingCompleted ?? false
-  const businessProfile = readBusinessProfile(workspace?.businessProfile)
+  const businessProfile = readBusinessProfile(workspace?.businessProfile, workspace?.businessType)
+  const capabilities = workspaceCapabilities(workspace)
 
   // During onboarding: hide sidebar + header entirely. The user sees ONLY
   // the onboarding flow, full-screen, with its own progress indicator.
@@ -76,6 +79,19 @@ export default async function DashboardLayout({
     )
   }
 
+  // Conversations handed to a human — shown as a count on the Conversations
+  // nav item (desktop rail + phone bar). Served by @@index([workspaceId, status]).
+  // A live Instagram channel promotes Instagram into the phone bar.
+  const [handedOffCount, instagramChannel] = await Promise.all([
+    prisma.conversation.count({
+      where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' },
+    }),
+    prisma.agentChannel.findFirst({
+      where: { type: 'INSTAGRAM', active: true, agent: { workspaceId: user.workspaceId } },
+      select: { id: true },
+    }),
+  ])
+
   const plan = workspace?.plan ?? 'TRIAL'
   const planEnd = plan === 'TRIAL'
     ? workspace?.trialEndsAt
@@ -90,7 +106,7 @@ export default async function DashboardLayout({
   // Normal dashboard with sidebar + header
   return (
     <ScopedIntlProvider messagePaths={DASHBOARD_CLIENT_MESSAGE_PATHS}>
-    <div className="dashboard-canvas flex min-h-dvh bg-[var(--bg-base)]">
+    <div className="dashboard-canvas vg-motion flex min-h-dvh bg-[var(--bg-base)]">
       {/* Keyboard users can jump past the sidebar/header chrome in one Tab. */}
       <a
         href="#dashboard-main"
@@ -98,15 +114,17 @@ export default async function DashboardLayout({
       >
         پرش به محتوای اصلی
       </a>
-      <Sidebar businessType={workspace?.businessType} services={businessProfile?.services} />
+      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           name={user.name}
           businessType={workspace?.businessType}
-          services={businessProfile?.services}
+          capabilities={capabilities}
           plan={plan}
           creditIRR={workspace?.aiCreditBalanceIRR ?? 0}
           daysLeft={daysLeft}
+          handedOffCount={handedOffCount}
+          instagramConnected={Boolean(instagramChannel)}
           impersonatedUserName={user.impersonatedByAdmin ? (user.name ?? user.phone) : undefined}
         />
         {accessExpired && (
@@ -124,17 +142,23 @@ export default async function DashboardLayout({
         )}
         <VerticalChangeNotice
           businessType={workspace?.businessType}
-          services={businessProfile?.services ?? []}
+          capabilities={capabilities}
         />
         <main id="dashboard-main" tabIndex={-1} className="dashboard-shell-content flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:pt-5 md:pb-10 focus:outline-none">
-          <div className="dashboard-main">{children}</div>
+          <div className="dashboard-main">
+            <ModuleAccessBanner businessType={workspace?.businessType} capabilities={capabilities} />
+            {children}
+          </div>
         </main>
-        <BackToTop />
+        <DashboardPageEffects />
         {/* Undo offers for every delete (single + bulk) — lives here so it
             survives navigation. Scroll restore brings list pages back to the
             user's exact position on back navigation. */}
         <GlobalUndoToast />
         <ScrollRestoration />
+        {/* Starts the `.vg-anim` demos (overview, empty states) only while on
+            screen; without it they sat paused on their first frame. */}
+        <MotionPauser />
       </div>
     </div>
     </ScopedIntlProvider>

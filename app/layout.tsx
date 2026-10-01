@@ -7,10 +7,9 @@ import { Providers } from '@/components/providers'
 import { dirForLocale, type Locale } from '@/lib/locale'
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery'
 import { ServiceWorkerRegister } from '@/components/system/service-worker-register'
-import '@doranjs/ui/styles.css'
-import '@doranjs/react/styles.css'
-import 'react-day-picker/style.css'
 import './globals.css'
+import '@/components/marketing/site/site.css'
+import './ui-system.css'
 
 const geistSans = localFont({
         src: './fonts/GeistVF.woff',

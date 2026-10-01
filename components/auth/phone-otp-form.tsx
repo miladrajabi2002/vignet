@@ -271,7 +271,7 @@ export function PhoneOtpForm({
   }
 
   return (
-    <div className="rounded-[1.5rem] border border-black/[0.08] bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.1)] sm:rounded-[1.75rem] sm:p-8">
+    <div className="rounded-card border border-black/[0.08] bg-white p-5 shadow-[var(--elev-2)] sm:rounded-sheet sm:p-8">
       {/* "Easy sign-in" badge */}
       <div className="mb-4 flex justify-center sm:mb-6">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-1.5 text-xs tracking-wide text-[var(--text-muted)]">
@@ -283,7 +283,7 @@ export function PhoneOtpForm({
       <AnimatePresence mode="wait" initial={false}>
         {step === 'phone' ? (
           <motion.div key="phone" {...stepMotion}>
-            <h1 className="text-center text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-center text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {t('title')}
             </h1>
             <p className="mt-2 text-center text-sm text-[var(--text-muted)]">
@@ -341,7 +341,7 @@ export function PhoneOtpForm({
               {t('changeNumber')}
             </button>
 
-            <h1 className="text-center text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-center text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {t('otpTitle')}
             </h1>
             <p dir="auto" className="mt-2 text-center text-sm text-[var(--text-muted)]">

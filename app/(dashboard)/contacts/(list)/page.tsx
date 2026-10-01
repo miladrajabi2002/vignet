@@ -18,6 +18,7 @@ import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
+import { searchVariants } from '@/lib/search/persian'
 
 const PAGE_SIZE = 20
 const FILTER_STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
@@ -79,17 +80,17 @@ export default async function ContactsPage(
     ...(tag ? { tags: { has: tag } } : {}),
     ...(query
       ? {
-          OR: [
-            { name: { contains: query, mode: 'insensitive' as const } },
-            { phone: { contains: query } },
+          OR: searchVariants(query).flatMap((term): Prisma.ContactWhereInput[] => [
+            { name: { contains: term, mode: 'insensitive' as const } },
+            { phone: { contains: term } },
             ...(phoneVariants.length ? [{ phone: { in: phoneVariants } }] : []),
-            { telegramUsername: { contains: query, mode: 'insensitive' as const } },
-            { baleUsername: { contains: query, mode: 'insensitive' as const } },
-            { rubikaUsername: { contains: query, mode: 'insensitive' as const } },
-            { whatsappName: { contains: query, mode: 'insensitive' as const } },
-            { instagramUsername: { contains: query, mode: 'insensitive' as const } },
-            { tags: { has: query } },
-          ],
+            { telegramUsername: { contains: term, mode: 'insensitive' as const } },
+            { baleUsername: { contains: term, mode: 'insensitive' as const } },
+            { rubikaUsername: { contains: term, mode: 'insensitive' as const } },
+            { whatsappName: { contains: term, mode: 'insensitive' as const } },
+            { instagramUsername: { contains: term, mode: 'insensitive' as const } },
+            { tags: { has: term } },
+          ]),
         }
       : {}),
   }
@@ -326,18 +327,18 @@ export default async function ContactsPage(
               locale === 'fa' ? 'ایجاد خودکار: ' : 'Auto-created: ',
             body:
               locale === 'fa'
-                ? 'در پیام‌رسان‌ها مشتری با شناسه کانال ساخته می‌شود؛ در وب‌ویجت و لینک چت نیز به‌محض دریافت نام یا شماره، پروفایل مشتری به‌صورت خودکار ایجاد و به گفتگو متصل می‌شود.'
+                ? 'در پیام‌رسان‌ها مشتری با شناسه برنامه ساخته می‌شود؛ در وب‌ویجت و لینک چت نیز به‌محض دریافت نام یا شماره، پروفایل مشتری به‌صورت خودکار ایجاد و به گفتگو متصل می‌شود.'
                 : 'Messenger customers are created from their channel identity. In web widget and chat-link conversations, the customer profile is created and attached as soon as a name or phone is available.',
           },
           {
             icon: GitMerge,
             term:
               locale === 'fa'
-                ? 'یکپارچه‌سازی بین کانال‌ها: '
+                ? 'یکپارچه‌سازی بین برنامه‌ها: '
                 : 'Cross-channel unification: ',
             body:
               locale === 'fa'
-                ? 'اگر یک شخص از چند کانال با یک شماره پیام بدهد، گفتگوها و سوابق او روی یک مشتری ادغام می‌شوند. قالب‌های +989…، 09… و 989… یک شماره واحد محسوب می‌شوند.'
+                ? 'اگر یک شخص از چند برنامه با یک شماره پیام بدهد، گفتگوها و سوابق او روی یک مشتری ادغام می‌شوند. قالب‌های +989…، 09… و 989… یک شماره واحد محسوب می‌شوند.'
                 : 'When the same person uses multiple channels with one phone number, conversations and history merge into one customer. +989…, 09…, and 989… formats are treated as the same number.',
           },
           {

@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Link from 'next/link'
 import { useLocale } from 'next-intl'
-import { Check, Copy, Headphones, Phone, Send } from 'lucide-react'
+import { BookOpen, Check, Copy, Headphones, Phone, Send, Sparkles } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import {
   SUPPORT_PHONE_DISPLAY,
@@ -10,11 +11,18 @@ import {
   SUPPORT_TELEGRAM_URL,
 } from '@/lib/marketing/contact'
 
+/**
+ * Header support entry. The sheet leads with the two ways to reach a person
+ * (call, Telegram message) as equal, tappable rows, then the number itself
+ * with copy, then self-serve links. It is a bottom sheet on phones and a
+ * centred dialog on larger screens (MobileBottomSheet, mobileOnly=false).
+ */
 export function SupportButton() {
   const fa = useLocale() !== 'en'
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const phone = fa ? SUPPORT_PHONE_DISPLAY.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : SUPPORT_PHONE_DISPLAY
 
   async function copyPhone() {
     try {
@@ -26,6 +34,8 @@ export function SupportButton() {
     }
   }
 
+  const row = 'spatial-press flex min-h-[4.25rem] w-full items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white px-3.5 text-start shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]'
+
   return (
     <>
       <button
@@ -34,7 +44,7 @@ export function SupportButton() {
         onClick={() => setOpen(true)}
         aria-label={fa ? 'پشتیبانی ویجنت' : 'Vigent support'}
         title={fa ? 'پشتیبانی' : 'Support'}
-        className="spatial-press inline-flex h-12 w-12 items-center justify-center rounded-[1.15rem] border border-black/[0.07] bg-white/80 text-[var(--text-muted)] shadow-[0_5px_18px_rgba(0,0,0,0.035)] transition-colors hover:border-black/[0.12] hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 xl:h-14 xl:w-14 xl:rounded-[1.35rem]"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         <Headphones aria-hidden="true" className="h-4 w-4" />
       </button>
@@ -45,58 +55,50 @@ export function SupportButton() {
         triggerRef={triggerRef}
         mobileOnly={false}
         title={fa ? 'پشتیبانی ویجنت' : 'Vigent support'}
-        description={fa ? 'ارتباط مستقیم با تیم پشتیبانی در تلگرام' : 'Message the support team directly on Telegram'}
+        description={fa ? 'یک نفر از تیم ما جواب می‌دهد؛ هر راهی راحت‌تر است.' : 'A real person from our team answers — pick whichever is easier.'}
         closeLabel={fa ? 'بستن پنجره پشتیبانی' : 'Close support dialog'}
       >
-        <div dir={fa ? 'rtl' : 'ltr'}>
-          <div className="flex items-start gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black text-white">
-              <Send aria-hidden="true" className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-[var(--text-primary)]">
-                {fa ? 'برای پشتیبانی در تلگرام پیام بدهید' : 'Message us on Telegram for support'}
-              </p>
-              <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
-                {fa
-                  ? 'شماره زیر را در تلگرام باز کنید و موضوع یا تصویر خطا را بفرستید؛ پاسخ‌گویی مستقیم انجام می‌شود.'
-                  : 'Open the number below in Telegram and send your question or a screenshot of the issue.'}
-              </p>
-            </div>
+        <div dir={fa ? 'rtl' : 'ltr'} className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <a href={`tel:${SUPPORT_PHONE_E164}`} className={row}>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--text-primary)] text-white"><Phone aria-hidden="true" className="h-[18px] w-[18px]" /></span>
+              <span className="min-w-0">
+                <span className="block text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'تماس تلفنی' : 'Call us'}</span>
+                <span className="block text-[12px] text-[var(--text-muted)]">{fa ? 'سریع‌ترین راه' : 'The fastest way'}</span>
+              </span>
+            </a>
+            <a href={SUPPORT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={row}>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eff6ff] text-[#0369a1]"><Send aria-hidden="true" className="h-[18px] w-[18px] -rotate-12" /></span>
+              <span className="min-w-0">
+                <span className="block text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'پیام در تلگرام' : 'Message on Telegram'}</span>
+                <span className="block text-[12px] text-[var(--text-muted)]">{fa ? 'با اسکرین‌شات خطا' : 'Send a screenshot'}</span>
+              </span>
+            </a>
           </div>
 
-          <div className="mt-4 flex min-h-14 items-center gap-3 rounded-2xl border border-black/10 bg-white px-3.5 shadow-[var(--shadow-xs)]">
-            <Phone aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-            <bdi dir="ltr" className="min-w-0 flex-1 text-sm font-bold tabular-nums text-[var(--text-primary)]">
-              {SUPPORT_PHONE_DISPLAY}
-            </bdi>
+          <div className="flex min-h-12 items-center gap-2 rounded-2xl bg-[var(--bg-surface)] px-3.5">
+            <span className="text-[12px] text-[var(--text-muted)]">{fa ? 'شماره پشتیبانی' : 'Support number'}</span>
+            <bdi dir="ltr" className="ms-auto text-[15px] font-bold tabular-nums text-[var(--text-primary)]">{phone}</bdi>
             <button
               type="button"
               onClick={copyPhone}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.045] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+              aria-label={fa ? 'کپی شماره پشتیبانی' : 'Copy support number'}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
-              {copied ? <Check aria-hidden="true" className="h-3.5 w-3.5 text-emerald-600" /> : <Copy aria-hidden="true" className="h-3.5 w-3.5" />}
+              {copied ? <Check aria-hidden="true" className="h-3.5 w-3.5 text-[var(--ok)]" /> : <Copy aria-hidden="true" className="h-3.5 w-3.5" />}
               {copied ? (fa ? 'کپی شد' : 'Copied') : (fa ? 'کپی' : 'Copy')}
             </button>
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <a
-              href={SUPPORT_TELEGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
-            >
-              <Send aria-hidden="true" className="h-4 w-4" />
-              {fa ? 'باز کردن تلگرام' : 'Open Telegram'}
-            </a>
-            <a
-              href={`tel:${SUPPORT_PHONE_E164}`}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-black/12 bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
-            >
-              <Phone aria-hidden="true" className="h-4 w-4" />
-              {fa ? 'تماس تلفنی' : 'Call support'}
-            </a>
+          <div className="grid grid-cols-2 gap-2 border-t border-[var(--border-subtle)] pt-3">
+            <Link href="/vigento" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[12.5px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
+              <Sparkles aria-hidden="true" className="h-4 w-4 text-[var(--signal)]" />
+              {fa ? 'پرسیدن از ویجنتو' : 'Ask Vigento'}
+            </Link>
+            <Link href="/docs" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[12.5px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
+              <BookOpen aria-hidden="true" className="h-4 w-4" />
+              {fa ? 'مستندات' : 'Docs'}
+            </Link>
           </div>
         </div>
       </MobileBottomSheet>

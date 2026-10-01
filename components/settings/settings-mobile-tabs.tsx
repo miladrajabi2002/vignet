@@ -1,9 +1,8 @@
 'use client'
 
-import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
-import { Building2, Headphones, Mail, type LucideIcon } from 'lucide-react'
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { Bot, Building2, Mail, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SettingsSearch, type SettingsSearchItem } from '@/components/settings/settings-search'
 
 type SettingsTab = 'business' | 'operator' | 'reports'
 
@@ -13,26 +12,51 @@ export function SettingsMobileTabs({
   reports,
   labels,
   navigationLabel,
-  searchIndex,
-  locale,
 }: {
   business: ReactNode
   operator: ReactNode
   reports: ReactNode
   labels: Record<SettingsTab, string>
   navigationLabel: string
-  /** Searchable sections — built by the page, locale-aware. */
-  searchIndex: SettingsSearchItem[]
-  locale: 'fa' | 'en'
 }) {
   const [active, setActive] = useState<SettingsTab>('business')
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const fa = locale !== 'en'
+  const barRef = useRef<HTMLDivElement>(null)
   const tabs: Array<{ key: SettingsTab; icon: LucideIcon; content: ReactNode }> = [
     { key: 'business', icon: Building2, content: business },
-    { key: 'operator', icon: Headphones, content: operator },
+    { key: 'operator', icon: Bot, content: operator },
     { key: 'reports', icon: Mail, content: reports },
   ]
+
+  // Deep links such as /settings#telegram-operator point at an element inside
+  // one panel. On mobile only the active panel is visible, so open the panel
+  // that holds the target first, then scroll to it once it is laid out.
+  useEffect(() => {
+    function openHashTarget() {
+      const id = decodeURIComponent(window.location.hash.slice(1))
+      if (!id) return
+      const target = document.getElementById(id)
+      const panel = target?.closest<HTMLElement>('[id^="settings-panel-"]')
+      const key = panel?.id.replace('settings-panel-', '') as SettingsTab | undefined
+      if (!target || !key) return
+      setActive(key)
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          // Land below the sticky tab bar (mobile) or the shell header.
+          const bar = barRef.current
+          const offset = bar && bar.offsetParent ? parseFloat(getComputedStyle(bar).top) + bar.offsetHeight + 12 : 96
+          window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - offset) })
+        })
+      })
+    }
+    // Client navigations may commit the new URL a frame after mount.
+    const frame = window.requestAnimationFrame(openHashTarget)
+    window.addEventListener('hashchange', openHashTarget)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('hashchange', openHashTarget)
+    }
+  }, [])
 
   function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next = index
@@ -47,27 +71,10 @@ export function SettingsMobileTabs({
     tabRefs.current[next]?.focus()
   }
 
-  // Search jump: activate the result's tab, then scroll to the section and
-  // flash it once the tab's content is actually visible.
-  const handleJump = useCallback((item: SettingsSearchItem) => {
-    setActive(item.tab)
-    window.setTimeout(() => {
-      const el = document.getElementById(item.id)
-      if (!el) return
-      el.scrollIntoView({ block: 'start', behavior: fa ? 'auto' : 'smooth' })
-      el.classList.remove('settings-target-flash')
-      // Restart the animation.
-      void el.offsetWidth
-      el.classList.add('settings-target-flash')
-    }, 80)
-  }, [fa])
-
   return (
     <div className="space-y-6">
-      <SettingsSearch items={searchIndex} locale={locale} onJump={handleJump} />
-
-      <div className="sticky top-[5.25rem] z-30 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl md:hidden">
-        <div role="tablist" aria-label={navigationLabel} className="grid grid-cols-3 gap-1">
+      <div ref={barRef} className="sticky top-[4rem] z-30 -mx-1 md:hidden">
+      <div role="tablist" aria-label={navigationLabel} className="ui-seg ui-seg-solid grid-cols-3">
           {tabs.map(({ key, icon: Icon }, index) => (
             <button
               key={key}
@@ -80,12 +87,7 @@ export function SettingsMobileTabs({
               tabIndex={active === key ? 0 : -1}
               onClick={() => setActive(key)}
               onKeyDown={(event) => onTabKeyDown(event, index)}
-              className={cn(
-                'inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors',
-                active === key
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-base)] shadow-sm'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]',
-              )}
+              className="ui-seg-tab min-h-12 flex-col gap-1 px-1 text-[12px]"
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
               <span className="max-w-full truncate">{labels[key]}</span>

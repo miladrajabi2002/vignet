@@ -36,7 +36,27 @@
     "handoffSummary": "{count, plural, one {# conversation transferred to an operator} other {# conversations transferred to operators}}",
     "batchSummary": "{count, plural, one {# new notification} other {# new notifications}}",
     "batchBody": "See the notification list for details.",
-    "readError": "Could not save the read status. Please try again."
+    "readError": "Could not save the read status. Please try again.",
+    "markReadShort": "Mark read",
+    "markAllShort": "Read all",
+    "filterLabel": "Filter notifications",
+    "filterAll": "All",
+    "filterUnread": "Unread",
+    "groupToday": "Today",
+    "groupYesterday": "Yesterday",
+    "groupWeek": "This week",
+    "groupOlder": "Older",
+    "typeMessage": "New message",
+    "typeHandoff": "Operator handoff",
+    "typeAppointment": "Booking",
+    "typeChannel": "Channel status",
+    "typeLearning": "Agent learning",
+    "typeSystem": "System",
+    "enableBrowserHint": "Get alerted about important messages and bookings even from another tab.",
+    "enableBrowserShort": "Enable",
+    "emptyTitle": "You're all set",
+    "emptyUnreadTitle": "No unread notifications",
+    "emptyUnread": "You've seen everything. Earlier items are under “All”."
   },
   "versions": {
     "title": "Saved versions",
@@ -93,6 +113,7 @@
     "services": "Services",
     "menu": "Digital menu",
     "appointments": "Appointments",
+    "courses": "Courses",
     "conversations": "Conversations",
     "contacts": "Customers",
     "analytics": "Analytics",
@@ -108,7 +129,12 @@
     "more": "More",
     "openNavigation": "Open main menu",
     "closeNavigation": "Close main menu",
-    "mobileNavigation": "Mobile primary navigation"
+    "mobileNavigation": "Mobile primary navigation",
+    "vigentoName": "Vigento",
+    "vigentoTagline": "Panel assistant",
+    "navGroupDaily": "Daily work",
+    "navGroupBusiness": "Business",
+    "navGroupSetup": "Setup"
   },
   "onboarding": {
     "title": "Set up Vigent",
@@ -242,18 +268,50 @@
       "ordersTitle": "Track orders",
       "ordersDescription": "View synced order statuses to answer customers accurately.",
       "ordersCount": "{count} orders synced",
-      "readOnlyTitle": "Order access is read-only",
-      "readOnlyDescription": "The agent cannot create, cancel or edit orders, and cannot take payments yet.",
       "enabled": "Enabled",
       "disabled": "Disabled",
       "saved": "Access saved.",
       "saveError": "Could not save access. Please try again.",
-      "orderCaptureTitle": "In-chat pre-orders",
-      "orderCaptureDescription": "The agent collects variant, quantity, name, mobile and address in the conversation, sends a summary for the customer to confirm, then hands the order with every detail to your operator. Your team arranges payment and delivery.",
-      "orderCaptureBadge": "Payment arranged by your operator",
+      "orderCaptureTitle": "Take orders in chat",
+      "orderCaptureDescription": "The agent collects the item, quantity, name, mobile and address in the conversation and sends an order summary to confirm. Once confirmed, the order lands in “Chat requests” for your operator to arrange payment and delivery.",
+      "orderCaptureBadge": "First step of selling in chat",
+      "payLinkTitle": "Online payment on your site",
+      "payLinkDescription": "Instead of handing the order to an operator, the agent sends the customer a payment link on {host}. The customer pays with the site's own gateways, the order is placed in WooCommerce like any purchase, and the payment confirmation arrives in the same conversation.",
+      "payLinkNeedsPlugin": "The Vigent plugin on {host} must be version 5 or later. Update it from your WordPress dashboard; this option unlocks after the next sync.",
+      "payLinkNeedsStore": "First connect your WooCommerce site with the Vigent plugin under Connections.",
+      "payLinkBadge": "Your site's own gateways",
       "restockTitle": "Back-in-stock alerts",
       "restockDescription": "When a product is sold out the agent offers an alert and automatically messages the customer on the same channel once it is available again. The waiting list is under “Chat requests”.",
-      "restockBadge": "Auto message on Telegram, Bale, Rubika and Instagram"
+      "restockBadge": "Auto message on Telegram, Bale, Rubika and Instagram",
+      "groupKnowledge": "Store data",
+      "groupSelling": "Selling in chat",
+      "scope": {
+        "readOnly": {
+          "title": "Order access is read-only",
+          "description": "The agent only reads order status and never creates, cancels or edits orders. Turn on “Take orders in chat” to sell inside the chat."
+        },
+        "preOrder": {
+          "title": "The agent takes orders; your operator handles payment",
+          "description": "The agent collects the cart and customer details and, once the customer confirms, hands the order to your operator. Payment, cancellation and edits stay with your team, and the agent never gives discounts."
+        },
+        "payLink": {
+          "title": "The agent takes the order all the way to payment on your site",
+          "description": "The agent builds the cart and sends a payment link on {host}; WooCommerce computes the total, shipping and stock, and the order is placed on the site. The agent never cancels or edits placed orders and never gives discounts."
+        }
+      },
+      "orderUpdatesTitle": "Order status updates",
+      "orderUpdatesDescription": "When a customer asks about an order in chat, the agent follows it and sends the details in that same conversation every time the plugin changes its status or adds a tracking code, even if the order was placed with another phone number. Orders bought through an in-chat payment link are followed automatically.",
+      "orderUpdatesBadge": "Automatic message in the same app",
+      "cartHoldTitle": "Hold carts for one hour",
+      "cartHoldDescription": "With the first item in a cart, the agent tells the customer until when it is held, and for that hour those units count as taken for other chat customers. It sends one reminder 30 minutes before the end; when the hold ends, any item that sold out leaves the cart and the customer is told.",
+      "cartHoldBadge": "Held inside Vigent chats",
+      "payLinkDescriptionGeneric": "Instead of handing the order to an operator, the agent sends the customer a payment link on your WooCommerce site. The customer pays with the site's own gateways and the payment confirmation arrives in the same conversation.",
+      "groupSellingDescription": "The agent can take orders right here in the chat. Turn on “Take orders in chat” first, then choose how customers pay: with “Online payment on your site” off, your operator arranges payment; with it on, the customer pays through your site's link.",
+      "locked": {
+        "needsCapture": "To turn this on, first turn on “Take orders in chat”.",
+        "needsProducts": "To turn this on, first turn on “Use products”.",
+        "needsOrders": "To turn this on, first turn on “Track orders”."
+      }
     },
     "wizard": {
       "step": "Step {n} of {total}",
@@ -262,8 +320,6 @@
       "config": "Model configuration",
       "name": "Agent name",
       "namePlaceholder": "e.g. Sales assistant",
-      "description": "Short description",
-      "descriptionPlaceholder": "What does this agent do?",
       "systemPrompt": "System prompt",
       "systemPromptHint": "Tell the agent how to behave. You can use variables:",
       "systemPromptPlaceholderLegacy": "Additional instruction (optional) — the role template above takes priority; this field is a supplement.",
@@ -289,7 +345,6 @@
       "fallbackMessage": "Fallback message (when it has no answer)",
       "model": "AI model",
       "modelHint": "Leave blank to use the workspace default model",
-      "language": "Language",
       "successTitle": "Your agent is ready!",
       "successProducts": "{{count}} products were automatically added to the agent",
       "successNoProducts": "No products added yet — you can add them later",
@@ -332,7 +387,7 @@
       "imageInputEnabled": "Describe customer photos (machine vision)",
       "imageInputEnabledHint": "Off: customer photos end in the fixed media reply and operator handoff. Turn on to let the agent actually see photo content and answer like a text question.",
       "imageInputEnabledActiveHint": "Enabled: customer photos are described by the vision model and handed to the agent. Each analysed image costs {price} toman and is deducted from credit.",
-      "promptEngineTitle": "Behavior & tone · Six-layer engine",
+      "promptEngineTitle": "Behavior layers",
       "promptEngineDesc": "Refine your agent’s responses after testing conversations.",
       "roleTemplateLabel": "Quick start with a role template:",
       "previewPrompt": "Preview prompt",
@@ -343,7 +398,7 @@
       "layerScope": "Scope",
       "layerFallback": "Fallback",
       "layerFormat": "Format",
-      "layerQA": "Response examples",
+      "layerQA": "Examples",
       "personalityLabel": "Agent personality",
       "personalityHint": "Who are they? What traits? Describe the role and backstory.",
       "toneLabel": "Tone & brand voice",
@@ -431,12 +486,12 @@
       "rateBad": "Poor response"
     },
     "models": {
-      "intro": "Pick the model that powers your agent. Each one balances answer quality against cost differently.",
+      "intro": "Choose how smart your agent is. “Fast & economical” is enough for most businesses; if customers ask long, multi-step questions, try “Smart & precise”.",
       "default": "Default",
       "quality": "Quality",
       "cost": "Cost",
-      "advanced": "Managed AI modes",
-      "customHint": "Choose one of Vigent's four managed modes (Fast & economical, Smart & fluent, Agile & scalable, Precise & professional); the provider model is managed on the server",
+      "advanced": "Vigent AI modes",
+      "customHint": "Choose one of Vigent's two modes (Fast & economical, Smart & precise); the provider model is managed on the server",
       "free": "Free"
     }
   },
@@ -630,9 +685,10 @@
     "emptyCta": "Connect your first channel",
     "delete": "Delete conversation",
     "deleteTitle": "Delete this conversation?",
-    "deleteDescription": "This conversation, all of its messages, and its handoff alerts will be permanently deleted. This action cannot be undone.",
+    "deleteDescription": "This conversation, its messages and handoff alerts will be removed from your inbox.",
+    "deleteUndoNote": "For a few seconds after deleting, the Undo button at the bottom of the screen brings everything back.",
     "deleteCancel": "Cancel",
-    "deleteConfirm": "Delete permanently",
+    "deleteConfirm": "Delete conversation",
     "deleting": "Deleting…",
     "deleteFailed": "The conversation could not be deleted. Please try again.",
     "aiControlTitle": "Reply control",
@@ -644,10 +700,10 @@
     "aiControlError": "The reply mode could not be changed. Please try again."
   },
   "operatorChannel": {
-    "title": "Operator Telegram bot",
-    "desc": "Connect a Telegram bot to receive handoff alerts in Telegram and reply from there.",
+    "title": "Telegram manager bot",
+    "desc": "Your business control center inside Telegram: answer handed-off chats right there, get reports and manage orders and bookings with inline buttons.",
     "botToken": "Bot token",
-    "operatorChatId": "Operator chat id (chat_id)",
+    "operatorChatId": "Manager Telegram id (chat_id)",
     "connect": "Connect",
     "connecting": "Connecting…",
     "test": "Test connection",
@@ -766,7 +822,8 @@
       "noNotes": "No notes have been added for this customer",
       "delete": "Delete customer",
       "deleteTitle": "Delete this customer?",
-      "deleteDescription": "This customer profile will be permanently deleted. Conversations and messages are kept for history, but will no longer be linked to this customer. This action cannot be undone.",
+      "deleteDescription": "This customer profile will be removed. Conversations and messages are kept for history, but will no longer be linked to this customer.",
+      "deleteUndoNote": "For a few seconds after deleting, the Undo button at the bottom of the screen brings the customer back.",
       "deleteCancel": "Cancel",
       "deleteConfirm": "Delete customer",
       "deleting": "Deleting…",
@@ -810,9 +867,9 @@
     "featManagedAi": "Managed AI — no separate key or account"
   },
   "integrations": {
-    "title": "Integrations",
-    "subtitle": "Connect Vigent to the tools you use",
-    "channels": "Messaging connections",
+    "title": "Connections",
+    "subtitle": "Connect your messaging apps and online store to Vigent",
+    "channels": "Messaging apps",
     "connected": "Connected",
     "notConnected": "Not connected",
     "configure": "Configure",
@@ -921,6 +978,7 @@
     "allStockStatuses": "All stock statuses",
     "inStock": "In stock",
     "outOfStock": "Out of stock",
+    "lowStock": "Running low",
     "unlimited": "Unlimited",
     "toman": "Toman",
     "edit": "Edit",
@@ -931,7 +989,7 @@
     "delete": "Delete",
     "deleteConfirm": "Delete product",
     "deleteTitle": "Delete this product?",
-    "deleteDescription": "“{name}” will be permanently deleted and removed from every agent's catalog. This cannot be undone.",
+    "deleteDescription": "“{name}” will be removed from every agent's catalog. For a few seconds you can bring it back with Undo at the bottom of the screen.",
     "deleteCancel": "Cancel",
     "deleting": "Deleting…",
     "deleteFailed": "Failed to delete the product. Please try again.",
@@ -1001,6 +1059,8 @@
       "comparePrice": "Original price (for discount)",
       "sku": "SKU",
       "stock": "Stock (blank = unlimited)",
+      "lowStockThreshold": "Low-stock alert at",
+      "lowStockThresholdPlaceholder": "e.g. 3 (blank = store default)",
       "category": "Category",
       "noCategory": "No category",
       "tags": "Tags (comma separated)",
@@ -1027,7 +1087,18 @@
       "variation": "Variant",
       "addVariation": "Add variant",
       "removeVariation": "Remove variant",
-      "active": "Active"
+      "active": "Active",
+      "variantBuilder": "Generate variations",
+      "variantBuilderHint": "List the options (e.g. Colour: black, white — Size: S, M, L) and every combination is created with one click. Variations you already have keep their stock and price.",
+      "optionName": "Option name (e.g. Colour)",
+      "optionValues": "Values, comma-separated (e.g. black, white)",
+      "addOption": "Add option",
+      "generateVariations": "Create {count, number} combinations",
+      "bulkStock": "Stock for all",
+      "bulkPrice": "Price for all",
+      "applyToAll": "Apply to all",
+      "variationImage": "Image for this variation",
+      "noVariationImage": "No image"
     },
     "categories": {
       "title": "Categories",
@@ -1078,7 +1149,7 @@
       "title": "Chat requests",
       "subtitle": "Pre-orders customers confirmed in chat, and customers waiting for a product to be back in stock.",
       "draftsTitle": "Chat pre-orders",
-      "draftsEmpty": "No pre-orders yet. Turn on “In-chat pre-orders” in the agent settings.",
+      "draftsEmpty": "No orders from chat yet. Turn on “Take orders in chat” in the agent settings.",
       "restockTitle": "Back-in-stock waiting list",
       "restockEmpty": "Nobody is waiting for a product right now.",
       "code": "Code",
@@ -1095,13 +1166,21 @@
       "markContacted": "Followed up",
       "waiting": "{count} waiting",
       "followUp": "{count} need manual follow-up",
+      "storeOrder": "Store order",
       "draftStatus": {
         "SUBMITTED": "Awaiting follow-up",
         "CONFIRMED": "Confirmed",
         "CANCELLED": "Cancelled",
         "COLLECTING": "Collecting",
         "AWAITING_CONFIRM": "Awaiting customer",
-        "EXPIRED": "Expired"
+        "EXPIRED": "Expired",
+        "LINK_SENT": "Payment link sent",
+        "PAYMENT_PENDING": "On payment page",
+        "PAYMENT_FAILED": "Payment failed",
+        "PAID": "Paid",
+        "ON_HOLD": "Awaiting payment check",
+        "REFUNDED": "Refunded",
+        "SUPERSEDED": "Replaced"
       },
       "alertStatus": {
         "ACTIVE": "Waiting",
@@ -1125,9 +1204,9 @@
         "for your business"
       ],
       "subtitle": "Vigent connects to your real knowledge, products and workflows; it answers, moves sales and bookings forward, and hands sensitive cases to your team with context.",
-      "ctaPrimary": "Start free — one month",
+      "ctaPrimary": "Start free",
       "ctaSecondary": "Explore features",
-      "trust": "Set up in under 5 minutes · No technical skills · AI ready to use",
+      "trust": "Set up in about 7 minutes · No technical skills · AI ready to use",
       "scrollCue": "Scroll to explore"
     },
     "stats": {
@@ -1179,7 +1258,7 @@
     "how": {
       "title": "Your agent, live in three steps",
       "eyebrow": "Quick start",
-      "subtitle": "No code and no technical team — from sign-up to the first conversation in under 5 minutes.",
+      "subtitle": "No code and no technical team — from sign-up to the first conversation in about 7 minutes.",
       "step1Title": "Create your agent",
       "step1": "Choose your business goal and start with an agent whose copy and behavior are already prepared",
       "step1Time": "about 1 minute",
@@ -1223,7 +1302,7 @@
       "replay": "Replay",
       "agentName": "Vignet Agent",
       "online": "Online",
-      "ctaStart": "Start free — one month",
+      "ctaStart": "Start free",
       "ctaStartDesc": "Build your smart agent right now",
       "scenarioLabel": "Business type",
       "tabs": {
@@ -1473,7 +1552,7 @@
     "pricing": {
       "title": "A plan that fits your conversation volume",
       "eyebrow": "Pricing",
-      "subtitle": "Try Vigent free for one month, then choose a plan when your conversations grow.",
+      "subtitle": "Try Vigent free, then choose a plan when your conversations grow.",
       "free": "Free",
       "monthly": "Monthly",
       "annual": "Annual",
@@ -1481,7 +1560,7 @@
       "perMonth": "/ mo",
       "cta": "Get started",
       "popular": "Vigent's pick",
-      "trialTitle": "One month to build and test",
+      "trialTitle": "Free time to build and test",
       "trialNote": "Includes starter reply credit and one active channel connection",
       "trialCta": "Start free trial",
       "tomanPerMonth": "Toman / month",
@@ -1522,7 +1601,7 @@
         },
         {
           "q": "How long does setup take?",
-          "a": "Under 5 minutes. Pick a ready-made template, upload your catalog or documents, and add your first connection — the agent starts answering immediately."
+          "a": "About 7 minutes. Pick a ready-made template, upload your catalog or documents, and add your first connection — the agent starts answering immediately."
         },
         {
           "q": "How are AI reply costs handled?",
@@ -1546,7 +1625,7 @@
         },
         {
           "q": "Can I try it for free?",
-          "a": "Yes — you get one free month with the core features and starter AI credit. Static Instagram automation is free; successful AI requests such as replies, analyses, and tests consume credit."
+          "a": "Yes — you get a free trial with the core features and starter AI credit. Static Instagram automation is free; successful AI requests such as replies, analyses, and tests consume credit."
         }
       ]
     },

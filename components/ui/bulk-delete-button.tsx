@@ -133,8 +133,8 @@ export function BulkDeleteButton({
       if (restoreEndpoint && undoKind && Array.isArray(body.ids) && body.ids.length > 0) {
         queueUndo(undoKind, body.ids as string[], entitySingularLabel ?? entityLabel)
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'خطای ناشناخته')
+    } catch {
+      setError(fa ? 'حذف انجام نشد؛ اتصال را بررسی کنید و دوباره تلاش کنید.' : 'Delete failed. Check your connection and try again.')
     } finally {
       setBusy(false)
     }
@@ -149,13 +149,13 @@ export function BulkDeleteButton({
           : `${count} ${entityLabel} will be deleted`
         : ''
 
-  const description = [
-    countText,
-    fa
-      ? 'بلافاصله بعد از حذف، چند ثانیه فرصت «بازگردانی» خواهید داشت.'
-      : 'Right after the delete you get a few seconds to undo.',
-    extraWarning,
-  ].filter(Boolean).join(' ')
+  const description = [countText, extraWarning].filter(Boolean).join('. ')
+  // Only promise an undo when this entity really is restorable.
+  const undoNote = restoreEndpoint && undoKind
+    ? (fa
+        ? 'تا چند ثانیه بعد از حذف، دکمهٔ «بازگردانی» پایین صفحه همه را برمی‌گرداند.'
+        : 'For a few seconds after deleting, the Undo button at the bottom of the screen brings them all back.')
+    : undefined
 
   const dialogTitleText = dialogTitle
     ?? (fa ? `حذف همه ${entityLabel}` : `Delete all ${entityLabel}`)
@@ -182,6 +182,8 @@ export function BulkDeleteButton({
         open={open}
         title={dialogTitleText}
         description={description}
+        undoNote={undoNote}
+        cancelLabel={fa ? 'انصراف' : 'Cancel'}
         confirmLabel={confirmLabel}
         tone="danger"
         busy={busy}

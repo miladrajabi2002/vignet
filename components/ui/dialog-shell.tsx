@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,24 +12,38 @@ export function DialogShell({
   onClose,
   children,
   wide = false,
+  compact = false,
 }: {
   title: string
   subtitle?: string
   onClose: () => void
   children: ReactNode
   wide?: boolean
+  /** Narrow panel for confirmations. */
+  compact?: boolean
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const titleId = useId()
   const subtitleId = useId()
   const reduceMotion = useReducedMotion()
+  // Portal target. Rendering in place breaks `position: fixed`: the dashboard
+  // page wrapper runs a transform entrance animation (fill-mode keeps it
+  // "transformed"), which turns it into the containing block. The overlay then
+  // spans the whole page height, the panel centres far below the fold and the
+  // body scroll lock leaves it unreachable — the dialog looked frozen.
+  const [host, setHost] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    setHost(document.body)
+  }, [])
 
   useEffect(() => {
     onCloseRef.current = onClose
   }, [onClose])
 
   useEffect(() => {
+    if (!host) return
     const panel = panelRef.current
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const previousOverflow = document.body.style.overflow
@@ -66,11 +81,13 @@ export function DialogShell({
       window.removeEventListener('keydown', handler)
       previousFocus?.focus()
     }
-  }, [])
+  }, [host])
 
-  return (
+  if (!host) return null
+
+  return createPortal(
     <motion.div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:grid sm:place-items-center sm:p-3"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:grid sm:place-items-center sm:p-3"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -83,8 +100,8 @@ export function DialogShell({
       <motion.div
         ref={panelRef}
         className={cn(
-          'spatial-surface max-h-[92dvh] w-full overflow-y-auto rounded-t-[1.75rem] bg-white shadow-2xl sm:rounded-[1.5rem]',
-          wide ? 'max-w-4xl' : 'max-w-2xl',
+          'spatial-surface max-h-[92dvh] w-full overflow-y-auto rounded-t-sheet bg-white shadow-2xl sm:rounded-card',
+          wide ? 'max-w-4xl' : compact ? 'max-w-md' : 'max-w-2xl',
         )}
         initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -99,7 +116,7 @@ export function DialogShell({
           <button
             type="button"
             onClick={onClose}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)]"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             aria-label="بستن"
           >
             <X className="h-4 w-4" />
@@ -107,6 +124,7 @@ export function DialogShell({
         </header>
         <div className="p-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:p-5">{children}</div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    host,
   )
 }

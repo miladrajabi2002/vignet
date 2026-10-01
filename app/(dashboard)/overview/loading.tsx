@@ -11,15 +11,15 @@ import {
 
 /**
  * Route-level skeleton for /overview — an exact mirror of the page:
- * arrival hero (intro card + intelligence core), Vigento AI copilot card,
+ * operations center (summary + live flow), Vigento card,
  * 4-up outcome KPI row, trend + recent cases, tools + plan & credit.
  * Same staggered mobile-style shimmer as the rest of the product.
  */
 export default function OverviewLoading() {
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
-      {/* ── Arrival hero: intro card + intelligence core ── */}
-      <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+      {/* ── Operations center: summary + live flow in one card ── */}
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <ArrivalIntroSkeleton />
         <IntelligenceCoreSkeleton delay={-160} />
       </section>

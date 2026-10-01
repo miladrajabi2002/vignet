@@ -58,7 +58,7 @@ export function ConversationMobileLayout({
         role="tablist"
         aria-orientation="horizontal"
         aria-label={locale === 'fa' ? 'بخش‌های گفتگو' : 'Conversation sections'}
-        className="sticky top-[5.35rem] z-20 grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-default)] bg-white/95 p-1 shadow-[0_12px_34px_rgba(0,0,0,0.08)] backdrop-blur-xl lg:hidden"
+        className="ui-seg ui-seg-solid sticky top-[4rem] z-20 grid-cols-2 lg:hidden"
       >
         {tabs.map(({ key, label, icon: Icon }, index) => (
           <button
@@ -71,12 +71,7 @@ export function ConversationMobileLayout({
             tabIndex={tab === key ? 0 : -1}
             onClick={() => setTab(key)}
             onKeyDown={(event) => moveTab(event, index)}
-            className={cn(
-              'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
-              tab === key
-                ? 'bg-black text-white shadow-[var(--shadow-control)]'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-            )}
+            className="ui-seg-tab px-3 text-xs"
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
             {label}

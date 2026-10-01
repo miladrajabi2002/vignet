@@ -182,7 +182,7 @@ export default async function ConversationThreadPage(props: {
                 <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
-                        <div className="spatial-surface flex shrink-0 flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                        <div className="spatial-surface flex shrink-0 flex-col gap-4 rounded-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                                 <div className="flex min-w-0 items-center gap-3">
                                         <ContactAvatar
                                                 src={contactAvatarSource}
@@ -258,12 +258,12 @@ export default async function ConversationThreadPage(props: {
                         )}
 
                         {conversation.summary && (
-                                <div className="spatial-surface shrink-0 rounded-[1.5rem] p-4">
+                                <div className="spatial-surface shrink-0 rounded-card p-4">
                                         <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                                                 <Sparkles className="h-3.5 w-3.5" />
                                                 {t('summary')}
                                                 {latestInboundSourceLabel && (
-                                                        <span className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">
+                                                        <span className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[12px] text-[var(--text-secondary)]">
                                                                 {latestInboundSourceLabel}
                                                         </span>
                                                 )}

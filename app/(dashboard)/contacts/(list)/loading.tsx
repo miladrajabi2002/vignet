@@ -48,7 +48,7 @@ export default function ContactsLoading() {
           </div>
         </div>
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="spatial-surface overflow-hidden rounded-[1.35rem]">
+          <div key={index} className="spatial-surface overflow-hidden rounded-card">
             <div className="flex items-start gap-3 p-4">
               <Skeleton delay={-index * 110} className="h-11 w-11 shrink-0 rounded-full" />
               <div className="min-w-0 flex-1">

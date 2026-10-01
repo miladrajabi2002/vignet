@@ -241,7 +241,7 @@ export function LiveArrivalItem({
           <>
             <motion.span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(100deg,transparent_8%,rgba(124,58,237,0.11)_48%,rgba(16,185,129,0.08)_72%,transparent_96%)]"
+              className="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(100deg,transparent_8%,rgba(110,86,207,0.11)_48%,rgba(16,185,129,0.08)_72%,transparent_96%)]"
               initial={{ opacity: 0 }}
               animate={{ opacity: reduceMotion ? [0, 0.42, 0] : [0, 1, 0] }}
               exit={{ opacity: 0 }}
@@ -252,7 +252,7 @@ export function LiveArrivalItem({
             />
             <motion.span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-y-2 start-0 z-20 w-[3px] rounded-full bg-gradient-to-b from-violet-500 via-fuchsia-400 to-emerald-400 shadow-[0_0_18px_rgba(124,58,237,0.55)]"
+              className="pointer-events-none absolute inset-y-2 start-0 z-20 w-[3px] rounded-full bg-gradient-to-b from-violet-500 via-fuchsia-400 to-emerald-400 shadow-[0_0_18px_rgba(110,86,207,0.55)]"
               initial={{
                 opacity: 0,
                 transform: reduceMotion ? 'scaleY(1)' : 'scaleY(0.35)',
@@ -298,7 +298,7 @@ export function LiveArrivalStatus({
     <span
       aria-live="polite"
       className={cn(
-        'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-[color,background-color,border-color] duration-200',
+        'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold transition-[color,background-color,border-color] duration-200',
         count > 0
           ? 'border-violet-500/20 bg-violet-500/10 text-violet-700'
           : 'border-emerald-500/15 bg-emerald-500/[0.08] text-emerald-700',

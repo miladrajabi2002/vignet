@@ -34,6 +34,7 @@ import { formatDateTime } from '@/lib/format'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
+import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
 import { OperatorReply } from './operator-reply'
 import {
         ConversationTimelineActivity,
@@ -254,8 +255,8 @@ export function ConversationThread({
                 }
 
         return (
-                <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-[1.75rem]">
-                        <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[11px] text-black/35">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
+                <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-sheet">
+                        <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
                         {/* dir="ltr" pins the bubble sides: the CUSTOMER is always on the
                             visual RIGHT and the agent/operator on the LEFT, identically in
                             every locale — the same pin the chat-link page and the web widget
@@ -295,7 +296,7 @@ export function ConversationThread({
                                                 ? inboundSourceLabel(readInboundSource(m.metadata), locale)
                                                 : null
                                         const showcase = isUser
-                                                ? { text: m.content, products: [] }
+                                                ? { text: m.content, products: [], checkout: null }
                                                 : parseProductShowcaseContent(m.content)
                                         const hasShowcase = showcase.products.length > 0
                                         const reactions = reactionsByMessageId.get(m.id) ?? []
@@ -333,7 +334,7 @@ export function ConversationThread({
                                                                                         locale={locale}
                                                                                 />
                                                                                 {mediaOnlyLabel && (
-                                                                                        <span className="mt-0.5 px-1 text-[10px] text-[var(--text-muted)]">
+                                                                                        <span className="mt-0.5 px-1 text-[12px] text-[var(--text-muted)]">
                                                                                                 {formatDateTime(new Date(m.createdAt), locale)}
                                                                                         </span>
                                                                                 )}
@@ -344,7 +345,7 @@ export function ConversationThread({
                                                                 {isLiveMessage && (
                                                                         <motion.span
                                                                                 aria-hidden="true"
-                                                                                className="pointer-events-none absolute -inset-1 z-0 rounded-[1.35rem] bg-gradient-to-br from-violet-500/24 via-fuchsia-400/12 to-emerald-400/18 blur-[2px]"
+                                                                                className="pointer-events-none absolute -inset-1 z-0 rounded-card bg-gradient-to-br from-violet-500/24 via-fuchsia-400/12 to-emerald-400/18 blur-[2px]"
                                                                                 initial={{ opacity: 0.78, transform: 'scale(0.96)' }}
                                                                                 animate={{ opacity: 0, transform: 'scale(1.06)' }}
                                                                                 transition={{ duration: reduceMotion ? 0.45 : 1.15, ease: [0.23, 1, 0.32, 1] }}
@@ -356,12 +357,12 @@ export function ConversationThread({
                                                                         className="relative z-[1] max-w-full py-2"
                                                                 >
                                                                         {isOperator && (
-                                                                                <span dir="auto" className="mb-0.5 block text-[11px] font-medium opacity-60">
+                                                                                <span dir="auto" className="mb-0.5 block text-[12px] font-medium opacity-60">
                                                                                         {t('operatorBadge')}
                                                                                 </span>
                                                                         )}
                                                                         {sourceLabel && (
-                                                                                <span dir="auto" className="mb-1 block text-[10px] font-semibold text-[var(--text-secondary)] opacity-75">
+                                                                                <span dir="auto" className="mb-1 block text-[12px] font-semibold text-[var(--text-secondary)] opacity-75">
                                                                                         {sourceLabel}
                                                                                 </span>
                                                                         )}
@@ -374,7 +375,7 @@ export function ConversationThread({
                                                                             locales instead of following the page direction. */}
                                                                         <span
                                                                                 className={cn(
-                                                                                        'mt-1 block text-end text-[11px]',
+                                                                                        'mt-1 block text-end text-[12px]',
                                                                                         isUser
                                                                                                 ? 'text-[var(--text-muted)]'
                                                                                                 : 'text-[var(--bg-base)] opacity-40',
@@ -384,6 +385,11 @@ export function ConversationThread({
                                                                         </span>
                                                                 </ConversationBubble>
                                                                 </div>
+                                                                )}
+                                                                {!isUser && showcase.checkout && (
+                                                                        <div className="mt-2">
+                                                                                <CheckoutCardView card={showcase.checkout} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" />
+                                                                        </div>
                                                                 )}
                                                                 {!isUser && hasShowcase && (
                                                                         <ProductShowcaseRail
@@ -397,7 +403,7 @@ export function ConversationThread({
                                                                         />
                                                                 )}
                                                                 {!isUser && hasShowcase && !showcase.text && (
-                                                                        <span className="mt-0.5 px-1 text-[10px] text-[var(--text-muted)]">
+                                                                        <span className="mt-0.5 px-1 text-[12px] text-[var(--text-muted)]">
                                                                                 {formatDateTime(new Date(m.createdAt), locale)}
                                                                         </span>
                                                                 )}

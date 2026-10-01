@@ -11,6 +11,7 @@ import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, isPaidPlan, PAID_
 import { cn } from '@/lib/utils'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { CreditFlowMotion } from '@/components/motion/explainers'
 
 const PLAN_KEY: Record<string, string> = {
   TRIAL: 'planTrial',
@@ -109,7 +110,10 @@ export default async function BillingPage(
         </div>
       )}
 
-      <section className="spatial-surface flex flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:p-5">
+      {/* The credit rule, told and shown: text on one side, the three
+          cases (charged / free / refunded) playing out on the other. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)]">
+      <section className="spatial-surface flex flex-col gap-4 rounded-card p-4 sm:flex-row sm:items-center sm:p-5 lg:flex-col lg:items-start lg:justify-center">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
           <Zap className="h-5 w-5" />
         </span>
@@ -123,13 +127,15 @@ export default async function BillingPage(
               : 'Static replies, keywords, comments and non-AI scenarios consume no credit during an active trial or subscription. Each successful AI request—reply, conversation analysis, or response test—is charged at the selected model price.'}
           </p>
         </div>
-        <span className="inline-flex min-h-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[11px] font-bold text-[var(--text-primary)]">
+        <span className="inline-flex min-h-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[12px] font-bold text-[var(--text-primary)]">
           {locale === 'fa' ? 'بدون محدودیت سناریو' : 'Unlimited scenarios'}
         </span>
       </section>
+      <CreditFlowMotion locale={locale} />
+      </div>
 
       {/* Plan card */}
-      <section className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
+      <section className="spatial-surface rounded-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-sm text-[var(--text-secondary)]">
@@ -153,22 +159,22 @@ export default async function BillingPage(
 
         <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-3">
           <div className="rounded-xl bg-[var(--bg-muted)] p-3">
-            <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p>
+            <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
           </div>
           <div className="rounded-xl bg-[var(--bg-muted)] p-3">
-            <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
+            <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
           </div>
           <div className="rounded-xl bg-[var(--bg-muted)] p-3">
-            <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p>
+            <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
           </div>
         </div>
       </section>
 
       {(messagesUsed > 0 || convoCount > 0 || bookingCount > 0) && (
-        <section className="dashboard-intro relative overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] p-5 shadow-[var(--shadow-card)] sm:p-6">
+        <section className="dashboard-intro relative overflow-hidden rounded-card border border-[var(--border-default)] p-5 shadow-[var(--shadow-card)] sm:p-6">
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)]">
@@ -222,7 +228,7 @@ export default async function BillingPage(
                 key={p}
                 id={`plan-${p}`}
                 className={cn(
-                  'spatial-surface relative flex scroll-mt-24 flex-col rounded-[1.5rem] p-5',
+                  'spatial-surface relative flex scroll-mt-24 flex-col rounded-card p-5',
                   isRecommended && 'border-amber-400 ring-2 ring-amber-300/60',
                 )}
               >
@@ -231,7 +237,7 @@ export default async function BillingPage(
                     {t(PLAN_KEY[p])}
                   </h3>
                   {isRecommended && (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-900">
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[12px] font-bold text-amber-900">
                       {locale === 'fa' ? 'پیشنهاد متناسب با ظرفیت شما' : 'Recommended for your capacity'}
                     </span>
                   )}
@@ -249,31 +255,31 @@ export default async function BillingPage(
                 </div>
                 <ul className="mt-4 flex-1 space-y-2 text-sm text-[var(--text-secondary)]">
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
                     {locale === 'fa' ? 'بدون بسته یا تعهد تعداد پیام' : 'No message packs or volume commitment'}
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
                     {locale === 'fa'
                       ? `${nf.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه، فقط در اولین خرید اشتراک`
                       : `${nf.format(def.includedCreditIRR / 10)} toman gift credit on your first subscription purchase only`}
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
                     {t('featChannelLimit', { count: nf.format(def.maxChannels) })}
                   </li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? `${nf.format(def.maxProducts)} محصول` : `${nf.format(def.maxProducts)} products`}</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? `${nf.format(def.maxOrders)} سفارش` : `${nf.format(def.maxOrders)} orders`}</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? `${nf.format(def.maxCustomers)} مشتری` : `${nf.format(def.maxCustomers)} customers`}</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? `${nf.format(def.maxProducts)} محصول` : `${nf.format(def.maxProducts)} products`}</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? `${nf.format(def.maxOrders)} سفارش` : `${nf.format(def.maxOrders)} orders`}</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? `${nf.format(def.maxCustomers)} مشتری` : `${nf.format(def.maxCustomers)} customers`}</li>
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
                     {t('featChannels')}
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />
                     {t('featUnlimitedAgents')}
                   </li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? 'تعرفه ثابت پاسخ در همه پلن‌ها' : 'Same reply price across every plan'}</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[var(--ok)]" />{locale === 'fa' ? 'تعرفه ثابت پاسخ در همه پلن‌ها' : 'Same reply price across every plan'}</li>
                 </ul>
                 <div className="mt-5">
                   {isCurrent ? (

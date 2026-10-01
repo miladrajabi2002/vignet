@@ -21,10 +21,10 @@ type MediaKind = 'photo' | 'video' | 'voice' | 'audio' | 'sticker' | 'file'
 
 const PLACEHOLDERS: Record<Locale, Record<string, string>> = {
   fa: {
-    photo: 'عکس (از کانال بارگذاری نشد)',
-    video: 'ویدیو (از کانال بارگذاری نشد)',
-    voice: 'پیام صوتی (از کانال بارگذاری نشد)',
-    audio: 'فایل صوتی (از کانال بارگذاری نشد)',
+    photo: 'عکس (از برنامه بارگذاری نشد)',
+    video: 'ویدیو (از برنامه بارگذاری نشد)',
+    voice: 'پیام صوتی (از برنامه بارگذاری نشد)',
+    audio: 'فایل صوتی (از برنامه بارگذاری نشد)',
     sticker: 'استیکر',
     file: 'فایل پیوست',
   },
@@ -95,7 +95,7 @@ export function InboundMedia({
           alt={kindLabel(kind, locale) ?? 'Customer media'}
           loading="lazy"
           onError={() => setFailed(true)}
-          className="block max-h-80 w-auto rounded-[1.15rem] border border-black/[0.08] bg-white object-contain shadow-sm"
+          className="block max-h-80 w-auto rounded-card border border-black/[0.08] bg-white object-contain shadow-sm"
         />
       </figure>
     )
@@ -109,7 +109,7 @@ export function InboundMedia({
         onError={() => setFailed(true)}
         src={src}
         aria-label={kindLabel(kind, locale) ?? undefined}
-        className="block max-h-80 w-auto max-w-[min(20rem,78vw)] rounded-[1.15rem] border border-black/[0.08] bg-black/90 shadow-sm"
+        className="block max-h-80 w-auto max-w-[min(20rem,78vw)] rounded-card border border-black/[0.08] bg-black/90 shadow-sm"
       />
     )
   }

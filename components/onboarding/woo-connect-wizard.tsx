@@ -3,16 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
-  Check,
-  CheckCircle2,
-  Download,
-  Globe,
-  Loader2,
-  Package,
-  Plug,
-  RefreshCw,
-  Sparkles,
-  ArrowLeft,
+	Check,
+	CheckCircle2,
+	Download,
+	Globe,
+	Loader2,
+	Plug,
+	RefreshCw,
+	ArrowLeft,
 } from 'lucide-react'
 
 /**
@@ -221,7 +219,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
 
   return (
     <motion.div
-      className="w-full overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
+      className="w-full overflow-hidden rounded-card border border-black/10 bg-white shadow-[var(--elev-2)]"
       initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
@@ -236,7 +234,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
             <h2 className="text-sm font-bold text-[var(--text-primary)]">
               اتصال سایت وردپرس / ووکامرس
             </h2>
-            <p className="text-[11px] text-[var(--text-muted)]">
+            <p className="text-[12px] text-[var(--text-muted)]">
               {step === 'url' && 'مرحله ۱ از ۳ — آدرس سایت'}
               {step === 'install' && 'مرحله ۲ از ۳ — نصب افزونه و اتصال'}
               {step === 'success' && 'مرحله ۳ از ۳ — اتصال موفق'}
@@ -261,7 +259,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                 <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
                   <Globe className="h-5 w-5" />
                 </span>
-                <h3 className="mt-3 text-base font-semibold text-[var(--text-primary)]">
+                <h3 className="mt-3 text-base font-bold text-[var(--text-primary)]">
                   آدرس سایت خود را وارد کنید
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-5 text-[var(--text-muted)]">
@@ -435,17 +433,14 @@ function StepRow({
 }) {
   return (
     <li className="flex items-start gap-3">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-[11px] font-bold text-white">
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-[12px] font-bold text-white">
         {num}
       </span>
       <div className="flex-1">
         <p className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</p>
-        <p className="mt-0.5 text-[11px] leading-5 text-[var(--text-muted)]">{desc}</p>
+        <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)]">{desc}</p>
         {action && <div className="mt-2">{action}</div>}
       </div>
     </li>
   )
 }
-
-// Re-export Package icon so callers don't need to import it separately.
-export { Package as PackageIcon, Sparkles as SparklesIcon, ArrowLeft as ArrowLeftIcon }

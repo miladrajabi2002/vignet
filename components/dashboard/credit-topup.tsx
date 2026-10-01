@@ -38,7 +38,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
   }
 
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+    <section className="spatial-surface overflow-hidden rounded-card">
       {/* Header */}
       <div className="flex items-start gap-3 border-b border-[var(--border-subtle)] p-5 sm:p-6">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
@@ -84,7 +84,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
                 <span className="text-sm font-bold tabular-nums">
                   {number.format(amount / 10)}
                 </span>
-                <span className={`text-[11px] ${selected ? 'opacity-70' : 'text-[var(--text-muted)]'}`}>
+                <span className={`text-[12px] ${selected ? 'opacity-70' : 'text-[var(--text-muted)]'}`}>
                   {fa ? 'تومان' : 'toman'}
                 </span>
               </button>
@@ -114,7 +114,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
         )}
 
         {/* Trust note */}
-        <p className="mt-3 text-center text-[11px] text-[var(--text-muted)]">
+        <p className="mt-3 text-center text-[12px] text-[var(--text-muted)]">
           {fa
             ? 'پرداخت از طریق درگاه زرین‌پال — امن و سریع'
             : 'Payment via Zarinpal gateway — secure and fast'}

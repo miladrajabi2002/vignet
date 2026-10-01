@@ -25,7 +25,7 @@ export default async function OnboardingPage() {
       select: { id: true },
     }),
   ])
-  const businessProfile = readBusinessProfile(workspace.businessProfile)
+  const businessProfile = readBusinessProfile(workspace.businessProfile, workspace.businessType)
   const hasProfile = !!businessProfile && !!workspace.businessType
   const pack = workspace.businessType ? getVerticalPack(workspace.businessType) : null
 

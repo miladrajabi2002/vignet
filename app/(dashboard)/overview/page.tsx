@@ -6,20 +6,16 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
-  BriefcaseBusiness,
   CalendarCheck2,
-  Camera,
-  ChartNoAxesCombined,
   CheckCircle2,
+  FlaskConical,
   MessagesSquare,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+  UserPlus,
   Package,
-  Plug,
-  QrCode,
-  Send,
   Sparkles,
-  Users,
-  Wallet,
-  type LucideIcon,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -29,11 +25,14 @@ import {
   DashboardCompletionChecklist,
   type DashboardChecklistFacts,
 } from '@/components/dashboard/completion-checklist'
-import { IntelligenceCoreLazy } from '@/components/dashboard/intelligence-core-lazy'
+import { LiveFlow, OperatorBotCard, OpsCenter, VigentoCard, type FlowInput, type FlowOutput } from '@/components/dashboard/overview-ops'
+import type { ChannelKey } from '@/components/ui/channel-mark'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
-import { getDashboardNavigationModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
-import { readBusinessProfile } from '@/lib/verticals/profile'
+import { getDashboardNavigationModules, getVerticalPack } from '@/lib/verticals/registry'
+import { readBusinessProfile, workspaceCapabilities } from '@/lib/verticals/profile'
+import { getCapabilityReadiness } from '@/lib/verticals/readiness'
+import { CapabilityStatusPanel } from '@/components/dashboard/capability-status-panel'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { formatDateTime } from '@/lib/format'
 import { dateLocaleTag } from '@/lib/localized-date'
@@ -52,27 +51,12 @@ import {
 
 const TREND_DAYS = 14
 
-const MODULE_META: Record<DashboardModuleKey, { href: string; fa: string; en: string; icon: LucideIcon }> = {
-  overview: { href: '/overview', fa: 'نمای کلی', en: 'Overview', icon: Sparkles },
-  agents: { href: '/agents', fa: 'ایجنت‌ها', en: 'Agents', icon: Bot },
-  products: { href: '/products', fa: 'محصولات و منو', en: 'Products & menu', icon: Package },
-  services: { href: '/services', fa: 'خدمات', en: 'Services', icon: BriefcaseBusiness },
-  menu: { href: '/menu', fa: 'منوی دیجیتال', en: 'Digital menu', icon: QrCode },
-  appointments: { href: '/appointments', fa: 'رزروها و خدمات', en: 'Bookings & services', icon: CalendarCheck2 },
-  conversations: { href: '/conversations', fa: 'گفتگوها', en: 'Conversations', icon: MessagesSquare },
-  contacts: { href: '/contacts', fa: 'مشتری‌ها', en: 'Customers', icon: Users },
-  analytics: { href: '/analytics', fa: 'گزارش‌ها', en: 'Reports', icon: ChartNoAxesCombined },
-  instagram: { href: '/instagram', fa: 'اتوماسیون اینستاگرام', en: 'Instagram automation', icon: Camera },
-  integrations: { href: '/integrations', fa: 'اتصال‌ها', en: 'Integrations', icon: Plug },
-  billing: { href: '/billing', fa: 'مالی و اعتبار', en: 'Billing & credit', icon: Wallet },
-  settings: { href: '/settings', fa: 'تنظیمات', en: 'Settings', icon: Sparkles },
-}
 
 const PLAN_NAMES_FA: Record<string, string> = {
   TRIAL: 'آزمایشی',
   STARTER: 'استارتر',
   PRO: 'حرفه‌ای',
-  BUSINESS: 'سازمانی',
+  BUSINESS: 'بیزینس',
 }
 
 export default async function OverviewPage() {
@@ -121,6 +105,13 @@ export default async function OverviewPage() {
     contactsMiniTrend,
     resolvedMiniTrend,
     chargesMonthlyTrend,
+    channelTraffic7d,
+    connectedChannelTypes,
+    resolved7d,
+    handedOff7d,
+    orders7d,
+    conversationsToday,
+    previousContacts7d,
   ] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId },
@@ -193,7 +184,7 @@ export default async function OverviewPage() {
     getMonthlyMessageCount(workspaceId),
     prisma.operatorChannel.findUnique({
       where: { workspaceId },
-      select: { active: true, operatorChatId: true },
+      select: { active: true, operatorChatId: true, botUsername: true },
     }),
     prisma.agent.findFirst({
       where: { workspaceId },
@@ -217,15 +208,21 @@ export default async function OverviewPage() {
     contactsDailyByWorkspace(workspaceId, 7),
     resolvedDailyByWorkspace(workspaceId, 7),
     chargesDailyByWorkspace(workspaceId, 30),
+    prisma.conversation.groupBy({ by: ['channel'], where: { workspaceId, createdAt: { gte: sevenDaysAgo } }, _count: { _all: true } }),
+    prisma.agentChannel.groupBy({ by: ['type'], where: { active: true, agent: { workspaceId } } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', createdAt: { gte: sevenDaysAgo } } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'HANDED_OFF', createdAt: { gte: sevenDaysAgo } } }),
+    prisma.storeOrder.count({ where: { workspaceId, deletedAt: null, createdAt: { gte: sevenDaysAgo } } }),
+    prisma.conversation.count({ where: { workspaceId, createdAt: { gte: startOfToday() } } }),
+    prisma.contact.count({ where: { workspaceId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
   ])
 
   const pack = getVerticalPack(workspace.businessType)
-  const businessProfile = readBusinessProfile(workspace.businessProfile)
-  const modules = getDashboardNavigationModules(workspace.businessType, businessProfile?.services).filter(
-    (module) => !['overview', 'billing', 'settings'].includes(module),
-  )
+  const businessProfile = readBusinessProfile(workspace.businessProfile, workspace.businessType)
+  const capabilities = workspaceCapabilities(workspace)
+  const modules = getDashboardNavigationModules(capabilities)
+  const readiness = await getCapabilityReadiness(workspaceId, capabilities)
   const businessLabel = fa ? pack.titleFa : pack.titleEn
-  const businessDescription = fa ? pack.descriptionFa : pack.descriptionEn
   const profile = isRecord(workspace.businessProfile) ? workspace.businessProfile : {}
   const profileName = typeof profile.businessName === 'string' ? profile.businessName.trim() : ''
   const displayName = profileName || workspace.name
@@ -234,8 +231,10 @@ export default async function OverviewPage() {
   const resolveRate = totalConversations
     ? Math.round((resolvedConversations / totalConversations) * 100)
     : 0
-  const attentionCount = handedOff + pendingImprovements
   const conversationDelta = percentDelta(conversations7d, previousConversations7d)
+  const contactDelta = percentDelta(contacts7d, previousContacts7d)
+  const deltaHint = fa ? 'نسبت به ۷ روز قبل' : 'vs the previous 7 days'
+  const deltaText = (delta: number) => `${nf.format(Math.abs(delta))}${fa ? '٪' : '%'}`
   const hasBookingModule = modules.includes('appointments')
 
   const verticalOutcome = hasBookingModule
@@ -296,6 +295,29 @@ export default async function OverviewPage() {
     })
   }
 
+  // Real 7-day traffic per app, connected apps first, busiest first.
+  const trafficByChannel = new Map(channelTraffic7d.map((row) => [row.channel as string, row._count._all]))
+  const connectedSet = new Set(connectedChannelTypes.map((row) => row.type as string))
+  const FLOW_CHANNELS: ChannelKey[] = ['INSTAGRAM', 'TELEGRAM', 'WEB_WIDGET', 'BALE', 'RUBIKA', 'CHAT_LINK', 'WHATSAPP']
+  const flowInputs: FlowInput[] = FLOW_CHANNELS
+    .map((channel) => ({ channel, count: trafficByChannel.get(channel) ?? 0, connected: connectedSet.has(channel) || (trafficByChannel.get(channel) ?? 0) > 0 }))
+    .filter((input) => input.connected)
+    .sort((a, b) => b.count - a.count)
+  const isCommerce = workspace.businessType === 'COMMERCE' || workspace.businessType === 'FOOD'
+  const flowOutputs: FlowOutput[] = [
+    { key: 'resolved', label: fa ? 'حل خودکار' : 'Auto-resolved', value: resolved7d, href: '/conversations?status=RESOLVED', icon: CheckCircle2, tone: 'ok' },
+    { key: 'handoff', label: fa ? 'سپرده به اپراتور' : 'Handed to a person', value: handedOff7d, href: '/conversations?status=HANDED_OFF', icon: AlertCircle, tone: 'warn' },
+    { key: 'contacts', label: fa ? 'مشتری تازه در CRM' : 'New CRM customers', value: contacts7d, href: '/contacts', icon: UserPlus, tone: 'signal' },
+    hasBookingModule
+      ? { key: 'bookings', label: fa ? 'نوبت پیش رو' : 'Upcoming bookings', value: upcomingAppointments, href: '/appointments', icon: CalendarCheck2, tone: 'ink' }
+      : isCommerce
+        ? { key: 'orders', label: fa ? 'سفارش فروشگاه' : 'Store orders', value: orders7d, href: '/products/orders', icon: Package, tone: 'ink' }
+        : { key: 'open', label: fa ? 'گفتگوی باز' : 'Open chats', value: openConversations, href: '/conversations?status=OPEN', icon: MessagesSquare, tone: 'ink' },
+  ]
+  const vigentoAnswer = fa
+    ? `امروز ${nf.format(conversationsToday)} گفتگوی تازه داشتید؛ ${handedOff > 0 ? `${nf.format(handedOff)} گفتگو منتظر شماست` : 'هیچ گفتگویی منتظر شما نیست'}${pendingImprovements > 0 ? ` و ${nf.format(pendingImprovements)} پیشنهاد بهبود آمادهٔ تأیید است` : ''}.`
+    : `${nf.format(conversationsToday)} new conversations today; ${handedOff > 0 ? `${nf.format(handedOff)} are waiting for you` : 'nothing is waiting for you'}${pendingImprovements > 0 ? `, and ${nf.format(pendingImprovements)} improvements are ready to approve` : ''}.`
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
       {!workspace.dashboardChecklistDismissedAt && !checklistCompleted && (
@@ -305,181 +327,72 @@ export default async function OverviewPage() {
         />
       )}
 
-      <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7">
-          <div className="relative">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-primary)]" />
-                {businessLabel}
-              </span>
-              <span className="text-[11px] text-[var(--text-muted)]">
-                {fa ? `${nf.format(activeChannels)} برنامه متصل` : `${nf.format(activeChannels)} apps connected`}
-              </span>
-            </div>
+      <OpsCenter
+        locale={lang}
+        ownerName={user.name}
+        businessName={displayName}
+        businessLabel={businessLabel}
+        connectedApps={activeChannels}
+        attention={[
+          {
+            key: 'handoff',
+            href: '/conversations?status=HANDED_OFF',
+            icon: AlertCircle,
+            value: handedOff,
+            label: fa ? 'منتظر اپراتور' : 'Awaiting you',
+            hint: fa ? 'با خلاصهٔ آماده' : 'summary ready',
+            urgent: handedOff > 0,
+          },
+          {
+            key: 'improve',
+            href: primaryAgent ? `/agents/${primaryAgent.id}/improve` : '/agents',
+            icon: Sparkles,
+            value: pendingImprovements,
+            label: fa ? 'پیشنهاد بهبود' : 'Improvements',
+            hint: fa ? 'آمادهٔ تأیید شما' : 'ready to approve',
+            urgent: pendingImprovements > 0,
+          },
+          hasBookingModule
+            ? { key: 'bookings', href: '/appointments', icon: CalendarCheck2, value: upcomingAppointments, label: fa ? 'نوبت پیش رو' : 'Upcoming', hint: fa ? 'تأییدشده و در انتظار' : 'confirmed and pending', urgent: false }
+            : { key: 'open', href: '/conversations?status=OPEN', icon: MessagesSquare, value: openConversations, label: fa ? 'گفتگوی باز' : 'Open chats', hint: fa ? 'ایجنت در حال پیگیری' : 'the agent is on it', urgent: false },
+        ]}
+        primaryAction={{ href: '/conversations', label: fa ? 'رسیدگی به گفتگوها' : 'Open conversations', icon: MessagesSquare }}
+        secondaryAction={hasBookingModule
+          ? { href: '/appointments', label: fa ? 'مدیریت نوبت‌ها' : 'Manage appointments', icon: CalendarCheck2 }
+          : primaryAgent
+            ? { href: `/agents/${primaryAgent.id}`, label: fa ? 'تست ایجنت' : 'Test the agent', icon: FlaskConical }
+            : { href: '/agents/new', label: fa ? 'ساخت اولین ایجنت' : 'Create your first agent', icon: Sparkles }}
+        flow={
+          <LiveFlow
+            locale={lang}
+            agentName={primaryAgent?.name?.trim() || (fa ? 'ایجنت' : 'Agent')}
+            automationRate={conversations7d > 0 ? Math.round((resolved7d / conversations7d) * 100) : null}
+            inputs={flowInputs}
+            outputs={flowOutputs}
+          />
+        }
+      />
 
-            <p className="mt-5 text-xs font-medium text-[var(--text-muted)]">
-              {attentionCount === 0
-                ? fa ? 'امروز همه‌چیز در مسیر عادی است.' : 'Everything is running normally today.'
-                : fa ? `امروز ${nf.format(attentionCount)} مورد نیاز به توجه دارد.` : `${nf.format(attentionCount)} items need attention today.`}
-            </p>
-            <h1 className="mt-1.5 max-w-xl text-[clamp(1.5rem,3.5vw,2.2rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-[var(--text-primary)] rtl:tracking-normal">
-              {fa ? `مرکز عملیات ${displayName}` : `${displayName} operations center`}
-            </h1>
-            <p className="mt-2.5 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-              {businessDescription}
-            </p>
+      <VigentoCard locale={lang} liveAnswer={vigentoAnswer} />
 
-            <div className="mt-5 divide-y divide-[var(--border-default)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)]">
-              <AttentionItem
-                href="/conversations?status=HANDED_OFF"
-                icon={AlertCircle}
-                value={handedOff}
-                label={fa ? 'تحویل اپراتور' : 'Handoffs'}
-                hint={fa ? 'با خلاصه آماده' : 'summary ready'}
-                urgent={handedOff > 0}
-                locale={lang}
-              />
-              <AttentionItem
-                href={primaryAgent ? `/agents/${primaryAgent.id}/improve` : '/agents'}
-                icon={Sparkles}
-                value={pendingImprovements}
-                label={fa ? 'فرصت بهبود' : 'Improvement opportunities'}
-                hint={fa ? 'آمادهٔ بررسی' : 'ready for review'}
-                urgent={pendingImprovements > 0}
-                locale={lang}
-              />
-              <AttentionItem
-                href={hasBookingModule ? '/appointments' : '/conversations?status=OPEN'}
-                icon={hasBookingModule ? CalendarCheck2 : MessagesSquare}
-                value={hasBookingModule ? upcomingAppointments : openConversations}
-                label={hasBookingModule ? (fa ? 'نوبت پیش رو' : 'Upcoming') : (fa ? 'گفتگوی باز' : 'Open')}
-                hint={fa ? 'در حال پیگیری' : 'in progress'}
-                urgent={false}
-                locale={lang}
-              />
-            </div>
-
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <Link href="/conversations" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13px] font-medium text-white shadow-[var(--shadow-control)] hover:bg-black">
-                <MessagesSquare className="h-4 w-4" />
-                {fa ? 'رسیدگی به گفتگوها' : 'Open conversations'}
-              </Link>
-              <Link href={hasBookingModule ? '/appointments' : '/agents/new'} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-[13px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)] hover:bg-[var(--bg-surface)]">
-                {hasBookingModule ? <CalendarCheck2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                {hasBookingModule
-                  ? fa ? 'مدیریت نوبت‌ها' : 'Manage appointments'
-                  : fa ? 'ساخت ایجنت' : 'Build agent'}
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* IntelligenceCore only shows after onboarding is complete */}
-        {onboarding.completed ? (
-          <IntelligenceCoreLazy locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core" />
-        ) : (
-          <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
-            <div>
-              <Sparkles className="mx-auto h-6 w-6 text-[var(--text-hint)]" />
-              <p className="mt-3 text-sm text-[var(--text-muted)]">
-                {fa ? 'پس از تکمیل راه‌اندازی، هسته هوشمند فعال می‌شود' : 'Complete setup to activate the intelligence core'}
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── Vigento AI — workspace copilot card ── */}
-      <Link
-        href="/vigento"
-        className="spatial-surface spatial-press group block overflow-hidden rounded-[1.5rem] p-5 transition-[transform,border-color] hover:-translate-y-0.5 hover:border-[var(--border-strong)] sm:p-6"
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">
-                  Vigento AI
-                  <span className="ms-2 text-xs font-normal text-[var(--text-muted)]">
-                    {fa ? 'هوش مصنوعی ویجنتو' : 'Vigento AI copilot'}
-                  </span>
-                </h2>
-                <span className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-700">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75 motion-reduce:animate-none" />
-                    <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  </span>
-                  {fa ? 'آنلاین' : 'Online'}
-                </span>
-              </div>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-                {fa
-                  ? 'دستیار مدیریت فضای کاری — آمار گفتگوها، مشتری‌ها، رزروها و هزینه پاسخ‌های AI را از داده زنده بررسی می‌کند و به زبان طبیعی پاسخ می‌دهد.'
-                  : 'Workspace management copilot — inspects live conversations, customers, bookings and AI reply costs, then answers in natural language.'}
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity group-hover:opacity-90">
-            {fa ? 'گفتگو با ویجنتو' : 'Chat with Vigento'}
-            <Arrow className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
-          </span>
-        </div>
-        {/* Quick prompts — preview of what you can ask */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {(fa
-            ? ['امروز چه چیزی نیاز به توجه دارد؟', 'پرتعامل‌ترین مشتری‌های امروز کدام‌اند؟', 'هزینه پاسخ‌های AI امروز چقدر بود؟']
-            : ['What needs attention today?', 'Who were today\u2019s most active customers?', 'What did AI replies cost today?']
-          ).map((prompt) => (
-            <span key={prompt} className="inline-flex min-h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-3 text-[11px] font-medium text-[var(--text-secondary)] transition-colors group-hover:border-[var(--border-hover)] group-hover:text-[var(--text-primary)]">
-              {prompt}
-            </span>
-          ))}
-        </div>
-      </Link>
-
-      {(!operatorChannel?.active || !operatorChannel.operatorChatId) && (
-        <Link
-          href="/settings#telegram-operator"
-          className="spatial-surface spatial-press group flex flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:p-5"
-        >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
-            <Send className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-[var(--text-primary)]">
-              {fa ? 'ربات مدیر تلگرام را وصل کنید' : 'Connect the Telegram manager bot'}
-            </span>
-            <span className="mt-1 block text-xs leading-6 text-[var(--text-secondary)]">
-              {fa
-                ? 'انتقال به اپراتور، رزرو جدید و هشدارهای مهم را با لینک مستقیم همان پرونده در تلگرام بگیرید.'
-                : 'Receive handoffs, new bookings, and critical alerts in Telegram with a direct link to the right case.'}
-            </span>
-          </span>
-          <span className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
-            {fa ? 'اتصال در چند دقیقه' : 'Connect in minutes'}
-            <Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
-          </span>
-        </Link>
-      )}
+      <OperatorBotCard
+        locale={lang}
+        connected={Boolean(operatorChannel?.operatorChatId)}
+        paused={operatorChannel ? !operatorChannel.active : false}
+        botUsername={operatorChannel?.botUsername}
+      />
 
       <section aria-label={fa ? 'شاخص‌های اصلی' : 'Key outcomes'} className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <OutcomeCard
           href="/conversations"
-          icon={MessagesSquare}
           label={fa ? 'گفتگو در ۷ روز' : 'Conversations, 7d'}
           value={nf.format(conversations7d)}
-          hint={conversationDelta === null
-            ? fa ? 'شروع دوره اندازه‌گیری' : 'measurement started'
-            : `${conversationDelta > 0 ? '+' : ''}${nf.format(conversationDelta)}${fa ? '٪' : '%'} ${fa ? 'نسبت به هفته قبل' : 'vs previous week'}`}
+          delta={conversationDelta === null ? undefined : { value: conversationDelta, text: deltaText(conversationDelta) }}
+          hint={conversationDelta === null ? (fa ? 'شروع دوره اندازه‌گیری' : 'measurement started') : deltaHint}
           series={conversationsMiniTrend.series}
         />
         <OutcomeCard
           href="/analytics"
-          icon={CheckCircle2}
           label={fa ? 'نرخ حل گفتگو' : 'Resolution rate'}
           value={`${nf.format(resolveRate)}${fa ? '٪' : '%'}`}
           hint={fa ? 'نتیجه ثبت‌شده در CRM' : 'recorded outcomes in CRM'}
@@ -487,15 +400,14 @@ export default async function OverviewPage() {
         />
         <OutcomeCard
           href="/contacts"
-          icon={Users}
           label={fa ? 'مشتری جدید در ۷ روز' : 'New customers, 7d'}
           value={nf.format(contacts7d)}
-          hint={fa ? 'از همه کانال‌های متصل' : 'from every connected channel'}
+          delta={contactDelta === null ? undefined : { value: contactDelta, text: deltaText(contactDelta) }}
+          hint={contactDelta === null ? (fa ? 'از همه برنامه‌های متصل' : 'from every connected channel') : deltaHint}
           series={contactsMiniTrend.series}
         />
         <OutcomeCard
           href={verticalOutcome.href}
-          icon={verticalOutcome.icon}
           label={verticalOutcome.label}
           value={nf.format(verticalOutcome.value)}
           hint={verticalOutcome.hint}
@@ -506,7 +418,7 @@ export default async function OverviewPage() {
         <DashboardPanel
           title={fa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
           subtitle={fa ? 'یک روند اصلی؛ جزئیات کامل در بخش گزارش‌ها' : 'One primary trend; deeper analysis stays in Analytics'}
-          action={<Link href="/analytics" className="text-xs font-medium text-[var(--accent-strong)] hover:underline">{fa ? 'گزارش کامل' : 'Full report'}</Link>}
+          action={<Link href="/analytics" className="ui-link">{fa ? 'گزارش کامل' : 'Full report'}<Arrow aria-hidden /></Link>}
         >
           <ConversationChart data={trend} />
         </DashboardPanel>
@@ -514,7 +426,7 @@ export default async function OverviewPage() {
         <DashboardPanel
           title={fa ? 'آخرین پرونده‌ها' : 'Recent customer cases'}
           subtitle={fa ? 'آخرین گفتگوها، بدون بازکردن چند صفحه' : 'The latest conversations at a glance'}
-          action={<Link href="/conversations" className="text-xs font-medium text-[var(--accent-strong)] hover:underline">{fa ? 'همه گفتگوها' : 'All conversations'}</Link>}
+          action={<Link href="/conversations" className="ui-link">{fa ? 'همه گفتگوها' : 'All conversations'}<Arrow aria-hidden /></Link>}
           bodyClassName="divide-y divide-[var(--border-subtle)]"
         >
           {recentConversations.length ? recentConversations.map((conversation) => {
@@ -562,9 +474,9 @@ export default async function OverviewPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span dir={fa ? 'rtl' : 'ltr'} className="min-w-0 truncate text-xs font-semibold text-[var(--text-primary)]">{who}</span>
-                    <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
+                    <span className="shrink-0 text-[12px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
                   </span>
-                  <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
                     <ChannelBadge type={conversation.channel} />
                     <span>·</span>
                     <span className="tabular-nums">{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
@@ -586,59 +498,40 @@ export default async function OverviewPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_0.72fr]">
-        <DashboardPanel
-          title={fa ? `ابزارهای ${businessLabel}` : `${businessLabel} tools`}
-          subtitle={fa ? 'هسته مشترک و ابزارهای تخصصی فضای کاری شما' : 'Shared core and specialist tools for this workspace'}
-        >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {modules.slice(0, 6).map((module) => {
-              const meta = MODULE_META[module]
-              const Icon = meta.icon
-              return (
-                <Link key={module} href={meta.href} className="group flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)]">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="text-xs font-semibold text-[var(--text-primary)]">{fa ? meta.fa : meta.en}</span>
-                  <Arrow className="ms-auto h-3.5 w-3.5 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
-                </Link>
-              )
-            })}
-          </div>
-        </DashboardPanel>
+        <CapabilityStatusPanel capabilities={capabilities} readiness={readiness} fa={fa} />
 
         <DashboardPanel
           title={fa ? 'پلن و اعتبار' : 'Plan & credit'}
           subtitle={fa ? 'خلاصه کوتاه؛ جزئیات در بخش مالی' : 'A compact summary; details stay in Billing'}
-          action={<Link href="/billing" className="text-xs font-medium text-[var(--accent-strong)] hover:underline">{fa ? 'مدیریت' : 'Manage'}</Link>}
+          action={<Link href="/billing" className="ui-link">{fa ? 'مدیریت' : 'Manage'}<Arrow aria-hidden /></Link>}
         >
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'اعتبار پاسخ' : 'Reply credit'}</p>
+              <p className="text-[12px] text-[var(--text-muted)]">{fa ? 'اعتبار پاسخ' : 'Reply credit'}</p>
               <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text-primary)]">
                 {nf.format(Math.round(workspace.aiCreditBalanceIRR / 10))} <span className="text-xs font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
               </p>
             </div>
             <div className="text-end">
-              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'پلن فعلی' : 'Current plan'}</p>
+              <p className="text-[12px] text-[var(--text-muted)]">{fa ? 'پلن فعلی' : 'Current plan'}</p>
               <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                 {fa ? PLAN_NAMES_FA[workspace.plan] : workspace.plan.toLowerCase()}
               </p>
-              {daysLeft !== null && <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? `${nf.format(daysLeft)} روز باقی` : `${nf.format(daysLeft)} days left`}</p>}
+              {daysLeft !== null && <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{fa ? `${nf.format(daysLeft)} روز باقی` : `${nf.format(daysLeft)} days left`}</p>}
             </div>
           </div>
           <div className="spatial-inset mt-4 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
             <div>
-              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
+              <p className="text-[12px] text-[var(--text-muted)]">{fa ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
               <p className="mt-0.5 text-sm font-bold tabular-nums text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
             </div>
-            <p className="max-w-40 text-end text-[10px] leading-5 text-[var(--text-muted)]">{fa ? 'بدون سقف پیام؛ مصرف از اعتبار پاسخ کم می‌شود.' : 'No message cap; usage is deducted from reply credit.'}</p>
+            <p className="max-w-40 text-end text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'بدون سقف پیام؛ مصرف از اعتبار پاسخ کم می‌شود.' : 'No message cap; usage is deducted from reply credit.'}</p>
           </div>
           <div className="spatial-inset mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'هزینه پاسخ‌های AI در ۳۰ روز' : 'AI reply cost, 30 days'}</p>
+              <p className="text-[12px] text-[var(--text-muted)]">{fa ? 'هزینه پاسخ‌های AI در ۳۰ روز' : 'AI reply cost, 30 days'}</p>
               <p className="mt-0.5 text-sm font-bold tabular-nums text-[var(--text-primary)]">
-                {nf.format(Math.round(chargesMonthlyTrend.total / 10))} <span className="text-[11px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
+                {nf.format(Math.round(chargesMonthlyTrend.total / 10))} <span className="text-[12px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
               </p>
             </div>
             <div className="w-24 shrink-0"><Sparkline data={chargesMonthlyTrend.series} color="#111111" width={96} height={28} fluid /></div>
@@ -649,72 +542,37 @@ export default async function OverviewPage() {
   )
 }
 
-function AttentionItem({
-  href,
-  icon: Icon,
-  value,
-  label,
-  hint,
-  urgent,
-  locale,
-}: {
-  href: string
-  icon: LucideIcon
-  value: number
-  label: string
-  hint: string
-  urgent: boolean
-  locale: 'fa' | 'en'
-}) {
-  const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
-  return (
-    <Link href={href} className={cn(
-      'group grid min-h-14 grid-cols-[2.25rem_minmax(0,1fr)_auto_0.875rem] items-center gap-3 px-3.5 transition-colors hover:bg-white focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/20',
-      urgent ? 'bg-amber-50/75' : 'bg-transparent',
-    )}>
-      <span className={cn('grid h-9 w-9 place-items-center rounded-xl transition-transform group-hover:scale-[1.04]', urgent ? 'bg-amber-100 text-amber-700' : 'bg-white text-[var(--text-secondary)] shadow-[var(--shadow-xs)]')}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="block min-w-0">
-        <span className="block text-[13px] font-semibold leading-5 text-[var(--text-primary)]">{label}</span>
-        <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)]" title={hint}>{hint}</span>
-      </span>
-      <span className={cn(
-        'inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-xs font-bold tabular-nums',
-        urgent ? 'bg-amber-100 text-amber-800' : 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-xs)]',
-      )}>
-        {value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
-      </span>
-      <Arrow className="h-3.5 w-3.5 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
-    </Link>
-  )
-}
-
 function OutcomeCard({
   href,
-  icon: Icon,
   label,
   value,
+  delta,
   hint,
   series,
 }: {
   href: string
-  icon: LucideIcon
   label: string
   value: string
+  /** Change against the previous period; the sign picks the arrow and tone. */
+  delta?: { value: number; text: string }
   hint: string
   series?: number[]
 }) {
+  const DeltaIcon = !delta || delta.value === 0 ? Minus : delta.value > 0 ? TrendingUp : TrendingDown
   return (
-    <Link href={href} className="dashboard-card group relative overflow-hidden rounded-[1.3rem] border border-[var(--border-default)] bg-white/[0.94] p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)] sm:p-5">
-      <div aria-hidden className="absolute -end-9 -top-12 h-24 w-24 rounded-full bg-[var(--accent-soft)] opacity-0 blur-2xl transition-opacity group-hover:opacity-100" />
-      <div className="relative flex items-center justify-between gap-2">
-        <span className="text-xs font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]"><Icon className="h-3.5 w-3.5" /></span>
-      </div>
-      <p className="relative mt-3 text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)] sm:text-3xl">{value}</p>
-      <p className="relative mt-1 min-h-4 text-[11px] leading-5 text-[var(--text-muted)]">{hint}</p>
-      {series?.length ? <div className="relative mt-2 h-7"><Sparkline data={series} color="#111111" height={28} fluid /></div> : null}
+    <Link href={href} className="dashboard-card group rounded-card border border-[var(--border-subtle)] bg-white p-4 transition-[border-color] hover:border-[var(--border-strong)] sm:p-5">
+      <span className="block text-[12.5px] font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
+      <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)] sm:text-3xl">{value}</span>
+        {delta && (
+          <span dir="ltr" className={cn('ui-chip tabular-nums', delta.value > 0 ? 'ui-chip-ok' : delta.value < 0 ? 'ui-chip-danger' : 'ui-chip-neutral')}>
+            <DeltaIcon aria-hidden className="h-3 w-3" strokeWidth={2.2} />
+            {delta.text}
+          </span>
+        )}
+      </p>
+      <p className="mt-1 min-h-4 text-[12px] leading-5 text-[var(--text-muted)]">{hint}</p>
+      {series?.length ? <div className="mt-2 h-7"><Sparkline data={series} color="#111111" height={28} fluid /></div> : null}
     </Link>
   )
 }
@@ -748,6 +606,12 @@ function buildTrend(rows: Date[], locale: 'fa' | 'en'): TrendPoint[] {
 function percentDelta(current: number, previous: number): number | null {
   if (previous === 0) return current === 0 ? 0 : null
   return Math.round(((current - previous) / previous) * 100)
+}
+
+function startOfToday(): Date {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  return date
 }
 
 function daysAgo(days: number): Date {

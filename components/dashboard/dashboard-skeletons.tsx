@@ -27,10 +27,10 @@ export function DashboardHeaderSkeleton({
   className?: string
 }) {
   return (
-    <header className={cn('dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6', className)}>
+    <header className={cn('dashboard-page-header', className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-2xl" />
+        <div className="flex items-center gap-3">
+          <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
           <div className="min-w-0 space-y-2">
             <Skeleton delay={delay} className="h-7 w-44 max-w-full rounded-lg" />
             <Skeleton delay={delay} className="h-4 w-56 max-w-full rounded-md" />
@@ -70,7 +70,7 @@ export function DashboardPanelSkeleton({
   children?: React.ReactNode
 }) {
   return (
-    <section className={cn('spatial-surface min-w-0 overflow-hidden rounded-[1.5rem] p-5 sm:p-6', className)}>
+    <section className={cn('spatial-surface min-w-0 overflow-hidden rounded-card p-5 sm:p-6', className)}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="space-y-2">
           <Skeleton delay={delay} className="h-4 w-44 max-w-full rounded-md" />
@@ -106,7 +106,7 @@ export function DashboardPanelSkeleton({
 /** Mirrors the dashboard-intro arrival card hero (badge + title + attention rows + CTAs). */
 export function ArrivalIntroSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7">
+    <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-sheet border border-[var(--border-default)] p-5 sm:p-7">
       <div className="relative">
         <div className="flex flex-wrap items-center gap-2">
           <Skeleton delay={delay} className="inline-flex h-7 w-24 items-center rounded-full" />
@@ -138,7 +138,7 @@ export function ArrivalIntroSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the IntelligenceCoreLazy shell (dark hub card, min-h-20rem). */
 export function IntelligenceCoreSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="dashboard-arrival dashboard-arrival--core min-h-[20rem] rounded-[1.75rem] border border-[var(--border-default)] bg-white/80 shadow-[var(--shadow-soft)]">
+    <div className="dashboard-arrival dashboard-arrival--core min-h-[20rem] rounded-sheet border border-[var(--border-default)] bg-white/80 shadow-[var(--shadow-soft)]">
       <div className="m-6">
         <Skeleton delay={delay} className="h-4 w-32 rounded-full" />
         <Skeleton delay={delay - 90} className="mx-auto mt-14 h-24 w-24 rounded-full" />
@@ -151,10 +151,10 @@ export function IntelligenceCoreSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the Vigento AI copilot card (icon + title + badge + desc + button + prompt pills). */
 export function VigentoCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface block overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface block overflow-hidden rounded-card p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-2xl" />
+        <div className="flex items-center gap-3">
+          <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Skeleton delay={delay} className="h-5 w-28 rounded-md" />
@@ -177,7 +177,7 @@ export function VigentoCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors OutcomeCard (KPI): label + icon, big value, hint, sparkline. */
 export function OutcomeCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="dashboard-card relative overflow-hidden rounded-[1.3rem] border border-[var(--border-default)] bg-white/[0.94] p-4 sm:p-5">
+    <div className="dashboard-card relative overflow-hidden rounded-card border border-[var(--border-default)] bg-white/[0.94] p-4 sm:p-5">
       <div className="relative flex items-center justify-between gap-2">
         <Skeleton delay={delay} className="h-3 w-20 max-w-full rounded-md" />
         <Skeleton delay={delay} className="h-8 w-8 shrink-0 rounded-xl" />
@@ -259,7 +259,7 @@ export function PlanCreditSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the sticky filter card: mobile search + filter button, desktop search + selects. */
 export function ConversationFiltersSkeleton({ delay = 0, selects = 3 }: { delay?: number; selects?: number }) {
   return (
-    <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+    <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2 md:hidden">
         <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
         <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
@@ -285,7 +285,7 @@ export function InboxPanelSkeleton({
   className?: string
 }) {
   return (
-    <div className={cn('spatial-surface min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]', className)}>
+    <div className={cn('spatial-surface min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card', className)}>
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
         <div className="min-w-0 space-y-2">
           <Skeleton delay={delay} className="h-5 w-36 max-w-full rounded-md" />
@@ -340,7 +340,7 @@ export function InboxFeedHeaderSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the agent card: icon + active badge, title, description, stats, sparkline, footer. */
 export function AgentCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex flex-col rounded-[1.5rem] p-5">
+    <div className="spatial-surface flex flex-col rounded-card p-5">
       <div className="flex items-start justify-between">
         <Skeleton delay={delay} className="h-11 w-11 rounded-2xl" />
         <Skeleton delay={delay} className="h-6 w-16 rounded-full" />
@@ -383,7 +383,7 @@ export function TipCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the contacts toolbar: mobile search + filter button; desktop search + selects + view toggle. */
 export function ContactsToolbarSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+    <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2 md:hidden">
         <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
         <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
@@ -412,7 +412,7 @@ export function ContactsListSkeleton({
   className?: string
 }) {
   return (
-    <div className={cn('spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]', className)}>
+    <div className={cn('spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card', className)}>
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
         <div className="min-w-0 space-y-2">
           <Skeleton delay={delay} className="h-5 w-32 max-w-full rounded-md" />
@@ -518,7 +518,7 @@ export function CurrentStatusSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the horizontal appointments StatCard: icon + stacked label/value. */
 export function AppointmentStatSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex items-center gap-3 rounded-[1.5rem] p-4">
+    <div className="spatial-surface flex items-center gap-3 rounded-card p-4">
       <Skeleton delay={delay} className="h-9 w-9 shrink-0 rounded-xl" />
       <div className="min-w-0 space-y-1.5">
         <Skeleton delay={delay} className="h-3 w-20 max-w-full rounded-md" />
@@ -561,7 +561,7 @@ export function SlotRowSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the free-automation banner: icon + title/desc + pill. */
 export function BillingBannerSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:p-5">
+    <div className="spatial-surface flex flex-col gap-4 rounded-card p-4 sm:flex-row sm:items-center sm:p-5">
       <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-2xl" />
       <div className="min-w-0 flex-1">
         <Skeleton delay={delay} className="h-4 w-48 max-w-full rounded-md" />
@@ -576,7 +576,7 @@ export function BillingBannerSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the plan card: name row + three muted stat boxes. */
 export function PlanCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
+    <div className="spatial-surface rounded-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Skeleton delay={delay} className="h-3.5 w-16 rounded-md" />
@@ -602,7 +602,7 @@ export function PlanCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the value-created card: badge + title + desc + button + 3 metrics. */
 export function ValueCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="relative overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] p-5 shadow-[var(--shadow-card)] sm:p-6">
+    <div className="relative overflow-hidden rounded-card border border-[var(--border-default)] p-5 shadow-[var(--shadow-card)] sm:p-6">
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <Skeleton delay={delay} className="h-8 w-44 rounded-full" />
@@ -628,7 +628,7 @@ export function ValueCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors a paid plan card: name + price + feature lines + button. */
 export function PlanTileSkeleton({ delay = 0, featured = false }: { delay?: number; featured?: boolean }) {
   return (
-    <div className={cn('spatial-surface flex flex-col rounded-[1.5rem] p-5', featured && 'ring-1 ring-[var(--border-strong)]')}>
+    <div className={cn('spatial-surface flex flex-col rounded-card p-5', featured && 'ring-1 ring-[var(--border-strong)]')}>
       <Skeleton delay={delay} className="h-5 w-28 rounded-md" />
       <Skeleton delay={delay - 90} className="mt-3 h-8 w-32 rounded-lg" />
       <div className="mt-4 space-y-2.5">
@@ -649,7 +649,7 @@ export function PlanTileSkeleton({ delay = 0, featured = false }: { delay?: numb
 /** Mirrors the commerce tabs bar (products / orders). */
 export function CommerceTabsSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex items-center gap-1 rounded-[1.35rem] p-1.5">
+    <div className="spatial-surface flex items-center gap-1 rounded-card p-1.5">
       <Skeleton delay={delay} className="h-10 w-28 rounded-xl" />
       <Skeleton delay={delay - 90} className="h-10 w-24 rounded-xl" />
     </div>
@@ -659,7 +659,7 @@ export function CommerceTabsSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the WooSetupCard: icon + title/desc + action. */
 export function SetupCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
+    <div className="spatial-surface rounded-card p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-2xl" />
         <div className="min-w-0 flex-1">
@@ -675,7 +675,7 @@ export function SetupCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors a product card: image area + title + price + footer actions. */
 export function ProductCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex flex-col overflow-hidden rounded-[1.5rem]">
+    <div className="spatial-surface flex flex-col overflow-hidden rounded-card">
       <Skeleton delay={delay} className="aspect-video w-full rounded-none" />
       <div className="flex flex-1 flex-col p-4">
         <Skeleton delay={delay} className="h-4 w-3/4 max-w-full rounded-md" />

@@ -155,18 +155,18 @@ export function MaterialSelect({
                                 }}
                                 onKeyDown={onKeyDown}
                                 className={cn(
-                                        'spatial-press flex min-h-11 w-full min-w-0 items-center gap-2 rounded-[0.75rem] border border-black/[0.08] bg-white px-3 text-start shadow-[0_6px_18px_rgba(0,0,0,0.055)] transition-[border-color,box-shadow,background-color] duration-150 hover:border-black/[0.14] focus-visible:border-black/20 focus-visible:shadow-[0_10px_28px_rgba(0,0,0,0.09)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
-                                        open && 'border-black/20 shadow-[0_10px_28px_rgba(0,0,0,0.09)]',
+                                        'spatial-press flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-black/[0.08] bg-white px-3 text-start shadow-[var(--elev-1)] transition-[border-color,box-shadow,background-color] duration-150 hover:border-black/[0.14] focus-visible:border-black/20 focus-visible:shadow-[var(--elev-1)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                                        open && 'border-black/20 shadow-[var(--elev-1)]',
                                         buttonClassName,
                                 )}
                         >
-                                {icon && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/[0.045] text-black/55">{icon}</span>}
+                                {icon && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/[0.045] text-[var(--text-secondary)]">{icon}</span>}
                                 <span className="min-w-0 flex-1">
-                                        {label && <span className="block text-[9px] font-medium leading-3 text-black/35">{label}</span>}
-                                        <span className={cn('block truncate text-xs font-medium leading-5', selected ? 'text-black/75' : 'text-black/35')}>{selected?.label ?? placeholder ?? ariaLabel}</span>
+                                        {label && <span className="block text-[12px] font-medium leading-3 text-[var(--text-muted)]">{label}</span>}
+                                        <span className={cn('block truncate text-xs font-medium leading-5', selected ? 'text-black/75' : 'text-[var(--text-muted)]')}>{selected?.label ?? placeholder ?? ariaLabel}</span>
                                 </span>
-                                {selected?.meta !== undefined && <span className="shrink-0 rounded-full bg-black/[0.045] px-2 py-0.5 text-[9px] tabular-nums text-black/45">{selected.meta}</span>}
-                                <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-black/35 transition-transform duration-150', open && 'rotate-180')} />
+                                {selected?.meta !== undefined && <span className="shrink-0 rounded-full bg-black/[0.045] px-2 py-0.5 text-[12px] tabular-nums text-[var(--text-muted)]">{selected.meta}</span>}
+                                <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-150', open && 'rotate-180')} />
                         </button>
 
                         {mounted && open && position && createPortal(
@@ -175,7 +175,7 @@ export function MaterialSelect({
                                         id={`${id}-menu`}
                                         role="listbox"
                                         aria-label={ariaLabel}
-                                        className={cn('material-select-menu fixed z-[120] max-h-[min(22rem,60dvh)] overscroll-contain overflow-y-auto rounded-[1.15rem] border border-black/10 bg-white/95 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.2)] backdrop-blur-xl', menuClassName)}
+                                        className={cn('material-select-menu fixed z-[120] max-h-[min(22rem,60dvh)] overscroll-contain overflow-y-auto rounded-card border border-black/10 bg-white/95 p-1.5 shadow-[var(--elev-2)] backdrop-blur-xl', menuClassName)}
                                         style={position}
                                 >
                                         {options.map((option, index) => {
@@ -193,11 +193,11 @@ export function MaterialSelect({
                                                                 onClick={() => select(index)}
                                                                 className={cn(
                                                                         'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-start transition-colors duration-100 disabled:opacity-40',
-                                                                        active ? 'bg-black text-white' : 'text-black/65 hover:bg-black/[0.045]',
+                                                                        active ? 'bg-black text-white' : 'text-[var(--text-secondary)] hover:bg-black/[0.045]',
                                                                 )}
                                                         >
-                                                                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{option.label}</span>{option.description && <span className={cn('mt-0.5 block line-clamp-2 text-[10px] leading-4', active ? 'text-white/50' : 'text-black/40')}>{option.description}</span>}</span>
-                                                                {option.meta !== undefined && <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[9px] tabular-nums', active ? 'bg-white/12 text-white/70' : 'bg-black/[0.045] text-black/40')}>{option.meta}</span>}
+                                                                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{option.label}</span>{option.description && <span className={cn('mt-0.5 block line-clamp-2 text-[12px] leading-4', active ? 'text-white/60' : 'text-[var(--text-muted)]')}>{option.description}</span>}</span>
+                                                                {option.meta !== undefined && <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[12px] tabular-nums', active ? 'bg-white/12 text-white/70' : 'bg-black/[0.045] text-[var(--text-muted)]')}>{option.meta}</span>}
                                                                 <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full', checked ? (active ? 'bg-white text-black' : 'bg-black text-white') : 'opacity-0')}><Check className="h-3 w-3" /></span>
                                                         </button>
                                                 )

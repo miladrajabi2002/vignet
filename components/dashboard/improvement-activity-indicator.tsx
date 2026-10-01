@@ -81,12 +81,12 @@ export function ImprovementActivityIndicator() {
           animate={{ opacity: 1, y: 0, height: 'auto' }}
           exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6, height: 0 }}
           transition={{ duration: reduced ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mt-2 max-w-[112rem] overflow-hidden"
+          className="mx-auto max-w-[108rem] overflow-hidden pb-2"
         >
           <Link
             href={href}
             aria-label={`${title}، ${nf.format(activity.percent)}%`}
-            className="group block rounded-[1.2rem] border border-black/[0.08] bg-black text-white shadow-[0_12px_34px_rgba(0,0,0,0.13)] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+            className="group block rounded-card border border-black/[0.08] bg-black text-white shadow-[var(--elev-1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
           >
             <div className="flex min-h-12 items-center gap-3 px-3 lg:hidden">
               <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/12">
@@ -94,12 +94,12 @@ export function ImprovementActivityIndicator() {
                 {!done && <span className="absolute inset-0 rounded-full ring-1 ring-white/20" aria-hidden="true" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[11px] font-bold">{title}</span>
+                <span className="block truncate text-[12px] font-bold">{title}</span>
                 <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/15">
                   <motion.span className="block h-full rounded-full bg-white" animate={{ width: `${activity.percent}%` }} transition={{ duration: reduced ? 0.01 : 0.45 }} />
                 </span>
               </span>
-              <span className="shrink-0 text-sm font-black tabular-nums">{nf.format(activity.percent)}{fa ? '٪' : '%'}</span>
+              <span className="shrink-0 text-sm font-bold tabular-nums">{nf.format(activity.percent)}{fa ? '٪' : '%'}</span>
             </div>
 
             <div className="hidden min-h-14 grid-cols-[minmax(12rem,1fr)_minmax(18rem,1.2fr)_auto] items-center gap-5 px-4 lg:grid xl:px-5">
@@ -111,7 +111,7 @@ export function ImprovementActivityIndicator() {
               </span>
 
               <span className="min-w-0">
-                <span className="mb-1.5 block truncate text-[10px] font-semibold text-white/60">{progressLabel}</span>
+                <span className="mb-1.5 block truncate text-[12px] font-semibold text-white/60">{progressLabel}</span>
                 <span
                   role="progressbar"
                   aria-label={fa ? 'پیشرفت تحلیل گفتگوها' : 'Conversation analysis progress'}
@@ -125,8 +125,8 @@ export function ImprovementActivityIndicator() {
               </span>
 
               <span className="flex shrink-0 items-center gap-4">
-                <span className="hidden text-end lg:block"><span className="block text-[10px] text-white/50">{fa ? 'مصرف ثبت‌شده' : 'Recorded usage'}</span><span className="mt-0.5 block text-[11px] font-bold">{nf.format(activity.chargedIRR / 10)} {fa ? 'تومان' : 'toman'}</span></span>
-                <span className="text-xl font-black tabular-nums">{nf.format(activity.percent)}{fa ? '٪' : '%'}</span>
+                <span className="hidden text-end lg:block"><span className="block text-[12px] text-white/60">{fa ? 'مصرف ثبت‌شده' : 'Recorded usage'}</span><span className="mt-0.5 block text-[12px] font-bold">{nf.format(activity.chargedIRR / 10)} {fa ? 'تومان' : 'toman'}</span></span>
+                <span className="text-xl font-bold tabular-nums">{nf.format(activity.percent)}{fa ? '٪' : '%'}</span>
               </span>
             </div>
           </Link>

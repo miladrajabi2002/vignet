@@ -280,7 +280,7 @@ export function ContactDetailSheet({
               <>
                 <a
                   href={`tel:${phone}`}
-                  className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[10px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                  className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[12px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                   <Phone className="h-4 w-4" aria-hidden="true" />
                   {t('detail.call')}
@@ -288,7 +288,7 @@ export function ContactDetailSheet({
                 <button
                   type="button"
                   onClick={() => copyValue(phone, 'phone-footer')}
-                  className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[10px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                  className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[12px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                   {copiedKey === 'phone-footer' ? (
                     <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -303,14 +303,14 @@ export function ContactDetailSheet({
               type="button"
               onClick={() => setTab('edit')}
               aria-pressed={tab === 'edit'}
-              className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[10px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+              className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[12px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />
               {t('detail.editTab')}
             </button>
             <Link
               href={`/contacts/${detail.id}`}
-              className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl bg-black text-[10px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+              className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl bg-black text-[12px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               {t('detail.openFullProfile')}
@@ -323,7 +323,7 @@ export function ContactDetailSheet({
         {copiedKey ? t('detail.copied') : ''}
       </p>
 
-      <div className="rounded-[1.35rem] border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]">
+      <div className="rounded-card border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]">
         <div className="flex min-w-0 items-center gap-3">
           <ContactAvatar
             src={avatarUrl}
@@ -352,7 +352,7 @@ export function ContactDetailSheet({
       <div
         role="tablist"
         aria-label={t('detail.sheetTitle')}
-        className="sticky top-0 z-10 mt-3 grid grid-cols-3 gap-1 rounded-2xl border border-[var(--border-subtle)] bg-white/95 p-1 backdrop-blur-xl"
+        className="ui-seg ui-seg-solid sticky top-0 z-10 mt-3 grid-cols-3"
       >
         {tabs.map((item) => (
           <button
@@ -361,12 +361,7 @@ export function ContactDetailSheet({
             role="tab"
             aria-selected={tab === item.key}
             onClick={() => setTab(item.key)}
-            className={cn(
-              'min-h-11 rounded-xl px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
-              tab === item.key
-                ? 'bg-black text-white shadow-[var(--shadow-control)]'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-            )}
+            className="ui-seg-tab px-2 text-xs"
           >
             {item.label}
           </button>
@@ -412,7 +407,7 @@ export function ContactDetailSheet({
                     <button
                       type="button"
                       onClick={() => copyValue(detail.phone!, 'phone-overview')}
-                      className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                      className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
                       {copiedKey === 'phone-overview' ? (
                         <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -481,7 +476,7 @@ export function ContactDetailSheet({
                               type="button"
                               onClick={() => copyValue(identity.handle!, identityKey)}
                               aria-label={`${t('detail.copy')} ${identity.handle}`}
-                              className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                              className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                             >
                               {copiedKey === identityKey ? (
                                 <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -516,7 +511,7 @@ export function ContactDetailSheet({
                     <Link
                       key={conversation.id}
                       href={`/conversations/${conversation.id}`}
-                      className="spatial-press flex min-h-16 items-center gap-3 px-3 py-3 transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+                      className="spatial-press flex min-h-16 items-center gap-3 px-3 py-3 transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
                     >
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
                         <MessageSquare className="h-4 w-4" aria-hidden="true" />

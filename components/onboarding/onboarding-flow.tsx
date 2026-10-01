@@ -30,8 +30,11 @@ import {
   BUSINESS_TYPES,
   getVerticalPack,
   getBusinessServiceOptions,
+  getDefaultCapabilities,
   type BusinessTypeValue,
+  type CapabilityKey,
 } from '@/lib/verticals/registry'
+import type { BusinessProfile } from '@/lib/verticals/profile'
 
 // ─── Icons per business type ────────────────────────────────────
 const ICONS: Record<BusinessTypeValue, LucideIcon> = {
@@ -102,7 +105,7 @@ interface Props {
   hasChannel: boolean
   agentId: string | null
   businessType: string | null
-  businessProfile: { businessName: string; services: string[] } | null
+  businessProfile: BusinessProfile | null
   agentTemplate?: string
 }
 
@@ -297,7 +300,7 @@ function TypeStep({
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           شروع راه‌اندازی
         </p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+        <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           کسب‌وکار شما چیست؟
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
@@ -324,7 +327,7 @@ function TypeStep({
               whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.2, ease: EASE }}
               className={cn(
-                'spatial-press group relative overflow-hidden rounded-[1.35rem] border bg-white p-4 text-start transition-colors duration-200',
+                'spatial-press group relative overflow-hidden rounded-card border bg-white p-4 text-start transition-colors duration-200',
                 active
                   ? 'border-[var(--text-primary)]'
                   : 'border-[var(--border-default)] hover:border-[var(--border-hover)]',
@@ -349,17 +352,17 @@ function TypeStep({
                 <Icon className="h-5 w-5" strokeWidth={1.5} />
               </span>
 
-              <h3 className="mt-3.5 text-[14px] font-semibold text-[var(--text-primary)]">
+              <h3 className="mt-3.5 text-[14px] font-bold text-[var(--text-primary)]">
                 {pack.titleFa}
               </h3>
-              <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-[var(--text-muted)]">
+              <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">
                 {pack.descriptionFa}
               </p>
 
               {/* Feature pills */}
               <div className="mt-3 flex flex-wrap gap-1">
                 {features.slice(0, 2).map((f) => (
-                  <span key={f} className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--text-muted)]">
+                  <span key={f} className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-muted)]">
                     {f}
                   </span>
                 ))}
@@ -380,14 +383,18 @@ function DetailsStep({
   onNext,
 }: {
   initialType: BusinessTypeValue
-  initialProfile: { businessName: string; services: string[] } | null
+  initialProfile: BusinessProfile | null
   onBack: () => void
   onNext: () => void
 }) {
   const pack = getVerticalPack(initialType)
   const suggestions = getBusinessServiceOptions(initialType)
   const [businessName, setBusinessName] = useState(initialProfile?.businessName ?? '')
-  const [services, setServices] = useState<string[]>(initialProfile?.services ?? suggestions.slice(0, 2).map((option) => option.fa))
+  // The type only pre-fills a starting set; every one of them can be
+  // switched off here or later in settings.
+  const [capabilities, setCapabilities] = useState<CapabilityKey[]>(
+    () => initialProfile?.capabilities ?? getDefaultCapabilities(initialType),
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [nameInvalid, setNameInvalid] = useState(false)
@@ -408,8 +415,8 @@ function DetailsStep({
       return
     }
     setNameInvalid(false)
-    if (services.length === 0) {
-      setError('حداقل یک خدمت انتخاب کنید')
+    if (capabilities.length === 0) {
+      setError('حداقل یک قابلیت را انتخاب کنید')
       return
     }
     setSaving(true)
@@ -418,7 +425,13 @@ function DetailsStep({
       const res = await fetch('/api/onboarding', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessType: initialType, businessName: businessName.trim(), services }),
+        body: JSON.stringify({
+          businessType: initialType,
+          businessName: businessName.trim(),
+          capabilities,
+          extras: initialProfile?.extras ?? [],
+          locale: 'fa',
+        }),
       })
       if (!res.ok) throw new Error()
       onNext()
@@ -435,7 +448,7 @@ function DetailsStep({
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           مرحله ۱ از ۴
         </p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+        <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           اطلاعات کسب‌وکار
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
@@ -503,13 +516,13 @@ function DetailsStep({
         {/* Services */}
         <CapabilityOptions
           options={suggestions}
-          selected={services}
+          selected={capabilities}
           businessType={initialType}
           locale="fa"
-          title="خدمات و قابلیت‌های موردنیاز"
-          hint="پیشنهادها بر اساس نوع کسب‌وکار شما مرتب شده‌اند و هر زمان قابل تغییرند."
-          onToggle={(service) => {
-            setServices((current) => current.includes(service) ? current.filter((item) => item !== service) : [...current, service])
+          title="قابلیت‌های موردنیاز"
+          hint="نوع کسب‌وکار فقط نقطه شروع است؛ هر قابلیت را می‌توانید همین‌جا یا بعداً در تنظیمات روشن و خاموش کنید."
+          onToggle={(key) => {
+            setCapabilities((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
             setError('')
           }}
         />
@@ -609,7 +622,7 @@ function AgentStep({
       <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
         مرحله ۲ از ۴
       </motion.p>
-      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
         {done ? 'ایجنت شما ساخته شد' : 'ایجنت هوشمند خود را بسازید'}
       </motion.h2>
       <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
@@ -644,12 +657,12 @@ function AgentStep({
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             </span>
             <span className="flex min-w-0 flex-1 self-stretch flex-col items-start">
-              <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold text-white/90">پیشنهاد ویجنت</span>
+              <span className="rounded-full bg-white/15 px-2 py-1 text-[12px] font-semibold text-white/90">پیشنهاد ویجنت</span>
               <span className="mt-3 text-sm font-semibold leading-6">
                 {creating ? 'در حال ساخت ایجنت…' : 'ساخت ایجنت هوشمند متناسب با کسب‌وکار من'}
               </span>
-              <span className="mt-1 text-[11px] leading-5 text-white/70">نام، نقش و رفتار پیشنهادی به‌صورت خودکار تنظیم می‌شود.</span>
-              <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[11px] font-semibold text-white">
+              <span className="mt-1 text-[12px] leading-5 text-white/70">نام، نقش و رفتار پیشنهادی به‌صورت خودکار تنظیم می‌شود.</span>
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[12px] font-semibold text-white">
                 {creating ? 'لطفاً صبر کنید' : 'ساخت خودکار ایجنت'}
                 {!creating && <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />}
               </span>
@@ -664,10 +677,10 @@ function AgentStep({
               <Settings2 className="h-4 w-4" />
             </span>
             <span className="flex min-w-0 flex-1 self-stretch flex-col items-start">
-              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--text-secondary)]">انتخاب شخصی‌سازی‌شده</span>
+              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[12px] font-semibold text-[var(--text-secondary)]">انتخاب شخصی‌سازی‌شده</span>
               <span className="mt-3 text-sm font-semibold leading-6 text-[var(--text-primary)]">ساخت ایجنت با شخصی‌سازی</span>
-              <span className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">نام، نقش، لحن، زبان و قواعد پاسخ‌گویی را خودتان تنظیم کنید.</span>
-              <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[11px] font-semibold text-[var(--text-primary)]">
+              <span className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">نام، نقش، لحن، زبان و قواعد پاسخ‌گویی را خودتان تنظیم کنید.</span>
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[12px] font-semibold text-[var(--text-primary)]">
                 انتخاب و شخصی‌سازی
                 <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
               </span>
@@ -788,7 +801,7 @@ function CtaStep({
         {stepBadge}
       </motion.p>
 
-      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
         {title}
       </motion.h2>
 
@@ -921,7 +934,7 @@ function KnowledgeStep({
             مرحله ۳ از ۴
           </motion.p>
 
-          <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+          <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
             محصولات و خدمات کسب‌وکار
           </motion.h2>
 
@@ -947,13 +960,13 @@ function KnowledgeStep({
           <button
             type="button"
             onClick={() => setShowWizard(true)}
-            className="spatial-surface spatial-press group relative w-full overflow-hidden rounded-[1.5rem] p-5 text-start transition-[border-color] hover:border-[var(--border-strong)]"
+            className="spatial-surface spatial-press group relative w-full overflow-hidden rounded-card p-5 text-start transition-[border-color] hover:border-[var(--border-strong)]"
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
                 <Link2 className="h-4 w-4" strokeWidth={2} />
               </span>
-              <span className="rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-bold text-[var(--accent-strong)]">
+              <span className="rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2.5 py-1 text-[12px] font-bold text-[var(--accent-strong)]">
                 پیشنهادی در صورت داشتن سایت
               </span>
             </div>
@@ -1059,7 +1072,7 @@ function DoneStep() {
         </motion.div>
       </motion.div>
 
-      <motion.h2 variants={staggerChild} className="mt-6 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+      <motion.h2 variants={staggerChild} className="mt-6 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
         راه‌اندازی کامل شد!
       </motion.h2>
 

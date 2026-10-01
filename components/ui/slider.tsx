@@ -114,10 +114,10 @@ export function Slider({
           onKeyDown={() => setActive(true)}
           className={cn(
             'relative h-11 w-full cursor-pointer touch-pan-x appearance-none bg-transparent',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
             // Visible native thumb, aligned with the fill end.
-            '[&::-webkit-slider-thumb]:h-[1.75rem] [&::-webkit-slider-thumb]:w-[1.75rem] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-[var(--text-primary)] [&::-webkit-slider-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.3)]',
-            '[&::-moz-range-thumb]:h-[1.75rem] [&::-moz-range-thumb]:w-[1.75rem] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-[var(--text-primary)] [&::-moz-range-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.3)]',
+            '[&::-webkit-slider-thumb]:h-[1.75rem] [&::-webkit-slider-thumb]:w-[1.75rem] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-[var(--text-primary)] [&::-webkit-slider-thumb]:shadow-[var(--shadow-xs)]',
+            '[&::-moz-range-thumb]:h-[1.75rem] [&::-moz-range-thumb]:w-[1.75rem] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-[var(--text-primary)] [&::-moz-range-thumb]:shadow-[var(--shadow-xs)]',
             disabled && 'cursor-not-allowed opacity-60',
           )}
         />
@@ -130,7 +130,7 @@ export function Slider({
         >
           <span
             className={cn(
-              'absolute start-0 top-[-1.9rem] -translate-x-1/2 whitespace-nowrap rounded-lg bg-[var(--text-primary)] px-2 py-1 text-[11px] font-bold text-white shadow-sm transition-opacity duration-100',
+              'absolute start-0 top-[-1.9rem] -translate-x-1/2 whitespace-nowrap rounded-lg bg-[var(--text-primary)] px-2 py-1 text-[12px] font-bold text-white shadow-sm transition-opacity duration-100',
               active ? 'opacity-100' : 'opacity-0',
             )}
           >
@@ -139,7 +139,7 @@ export function Slider({
         </span>
       </div>
       {ticks && ticks.length > 0 && (
-        <div className="mt-0.5 flex justify-between text-[10px] font-semibold text-[var(--text-muted)]" aria-hidden="true">
+        <div className="mt-0.5 flex justify-between text-[12px] font-semibold text-[var(--text-muted)]" aria-hidden="true">
           {ticks.map((tick) => (
             <button
               key={tick}

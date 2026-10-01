@@ -21,19 +21,19 @@ export function StatsCard({
 	return (
 		<div
 			className={cn(
-				'spatial-surface spatial-press rounded-[1.5rem] p-5',
+				'spatial-surface rounded-card p-5',
 				className,
 			)}
 		>
 			<div className="flex items-center justify-between">
-				<span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>
+				<span className="ui-caption font-medium">{label}</span>
 				<span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)]">
 					<Icon className="h-[1.05rem] w-[1.05rem]" />
 				</span>
 			</div>
-			<div className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-[var(--text-primary)]">{value}</div>
+			<div className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-[var(--text-primary)]">{value}</div>
 			{hint ? (
-				<div className="mt-1 text-xs text-[var(--text-muted)]">{hint}</div>
+				<div className="ui-caption mt-1">{hint}</div>
 			) : null}
 		</div>
 	)

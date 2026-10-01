@@ -8,6 +8,7 @@ import {
 	getDashboardModules,
 	getVerticalPack,
 	type BusinessTypeValue,
+	type CapabilityKey,
 	type DashboardModuleKey,
 } from '@/lib/verticals/registry'
 
@@ -16,21 +17,22 @@ const MODULES: Partial<Record<DashboardModuleKey, { href: string; fa: string; en
 	services: { href: '/services', fa: 'خدمات', en: 'Services' },
 	menu: { href: '/menu', fa: 'منوی دیجیتال', en: 'Digital menu' },
 	appointments: { href: '/appointments', fa: 'رزروها و نوبت‌ها', en: 'Bookings & appointments' },
+	courses: { href: '/courses', fa: 'دوره‌ها', en: 'Courses' },
 	instagram: { href: '/instagram', fa: 'اتوماسیون اینستاگرام', en: 'Instagram automation' },
 }
 
 type ChangeDetail = {
 	businessType: BusinessTypeValue
-	services: string[]
+	capabilities: CapabilityKey[]
 	modules: DashboardModuleKey[]
 	newlyEnabled: DashboardModuleKey[]
 	verticalTitle?: string
 	changedAt: number
 }
 
-export function VerticalChangeNotice({ businessType, services }: { businessType?: BusinessTypeValue | null; services: readonly string[] }) {
+export function VerticalChangeNotice({ businessType, capabilities }: { businessType?: BusinessTypeValue | null; capabilities: readonly CapabilityKey[] }) {
 	const fa = useLocale() !== 'en'
-	const initialModules = useMemo(() => getDashboardModules(businessType, services), [businessType, services])
+	const initialModules = useMemo(() => getDashboardModules(capabilities), [capabilities])
 	const [change, setChange] = useState<ChangeDetail | null>(null)
 
 	useEffect(() => {
@@ -71,15 +73,15 @@ export function VerticalChangeNotice({ businessType, services }: { businessType?
 	const title = change.verticalTitle || (fa ? pack.titleFa : pack.titleEn)
 
 	return (
-		<aside className="fixed inset-x-3 z-[90] mx-auto max-w-xl rounded-[1.5rem] border border-white/10 bg-black p-4 text-white shadow-[0_26px_80px_rgba(0,0,0,0.28)] [animation:spatial-pop_240ms_cubic-bezier(0.23,1,0.32,1)] [bottom:calc(6rem+env(safe-area-inset-bottom))] motion-reduce:animate-none md:bottom-5 md:p-5" aria-live="polite">
+		<aside className="fixed inset-x-3 z-[90] mx-auto max-w-xl rounded-card border border-white/10 bg-black p-4 text-white shadow-[var(--elev-2)] [animation:spatial-pop_240ms_cubic-bezier(0.23,1,0.32,1)] [bottom:calc(6rem+env(safe-area-inset-bottom))] motion-reduce:animate-none md:bottom-5 md:p-5" aria-live="polite">
 			<div className="flex items-start gap-3">
 				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-black"><Sparkles className="h-4 w-4" /></span>
 				<div className="min-w-0 flex-1">
 					<p className="text-sm font-semibold">{fa ? `پنل برای «${title}» به‌روزرسانی شد` : `Dashboard updated for “${title}”`}</p>
-					<p className="mt-1 text-[11px] leading-5 text-white/45">{enabled.length ? (fa ? 'ابزارهای تازه همین حالا به منو اضافه شدند' : 'New tools are now available in navigation') : (fa ? 'چیدمان و پیشنهادهای پنل با کسب‌وکار جدید هماهنگ شد' : 'Navigation and suggestions now match the new business')}</p>
-					{enabled.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{enabled.map((item) => <Link key={item.key} href={item.href} onClick={dismiss} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-semibold text-black"><Check className="h-3 w-3" />{fa ? item.fa : item.en}</Link>)}</div>}
+					<p className="mt-1 text-[12px] leading-5 text-white/60">{enabled.length ? (fa ? 'ابزارهای تازه همین حالا به منو اضافه شدند' : 'New tools are now available in navigation') : (fa ? 'چیدمان و پیشنهادهای پنل با کسب‌وکار جدید هماهنگ شد' : 'Navigation and suggestions now match the new business')}</p>
+					{enabled.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{enabled.map((item) => <Link key={item.key} href={item.href} onClick={dismiss} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-semibold text-black"><Check className="h-3 w-3" />{fa ? item.fa : item.en}</Link>)}</div>}
 				</div>
-				<button type="button" onClick={dismiss} aria-label={fa ? 'بستن' : 'Close'} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/45 transition-colors hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
+				<button type="button" onClick={dismiss} aria-label={fa ? 'بستن' : 'Close'} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
 			</div>
 		</aside>
 	)

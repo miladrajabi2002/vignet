@@ -143,7 +143,7 @@ export function ContactQuickAdd({
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2 sm:px-4 sm:text-sm"
+        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 sm:px-4 sm:text-sm"
       >
         {saved ? (
           <Check className="h-4 w-4" aria-hidden="true" />
@@ -168,7 +168,7 @@ export function ContactQuickAdd({
               type="button"
               onClick={() => setOpen(false)}
               disabled={submitting}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 disabled:opacity-50"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
             >
               {t('quickAdd.cancel')}
             </button>
@@ -176,7 +176,7 @@ export function ContactQuickAdd({
               type="submit"
               form={formId}
               disabled={submitting}
-              className="inline-flex min-h-12 min-w-32 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-12 min-w-32 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting && (
                 <Loader2
@@ -291,7 +291,7 @@ export function ContactQuickAdd({
               <span className="block text-xs font-semibold text-[var(--text-primary)]">
                 {t('detail.consentLabel')}
               </span>
-              <span className="mt-1 block text-[11px] leading-5 text-[var(--text-muted)]">
+              <span className="mt-1 block text-[12px] leading-5 text-[var(--text-muted)]">
                 {t('detail.consentHint')}
               </span>
             </span>

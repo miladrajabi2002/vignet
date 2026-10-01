@@ -108,9 +108,11 @@ export function UndoSnackbar({
       ? fa ? 'بازگردانی شد' : 'Restored'
       : phase === 'error'
         ? fa ? 'بازگردانی ناموفق بود — دوباره تلاش کنید' : 'Restore failed — try again'
-        : fa
-          ? `${nf.format(count)} ${entityLabel} حذف شد`
-          : `${nf.format(count)} ${entityLabel} deleted`
+        : count === 1
+          ? fa ? `${entityLabel} حذف شد` : `${entityLabel.charAt(0).toUpperCase()}${entityLabel.slice(1)} deleted`
+          : fa
+            ? `${nf.format(count)} ${entityLabel} حذف شد`
+            : `${nf.format(count)} ${entityLabel}s deleted`
 
   if (!mounted) return null
 
@@ -137,10 +139,10 @@ export function UndoSnackbar({
         >
           <div
             className={cn(
-              'relative w-full max-w-md overflow-hidden rounded-[1.35rem] border',
+              'relative w-full max-w-md overflow-hidden rounded-card border',
               // Frosted glass + layered shadow — reads as a floating layer
               // above the page, not a grey box.
-              'border-black/[0.08] bg-[var(--bg-surface)]/90 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_16px_48px_-8px_rgba(0,0,0,0.22)] backdrop-blur-xl backdrop-saturate-150',
+              'border-black/[0.08] bg-[var(--bg-surface)]/90 shadow-[var(--elev-2)] backdrop-blur-xl backdrop-saturate-150',
             )}
           >
             {/* Subtle top highlight — gives the card a glassy "edge". */}
@@ -151,7 +153,7 @@ export function UndoSnackbar({
             <div className="flex items-center gap-3 px-3.5 py-3">
               <span
                 className={cn(
-                  'grid h-10 w-10 shrink-0 place-items-center rounded-[0.85rem] transition-colors',
+                  'grid h-10 w-10 shrink-0 place-items-center rounded-control transition-colors',
                   phase === 'restored'
                     ? 'bg-emerald-500/12 text-emerald-600'
                     : phase === 'error'
@@ -184,9 +186,9 @@ export function UndoSnackbar({
                   type="button"
                   onClick={onUndo}
                   className={cn(
-                    'spatial-press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[0.85rem] px-3.5 text-[13px] font-bold',
-                    'bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-px active:translate-y-0',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface)]',
+                    'spatial-press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-control px-3.5 text-[13px] font-bold',
+                    'bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-xs)] transition-transform hover:-translate-y-px active:translate-y-0',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface)]',
                   )}
                 >
                   <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -200,7 +202,7 @@ export function UndoSnackbar({
                 type="button"
                 onClick={onDismiss}
                 aria-label={fa ? 'بستن' : 'Dismiss'}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.85rem] text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)]"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>

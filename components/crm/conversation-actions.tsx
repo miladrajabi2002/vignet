@@ -92,7 +92,7 @@ export function ConversationActions({
   const automaticReplies = !resolved && aiMode
 
   return (
-    <section className="spatial-surface space-y-4 rounded-[1.5rem] p-5">
+    <section className="spatial-surface space-y-4 rounded-card p-5">
       {resolved && (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
           <div className="flex items-start gap-3">
@@ -112,7 +112,7 @@ export function ConversationActions({
             type="button"
             disabled={busy}
             onClick={() => patch({ status: 'OPEN' })}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
@@ -136,7 +136,7 @@ export function ConversationActions({
                 onClick={() => patch({ rating: value })}
                 onMouseEnter={() => setHover(value)}
                 onMouseLeave={() => setHover(null)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
                 aria-label={`${value}`}
               >
                 <Star
@@ -157,7 +157,7 @@ export function ConversationActions({
             type="button"
             disabled={busy}
             onClick={() => patch({ status: 'RESOLVED' })}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 text-sm font-medium text-[var(--bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 text-sm font-medium text-[var(--bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />

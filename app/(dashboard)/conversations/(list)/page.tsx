@@ -45,6 +45,8 @@ import {
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
 import { MobileConversationCard } from '@/components/crm/mobile-conversation-card'
+import { searchVariants } from '@/lib/search/persian'
+import { LiveEmptyState } from '@/components/ui/live-empty-state'
 
 const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -119,16 +121,16 @@ export default async function ConversationsPage(props: {
                 where.salesInsight = { is: { leadType: salesFilter } }
         }
         if (query) {
-                where.OR = [
-                        { summary: { contains: query, mode: 'insensitive' } },
-                        { contact: { name: { contains: query, mode: 'insensitive' } } },
-                        { contact: { phone: { contains: query } } },
-                        { contact: { telegramUsername: { contains: query, mode: 'insensitive' } } },
-                        { contact: { baleUsername: { contains: query, mode: 'insensitive' } } },
-                        { contact: { rubikaUsername: { contains: query, mode: 'insensitive' } } },
-                        { contact: { instagramUsername: { contains: query, mode: 'insensitive' } } },
-                        { messages: { some: { content: { contains: query, mode: 'insensitive' } } } },
-                ]
+                where.OR = searchVariants(query).flatMap((term): Prisma.ConversationWhereInput[] => [
+                        { summary: { contains: term, mode: 'insensitive' } },
+                        { contact: { name: { contains: term, mode: 'insensitive' } } },
+                        { contact: { phone: { contains: term } } },
+                        { contact: { telegramUsername: { contains: term, mode: 'insensitive' } } },
+                        { contact: { baleUsername: { contains: term, mode: 'insensitive' } } },
+                        { contact: { rubikaUsername: { contains: term, mode: 'insensitive' } } },
+                        { contact: { instagramUsername: { contains: term, mode: 'insensitive' } } },
+                        { messages: { some: { content: { contains: term, mode: 'insensitive' } } } },
+                ])
         }
 
         const [
@@ -413,9 +415,9 @@ export default async function ConversationsPage(props: {
                         </div>
 
                         {/* ─── Filters: search + status + channel + agent (handed-off prioritized) ─── */}
-                        <Suspense fallback={<div className="h-16 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
-                        <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-                        <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+                        <Suspense fallback={<div className="h-16 rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
+                        <div className="sticky top-[4rem] z-20 md:static md:z-auto">
+                        <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
                         <ConversationFilters
                                 isFa={isFa}
                                 activeStatus={statusFilter}
@@ -472,24 +474,21 @@ export default async function ConversationsPage(props: {
                                 enabled={page === 1}
                         />
                         {pageItems.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
-                                        <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
-                                        <p className="mt-4 text-sm text-[var(--text-secondary)]">
-                                                {channelFilter || statusFilter || agentFilter || salesFilter || query
-                                                        ? isFa
-                                                                ? 'مکالمه‌ای با این فیلتر یافت نشد'
-                                                                : 'No conversations match these filters'
-                                                        : t('empty')}
-                                        </p>
-                                        {!channelFilter && !statusFilter && !agentFilter && !salesFilter && !query && (
-                                                <Link
-                                                        href="/integrations"
-                                                        className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
-                                                >
-                                                        {t('emptyCta')}
-                                                </Link>
-                                        )}
-                                </div>
+                                channelFilter || statusFilter || agentFilter || salesFilter || query ? (
+                                <LiveEmptyState
+                                icon={MessagesSquare}
+                                title={isFa ? 'مکالمه‌ای با این فیلتر یافت نشد' : 'No conversations match these filters'}
+                                description={isFa ? 'فیلترها را کمتر کنید یا عبارت دیگری جستجو کنید.' : 'Loosen the filters or try another search.'}
+                                />
+                                ) : (
+                                <LiveEmptyState
+                                icon={MessagesSquare}
+                                preview="chat"
+                                title={t('empty')}
+                                description={isFa ? 'اولین برنامه را وصل کنید؛ پیام‌های مشتری‌ها از همهٔ برنامه‌ها همین‌جا کنار هم می‌آیند.' : 'Connect your first app — customer messages from every app will land here side by side.'}
+                                action={{ href: '/integrations', label: t('emptyCta') }}
+                                />
+                                )
                         ) : (
                                 <div>
                                         <div className="flex justify-end px-1">
@@ -527,7 +526,7 @@ export default async function ConversationsPage(props: {
                                                 ))}
                                         </div>
 
-                                        <div className="spatial-surface hidden min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem] md:block">
+                                        <div className="spatial-surface hidden min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card md:block">
                                                 <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
                                                         <div className="min-w-0">
                                                                 <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
@@ -540,14 +539,16 @@ export default async function ConversationsPage(props: {
                                                                 <Link
                                                                         href={`/conversations/${c.id}`}
                                                                         dir={isFa ? 'rtl' : 'ltr'}
-                                                                        className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5', attention && 'bg-amber-500/5')}
+                                                                        className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5')}
                                                                 >
                                                                         <ContactAvatar src={channelAvatarSrc} alt={who} />
                                                                         <div className="min-w-0 flex-1">
                                                                                 <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                                                                        <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]" title={who}>{who}</span>
-                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
-                                                                                        {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
+                                                                                        <span dir="auto" className={cn('min-w-0 truncate text-sm text-[var(--text-primary)]', attention ? 'font-bold' : 'font-semibold')} title={who}>{who}</span>
+                                                                                        {/* A row waiting for a person says so beside the name, where the eye lands first. */}
+                                                                                        {attention && <span className="shrink-0"><ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} /></span>}
+                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[12px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
+                                                                                        {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
                                                                                 </div>
                                                                                 <div className="mt-1 flex min-w-0 items-center gap-1.5">
                                                                                         {reactionEmoji && (
@@ -559,15 +560,20 @@ export default async function ConversationsPage(props: {
                                                                                                         {reactionEmoji}
                                                                                                 </span>
                                                                                         )}
-                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="min-w-0 flex-1 truncate text-start text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]" title={last ? stripProductTokens(last.content) : c.agent.name}>{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
+                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-xs leading-5 [overflow-wrap:anywhere]', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={last ? stripProductTokens(last.content) : c.agent.name}>{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
                                                                                 </div>
                                                                         </div>
-                                                                        <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
-                                                                                <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />
-                                                                                <ChannelBadge type={c.channel} />
-                                                                                {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
-                                                                                <span className="tabular-nums" title={formatDateTime(when, locale)}>{smartTime(when, locale)}</span>
-                                                                                <span className="tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
+                                                                        <span className="flex shrink-0 items-center gap-3 text-[12px] leading-5 text-[var(--text-muted)]">
+                                                                                <span className="flex max-w-xs flex-wrap items-center justify-end gap-1.5">
+                                                                                        {!attention && <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />}
+                                                                                        <ChannelBadge type={c.channel} />
+                                                                                        {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
+                                                                                </span>
+                                                                                {/* Time and size share one end-aligned column so they scan down the list. */}
+                                                                                <span className="flex w-[4.75rem] shrink-0 flex-col items-end tabular-nums">
+                                                                                        <span className={cn(attention && 'font-medium text-[var(--text-primary)]')} title={formatDateTime(when, locale)}>{smartTime(when, locale)}</span>
+                                                                                        <span>{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
+                                                                                </span>
                                                                         </span>
                                                                 </Link>
                                                         </LiveArrivalItem>
@@ -612,7 +618,7 @@ export default async function ConversationsPage(props: {
                                                 term: locale === 'fa' ? 'فیلترها: ' : 'Filters: ',
                                                 body:
                                                         locale === 'fa'
-                                                                ? 'می‌توانید بر اساس کانال، وضعیت و دسته هوش فروش—از جمله فرصت‌های گرم—فیلتر کنید. فیلترها در URL ذخیره می‌شوند تا قابل اشتراک‌گذاری باشند.'
+                                                                ? 'می‌توانید بر اساس برنامه، وضعیت و دسته هوش فروش—از جمله فرصت‌های گرم—فیلتر کنید. فیلترها در URL ذخیره می‌شوند تا قابل اشتراک‌گذاری باشند.'
                                                                 : 'Filter by channel, status, and sales-intelligence category—including warm opportunities. Filters stay in the URL for sharing.',
                                         },
                                         {

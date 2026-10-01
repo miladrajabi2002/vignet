@@ -27,7 +27,7 @@ export default function BillingLoading() {
       <ValueCardSkeleton delay={-160} />
 
       {/* Credit estimator + top-up */}
-      <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
+      <div className="spatial-surface rounded-card p-4 sm:p-5">
         <div className="space-y-2">
           <Skeleton className="h-4 w-40 rounded-md" />
           <Skeleton delay={-90} className="h-3 w-56 rounded-md" />
@@ -38,7 +38,7 @@ export default function BillingLoading() {
         </div>
         <Skeleton delay={-180} className="mt-3 h-11 w-full rounded-xl" />
       </div>
-      <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
+      <div className="spatial-surface rounded-card p-4 sm:p-5">
         <div className="space-y-2">
           <Skeleton delay={-90} className="h-4 w-36 rounded-md" />
           <Skeleton delay={-180} className="h-3 w-48 rounded-md" />

@@ -11,11 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 /* ── BackButton pill ── */
 
-/** Mirrors BackButton: frosted pill with chevron + label. */
+/** Mirrors BackButton: chevron disc + destination label. */
 export function BackRowSkeleton({ delay = 0, className }: { delay?: number; className?: string }) {
   return (
-    <div className={cn('flex', className)}>
-      <Skeleton delay={delay} className="h-9 w-32 rounded-full" />
+    <div className={cn('flex min-h-10 items-center gap-2', className)}>
+      <Skeleton delay={delay} className="h-8 w-8 rounded-full" />
+      <Skeleton delay={delay} className="h-3.5 w-20 rounded-md" />
     </div>
   )
 }
@@ -59,7 +60,7 @@ export function ChatPlaygroundSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the "instant response test" card that wraps the playground. */
 export function PlaygroundCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <section className="spatial-surface flex flex-col overflow-hidden rounded-[1.5rem]">
+    <section className="spatial-surface flex flex-col overflow-hidden rounded-card">
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
         <div className="min-w-0 space-y-1.5">
           <Skeleton delay={delay} className="h-3 w-24 max-w-full rounded-md" />
@@ -75,45 +76,10 @@ export function PlaygroundCardSkeleton({ delay = 0 }: { delay?: number }) {
   )
 }
 
-/* ── Setup / growth right panel (agent overview) ── */
-
-/** Mirrors AgentSetupPanel: black readiness header + checklist rows. */
-export function AgentSetupPanelSkeleton({ delay = 0, steps = 5 }: { delay?: number; steps?: number }) {
-  return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-black p-5 text-white sm:p-6">
-        <div className="space-y-2">
-          <Skeleton delay={delay} className="h-5 w-40 rounded-md" />
-          <Skeleton delay={delay} className="h-3 w-48 rounded-md" />
-        </div>
-        <div className="text-start sm:text-end">
-          <Skeleton delay={delay} className="h-8 w-16 rounded-lg" />
-          <Skeleton delay={delay} className="mt-1.5 h-3 w-20 rounded-md" />
-        </div>
-      </div>
-      <div className="space-y-2.5 border-t border-black/10 p-4 sm:p-5">
-        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-          <Skeleton delay={delay} className="h-full w-[62%] rounded-full" />
-        </div>
-        {Array.from({ length: steps }).map((_, index) => (
-          <div key={index} className="flex items-start gap-3 rounded-2xl border border-black/[0.05] bg-[var(--bg-base)] p-3">
-            <Skeleton delay={delay - index * 90} className="mt-0.5 h-8 w-8 shrink-0 rounded-xl" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton delay={delay - index * 90} className="h-4 w-40 max-w-full rounded-md" />
-              <Skeleton delay={delay - index * 90} className="h-3 w-full rounded-md" />
-            </div>
-            <Skeleton delay={delay - index * 90} className="h-9 w-24 shrink-0 rounded-xl" />
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 /** Mirrors AgentGrowthPanel: black header + connections + growth actions. */
 export function AgentGrowthPanelSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+    <section className="spatial-surface overflow-hidden rounded-card">
       <div className="relative overflow-hidden bg-black p-5 text-white sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-md space-y-2">
@@ -172,7 +138,7 @@ export function AgentGrowthPanelSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the agent analytics StatsCard (section p-5, icon + label + value). */
 export function AgentStatCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <section className="spatial-surface rounded-[1.5rem] p-5">
+    <section className="spatial-surface rounded-card p-5">
       <div className="flex items-center gap-2 text-xs">
         <Skeleton delay={delay} className="h-4 w-4 rounded-md" />
         <Skeleton delay={delay} className="h-3.5 w-20 max-w-full rounded-md" />
@@ -187,7 +153,7 @@ export function AgentStatCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the channel-quota card (title/hint + usage + progress bar). */
 export function QuotaCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <section className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <Skeleton delay={delay} className="h-4 w-28 max-w-full rounded-md" />
@@ -208,7 +174,7 @@ export function QuotaCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors a channel card (WebWidget/ChatLink/Messenger): icon + label + actions. */
 export function ChannelCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -260,7 +226,7 @@ export function ChannelAccordionSkeleton({ delay = 0, sections = 6 }: { delay?: 
 /** Mirrors the dashed "store integrations" link card at the bottom. */
 export function DashedStoreLinkSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="flex items-start gap-4 rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
+    <div className="flex items-start gap-4 rounded-card border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
       <Skeleton delay={delay} className="mt-0.5 h-10 w-10 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1 space-y-1.5">
         <Skeleton delay={delay} className="h-4 w-28 max-w-full rounded-md" />
@@ -286,7 +252,7 @@ export function SettingsFormCardSkeleton({
   switchRow?: boolean
 }) {
   return (
-    <div className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface space-y-4 rounded-card p-5 sm:p-6">
       {title && (
         <div className="space-y-1.5">
           <Skeleton delay={delay} className="h-5 w-36 max-w-full rounded-md" />
@@ -315,7 +281,7 @@ export function SettingsFormCardSkeleton({
 /** Mirrors the danger-zone card: icon + title + delete button. */
 export function DangerZoneCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <Skeleton delay={delay} className="h-9 w-9 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -333,7 +299,7 @@ export function DangerZoneCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors ImprovementTabs: pill tab bar with a pending badge. */
 export function TabPillsBarSkeleton({ delay = 0, tabs = 3 }: { delay?: number; tabs?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-1.5 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.035] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-1.5 rounded-card border border-black/[0.06] bg-black/[0.035] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:grid-cols-3">
       {Array.from({ length: tabs }).map((_, index) => (
         <div key={index} className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-2.5">
           <Skeleton delay={delay - index * 80} className="h-4 w-4 rounded-md" />
@@ -349,7 +315,7 @@ export function TabPillsBarSkeleton({ delay = 0, tabs = 3 }: { delay?: number; t
 export function ImproveBehaviorSkeleton({ delay = 0 }: { delay?: number }) {
   return (
     <div className="space-y-6">
-      <div className="spatial-surface space-y-5 rounded-[1.5rem] p-5 sm:p-6">
+      <div className="spatial-surface space-y-5 rounded-card p-5 sm:p-6">
         <div className="space-y-2">
           <Skeleton delay={delay} className="h-5 w-40 max-w-full rounded-md" />
           <Skeleton delay={delay} className="h-3.5 w-full rounded-md" />
@@ -357,7 +323,7 @@ export function ImproveBehaviorSkeleton({ delay = 0 }: { delay?: number }) {
           <Skeleton delay={delay} className="h-3.5 w-2/3 rounded-md" />
         </div>
       </div>
-      <div className="spatial-surface space-y-5 rounded-[1.5rem] p-5 sm:p-6">
+      <div className="spatial-surface space-y-5 rounded-card p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <Skeleton delay={delay} className="h-5 w-36 rounded-md" />
           <div className="flex gap-2">
@@ -398,7 +364,7 @@ export function AgentWizardSkeleton({ delay = 0 }: { delay?: number }) {
       <div className="mb-8 mt-2 h-1 overflow-hidden rounded-full bg-black/[0.06]">
         <Skeleton delay={delay} className="h-full w-1/3 rounded-full" />
       </div>
-      <div className="spatial-surface space-y-5 rounded-[1.75rem] p-5 sm:p-7">
+      <div className="spatial-surface space-y-5 rounded-sheet p-5 sm:p-7">
         <div className="space-y-1.5">
           <Skeleton delay={delay} className="h-3.5 w-20 rounded-md" />
           <Skeleton delay={delay} className="h-11 w-full rounded-xl" />

@@ -194,7 +194,7 @@ export function SalesInsightBadge({
   return (
     <span
       className={cn(
-        'inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums',
+        'inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[12px] font-semibold tabular-nums',
         probabilityTone(probability),
         className,
       )}
@@ -224,14 +224,14 @@ export function SalesInsightCard({
   const risks = insight.riskFlags.slice(0, 2)
 
   return (
-    <section className="spatial-surface rounded-[1.5rem] p-4" aria-labelledby="sales-insight-title">
+    <section className="spatial-surface rounded-card p-4" aria-labelledby="sales-insight-title">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
             <h2 id="sales-insight-title">{locale === 'fa' ? 'هوش فروش گفتگو' : 'Conversation sales intelligence'}</h2>
           </div>
-          <p className="mt-1 text-[10px] leading-5 text-[var(--text-muted)]">
+          <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
             {locale === 'fa'
               ? `تحلیل‌شده ${relativeTime(new Date(insight.analyzedAt), locale)} · اطمینان ${nf.format(confidence)}٪`
               : `Analyzed ${relativeTime(new Date(insight.analyzedAt), locale)} · ${nf.format(confidence)}% confidence`}
@@ -243,10 +243,10 @@ export function SalesInsightCard({
       <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] text-[var(--text-muted)]">{converted ? (locale === 'fa' ? 'وضعیت خرید' : 'Purchase status') : (locale === 'fa' ? 'احتمال تبدیل به خریدار' : 'Purchase likelihood')}</p>
+            <p className="text-[12px] text-[var(--text-muted)]">{converted ? (locale === 'fa' ? 'وضعیت خرید' : 'Purchase status') : (locale === 'fa' ? 'احتمال تبدیل به خریدار' : 'Purchase likelihood')}</p>
             <p className="mt-0.5 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{converted ? (locale === 'fa' ? 'تبدیل‌شده' : 'Converted') : `${nf.format(probability)}٪`}</p>
           </div>
-          <div className="text-end text-[11px] leading-5 text-[var(--text-secondary)]">
+          <div className="text-end text-[12px] leading-5 text-[var(--text-secondary)]">
             <p>{LABELS.readiness[locale][insight.buyerReadiness]}</p>
             <p>{LABELS.stage[locale][insight.stage]}</p>
           </div>
@@ -278,7 +278,7 @@ export function SalesInsightCard({
 
       {(insight.explanation || signals.length > 0) && (
         <div className="mt-3">
-          <p className="text-[11px] font-semibold text-[var(--text-secondary)]">{locale === 'fa' ? 'نشانه‌های تصمیم' : 'Decision signals'}</p>
+          <p className="text-[12px] font-semibold text-[var(--text-secondary)]">{locale === 'fa' ? 'نشانه‌های تصمیم' : 'Decision signals'}</p>
           {insight.explanation && <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{insight.explanation}</p>}
           {signals.length > 0 && (
             <ul className="mt-2 space-y-1.5">
@@ -295,7 +295,7 @@ export function SalesInsightCard({
 
       {(objections.length > 0 || risks.length > 0) && (
         <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] p-3">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-800">
+          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-amber-800">
             <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
             {locale === 'fa' ? 'مانع یا نکته حساس' : 'Objection or sensitive point'}
           </p>
@@ -308,13 +308,13 @@ export function SalesInsightCard({
 
       {insight.recommendedAction && (
         <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.07] p-3">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-800">
+          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-violet-800">
             <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
             {locale === 'fa' ? 'بهترین اقدام بعدی' : 'Recommended next action'}
           </p>
           <p className="mt-1 text-xs leading-5 text-[var(--text-primary)]">{insight.recommendedAction}</p>
           {insight.handoffRecommended && (
-            <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-amber-700">
+            <p className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-amber-700">
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               {locale === 'fa' ? 'ورود اپراتور انسانی توصیه شده است' : 'Human operator involvement is recommended'}
             </p>
@@ -322,7 +322,7 @@ export function SalesInsightCard({
         </div>
       )}
 
-      <p className="mt-3 text-[10px] leading-5 text-[var(--text-muted)]">
+      <p className="mt-3 text-[12px] leading-5 text-[var(--text-muted)]">
         {locale === 'fa' ? 'این درصد یک برآورد تصمیم‌یار است، نه تضمین خرید.' : 'This is a decision-support estimate, not a purchase guarantee.'}
       </p>
     </section>
@@ -332,7 +332,7 @@ export function SalesInsightCard({
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2.5">
-      <p className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">{icon}{label}</p>
+      <p className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">{icon}{label}</p>
       <p className="mt-1 truncate text-xs font-medium text-[var(--text-primary)]">{value}</p>
     </div>
   )

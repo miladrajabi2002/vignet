@@ -284,12 +284,12 @@ export function MobileBottomSheet({
                     }
             }
             className={cn(
-              'absolute inset-x-0 bottom-0 flex w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-b-0 border-black/10 bg-white shadow-[0_-22px_70px_rgba(0,0,0,0.24)] outline-none will-change-transform',
+              'absolute inset-x-0 bottom-0 flex w-full flex-col overflow-hidden rounded-t-sheet border border-b-0 border-black/10 bg-white shadow-[var(--elev-2)] outline-none will-change-transform',
               size === 'large'
                 ? 'h-[min(92dvh,52rem)]'
                 : 'max-h-[min(86dvh,42rem)]',
               !mobileOnly &&
-                'md:relative md:inset-auto md:h-auto md:max-h-[min(90dvh,48rem)] md:max-w-xl md:rounded-[1.75rem] md:border-b md:shadow-[0_24px_80px_rgba(0,0,0,0.24)]',
+                'md:relative md:inset-auto md:h-auto md:max-h-[min(90dvh,48rem)] md:max-w-xl md:rounded-sheet md:border-b md:shadow-[var(--elev-2)]',
               panelClassName,
             )}
           >
@@ -323,7 +323,7 @@ export function MobileBottomSheet({
                   type="button"
                   onClick={onClose}
                   aria-label={closeLabel}
-                  className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                  className="spatial-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                   <X className="h-5 w-5" aria-hidden="true" />
                 </button>

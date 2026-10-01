@@ -43,17 +43,17 @@ export function SectionHeader({
   return (
     <div
       className={cn(
-        'spatial-surface rounded-[1.5rem] p-4 sm:p-5',
+        'spatial-surface rounded-card p-4 sm:p-5',
         className,
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">
+          <h2 className="ui-h2">
             {title}
           </h2>
           {subtitle && (
-            <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+            <p className="ui-body mt-1">
               {subtitle}
             </p>
           )}

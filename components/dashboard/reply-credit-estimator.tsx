@@ -22,7 +22,7 @@ export function ReplyCreditEstimator({
   const maximum = Math.max(...estimates.map((item) => item.replies))
 
   return (
-    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+    <section className="spatial-surface overflow-hidden rounded-card">
       {/* Header strip */}
       <div className="flex flex-col gap-4 border-b border-[var(--border-subtle)] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex items-start gap-3">
@@ -50,7 +50,7 @@ export function ReplyCreditEstimator({
             <p className="text-lg font-bold tabular-nums text-success">
               ≈ {nf.format(minimum)}–{nf.format(maximum)}
             </p>
-            <p className="text-[11px] text-success/70">
+            <p className="text-[12px] text-success/70">
               {fa ? 'پاسخ موفق' : 'successful replies'}
             </p>
           </div>
@@ -58,19 +58,17 @@ export function ReplyCreditEstimator({
       </div>
 
       {/* Per-model grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2">
         {estimates.map((item, i) => (
           <div
             key={item.id}
-            className={`flex flex-col gap-1 p-4 ${
-              i < estimates.length - 1 ? 'border-b border-[var(--border-subtle)] sm:border-b-0 sm:border-s' : ''
-            } ${i < 2 ? 'border-b sm:border-b-0' : ''}`}
+            className={`flex flex-col gap-1 p-4 ${i > 0 ? 'border-s border-[var(--border-subtle)]' : ''}`}
           >
             <div className="flex items-center gap-1.5">
               <Sparkles className="h-3 w-3 text-[var(--text-muted)]" />
-              <span className="truncate text-xs font-medium text-[var(--text-primary)]">{item.name}</span>
+              <span className="truncate text-xs font-medium text-[var(--text-primary)]">{fa ? item.name : item.nameEn}</span>
             </div>
-            <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
+            <span className="text-[12px] tabular-nums text-[var(--text-muted)]">
               {nf.format(item.price / 10)} {fa ? 'تومان / پاسخ' : 'toman / reply'}
             </span>
             <span className="mt-0.5 text-base font-bold tabular-nums text-[var(--text-primary)]" title={nf.format(item.replies)}>

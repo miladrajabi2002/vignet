@@ -73,9 +73,9 @@
 
         /* ─── Text ─── */
         --text-primary: #111111;     /* primary text */
-        --text-secondary: #4b5563;   /* secondary text */
-        --text-muted: #6b7280;       /* muted text */
-        --text-hint: #9ca3af;        /* hint / placeholder */
+        --text-secondary: #55524c;   /* secondary text — warm, matches the canvas */
+        --text-muted: #6f6a64;       /* muted text */
+        --text-hint: #8c8780;        /* hint / placeholder */
 
         /* Ink spectrum (legacy "white" names → now black ink) */
         --white: #111111;
@@ -117,18 +117,35 @@
 
         /* Marketing-only chroma. Product/dashboard states stay semantic; these
            hues are reserved for animated public-site highlights and beams. */
-        --marketing-violet: #6d28d9;
-        --marketing-lilac: #c4b5fd;
+        --marketing-violet: #6e56cf;
+        --marketing-lilac: #c7bdf0;
         --marketing-coral: #fb7185;
 
-        /* ─── Spatial elevation: broad shadows separate, never decorate ─── */
-        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.035);
-        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.045);
-        --shadow-soft: 0 1px 1px rgba(0, 0, 0, 0.035), 0 10px 28px -22px rgba(0, 0, 0, 0.28);
-        --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.035), 0 16px 40px -30px rgba(0, 0, 0, 0.34);
-        --shadow-float: 0 2px 5px rgba(0, 0, 0, 0.055), 0 22px 48px -28px rgba(0, 0, 0, 0.42);
-        --shadow-lift: 0 3px 8px rgba(0, 0, 0, 0.06), 0 32px 72px -34px rgba(0, 0, 0, 0.46);
-        --shadow-control: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+        /* ─── Radius scale: four concentric steps (inner = outer − padding) ───
+           chip → control (buttons, fields, tabs) → card → sheet / frame. */
+        --radius-chip: 10px;
+        --radius-control: 14px;
+        --radius-card: 20px;
+        --radius-sheet: 28px;
+
+        /* ─── Elevation: three levels only ───
+           0  hairline only (lists, tables, insets) — no shadow token
+           1  resting card                 → --elev-1
+           2  floating (menus, sheets, bars, dialogs) → --elev-2
+           Each level stacks a short contact shadow under longer ambient
+           ones, so the edge stays crisp without a heavy border.
+           The legacy names below alias onto those two levels so every
+           existing surface lands on the same depth. */
+        --elev-1: 0 1px 1px rgba(17, 17, 17, 0.03), 0 3px 6px -1px rgba(17, 17, 17, 0.04), 0 10px 20px -6px rgba(17, 17, 17, 0.07);
+        --elev-2: 0 4px 8px -2px rgba(17, 17, 17, 0.05), 0 16px 32px -8px rgba(17, 17, 17, 0.12), 0 32px 56px -16px rgba(17, 17, 17, 0.1);
+        --shadow-xs: 0 1px 2px rgba(17, 17, 17, 0.04);
+        --shadow-sm: var(--shadow-xs);
+        --shadow-soft: var(--elev-1);
+        --shadow-card: var(--elev-1);
+        --shadow-float: var(--elev-2);
+        --shadow-lift: var(--elev-2);
+        /* Primary (ink) buttons — one shadow on the site, the app and admin. */
+        --shadow-control: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 8px 20px -12px rgba(17, 17, 17, 0.55);
         --ease-spatial: cubic-bezier(0.23, 1, 0.32, 1);
         --motion-fast: 140ms;
         --motion-control: 180ms;
@@ -138,197 +155,13 @@
         --shadow-glow-indigo: 0 1px 3px rgba(0, 0, 0, 0.04);
         /* Aliases */
         --danger: var(--red);
-        --success: var(--green);
+        --success: var(--ok, #15803d);
         --warning: var(--amber);
         --info: var(--blue);
 
         /* Spotlight cursor position (updated by JS) */
         --mx: 50%;
         --my: 50%;
-}
-
-/* One calendar surface for both Solar Hijri and Gregorian date pickers. */
-.vigent-calendar-stage {
-        width: 100%;
-        max-width: 28rem;
-        margin-inline: auto;
-}
-
-.vigent-doran-calendar {
-        --doran-calendar-width: 100%;
-        --doran-calendar-padding: 0;
-        --doran-calendar-border-width: 0;
-        --doran-calendar-shadow: none;
-        --doran-calendar-radius: 0;
-        --doran-calendar-arrow-size: 2.75rem;
-        --doran-day-size: 2.5rem;
-        --doran-day-radius: 0.75rem;
-        --doran-day-font-size: 0.75rem;
-        --doran-primary: #111111;
-        --doran-primary-hover: #000000;
-        --doran-primary-soft: rgba(17, 17, 17, 0.07);
-        --doran-focus-ring: rgba(17, 17, 17, 0.3);
-        display: flex;
-        max-width: none;
-        font-family: inherit;
-}
-
-.vigent-doran-calendar .doran-calendar__header {
-        min-height: 2.75rem;
-}
-
-.vigent-doran-calendar .doran-calendar__heading {
-        font-size: 0.875rem;
-        font-weight: 700;
-        color: rgba(17, 17, 17, 0.82);
-}
-
-.vigent-doran-calendar .doran-calendar__nav {
-        border: 1px solid rgba(17, 17, 17, 0.07);
-        color: rgba(17, 17, 17, 0.58);
-}
-
-.vigent-doran-calendar .doran-month__weekday {
-        padding-block: 0.5rem;
-        font-size: 0.625rem;
-        color: rgba(17, 17, 17, 0.4);
-}
-
-.vigent-doran-calendar .doran-day--today:not(.doran-day--selected) {
-        color: #047857;
-        box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.42);
-}
-
-.vigent-date-calendar {
-        --rdp-accent-color: #111111;
-        --rdp-accent-background-color: rgba(17, 17, 17, 0.07);
-        --rdp-day-height: auto;
-        --rdp-day-width: 100%;
-        --rdp-day_button-height: 2.5rem;
-        --rdp-day_button-width: 2.5rem;
-        --rdp-day_button-border-radius: 0.75rem;
-        --rdp-day_button-border: 1px solid transparent;
-        --rdp-selected-border: 1px solid #111111;
-        --rdp-nav_button-height: 2.75rem;
-        --rdp-nav_button-width: 2.75rem;
-        --rdp-nav-height: 2.75rem;
-        width: 100%;
-        margin: 0;
-        color: rgba(17, 17, 17, 0.72);
-        font-family: inherit;
-}
-
-.vigent-date-calendar .rdp-months,
-.vigent-date-calendar .rdp-month,
-.vigent-date-calendar .rdp-month_grid {
-        width: 100%;
-}
-
-.vigent-date-calendar .rdp-months {
-        display: block;
-        max-width: none;
-}
-
-.vigent-date-calendar .rdp-month {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-}
-
-.vigent-date-calendar .rdp-month_grid,
-.vigent-date-calendar .rdp-month_grid > thead,
-.vigent-date-calendar .rdp-weeks {
-        display: block;
-}
-
-.vigent-date-calendar .rdp-weekdays,
-.vigent-date-calendar .rdp-week {
-        display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-}
-
-.vigent-date-calendar .rdp-day {
-        display: flex;
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1;
-        align-items: center;
-        justify-content: center;
-}
-
-.vigent-date-calendar .rdp-month_caption {
-        display: flex;
-        min-height: 2.75rem;
-        align-items: center;
-        justify-content: center;
-}
-
-.vigent-date-calendar .rdp-caption_label {
-        font-size: 0.875rem;
-        font-weight: 700;
-        color: rgba(17, 17, 17, 0.82);
-}
-
-.vigent-date-calendar .rdp-nav {
-        inset-inline: 0;
-        display: flex;
-        justify-content: space-between;
-        pointer-events: none;
-}
-
-.vigent-date-calendar .rdp-button_previous,
-.vigent-date-calendar .rdp-button_next {
-        border: 1px solid rgba(17, 17, 17, 0.07);
-        border-radius: 0.75rem;
-        color: rgba(17, 17, 17, 0.58);
-        pointer-events: auto;
-        transition: background-color 150ms ease, color 150ms ease;
-}
-
-.vigent-date-calendar .rdp-button_previous:hover,
-.vigent-date-calendar .rdp-button_next:hover {
-        background: rgba(17, 17, 17, 0.045);
-        color: #111111;
-}
-
-.vigent-date-calendar .rdp-weekday {
-        padding-block: 0.5rem;
-        font-size: 0.625rem;
-        font-weight: 700;
-        color: rgba(17, 17, 17, 0.4);
-}
-
-.vigent-date-calendar .rdp-day_button {
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: background-color 120ms ease, color 120ms ease;
-}
-
-.vigent-date-calendar .rdp-day_button:hover {
-        background: rgba(17, 17, 17, 0.05);
-}
-
-.vigent-date-calendar .rdp-selected .rdp-day_button {
-        border-color: #111111;
-        background: #111111;
-        color: #ffffff;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.14);
-}
-
-.vigent-date-calendar .rdp-today:not(.rdp-selected) .rdp-day_button {
-        border-color: rgba(5, 150, 105, 0.42);
-        color: #047857;
-}
-
-.vigent-date-calendar .rdp-disabled .rdp-day_button {
-        color: rgba(17, 17, 17, 0.2);
-}
-
-.vigent-date-calendar .rdp-day_button:focus-visible,
-.vigent-date-calendar .rdp-button_previous:focus-visible,
-.vigent-date-calendar .rdp-button_next:focus-visible {
-        outline: 2px solid rgba(17, 17, 17, 0.3);
-        outline-offset: 1px;
 }
 
 @layer base {
@@ -424,9 +257,16 @@
                 touch-action: manipulation;
         }
 
-        :where(a, button, input, select, textarea):focus-visible {
-                outline: 2px solid var(--blue-accent);
-                outline-offset: 3px;
+        :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+                outline: 2px solid var(--focus-ring, #6e56cf);
+                outline-offset: 2px;
+        }
+
+        /* Form fields re-point --focus-ring to the field focus colour (ink),
+           so every ring/outline utility that reads the token matches the
+           field's own border. Green is reserved for "valid", red for "invalid". */
+        :where(input:not([type='button'], [type='submit'], [type='reset']), select, textarea) {
+                --focus-ring: var(--focus-field, #111111);
         }
 
         /* Thin monochrome scrollbar */
@@ -479,19 +319,7 @@
         .admin-root :where(button, input, select, textarea) { font: inherit; }
         .admin-root :where(code, pre, .font-mono) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-        .admin-root :where(a, button, input, select, textarea):focus-visible {
-                outline-color: #18181b;
-        }
-
         .admin-root ::selection { background: rgba(10, 132, 255, 0.2); color: #07111f; }
-
-        .admin-attention-stage {
-                background-image:
-                        radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.075), transparent 22rem),
-                        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
-                background-size: auto, 34px 34px, 34px 34px;
-        }
 
         .admin-panel {
                 border: 1px solid var(--border-default);
@@ -505,12 +333,12 @@
                 align-items: center;
                 justify-content: center;
                 gap: 0.5rem;
-                border-radius: 0.8rem;
-                background: linear-gradient(180deg, #202124, #09090b);
-                padding-inline: 1rem;
+                border-radius: var(--radius-control);
+                background: #111111;
+                padding-inline: 1.125rem;
                 color: white;
-                font-size: 0.75rem;
-                font-weight: 700;
+                font-size: 0.875rem;
+                font-weight: 500;
                 box-shadow: var(--shadow-control);
                 transition: transform var(--motion-fast) var(--ease-spatial), opacity var(--motion-fast) ease, background-color var(--motion-control) ease;
         }
@@ -525,13 +353,13 @@
                 justify-content: center;
                 gap: 0.45rem;
                 border: 1px solid rgba(17, 17, 17, 0.075);
-                border-radius: 0.75rem;
+                border-radius: var(--radius-control);
                 background: rgba(255, 255, 255, 0.72);
                 backdrop-filter: blur(18px) saturate(150%);
                 padding-inline: 0.8rem;
                 color: rgba(17, 17, 17, 0.58);
                 font-size: var(--type-caption);
-                font-weight: 600;
+                font-weight: 500;
                 transition: transform var(--motion-fast) var(--ease-spatial), border-color var(--motion-control) ease, color var(--motion-control) ease, background-color var(--motion-control) ease;
         }
 
@@ -540,8 +368,8 @@
         .admin-input {
                 width: 100%;
                 min-height: 2.85rem;
-                border: 1px solid rgba(17, 17, 17, 0.085);
-                border-radius: 0.85rem;
+                border: 1px solid rgba(17, 17, 17, 0.1);
+                border-radius: var(--radius-control);
                 background: white;
                 padding-inline: 0.85rem;
                 color: #111;
@@ -551,8 +379,8 @@
         }
 
         .admin-input:focus {
-                border-color: rgba(17, 17, 17, 0.28);
-                box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.045);
+                border-color: var(--focus-field, #111111);
+                box-shadow: 0 0 0 3px var(--focus-field-halo, rgba(110, 86, 207, 0.22));
         }
 
         .admin-icon-well {
@@ -562,7 +390,7 @@
                 flex-shrink: 0;
                 align-items: center;
                 justify-content: center;
-                border-radius: 0.8rem;
+                border-radius: var(--radius-control);
                 background: #0b0b0b;
                 color: white;
                 box-shadow: var(--shadow-control);
@@ -576,27 +404,12 @@
                 mask-image: radial-gradient(circle at center, black 20%, transparent 78%);
         }
 
-        .admin-vigento-orbit::before,
-        .admin-vigento-orbit::after {
-                content: '';
-                position: absolute;
-                width: 0.42rem;
-                height: 0.42rem;
-                border-radius: 999px;
-                background: #6ee7b7;
-                box-shadow: 0 0 18px rgba(110, 231, 183, 0.75);
-        }
-
-        .admin-vigento-orbit::before { inset-inline-start: -0.21rem; top: 50%; }
-        .admin-vigento-orbit::after { inset-inline-end: -0.21rem; top: 50%; }
-
         .admin-vigento-shell [class*='absolute flex items-center'][class*='backdrop-blur'] {
                 animation: admin-node-arrive 420ms var(--ease-spatial) both;
         }
 
         .admin-vigento-messages { scrollbar-width: thin; }
 
-        .admin-vigento-toolbar,
         .admin-vigento-composer {
                 background: rgba(250, 250, 250, 0.82);
                 backdrop-filter: blur(24px) saturate(180%);
@@ -658,6 +471,12 @@
                         radial-gradient(circle at 84% 2%, rgba(255, 255, 255, 0.92), transparent 24rem),
                         radial-gradient(circle at 8% 0%, rgba(17, 17, 17, 0.025), transparent 20rem),
                         var(--bg-base);
+                /* Dense app surfaces use a tighter radius scale than the public
+                   site; same four concentric steps, one notch smaller. */
+                --radius-chip: 6px;
+                --radius-control: 10px;
+                --radius-card: 16px;
+                --radius-sheet: 22px;
         }
 
         /* The header owns the widest dashboard frame. Every route is inset by
@@ -692,20 +511,20 @@
         }
 
         .dashboard-card {
-                box-shadow: 0 1px 0 rgba(255, 255, 255, 0.96) inset, var(--shadow-soft);
+                box-shadow: var(--elev-1);
         }
 
+        /* Content surface: opaque white, level-1 elevation. No backdrop blur —
+           blur re-paints on every scroll frame and content must stay crisp;
+           material is reserved for bars and floating controls (.spatial-control). */
         .spatial-surface {
-                background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82));
-                border: 1px solid var(--border-default);
-                box-shadow: 0 1px 0 rgba(255, 255, 255, 0.98) inset, var(--shadow-card);
-                backdrop-filter: blur(22px) saturate(145%);
-                -webkit-backdrop-filter: blur(22px) saturate(145%);
+                background: #ffffff;
+                border: 1px solid var(--border-subtle);
+                box-shadow: var(--elev-1);
         }
 
         @media (prefers-reduced-transparency: reduce) {
                 .admin-root .spatial-surface,
-                .admin-vigento-toolbar,
                 .admin-vigento-composer,
                 .admin-toolbar-button { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
         }
@@ -750,77 +569,68 @@
                 animation-delay: 55ms;
         }
 
+        /* Page title bar — no card: the title sits on the canvas and a
+           hairline that fades at both ends separates it from the content. */
         .dashboard-page-header {
                 position: relative;
-                isolation: isolate;
+                padding: 0.25rem 0.125rem 1.1rem;
                 animation: dashboard-header-arrive var(--motion-surface) var(--ease-spatial) both;
         }
 
         .dashboard-page-header::after {
                 content: '';
                 position: absolute;
-                inset: 0;
-                z-index: -1;
-                border-radius: inherit;
-                background: radial-gradient(circle at 82% 0%, rgba(17, 17, 17, 0.035), transparent 18rem);
+                inset-inline: 0;
+                bottom: 0;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, rgba(17, 17, 17, 0.1) 12%, rgba(17, 17, 17, 0.1) 88%, transparent);
                 pointer-events: none;
         }
 
+        .page-header-icon {
+                display: grid;
+                place-items: center;
+                flex-shrink: 0;
+                width: 2.75rem;
+                height: 2.75rem;
+                border-radius: var(--radius-control);
+                color: var(--text-primary);
+                background: #ffffff;
+                border: 1px solid rgba(17, 17, 17, 0.1);
+                box-shadow: var(--shadow-xs);
+        }
+
+        .page-header-title {
+                overflow-wrap: anywhere;
+        }
+
+        .page-header-subtitle {
+                margin-top: 0.125rem;
+                max-width: 42rem;
+                font-size: 13px;
+                line-height: 1.75;
+                color: var(--text-muted);
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+        }
+
+        @media (min-width: 640px) {
+                .page-header-subtitle { font-size: 14px; }
+        }
+
+        @media (max-width: 639px) {
+                .dashboard-page-header { padding-bottom: 0.9rem; }
+                .page-header-icon { width: 2.5rem; height: 2.5rem; }
+                .dashboard-page-header .page-header-title { font-size: 20px; line-height: 1.5; }
+        }
+
+        /* The "today" card is a plain white surface like every other panel;
+           urgency is carried by its amber tile, not by texture. */
         .dashboard-intro {
-                isolation: isolate;
-                background:
-                        linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(248, 248, 247, 0.94));
-                box-shadow:
-                        0 1px 0 rgba(255, 255, 255, 1) inset,
-                        0 18px 48px -34px rgba(0, 0, 0, 0.42);
-        }
-
-        .dashboard-intro::before {
-                content: '';
-                position: absolute;
-                inset: -35% -18% auto auto;
-                width: 18rem;
-                aspect-ratio: 1;
-                border-radius: 9999px;
-                background: radial-gradient(circle, rgba(17, 17, 17, 0.055), transparent 68%);
-                pointer-events: none;
-                z-index: -1;
-        }
-
-        .dashboard-intro::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                background-image:
-                        linear-gradient(rgba(17, 17, 17, 0.025) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(17, 17, 17, 0.025) 1px, transparent 1px);
-                background-size: 34px 34px;
-                mask-image: linear-gradient(110deg, transparent 24%, black 100%);
-                -webkit-mask-image: linear-gradient(110deg, transparent 24%, black 100%);
-                opacity: 0.72;
-                pointer-events: none;
-                z-index: -1;
-        }
-
-        .intelligence-stage {
-                isolation: isolate;
-                box-shadow:
-                        0 1px 0 rgba(255, 255, 255, 0.12) inset,
-                        0 30px 72px -38px rgba(0, 0, 0, 0.92);
-        }
-
-        .intelligence-stage::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                border-radius: inherit;
-                background: linear-gradient(125deg, rgba(255, 255, 255, 0.09), transparent 24%, transparent 72%, rgba(255, 255, 255, 0.035));
-                pointer-events: none;
-                z-index: 4;
-        }
-
-        .core-connected-pill {
-                box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 10px 24px -20px rgba(5, 150, 105, 0.75);
+                background: #ffffff;
+                box-shadow: var(--elev-1);
         }
 
         @keyframes dashboard-arrive {
@@ -859,6 +669,34 @@
                 animation-name: dashboard-sheet-in-ltr;
         }
 
+        /* Mobile "More" bottom sheet. Entry is a keyframe with `backwards`
+           fill so, once it finishes, the inline transform (drag / exit) wins. */
+        .dashboard-more-backdrop {
+                animation: dashboard-backdrop-in 240ms ease-out backwards;
+                transition: opacity 220ms ease;
+        }
+
+        .dashboard-more-sheet {
+                animation: dashboard-more-sheet-in 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+                transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+                will-change: transform;
+        }
+
+        .dashboard-more-row {
+                animation: dashboard-more-row-in 380ms var(--ease-spatial) backwards;
+                animation-delay: calc(80ms + var(--row, 0) * 28ms);
+        }
+
+        @keyframes dashboard-more-sheet-in {
+                from { transform: translate3d(0, calc(100% + 2rem), 0); }
+                to { transform: translate3d(0, 0, 0); }
+        }
+
+        @keyframes dashboard-more-row-in {
+                from { opacity: 0; transform: translate3d(0, 0.6rem, 0); }
+                to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+
         @keyframes dashboard-backdrop-in {
                 from { opacity: 0; }
                 to { opacity: 1; }
@@ -875,7 +713,9 @@
         }
 
         @media (hover: hover) and (pointer: fine) {
-                .spatial-press:hover {
+                /* Only real controls lift; a static card that rises on hover
+                   promises a click that does nothing. */
+                :where(a, button, summary, label, [role='button']).spatial-press:hover {
                         box-shadow: var(--shadow-float);
                         transform: translateY(-1px);
                 }
@@ -892,86 +732,29 @@
         /* ─── Flat card surfaces (OpenAI-style — no glassmorphism) ────
            Pure white, thin border, almost-invisible shadow. These replace
            the old glassmorphism classes with clean flat panels. */
-        .glass,
-        .glass-strong,
-        .glass-indigo {
+        .glass {
                 background: #ffffff;
-                border: 1px solid var(--border-default);
-                box-shadow: var(--shadow-card);
-        }
-        .glass-dark {
-                background: #111111;
-                border: 1px solid #1f2937;
+                border: 1px solid var(--border-subtle);
                 box-shadow: var(--shadow-card);
         }
 
         /* Gradient text utilities — disabled per design brief (no gradients).
            Kept as no-ops so existing markup doesn't break. */
-        .ink-gradient {
-                color: var(--text-primary);
-        }
-        .premium-gradient {
-                color: var(--text-primary);
-        }
 
         /* Scrollable list with a refined slim scrollbar (for max-h-* containers). */
-        .scroll-slim {
-                scrollbar-width: thin;
-                scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
-        }
-        .scroll-slim::-webkit-scrollbar {
-                width: 6px;
-                height: 6px;
-        }
-        .scroll-slim::-webkit-scrollbar-track {
-                background: transparent;
-        }
-        .scroll-slim::-webkit-scrollbar-thumb {
-                background: rgba(0, 0, 0, 0.14);
-                border-radius: 9999px;
-        }
-        .scroll-slim::-webkit-scrollbar-thumb:hover {
-                background: rgba(0, 0, 0, 0.28);
-        }
 
         /* Animated conic ring (for "live" AI core badges). */
-        .conic-spin {
-                background: conic-gradient(from 0deg, transparent 0%, rgba(16, 185, 129, 0.5) 25%, transparent 50%, rgba(16, 185, 129, 0.3) 75%, transparent 100%);
-                animation: conic-spin 4s linear infinite;
-        }
-        @keyframes conic-spin {
-                to { transform: rotate(360deg); }
-        }
 
         /* Soft pulsing glow used on "live" dots. */
-        .pulse-glow {
-                animation: pulse-glow 2s ease-in-out infinite;
-        }
-        @keyframes pulse-glow {
-                0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-                50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-        }
 
         /* Shimmering text gradient (for " Vigento is thinking" states). */
-        .shimmer-text {
-                background: linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 50%, rgba(0,0,0,0.4) 100%);
-                background-size: 200% 100%;
-                -webkit-background-clip: text;
-                background-clip: text;
-                color: transparent;
-                animation: shimmer-text 1.8s ease-in-out infinite;
-        }
-        @keyframes shimmer-text {
-                0% { background-position: 200% 0; }
-                100% { background-position: -200% 0; }
-        }
 
         /* Shared marketing type rhythm. Persian display text needs more line-height
            and less aggressive tracking than the previous 6rem headings. */
         .marketing-heading {
                 max-width: 56rem;
                 font-size: clamp(1.65rem, 7vw, 3.35rem);
-                font-weight: 600;
+                font-weight: 700;
                 line-height: 1.22;
                 letter-spacing: -0.032em;
                 text-wrap: balance;
@@ -1014,7 +797,7 @@
         .marketing-page-hero {
                 position: relative;
                 overflow: hidden;
-                border-radius: 2rem;
+                border-radius: var(--radius-sheet);
                 background: #050505;
                 color: white;
                 box-shadow: 0 30px 90px rgba(0, 0, 0, 0.18);
@@ -1034,38 +817,6 @@
                 background:
                         radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.95), transparent 32rem),
                         var(--bg-base);
-        }
-
-        .marketing-hero-spatial {
-                isolation: isolate;
-                background:
-                        radial-gradient(circle at 78% 18%, rgba(17, 17, 17, 0.035), transparent 24rem),
-                        radial-gradient(circle at 18% 78%, rgba(17, 17, 17, 0.022), transparent 22rem),
-                        #ffffff;
-        }
-
-        .marketing-hero-spatial::before {
-                content: '';
-                position: absolute;
-                inset: 0;
-                z-index: -2;
-                background-image:
-                        linear-gradient(rgba(17, 17, 17, 0.028) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(17, 17, 17, 0.028) 1px, transparent 1px);
-                background-size: 54px 54px;
-                mask-image: linear-gradient(to bottom, black, transparent 78%);
-                -webkit-mask-image: linear-gradient(to bottom, black, transparent 78%);
-                opacity: 0.58;
-                pointer-events: none;
-        }
-
-        .marketing-hero-spatial .spotlight-bg {
-                z-index: -1;
-                opacity: 0.72;
-        }
-
-        .marketing-hero-content {
-                z-index: 1;
         }
 
         /* Writora-inspired public-site labels. Both variants keep their text in
@@ -1111,7 +862,7 @@
                 z-index: -1;
                 border-radius: inherit;
                 background:
-                        radial-gradient(circle at 15% 120%, rgba(109, 40, 217, 0.3), transparent 48%),
+                        radial-gradient(circle at 15% 120%, rgba(110, 86, 207, 0.3), transparent 48%),
                         #0b0b0e;
                 transition: background-color 200ms ease;
         }
@@ -1125,21 +876,10 @@
                 justify-content: center;
                 gap: 0.45rem;
                 padding: 0.35rem 0.9rem;
-                font-size: 0.6875rem;
-                font-weight: 600;
+                font-size: 0.75rem;
+                font-weight: 500;
                 line-height: 1.45;
                 white-space: nowrap;
-        }
-
-        .marketing-hero-pill--intro {
-                min-height: 2.75rem;
-                cursor: default;
-        }
-
-        .marketing-hero-pill--intro .marketing-hero-pill__content {
-                min-height: calc(2.75rem - 2px);
-                padding: 0.52rem 1.2rem;
-                font-size: 0.79rem;
         }
 
         .marketing-section-pill {
@@ -1152,9 +892,9 @@
                 border-radius: 9999px;
                 padding: 1.5px;
                 vertical-align: middle;
-                background-image: linear-gradient(105deg, #6d28d9 0%, #c4b5fd 27%, #fb7185 50%, #8b5cf6 73%, #6d28d9 100%);
+                background-image: linear-gradient(105deg, #6e56cf 0%, #c7bdf0 27%, #fb7185 50%, #8b76dc 73%, #6e56cf 100%);
                 background-size: 240% 100%;
-                box-shadow: 0 10px 32px rgba(109, 40, 217, 0.13), 0 0 0 1px rgba(109, 40, 217, 0.025);
+                box-shadow: 0 10px 32px rgba(110, 86, 207, 0.13), 0 0 0 1px rgba(110, 86, 207, 0.025);
                 animation: marketing-pill-flow 5s linear infinite;
         }
 
@@ -1172,12 +912,12 @@
                 justify-content: center;
                 border-radius: inherit;
                 background:
-                        radial-gradient(circle at 15% 130%, rgba(124, 58, 237, 0.27), transparent 46%),
+                        radial-gradient(circle at 15% 130%, rgba(110, 86, 207, 0.27), transparent 46%),
                         #0b0d14;
                 padding: 0.48rem 1.2rem;
                 color: #ffffff;
                 font-size: 0.78rem;
-                font-weight: 600;
+                font-weight: 500;
                 line-height: 1.45;
                 text-align: center;
                 box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
@@ -1189,27 +929,11 @@
                 box-shadow: inset 0 0 0 1px rgba(17, 19, 24, 0.04);
         }
 
-        .marketing-future-cta::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                z-index: 0;
-                pointer-events: none;
-                background:
-                        radial-gradient(circle at 50% 12%, rgba(168, 85, 247, 0.1), transparent 26rem),
-                        linear-gradient(to bottom, transparent 50%, rgba(124, 58, 237, 0.025));
-        }
-
         /* One-line section titles (user request): never wrap, single colour.
            The size is fitted against the element's own container width (cqw)
            with a small 2% safety margin, capped at --title-max. The first
            font-size line is the vw-based fallback for engines without
            container-query units; the second overrides it wherever cqw parses. */
-        .marketing-title-oneline {
-                white-space: nowrap;
-                font-size: var(--title-fallback, 1rem);
-                font-size: min(var(--title-max, 2rem), var(--title-fit, 5cqw));
-        }
 
         @keyframes marketing-pill-orbit {
                 to { transform: rotate(360deg); }
@@ -1232,7 +956,7 @@
                 .marketing-section-pill__content {
                         min-height: calc(2.4rem - 3px);
                         padding: 0.42rem 1rem;
-                        font-size: 0.74rem;
+                        font-size: 0.75rem;
                 }
         }
 
@@ -1246,30 +970,8 @@
                 to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        @keyframes spatial-pop {
-                from { opacity: 0; transform: translateY(8px) scale(0.98); }
-                to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
         @media (prefers-reduced-motion: reduce) {
                 .material-select-menu { animation: none; }
-        }
-        .marketing-eyebrow {
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
-                font-size: 0.6875rem;
-                font-weight: 600;
-                line-height: 1.5;
-                color: rgba(0, 0, 0, 0.5);
-        }
-        .marketing-eyebrow::before {
-                content: '';
-                width: 0.42rem;
-                height: 0.42rem;
-                border-radius: 9999px;
-                background: #10b981;
-                box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
         }
         /* Skip layout and paint work for distant homepage sections. The
            intrinsic fallback keeps the scroll geometry stable until Chrome
@@ -1278,12 +980,6 @@
                 content-visibility: auto;
                 contain-intrinsic-size: auto 48rem;
         }
-        .marketing-section-capabilities { contain-intrinsic-size: auto 112rem; }
-        .marketing-section-channels { contain-intrinsic-size: auto 58rem; }
-        .marketing-section-instagram { contain-intrinsic-size: auto 88rem; }
-        .marketing-section-onboarding { contain-intrinsic-size: auto 94rem; }
-        .marketing-section-faq { contain-intrinsic-size: auto 68rem; }
-        .marketing-section-posts { contain-intrinsic-size: auto 35rem; }
 
         /* Mobile Safari/Chrome can keep descendants of content-visibility:auto
            sections out of layout until they are already inside the viewport.
@@ -1298,14 +994,6 @@
                         contain-intrinsic-size: none;
                 }
 
-                html.marketing-motion-ready .marketing-story-section,
-                html.marketing-motion-ready .marketing-story-section.is-visible {
-                        opacity: 1;
-                        transform: none;
-                        transition: none;
-                        will-change: auto;
-                }
-
                 /* Mobile reveal for the capabilities/onboarding items: a FAST
                    vertical fade-up (300ms, 20ms stagger) instead of the desktop
                    horizontal side-slides. The old forced-visible override tied
@@ -1315,28 +1003,10 @@
                    below outranks the rtl variants regardless of order, and the
                    vertical-only transform keeps every dot centred on the rail
                    while it animates. */
-                html.marketing-motion-ready .marketing-story-section.marketing-section-capabilities [data-scroll-reveal],
-                html.marketing-motion-ready .marketing-story-section.marketing-section-onboarding [data-scroll-reveal] {
-                        opacity: 0;
-                        transform: translate3d(0, 0.75rem, 0);
-                        transition:
-                                opacity 300ms var(--ease-spatial),
-                                transform 300ms var(--ease-spatial);
-                        transition-delay: calc(var(--reveal-order, 0) * 20ms);
-                        will-change: opacity, transform;
-                }
-
-                html.marketing-motion-ready .marketing-story-section.marketing-section-capabilities [data-scroll-reveal].is-revealed,
-                html.marketing-motion-ready .marketing-story-section.marketing-section-onboarding [data-scroll-reveal].is-revealed {
-                        opacity: 1;
-                        transform: translate3d(0, 0, 0);
-                        will-change: auto;
-                }
 
                 /* Two fixed translucent bars force mobile browsers to repaint a
                    large backdrop on every scroll frame. Keep their opaque visual
                    treatment but skip the expensive live blur on phones. */
-                .marketing-navbar-surface,
                 .marketing-mobile-bottom-nav {
                         backdrop-filter: none !important;
                         -webkit-backdrop-filter: none !important;
@@ -1351,136 +1021,18 @@
         /* One quiet scroll rhythm across the homepage. The controller adds the
            readiness class only when IntersectionObserver is available, so SSR and
            no-JS rendering never hide content. */
-        html.marketing-motion-ready .marketing-story-section {
-                opacity: 0;
-                transform: translate3d(0, 1.125rem, 0);
-                transition:
-                        opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
-                        transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
-                will-change: opacity, transform;
-        }
-        html.marketing-motion-ready .marketing-story-section.is-visible {
-                opacity: 1;
-                transform: translate3d(0, 0, 0);
-                will-change: auto;
-        }
         /* A hash target must never wait for IntersectionObserver. This also
            survives hydration replacing an imperatively-added class. */
-        html.marketing-motion-ready .marketing-story-section:target {
-                opacity: 1;
-                transform: translate3d(0, 0, 0);
-                will-change: auto;
-        }
 
         /* One observer drives all below-the-fold entrances. Content remains
            visible in SSR/no-JS mode; only transform and opacity reach the
            compositor, and stagger stays deliberately short. */
-        html.marketing-motion-ready [data-scroll-reveal] {
-                opacity: 0;
-                transform: translate3d(0, 1rem, 0);
-                transition:
-                        opacity var(--motion-reveal) var(--ease-spatial),
-                        transform var(--motion-reveal) var(--ease-spatial);
-                transition-delay: calc(var(--reveal-order, 0) * 45ms);
-        }
-        html.marketing-motion-ready [data-scroll-reveal='side'] {
-                transform: translate3d(-1rem, 0, 0);
-        }
-        html[dir='rtl'].marketing-motion-ready [data-scroll-reveal='side'] {
-                transform: translate3d(1rem, 0, 0);
-        }
-        html.marketing-motion-ready [data-scroll-reveal='side-reverse'] {
-                transform: translate3d(1rem, 0, 0);
-        }
-        html[dir='rtl'].marketing-motion-ready [data-scroll-reveal='side-reverse'] {
-                transform: translate3d(-1rem, 0, 0);
-        }
-        html.marketing-motion-ready [data-scroll-reveal='scale'] {
-                transform: translate3d(0, 0.75rem, 0) scale(0.985);
-        }
-        html.marketing-motion-ready [data-scroll-reveal].is-revealed {
-                opacity: 1;
-                transform: translate3d(0, 0, 0) scale(1);
-        }
-
-        .marketing-stage-enter {
-                animation: marketing-stage-enter 580ms var(--ease-spatial) 80ms both;
-        }
-        .marketing-tab-surface,
-        .marketing-tab-indicator {
-                animation: marketing-tab-arrive 260ms var(--ease-spatial) both;
-        }
-        .marketing-swap-in {
-                animation: marketing-swap-in 300ms var(--ease-spatial) both;
-        }
-        .marketing-core-breathe {
-                animation: marketing-core-breathe 4.8s ease-in-out infinite;
-                will-change: transform;
-        }
         .marketing-demo-skeleton {
                 animation: marketing-skeleton-breathe 1.8s ease-in-out infinite;
-        }
-        .marketing-capability-rail {
-                overflow: hidden;
-                background: rgba(91, 33, 182, 0.1);
-        }
-        .marketing-capability-rail::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                border-radius: inherit;
-                background: linear-gradient(to bottom, #c4b5fd, #8b5cf6 52%, #ec4899);
-                box-shadow: 0 0 18px rgba(124, 58, 237, 0.3);
-                transform-origin: top;
-        }
-        .marketing-faq-details[open] .marketing-faq-answer {
-                animation: marketing-faq-answer 240ms var(--ease-spatial) both;
-        }
-
-        @supports (animation-timeline: view()) {
-                .marketing-capability-rail::after {
-                        animation: marketing-capability-progress linear both;
-                        animation-timeline: view();
-                        animation-range: entry 8% cover 78%;
-                }
-        }
-
-        @keyframes marketing-stage-enter {
-                from { opacity: 0; transform: translate3d(0, 1rem, 0) scale(0.985); }
-                to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-        }
-        @keyframes marketing-tab-arrive {
-                from { opacity: 0; transform: scale(0.92); }
-                to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes marketing-swap-in {
-                from { opacity: 0; transform: translate3d(0, 0.45rem, 0) scale(0.985); }
-                to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-        }
-        @keyframes marketing-core-breathe {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.015); }
         }
         @keyframes marketing-skeleton-breathe {
                 0%, 100% { opacity: 0.48; }
                 50% { opacity: 0.86; }
-        }
-        @keyframes marketing-capability-progress {
-                from { transform: scaleY(0); }
-                to { transform: scaleY(1); }
-        }
-        @keyframes marketing-faq-answer {
-                from { opacity: 0; transform: translate3d(0, -0.35rem, 0); }
-                to { opacity: 1; transform: translate3d(0, 0, 0); }
-        }
-
-        @media (min-width: 1024px) {
-                .marketing-section-capabilities { contain-intrinsic-size: auto 96rem; }
-                .marketing-section-channels { contain-intrinsic-size: auto 54rem; }
-                .marketing-section-instagram { contain-intrinsic-size: auto 62rem; }
-                .marketing-section-onboarding { contain-intrinsic-size: auto 76rem; }
-                .marketing-section-faq { contain-intrinsic-size: auto 54rem; }
-                .marketing-section-posts { contain-intrinsic-size: auto 52rem; }
         }
 
         /* Inputs — Apple / ChatGPT iOS material: white surface, hairline border,
@@ -1490,25 +1042,38 @@
         .input {
                 width: 100%;
                 min-height: 2.75rem;
-                border-radius: 0.75rem;
-                border: 1px solid rgba(17, 17, 17, 0.08);
+                border-radius: var(--radius-control);
+                border: 1px solid rgba(17, 17, 17, 0.1);
                 background: #ffffff;
                 padding: 0.625rem 1rem;
                 color: var(--text-primary);
                 outline: none;
-                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.055);
+                box-shadow: var(--shadow-xs);
                 transition: border-color 0.16s ease, box-shadow 0.18s var(--ease-spatial), background-color 0.16s ease;
         }
         .input::placeholder {
                 color: var(--text-hint);
         }
         .input:hover {
-                border-color: rgba(17, 17, 17, 0.14);
+                border-color: rgba(17, 17, 17, 0.18);
         }
+        /* The field being typed in must be obvious in long forms: ink
+           border + a 3px violet halo. Colour is left to mean something:
+           green = accepted value, red = needs fixing. */
         .input:focus {
-                border-color: rgba(17, 17, 17, 0.2);
+                border-color: var(--focus-field, #111111);
                 background: #ffffff;
-                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
+                box-shadow: 0 0 0 3px var(--focus-field-halo, rgba(110, 86, 207, 0.22));
+        }
+        .input[aria-invalid='true'] {
+                border-color: #dc2626;
+                box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+        .input[data-valid='true']:not(:focus) {
+                border-color: var(--ok, #15803d);
+        }
+        :where(label):has(> .input:focus) {
+                color: var(--text-primary);
         }
         .input:disabled {
                 opacity: 0.45;
@@ -1521,8 +1086,8 @@
                 min-height: 2.75rem;
                 appearance: none;
                 -webkit-appearance: none;
-                border: 1px solid rgba(17, 17, 17, 0.08);
-                border-radius: 0.75rem;
+                border: 1px solid rgba(17, 17, 17, 0.1);
+                border-radius: var(--radius-control);
                 background-color: #fff;
                 background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(0,0,0,0.55)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
                 background-repeat: no-repeat;
@@ -1530,7 +1095,7 @@
                 padding-block: 0.625rem;
                 padding-inline: 1rem 2.75rem;
                 color: var(--text-primary);
-                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.055);
+                box-shadow: var(--shadow-xs);
                 outline: none;
                 cursor: pointer;
                 transition: border-color 160ms ease, box-shadow 180ms var(--ease-spatial), transform 160ms var(--ease-spatial);
@@ -1546,8 +1111,8 @@
         }
 
         select:not([multiple]):focus-visible {
-                border-color: rgba(17, 17, 17, 0.2);
-                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
+                border-color: var(--focus-field, #111111);
+                box-shadow: 0 0 0 3px var(--focus-field-halo, rgba(110, 86, 207, 0.22));
         }
 
         select option {
@@ -1581,30 +1146,6 @@
 @layer utilities {
         .text-balance {
                 text-wrap: balance;
-        }
-
-        .gradient-text {
-                background: linear-gradient(180deg, var(--white) 0%, var(--white-60) 100%);
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-                color: transparent;
-        }
-
-        .spotlight-bg {
-                background: radial-gradient(
-                        600px circle at var(--mx) var(--my),
-                        rgba(var(--ink-rgb), 0.06),
-                        transparent 70%
-                );
-        }
-
-        .vignette {
-                background: radial-gradient(ellipse at center, transparent 40%, var(--bg-base) 100%);
-        }
-
-        .fade-bottom {
-                background: linear-gradient(180deg, transparent 0%, var(--bg-base) 100%);
         }
 
         /* Marketing pages use one precise paper grid as their recurring visual
@@ -1644,41 +1185,15 @@
         .dashboard-arrival--core,
         .dashboard-page-header,
         .dashboard-mobile-backdrop,
-        .dashboard-mobile-sheet {
+        .dashboard-mobile-sheet,
+        .dashboard-more-backdrop,
+        .dashboard-more-sheet,
+        .dashboard-more-row {
                 animation: none;
         }
 
-        html.marketing-motion-ready .marketing-story-section,
-        html.marketing-motion-ready .marketing-story-section.is-visible {
-                opacity: 1;
-                transform: none;
-                transition: none;
-        }
-
-        html.marketing-motion-ready [data-scroll-reveal],
-        html.marketing-motion-ready [data-scroll-reveal].is-revealed {
-                opacity: 1;
-                transform: none;
-                transition: none;
-        }
-
-        .marketing-stage-enter,
-        .marketing-tab-surface,
-        .marketing-tab-indicator,
-        .marketing-swap-in,
-        .marketing-core-breathe,
-        .marketing-demo-skeleton,
-        .marketing-faq-details[open] .marketing-faq-answer {
+        .marketing-demo-skeleton {
                 animation: none;
-        }
-
-        .marketing-channel-signal {
-                display: none;
-        }
-
-        .marketing-capability-rail::after {
-                animation: none;
-                transform: scaleY(1);
         }
 
         *,
@@ -1687,14 +1202,6 @@
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 scroll-behavior: auto !important;
-        }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-        .marketing-hero-spatial [class*='backdrop-blur'],
-        .marketing-section-channels [class*='backdrop-blur'] {
-                backdrop-filter: none;
-                -webkit-backdrop-filter: none;
         }
 }
 
@@ -1801,24 +1308,36 @@
 .blog-content h1,
 .blog-content h2,
 .blog-content h3 {
-        font-weight: 600;
-        line-height: 1.3;
-        margin-top: 1.5em;
-        margin-bottom: 0.5em;
+        font-weight: 700;
+        line-height: 1.55;
+        margin-top: 2em;
+        margin-bottom: 0.6em;
         color: var(--text-primary);
+        text-wrap: balance;
+}
+.blog-content > :first-child {
+        margin-top: 0;
 }
 .blog-content h2 {
-        font-size: 1.5em;
+        font-size: 1.4em;
 }
 .blog-content h3 {
-        font-size: 1.25em;
+        font-size: 1.18em;
 }
 .blog-content p {
-        margin: 1em 0;
+        margin: 1.1em 0;
+}
+.blog-content strong {
+        color: var(--text-primary);
 }
 .blog-content a {
-        color: var(--text-primary);
+        color: var(--signal, #6e56cf);
         text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+}
+.blog-content a:hover {
+        text-decoration-thickness: 2px;
 }
 .blog-content ul,
 .blog-content ol {
@@ -1827,6 +1346,9 @@
 }
 .blog-content li {
         margin: 0.4em 0;
+}
+[dir='rtl'] .blog-content ol {
+        list-style-type: persian;
 }
 .blog-content blockquote {
         border-inline-start: 3px solid var(--border-default);
@@ -1871,7 +1393,7 @@
         overflow-x: auto;
         margin: 1.5em 0;
         border: 1px solid var(--border-default);
-        border-radius: 12px;
+        border-radius: var(--radius-control);
         -webkit-overflow-scrolling: touch;
 }
 .blog-content table {
@@ -1886,7 +1408,7 @@
 }
 .blog-content th {
         padding: 0.7em 1em;
-        font-weight: 600;
+        font-weight: 500;
         color: var(--text-primary);
         text-align: start;
         white-space: nowrap;
@@ -1937,20 +1459,6 @@ html[dir='rtl'] .undo-indeterminate {
         .undo-indeterminate { animation: none; }
 }
 
-/* ── Settings search anchor flash ──────────────────────────────────────────
-   Brief highlight ring when a search result jumps to a settings section. */
-@keyframes settings-target-flash {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
-        18% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.35); }
-        60% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18); }
-}
-.settings-target-flash {
-        animation: settings-target-flash 1.6s ease-out 1;
-}
-@media (prefers-reduced-motion: reduce) {
-        .settings-target-flash { animation: none; }
-}
-
 /* ──────────────────────────────────────────────────────────────────────────
    Hero dashboard showcase — writora.xyz-style presentation: a violet conic
    halo glowing from behind the shot, peeking above its top edge, an orbiting amber→violet border beam, and
@@ -1959,36 +1467,8 @@ html[dir='rtl'] .undo-indeterminate {
    ────────────────────────────────────────────────────────────────────────── */
 
 /* Conic halo gradient, copied verbatim from writora.xyz. */
-.marketing-showcase-gradient {
-        background: conic-gradient(
-                from 230.29deg at 51.63% 52.16%,
-                #2400ff 0deg,
-                #0087ff 67.5deg,
-                #6c279d 198.75deg,
-                #1826a3 251.25deg,
-                #3667c4 301.88deg,
-                #691eff 1turn
-        );
-}
 
 /* Halo fade-in — keyframes copied verbatim from writora.xyz. */
-@keyframes image-glow {
-        0% {
-                opacity: 0;
-                animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
-        }
-        10% {
-                opacity: 0.5;
-                animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
-        }
-        to {
-                opacity: 0.7;
-        }
-}
-
-.animate-image-glow {
-        animation: image-glow 4s ease-out 0.6s forwards;
-}
 
 /* Orbiting border beam — keyframes copied verbatim from writora.xyz. */
 @keyframes border-beam {
@@ -2007,35 +1487,10 @@ html[dir='rtl'] .undo-indeterminate {
    system — it lives inside the first viewport, and gating it on an observer
    left the screenshot invisible on slow-JS paths (user report: the shot
    "only appeared after scrolling"). */
-@keyframes marketing-showcase-enter {
-        from { opacity: 0; transform: translate3d(0, 0.9rem, 0); }
-        to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-
-.marketing-showcase-enter {
-        animation: marketing-showcase-enter 640ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
-}
 
 /* The screenshot itself is always rendered visible; the inline LQIP behind
    it covers the few frames before the WebP decodes. Hiding the real image
    behind a hydrated onLoad (the old blur-up) risked a blank hero. */
-.marketing-showcase-img {
-        position: relative;
-        z-index: 10;
-}
-
-@media (prefers-reduced-motion: reduce) {
-        .animate-image-glow {
-                animation: none;
-                opacity: 0.7;
-        }
-        .marketing-showcase-beam {
-                display: none;
-        }
-        .marketing-showcase-enter {
-                animation: none;
-        }
-}
 
 /* ──────────────────────────────────────────────────────────────────────────
    Final-CTA lamp — the writora.xyz "Step into the Future of AI Content
@@ -2047,90 +1502,268 @@ html[dir='rtl'] .undo-indeterminate {
    simply rendered open.
    ────────────────────────────────────────────────────────────────────────── */
 
-.marketing-lamp-wing {
-        width: var(--lamp-open, 30rem);
-        opacity: 1;
-}
-
-.marketing-lamp-orb {
-        width: calc(var(--lamp-open, 30rem) * 0.53);
-}
-
-.marketing-lamp-line {
-        width: var(--lamp-open, 30rem);
-}
-
-html.marketing-motion-ready .marketing-lamp-wing {
-        width: 15rem;
-        opacity: 0.5;
-        transition:
-                width 800ms ease-in-out 300ms,
-                opacity 800ms ease-in-out 300ms;
-}
-
-html.marketing-motion-ready .marketing-lamp-orb {
-        width: 8rem;
-        transition: width 800ms ease-in-out 300ms;
-}
-
-html.marketing-motion-ready .marketing-lamp-line {
-        width: 15rem;
-        transition: width 800ms ease-in-out 300ms;
-}
-
-html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-wing {
-        width: var(--lamp-open, 30rem);
-        opacity: 1;
-}
-
-html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-orb {
-        width: calc(var(--lamp-open, 30rem) * 0.53);
-}
-
-html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-line {
-        width: var(--lamp-open, 30rem);
-}
-
 /* Phones: the 480-736px open band fills a narrow card wall-to-wall and the
    old 800ms open read as a purple flood flashing in (user report: heavy and
    abrupt on mobile). Cap the open width, lighten the beam and slow the open
    down to 1.05s / 380ms delay; desktop keeps writora's original timing. */
-@media (max-width: 767px) {
-        .marketing-future-cta .marketing-lamp-wing {
-                width: min(var(--lamp-open, 30rem), 24rem);
-                opacity: 0.85;
-        }
-        .marketing-future-cta .marketing-lamp-orb {
-                width: min(calc(var(--lamp-open, 30rem) * 0.53), 12.5rem);
-        }
-        .marketing-future-cta .marketing-lamp-line {
-                width: min(var(--lamp-open, 30rem), 24rem);
-        }
 
-        html.marketing-motion-ready .marketing-future-cta .marketing-lamp-wing {
-                width: 9.5rem;
-                opacity: 0.45;
-                transition:
-                        width 1050ms ease-in-out 380ms,
-                        opacity 1050ms ease-in-out 380ms;
-        }
-        html.marketing-motion-ready .marketing-future-cta .marketing-lamp-orb {
-                width: 6.5rem;
-                transition: width 1050ms ease-in-out 380ms;
-        }
-        html.marketing-motion-ready .marketing-future-cta .marketing-lamp-line {
-                width: 9.5rem;
-                transition: width 1050ms ease-in-out 380ms;
-        }
+/* ── Vigent UI system components (see app/ui-system.css for the rules) ── */
+@layer components {
+	/* ── ط۱ Segmented tabs ─────────────────────────────────────────────── */
+	.ui-seg {
+		display: grid;
+		gap: 0.25rem;
+		padding: 0.25rem;
+		border-radius: var(--radius-control);
+		background: rgba(17, 17, 17, 0.055);
+	}
+	/* Sticky tab bars float over content, so their track must be opaque. */
+	.ui-seg-solid { background: #ebebe8; box-shadow: 0 10px 28px -18px rgba(17, 17, 17, 0.35); }
+	.ui-seg-tab {
+		display: inline-flex;
+		min-height: 2.75rem;
+		min-width: 0;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		border-radius: var(--radius-chip);
+		padding-inline: 0.75rem;
+		color: var(--text-secondary);
+		font-weight: 500;
+		-webkit-tap-highlight-color: transparent;
+		touch-action: manipulation;
+		transition:
+			transform 160ms var(--vg-ease-out),
+			background-color 200ms ease,
+			color 200ms ease,
+			box-shadow 200ms ease;
+	}
+	.ui-seg-tab:active { transform: scale(0.97); }
+	.ui-seg-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+	.ui-seg-tab[aria-selected='true'],
+	.ui-seg-tab[aria-current='page'],
+	.ui-seg-tab[data-active='true'] {
+		background: #ffffff;
+		color: var(--text-primary);
+		box-shadow: 0 1px 1px rgba(17, 17, 17, 0.04), 0 6px 16px rgba(17, 17, 17, 0.08);
+	}
+	@media (hover: hover) and (pointer: fine) {
+		.ui-seg-tab:not([aria-selected='true']):not([aria-current='page']):not([data-active='true']):hover {
+			color: var(--text-primary);
+			background: rgba(255, 255, 255, 0.55);
+		}
+	}
+	/* Icon tile inside a tab: quiet when idle, ink when selected. */
+	.ui-seg-icon {
+		display: grid;
+		place-items: center;
+		flex-shrink: 0;
+		border-radius: 0.6rem;
+		background: rgba(17, 17, 17, 0.05);
+		color: var(--text-secondary);
+		transition: background-color 200ms ease, color 200ms ease;
+	}
+	.ui-seg-tab[aria-selected='true'] .ui-seg-icon,
+	.ui-seg-tab[aria-current='page'] .ui-seg-icon,
+	.ui-seg-tab[data-active='true'] .ui-seg-icon {
+		background: var(--text-primary);
+		color: #ffffff;
+	}
 
-        html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-wing {
-                width: min(var(--lamp-open, 30rem), 24rem);
-                opacity: 0.85;
-        }
-        html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-orb {
-                width: min(calc(var(--lamp-open, 30rem) * 0.53), 12.5rem);
-        }
-        html.marketing-motion-ready .marketing-future-cta.is-revealed .marketing-lamp-line {
-                width: min(var(--lamp-open, 30rem), 24rem);
-        }
+	/* ── ط۵ Status chips ───────────────────────────────────────────────── */
+	.ui-chip {
+		display: inline-flex;
+		min-height: 1.5rem;
+		align-items: center;
+		gap: 0.35rem;
+		border-radius: 9999px;
+		padding-inline: 0.55rem;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1;
+		white-space: nowrap;
+	}
+	.ui-chip-ok { background: var(--ok-soft); color: var(--ok-ink); }
+	.ui-chip-warn { background: var(--warn-soft); color: var(--warn-ink); }
+	.ui-chip-danger { background: var(--danger-soft); color: var(--danger-ink); }
+	.ui-chip-signal { background: var(--signal-soft); color: var(--signal-strong); }
+	.ui-chip-live { background: var(--text-primary); color: #ffffff; }
+	.ui-chip-neutral { background: rgba(17, 17, 17, 0.06); color: var(--text-secondary); }
+	.ui-chip-dot { width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: currentColor; }
+
+	/* ── Text links: violet signal so they read as links without hover
+	   (phones have none); underline sits 3px below on hover. ─────────── */
+	.ui-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		border-radius: 0.375rem;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--signal);
+		text-underline-offset: 3px;
+		transition: color 160ms ease;
+	}
+	.ui-link:hover { color: var(--signal-strong); text-decoration: underline; }
+	.ui-link svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+
+	/* ── ط۱۷ Type scale (the public site's rhythm, sized for an app) ──── */
+	.ui-h1 { font-size: 22px; line-height: 1.45; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+	.ui-h2 { font-size: 17px; line-height: 1.6; font-weight: 700; color: var(--text-primary); }
+	.ui-h3 { font-size: 14.5px; line-height: 1.7; font-weight: 700; color: var(--text-primary); }
+	.ui-body { font-size: 14px; line-height: 1.9; color: var(--text-secondary); }
+	.ui-caption { font-size: 12.5px; line-height: 1.8; color: var(--text-muted); }
+	@media (min-width: 1024px) {
+		.ui-h1 { font-size: 26px; }
+		.ui-h2 { font-size: 19px; }
+		.ui-h3 { font-size: 15.5px; }
+		.ui-body { font-size: 14.5px; }
+	}
+	:lang(fa) .ui-h1, [dir='rtl'] .ui-h1 { letter-spacing: normal; }
+
+	/* ── Live flow (overview motion graphic) ───────────────────────────── */
+	.lf { --lf-dir: 1; }
+	[dir='rtl'] .lf, .lf[dir='rtl'] { --lf-dir: -1; }
+	.lf-line {
+		position: relative;
+		height: 2px;
+		overflow: hidden;
+		border-radius: 2px;
+		background-image: repeating-linear-gradient(90deg, rgba(110, 86, 207, 0.3) 0 5px, transparent 5px 11px);
+		background-size: 11px 2px;
+		animation: lf-dash 1.1s linear infinite;
+	}
+	.lf-line-ok { background-image: repeating-linear-gradient(90deg, rgba(21, 128, 61, 0.32) 0 5px, transparent 5px 11px); }
+	.lf-line-idle { animation: none; opacity: 0.55; }
+	.lf-run { position: absolute; inset: 0; animation: lf-run 2.6s cubic-bezier(.45, .05, .55, .95) infinite; }
+	.lf-run > i {
+		position: absolute;
+		top: 50%;
+		inset-inline-start: 0;
+		width: 7px;
+		height: 7px;
+		margin-top: -3.5px;
+		border-radius: 9999px;
+		background: var(--signal);
+		box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.16);
+	}
+	.lf-run-ok > i { background: var(--ok); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.16); }
+	.lf-vline {
+		position: relative;
+		width: 2px;
+		overflow: hidden;
+		border-radius: 2px;
+		background-image: repeating-linear-gradient(180deg, rgba(110, 86, 207, 0.3) 0 5px, transparent 5px 11px);
+		background-size: 2px 11px;
+		animation: lf-vdash 1.1s linear infinite;
+	}
+	.lf-vline-ok { background-image: repeating-linear-gradient(180deg, rgba(21, 128, 61, 0.32) 0 5px, transparent 5px 11px); }
+	.lf-vrun { position: absolute; inset: 0; animation: lf-vrun 2.2s cubic-bezier(.45, .05, .55, .95) infinite; }
+	.lf-vrun > i {
+		position: absolute;
+		left: 50%;
+		top: 0;
+		width: 7px;
+		height: 7px;
+		margin-left: -3.5px;
+		border-radius: 9999px;
+		background: var(--signal);
+		box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.16);
+	}
+	.lf-vrun-ok > i { background: var(--ok); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.16); }
 }
+
+/* ── Bookings: "agent books a slot" motion graphic (.bk-*) ─────────────────
+   Base styles are the FINAL frame (booked slot, confirmation, alert), so
+   reduced-motion users and screenshots get a complete, static story. The
+   10s loop only runs under `prefers-reduced-motion: no-preference` and only
+   while the scene is on screen (`data-play`); before hydration or off screen
+   the finished frame shows instead of a blank first frame. */
+@layer components {
+	.bk-scene { --bk-loop: 10s; position: relative; }
+	.bk-bubble {
+		max-width: 88%;
+		border-radius: var(--radius-card);
+		padding: 0.55rem 0.8rem;
+		font-size: 12.5px;
+		line-height: 1.75;
+	}
+	.bk-in { justify-self: start; border-end-start-radius: 0.35rem; background: #fff; color: var(--text-primary); border: 1px solid var(--border-default); }
+	.bk-out { justify-self: end; border-end-end-radius: 0.35rem; background: var(--text-primary); color: #fff; }
+	.bk-think {
+		justify-self: end;
+		display: none;
+		align-items: center;
+		gap: 0.45rem;
+		border-radius: 9999px;
+		padding: 0.4rem 0.75rem;
+		font-size: 12px;
+		font-weight: 500;
+		background: var(--signal-soft);
+		color: var(--signal-strong);
+		border: 1px solid var(--signal-border);
+	}
+	.bk-think i { width: 5px; height: 5px; border-radius: 9999px; background: currentColor; display: inline-block; }
+	.bk-slot {
+		display: grid;
+		place-items: center;
+		min-height: 2.1rem;
+		border-radius: var(--radius-chip);
+		font-size: 12px;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		background: #fff;
+		color: var(--text-secondary);
+		border: 1px solid var(--border-default);
+	}
+	.bk-slot-busy {
+		color: var(--text-hint);
+		border-style: dashed;
+		background: repeating-linear-gradient(135deg, rgba(17, 17, 17, 0.045) 0 4px, transparent 4px 8px);
+		text-decoration: line-through;
+		text-decoration-color: rgba(17, 17, 17, 0.25);
+	}
+	.bk-slot-target { background: var(--text-primary); color: #fff; border-color: var(--text-primary); box-shadow: 0 8px 20px -10px rgba(17, 17, 17, 0.6); }
+	.bk-toast { box-shadow: 0 18px 40px -20px rgba(17, 17, 17, 0.45); }
+
+	@media (prefers-reduced-motion: no-preference) {
+		.bk-scene[data-play='true'] .bk-b1 { animation: bk-b1 var(--bk-loop) var(--vg-ease-out) infinite both; }
+		.bk-scene[data-play='true'] .bk-think { display: inline-flex; animation: bk-think var(--bk-loop) linear infinite both; }
+		.bk-scene[data-play='true'] .bk-think i { animation: bk-dot 0.9s ease-in-out infinite; }
+		.bk-scene[data-play='true'] .bk-think i:nth-child(2) { animation-delay: 0.15s; }
+		.bk-scene[data-play='true'] .bk-think i:nth-child(3) { animation-delay: 0.3s; }
+		.bk-scene[data-play='true'] .bk-b3 { animation: bk-b3 var(--bk-loop) var(--vg-ease-out) infinite both; }
+		.bk-scene[data-play='true'] .bk-b4 { animation: bk-b4 var(--bk-loop) var(--vg-ease-out) infinite both; }
+		.bk-scene[data-play='true'] .bk-b5 { animation: bk-b5 var(--bk-loop) var(--vg-ease-out) infinite both; }
+		.bk-scene[data-play='true'] .bk-slot-free { animation: bk-scan var(--bk-loop) linear infinite both; }
+		.bk-scene[data-play='true'] .bk-slot-target { animation: bk-target var(--bk-loop) var(--vg-ease-out) infinite both; }
+		.bk-scene[data-play='true'] .bk-toast { animation: bk-toast var(--bk-loop) var(--vg-ease-out) infinite both; }
+		.bk-scene[data-play='true'] .bk-check { animation: bk-check var(--bk-loop) var(--vg-ease-out) infinite both; }
+	}
+}
+
+@keyframes bk-b1 { 0%, 3% { opacity: 0; transform: translateY(8px); } 7%, 90% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes bk-think { 0%, 10% { opacity: 0; } 13%, 35% { opacity: 1; } 38%, 100% { opacity: 0; } }
+@keyframes bk-dot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+@keyframes bk-b3 { 0%, 37% { opacity: 0; transform: translateY(8px); } 41%, 90% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes bk-b4 { 0%, 49% { opacity: 0; transform: translateY(8px); } 53%, 90% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes bk-b5 { 0%, 60% { opacity: 0; transform: translateY(8px); } 64%, 90% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+/* Free slots light up one after another while the agent "reads" the day. */
+@keyframes bk-scan {
+	0%, 100% { background: #fff; border-color: var(--border-default); color: var(--text-secondary); }
+	2% { background: var(--signal-soft); border-color: var(--signal); color: var(--signal-strong); }
+	5% { background: #fff; border-color: var(--border-default); color: var(--text-secondary); }
+}
+@keyframes bk-target {
+	0%, 36% { background: #fff; border-color: var(--border-default); color: var(--text-secondary); box-shadow: none; }
+	39%, 58% { background: var(--signal-soft); border-color: var(--signal); color: var(--signal-strong); box-shadow: 0 0 0 4px rgba(110, 86, 207, 0.12); }
+	62%, 91% { background: var(--text-primary); border-color: var(--text-primary); color: #fff; box-shadow: 0 8px 20px -10px rgba(17, 17, 17, 0.6); }
+	97%, 100% { background: #fff; border-color: var(--border-default); color: var(--text-secondary); box-shadow: none; }
+}
+@keyframes bk-check { 0%, 61% { opacity: 0; transform: scale(0.4); } 65%, 91% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes bk-toast { 0%, 64% { opacity: 0; transform: translateY(-10px) scale(0.98); } 69%, 90% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; transform: translateY(-6px); } }
+
+/* Pages with a sticky bottom action dock (scenario builder, settings save
+   bar…) own that corner — hide the floating back-to-top button there so it
+   never sits on top of, or gets confused with, the primary Save action. */
+body:has([data-sticky-actions]) .back-to-top { display: none; }

@@ -53,7 +53,7 @@ export function CopyButton({
       aria-label={accessibleLabel}
       title={accessibleLabel}
       className={cn(
-        'spatial-press inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50',
+        'spatial-press inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
         className,
       )}
     >

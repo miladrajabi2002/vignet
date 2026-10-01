@@ -32,6 +32,7 @@ import {
         ContactStageBadge,
         type ContactStage,
 } from '@/components/crm/contact-stage-badge'
+import { LiveEmptyState } from '@/components/ui/live-empty-state'
 
 export interface ContactRow {
         id: string
@@ -324,7 +325,7 @@ export function ContactsView({
                                                         download
                                                         title={t('exportDescription')}
                                                         aria-label={t('exportExcel')}
-                                                        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 sm:px-4 sm:text-sm"
+                                                        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-4 sm:text-sm"
                                                 >
                                                         <Download className="h-4 w-4" aria-hidden="true" />
                                                         <span className="hidden sm:inline">{t('exportExcel')}</span>
@@ -390,8 +391,8 @@ export function ContactsView({
                                 </div>
                         </div>
 
-                        <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-                                <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+                        <div className="sticky top-[4rem] z-20 md:static md:z-auto">
+                                <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
                                         <div className="flex items-center gap-2 md:hidden">
                                                 <ContactSearchField
                                                         value={query}
@@ -408,7 +409,7 @@ export function ContactsView({
                                                         aria-haspopup="dialog"
                                                         aria-expanded={filterSheetOpen}
                                                         className={cn(
-                                                                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
+                                                                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
                                                                 activeFacetCount > 0
                                                                         ? 'border-black bg-black text-white'
                                                                         : 'border-[var(--border-default)] text-[var(--text-secondary)]',
@@ -417,7 +418,7 @@ export function ContactsView({
                                                 >
                                                         <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                                                         {activeFacetCount > 0 && (
-                                                                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[10px] font-bold tabular-nums text-black">
+                                                                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[12px] font-bold tabular-nums text-black">
                                                                         {activeFacetCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
                                                                 </span>
                                                         )}
@@ -449,10 +450,10 @@ export function ContactsView({
                                                         className="min-w-[12rem] flex-1"
                                                 />
                                                 <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} className="min-w-40" options={[{ value: '', label: t('allStages') }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
-                                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} className="min-w-40" options={[{ value: '', label: t('allChannels') }, ...FILTER_CHANNELS.map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
+                                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر برنامه' : 'Filter channel'} className="min-w-40" options={[{ value: '', label: t('allChannels') }, ...FILTER_CHANNELS.map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
                                                 <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} className="min-w-40" options={[{ value: '', label: t('allTags') }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
                                                 {hasFilters && (
-                                                        <button type="button" onClick={clearFilters} className="inline-flex h-11 w-11 items-center justify-center rounded-[0.75rem] border border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60" aria-label={t('clearFilters')}><X className="h-4 w-4" /></button>
+                                                        <button type="button" onClick={clearFilters} className="inline-flex h-11 w-11 items-center justify-center rounded-control border border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" aria-label={t('clearFilters')}><X className="h-4 w-4" /></button>
                                                 )}
                                         </div>
                                 </div>
@@ -471,14 +472,14 @@ export function ContactsView({
                                                         type="button"
                                                         onClick={clearFacetFilters}
                                                         disabled={activeFacetCount === 0}
-                                                        className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 disabled:opacity-40"
+                                                        className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"
                                                 >
                                                         {t('clearFilters')}
                                                 </button>
                                                 <button
                                                         type="button"
                                                         onClick={() => setFilterSheetOpen(false)}
-                                                        className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+                                                        className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                                                 >
                                                         {t('showResults')} ({filtered.length.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')})
                                                 </button>
@@ -489,8 +490,8 @@ export function ContactsView({
                                         <FilterField label={locale === 'fa' ? 'مرحله مشتری' : 'Customer stage'}>
                                                 <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} options={[{ value: '', label: t('allStages') }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
                                         </FilterField>
-                                        <FilterField label={locale === 'fa' ? 'کانال ارتباطی' : 'Channel'}>
-                                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} options={[{ value: '', label: t('allChannels') }, ...FILTER_CHANNELS.map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
+                                        <FilterField label={locale === 'fa' ? 'برنامهٔ ارتباطی' : 'Channel'}>
+                                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر برنامه' : 'Filter channel'} options={[{ value: '', label: t('allChannels') }, ...FILTER_CHANNELS.map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
                                         </FilterField>
                                         <FilterField label={locale === 'fa' ? 'برچسب مشتری' : 'Customer tag'}>
                                                 <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} options={[{ value: '', label: t('allTags') }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
@@ -507,10 +508,14 @@ export function ContactsView({
                         </div>
 
                         {filtered.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
-                                        <Users className="h-8 w-8 text-[var(--text-muted)]" />
-                                        <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
-                                </div>
+                                <LiveEmptyState
+                                icon={Users}
+                                preview={rows.length === 0 && !serverQuery ? 'people' : 'none'}
+                                title={t('empty')}
+                                description={rows.length === 0 && !serverQuery
+                                ? (locale === 'fa' ? 'از اولین پیام هر مشتری، پرونده‌اش خودکار این‌جا ساخته می‌شود.' : 'Each customer’s record builds itself here from their first message.')
+                                : (locale === 'fa' ? 'فیلترها یا جستجو را تغییر دهید.' : 'Change the filters or search.')}
+                                />
                         ) : view === 'list' ? (
                                         <ListView rows={filtered} locale={locale} onMove={move} selected={selected} onToggleSelected={toggleSelected} onOpenContact={openContactDetails} />
                         ) : (
@@ -572,7 +577,7 @@ function ContactSearchField({
                                 <button
                                         type="button"
                                         onClick={() => onChange('')}
-                                        className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+                                        className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
                                         aria-label={clearLabel}
                                 >
                                         <X className="h-4 w-4" aria-hidden="true" />
@@ -587,7 +592,7 @@ function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => 
                 <button
                         type="button"
                         onClick={onRemove}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                         <span className="max-w-36 truncate">{label}</span>
                         <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -675,7 +680,7 @@ function ListView({
                                                 <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{locale === 'fa' ? 'فهرست مشتریان' : 'Customer list'}</h2>
                                                 <p className="mt-1 text-xs text-[var(--text-muted)]">{t('customersOnPage', { count: nf.format(rows.length) })}</p>
                                         </div>
-                                        <span className="shrink-0 text-[11px] font-medium text-[var(--text-muted)]">{t('latestActivity')}</span>
+                                        <span className="shrink-0 text-[12px] font-medium text-[var(--text-muted)]">{t('latestActivity')}</span>
                                 </div>
 
                                 {rows.map((c) => {
@@ -685,8 +690,8 @@ function ListView({
                                                 <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
                                                         <article
                                                                 className={cn(
-                                                                        'spatial-surface overflow-hidden rounded-[1.35rem] transition-[border-color,box-shadow] duration-150',
-                                                                        selected.has(c.id) && 'border-black/25 shadow-[0_14px_34px_rgba(0,0,0,0.1)]',
+                                                                        'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
+                                                                        selected.has(c.id) && 'border-black/25 shadow-[var(--elev-1)]',
                                                                 )}
                                                         >
                                                                 <button
@@ -694,7 +699,7 @@ function ListView({
                                                                         onClick={(event) => onOpenContact(c.id, event.currentTarget)}
                                                                         aria-haspopup="dialog"
                                                                         aria-label={`${t('openDetails')}: ${name}`}
-                                                                        className="spatial-press block w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+                                                                        className="spatial-press block w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
                                                                 >
                                                                         <div className="flex min-w-0 items-start gap-3">
                                                                                 <ContactAvatar
@@ -719,23 +724,23 @@ function ListView({
                                                                                 {c.channels.map((channel) => <ChannelBadge key={channel} type={channel} />)}
                                                                                 <SourceTagBadges tags={c.tags} />
                                                                                 {c.tags.slice(0, 2).map((tag) => (
-                                                                                        <span key={tag} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">{tag}</span>
+                                                                                        <span key={tag} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[12px] text-[var(--text-secondary)]">{tag}</span>
                                                                                 ))}
                                                                         </div>
 
                                                                         <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-black/[0.025] p-3 text-xs">
                                                                                 <div>
-                                                                                        <span className="block text-[10px] text-[var(--text-muted)]">{t('conversations')}</span>
+                                                                                        <span className="block text-[12px] text-[var(--text-muted)]">{t('conversations')}</span>
                                                                                         <span className="mt-1 block font-semibold tabular-nums text-[var(--text-primary)]">{nf.format(c.conversationCount)}</span>
                                                                                 </div>
                                                                                 <div>
-                                                                                        <span className="block text-[10px] text-[var(--text-muted)]">{t('latestActivity')}</span>
+                                                                                        <span className="block text-[12px] text-[var(--text-muted)]">{t('latestActivity')}</span>
                                                                                         <span className="mt-1 block truncate font-semibold tabular-nums text-[var(--text-primary)]" title={formatDateTime(c.lastActivity, locale)}>{smartTime(c.lastActivity, locale)}</span>
                                                                                 </div>
                                                                         </div>
 
                                                                         {c.marketingOptIn && (
-                                                                                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                                                                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-medium text-emerald-700">
                                                                                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                                                                                         {t('marketingConsent')}
                                                                                 </span>
@@ -743,7 +748,7 @@ function ListView({
                                                                 </button>
 
                                                                 <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-black/[0.012] p-2.5">
-                                                                        <label className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
+                                                                        <label className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-2 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
                                                                                 <input
                                                                                         type="checkbox"
                                                                                         checked={selected.has(c.id)}
@@ -764,13 +769,13 @@ function ListView({
                                 })}
                         </div>
 
-                        <div className="spatial-surface hidden divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem] md:block">
+                        <div className="spatial-surface hidden divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card md:block">
                                 <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
                                         <div className="min-w-0">
                                                 <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{locale === 'fa' ? 'فهرست مشتریان' : 'Customer list'}</h2>
                                                 <p className="mt-1 text-xs text-[var(--text-muted)]">{t('customersOnPage', { count: nf.format(rows.length) })}</p>
                                         </div>
-                                        <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">{t('latestActivity')}</span>
+                                        <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-secondary)]">{t('latestActivity')}</span>
                                 </div>
                                 {rows.map((c) => (
                                         <LiveArrivalItem
@@ -789,7 +794,7 @@ function ListView({
                                                 </label>
                                                 <Link
                                                         href={`/contacts/${c.id}`}
-                                                        className="flex min-w-0 flex-1 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                                                        className="flex min-w-0 flex-1 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                                                         aria-label={rowDisplayName(c, t('anonymous'))}
                                                 >
                                                         <ContactAvatar
@@ -805,7 +810,7 @@ function ListView({
                                                                                 return (
                                                                                         <span key={ch} className="inline-flex items-center gap-1">
                                                                                                 <ChannelBadge type={ch} />
-                                                                                                {handle && <span dir="ltr" className="text-[11px] text-[var(--text-muted)]">@{handle}</span>}
+                                                                                                {handle && <span dir="ltr" className="text-[12px] text-[var(--text-muted)]">@{handle}</span>}
                                                                                         </span>
                                                                                 )
                                                                         })}
@@ -814,7 +819,7 @@ function ListView({
                                                                 <p className="truncate text-xs tabular-nums text-[var(--text-secondary)]" title={`${rowDisplayName(c, t('anonymous'))} — ${c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} ${t('conversations')}`}>
                                                                         {c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} {t('conversations')} · {t('lastSeen')} <span className="tabular-nums" title={formatDateTime(c.lastActivity, locale)}>{smartTime(c.lastActivity, locale)}</span>
                                                                 </p>
-                                                                {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-600">{t('marketingConsent')}</span>}
+                                                                {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] text-emerald-600">{t('marketingConsent')}</span>}
                                                         </div>
                                                 </Link>
                                                 <div onClick={(event) => event.stopPropagation()} className="shrink-0">
@@ -936,7 +941,7 @@ function PipelineView({
                                                                                 <div className="mt-2 flex items-center justify-between">
                                                                                         <Link
                                                                                                 href={`/contacts/${c.id}`}
-                                                                                                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                                                                                                className="text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                                                                                         >
                                                                                                 {c.conversationCount} {t('conversations')}
                                                                                         </Link>

@@ -36,7 +36,7 @@ export function Skeleton({
 /** Mirrors a pending suggestion card in «تحلیل و بهبود». */
 export function SuggestionCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface block overflow-hidden rounded-[1.35rem] p-4 sm:p-5">
+    <div className="spatial-surface block overflow-hidden rounded-card p-4 sm:p-5">
       <div className="flex items-start gap-3.5">
         <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1">
@@ -61,7 +61,7 @@ export function SuggestionCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors a selectable conversation card in «تحلیل و بهبود». */
 export function ConversationCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface overflow-hidden rounded-[1.35rem]">
+    <div className="spatial-surface overflow-hidden rounded-card">
       <div className="flex min-w-0 items-start gap-3 p-3.5 sm:p-4">
         <Skeleton delay={delay} className="h-5 w-5 shrink-0 rounded" />
         <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-full" />
@@ -90,7 +90,7 @@ export function ConversationCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors an analysis-run history card in «تحلیل و بهبود». */
 export function HistoryCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface space-y-3.5 overflow-hidden rounded-[1.35rem] p-4 sm:p-5">
+    <div className="spatial-surface space-y-3.5 overflow-hidden rounded-card p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1">
@@ -112,7 +112,7 @@ export function HistoryCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors a per-conversation review result card inside the results dialog. */
 export function ReviewCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface space-y-3.5 overflow-hidden rounded-[1.35rem] p-4">
+    <div className="spatial-surface space-y-3.5 overflow-hidden rounded-card p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2">
           <Skeleton delay={delay} className="h-4 w-32 rounded-md" />

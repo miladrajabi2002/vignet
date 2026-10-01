@@ -1,0 +1,139 @@
+/*
+ * Vigent UI system — the shared layer between the public site and the
+ * dashboard/admin (unification pass, 1405).
+ *
+ * The public site set the reference: ink primary, one violet "signal"
+ * accent for live/AI states, WCAG-checked greys, a 160ms scale(.97) press,
+ * one easing curve and a calm type scale. This file carries those rules
+ * into the app without touching page logic:
+ *   ط۱  .ui-seg / .ui-seg-tab      segmented tabs (grey track, white pill)
+ *   ط۲  --focus-ring, press timing  one focus ring and one press feel
+ *   ط۳  --signal*                   violet reserved for live / AI states
+ *   ط۴  --text-muted / --text-hint  darker greys that pass contrast
+ *   ط۵  .ui-chip                    status chips (ok / warn / danger / live / signal / neutral)
+ *   ط۱۳ no backdrop blur on phones
+ *   ط۱۶ one motion curve + a soft page entrance
+ *   ط۱۷ .ui-h1 / .ui-h2 / .ui-h3 / .ui-body / .ui-caption type scale
+ */
+
+:root {
+	/* ط۴ — the public site's contrast-checked greys (≥4.5:1 on the canvas). */
+	--text-muted: #6f6a64;
+	--text-hint: #8c8780;
+
+	/* ط۳ — violet signal, reserved for live / AI / "happening now" states. */
+	--signal: #6e56cf;
+	--signal-strong: #5746af;
+	--signal-soft: #f5f3fd;
+	--signal-tint: #ebe7fa;
+	--signal-border: rgba(110, 86, 207, 0.22);
+	--ok: #15803d;
+	--ok-soft: #dcfce7;
+	--ok-ink: #166534;
+	--warn-soft: #fef3c7;
+	--warn-ink: #92400e;
+	--danger-soft: #fee2e2;
+	--danger-ink: #b91c1c;
+
+	/* ط۲ — one focus ring for every interactive element. */
+	--focus-ring: #6e56cf;
+	/* Form fields show "you're typing here" with an ink border and a violet
+	   halo; green stays free to mean "this value is accepted". */
+	--focus-field: #111111;
+	--focus-field-halo: rgba(110, 86, 207, 0.22);
+
+	/* ط۱۶ — one easing curve for site and app (both were this exact curve). */
+	--vg-ease-out: var(--ease-spatial, cubic-bezier(.23, 1, .32, 1));
+	--motion-fast: 160ms;
+}
+
+/* Component classes (.ui-seg, .ui-chip, type scale, .lf flow)
+   live in app/globals.css under `@layer components` so Tailwind utilities
+   can still refine them per use. */
+
+@keyframes lf-dash { to { background-position: calc(var(--lf-dir, 1) * 11px) 0; } }
+@keyframes lf-vdash { to { background-position: 0 11px; } }
+@keyframes lf-run {
+	0% { transform: translateX(0); opacity: 0; }
+	12%, 86% { opacity: 1; }
+	100% { transform: translateX(calc(var(--lf-dir, 1) * 100%)); opacity: 0; }
+}
+@keyframes lf-vrun {
+	0% { transform: translateY(0); opacity: 0; }
+	12%, 86% { opacity: 1; }
+	100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* ── ط۱۵ Responsive tables: rows become labelled cards on phones ─────── */
+@media (max-width: 767px) {
+	.ui-rtable table, .ui-rtable tbody { display: block; width: 100%; }
+	.ui-rtable thead { display: none; }
+	.ui-rtable tbody tr {
+		display: block;
+		margin-bottom: 0.6rem;
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-card);
+		background: #ffffff;
+		padding: 0.35rem 0.25rem;
+		box-shadow: var(--shadow-xs);
+	}
+	.ui-rtable tbody td {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.45rem 0.75rem !important;
+		text-align: end;
+		white-space: normal;
+		border: 0 !important;
+	}
+	.ui-rtable tbody td[data-label]::before {
+		content: attr(data-label);
+		flex-shrink: 0;
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--text-muted);
+		text-align: start;
+	}
+	.ui-rtable tbody td:empty, .ui-rtable tbody td[data-label='']::before { display: none; }
+}
+
+/* ── ط۲ One press feel for the app's tactile controls ─────────────────── */
+.spatial-press:active { transform: scale(0.97); }
+
+/* ── ط۱۶ Soft page entrance inside the dashboard ──────────────────────── */
+/* `backwards`, not `both`: a filled transform animation keeps the page
+   wrapper a containing block for `position: fixed` descendants, which pinned
+   in-page overlays (dialogs, sticky bars) to the page instead of the viewport. */
+.dashboard-main > * { animation: ui-page-in 420ms var(--vg-ease-out) backwards; }
+@keyframes ui-page-in {
+	from { opacity: 0.4; transform: translate3d(0, 8px, 0); }
+	to { opacity: 1; transform: none; }
+}
+
+/* ── ط۱۳ Phones never pay for live backdrop blur ──────────────────────────
+   Every card used `spatial-surface` (blur 22px) and many bars used
+   `backdrop-blur-*`: compositor work on each scroll frame. Below the lg
+   breakpoint the blur is dropped and translucent white surfaces become
+   (nearly) opaque, which also reads cleaner on small screens. */
+@media (max-width: 1023px) {
+	.spatial-surface,
+	.spatial-control,
+	.admin-vigento-composer,
+	[class*='backdrop-blur'] {
+		-webkit-backdrop-filter: none !important;
+		backdrop-filter: none !important;
+	}
+	.spatial-surface { background: #ffffff; }
+	.spatial-control { background: rgba(255, 255, 255, 0.97); }
+	[class*='backdrop-blur'][class*='bg-white/'] { background-color: rgba(255, 255, 255, 0.97) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dashboard-main > *,
+	.lf-line,
+	.lf-vline,
+	.lf-run,
+	.lf-vrun { animation: none !important; }
+	.lf-run, .lf-vrun { display: none; }
+}

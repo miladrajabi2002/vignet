@@ -23,10 +23,14 @@ export function GlobalUndoToast() {
   const locale = useLocale()
   const [request, setRequest] = useState<UndoRequest | null>(null)
   const [phase, setPhase] = useState<UndoPhase | null>(null)
+  // Bumped per new request so a delete made while the bar is still up gets a
+  // fresh countdown (and bar) instead of inheriting the old one's time.
+  const [run, setRun] = useState(0)
 
   const adopt = useCallback((next: UndoRequest | null) => {
     setRequest(next)
     setPhase(next ? 'undo' : null)
+    if (next) setRun((value) => value + 1)
   }, [])
 
   // Pick up queued requests: on mount (reload case) and live via the event.
@@ -71,6 +75,7 @@ export function GlobalUndoToast() {
 
   return (
     <UndoSnackbar
+      key={run}
       phase={phase}
       count={request?.ids.length ?? 0}
       entityLabel={request?.entityLabel ?? ''}

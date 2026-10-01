@@ -25,14 +25,14 @@ export function ImpersonationBanner({ userName }: { userName: string }) {
   return (
     <aside
       aria-label="حالت پشتیبانی ادمین"
-      className="mb-2 flex flex-col gap-3 rounded-[1.35rem] border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-amber-950 shadow-[var(--shadow-sm)] sm:flex-row sm:items-center sm:px-4"
+      className="mb-2 flex flex-col gap-3 rounded-card border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-amber-950 shadow-[var(--shadow-sm)] sm:flex-row sm:items-center sm:px-4"
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-950 text-amber-50">
           <ShieldCheck aria-hidden="true" className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-black">حالت پشتیبانی: پنل {userName}</p>
+          <p className="truncate text-sm font-bold">حالت پشتیبانی: پنل {userName}</p>
           <p className="mt-0.5 text-xs leading-5 text-amber-900/75">
             اکنون با دسترسی این کاربر کار می‌کنید؛ این نشست حداکثر ۶۰ دقیقه فعال است.
           </p>

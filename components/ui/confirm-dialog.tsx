@@ -9,6 +9,10 @@
  *
  * Controlled component: the parent owns `open` and the busy/error state.
  *
+ * Phones get a bottom sheet (grab handle, thumb-reach buttons, safe-area
+ * padding); from `sm` up it is a centered card. `undoNote` adds the quiet
+ * «you can undo this» row used by every soft-delete.
+ *
  *   <ConfirmDialog
  *     open={showConfirm}
  *     title="حذف لینک گفتگو"
@@ -21,10 +25,10 @@
  *   />
  */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
+import { AlertTriangle, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function ConfirmDialog({
@@ -37,6 +41,7 @@ export function ConfirmDialog({
   busy = false,
   error,
   icon,
+  undoNote,
   onConfirm,
   onClose,
 }: {
@@ -49,10 +54,15 @@ export function ConfirmDialog({
   busy?: boolean
   error?: string | null
   icon?: ReactNode
+  /** Shows the soft-delete reassurance row (the text to show). */
+  undoNote?: string
   onConfirm: () => void
   onClose: () => void
 }) {
   const reduceMotion = useReducedMotion()
+  const reactId = useId()
+  const titleId = `${reactId}-title`
+  const descriptionId = `${reactId}-description`
   const dialogRef = useRef<HTMLDivElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const busyRef = useRef(busy)
@@ -71,6 +81,9 @@ export function ConfirmDialog({
     cancelRef.current?.focus()
 
     function onKeyDown(event: KeyboardEvent) {
+      // Only the topmost modal reacts (this dialog can open over a sheet).
+      const modals = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'))
+      if (modals.at(-1) !== dialogRef.current) return
       if (event.key === 'Escape' && !busyRef.current) {
         onCloseRef.current()
         return
@@ -113,7 +126,7 @@ export function ConfirmDialog({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[1000] grid place-items-center bg-black/55 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/50 backdrop-blur-[6px] sm:items-center sm:p-4"
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -126,42 +139,47 @@ export function ConfirmDialog({
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="confirm-dialog-title"
-            aria-describedby={description ? 'confirm-dialog-description' : undefined}
-            className="w-full max-w-[29rem] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.96, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 6 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+            aria-labelledby={titleId}
+            aria-describedby={description ? descriptionId : undefined}
+            className="relative w-full overflow-hidden rounded-t-sheet border border-b-0 border-black/10 bg-white shadow-[var(--elev-2)] sm:max-w-[28rem] sm:rounded-card sm:border-b sm:shadow-[var(--elev-2)]"
+            initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18, scale: 0.99 }}
+            transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="p-6 pb-5 text-center sm:text-start">
-              <span
-                className={cn(
-                  'mx-auto grid h-12 w-12 place-items-center rounded-2xl sm:mx-0',
-                  tone === 'danger'
-                    ? 'bg-red-50 text-red-600 ring-1 ring-red-100'
-                    : 'bg-[var(--bg-muted)] text-[var(--text-primary)] ring-1 ring-[var(--border-default)]',
-                )}
-              >
-                {icon ??
-                  (tone === 'danger' ? (
-                    <Trash2 className="h-5 w-5" aria-hidden="true" />
-                  ) : (
-                    <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-                  ))}
-              </span>
-              <h2
-                id="confirm-dialog-title"
-                className="mt-4 text-lg font-bold tracking-tight text-[var(--text-primary)]"
-              >
-                {title}
-              </h2>
-              {description && (
-                <p
-                  id="confirm-dialog-description"
-                  className="mt-2 text-sm leading-6 text-[var(--text-secondary)]"
+            <span aria-hidden className="mx-auto mt-2.5 block h-1.5 w-10 rounded-full bg-black/15 sm:hidden" />
+            <div className="px-5 pb-5 pt-5 text-center sm:p-6 sm:pb-5 sm:text-start">
+              <div className="sm:flex sm:items-start sm:gap-4">
+                <span
+                  className={cn(
+                    'mx-auto grid h-12 w-12 shrink-0 place-items-center rounded-2xl sm:mx-0',
+                    tone === 'danger'
+                      ? 'bg-red-50 text-red-600 ring-1 ring-red-100'
+                      : 'bg-[var(--bg-muted)] text-[var(--text-primary)] ring-1 ring-[var(--border-default)]',
+                  )}
                 >
-                  {description}
+                  {icon ??
+                    (tone === 'danger' ? (
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                    ))}
+                </span>
+                <div className="min-w-0 sm:flex-1">
+                  <h2 id={titleId} className="mt-3.5 text-[17px] font-bold tracking-tight text-[var(--text-primary)] sm:mt-0.5">
+                    {title}
+                  </h2>
+                  {description && (
+                    <p id={descriptionId} className="mt-1.5 text-[13.5px] leading-6 text-[var(--text-secondary)]">
+                      {description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {undoNote && (
+                <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-black/[0.06] bg-[var(--bg-surface)] px-3.5 py-2.5 text-start text-[12.5px] leading-6 text-[var(--text-secondary)]">
+                  <RotateCcw className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--text-primary)]" aria-hidden="true" />
+                  <span>{undoNote}</span>
                 </p>
               )}
               {error && (
@@ -174,13 +192,13 @@ export function ConfirmDialog({
               )}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/60 p-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/60 px-4 pt-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4">
               <button
                 ref={cancelRef}
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] disabled:opacity-50"
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 sm:min-h-11 sm:rounded-xl"
               >
                 {cancelLabel}
               </button>
@@ -189,10 +207,10 @@ export function ConfirmDialog({
                 onClick={onConfirm}
                 disabled={busy}
                 className={cn(
-                  'inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+                  'spatial-press inline-flex min-h-12 min-w-32 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-bold text-white shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-11 sm:rounded-xl',
                   tone === 'danger'
                     ? 'bg-red-600 hover:bg-red-500 focus-visible:ring-red-600'
-                    : 'bg-black hover:opacity-90 focus-visible:ring-[var(--text-primary)]',
+                    : 'bg-black hover:opacity-90 focus-visible:ring-[var(--focus-ring)]',
                 )}
               >
                 {busy && (

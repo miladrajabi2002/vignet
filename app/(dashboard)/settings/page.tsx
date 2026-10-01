@@ -8,8 +8,9 @@ import {
         type OperatorChannelStats,
 } from '@/components/crm/operator-channel-setup'
 import { WeeklyReportCard } from '@/components/settings/weekly-report-card'
-import { BusinessProfileStep } from '@/components/onboarding/business-profile-step'
-import { readBusinessProfile } from '@/lib/verticals/profile'
+import { BusinessSettings } from '@/components/settings/business-settings'
+import { readBusinessProfile, workspaceCapabilities } from '@/lib/verticals/profile'
+import { getCapabilityReadiness } from '@/lib/verticals/readiness'
 import type { BusinessTypeValue } from '@/lib/verticals/registry'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SettingsMobileTabs } from '@/components/settings/settings-mobile-tabs'
@@ -86,50 +87,29 @@ export default async function SettingsPage() {
     latestAlertAt: latestAlert?.createdAt.toISOString() ?? null,
   }
 
+  const businessProfile = workspace ? readBusinessProfile(workspace.businessProfile, workspace.businessType) : null
+  const readiness = await getCapabilityReadiness(user.workspaceId, workspaceCapabilities(workspace))
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         icon={SlidersHorizontal}
         title={t('settings.title')}
-        subtitle={locale === 'fa' ? 'هویت کسب‌وکار، حساب، گزارش‌ها و مسیر تحویل اپراتور را مدیریت کنید.' : 'Manage business identity, account, reports and operator handoff.'}
+        subtitle={locale === 'fa' ? 'هویت کسب‌وکار، ربات مدیریت تلگرام و گزارش‌ها را مدیریت کنید.' : 'Manage business identity, the Telegram manager bot and reports.'}
       />
       <SettingsMobileTabs
         navigationLabel={locale === 'fa' ? 'بخش‌های تنظیمات' : 'Settings sections'}
         labels={{
           business: locale === 'fa' ? 'کسب‌وکار' : 'Business',
-          operator: locale === 'fa' ? 'اپراتور' : 'Operator',
+          operator: locale === 'fa' ? 'ربات مدیریت' : 'Manager bot',
           reports: locale === 'fa' ? 'گزارش‌ها' : 'Reports',
         }}
-        locale={locale}
-        searchIndex={locale === 'fa'
-          ? [
-            { id: 'settings-business-profile', tab: 'business', tabLabel: 'کسب‌وکار', label: 'پروفایل و نوع کسب‌وکار', keywords: ['نوع کسب و کار', 'پروفایل', 'مغازه', 'کلینیک', 'آژانس', 'خدمات', 'رسته', 'حوزه', 'business type', 'profile', 'vertical'] },
-            { id: 'telegram-operator', tab: 'operator', tabLabel: 'اپراتور', label: 'اتصال اپراتور تلگرام', keywords: ['اپراتور', 'تلگرام', 'بات', 'وبهوک', 'توکن', 'ارجاع', 'operator', 'telegram', 'bot', 'webhook', 'token', 'handoff'] },
-            { id: 'settings-operator-health', tab: 'operator', tabLabel: 'اپراتور', label: 'سلامت و آمادگی سرویس', keywords: ['سلامت', 'وضعیت', 'بررسی', 'اتصال', 'health', 'status', 'check'] },
-            { id: 'settings-operator-controls', tab: 'operator', tabLabel: 'اپراتور', label: 'کنترل‌های مدیریتی', keywords: ['کنترل', 'مدیریت', 'فعال', 'غیرفعال', 'هشدار', 'controls', 'management', 'alerts'] },
-            { id: 'settings-operator-commands', tab: 'operator', tabLabel: 'اپراتور', label: 'مرکز فرمان داخل تلگرام', keywords: ['فرمان', 'دکمه', 'دستور', 'command', 'inline', 'buttons'] },
-            { id: 'settings-operator-connection', tab: 'operator', tabLabel: 'اپراتور', label: 'جزئیات اتصال', keywords: ['جزئیات', 'آخرین ارجاع', 'صف', 'connection', 'details', 'queue'] },
-            { id: 'settings-operator-bot', tab: 'operator', tabLabel: 'اپراتور', label: 'اتصال امن بات', keywords: ['توکن', 'امنیت', 'رمز', 'بات', 'token', 'secure', 'bot'] },
-            { id: 'settings-operator-benefits', tab: 'operator', tabLabel: 'اپراتور', label: 'بعد از اتصال چه دارید؟', keywords: ['مزیت', 'امکانات', 'benefits', 'features'] },
-            { id: 'settings-weekly-report', tab: 'reports', tabLabel: 'گزارش‌ها', label: 'گزارش هفتگی ایمیلی', keywords: ['گزارش', 'ایمیل', 'هفتگی', 'weekly', 'report', 'email'] },
-          ]
-          : [
-            { id: 'settings-business-profile', tab: 'business', tabLabel: 'Business', label: 'Business profile & type', keywords: ['type', 'profile', 'vertical', 'shop', 'clinic', 'agency'] },
-            { id: 'telegram-operator', tab: 'operator', tabLabel: 'Operator', label: 'Telegram operator connection', keywords: ['operator', 'telegram', 'bot', 'webhook', 'token', 'handoff'] },
-            { id: 'settings-operator-health', tab: 'operator', tabLabel: 'Operator', label: 'Service health and readiness', keywords: ['health', 'status', 'check', 'connection'] },
-            { id: 'settings-operator-controls', tab: 'operator', tabLabel: 'Operator', label: 'Management controls', keywords: ['controls', 'management', 'alerts'] },
-            { id: 'settings-operator-commands', tab: 'operator', tabLabel: 'Operator', label: 'Telegram command center', keywords: ['command', 'inline', 'buttons'] },
-            { id: 'settings-operator-connection', tab: 'operator', tabLabel: 'Operator', label: 'Connection details', keywords: ['connection', 'details', 'queue'] },
-            { id: 'settings-operator-bot', tab: 'operator', tabLabel: 'Operator', label: 'Secure bot connection', keywords: ['token', 'secure', 'bot'] },
-            { id: 'settings-operator-benefits', tab: 'operator', tabLabel: 'Operator', label: 'What you get after connecting', keywords: ['benefits', 'features'] },
-            { id: 'settings-weekly-report', tab: 'reports', tabLabel: 'Reports', label: 'Weekly email report', keywords: ['weekly', 'report', 'email'] },
-          ]}
         business={workspace ? (
-          <BusinessProfileStep
+          <BusinessSettings
             workspaceName={workspace.name}
             initialType={workspace.businessType as BusinessTypeValue}
-            initialProfile={readBusinessProfile(workspace.businessProfile)}
-            mode="settings"
+            initialProfile={businessProfile}
+            readiness={readiness}
           />
         ) : null}
         operator={<OperatorChannelSetup current={operatorChannel} stats={operatorStats} />}

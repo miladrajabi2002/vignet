@@ -115,7 +115,7 @@ function GlassButton({
     <button
       type="button"
       className={cn(
-        'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-3.5 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-[background-color,border-color,opacity] duration-200 hover:border-white/25 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:cursor-not-allowed disabled:opacity-45',
+        'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-3.5 text-xs font-semibold text-white shadow-[var(--elev-1)] backdrop-blur-xl transition-[background-color,border-color,opacity] duration-200 hover:border-white/25 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
         className,
       )}
       {...props}
@@ -137,15 +137,15 @@ function MetricCard({
   detail: string
 }) {
   return (
-    <div className="rounded-2xl border border-black/[0.065] bg-white/75 p-4 shadow-[0_14px_40px_-34px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+    <div className="rounded-2xl border border-black/[0.065] bg-white/75 p-4 shadow-[var(--elev-1)] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)]">{value}</p>
-          <p className="mt-1 text-[11px] font-semibold text-[var(--text-secondary)]">{label}</p>
+          <p className="mt-1 text-[12px] font-semibold text-[var(--text-secondary)]">{label}</p>
         </div>
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]">{icon}</span>
       </div>
-      <p className="mt-3 text-[10px] leading-5 text-[var(--text-muted)]">{detail}</p>
+      <p className="mt-3 text-[12px] leading-5 text-[var(--text-muted)]">{detail}</p>
     </div>
   )
 }
@@ -165,8 +165,8 @@ function HealthRow({
     <div className="flex min-h-14 items-center gap-3 border-b border-black/[0.055] px-1 last:border-b-0">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/[0.035] text-[var(--text-secondary)]">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold text-[var(--text-primary)]">{label}</p>
-        <p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">{value}</p>
+        <p className="text-[12px] font-semibold text-[var(--text-primary)]">{label}</p>
+        <p className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">{value}</p>
       </div>
       {ok ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />}
     </div>
@@ -408,7 +408,7 @@ export function OperatorChannelSetup({
     : `${localeNumber(stats.deliveryRate, fa)}٪`
 
   return (
-    <section id="telegram-operator" className="spatial-surface scroll-mt-28 overflow-hidden rounded-[1.75rem]">
+    <section id="telegram-operator" className="spatial-surface scroll-mt-28 overflow-hidden rounded-sheet">
       <div className="relative overflow-hidden bg-[#0b0b0d] px-5 py-6 text-white sm:px-7 sm:py-7">
         <div className="pointer-events-none absolute -end-24 -top-28 h-72 w-72 rounded-full bg-sky-400/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 start-1/3 h-64 w-64 rounded-full bg-emerald-400/[0.07] blur-3xl" />
@@ -421,23 +421,23 @@ export function OperatorChannelSetup({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-bold tracking-tight">{t('title')}</h2>
-                <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold', statusTone)}>
+                <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold', statusTone)}>
                   <span className={cn('h-1.5 w-1.5 rounded-full', info && active ? 'bg-emerald-300' : info ? 'bg-amber-200' : 'bg-white/45')} />
                   {headlineStatus}
                 </span>
               </div>
               <p className="mt-2 max-w-2xl text-xs leading-6 text-white/55">{t('desc')}</p>
-              {info?.botUsername && <p dir="ltr" className="mt-2 w-max font-mono text-[11px] text-white/35">@{info.botUsername}</p>}
+              {info?.botUsername && <p dir="ltr" className="mt-2 w-max font-mono text-[12px] text-white/60">@{info.botUsername}</p>}
             </div>
           </div>
 
           {info && (
             <div className="flex flex-wrap gap-2">
               {botUrl && (
-                <a href={botUrl} target="_blank" rel="noreferrer" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-3.5 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-colors hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
+                <a href={botUrl} target="_blank" rel="noreferrer" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-3.5 text-xs font-semibold text-white shadow-[var(--elev-1)] backdrop-blur-xl transition-colors hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <Send className="h-4 w-4" />
-                  {copy('باز کردن بات', 'Open bot')}
-                  <ExternalLink className="h-3.5 w-3.5 text-white/45" />
+                  {copy('باز کردن ربات', 'Open bot')}
+                  <ExternalLink className="h-3.5 w-3.5 text-white/60" />
                 </a>
               )}
               <GlassButton onClick={() => void refreshHealth()} disabled={healthLoading} aria-label={copy('بررسی دوباره سلامت اتصال', 'Refresh connection health')}>
@@ -481,7 +481,7 @@ export function OperatorChannelSetup({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="rounded-[1.4rem] border border-black/[0.065] bg-white/70 p-4 shadow-[0_18px_55px_-46px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:p-5">
+            <div className="rounded-card border border-black/[0.065] bg-white/70 p-4 shadow-[var(--elev-2)] backdrop-blur-xl sm:p-5">
             <div id="settings-operator-health" className="scroll-mt-28">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -489,14 +489,14 @@ export function OperatorChannelSetup({
                     <CircleGauge className="h-4 w-4 text-[var(--text-secondary)]" />
                     <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('سلامت و آمادگی سرویس', 'Service health and readiness')}</h3>
                   </div>
-                  <p className="mt-1 text-[10px] leading-5 text-[var(--text-muted)]">
+                  <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
                     {health?.checkedAt
                       ? copy(`آخرین بررسی: ${localeDate(health.checkedAt, fa)}`, `Last checked: ${localeDate(health.checkedAt, fa)}`)
                       : copy('وضعیت زنده از Telegram Bot API بررسی می‌شود.', 'Live status is checked through Telegram Bot API.')}
                   </p>
                 </div>
                 <span className={cn(
-                  'inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[10px] font-bold',
+                  'inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-bold',
                   healthLoading
                     ? 'bg-black/[0.045] text-[var(--text-muted)]'
                     : health?.status === 'healthy'
@@ -531,7 +531,7 @@ export function OperatorChannelSetup({
                 />
                 <HealthRow
                   icon={<ShieldCheck className="h-4 w-4" />}
-                  label={copy('دسترسی اپراتور', 'Operator access')}
+                  label={copy('دسترسی مدیر', 'Manager access')}
                   value={info.operatorChatId ? copy('شناسه چت اختصاصی ثبت شده', 'Dedicated chat id is configured') : copy('شناسه چت ثبت نشده', 'Chat id is missing')}
                   ok={Boolean(info.operatorChatId)}
                 />
@@ -550,7 +550,7 @@ export function OperatorChannelSetup({
               </div>
 
               {(health?.lastErrorMessage || info.lastError || healthFailed) && (
-                <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-3 text-[10px] leading-5 text-amber-900">
+                <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-3 text-[12px] leading-5 text-amber-900">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <div className="min-w-0">
                     <p className="font-bold">{copy('آخرین هشدار فنی', 'Latest technical warning')}</p>
@@ -565,24 +565,24 @@ export function OperatorChannelSetup({
             </div>
             </div>
 
-            <div id="settings-operator-controls" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-white/70 p-4 shadow-[0_18px_55px_-46px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:p-5">
+            <div id="settings-operator-controls" className="scroll-mt-28 rounded-card border border-black/[0.065] bg-white/70 p-4 shadow-[var(--elev-2)] backdrop-blur-xl sm:p-5">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-[var(--text-secondary)]" />
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('کنترل‌های مدیریتی', 'Management controls')}</h3>
               </div>
-              <p className="mt-1 text-[10px] leading-5 text-[var(--text-muted)]">{copy('اتصال، دسترسی اپراتور و ارسال هشدار را از یک نقطه مدیریت کنید.', 'Manage connection, operator access and alerts from one place.')}</p>
+              <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('اتصال، دسترسی مدیر و ارسال هشدار را از یک نقطه مدیریت کنید.', 'Manage connection, manager access and alerts from one place.')}</p>
 
               <div className="mt-4 space-y-3">
                 <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-black/[0.06] bg-white/75 px-3.5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-[var(--text-primary)]">{t('active')}</p>
-                    <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{active ? copy('هشدارهای جدید ارسال می‌شوند', 'New alerts are delivered') : copy('هشدار جدید ارسال نمی‌شود', 'New alerts are paused')}</p>
+                    <p className="text-[12px] font-bold text-[var(--text-primary)]">{t('active')}</p>
+                    <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{active ? copy('هشدارهای جدید ارسال می‌شوند', 'New alerts are delivered') : copy('هشدار جدید ارسال نمی‌شود', 'New alerts are paused')}</p>
                   </div>
                   <Switch checked={active} onChange={(next) => void toggleActive(next)} disabled={busy !== null} aria-label={t('active')} />
                 </div>
 
                 <div className="rounded-2xl border border-black/[0.06] bg-white/75 p-3.5">
-                  <label htmlFor="operator-chat-id" className="text-[11px] font-bold text-[var(--text-primary)]">{t('operatorChatId')}</label>
+                  <label htmlFor="operator-chat-id" className="text-[12px] font-bold text-[var(--text-primary)]">{t('operatorChatId')}</label>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                     <input
                       id="operator-chat-id"
@@ -630,12 +630,12 @@ export function OperatorChannelSetup({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div id="settings-operator-commands" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
+            <div id="settings-operator-commands" className="scroll-mt-28 rounded-card border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Command className="h-4 w-4" /></span>
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('مرکز فرمان داخل تلگرام', 'Telegram command center')}</h3>
-                  <p className="mt-1 text-[10px] leading-5 text-[var(--text-muted)]">{copy('دکمه‌های شیشه‌ای بات بدون نیاز به تایپ دستور، عملیات اصلی را اجرا می‌کنند.', 'Inline Telegram controls run key operations without typing commands.')}</p>
+                  <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('دکمه‌های شیشه‌ای بات بدون نیاز به تایپ دستور، عملیات اصلی را اجرا می‌کنند.', 'Inline Telegram controls run key operations without typing commands.')}</p>
                 </div>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -647,7 +647,7 @@ export function OperatorChannelSetup({
                 ].map(([Icon, label]) => {
                   const ItemIcon = Icon as typeof Inbox
                   return (
-                    <div key={label as string} className="flex min-h-12 items-center gap-2.5 rounded-xl border border-black/[0.055] bg-white/65 px-3 text-[10px] font-semibold text-[var(--text-secondary)]">
+                    <div key={label as string} className="flex min-h-12 items-center gap-2.5 rounded-xl border border-black/[0.055] bg-white/65 px-3 text-[12px] font-semibold text-[var(--text-secondary)]">
                       <ItemIcon className="h-4 w-4 shrink-0" />
                       {label as string}
                     </div>
@@ -656,12 +656,12 @@ export function OperatorChannelSetup({
               </div>
             </div>
 
-            <div id="settings-operator-connection" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
+            <div id="settings-operator-connection" className="scroll-mt-28 rounded-card border border-black/[0.065] bg-black/[0.018] p-4 sm:p-5">
               <div className="flex items-center gap-2">
                 <Clock3 className="h-4 w-4 text-[var(--text-secondary)]" />
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('جزئیات اتصال', 'Connection details')}</h3>
               </div>
-              <dl className="mt-4 space-y-3 text-[10px]">
+              <dl className="mt-4 space-y-3 text-[12px]">
                 <div className="flex items-center justify-between gap-3"><dt className="text-[var(--text-muted)]">{copy('آخرین ارجاع', 'Latest handoff')}</dt><dd className="text-end font-semibold text-[var(--text-secondary)]">{localeDate(stats.latestAlertAt, fa)}</dd></div>
                 <div className="flex items-center justify-between gap-3"><dt className="text-[var(--text-muted)]">{copy('آخرین تغییر تنظیمات', 'Last configuration change')}</dt><dd className="text-end font-semibold text-[var(--text-secondary)]">{localeDate(info.updatedAt, fa)}</dd></div>
                 <div className="flex items-center justify-between gap-3"><dt className="text-[var(--text-muted)]">{copy('به‌روزرسانی در صف تلگرام', 'Queued Telegram updates')}</dt><dd className="font-mono font-semibold text-[var(--text-secondary)]">{localeNumber(health?.pendingUpdateCount ?? 0, fa)}</dd></div>
@@ -671,7 +671,7 @@ export function OperatorChannelSetup({
                 <button
                   type="button"
                   onClick={() => setShowTokenRotation((value) => !value)}
-                  className="spatial-press inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-[10px] font-bold text-[var(--text-secondary)] hover:bg-white"
+                  className="spatial-press inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-[12px] font-bold text-[var(--text-secondary)] hover:bg-white"
                   aria-expanded={showTokenRotation}
                 >
                   <RotateCw className="h-4 w-4" />
@@ -679,9 +679,9 @@ export function OperatorChannelSetup({
                 </button>
                 {showTokenRotation && (
                   <div className="mt-2 rounded-2xl border border-black/[0.07] bg-white p-3">
-                    <label htmlFor="rotate-bot-token" className="text-[10px] font-bold text-[var(--text-secondary)]">{copy('توکن جدید', 'New token')}</label>
+                    <label htmlFor="rotate-bot-token" className="text-[12px] font-bold text-[var(--text-secondary)]">{copy('توکن جدید', 'New token')}</label>
                     <input id="rotate-bot-token" dir="ltr" type="password" autoComplete="off" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder="1234567890:AA…" className="input mt-2 min-h-11 w-full font-mono text-sm" />
-                    <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-black px-3 text-[10px] font-bold text-white disabled:opacity-40">
+                    <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-black px-3 text-[12px] font-bold text-white disabled:opacity-40">
                       {busy === 'connect' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <KeyRound className="h-4 w-4" />}
                       {copy('ثبت توکن جدید', 'Save new token')}
                     </button>
@@ -705,18 +705,18 @@ export function OperatorChannelSetup({
             </div>
             <button type="button" onClick={() => setRemoveOpen(true)} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">
               <Trash2 className="h-4 w-4" />
-              {copy('حذف اتصال بات', 'Remove bot connection')}
+              {copy('حذف اتصال ربات', 'Remove bot connection')}
             </button>
           </div>
         </div>
       ) : (
         <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div id="settings-operator-bot" className="scroll-mt-28 rounded-[1.4rem] border border-black/[0.065] bg-white/75 p-4 sm:p-5">
+          <div id="settings-operator-bot" className="scroll-mt-28 rounded-card border border-black/[0.065] bg-white/75 p-4 sm:p-5">
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black/[0.045] text-[var(--text-secondary)]"><KeyRound className="h-4 w-4" /></span>
               <div>
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('اتصال امن بات', 'Secure bot connection')}</h3>
-                <p className="mt-1 text-[10px] leading-5 text-[var(--text-muted)]">{copy('توکن به‌صورت رمزگذاری‌شده ذخیره می‌شود و هیچ‌وقت دوباره نمایش داده نمی‌شود.', 'The token is encrypted at rest and is never shown again.')}</p>
+                <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('توکن به‌صورت رمزگذاری‌شده ذخیره می‌شود و هیچ‌وقت دوباره نمایش داده نمی‌شود.', 'The token is encrypted at rest and is never shown again.')}</p>
               </div>
             </div>
 
@@ -724,18 +724,18 @@ export function OperatorChannelSetup({
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <label htmlFor="operator-bot-token" className="text-xs font-bold text-[var(--text-secondary)]">{t('botToken')}</label>
-                  <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[10px] font-semibold text-[var(--text-muted)] underline decoration-black/20 underline-offset-4 hover:text-[var(--text-primary)]">@BotFather <ExternalLink className="h-3 w-3" /></a>
+                  <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] underline decoration-black/20 underline-offset-4 hover:text-[var(--text-primary)]">@BotFather <ExternalLink className="h-3 w-3" /></a>
                 </div>
                 <input id="operator-bot-token" dir="ltr" type="password" autoComplete="off" value={botToken} onChange={(event) => { setBotToken(event.target.value); setFeedback(null) }} placeholder="1234567890:AA…" className="input min-h-12 w-full font-mono text-sm" />
               </div>
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <label htmlFor="new-operator-chat-id" className="text-xs font-bold text-[var(--text-secondary)]">{t('operatorChatId')}</label>
-                  <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[10px] font-semibold text-[var(--text-muted)] underline decoration-black/20 underline-offset-4 hover:text-[var(--text-primary)]">@userinfobot <ExternalLink className="h-3 w-3" /></a>
+                  <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] underline decoration-black/20 underline-offset-4 hover:text-[var(--text-primary)]">@userinfobot <ExternalLink className="h-3 w-3" /></a>
                 </div>
                 <input id="new-operator-chat-id" dir="ltr" type="text" inputMode="numeric" value={operatorChatId} onChange={(event) => setOperatorChatId(event.target.value)} placeholder="123456789" className="input min-h-12 w-full font-mono text-sm" />
               </div>
-              <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">
                 {busy === 'connect' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4" />}
                 {busy === 'connect' ? t('connecting') : t('connect')}
               </button>
@@ -745,7 +745,7 @@ export function OperatorChannelSetup({
             </div>
           </div>
 
-          <div id="settings-operator-benefits" className="relative scroll-mt-28 overflow-hidden rounded-[1.4rem] border border-black/[0.065] bg-black/[0.025] p-5">
+          <div id="settings-operator-benefits" className="relative scroll-mt-28 overflow-hidden rounded-card border border-black/[0.065] bg-black/[0.025] p-5">
             <div className="absolute -end-14 -top-14 h-36 w-36 rounded-full bg-sky-200/35 blur-3xl" />
             <div className="relative">
               <div className="flex items-center gap-2"><MessageSquareText className="h-4 w-4 text-[var(--text-secondary)]" /><h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('بعد از اتصال چه دارید؟', 'What you get after connecting')}</h3></div>
@@ -757,7 +757,7 @@ export function OperatorChannelSetup({
                   copy('کنترل زنده webhook و خطاهای اتصال', 'Live webhook and connection diagnostics'),
                   copy('توقف یا فعال‌سازی هشدارها از داخل بات', 'Pause or resume alerts from the bot'),
                 ].map((item) => (
-                  <div key={item} className="flex min-h-11 items-center gap-2.5 rounded-xl border border-black/[0.055] bg-white/65 px-3 text-[10px] font-semibold text-[var(--text-secondary)]">
+                  <div key={item} className="flex min-h-11 items-center gap-2.5 rounded-xl border border-black/[0.055] bg-white/65 px-3 text-[12px] font-semibold text-[var(--text-secondary)]">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                     {item}
                   </div>
@@ -770,7 +770,7 @@ export function OperatorChannelSetup({
 
       {removeOpen && typeof document !== 'undefined' && createPortal(
         <DialogShell
-          title={copy('حذف اتصال بات اپراتور', 'Remove operator bot connection')}
+          title={copy('حذف اتصال ربات مدیریت', 'Remove manager bot connection')}
           subtitle={copy('Webhook تلگرام غیرفعال و تنظیمات اتصال از فضای کاری حذف می‌شود.', 'The Telegram webhook and workspace connection will be removed.')}
           onClose={() => { if (busy !== 'remove') setRemoveOpen(false) }}
         >

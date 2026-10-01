@@ -22,16 +22,16 @@ export function DashboardPanel({
   return (
     <section
       className={cn(
-        'spatial-surface min-w-0 overflow-hidden rounded-[1.5rem] p-5 sm:p-6',
+        'spatial-surface min-w-0 overflow-hidden rounded-card p-5 sm:p-6',
         className,
       )}
     >
       {title && (
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</h2>
+            <h2 className="ui-h3">{title}</h2>
             {subtitle && (
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">{subtitle}</p>
+              <p className="ui-caption mt-0.5">{subtitle}</p>
             )}
           </div>
           {action && <div className="shrink-0">{action}</div>}
