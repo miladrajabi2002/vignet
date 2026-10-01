@@ -42,7 +42,7 @@ describe('shared adaptive mobile UI contract', () => {
     const productForm = source('components/products/product-form.tsx')
     const page = source('app/(dashboard)/products/(list)/page.tsx')
 
-    expect(products).toContain('sticky top-[4rem]')
+    expect(products).toContain('sticky top-[5.35rem]')
     expect(products).toContain('<MobileBottomSheet')
     expect(products).toContain('activeFacetCount')
     expect(products).toContain('text-base sm:text-sm')
@@ -58,7 +58,7 @@ describe('shared adaptive mobile UI contract', () => {
     const search = source('components/products/orders-search-form.tsx')
     const tabs = source('components/products/commerce-tabs.tsx')
 
-    expect(search).toContain('sticky top-[4rem]')
+    expect(search).toContain('sticky top-[5.35rem]')
     expect(search).toContain('<MobileBottomSheet')
     expect(search).toContain('<MaterialSelect')
     expect(search).not.toContain('aria-live="polite"')
@@ -194,7 +194,7 @@ describe('shared adaptive mobile UI contract', () => {
   it('keeps plan status beside notifications and derives its ring from subscription days', () => {
     const dashboardHeader = source('components/dashboard/header.tsx')
     const actionGroupStart = dashboardHeader.indexOf(
-      '<div className="flex shrink-0 items-center justify-end gap-1">',
+      '<div className="flex shrink-0 items-center justify-end gap-1.5 xl:gap-2.5">',
     )
     const actionGroup = dashboardHeader.slice(actionGroupStart)
 
@@ -219,8 +219,9 @@ describe('shared adaptive mobile UI contract', () => {
     expect(improvementTabs).toContain('<NavigationCountBadge')
     expect(agentTabs).not.toContain('absolute -end-1 -top-1')
     expect(countBadge).toContain("count > 99 ? `${formatter.format(99)}+`")
-    // Counts are soft lavender; solid violet is reserved for live / AI states.
-    expect(countBadge).toContain("'bg-[var(--signal-tint)] text-[var(--signal-strong)]'")
+    // Counts are neutral ink; violet is reserved for live / AI states.
+    expect(countBadge).toContain("'bg-[var(--text-primary)] text-white'")
+    expect(countBadge).not.toContain('signal-tint')
     expect(countBadge).not.toContain('bg-[var(--signal)] text-white')
   })
 })

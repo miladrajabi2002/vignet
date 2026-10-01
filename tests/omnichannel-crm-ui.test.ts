@@ -30,7 +30,7 @@ describe('omnichannel CRM user-visible contract', () => {
     const createRoute = source('app/api/contacts/route.ts')
     const exportRoute = source('app/api/contacts/export/route.ts')
 
-    expect(view).toContain('sticky top-[4rem]')
+    expect(view).toContain('sticky top-[5.35rem]')
     expect(view).toContain('md:hidden')
     expect(view).toContain('hidden divide-y')
     expect(view).toContain('params.set(\'contact\', id)')
@@ -82,7 +82,7 @@ describe('omnichannel CRM user-visible contract', () => {
     const detailLayout = source('components/crm/conversation-mobile-layout.tsx')
     const mobileNav = source('components/dashboard/mobile-nav.tsx')
 
-    expect(list).toContain('sticky top-[4rem]')
+    expect(list).toContain('sticky top-[5.35rem]')
     expect(list).toContain('key={`mobile-${c.id}`}')
     expect(list).toContain('key={`desktop-${c.id}`}')
     expect(list).toContain('<ConversationStatusBadge')
