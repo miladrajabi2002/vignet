@@ -61,6 +61,7 @@ import {
         formatProductFallback,
         parseProductDirectives,
         resolveProductShowcases,
+        messengerProductCard,
 } from '@/lib/products/presentation'
 import {
         fixedReplyForWorkspace,
@@ -1858,24 +1859,10 @@ async function processChannelInbound(
                                                 await textStream?.cancel()
                                                 textStream = undefined
                                         }
-                                        const cardIsFa = cardLang !== 'en'
                                         const failedProducts: typeof showcasedProducts = []
                                         for (const product of showcasedProducts) {
                                                 try {
-                                                        await deliveryAdapter.sendProductCard!(msg.chatId, {
-                                                                name: product.name,
-                                                                description: product.description ?? null,
-                                                                price: product.price == null
-                                                                        ? null
-                                                                        : cardIsFa
-                                                                                ? `${product.price.toLocaleString('fa-IR')} تومان`
-                                                                                : product.price.toLocaleString('en-US'),
-                                                                badge: product.badge ?? (cardIsFa ? 'موجود' : 'Available'),
-                                                                specs: product.specs,
-                                                                imageUrl: product.imageUrl,
-                                                                productUrl: product.productUrl,
-                                                                ctaLabel: cardIsFa ? '🛒 مشاهده و خرید' : 'View / Buy',
-                                                        })
+                                                        await deliveryAdapter.sendProductCard!(msg.chatId, messengerProductCard(product, cardLang))
                                                 } catch (cardError) {
                                                         console.error(`[handler] ${type} product card failed:`, cardError)
                                                         failedProducts.push(product)

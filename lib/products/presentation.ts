@@ -5,6 +5,7 @@ import {
 } from '@/lib/instagram/media'
 import { extractListItems, extractTypedVariations, normalizeAttributes, stripListBlocks, type VariationRow } from '@/lib/products/description'
 import { numberLocale, type TurnLanguage } from '@/lib/ai/turn-language'
+import type { ProductCard } from '@/lib/channels/types'
 
 /** Reply locale for deterministic customer-facing templates. */
 export type ReplyLanguage = TurnLanguage
@@ -339,6 +340,33 @@ function variationSpecs(variation: VariationRow, parentAttributes: unknown): str
   return [...new Set(rows)].slice(0, 4)
 }
 
+/** Product columns a showcase card is built from. */
+const SHOWCASE_PRODUCT_SELECT = {
+  id: true,
+  name: true,
+  description: true,
+  price: true,
+  images: true,
+  externalUrl: true,
+  sourceIntegrationId: true,
+  externalId: true,
+  attributes: true,
+  stock: true,
+} as const
+
+type ShowcaseProductRow = {
+  id: string
+  name: string
+  description: string | null
+  price: number | null
+  images: string[]
+  externalUrl: string | null
+  sourceIntegrationId: string | null
+  externalId: string | null
+  attributes: unknown
+  stock: number | null
+}
+
 /** Resolve model markers against products that are active and assigned to the agent. */
 export async function resolveProductShowcases(params: {
   workspaceId: string
@@ -356,12 +384,6 @@ export async function resolveProductShowcases(params: {
   // Directive ids may carry a variation suffix («productId#v77651») emitted by
   // the deterministic variant showcase; the DB query must use the parent id.
   const directiveProductId = (directiveId: string): string => directiveId.split('#')[0]
-  const directiveVariationId = (directiveId: string): number | null => {
-    const suffix = directiveId.split('#')[1]
-    if (!suffix) return null
-    const numeric = /^v?(\d+)$/i.exec(suffix)
-    return numeric ? Number(numeric[1]) : null
-  }
   const parentIds = [...new Set(ids.map(directiveProductId))]
   const candidates = await prisma.agentCatalog.findMany({
     where: {
@@ -382,26 +404,49 @@ export async function resolveProductShowcases(params: {
         ],
       },
     },
-    select: {
-      product: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          price: true,
-          images: true,
-          externalUrl: true,
-          sourceIntegrationId: true,
-          externalId: true,
-          attributes: true,
-          stock: true,
-        },
-      },
-    },
+    select: { product: { select: SHOWCASE_PRODUCT_SELECT } },
   })
 
-  const byId = new Map(candidates.map(({ product }) => [product.id, product]))
-  const byName = new Map(candidates.map(({ product }) => [normalizedProductMention(product.name), product]))
+  return buildShowcaseCards(directives, candidates.map(({ product }) => product))
+}
+
+/**
+ * Resolve products an operator picked by hand in the dashboard. Unlike the
+ * agent path, the operator may send any active product of the workspace (it
+ * need not be assigned to the conversation's agent), in the order picked.
+ * Sold-out rows still resolve and carry a «ناموجود» badge: the operator chose
+ * them deliberately, and the card says so honestly.
+ */
+export async function resolveWorkspaceProductShowcases(params: {
+  workspaceId: string
+  productIds: string[]
+}): Promise<TrustedProductShowcase[]> {
+  const directives = [...new Set(params.productIds.map((id) => id.trim()).filter(Boolean))]
+    .slice(0, MAX_PRODUCTS_PER_REPLY)
+    .map((id) => ({ id, name: '' }))
+  if (!directives.length) return []
+  const rows = await prisma.product.findMany({
+    where: {
+      workspaceId: params.workspaceId,
+      active: true,
+      id: { in: [...new Set(directives.map((directive) => directive.id.split('#')[0]))] },
+    },
+    select: SHOWCASE_PRODUCT_SELECT,
+  })
+  return buildShowcaseCards(directives, rows)
+}
+
+/** Directives (in order) → trusted cards built only from the given DB rows. */
+function buildShowcaseCards(directives: ProductDirective[], rows: ShowcaseProductRow[]): TrustedProductShowcase[] {
+  const directiveProductId = (directiveId: string): string => directiveId.split('#')[0]
+  const directiveVariationId = (directiveId: string): number | null => {
+    const suffix = directiveId.split('#')[1]
+    if (!suffix) return null
+    const numeric = /^v?(\d+)$/i.exec(suffix)
+    return numeric ? Number(numeric[1]) : null
+  }
+  const byId = new Map(rows.map((product) => [product.id, product]))
+  const byName = new Map(rows.map((product) => [normalizedProductMention(product.name), product]))
   const seen = new Set<string>()
   const output: TrustedProductShowcase[] = []
 
@@ -653,22 +698,7 @@ export async function buildTrustedProductReply(params: {
       : parsed.text
   }
 
-  const markers = selectedProducts.map((product) => {
-    const price = product.price == null
-      ? ''
-      : priceLine(product.price, lang)
-    return `[[product:${JSON.stringify({
-      id: product.id,
-      name: product.name,
-      price,
-      desc: cleanProductDescription(product.description, 240),
-      badge: product.badge ?? (lang === 'en' ? 'Available' : lang === 'ar' ? 'متوفر' : 'موجود'),
-      image: safeProductUrl(product.imageUrl) ?? '',
-      url: safeProductUrl(product.productUrl) ?? '',
-      specs: product.specs,
-      ...(product.cartId ? { cart: product.cartId } : {}),
-    })}]]`
-  })
+  const markers = selectedProducts.map((product) => productShowcaseMarker(product, lang))
 
   const visibleText = params.forceShowcase
     ? showcaseIntroText({
@@ -682,6 +712,44 @@ export async function buildTrustedProductReply(params: {
     : parsed.text
 
   return [visibleText, markers.join('\n')].filter(Boolean).join('\n\n')
+}
+
+/**
+ * Canonical `[[product:{…}]]` snapshot persisted in an assistant message.
+ * Web widget, chat link and the dashboard thread render it as a product card;
+ * every field comes from the trusted DB card, never from model or user text.
+ */
+export function productShowcaseMarker(product: TrustedProductShowcase, lang: ReplyLanguage): string {
+  return `[[product:${JSON.stringify({
+    id: product.id,
+    name: product.name,
+    price: product.price == null ? '' : priceLine(product.price, lang),
+    desc: cleanProductDescription(product.description, 240),
+    badge: product.badge ?? (lang === 'en' ? 'Available' : lang === 'ar' ? 'متوفر' : 'موجود'),
+    image: safeProductUrl(product.imageUrl) ?? '',
+    url: safeProductUrl(product.productUrl) ?? '',
+    specs: product.specs,
+    ...(product.cartId ? { cart: product.cartId } : {}),
+  })}]]`
+}
+
+/** The photo + caption + button card Telegram, Bale and Rubika adapters send. */
+export function messengerProductCard(product: TrustedProductShowcase, lang: ReplyLanguage): ProductCard {
+  const fa = lang !== 'en'
+  return {
+    name: product.name,
+    description: product.description ?? null,
+    price: product.price == null
+      ? null
+      : fa
+        ? `${product.price.toLocaleString('fa-IR')} تومان`
+        : product.price.toLocaleString('en-US'),
+    badge: product.badge ?? (fa ? 'موجود' : 'Available'),
+    specs: product.specs,
+    imageUrl: product.imageUrl,
+    productUrl: product.productUrl,
+    ctaLabel: fa ? '🛒 مشاهده و خرید' : 'View / Buy',
+  }
 }
 
 function cleanProductDescription(value: string | null | undefined, maxLength: number): string {

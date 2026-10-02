@@ -6,6 +6,23 @@ import { stripProductTokens } from '@/lib/widget/config'
  * so the markers are dropped and only the words stay.
  */
 export function conversationPreviewText(content: string): string {
+        const text = previewWords(content)
+        if (text) return text
+        // A message that is only product cards previews as the product names.
+        const names = [...content.matchAll(/\[\[product:(\{[\s\S]*?\})\]\]/g)]
+                .map((match) => {
+                        try {
+                                const name = (JSON.parse(match[1]) as { name?: unknown }).name
+                                return typeof name === 'string' ? name.trim() : ''
+                        } catch {
+                                return ''
+                        }
+                })
+                .filter(Boolean)
+        return names.length ? `🛍 ${names.join('، ')}` : ''
+}
+
+function previewWords(content: string): string {
         return stripProductTokens(content)
                 .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
                 .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')

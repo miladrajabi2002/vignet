@@ -77,6 +77,7 @@ export default async function ConversationThreadPage(props: {
                                                 initialMessages={view.threadMessages as ThreadMessage[]}
                                                 conversationId={conversation.id}
                                                 locale={locale}
+                                                channel={conversation.channel}
                                                 handoff={handoffAlert ? { at: handoffAlert.createdAt, reason: handoffAlert.reason } : null}
                                         />
                                 }

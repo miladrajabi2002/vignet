@@ -8,7 +8,7 @@ import {
 /**
  * Route-level skeleton for /products/orders — an exact mirror of the page:
  * PageHeader (bulk-delete + total-count actions), commerce tabs, the
- * orders search form, the 7-column desktop table and the mobile order
+ * orders search form, the desktop order rows and the mobile order
  * cards.
  */
 export default function ProductOrdersLoading() {
@@ -22,7 +22,7 @@ export default function ProductOrdersLoading() {
       {/* Search + status filter form */}
       <OrdersSearchSkeleton delay={-160} />
 
-      {/* Desktop table */}
+      {/* Desktop order rows */}
       <OrdersTableSkeleton delay={-200} rows={8} />
 
       {/* Mobile order cards */}

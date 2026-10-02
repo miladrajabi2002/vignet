@@ -54,7 +54,7 @@ describe('shared adaptive mobile UI contract', () => {
 
   it('aligns orders with the shared commerce and customer mobile patterns', () => {
     const orders = source('app/(dashboard)/products/orders/page.tsx')
-    const mobileOrder = source('components/products/mobile-order-card.tsx')
+    const mobileOrder = source('components/products/order-entry.tsx')
     const search = source('components/products/orders-search-form.tsx')
     const tabs = source('components/products/commerce-tabs.tsx')
 
@@ -62,9 +62,10 @@ describe('shared adaptive mobile UI contract', () => {
     expect(search).toContain('<MobileBottomSheet')
     expect(search).toContain('<MaterialSelect')
     expect(search).not.toContain('aria-live="polite"')
-    expect(orders).toContain('<MobileOrderCard')
+    expect(orders).toContain('<OrderEntry')
     expect(mobileOrder).toContain('<MobileBottomSheet')
-    expect(mobileOrder).toContain('aria-haspopup="dialog"')
+    expect(mobileOrder).toContain("'aria-haspopup': 'dialog'")
+    expect(mobileOrder).toContain('mobileOnly={false}')
     expect(orders).toContain('spatial-surface hidden overflow-hidden rounded-card !bg-white')
     expect(search).toContain('spatial-surface rounded-card !bg-white')
     // Products / orders / chat requests share the app-wide segmented control.
@@ -119,7 +120,7 @@ describe('shared adaptive mobile UI contract', () => {
     const contacts = source('components/crm/contacts-view.tsx')
     const contactDetail = source('components/crm/contact-detail-sheet.tsx')
     const orderSearch = source('components/products/orders-search-form.tsx')
-    const orderDetail = source('components/products/mobile-order-card.tsx')
+    const orderDetail = source('components/products/order-entry.tsx')
     const adminUsers = source('app/admin/(dash)/users/page.tsx')
     const adminPayments = source('app/admin/(dash)/payments/page.tsx')
     const adminConversations = source('app/admin/(dash)/conversations/page.tsx')

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { CircleCheck, Loader2, Package, Search, Sparkles, StickyNote, TriangleAlert, X } from 'lucide-react'
+import type { ChannelType } from '@prisma/client'
+import { Check, CircleCheck, Loader2, Package, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { cn } from '@/lib/utils'
 import type { ThreadMessage } from './conversation-thread'
@@ -18,12 +19,32 @@ type PickerProduct = {
   name: string
   price: number | null
   stock: number | null
-  externalUrl: string | null
+  images?: string[] | null
+  active?: boolean
 }
+
+/** One message carries at most this many products (Meta's carousel limit). */
+const MAX_PRODUCTS = 10
 
 const CHIP =
   'spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50'
 const CHIP_IDLE = 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
+
+/** How the picked products reach the customer on this conversation's channel. */
+function productDeliveryHint(channel: ChannelType | undefined, fa: boolean): string {
+  switch (channel) {
+    case 'INSTAGRAM':
+      return fa ? 'در اینستاگرام به‌صورت کاتالوگ کشویی با عکس، قیمت و دکمهٔ «مشاهده محصول» می‌رود.' : 'Goes to Instagram as a swipeable catalog with photo, price and a "View product" button.'
+    case 'TELEGRAM':
+    case 'BALE':
+    case 'RUBIKA':
+      return fa ? 'هر محصول جدا با عکس، قیمت، مشخصات و دکمهٔ خرید فرستاده می‌شود.' : 'Each product is sent with its photo, price, specs and a buy button.'
+    case 'WHATSAPP':
+      return fa ? 'واتساپ دیگر پشتیبانی نمی‌شود؛ محصولات فقط در همین گفتگو ثبت می‌شوند.' : 'WhatsApp is retired; the products are only recorded in this conversation.'
+    default:
+      return fa ? 'در گفتگوی مشتری به‌صورت کارت‌های محصول کنار هم نمایش داده می‌شود.' : 'Shown to the customer as product cards side by side in the chat.'
+  }
+}
 
 /**
  * Operator (human handoff) reply box. Sends a message directly to the contact
@@ -39,14 +60,17 @@ const CHIP_IDLE = 'border-[var(--border-default)] bg-white text-[var(--text-seco
  *
  * Input handling (Enter to send, auto-grow, send button, busy state) belongs to
  * the shared <ChatComposer>; this component owns the send request, the delivery
- * feedback, and the three helpers under the field: an agent-written draft, a
- * product to paste in, and an internal note the customer never sees.
+ * feedback, and two helpers under the field: a product catalog (up to ten
+ * products sent as real cards on every channel) and an internal note the
+ * customer never sees.
  */
 export function OperatorReply({
   conversationId,
+  channel,
   onSent,
 }: {
   conversationId: string
+  channel?: ChannelType
   onSent?: (message: ThreadMessage) => void
 }) {
   const t = useTranslations('conversations')
@@ -56,30 +80,44 @@ export function OperatorReply({
   const composerRef = useRef<ChatComposerHandle>(null)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
   const [noteMode, setNoteMode] = useState(false)
   const [noteSaved, setNoteSaved] = useState(false)
-  const [draft, setDraft] = useState<string | null>(null)
-  const [drafting, setDrafting] = useState(false)
-  const [draftError, setDraftError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [attached, setAttached] = useState<PickerProduct[]>([])
+  const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
+  const sendsProducts = !noteMode && attached.length > 0
 
-  async function send(override?: string) {
-    const body = (override ?? text).trim()
-    if (!body || busy) return
+  function toggleProduct(product: PickerProduct) {
+    setAttached((current) => {
+      if (current.some((item) => item.id === product.id)) return current.filter((item) => item.id !== product.id)
+      if (current.length >= MAX_PRODUCTS) return current
+      return [...current, product]
+    })
+  }
+
+  async function send() {
+    const body = text.trim()
+    const productIds = noteMode ? [] : attached.map((product) => product.id)
+    if ((!body && productIds.length === 0) || busy) return
     setBusy(true)
-    setError(false)
+    setError(null)
     setDelivery(null)
     setNoteSaved(false)
     try {
       const res = await fetch(`/api/conversations/${conversationId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: body }),
+        body: JSON.stringify({ text: body, productIds }),
       })
       if (!res.ok) {
-        setError(true)
+        const data = await res.json().catch(() => null)
+        setError(
+          data?.error === 'PRODUCTS_UNAVAILABLE'
+            ? (fa ? 'محصولات انتخاب‌شده دیگر فعال نیستند. فهرست را دوباره باز کنید.' : 'The picked products are no longer active. Open the list again.')
+            : t('replyFailed'),
+        )
         return
       }
       const data = await res.json()
@@ -100,13 +138,14 @@ export function OperatorReply({
         })
       }
       if (deliveryResult) setDelivery(deliveryResult)
-      if (override === undefined) setText('')
-      else setDraft(null)
+      setText('')
+      setAttached([])
+      setPickerOpen(false)
       // Silent background refresh to sync conversation status / handoff panel.
       // The message is already visible — this is just for metadata consistency.
       router.refresh()
     } catch {
-      setError(true)
+      setError(t('replyFailed'))
     } finally {
       setBusy(false)
     }
@@ -116,7 +155,7 @@ export function OperatorReply({
     const body = text.trim()
     if (!body || busy) return
     setBusy(true)
-    setError(false)
+    setError(null)
     setDelivery(null)
     try {
       const res = await fetch(`/api/conversations/${conversationId}/note`, {
@@ -125,7 +164,7 @@ export function OperatorReply({
         body: JSON.stringify({ text: body }),
       })
       if (!res.ok) {
-        setError(true)
+        setError(fa ? 'یادداشت ذخیره نشد. دوباره تلاش کنید.' : 'The note was not saved. Try again.')
         return
       }
       const data = await res.json()
@@ -134,66 +173,14 @@ export function OperatorReply({
       setNoteMode(false)
       setNoteSaved(true)
     } catch {
-      setError(true)
+      setError(fa ? 'یادداشت ذخیره نشد. دوباره تلاش کنید.' : 'The note was not saved. Try again.')
     } finally {
       setBusy(false)
     }
   }
 
-  async function writeDraft() {
-    if (drafting) return
-    setDrafting(true)
-    setDraftError(null)
-    try {
-      const res = await fetch(`/api/conversations/${conversationId}/draft`, { method: 'POST' })
-      const data = await res.json().catch(() => null)
-      if (!res.ok || !data?.draft) {
-        const code = data?.error as string | undefined
-        setDraftError(
-          code === 'NO_CREDIT'
-            ? (fa ? 'اعتبار هوش مصنوعی کافی نیست.' : 'Not enough AI credit.')
-            : code === 'NOTHING_TO_ANSWER'
-              ? (fa ? 'هنوز پیامی از مشتری نیامده که جواب بخواهد.' : 'There is no customer message to answer yet.')
-              : code === 'PLAN_BLOCKED'
-                ? (fa ? 'اشتراک فعال نیست.' : 'The subscription is not active.')
-                : (fa ? 'پیش‌نویس ساخته نشد. دوباره تلاش کنید.' : 'The draft could not be written. Try again.'),
-        )
-        return
-      }
-      setDraft(String(data.draft))
-      // The header credit figure is server-rendered.
-      router.refresh()
-    } catch {
-      setDraftError(fa ? 'پیش‌نویس ساخته نشد. دوباره تلاش کنید.' : 'The draft could not be written. Try again.')
-    } finally {
-      setDrafting(false)
-    }
-  }
-
-  function editDraft() {
-    if (!draft) return
-    setNoteMode(false)
-    setText(draft)
-    setDraft(null)
-    composerRef.current?.focus()
-  }
-
-  function insertProduct(product: PickerProduct) {
-    const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
-    const line = [
-      product.name,
-      product.price != null ? `${nf.format(product.price)} ${fa ? 'تومان' : 'Toman'}` : null,
-    ].filter(Boolean).join(fa ? ' · ' : ' · ')
-    const block = product.externalUrl ? `${line}\n${product.externalUrl}` : line
-    setText((current) => (current.trim() ? `${current.trimEnd()}\n${block}` : block))
-    setPickerOpen(false)
-    composerRef.current?.focus()
-  }
-
   const feedback = error ? (
-    <p className="text-xs text-[var(--red)]" role="alert">{noteMode ? (fa ? 'یادداشت ذخیره نشد. دوباره تلاش کنید.' : 'The note was not saved. Try again.') : t('replyFailed')}</p>
-  ) : draftError ? (
-    <p className="text-xs text-[var(--red)]" role="alert">{draftError}</p>
+    <p className="text-xs text-[var(--red)]" role="alert">{error}</p>
   ) : noteSaved ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
       <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
@@ -223,48 +210,45 @@ export function OperatorReply({
 
   return (
     <div className="space-y-2">
-      {draft && (
-        <div className="rounded-2xl border border-[var(--signal-border)] bg-[var(--signal-soft)] p-3">
-          <p className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--signal-strong)]">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            {fa ? 'پیش‌نویس ایجنت' : 'Agent draft'}
-            <span className="font-normal text-[var(--text-muted)]">· {fa ? 'هنوز فرستاده نشده' : 'not sent yet'}</span>
-          </p>
-          <p dir="auto" className="mt-1.5 whitespace-pre-wrap text-[13px] leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">{draft}</p>
-          {/[\[\]0-9۰-۹]/.test(draft) && (
-            <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden="true" />
-              {fa ? 'عددها و جای‌خالی‌های داخل [ ] را قبل از ارسال بازبینی کنید.' : 'Check the figures and the [ ] blanks before sending.'}
+      {sendsProducts && (
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-2.5">
+          <div className="flex items-center gap-2 px-0.5">
+            <Package className="h-3.5 w-3.5 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+            <p className="min-w-0 flex-1 truncate text-[12px] font-bold text-[var(--text-primary)]">
+              {fa ? `${nf.format(attached.length)} محصول برای ارسال` : `${attached.length} product${attached.length === 1 ? '' : 's'} to send`}
             </p>
-          )}
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => void send(draft)}
-              disabled={busy || /\[[^\]]+\]/.test(draft)}
-              title={/\[[^\]]+\]/.test(draft) ? (fa ? 'اول جای‌خالی‌ها را با «ویرایش» پر کنید' : 'Fill the blanks with Edit first') : undefined}
-              className="spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-control bg-[var(--text-primary)] px-3 text-[13px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50"
-            >
-              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-              {fa ? 'ارسال همین' : 'Send as is'}
-            </button>
-            <button
-              type="button"
-              onClick={editDraft}
+              onClick={() => setAttached([])}
               disabled={busy}
-              className="spatial-press inline-flex min-h-9 items-center rounded-control border border-[var(--border-default)] bg-white px-3 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
+              className="inline-flex min-h-8 shrink-0 items-center rounded-control px-2 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
             >
-              {fa ? 'ویرایش' : 'Edit'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDraft(null)}
-              disabled={busy}
-              className="ms-auto inline-flex min-h-9 items-center rounded-control px-2 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-            >
-              {fa ? 'نادیده' : 'Dismiss'}
+              {fa ? 'حذف همه' : 'Clear'}
             </button>
           </div>
+          <ul className="mt-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]" aria-label={fa ? 'محصولات انتخاب‌شده' : 'Picked products'}>
+            {attached.map((product) => (
+              <li key={product.id} className="flex w-44 shrink-0 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white p-1.5">
+                <ProductThumb product={product} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-medium text-[var(--text-primary)]" title={product.name}>{product.name}</p>
+                  <p className="truncate text-[12px] tabular-nums text-[var(--text-muted)]">
+                    {product.price != null ? `${nf.format(product.price)} ${fa ? 'تومان' : 'Toman'}` : '—'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleProduct(product)}
+                  disabled={busy}
+                  aria-label={fa ? `حذف ${product.name}` : `Remove ${product.name}`}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 px-0.5 text-[12px] leading-5 text-[var(--text-muted)]">{productDeliveryHint(channel, fa)}</p>
         </div>
       )}
 
@@ -277,7 +261,12 @@ export function OperatorReply({
         }}
         onSend={() => void (noteMode ? saveNote() : send())}
         busy={busy}
-        placeholder={noteMode ? (fa ? 'یادداشت داخلی؛ مشتری نمی‌بیند…' : 'Internal note; the customer will not see it…') : t('replyPlaceholder')}
+        hasAttachment={sendsProducts}
+        placeholder={noteMode
+          ? (fa ? 'یادداشت داخلی؛ مشتری نمی‌بیند…' : 'Internal note; the customer will not see it…')
+          : sendsProducts
+            ? (fa ? 'یک متن کوتاه همراه محصولات (اختیاری)…' : 'A short line to go with the products (optional)…')
+            : t('replyPlaceholder')}
         inputLabel={noteMode ? (fa ? 'یادداشت داخلی' : 'Internal note') : (fa ? 'پاسخ اپراتور' : 'Operator reply')}
         dir={fa ? 'rtl' : 'ltr'}
         sendLabel={noteMode ? (fa ? 'ثبت یادداشت' : 'Save note') : t('send')}
@@ -288,30 +277,25 @@ export function OperatorReply({
       <div className="relative flex flex-wrap items-center gap-1.5">
         <button
           type="button"
-          onClick={() => void writeDraft()}
-          disabled={drafting || busy}
-          title={fa ? 'ایجنت یک جواب پیشنهادی می‌نویسد. هر پیش‌نویس به اندازهٔ یک پاسخ از اعتبار کم می‌کند.' : 'The agent writes a suggested reply. Each draft costs one reply of credit.'}
-          className={cn(CHIP, 'border-[var(--signal-border)] bg-[var(--signal-soft)] text-[var(--signal-strong)] hover:bg-[var(--signal-tint)]')}
-        >
-          {drafting ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
-          {drafting ? (fa ? 'در حال نوشتن…' : 'Writing…') : draft ? (fa ? 'پیش‌نویس دیگر' : 'Another draft') : (fa ? 'پیش‌نویس ایجنت' : 'Agent draft')}
-        </button>
-        <button
-          type="button"
           onClick={() => setPickerOpen((open) => !open)}
+          disabled={noteMode}
           aria-expanded={pickerOpen}
           aria-haspopup="dialog"
-          title={fa ? 'نام، قیمت و لینک یک محصول را به پیام اضافه کنید' : 'Add a product name, price and link to the message'}
-          className={cn(CHIP, pickerOpen ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : CHIP_IDLE)}
+          title={fa ? 'چند محصول را با عکس و قیمت برای مشتری بفرستید' : 'Send several products with photo and price'}
+          className={cn(CHIP, pickerOpen || attached.length > 0 ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : CHIP_IDLE)}
         >
           <Package className="h-3.5 w-3.5" aria-hidden="true" />
-          {fa ? 'محصول' : 'Product'}
+          {fa ? 'ارسال محصول' : 'Send products'}
+          {attached.length > 0 && (
+            <span className="rounded-full bg-[var(--text-primary)] px-1.5 text-[12px] font-bold leading-5 text-white tabular-nums">{nf.format(attached.length)}</span>
+          )}
         </button>
         <button
           type="button"
           onClick={() => {
             setNoteMode((on) => !on)
-            setError(false)
+            setPickerOpen(false)
+            setError(null)
             composerRef.current?.focus()
           }}
           aria-pressed={noteMode}
@@ -321,7 +305,17 @@ export function OperatorReply({
           {fa ? 'یادداشت' : 'Note'}
         </button>
 
-        {pickerOpen && <ProductPicker fa={fa} tomanLabel={fa ? 'تومان' : 'Toman'} onPick={insertProduct} onClose={() => setPickerOpen(false)} />}
+        {pickerOpen && (
+          <ProductPicker
+            fa={fa}
+            selectedIds={attached.map((product) => product.id)}
+            onToggle={toggleProduct}
+            onClose={() => {
+              setPickerOpen(false)
+              composerRef.current?.focus()
+            }}
+          />
+        )}
       </div>
 
       {feedback ?? (
@@ -335,16 +329,29 @@ export function OperatorReply({
   )
 }
 
-/** Search the catalog and paste one product (name, price, link) into the reply. */
+/** Square product photo, or a package glyph when the product has none. */
+function ProductThumb({ product }: { product: PickerProduct }) {
+  const src = product.images?.find((image) => /^https?:\/\//.test(image))
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element -- catalog photos come from arbitrary shop hosts
+    <img src={src} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg bg-[var(--bg-muted)] object-cover" />
+  ) : (
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-muted)]">
+      <Package className="h-4 w-4" aria-hidden="true" />
+    </span>
+  )
+}
+
+/** Search the catalog and pick up to ten products to send as cards. */
 function ProductPicker({
   fa,
-  tomanLabel,
-  onPick,
+  selectedIds,
+  onToggle,
   onClose,
 }: {
   fa: boolean
-  tomanLabel: string
-  onPick: (product: PickerProduct) => void
+  selectedIds: string[]
+  onToggle: (product: PickerProduct) => void
   onClose: () => void
 }) {
   const [query, setQuery] = useState('')
@@ -352,6 +359,8 @@ function ProductPicker({
   const [failed, setFailed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
+  const selected = new Set(selectedIds)
+  const full = selectedIds.length >= MAX_PRODUCTS
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -366,7 +375,7 @@ function ProductPicker({
     const controller = new AbortController()
     const timer = window.setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ limit: '8', sort: query.trim() ? 'newest' : 'queried' })
+        const params = new URLSearchParams({ limit: '20', sort: query.trim() ? 'newest' : 'queried' })
         if (query.trim()) params.set('q', query.trim())
         const res = await fetch(`/api/products?${params}`, { signal: controller.signal })
         if (!res.ok) throw new Error('PRODUCTS_FAILED')
@@ -387,8 +396,8 @@ function ProductPicker({
   return (
     <div
       role="dialog"
-      aria-label={fa ? 'انتخاب محصول' : 'Pick a product'}
-      className="absolute bottom-full start-0 z-30 mb-2 w-full max-w-sm rounded-card border border-[var(--border-default)] bg-white p-2 shadow-[var(--elev-2)]"
+      aria-label={fa ? 'انتخاب محصول' : 'Pick products'}
+      className="absolute bottom-full start-0 z-30 mb-2 flex max-h-[min(28rem,70dvh)] w-full max-w-md flex-col rounded-card border border-[var(--border-default)] bg-white p-2 shadow-[var(--elev-2)]"
     >
       <div className="flex items-center gap-1.5">
         <div className="relative min-w-0 flex-1">
@@ -413,7 +422,7 @@ function ProductPicker({
         </button>
       </div>
 
-      <div className="mt-1.5 max-h-60 overflow-y-auto">
+      <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto">
         {failed ? (
           <p className="px-2 py-4 text-center text-[12px] text-[var(--red)]">{fa ? 'فهرست محصولات باز نشد.' : 'The product list could not be loaded.'}</p>
         ) : items === null ? (
@@ -425,27 +434,63 @@ function ProductPicker({
           <p className="px-2 py-4 text-center text-[12px] text-[var(--text-muted)]">{fa ? 'محصولی پیدا نشد.' : 'No product found.'}</p>
         ) : (
           <ul>
-            {items.map((product) => (
-              <li key={product.id}>
-                <button
-                  type="button"
-                  onClick={() => onPick(product)}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-control px-2.5 py-1.5 text-start transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
-                >
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text-primary)]">{product.name}</span>
-                  {product.stock === 0 && <span className="shrink-0 text-[12px] text-[var(--red)]">{fa ? 'ناموجود' : 'Out of stock'}</span>}
-                  {product.price != null && (
-                    <span className="shrink-0 text-[12px] tabular-nums text-[var(--text-secondary)]">{nf.format(product.price)} {tomanLabel}</span>
-                  )}
-                </button>
-              </li>
-            ))}
+            {items.map((product) => {
+              const isSelected = selected.has(product.id)
+              const inactive = product.active === false
+              const blocked = inactive || (full && !isSelected)
+              return (
+                <li key={product.id}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    onClick={() => onToggle(product)}
+                    disabled={blocked}
+                    className={cn(
+                      'flex min-h-14 w-full items-center gap-3 rounded-control px-2 py-1.5 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
+                      isSelected ? 'bg-black/[0.045]' : 'hover:bg-[var(--bg-hover)]',
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors',
+                        isSelected ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-strong)] bg-white',
+                      )}
+                    >
+                      {isSelected && <Check className="h-3.5 w-3.5" />}
+                    </span>
+                    <ProductThumb product={product} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium text-[var(--text-primary)]">{product.name}</span>
+                      <span className="block truncate text-[12px] tabular-nums text-[var(--text-secondary)]">
+                        {product.price != null ? `${nf.format(product.price)} ${fa ? 'تومان' : 'Toman'}` : (fa ? 'بدون قیمت' : 'No price')}
+                        {inactive
+                          ? <span className="text-[var(--text-muted)]"> · {fa ? 'غیرفعال' : 'Inactive'}</span>
+                          : product.stock === 0 && <span className="text-[var(--red)]"> · {fa ? 'ناموجود' : 'Out of stock'}</span>}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
-      <p className="border-t border-[var(--border-subtle)] px-2 pt-2 text-[12px] text-[var(--text-muted)]">
-        {fa ? 'نام، قیمت و لینک محصول به متن پیام اضافه می‌شود.' : 'The product name, price and link are added to your message.'}
-      </p>
+      <div className="mt-1.5 flex items-center gap-2 border-t border-[var(--border-subtle)] px-1 pt-2">
+        <p className="min-w-0 flex-1 text-[12px] text-[var(--text-muted)]">
+          {fa
+            ? `${nf.format(selectedIds.length)} از ${nf.format(MAX_PRODUCTS)} محصول انتخاب شده`
+            : `${selectedIds.length} of ${MAX_PRODUCTS} products picked`}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="spatial-press inline-flex min-h-9 shrink-0 items-center rounded-control bg-[var(--text-primary)] px-3.5 text-[13px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+        >
+          {fa ? 'تأیید' : 'Done'}
+        </button>
+      </div>
     </div>
   )
 }

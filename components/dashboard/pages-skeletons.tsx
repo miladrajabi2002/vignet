@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { ORDER_ROW_GRID } from '@/components/products/order-row-grid'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BackRowSkeleton } from '@/components/dashboard/agent-detail-skeletons'
 
@@ -874,31 +875,29 @@ export function OrdersSearchSkeleton({ delay = 0 }: { delay?: number }) {
 
 /** Mirrors the desktop orders table (7 columns × N rows). */
 export function OrdersTableSkeleton({ delay = 0, rows = 8 }: { delay?: number; rows?: number }) {
+  // Mirrors the desktop orders list: a header row, then one compact line per order.
+  const widths = ['w-20', 'w-28', 'w-36', 'w-16', 'w-20', 'w-24']
   return (
     <section className="spatial-surface hidden overflow-hidden rounded-card !bg-white md:block">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1120px] border-collapse text-sm">
-          <thead className="bg-[var(--bg-muted)] text-start text-xs">
-            <tr>
-              {Array.from({ length: 7 }).map((_, col) => (
-                <th key={col} scope="col" className="px-4 py-3 text-start font-medium">
-                  <Skeleton delay={delay} className="h-3.5 w-20 rounded-md" />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: rows }).map((_, row) => (
-              <tr key={row} className="border-t border-[var(--border-subtle)]">
-                {Array.from({ length: 7 }).map((_, col) => (
-                  <td key={col} className="px-4 py-3">
-                    <Skeleton delay={delay - row * 70 - col * 20} className={cn('h-4 rounded-md', col === 0 ? 'w-24' : col === 4 ? 'w-16' : 'w-20')} />
-                  </td>
-                ))}
-              </tr>
+      <div className={cn(ORDER_ROW_GRID, 'border-b border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-3 sm:px-5')}>
+        {widths.map((width, col) => (
+          <Skeleton key={col} delay={delay} className={cn('h-3.5 w-14 rounded-md', col === 2 && 'hidden lg:block', col >= 4 && 'justify-self-end')} />
+        ))}
+        <span aria-hidden="true" />
+      </div>
+      <div className="divide-y divide-[var(--border-subtle)]">
+        {Array.from({ length: rows }).map((_, row) => (
+          <div key={row} className={cn(ORDER_ROW_GRID, 'px-4 py-3.5 sm:px-5')}>
+            {widths.map((width, col) => (
+              <Skeleton
+                key={col}
+                delay={delay - row * 70 - col * 20}
+                className={cn('h-4 max-w-full rounded-md', width, col === 2 && 'hidden lg:block', col === 3 && 'h-6 rounded-full', col >= 4 && 'justify-self-end')}
+              />
             ))}
-          </tbody>
-        </table>
+            <span aria-hidden="true" />
+          </div>
+        ))}
       </div>
     </section>
   )

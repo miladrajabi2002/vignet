@@ -55,13 +55,15 @@ export interface ChatComposerHandle {
 export interface ChatComposerProps {
 	value: string
 	onChange: (value: string) => void
-	/** Called on Enter or send-button click. Never called while empty or busy. */
+	/** Called on Enter or send-button click. Never called while empty (and nothing attached) or busy. */
 	onSend: () => void
 	placeholder?: string
 	/** Busy = a reply is in flight: spinner on the button, sending blocked. */
 	busy?: boolean
 	/** Hard-disable the whole composer (e.g. a lead form is still pending). */
 	disabled?: boolean
+	/** Something besides text is ready to send (e.g. attached products), so an empty field may send. */
+	hasAttachment?: boolean
 	maxLength?: number
 	/** Text direction of the typed content. The control row stays LTR. */
 	dir?: 'rtl' | 'ltr' | 'auto'
@@ -91,6 +93,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 			placeholder,
 			busy = false,
 			disabled = false,
+			hasAttachment = false,
 			maxLength,
 			dir = 'auto',
 			sendLabel,
@@ -125,7 +128,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 		// it after a send.
 		useEffect(resetHeight, [value, resetHeight])
 
-		const canSend = !busy && !disabled && value.trim().length > 0
+		const canSend = !busy && !disabled && (value.trim().length > 0 || hasAttachment)
 
 		const submit = () => {
 			if (!canSend) return

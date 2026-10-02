@@ -11,7 +11,8 @@ import { displayPhone } from '@/lib/phone'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import { OrdersSearchForm } from '@/components/products/orders-search-form'
 import { CopyButton } from '@/components/ui/copy-button'
-import { MobileOrderCard } from '@/components/products/mobile-order-card'
+import { OrderEntry } from '@/components/products/order-entry'
+import { ORDER_ROW_GRID } from '@/components/products/order-row-grid'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
@@ -139,6 +140,94 @@ export default async function OrdersPage({
     }).format(total) + ' ' + currencyLabel
   }
 
+  type OrderRow = (typeof orders)[number]
+
+  /** Everything the list row and the mobile card show at a glance. */
+  function entryProps(order: OrderRow) {
+    return {
+      orderNumber: order.externalOrderId,
+      storeLabel: shortStoreUrl(order.integration.storeUrl),
+      customerName: order.customerName || t('unknownCustomer'),
+      customerContact: order.customerPhone ? displayPhone(order.customerPhone) : order.customerEmail || null,
+      itemsLabel: order.itemsSummary || t('itemsCount', { count: order.itemCount }),
+      itemsCountLabel: order.itemsSummary ? t('itemsCount', { count: order.itemCount }) : null,
+      statusLabel: statusLabel(order.status),
+      statusClassName: statusClassName(order.status),
+      amountLabel: amountLabel(order.total, order.currency),
+      dateLabel: dateFormatter.format(order.orderDate ?? order.createdAt),
+      amountTitle: t('amount'),
+      dateTitle: t('date'),
+      detailsLabel: t('details'),
+      closeLabel: t('hideDetails'),
+    }
+  }
+
+  /** The popup body: items, customer, store and shipping, each only when known. */
+  function orderDetails(order: OrderRow) {
+    return (
+      <dl className="grid gap-x-4 gap-y-4 rounded-card border border-[var(--border-default)] bg-white p-4 text-xs shadow-[var(--shadow-xs)] sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <dt className="text-[var(--text-muted)]">{t('items')}</dt>
+          <dd className="mt-1 whitespace-pre-line text-sm leading-6 text-[var(--text-primary)]">
+            {order.itemsSummary || t('itemsCount', { count: order.itemCount })}
+          </dd>
+          {order.itemsSummary && (
+            <p className="mt-1 text-[var(--text-muted)]">{t('itemsCount', { count: order.itemCount })}</p>
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <dt className="text-[var(--text-muted)]">{t('customer')}</dt>
+          <dd className="mt-1 font-medium text-[var(--text-primary)]">{order.customerName || t('unknownCustomer')}</dd>
+          {order.customerPhone && (
+            <dd dir="ltr" className="mt-0.5 truncate text-start tabular-nums text-[var(--text-secondary)]">{displayPhone(order.customerPhone)}</dd>
+          )}
+          {order.customerEmail && (
+            <dd dir="ltr" className="mt-0.5 truncate text-start text-[var(--text-secondary)]">{order.customerEmail}</dd>
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <dt className="text-[var(--text-muted)]">{t('store')}</dt>
+          <dd dir="ltr" className="mt-1 truncate text-start font-medium text-[var(--text-primary)]">
+            {shortStoreUrl(order.integration.storeUrl)}
+          </dd>
+        </div>
+
+        {order.trackingCode && (
+          <div className="sm:col-span-2">
+            <dt className="text-[var(--text-muted)]">{t('tracking')}</dt>
+            <dd className="mt-1 flex items-center justify-between gap-2">
+              <span dir="ltr" className="min-w-0 truncate text-start font-mono font-semibold text-[var(--text-primary)]">
+                {order.trackingCode}
+              </span>
+              <CopyButton value={order.trackingCode} label={t('copyTracking')} copiedLabel={t('copied')} />
+            </dd>
+          </div>
+        )}
+
+        {(order.courierName || order.shippingDate || order.trackingLink || order.shippingNote) && (
+          <div className="border-t border-[var(--border-subtle)] pt-4 sm:col-span-2">
+            <dt className="font-semibold text-[var(--text-primary)]">{t('shippingInfo')}</dt>
+            <dd className="mt-2 space-y-2 text-sm leading-6 text-[var(--text-primary)]">
+              {order.courierName && <p><span className="text-[var(--text-muted)]">{t('courier')}: </span>{friendlyCourierName(order.courierName, locale)}</p>}
+              {order.shippingDate && <p><span className="text-[var(--text-muted)]">{t('shippingDate')}: </span>{order.shippingDate}</p>}
+              {order.trackingLink && (
+                <p className="min-w-0">
+                  <span className="text-[var(--text-muted)]">{t('trackingLink')}: </span>
+                  <a href={order.trackingLink} target="_blank" rel="noopener noreferrer" dir="ltr" className="ui-link inline break-all">
+                    {order.trackingLink}
+                  </a>
+                </p>
+              )}
+              {order.shippingNote && <p><span className="text-[var(--text-muted)]">{t('shippingNote')}: </span>{order.shippingNote}</p>}
+            </dd>
+          </div>
+        )}
+      </dl>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
@@ -203,197 +292,31 @@ export default async function OrdersPage({
       ) : (
         <>
           <section className="spatial-surface hidden overflow-hidden rounded-card !bg-white md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] border-collapse text-sm">
-                <thead className="bg-[var(--bg-muted)] text-start text-xs text-[var(--text-secondary)]">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('order')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('customer')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('status')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('shippingInfo')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('items')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('amount')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start font-medium">
-                      {t('date')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
-                  {orders.map((order) => (
-                    <tr key={order.id} className="align-top transition-colors hover:bg-[var(--bg-muted)]/60">
-                      <td className="px-4 py-4">
-                        <p dir="ltr" className="text-start font-semibold text-[var(--text-primary)]">
-                          #{order.externalOrderId}
-                        </p>
-                        <p dir="ltr" className="mt-1 max-w-44 truncate text-start text-xs text-[var(--text-muted)]">
-                          {shortStoreUrl(order.integration.storeUrl)}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-medium text-[var(--text-primary)]">
-                          {order.customerName || t('unknownCustomer')}
-                        </p>
-                        {order.customerPhone ? (
-                          <p dir="ltr" className="mt-1 text-start text-xs text-[var(--text-muted)]">
-                            {displayPhone(order.customerPhone)}
-                          </p>
-                        ) : order.customerEmail ? (
-                          <p dir="ltr" className="mt-1 max-w-52 truncate text-start text-xs text-[var(--text-muted)]">
-                            {order.customerEmail}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={cn(
-                          'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
-                          statusClassName(order.status),
-                        )}>
-                          {statusLabel(order.status)}
-                        </span>
-                      </td>
-                      <td className="min-w-64 px-4 py-4">
-                        {order.trackingCode || order.courierName || order.trackingLink ? (
-                          <div className="space-y-2">
-                            {order.trackingCode && (
-                              <div>
-                                <p className="text-xs text-[var(--text-muted)]">{t('tracking')}</p>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <span dir="ltr" className="break-all text-start font-mono text-xs font-semibold text-[var(--text-primary)]">
-                                    {order.trackingCode}
-                                  </span>
-                                  <CopyButton value={order.trackingCode} label={t('copyTracking')} copiedLabel={t('copied')} />
-                                </div>
-                              </div>
-                            )}
-                            {order.courierName && (
-                              <p className="text-xs text-[var(--text-secondary)]">
-                                {t('courier')}: {friendlyCourierName(order.courierName, locale)}
-                              </p>
-                            )}
-                            {order.trackingLink && (
-                              <a
-                                href={order.trackingLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex min-h-8 items-center ui-link"
-                              >
-                                {t('trackingLink')}
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-[var(--text-muted)]">—</span>
-                        )}
-                      </td>
-                      <td className="max-w-64 px-4 py-4">
-                        <p className="line-clamp-2 leading-relaxed text-[var(--text-secondary)]">
-                          {order.itemsSummary || t('itemsCount', { count: order.itemCount })}
-                        </p>
-                        {order.itemsSummary && (
-                          <p className="mt-1 text-xs text-[var(--text-muted)]">
-                            {t('itemsCount', { count: order.itemCount })}
-                          </p>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 font-semibold tabular-nums text-[var(--text-primary)]">
-                        {amountLabel(order.total, order.currency)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-[var(--text-secondary)]">
-                        {dateFormatter.format(order.orderDate ?? order.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className={cn(ORDER_ROW_GRID, 'border-b border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-2.5 text-xs font-medium text-[var(--text-secondary)] sm:px-5')}>
+              <span>{t('order')}</span>
+              <span>{t('customer')}</span>
+              <span className="hidden lg:block">{t('items')}</span>
+              <span>{t('status')}</span>
+              <span className="text-end">{t('amount')}</span>
+              <span className="text-end">{t('date')}</span>
+              <span aria-hidden="true" />
             </div>
+            <ul className="divide-y divide-[var(--border-subtle)]">
+              {orders.map((order) => (
+                <li key={order.id}>
+                  <OrderEntry variant="row" {...entryProps(order)}>
+                    {orderDetails(order)}
+                  </OrderEntry>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <div className="grid gap-3 md:hidden">
             {orders.map((order) => (
-              <MobileOrderCard
-                key={order.id}
-                orderNumber={order.externalOrderId}
-                customerName={order.customerName || t('unknownCustomer')}
-                statusLabel={statusLabel(order.status)}
-                statusClassName={statusClassName(order.status)}
-                amountLabel={amountLabel(order.total, order.currency)}
-                dateLabel={dateFormatter.format(order.orderDate ?? order.createdAt)}
-                amountTitle={t('amount')}
-                dateTitle={t('date')}
-                detailsLabel={t('details')}
-                closeLabel={t('hideDetails')}
-              >
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-card border border-[var(--border-default)] bg-white p-4 text-xs shadow-[var(--shadow-xs)]">
-                  <div className="col-span-2">
-                    <dt className="text-[var(--text-muted)]">{t('items')}</dt>
-                    <dd className="mt-1 text-sm leading-6 text-[var(--text-primary)]">
-                      {order.itemsSummary || t('itemsCount', { count: order.itemCount })}
-                    </dd>
-                    {order.itemsSummary && (
-                      <p className="mt-1 text-[var(--text-muted)]">{t('itemsCount', { count: order.itemCount })}</p>
-                    )}
-                  </div>
-
-                  {(order.customerPhone || order.customerEmail) && (
-                    <div className="col-span-2">
-                      <dt className="text-[var(--text-muted)]">{t('customer')}</dt>
-                      <dd dir="ltr" className="mt-1 truncate text-start font-medium text-[var(--text-primary)]">
-                        {order.customerPhone ? displayPhone(order.customerPhone) : order.customerEmail}
-                      </dd>
-                    </div>
-                  )}
-
-                  <div className="col-span-2">
-                    <dt className="text-[var(--text-muted)]">{t('store')}</dt>
-                    <dd dir="ltr" className="mt-1 truncate text-start font-medium text-[var(--text-primary)]">
-                      {shortStoreUrl(order.integration.storeUrl)}
-                    </dd>
-                  </div>
-
-                  {order.trackingCode && (
-                    <div className="col-span-2">
-                      <dt className="text-[var(--text-muted)]">{t('tracking')}</dt>
-                      <dd className="mt-1 flex items-center justify-between gap-2">
-                        <span dir="ltr" className="min-w-0 truncate text-start font-medium text-[var(--text-primary)]">
-                          {order.trackingCode}
-                        </span>
-                        <CopyButton value={order.trackingCode} label={t('copyTracking')} copiedLabel={t('copied')} />
-                      </dd>
-                    </div>
-                  )}
-
-                  {(order.courierName || order.shippingDate || order.trackingLink || order.shippingNote) && (
-                    <div className="col-span-2 border-t border-[var(--border-subtle)] pt-4">
-                      <dt className="font-semibold text-[var(--text-primary)]">{t('shippingInfo')}</dt>
-                      <dd className="mt-2 space-y-2 text-sm leading-6 text-[var(--text-primary)]">
-                        {order.courierName && <p><span className="text-[var(--text-muted)]">{t('courier')}: </span>{friendlyCourierName(order.courierName, locale)}</p>}
-                        {order.shippingDate && <p><span className="text-[var(--text-muted)]">{t('shippingDate')}: </span>{order.shippingDate}</p>}
-                        {order.trackingLink && (
-                          <p className="min-w-0">
-                            <span className="text-[var(--text-muted)]">{t('trackingLink')}: </span>
-                            <a href={order.trackingLink} target="_blank" rel="noopener noreferrer" dir="ltr" className="ui-link inline break-all">
-                              {order.trackingLink}
-                            </a>
-                          </p>
-                        )}
-                        {order.shippingNote && <p><span className="text-[var(--text-muted)]">{t('shippingNote')}: </span>{order.shippingNote}</p>}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              </MobileOrderCard>
+              <OrderEntry key={order.id} variant="card" {...entryProps(order)}>
+                {orderDetails(order)}
+              </OrderEntry>
             ))}
           </div>
 

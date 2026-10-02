@@ -25,6 +25,7 @@
  * yanking the scroll position (matches Telegram/WhatsApp web behavior).
  */
 
+import type { ChannelType } from '@prisma/client'
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -90,10 +91,13 @@ export function ConversationThread({
         locale,
         embedded = false,
         handoff = null,
+        channel,
 }: {
         initialMessages: ThreadMessage[]
         conversationId: string
         locale: 'fa' | 'en'
+        /** The conversation's channel; decides how operator product cards are sent. */
+        channel?: ChannelType
         /** Inside the inbox pane the surrounding card and header already exist. */
         embedded?: boolean
         /**
@@ -494,6 +498,7 @@ export function ConversationThread({
                         <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
                                 <OperatorReply
                                         conversationId={conversationId}
+                                        channel={channel}
                                         onSent={handleSent}
                                 />
                         </div>
