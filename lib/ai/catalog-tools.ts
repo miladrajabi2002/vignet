@@ -303,6 +303,9 @@ Only call the tool; do not write a reply.`
  */
 export async function planCatalogSearch(params: {
   agentId: string
+  /** When set, the planner call is recorded in the usage log (platform budget). */
+  workspaceId?: string
+  conversationId?: string
   model: string
   message: string
   history: ChatMessage[]
@@ -326,6 +329,7 @@ export async function planCatalogSearch(params: {
       toolChoice: 'auto',
     })
     usage = result.usage
+    if (params.workspaceId) recordPlannerUsage(params.workspaceId, params.agentId, params.conversationId, params.model, result.usage)
     calls = result.toolCalls
       .filter((call) => call.function.name === 'search_catalog')
       .slice(0, 3)
@@ -417,6 +421,37 @@ export async function planCatalogSearch(params: {
     return { products: [], instruction, usage, modelPlanned }
   }
   return null
+}
+
+/**
+ * The planner is a platform-funded auxiliary call on the reply model (like the
+ * turn analyzer): it is not a tenant charge, but its cost must reach the usage
+ * log so the monthly platform budget guard sees it.
+ */
+function recordPlannerUsage(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string | undefined,
+  model: string,
+  usage: ChatUsage,
+): void {
+  void Promise.resolve()
+    .then(() => prisma.usageLog.create({
+      data: {
+        workspaceId,
+        agentId,
+        conversationId: conversationId ?? null,
+        type: 'SUMMARY',
+        model,
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        reasoningTokens: usage.reasoningTokens,
+        cachedTokens: usage.cachedTokens,
+        providerRequestId: usage.providerRequestId,
+        cost: usage.costUSD,
+      },
+    }))
+    .catch(() => {})
 }
 
 /** Per-turn blocks go before the turn marker so the stable prefix stays cached. */

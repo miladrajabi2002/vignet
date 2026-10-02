@@ -220,6 +220,14 @@ export function TestPlayground({
                                                                 }
                                                                 return next
                                                         })
+                                                } else if (evt.type === 'replace' && typeof evt.text === 'string') {
+                                                        // The final, guarded reply with trusted product cards.
+                                                        const finalText: string = evt.text
+                                                        setMessages((m) => {
+                                                                const next = [...m]
+                                                                next[next.length - 1] = { ...next[next.length - 1], content: finalText }
+                                                                return next
+                                                        })
                                                 } else if (evt.type === 'done' && evt.messageId) {
                                                         setMessages((m) => {
                                                                 const next = [...m]

@@ -20,7 +20,6 @@ import { looksLikePersonName } from '@/lib/ai/customer-identification'
 import { previousSessionPlanningRows } from '@/lib/ai/conversation-memory'
 import { closingReplyText } from '@/lib/ai/response-policy'
 import {
-        createTurnSignalStreamFilter,
         extractTurnSignal,
         groundTurnSignal,
         visibleWhileStreaming,
@@ -87,7 +86,7 @@ import {
         hasAgentSkill,
         type AgentSkillPlan,
 } from '@/lib/agent-kernel/contracts'
-import { runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
+import { createLivePreviewGuard, runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
 import { hasBookingIntent } from '@/lib/bookings/intent'
 import { hasCourseIntent } from '@/lib/courses/intent'
 import { loadWorkspaceModules } from '@/lib/verticals/workspace-capabilities'
@@ -153,14 +152,17 @@ async function trackProviderFailureStreak(params: {
                         where: { id: params.agentId },
                         select: { name: true },
                 })
-                // Escalate once per window: notify the owner, hand this thread over.
-                await notifyWorkspace({
-                        workspaceId: params.workspaceId,
-                        type: 'SYSTEM',
-                        title: 'خطای پیوسته در سرویس هوش مصنوعی',
-                        body: `در ۳۰ دقیقه اخیر ${streak} پاسخ با خطای سرویس AI مواجه شد. مشتریان پیام «مشکل فنی» می‌گیرند و گفتگوهای اخیر به اپراتور ارجاع شده‌اند.`,
-                        link: '/conversations',
-                }).catch(() => {})
+                // Notify the owner once per window, when the streak crosses the
+                // threshold; every failing thread from then on is still handed over.
+                if (streak === PROVIDER_FAILURE_STREAK_THRESHOLD) {
+                        await notifyWorkspace({
+                                workspaceId: params.workspaceId,
+                                type: 'SYSTEM',
+                                title: 'خطای پیوسته در سرویس هوش مصنوعی',
+                                body: `در ۳۰ دقیقه اخیر ${streak} پاسخ با خطای سرویس AI مواجه شد. مشتریان پیام «مشکل فنی» می‌گیرند و گفتگوهای اخیر به اپراتور ارجاع شده‌اند.`,
+                                link: '/conversations',
+                        }).catch(() => {})
+                }
                 await notifyHandoff({
                         workspaceId: params.workspaceId,
                         conversationId: params.conversationId,
@@ -1524,6 +1526,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                 if (catalogToolReason) {
                         const searchPlan = await planCatalogSearch({
                                 agentId: agent.id,
+                                workspaceId,
+                                conversationId,
                                 model,
                                 message,
                                 history: modelHistory,
@@ -1910,412 +1914,6 @@ export type StartChatResult =
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; stream: ReadableStream<Uint8Array> }
 
-export async function startChat(input: StartChatParams): Promise<StartChatResult> {
-        const params = await withCapabilityGates(input)
-        const { workspaceId, agent, message } = params
-
-        const prep = await prepareTurn(params)
-        if ('error' in prep) return prep
-        const {
-                model,
-                reservation,
-                conversationId,
-                contactId,
-                contactName,
-                contactPhone,
-                messages,
-                retrievedChunks,
-                catalogProducts,
-                productRequest,
-                skillPlan,
-                canBypassDeterministicReply,
-                closingReply,
-                turnLang,
-                orderContext,
-                workingState,
-                stateExpectedRevision,
-                stateTrace,
-                analyzerHandoffSignal,
-                recentCardIds,
-                commerceTurn,
-                catalogToolReason,
-                restockOffer,
-                orderCaptureEnabled,
-        } = prep
-
-        const encoder = new TextEncoder()
-        const stream = new ReadableStream<Uint8Array>({
-                async start(controller) {
-                        // Once the consumer cancels (visitor closed the tab, lost network),
-                        // every enqueue throws per the Streams spec. Swallow that: the turn
-                        // must still finish so the generated reply is persisted for the
-                        // inbox and the credit is settled correctly. An unguarded enqueue
-                        // used to reject start() and skip capture + persistAssistantTurn
-                        // entirely, leaving the customer's question unanswered in the DB.
-                        let clientGone = false
-                        const send = (obj: unknown) => {
-                                if (clientGone) return
-                                try {
-                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
-                                } catch {
-                                        clientGone = true
-                                }
-                        }
-                        const closeStream = () => {
-                                if (clientGone) return
-                                clientGone = true
-                                try {
-                                        controller.close()
-                                } catch {}
-                        }
-
-                        send({ type: 'meta', conversationId })
-
-                        // Smart handoff: check before calling AI. A database/policy
-                        // failure here must not leave wallet credit reserved forever.
-                        let handoffCheck: Awaited<ReturnType<typeof shouldHandoff>>
-                        try {
-                                handoffCheck = await shouldHandoff(agent, conversationId, message)
-                        } catch (error) {
-                                await releaseChatCredit(reservation, 'Handoff policy check failed').catch(() => {})
-                                captureError('chat-engine:handoff-check', error, {
-                                        workspaceId,
-                                        metadata: { agentId: agent.id, conversationId },
-                                })
-                                send({ type: 'error', error: 'PREPARATION_FAILED' })
-                                closeStream()
-                                return
-                        }
-                        // The turn analyzer's rescue verdict escalates to a human
-                        // even when the keyword/policy layers saw nothing.
-                        if (!handoffCheck.handoff && analyzerHandoffSignal && agent.handoffEnabled) {
-                                handoffCheck = {
-                                        ...handoffCheck,
-                                        handoff: true,
-                                        recommended: true,
-                                        code: 'MANUAL',
-                                        reasonCodes: [...handoffCheck.reasonCodes, 'MANUAL'],
-                                        reason: handoffCheck.reason || 'مشتری به پیگیری انسانی نیاز دارد',
-                                        priority: 'high',
-                                }
-                        }
-                        if (handoffCheck.handoff) {
-                                await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
-                                const handoffText = handoffReplyText(handoffCheck, agent)
-                                send({ type: 'delta', text: handoffText })
-                                const persisted = await persistHandoff({
-                                        workspaceId,
-                                        agent,
-                                        conversationId,
-                                        channel: params.channel,
-                                        contactId,
-                                        contactName,
-                                        contactPhone,
-                                        reason: handoffCheck.reason,
-                                        replyText: handoffText,
-                                        skillPlan,
-                                        inboundEventId: params.inboundEventId,
-                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
-                                })
-                                send(persisted ? { type: 'done', messageId: persisted.messageId } : { type: 'done' })
-                                closeStream()
-                                return
-                        }
-
-                        // The customer confirmed the pre-order summary: file it and
-                        // hand the thread to a human for payment and shipping.
-                        if (commerceTurn.kind === 'submit') {
-                                await releaseChatCredit(reservation, 'Pre-order filed without AI').catch(() => {})
-                                send({ type: 'delta', text: commerceTurn.text })
-                                const persisted = await persistHandoff({
-                                        workspaceId,
-                                        agent,
-                                        conversationId,
-                                        channel: params.channel,
-                                        contactId,
-                                        contactName,
-                                        contactPhone,
-                                        reason: `پیش‌سفارش درون‌چت #${commerceTurn.code}`,
-                                        replyText: commerceTurn.text,
-                                        skillPlan,
-                                        inboundEventId: params.inboundEventId,
-                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
-                                        summary: commerceTurn.operatorSummary,
-                                        kind: 'order',
-                                })
-                                await markOrderDraftSubmitted(commerceTurn.draftId, persisted?.alertId ?? null)
-                                        .catch((error) => captureError('chat-engine:order-submit', error, { workspaceId }))
-                                send(persisted ? { type: 'done', messageId: persisted.messageId } : { type: 'done' })
-                                closeStream()
-                                return
-                        }
-
-                        try {
-                                const deterministicReply = commerceTurn.kind === 'reply' ? commerceTurn.text : await buildDeterministicTurnReply({
-                                        workspaceId,
-                                        agent,
-                                        channel: params.channel,
-                                        catalogProducts,
-                                        productRequest,
-                                        canBypass: canBypassDeterministicReply,
-                                        closingReply,
-                                        catalogToolsEligible: Boolean(catalogToolReason),
-                                        restockOffer,
-                                        lang: turnLang,
-                                        hasKnowledgeContext: retrievedChunks.some((chunk) => {
-                                                const metadata = chunk.metadata
-                                                return !(metadata && typeof metadata === 'object' && 'productId' in metadata)
-                                        }),
-                                })
-                                if (deterministicReply) {
-                                        // No model call and therefore no AI charge. The DB
-                                        // result itself is the trusted response and marker source.
-                                        await releaseChatCredit(reservation, closingReply ? 'Conversation closing without AI' : 'Deterministic catalog reply').catch(() => {})
-                                        send({ type: 'delta', text: deterministicReply })
-                                        try {
-                                                const { messageId } = await persistAssistantTurn({
-                                                        workspaceId,
-                                                        agent,
-                                                        conversationId,
-                                                        model,
-                                                        userMessage: message,
-                                                        reply: deterministicReply,
-                                                        retrievedChunks,
-                                                        extraReceipts: [],
-                                                        skillPlan,
-                                                        workingState,
-                                                        stateExpectedRevision,
-                                                        stateTrace,
-                                                        inboundEventId: params.inboundEventId,
-                                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
-                                                })
-                                                send({ type: 'done', messageId })
-                                        } catch (error) {
-                                                console.error('[chat-engine] deterministic persist failed:', error)
-                                                send({ type: 'done' })
-                                        }
-                                        closeStream()
-                                        return
-                                }
-                        } catch (error) {
-                                // DB hydration failure falls back to the regular model path;
-                                // the reservation remains valid and no customer turn is lost.
-                                console.error('[chat-engine] deterministic reply failed:', error)
-                        }
-                        if (!handoffCheck.recommended && handoffCheck.salesInsight) {
-                                appendSalesGuidance(
-                                        messages,
-                                        salesGuidanceForModel(handoffCheck.salesInsight, agent.language),
-                                )
-                        }
-
-                        let full = ''
-                        let usage: ChatUsage | null = null
-                        let extraReceipts: ConversationReceipt[] = []
-                        let providerFailed = false
-                        let turnSignal: TurnSignal | null = null
-                        // Keeps the hidden status line out of the live stream.
-                        const signalFilter = createTurnSignalStreamFilter()
-                        try {
-                                const courseTurn = hasAgentSkill(skillPlan, 'course-enrollment')
-                                        ? await maybeRunCourseAgentTurn({
-                                                workspaceId,
-                                                conversationId,
-                                                contactId,
-                                                model,
-                                                messages,
-                                                temperature: AGENT_RESPONSE_TEMPERATURE,
-                                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
-                                        })
-                                        : null
-                                const bookingTurn = courseTurn ?? (hasAgentSkill(skillPlan, 'appointment-booking')
-                                        ? await maybeRunBookingAgentTurn({
-                                                workspaceId,
-                                                conversationId,
-                                                contactId,
-                                                model,
-                                                messages,
-                                                temperature: AGENT_RESPONSE_TEMPERATURE,
-                                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
-                                        })
-                                        : null)
-                                if (bookingTurn) {
-                                        ;({ text: full, signal: turnSignal } = extractTurnSignal(bookingTurn.content))
-                                        usage = bookingTurn.usage
-                                        extraReceipts = bookingTurn.receipts
-                                        send({ type: 'delta', text: full })
-                                } else {
-                                        for await (const delta of streamChatWithRetry({
-                                                model,
-                                                messages,
-                                                temperature: AGENT_RESPONSE_TEMPERATURE,
-                                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
-                                                onUsage: (u) => {
-                                                        usage = u
-                                                },
-                                        })) {
-                                                full += delta
-                                                const visible = signalFilter.push(delta)
-                                                if (visible) send({ type: 'delta', text: visible })
-                                        }
-                                }
-                        } catch (e) {
-                                providerFailed = true
-                                captureError('chat-engine:stream', e, {
-                                        workspaceId,
-                                        metadata: { agentId: agent.id, model, conversationId },
-                                })
-                                full = extractTurnSignal(full).text
-                                if (!full) {
-                                        full = agent.fallbackMessage || defaultProviderFailureText(turnLang)
-                                        send({ type: 'delta', text: full })
-                                }
-                                send({ type: 'error', error: 'STREAM_FAILED' })
-                                // A4: count consecutive provider failures and escalate to the
-                                // owner + operator once the streak threshold is crossed.
-                                void trackProviderFailureStreak({
-                                        workspaceId,
-                                        conversationId,
-                                        agentId: agent.id,
-                                        channel: params.channel,
-                                        contactId,
-                                        contactName,
-                                })
-                        }
-
-                        // Take the status line off before any guard reads the reply: a
-                        // reply that was nothing but the line counts as empty.
-                        if (!providerFailed) {
-                                const extracted = extractTurnSignal(full)
-                                full = extracted.text
-                                turnSignal = extracted.signal ?? turnSignal
-                        }
-
-                        // A disconnect is not a provider failure: the reply was generated
-                        // and must still be captured and persisted for the inbox.
-                        if (clientGone && full.trim()) providerFailed = false
-
-                        // A 2xx provider response with no content is not a
-                        // successful reply and must not consume reply credit.
-                        if (!providerFailed && !full.trim()) {
-                                providerFailed = true
-                                full = agent.fallbackMessage || defaultProviderFailureText(turnLang)
-                                send({ type: 'delta', text: full })
-                                send({ type: 'error', error: 'EMPTY_RESPONSE' })
-                        }
-
-                        const identifiedProductIds = catalogProducts
-                                .filter((product) => product.fullTermMatch)
-                                .map((product) => product.id)
-                        const groundedPostprocessProducts = providerFailed
-                                ? []
-                                : identifiedProductIds.length === 1
-                                        ? catalogProducts.filter((product) => product.id === identifiedProductIds[0])
-                                        : catalogProducts
-
-                        // Capability and continuity guards run first. Card
-                        // hydration then appends the canonical product/button,
-                        // so a rewritten checkout promise cannot discard it.
-                        const continuityGuardCodes: string[] = []
-                        full = runAgentSkillPostprocessors(full, skillPlan, {
-                                catalogProducts: groundedPostprocessProducts,
-                                userMessage: message,
-                                isFa: turnLang !== 'en',
-                                inboundMediaKind: params.inboundMediaKind,
-                                hasGroundedOrder: orderContext.includes('<verified_order>'),
-                                preferStructuredProductLink:
-                                        params.channel !== 'API' &&
-                                        productRequest.includeProductCards &&
-                                        identifiedProductIds.length === 1,
-                                conversationState: workingState,
-                                continuityGuardCodes,
-                                establishedProductIds: recentCardIds,
-                                orderCaptureEnabled,
-                        })
-
-                        if (
-                                hasAgentSkill(skillPlan, 'product-card-hydration') &&
-                                agent.productAccessEnabled &&
-                                params.channel !== 'API' &&
-                                productRequest.includeProductCards &&
-                                (!providerFailed || productRequest.explicitShowcase)
-                        ) {
-                                try {
-                                        full = await buildTrustedProductReply({
-                                                raw: full,
-                                                workspaceId,
-                                                agentId: agent.id,
-                                                lang: turnLang,
-                                                preferredProductIds: catalogProducts.map((product) => product.id),
-                                                identifiedProductIds: freshCardIds(identifiedProductIds, recentCardIds, productRequest.explicitShowcase),
-                                                forceShowcase: productRequest.explicitShowcase,
-                                                subjectPhrase: showcaseSubjectPhrase(productRequest),
-                                                narrowed: isNarrowedProductRequest(productRequest),
-                                                recentlyShownIds: recentCardIds,
-                                                unavailable: productRequest.unavailableMatch,
-                                                identifiedVariantHint: productRequest.variantHint,
-                                        })
-                                } catch (error) {
-                                        console.error('[chat-engine] product-card hydration failed:', error)
-                                        full = parseProductDirectives(full).text
-                                }
-                        } else if (!productRequest.includeProductCards) {
-                                // A focused detail follow-up should stay a concise text
-                                // answer even if the provider copied a stale marker from
-                                // history. Never expose model-authored product directives.
-                                full = parseProductDirectives(full).text
-                        }
-                        send({ type: 'replace', text: full })
-
-                        if (providerFailed) {
-                                await releaseChatCredit(reservation, 'Provider stream failed').catch(() => {})
-                        } else {
-                                // A4: a successful reply resets the consecutive-failure streak.
-                                await resetProviderFailureStreak(workspaceId)
-                                await captureChatCredit(reservation, usage).catch((e) =>
-                                        console.error('[chat-engine] credit capture failed:', e),
-                                )
-                                // A16: post-capture trial quota milestones (80% warning).
-                                void processTrialQuotaAlert({ workspaceId }).catch(() => {})
-                        }
-
-                        // Persist assistant reply and update conversation counters.
-                        try {
-                                const { messageId } = await persistAssistantTurn({
-                                        workspaceId,
-                                        agent,
-                                        conversationId,
-                                        model,
-                                        userMessage: message,
-                                        reply: full,
-                                        retrievedChunks,
-                                        extraReceipts,
-                                        skillPlan,
-                                        workingState,
-                                        stateExpectedRevision,
-                                        stateTrace: { ...stateTrace, guardCodes: continuityGuardCodes },
-                                        inboundEventId: params.inboundEventId,
-                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
-                                        serviceError: providerFailed,
-                                        turnSignal: providerFailed ? null : turnSignal,
-                                })
-                                send({ type: 'done', messageId })
-                        } catch (e) {
-                                console.error('[chat-engine] persist error:', e)
-                                send({ type: 'done' })
-                        }
-
-                        closeStream()
-                },
-                cancel() {
-                        // Idempotent: if capture/release already happened this is a no-op.
-                        void releaseChatCredit(reservation, 'Client disconnected before completion').catch(() => {})
-                },
-        })
-
-        return { conversationId, stream }
-}
-
 export type GenerateReplyResult =
         | { error: 'AI_UNAVAILABLE' }
         | { error: 'NO_CREDIT' }
@@ -2326,42 +1924,51 @@ export type GenerateReplyResult =
 export interface GenerateReplyOptions {
         /** Runs only after ownership and handoff gates confirm that AI will generate. */
         onGenerationStart?: () => void | Promise<void>
-        /** Receives the complete text-so-far as provider deltas arrive. */
+        /** Receives the complete text-so-far that is safe to show in a live draft. */
         onTextUpdate?: (text: string) => void
 }
 
-/**
- * Non-streaming counterpart to {@link startChat}, used by messenger channels
- * (Telegram/Bale/Rubika) where we need the full reply text to send back in one
- * shot. Persists both messages and updates counters, mirroring startChat.
- */
-export async function generateReply(
-        input: StartChatParams,
-        options: GenerateReplyOptions = {},
-): Promise<GenerateReplyResult> {
-        const params = await withCapabilityGates(input)
-        const { workspaceId, agent, message } = params
+export type PreparedTurn = Exclude<Awaited<ReturnType<typeof prepareTurn>>, { error: unknown }>
 
-        // A previous worker may have committed the assistant row and crashed
-        // before it could finish the ledger. Reuse that durable result without
-        // another model call, credit reservation, or message/counter mutation.
-        if (params.inboundEventId) {
-                const committed = await prisma.message.findUnique({
-                        where: { resultForInboundEventId: params.inboundEventId },
-                        select: { id: true, conversationId: true, content: true },
-                })
-                if (committed) {
-                        return {
-                                conversationId: committed.conversationId,
-                                reply: committed.content,
-                                messageId: committed.id,
-                                replayed: true,
-                        }
-                }
+/** The handoff policy read failed before any reply existed; credit is already released. */
+export class TurnPreparationError extends Error {
+        constructor(readonly original: unknown) {
+                super('TURN_PREPARATION_FAILED')
+                this.name = 'TurnPreparationError'
         }
+}
 
-        const prep = await prepareTurn(params)
-        if ('error' in prep) return prep
+type ProviderStatus = 'STREAM_FAILED' | 'EMPTY_RESPONSE'
+
+/** How one surface (web stream, messenger) observes a turn. */
+export interface TurnIO {
+        /** Stream provider deltas (live surfaces) instead of one completion call. */
+        stream: boolean
+        /** Fires once the turn will really answer; typing indicators start here. */
+        onGenerationStart?: () => void | Promise<void>
+        /**
+         * Text the customer may see right now. Model output arrives here only
+         * through the live preview guard, so it is a growing prefix of safe text.
+         */
+        show?: (text: string) => void
+        /** Model-path reply after guards and card hydration, before persistence. */
+        onFinal?: (text: string) => void
+        /** Provider trouble, reported after onFinal so the fallback text is already on screen. */
+        onProviderStatus?: (status: ProviderStatus) => void
+}
+
+/**
+ * One customer turn after preparation, shared by the web stream and the
+ * messenger channels: handoff gate → deterministic answers → model call →
+ * guards → credit settlement → persistence. Every path settles the credit
+ * reservation; the surfaces differ only in how they observe the turn (TurnIO).
+ */
+export async function completeTurn(
+        params: StartChatParams,
+        prep: PreparedTurn,
+        io: TurnIO,
+): Promise<{ reply: string; messageId?: string }> {
+        const { workspaceId, agent, message } = params
         const {
                 model,
                 reservation,
@@ -2389,13 +1996,14 @@ export async function generateReply(
                 orderCaptureEnabled,
         } = prep
 
-        // Smart handoff: check before calling AI.
+        // Smart handoff: check before calling AI. A database/policy failure
+        // here must not leave wallet credit reserved forever.
         let handoffCheck: Awaited<ReturnType<typeof shouldHandoff>>
         try {
                 handoffCheck = await shouldHandoff(agent, conversationId, message)
         } catch (error) {
                 await releaseChatCredit(reservation, 'Handoff policy check failed').catch(() => {})
-                throw error
+                throw new TurnPreparationError(error)
         }
         // The turn analyzer's rescue verdict escalates to a human even when
         // the keyword/policy layers saw nothing.
@@ -2413,6 +2021,7 @@ export async function generateReply(
         if (handoffCheck.handoff) {
                 await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
                 const reply = handoffReplyText(handoffCheck, agent)
+                io.show?.(reply)
                 const persisted = await persistHandoff({
                         workspaceId,
                         agent,
@@ -2427,15 +2036,15 @@ export async function generateReply(
                         inboundEventId: params.inboundEventId,
                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                 })
-                return { conversationId, reply, messageId: persisted?.messageId }
+                return { reply, messageId: persisted?.messageId }
         }
 
         // The customer confirmed the pre-order summary: file it and hand the
         // thread to a human for payment and shipping.
         if (commerceTurn.kind === 'submit') {
                 await releaseChatCredit(reservation, 'Pre-order filed without AI').catch(() => {})
-                await options.onGenerationStart?.()
-                options.onTextUpdate?.(commerceTurn.text)
+                await io.onGenerationStart?.()
+                io.show?.(commerceTurn.text)
                 const persisted = await persistHandoff({
                         workspaceId,
                         agent,
@@ -2454,11 +2063,12 @@ export async function generateReply(
                 })
                 await markOrderDraftSubmitted(commerceTurn.draftId, persisted?.alertId ?? null)
                         .catch((error) => captureError('chat-engine:order-submit', error, { workspaceId }))
-                return { conversationId, reply: commerceTurn.text, messageId: persisted?.messageId }
+                return { reply: commerceTurn.text, messageId: persisted?.messageId }
         }
 
+        let deterministicReply: string | null = null
         try {
-                const deterministicReply = commerceTurn.kind === 'reply' ? commerceTurn.text : await buildDeterministicTurnReply({
+                deterministicReply = commerceTurn.kind === 'reply' ? commerceTurn.text : await buildDeterministicTurnReply({
                         workspaceId,
                         agent,
                         channel: params.channel,
@@ -2474,40 +2084,41 @@ export async function generateReply(
                                 return !(metadata && typeof metadata === 'object' && 'productId' in metadata)
                         }),
                 })
-                if (deterministicReply) {
-                        await options.onGenerationStart?.()
-                        options.onTextUpdate?.(deterministicReply)
-                        await releaseChatCredit(reservation, closingReply ? 'Conversation closing without AI' : 'Deterministic catalog reply').catch(() => {})
-                        try {
-                                const persisted = await persistAssistantTurn({
-                                        workspaceId,
-                                        agent,
-                                        conversationId,
-                                        model,
-                                        userMessage: message,
-                                        reply: deterministicReply,
-                                        retrievedChunks,
-                                        extraReceipts: [],
-                                        skillPlan,
-                                        workingState,
-                                        stateExpectedRevision,
-                                        stateTrace,
-                                        inboundEventId: params.inboundEventId,
-                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
-                                })
-                                return {
-                                        conversationId,
-                                        reply: deterministicReply,
-                                        messageId: persisted.messageId,
-                                }
-                        } catch (error) {
-                                console.error('[chat-engine] deterministic persist failed:', error)
-                                if (params.inboundEventId) throw error
-                        }
-                        return { conversationId, reply: deterministicReply }
-                }
         } catch (error) {
+                // DB hydration failure falls back to the regular model path; the
+                // reservation remains valid and no customer turn is lost.
                 console.error('[chat-engine] deterministic reply failed:', error)
+        }
+        if (deterministicReply) {
+                // No model call and therefore no AI charge. The DB result itself
+                // is the trusted response and marker source.
+                await io.onGenerationStart?.()
+                io.show?.(deterministicReply)
+                await releaseChatCredit(reservation, closingReply ? 'Conversation closing without AI' : 'Deterministic catalog reply').catch(() => {})
+                try {
+                        const persisted = await persistAssistantTurn({
+                                workspaceId,
+                                agent,
+                                conversationId,
+                                model,
+                                userMessage: message,
+                                reply: deterministicReply,
+                                retrievedChunks,
+                                extraReceipts: [],
+                                skillPlan,
+                                workingState,
+                                stateExpectedRevision,
+                                stateTrace,
+                                inboundEventId: params.inboundEventId,
+                                inboundAlreadyPersisted: params.inboundAlreadyPersisted,
+                        })
+                        return { reply: deterministicReply, messageId: persisted.messageId }
+                } catch (error) {
+                        console.error('[chat-engine] deterministic persist failed:', error)
+                        // A durable inbound event must be retried, never answered twice.
+                        if (params.inboundEventId) throw error
+                        return { reply: deterministicReply }
+                }
         }
         if (!handoffCheck.recommended && handoffCheck.salesInsight) {
                 appendSalesGuidance(
@@ -2516,11 +2127,14 @@ export async function generateReply(
                 )
         }
 
-        // Channel typing indicators must not run before this point: prepareTurn
-        // detects operator-owned conversations and shouldHandoff can transfer
-        // this turn without calling a model.
-        await options.onGenerationStart?.()
+        // Typing indicators must not run before this point: prepareTurn detects
+        // operator-owned conversations and shouldHandoff can transfer this turn
+        // without calling a model.
+        await io.onGenerationStart?.()
 
+        const hasGroundedOrder = orderContext.includes('<verified_order>')
+        const preview = createLivePreviewGuard(skillPlan, { userMessage: message, orderCaptureEnabled, hasGroundedOrder })
+        const providerStatus: ProviderStatus[] = []
         let reply = ''
         let usage: ChatUsage | null = null
         let extraReceipts: ConversationReceipt[] = []
@@ -2551,12 +2165,12 @@ export async function generateReply(
                         : null)
                 if (bookingTurn) {
                         const extracted = extractTurnSignal(bookingTurn.content)
-                        reply = extracted.text.trim()
+                        reply = extracted.text
                         turnSignal = extracted.signal
                         usage = bookingTurn.usage
                         extraReceipts = bookingTurn.receipts
-                        options.onTextUpdate?.(reply)
-                } else if (options.onTextUpdate) {
+                        if (io.show) io.show(preview(reply))
+                } else if (io.stream) {
                         for await (const delta of streamChatWithRetry({
                                 model,
                                 messages,
@@ -2567,10 +2181,10 @@ export async function generateReply(
                                 },
                         })) {
                                 reply += delta
-                                // Live previews must never show the hidden status line.
-                                options.onTextUpdate(visibleWhileStreaming(reply))
+                                // Live drafts never show the hidden status line or text
+                                // the final guards would remove.
+                                if (io.show) io.show(preview(visibleWhileStreaming(reply)))
                         }
-                        reply = reply.trim()
                 } else {
                         const result = await chatCompletion({
                                 model,
@@ -2578,12 +2192,13 @@ export async function generateReply(
                                 temperature: AGENT_RESPONSE_TEMPERATURE,
                                 maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                         })
-                        reply = result.content.trim()
+                        reply = result.content
                         usage = result.usage
                 }
         } catch (e) {
                 providerFailed = true
-                captureError('chat-engine:completion', e, {
+                providerStatus.push('STREAM_FAILED')
+                captureError(io.stream ? 'chat-engine:stream' : 'chat-engine:completion', e, {
                         workspaceId,
                         metadata: { agentId: agent.id, model, conversationId },
                 })
@@ -2606,7 +2221,9 @@ export async function generateReply(
                 turnSignal = providerFailed ? null : extracted.signal ?? turnSignal
         }
         if (!reply) {
-                // Empty provider content is a failed reply for billing purposes.
+                // A 2xx provider response with no content is not a successful
+                // reply and must not consume reply credit.
+                if (!providerFailed) providerStatus.push('EMPTY_RESPONSE')
                 providerFailed = true
                 reply = agent.fallbackMessage || defaultProviderFailureText(turnLang)
         }
@@ -2628,7 +2245,7 @@ export async function generateReply(
                 userMessage: message,
                 isFa: turnLang !== 'en',
                 inboundMediaKind: params.inboundMediaKind,
-                hasGroundedOrder: orderContext.includes('<verified_order>'),
+                hasGroundedOrder,
                 preferStructuredProductLink:
                         params.channel !== 'API' &&
                         productRequest.includeProductCards &&
@@ -2639,9 +2256,9 @@ export async function generateReply(
                 orderCaptureEnabled,
         })
 
-        // Canonicalize markers for every public messenger before persistence
-        // and return. Text, carousel and conversation UIs now share the exact
-        // same trusted DB result-set; model-authored ids/prices never leak.
+        // Canonicalize markers for every surface before persistence and return.
+        // Text, carousel and conversation UIs share the exact same trusted DB
+        // result-set; model-authored ids/prices never leak.
         if (
                 hasAgentSkill(skillPlan, 'product-card-hydration') &&
                 agent.productAccessEnabled &&
@@ -2659,9 +2276,9 @@ export async function generateReply(
                                 identifiedProductIds: freshCardIds(identifiedProductIds, recentCardIds, productRequest.explicitShowcase),
                                 forceShowcase: productRequest.explicitShowcase,
                                 subjectPhrase: showcaseSubjectPhrase(productRequest),
-                                                narrowed: isNarrowedProductRequest(productRequest),
-                                                recentlyShownIds: recentCardIds,
-                                                unavailable: productRequest.unavailableMatch,
+                                narrowed: isNarrowedProductRequest(productRequest),
+                                recentlyShownIds: recentCardIds,
+                                unavailable: productRequest.unavailableMatch,
                                 identifiedVariantHint: productRequest.variantHint,
                         })
                 } catch (error) {
@@ -2669,13 +2286,16 @@ export async function generateReply(
                         reply = parseProductDirectives(reply).text
                 }
         } else if (!productRequest.includeProductCards) {
-                // See the streaming path above: simple specification answers
-                // must not turn into unsolicited catalog cards.
+                // A focused detail follow-up should stay a concise text answer even
+                // if the provider copied a stale marker from history. Never expose
+                // model-authored product directives.
                 reply = parseProductDirectives(reply).text
         }
+        io.onFinal?.(reply)
+        for (const status of providerStatus) io.onProviderStatus?.(status)
 
         if (providerFailed) {
-                await releaseChatCredit(reservation, 'Provider completion failed').catch(() => {})
+                await releaseChatCredit(reservation, 'Provider reply failed').catch(() => {})
         } else {
                 // A4: a successful reply resets the consecutive-failure streak.
                 await resetProviderFailureStreak(workspaceId)
@@ -2686,7 +2306,6 @@ export async function generateReply(
                 void processTrialQuotaAlert({ workspaceId }).catch(() => {})
         }
 
-        let persistedMessageId: string | undefined
         try {
                 const persisted = await persistAssistantTurn({
                         workspaceId,
@@ -2706,11 +2325,127 @@ export async function generateReply(
                         serviceError: providerFailed,
                         turnSignal: providerFailed ? null : turnSignal,
                 })
-                persistedMessageId = persisted.messageId
+                return { reply, messageId: persisted.messageId }
         } catch (e) {
                 console.error('[chat-engine] persist error:', e)
                 if (params.inboundEventId) throw e
+                return { reply }
+        }
+}
+
+/** Web surfaces (widget, chat link, dashboard preview): the turn as an SSE stream. */
+export async function startChat(input: StartChatParams): Promise<StartChatResult> {
+        const params = await withCapabilityGates(input)
+        const prep = await prepareTurn(params)
+        if ('error' in prep) return prep
+        const { reservation, conversationId } = prep
+        const { workspaceId, agent } = params
+
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream<Uint8Array>({
+                async start(controller) {
+                        // Once the consumer cancels (visitor closed the tab, lost network),
+                        // every enqueue throws per the Streams spec. Swallow that: the turn
+                        // must still finish so the generated reply is persisted for the
+                        // inbox and the credit is settled correctly.
+                        let clientGone = false
+                        const send = (obj: unknown) => {
+                                if (clientGone) return
+                                try {
+                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
+                                } catch {
+                                        clientGone = true
+                                }
+                        }
+                        const closeStream = () => {
+                                if (clientGone) return
+                                clientGone = true
+                                try {
+                                        controller.close()
+                                } catch {}
+                        }
+
+                        send({ type: 'meta', conversationId })
+                        // Clients append deltas, so only the growth of the visible text is sent.
+                        let shownLength = 0
+                        try {
+                                const result = await completeTurn(params, prep, {
+                                        stream: true,
+                                        show: (text) => {
+                                                if (text.length <= shownLength) return
+                                                send({ type: 'delta', text: text.slice(shownLength) })
+                                                shownLength = text.length
+                                        },
+                                        onFinal: (text) => send({ type: 'replace', text }),
+                                        onProviderStatus: (error) => send({ type: 'error', error }),
+                                })
+                                send(result.messageId ? { type: 'done', messageId: result.messageId } : { type: 'done' })
+                        } catch (error) {
+                                // Every path in completeTurn settles the reservation; an
+                                // unexpected throw must not strand it either, because its key
+                                // is random per request and nothing would reuse or refund it.
+                                await releaseChatCredit(reservation, 'Turn failed unexpectedly').catch(() => {})
+                                const preparation = error instanceof TurnPreparationError
+                                captureError(preparation ? 'chat-engine:handoff-check' : 'chat-engine:stream-turn', preparation ? error.original : error, {
+                                        workspaceId,
+                                        metadata: { agentId: agent.id, conversationId },
+                                })
+                                send({ type: 'error', error: preparation ? 'PREPARATION_FAILED' : 'STREAM_FAILED' })
+                        }
+                        closeStream()
+                },
+                cancel() {
+                        // Nothing to do: start() keeps running after a disconnect, so the
+                        // reply is still generated, persisted for the inbox and readable
+                        // through the conversation endpoint. Releasing the reservation
+                        // here used to make every abandoned stream a free reply.
+                },
+        })
+
+        return { conversationId, stream }
+}
+
+/**
+ * Messenger channels (Telegram/Bale/Rubika/Instagram/WhatsApp): the full reply
+ * text to send back in one shot, with an optional live draft while it is written.
+ */
+export async function generateReply(
+        input: StartChatParams,
+        options: GenerateReplyOptions = {},
+): Promise<GenerateReplyResult> {
+        const params = await withCapabilityGates(input)
+
+        // A previous worker may have committed the assistant row and crashed
+        // before it could finish the ledger. Reuse that durable result without
+        // another model call, credit reservation, or message/counter mutation.
+        if (params.inboundEventId) {
+                const committed = await prisma.message.findUnique({
+                        where: { resultForInboundEventId: params.inboundEventId },
+                        select: { id: true, conversationId: true, content: true },
+                })
+                if (committed) {
+                        return {
+                                conversationId: committed.conversationId,
+                                reply: committed.content,
+                                messageId: committed.id,
+                                replayed: true,
+                        }
+                }
         }
 
-        return { conversationId, reply, messageId: persistedMessageId }
+        const prep = await prepareTurn(params)
+        if ('error' in prep) return prep
+        try {
+                const result = await completeTurn(params, prep, {
+                        stream: Boolean(options.onTextUpdate),
+                        onGenerationStart: options.onGenerationStart,
+                        show: options.onTextUpdate,
+                })
+                return { conversationId: prep.conversationId, ...result }
+        } catch (error) {
+                // Releasing is always safe here: a redelivered inbound event reserves
+                // again under the same key, and a captured reservation is untouched.
+                await releaseChatCredit(prep.reservation, 'Turn failed unexpectedly').catch(() => {})
+                throw error instanceof TurnPreparationError ? error.original : error
+        }
 }

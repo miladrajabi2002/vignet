@@ -1,0 +1,11 @@
+-- Platform month-to-date spend (2026-10-02)
+--
+-- hasPlatformAiBudget sums UsageLog.cost for every CAPTURED row since the
+-- first of the month across ALL workspaces. The only index led with
+-- workspaceId, so the query scanned the whole table. (date, status) turns it
+-- into a range scan over the current month.
+--
+-- A single statement, so CONCURRENTLY is accepted by `prisma migrate deploy`
+-- (it is not wrapped in a multi-statement transaction block) and the table is
+-- never write-locked. Re-running is safe.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "UsageLog_date_status_idx" ON "UsageLog" ("date", "status");
