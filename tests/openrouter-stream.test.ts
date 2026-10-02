@@ -67,6 +67,8 @@ describe('streaming chat credit settlement contract', () => {
 
   it('releases the reservation when the turn throws unexpectedly', () => {
     expect(engine).toContain("await releaseChatCredit(reservation, 'Turn failed unexpectedly')")
-    expect(engine).toContain("captureError('chat-engine:stream-turn'")
+    expect(engine).toContain("'chat-engine:stream-turn'")
+    // Messenger turns release too; a redelivered event simply reserves again.
+    expect(engine.slice(engine.indexOf('export async function generateReply'))).toContain("releaseChatCredit(prep.reservation, 'Turn failed unexpectedly')")
   })
 })

@@ -281,3 +281,41 @@ export function enforceActionCapabilities(params: {
   const notice = unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
   return [...safeParts, notice].filter((part, index, all) => all.indexOf(part) === index).join('\n\n')
 }
+
+/**
+ * Live drafts — the web widget stream and the Telegram/Bale/Rubika draft
+ * message — show text before the postprocessors above have run. This answers,
+ * with the same patterns, whether text written so far contains something those
+ * guards would remove:
+ * - 'withhold': the final reply is replaced wholesale (an in-chat order request
+ *   the agent cannot fulfil), so nothing the model writes may be shown;
+ * - 'stop': a fabricated payment link, a discount grant, a false completed or
+ *   unsupported action claim, an unfulfillable follow-up promise or a link
+ *   placeholder appeared; the draft must not grow past the last safe text.
+ */
+export function livePreviewRisk(params: {
+  text: string
+  userMessage: string
+  /** The plan runs the action-capability guards on the final reply. */
+  actionGuards: boolean
+  orderCaptureEnabled: boolean
+  hasGroundedOrder: boolean
+}): 'withhold' | 'stop' | null {
+  if (params.actionGuards && !params.orderCaptureEnabled && isUnsupportedOrderCreationRequest(params.userMessage)) {
+    return 'withhold'
+  }
+  if (FABRICATED_PAYMENT_RE.test(params.text)) return 'stop'
+  if (params.orderCaptureEnabled && DISCOUNT_OFFER_RES.some((re) => re.test(params.text))) return 'stop'
+  if (!params.actionGuards) return null
+  const normalized = normalize(params.text)
+  if (!params.hasGroundedOrder && FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalized)) return 'stop'
+  if (!params.orderCaptureEnabled && UNSUPPORTED_ACTION_CLAIM_RE.test(normalized)) return 'stop'
+  if (FALSE_FOLLOW_UP_RE.test(normalized)) {
+    const parts = params.text.split(/(?<=[.!؟?])\s+|\n+/u).map((part) => normalize(part)).filter(Boolean)
+    if (parts.some((part) => FALSE_FOLLOW_UP_RE.test(part) && !CONDITIONAL_OFFER_RE.test(part))) return 'stop'
+  }
+  for (const match of params.text.matchAll(MARKDOWN_LINKISH_RE)) {
+    if (GENERIC_LINK_LABEL_RE.test(match[1] ?? '')) return 'stop'
+  }
+  return null
+}

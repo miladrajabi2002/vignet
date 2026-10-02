@@ -1,6 +1,6 @@
 import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
-import { enforceActionCapabilities, enforceNoFalseFollowUp, safeOrderUrl, stripAgentDiscountOffers, stripFabricatedPaymentLinks } from '@/lib/agent-kernel/skills/action-capabilities'
+import { enforceActionCapabilities, enforceNoFalseFollowUp, livePreviewRisk, safeOrderUrl, stripAgentDiscountOffers, stripFabricatedPaymentLinks } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/conversation-state'
 import { enforceHumanizerPolish } from '@/lib/agent-kernel/skills/humanizer-polish'
@@ -126,4 +126,53 @@ export function runAgentSkillPostprocessors(
     output = stripTrailingPersianPeriod(output)
   }
   return output
+}
+
+/**
+ * Sentence ends: punctuation followed by whitespace, or a line break. Only
+ * finished sentences can be checked the way the final guards check them, and
+ * the whitespace requirement keeps the dots inside a URL from cutting it.
+ */
+const SENTENCE_END_RE = /[.!؟?…](?=\s)|\n/gu
+
+function lastSentenceEnd(text: string): number {
+  let end = -1
+  for (const match of text.matchAll(SENTENCE_END_RE)) end = match.index
+  return end
+}
+
+/**
+ * Filter for live drafts. Takes the visible text written so far and returns
+ * what may be shown now: finished sentences only, and never past the point
+ * where the final guards would intervene. Once a risk appears the draft stays
+ * frozen; the post-processed final reply replaces it.
+ */
+export function createLivePreviewGuard(
+  plan: AgentSkillPlan,
+  context: Pick<AgentSkillPostprocessContext, 'userMessage' | 'orderCaptureEnabled' | 'hasGroundedOrder'>,
+): (visibleSoFar: string) => string {
+  let shown = ''
+  let frozen = false
+  const actionGuards = hasAgentSkill(plan, 'action-capability-boundaries') && Boolean(context.userMessage)
+  return (visibleSoFar) => {
+    if (frozen) return shown
+    const boundary = lastSentenceEnd(visibleSoFar)
+    if (boundary === -1) return shown
+    const candidate = visibleSoFar.slice(0, boundary + 1).trimEnd()
+    if (candidate.length <= shown.length) return shown
+    const risk = livePreviewRisk({
+      text: candidate,
+      userMessage: context.userMessage ?? '',
+      actionGuards,
+      orderCaptureEnabled: context.orderCaptureEnabled ?? false,
+      hasGroundedOrder: context.hasGroundedOrder ?? false,
+    })
+    if (risk) {
+      frozen = true
+      if (risk === 'withhold') shown = ''
+      return shown
+    }
+    shown = candidate
+    return shown
+  }
 }
