@@ -43,6 +43,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const grant = verifyAdminImpersonationGrant(String(credentials?.grant ?? ''))
         if (!grant) return null
 
+        const select = {
+          id: true,
+          name: true,
+          phone: true,
+          workspaceId: true,
+          platformRole: true,
+        } as const
+
         const user = await prisma.user.findFirst({
           where: {
             ...ADMIN_VISIBLE_USER_WHERE,
@@ -50,15 +58,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             workspaceId: grant.workspaceId,
             platformRole: 'USER',
           },
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            workspaceId: true,
-            platformRole: true,
-          },
+          select,
         })
-        if (!user) return null
+        if (!user) {
+          // The owner leaving a support session: restore their own, ordinary
+          // session (no impersonation marker, no 60-minute bound).
+          const owner = await prisma.user.findFirst({
+            where: { id: grant.userId, workspaceId: grant.workspaceId, platformRole: 'ADMIN' },
+            select,
+          })
+          return owner && isPlatformOwnerPhone(owner.phone) ? owner : null
+        }
 
         return {
           ...user,

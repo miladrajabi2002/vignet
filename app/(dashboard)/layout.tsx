@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/sidebar'
@@ -12,7 +12,8 @@ import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
 import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-notice'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
-import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
+import { UserSwitcher } from '@/components/dashboard/user-switcher'
+import { canSwitchUsers } from '@/lib/admin/user-switcher'
 import { GlobalUndoToast } from '@/components/ui/global-undo-toast'
 import { ScrollRestoration } from '@/components/dashboard/scroll-restoration'
 import { DashboardPageEffects } from '@/components/dashboard/dashboard-page-effects'
@@ -30,6 +31,13 @@ export default async function DashboardLayout({
 }) {
   const user = await requireUser()
   const t = await getTranslations('dashboard')
+  const userSwitcher = canSwitchUsers(user)
+    ? {
+        currentUserId: user.id,
+        currentName: user.name ?? user.phone,
+        impersonating: user.impersonatedByAdmin === true,
+      }
+    : undefined
 
   const workspace = await prisma.workspace.findUnique({
     where: { id: user.workspaceId },
@@ -68,10 +76,11 @@ export default async function DashboardLayout({
         hasKnowledge={state.checks.hasKnowledge}
         hasChannel={state.checks.hasChannel}
       >
-        {user.impersonatedByAdmin && (
-          <div className="px-3 pt-3 sm:px-5">
-            <div className="mx-auto max-w-6xl">
-              <ImpersonationBanner userName={user.name ?? user.phone} />
+        {/* Onboarding has no header, so the owner's switcher sits here instead. */}
+        {userSwitcher && (
+          <div className="relative z-30 px-3 pt-3 sm:px-5">
+            <div className="mx-auto flex max-w-6xl">
+              <UserSwitcher key={userSwitcher.currentUserId} fa={(await getLocale()) === 'fa'} {...userSwitcher} />
             </div>
           </div>
         )}
@@ -127,7 +136,7 @@ export default async function DashboardLayout({
           daysLeft={daysLeft}
           handedOffCount={handedOffCount}
           instagramConnected={Boolean(instagramChannel)}
-          impersonatedUserName={user.impersonatedByAdmin ? (user.name ?? user.phone) : undefined}
+          userSwitcher={userSwitcher}
         />
         {accessExpired && (
           <div className="dashboard-shell-content mt-3">

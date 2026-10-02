@@ -34,7 +34,6 @@ import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
-import { StartImpersonationButton } from '@/components/admin/start-impersonation-button'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
@@ -653,9 +652,6 @@ export default async function AdminUserDetailPage(
           { label: userName },
         ]}
         back={{ href: '/admin/users', label: 'کاربران' }}
-        action={user.platformRole === 'USER'
-          ? <StartImpersonationButton userId={user.id} />
-          : undefined}
       />
 
       {/* ─── tab bar (works on mobile: horizontal scroll) ─── */}
