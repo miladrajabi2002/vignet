@@ -19,13 +19,15 @@ export interface OnboardingState {
 export async function computeOnboarding(
   workspaceId: string,
 ): Promise<OnboardingState> {
-  const [agentCount, kbCount, productCount, serviceCount, channelCount, workspace] =
+  const [agentCount, kbCount, productCount, serviceCount, channelCount, chatLinkCount, workspace] =
     await Promise.all([
       prisma.agent.count({ where: { workspaceId } }),
       prisma.knowledgeBase.count({ where: { workspaceId } }),
       prisma.product.count({ where: { workspaceId } }),
       prisma.service.count({ where: { workspaceId } }),
       prisma.agentChannel.count({ where: { agent: { workspaceId } } }),
+      // A published chat link is a way in for customers, same as a channel.
+      prisma.chatLink.count({ where: { workspaceId, enabled: true } }),
       prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { onboardingKnowledgeSkipped: true, onboardingChannelSkipped: true },
@@ -35,9 +37,9 @@ export async function computeOnboarding(
   const checks = {
     hasAgent: agentCount >= 1,
     hasKnowledge: kbCount >= 1 || productCount >= 1 || serviceCount >= 1 || !!workspace?.onboardingKnowledgeSkipped,
-    hasChannel: channelCount >= 1 || !!workspace?.onboardingChannelSkipped,
+    hasChannel: channelCount >= 1 || chatLinkCount >= 1 || !!workspace?.onboardingChannelSkipped,
     knowledgeSkipped: !!workspace?.onboardingKnowledgeSkipped && kbCount === 0 && productCount === 0 && serviceCount === 0,
-    channelSkipped: !!workspace?.onboardingChannelSkipped && channelCount === 0,
+    channelSkipped: !!workspace?.onboardingChannelSkipped && channelCount === 0 && chatLinkCount === 0,
   }
 
   // Steps are sequential — count completed in order.

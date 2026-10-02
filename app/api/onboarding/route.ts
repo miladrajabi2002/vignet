@@ -63,11 +63,19 @@ export async function PATCH(request: Request) {
         { status: 400 },
       )
     }
+    // Settings saves the profile without the setup-only website field; keep
+    // the stored one unless this request sends its own.
+    const stored = parsed.data.website === undefined
+      ? await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { businessType: true, businessProfile: true } })
+      : null
     await prisma.workspace.update({
       where: { id: user.workspaceId },
       data: {
         businessType: parsed.data.businessType,
-        businessProfile: normalizeBusinessProfile(parsed.data),
+        businessProfile: normalizeBusinessProfile({
+          ...parsed.data,
+          website: parsed.data.website ?? readBusinessProfile(stored?.businessProfile, stored?.businessType)?.website,
+        }),
       },
     })
     forgetWorkspaceCapabilities(user.workspaceId)

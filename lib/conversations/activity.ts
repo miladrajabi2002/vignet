@@ -31,6 +31,7 @@ export type ConversationTimelineKind =
   | 'handoff_ready'
   | 'operator_reply'
   | 'campaign_sent'
+  | 'operator_note'
 
 export interface ConversationReceipt {
   kind: ConversationReceiptKind
@@ -42,6 +43,9 @@ export interface ConversationTimelineActivity {
   fields?: Array<'name' | 'phone'>
   summaryReady?: boolean
   source?: 'dashboard' | 'telegram_bot' | 'agent'
+  /** operator_note only: the note text and who wrote it. Staff-only. */
+  note?: string
+  author?: string
 }
 
 export interface TurnEvidence {
@@ -140,8 +144,8 @@ export async function recordConversationActivity(
   tx: Pick<Tx, 'message'>,
   conversationId: string,
   activity: ConversationTimelineActivity,
-): Promise<void> {
-  await tx.message.create({
+) {
+  return tx.message.create({
     data: {
       conversationId,
       role: 'SYSTEM',
@@ -152,5 +156,6 @@ export async function recordConversationActivity(
         vigentoActivityVersion: CONVERSATION_ACTIVITY_VERSION,
       },
     },
+    select: { id: true, role: true, content: true, createdAt: true, metadata: true },
   })
 }

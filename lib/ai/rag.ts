@@ -1,3 +1,6 @@
+import { TURN_SIGNAL_INSTRUCTION, formatTurnSignal, type TurnBuyLevel } from '@/lib/ai/turn-signal'
+import { keywordTurnSignal } from '@/lib/ai/sales-intelligence'
+import { detectUnanswered } from '@/lib/ai/handoff'
 import { embedText } from '@/lib/ai/embeddings'
 import { retrieveChunks, type RetrievedChunk } from '@/lib/knowledge/vector-store'
 import type { ChatMessage } from '@/lib/ai/openrouter'
@@ -339,6 +342,11 @@ export function buildMessages(params: {
    * موجود که شد همین‌جا خبرتون می‌کنم»). Null = no alert may be promised.
    */
   restockOfferLine?: string | null
+  /**
+   * Ask the model to close its reply with the hidden status line. Only the
+   * chat engine sets this: it is the one caller that strips the line again.
+   */
+  turnSignal?: boolean
 }): ChatMessage[] {
   // Persian instruction blocks serve every non-English locale (including
   // Arabic turns): the kernel's language-mirroring rule owns the OUTPUT
@@ -470,12 +478,41 @@ export function buildMessages(params: {
     // Keep the stable agent/rule prefix ahead of per-turn state. Providers can
     // cache the long stable prefix even though working memory changes on every
     // message, reducing latency and input cost for large configured prompts.
-    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.humanizer ? `\n${skillPlan.instructions.humanizer}` : ''}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${unavailableInstruction}${cheaperInstruction}${variantTurnInstruction}${comparisonInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}${replyLanguageLock(params.language)}\n${skillPlan.instructions.ending}`,
+    content: `${params.systemPrompt}\n\n${skillPlan.instructions.language} ${skillPlan.instructions.responseStyle}${skillPlan.instructions.humanizer ? `\n${skillPlan.instructions.humanizer}` : ''}${skillPlan.instructions.capabilities ? `\n\n${skillPlan.instructions.capabilities}` : ''}${catalogBlock}${unavailableInstruction}${cheaperInstruction}${variantTurnInstruction}${comparisonInstruction}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}${conversationStateInstruction(params.conversationState, params.language)}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${skillPlan.instructions.conversationFlow}\n${skillPlan.instructions.evidence}${skillPlan.instructions.visualReference ? `\n\n${skillPlan.instructions.visualReference}` : ''}${replyLanguageLock(params.language)}\n${skillPlan.instructions.ending}${params.turnSignal ? `\n\n${TURN_SIGNAL_INSTRUCTION}` : ''}`,
   }
 
   return [
     system,
-    ...params.history,
+    ...(params.turnSignal ? historyWithStatusLines(params.history) : params.history),
     { role: 'user', content: params.userMessage },
   ]
+}
+
+/**
+ * Close every earlier reply with a status line, read by keywords from the
+ * customer message it answered. The model continues the pattern it sees: with
+ * bare history it skipped the line on a third of real replies, with tagged
+ * history on none. Stored text is never changed — only this request's copy.
+ */
+function historyWithStatusLines(history: ChatMessage[]): ChatMessage[] {
+  let lastCustomerMessage = ''
+  let previousBuy: TurnBuyLevel = 0
+  return history.map((item) => {
+    if (item.role === 'user') {
+      lastCustomerMessage = typeof item.content === 'string' ? item.content : ''
+      return item
+    }
+    if (item.role !== 'assistant' || typeof item.content !== 'string' || !item.content.trim()) return item
+    if (!lastCustomerMessage) return item
+    const signal = keywordTurnSignal(lastCustomerMessage, previousBuy)
+    previousBuy = signal.buy
+    lastCustomerMessage = ''
+    return {
+      ...item,
+      content: `${item.content}\n${formatTurnSignal({
+        ...signal,
+        answered: detectUnanswered(item.content, null) ? 'n' : 'y',
+      })}`,
+    }
+  })
 }

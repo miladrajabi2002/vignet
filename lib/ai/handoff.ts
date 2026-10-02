@@ -270,12 +270,17 @@ export async function shouldHandoff(
                 messages.push({ role: 'USER', content: userMessage })
         }
 
-        const analysis = analyzeSalesConversation({
+        const analysisInput = {
                 messages,
                 businessType: context?.businessType ?? 'CUSTOM',
                 language: context?.language ?? agent.language,
                 roleTemplate: context?.roleTemplate ?? agent.roleTemplate,
-        })
+        }
+        // Policy runs on keywords alone: transferring a customer to a human
+        // must never depend on what the reply model reported about itself.
+        const analysis = analyzeSalesConversation({ ...analysisInput, heuristicOnly: true })
+        // The stored snapshot and the coaching note use the full reading.
+        const insight = analyzeSalesConversation(analysisInput)
         const candidate = evaluateHandoffPolicy({
                 analysis,
                 businessType: context?.businessType ?? 'CUSTOM',
@@ -333,7 +338,7 @@ export async function shouldHandoff(
         }
 
         if (context) {
-                await persistConversationSalesInsight(context, analysis, {
+                await persistConversationSalesInsight(context, insight, {
                         handoffRecommended: candidate.recommended,
                         handoffReasonCodes: candidate.reasonCodes,
                 }).catch((error) => console.error('[handoff] sales insight persist failed:', error))
@@ -341,6 +346,7 @@ export async function shouldHandoff(
 
         return {
                 ...candidate,
+                salesInsight: insight,
                 // Customer-requested, safety-critical and repeatedly-unanswered
                 // turns always transfer. The setting controls proactive/soft
                 // recommendations, not the customer's right to reach a human.

@@ -31,14 +31,15 @@ describe('simplified onboarding flow', () => {
     const flow = read('components/onboarding/onboarding-flow.tsx')
     const wizard = read('components/agent-builder/agent-wizard.tsx')
 
-    expect(flow).toContain('ساخت ایجنت هوشمند متناسب با کسب‌وکار من')
-    expect(flow).toContain('ساخت ایجنت با شخصی‌سازی')
-    expect(flow).toContain('ساخت خودکار ایجنت')
+    // One screen: name, tone and greeting with a live preview; the full
+    // wizard stays one link away for owners who want to customize.
+    expect(flow).toContain("setupMode: 'recommended'")
+    expect(flow).toContain('ساخت ایجنت و ادامه')
+    expect(flow).toContain('تنظیمات بیشتر: نقش، قوانین و تحویل به اپراتور')
     expect(flow).not.toContain('انتخاب و ساخت خودکار')
-    expect(flow).toContain('انتخاب و شخصی‌سازی')
-    expect(flow).toContain('items-start gap-3')
-    expect(wizard).toContain('const TOTAL = 3')
-    expect(wizard).toContain('بازگشت به انتخاب روش ساخت')
+    expect(flow).toContain('href={customHref}')
+    expect(wizard).toContain('const TOTAL = 2')
+    expect(wizard).toContain('بازگشت به راه‌اندازی')
     expect(wizard).toContain("router.push('/onboarding')")
     expect(wizard).not.toContain('آمادگی RAG و دانش')
     expect(wizard).not.toContain('<ModelSelect')
@@ -53,11 +54,14 @@ describe('simplified onboarding flow', () => {
     const shell = read('components/onboarding/onboarding-shell.tsx')
 
     expect(flow).not.toContain('/products/new?onboarding=1')
-    expect(flow).toContain('فعلاً سایت، محصول یا خدمتی برای اتصال ندارم')
-    expect(flow).toContain('برای اتصال کلیک کنید')
-    expect(flow).toContain('در صورت تمایل یک برنامه متصل کنید')
-    expect(flow).toContain('فعلاً بدون اتصال ادامه می‌دهم')
-    expect(flow).toContain('max-w-sm flex-col items-stretch gap-3')
+    // Products stay optional: three ways to give the agent something to
+    // answer from, each skippable, then the apps as tiles in the same screen.
+    expect(flow).toContain('سایت وردپرس یا ووکامرس دارم')
+    expect(flow).toContain('چند محصول را همین‌جا وارد می‌کنم')
+    expect(flow).toContain('فایل یا متن معرفی دارم')
+    expect(flow).toContain('فعلاً رد می‌کنم')
+    expect(flow).toContain('مشتری از کجا پیام بدهد؟')
+    expect(flow).toContain('ساخت لینک')
     expect(shell).toContain("label: 'اتصال برنامه'")
   })
 

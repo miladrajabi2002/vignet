@@ -66,7 +66,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'WORKSPACE_NOT_FOUND' }, { status: 404 })
     }
     const profile = readBusinessProfile(workspace.businessProfile)
-    agentInput = getRecommendedAgentPreset(workspace.businessType, profile?.businessName)
+    // The setup screen lets the owner adjust the goals, name, greeting and
+    // tone before the agent is made; everything else stays as the template sets it.
+    const overrides = json as { name?: unknown; welcomeMessage?: unknown; formality?: unknown; goals?: unknown }
+    const goals = Array.isArray(overrides.goals)
+      ? overrides.goals.filter((goal): goal is string => typeof goal === 'string').slice(0, 10)
+      : null
+    const preset = getRecommendedAgentPreset(workspace.businessType, profile?.businessName, goals)
+    const name = typeof overrides.name === 'string' && overrides.name.trim().length >= 2
+      ? overrides.name.trim().slice(0, 80)
+      : preset.name
+    const welcomeMessage = typeof overrides.welcomeMessage === 'string' && overrides.welcomeMessage.trim()
+      ? overrides.welcomeMessage.trim().slice(0, 500)
+      : preset.welcomeMessage
+    const formality = overrides.formality === 'formal' || overrides.formality === 'casual'
+      ? overrides.formality
+      : null
+    agentInput = {
+      ...preset,
+      name,
+      welcomeMessage,
+      promptConfig: formality
+        ? { ...preset.promptConfig, conversation: { ...preset.promptConfig.conversation, formality } }
+        : preset.promptConfig,
+    }
   }
 
   const parsed = agentCreateSchema.safeParse(agentInput)

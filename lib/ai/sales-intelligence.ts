@@ -10,6 +10,20 @@ import type {
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { currentSessionMessages } from '@/lib/conversations/session'
+import {
+        TURN_SIGNAL_VERSION,
+        buySignalReading,
+        conversationSatisfaction,
+        readTurnSignal,
+        saysPraise,
+        saysThanks,
+        topicsFromSignals,
+        type TurnBuyLevel,
+        type TurnMood,
+        type TurnCue,
+        type TurnSignal,
+        type TurnTopic,
+} from '@/lib/ai/turn-signal'
 
 /**
  * Behaviour-based sales intelligence.
@@ -18,9 +32,15 @@ import { currentSessionMessages } from '@/lib/conversations/session'
  * does not infer personality, mental health, demographics or other sensitive
  * traits. It is deterministic, bilingual and bounded, so every inbound turn
  * can be scored without a second LLM request or an unbounded transcript read.
+ *
+ * v3 (hybrid): assistant replies may carry a `turnSignal` — a status line the
+ * reply model appended to its own answer (see lib/ai/turn-signal.ts). Those
+ * signals refine sentiment, buying stage and probability, and add
+ * satisfaction and topics. The `operational` block and risk flags stay
+ * keyword-driven, and handoff policy is evaluated on a heuristic-only pass.
  */
 
-export const SALES_INTELLIGENCE_VERSION = 'sales-heuristic-v2'
+export const SALES_INTELLIGENCE_VERSION = 'sales-hybrid-v3'
 export const SALES_INTELLIGENCE_MESSAGE_LIMIT = 24
 
 export interface SalesConversationMessage {
@@ -29,6 +49,10 @@ export interface SalesConversationMessage {
         content: string
         unanswered?: boolean
         createdAt?: Date
+        /** Reply-model status line for the exchange this assistant reply closed. */
+        signal?: TurnSignal | null
+        /** Raw `Message.metadata`; read for `turnSignal` when `signal` is unset. */
+        metadata?: unknown
 }
 
 export interface SalesEvidence {
@@ -66,6 +90,12 @@ export interface SalesConversationAnalysis {
         recommendedAction: string
         explanation: string
         operational: SalesOperationalSignals
+        /** 0–100; null when the thread shows no evidence either way. */
+        satisfaction: number | null
+        /** What the customer asked about most, strongest first. */
+        topics: string[]
+        /** Exchanges in this session that carried a reply-model status line. */
+        aiTurnCount: number
 }
 
 export interface SalesConversationContext {
@@ -336,6 +366,66 @@ function isGreetingOnly(text: string): boolean {
         return TERMS.greeting.some((term) => normalized === normalizeSalesText(term))
 }
 
+const SHORT_AFFIRMATION = /^(?:بله|بلی|آره|اره|تایید|تأیید|تائید|اوکی|اوکیه|باشه|حله|ok|okay|yes|yep|confirm)[\s.!؟?]*$/iu
+
+const TOPIC_PATTERNS: ReadonlyArray<readonly [TurnTopic, RegExp]> = [
+        ['return', /مرجوع|پس دادن|ضمانت|گارانتی|refund|return|warranty/],
+        ['shipping', /ارسال|تحویل|پست|پیک|shipping|delivery/],
+        ['payment', /پرداخت|قسط|اقساط|کارت به کارت|payment|installment/],
+        ['booking', /رزرو|نوبت|وقت بگیر|booking|appointment/],
+        ['stock', /موجود|in stock|availab/],
+        ['price', /قیمت|چنده|چند تومن|تخفیف|price|how much|discount/],
+]
+
+/**
+ * Keyword reading of one customer message, in the reply model's status-line
+ * vocabulary. It tags the replies already in the history so the model sees
+ * its own format used consistently — without that, untagged history teaches
+ * it to drop the line about one reply in three.
+ */
+export function keywordTurnSignal(
+        customerMessage: string,
+        previousBuy: TurnBuyLevel = 0,
+): TurnSignal {
+        const text = normalizeSalesText(customerMessage)
+        const thanked = saysThanks(customerMessage)
+        const distress = Boolean(firstMatch(text, TERMS.severeDistress))
+        const orderProblem = Boolean(firstMatch(text, TERMS.orderProblem))
+        const negative = Boolean(firstMatch(text, TERMS.negative))
+        const infoOnly = Boolean(firstMatch(text, TERMS.informationOnly))
+
+        let buy: TurnBuyLevel = 0
+        if (!infoOnly && (firstMatch(text, TERMS.buyCommitment) || firstMatch(text, TERMS.postPurchase))) buy = 3
+        else if (firstMatch(text, TERMS.transaction) || firstMatch(text, TERMS.negotiation) || firstMatch(text, TERMS.consideration)) buy = 2
+        else if (firstMatch(text, TERMS.discovery) || firstMatch(text, TERMS.information)) buy = 1
+        // «بله» / «تایید» answers the previous question: it keeps that stage.
+        else if (SHORT_AFFIRMATION.test(customerMessage.trim())) buy = previousBuy
+
+        const mood: TurnMood = distress ? 'ang'
+                : orderProblem || negative ? 'neg'
+                : thanked || saysPraise(customerMessage) ? 'pos'
+                : 'neu'
+
+        const cues: TurnCue[] = []
+        if (thanked) cues.push('thanks')
+        if (distress || orderProblem) cues.push('complaint')
+        if (firstMatch(text, TERMS.humanRequest)) cues.push('human')
+        if (infoOnly) cues.push('decline')
+        if (firstMatch(text, OBJECTION_TERMS.PRICE)) cues.push('pricey')
+
+        let topic: TurnTopic = 'info'
+        if (distress || orderProblem) topic = 'complaint'
+        else if (buy === 3) topic = 'order'
+        else {
+                const matched = TOPIC_PATTERNS.find(([, pattern]) => pattern.test(text))
+                if (matched) topic = matched[0]
+                else if (isGreetingOnly(customerMessage) || (thanked && text.length < 24)) topic = 'chat'
+                else if (buy > 0) topic = 'product'
+        }
+
+        return { v: TURN_SIGNAL_VERSION, mood, buy, answered: 'y', topic, cues }
+}
+
 function excerpt(value: string): string {
         const oneLine = value.replace(/\s+/g, ' ').trim()
         return oneLine.length <= 160 ? oneLine : `${oneLine.slice(0, 157)}...`
@@ -413,6 +503,24 @@ function calibrateBuyerProbability(
         return Math.round(clamp(rounded, 60, 69))
 }
 
+const STAGE_RANK: Record<SalesIntentStage, number> = {
+        UNKNOWN: 0,
+        DISCOVERY: 1,
+        INFORMATION_GATHERING: 2,
+        CONSIDERATION: 3,
+        NEGOTIATION: 4,
+        PURCHASE_INTENT: 5,
+        POST_PURCHASE: 6,
+}
+
+/** Stage implied by the reply model's buying level (0–3). */
+const MODEL_BUY_STAGE: Record<0 | 1 | 2 | 3, SalesIntentStage> = {
+        0: 'UNKNOWN',
+        1: 'DISCOVERY',
+        2: 'CONSIDERATION',
+        3: 'PURCHASE_INTENT',
+}
+
 function localize(language: string, fa: string, en: string): string {
         return language.toLowerCase().startsWith('en') ? en : fa
 }
@@ -474,6 +582,11 @@ export function analyzeSalesConversation(input: {
         businessType?: BusinessType
         language?: string
         roleTemplate?: string | null
+        /**
+         * Ignore reply-model status lines. Handoff policy uses this so that
+         * transferring a customer to a human never depends on model output.
+         */
+        heuristicOnly?: boolean
 }): SalesConversationAnalysis {
         const language = input.language || 'fa'
         const businessType = input.businessType ?? 'CUSTOM'
@@ -483,6 +596,13 @@ export function analyzeSalesConversation(input: {
                 .reverse()
                 .slice(0, 12)
         const latestUser = usersNewestFirst[0]
+        const signalsNewestFirst: TurnSignal[] = input.heuristicOnly
+                ? []
+                : messages
+                        .filter((message) => message.role === 'ASSISTANT')
+                        .map((message) => message.signal ?? readTurnSignal(message.metadata))
+                        .filter((signal): signal is TurnSignal => signal !== null)
+                        .reverse()
 
         let probability = 12
         let purchaseStrength = 0
@@ -688,6 +808,25 @@ export function analyzeSalesConversation(input: {
                 probability = Math.min(probability, 20)
         }
         if (stage === 'UNKNOWN') probability = Math.min(probability, 20)
+
+        // Reply-model reading of buying intent. It may advance the stage the
+        // keywords missed (indirect or colloquial phrasing) and it tempers the
+        // score, but a completed purchase and an explicit keyword commitment
+        // are never talked down — only a stated decline lowers the reading.
+        const buyReading = buySignalReading(signalsNewestFirst)
+        if (buyReading && stage !== 'POST_PURCHASE') {
+                if (buyReading.declined && purchaseStrength === 0) {
+                        probability = Math.min(probability, 18)
+                } else {
+                        const modelStage = MODEL_BUY_STAGE[buyReading.level]
+                        if (STAGE_RANK[modelStage] > STAGE_RANK[stage]) stage = modelStage
+                        probability = 0.45 * probability + 0.55 * buyReading.probability
+                }
+        }
+        for (const signal of signalsNewestFirst.slice(0, 6)) {
+                if (signal.cues.includes('pricey')) objections.add('PRICE')
+                if (signal.cues.includes('distrust')) objections.add('TRUST')
+        }
         probability = Math.round(clamp(probability, 0, 100))
 
         let leadType: SalesLeadType = 'UNCLEAR'
@@ -707,6 +846,19 @@ export function analyzeSalesConversation(input: {
         else if (positiveStrength > 0 && negativeStrength > 0) sentiment = 'MIXED'
         else if (negativeStrength > positiveStrength) sentiment = 'NEGATIVE'
         else if (positiveStrength > 0) sentiment = 'POSITIVE'
+        // The model reads tone the lexicon cannot (sarcasm, indirect wording).
+        // Severe distress stays a keyword-only verdict; a neutral model reading
+        // leaves whatever the lexicon found in place.
+        if (!severeDistress && signalsNewestFirst.length > 0) {
+                const recentMoods = signalsNewestFirst.slice(0, 4).map((signal) => signal.mood)
+                const sawPositive = recentMoods.includes('pos')
+                const sawNegative = recentMoods.includes('neg') || recentMoods.includes('ang')
+                if (recentMoods[0] === 'pos') sentiment = 'POSITIVE'
+                else if (recentMoods[0] === 'neg' || recentMoods[0] === 'ang') sentiment = 'NEGATIVE'
+                else if (sawPositive && sawNegative) sentiment = 'MIXED'
+                else if (sawNegative) sentiment = 'NEGATIVE'
+                else if (sawPositive) sentiment = 'POSITIVE'
+        }
 
         const urgency: SalesUrgency = highUrgency || riskFlags.size > 0
                 ? 'HIGH'
@@ -734,6 +886,25 @@ export function analyzeSalesConversation(input: {
                 latestInfoOnly && stage === 'INFORMATION_GATHERING'
         )
         const consecutiveUnanswered = countConsecutiveUnanswered(messages)
+
+        // Satisfaction: from the reply model's per-exchange readings when the
+        // thread has them, otherwise from what the lexicon observed. Keyword
+        // friction still counts against a thread the model read as calm.
+        let satisfaction = conversationSatisfaction(signalsNewestFirst)
+        if (satisfaction === null) {
+                if (sentiment === 'DISTRESSED') satisfaction = 10
+                else if (sentiment === 'NEGATIVE') satisfaction = 30
+                else if (sentiment === 'MIXED') satisfaction = 55
+                else if (sentiment === 'POSITIVE') satisfaction = 80
+                else if (repeatedRequest || consecutiveUnanswered >= 2) satisfaction = 40
+        } else {
+                if (repeatedRequest) satisfaction -= 6
+                if (consecutiveUnanswered >= 2) satisfaction -= 8
+        }
+        if (satisfaction !== null) {
+                if (severeDistress) satisfaction = Math.min(satisfaction, 15)
+                satisfaction = Math.round(clamp(satisfaction, 0, 100))
+        }
 
         const recommendedAction = recommendNextAction({
                 language,
@@ -787,6 +958,9 @@ export function analyzeSalesConversation(input: {
                         latestUserIsGreetingOrInfoOnly,
                         negativeSignalCount,
                 },
+                satisfaction,
+                topics: topicsFromSignals(signalsNewestFirst),
+                aiTurnCount: signalsNewestFirst.length,
         }
 }
 
@@ -812,6 +986,7 @@ export async function loadSalesConversationContext(
                                         content: true,
                                         unanswered: true,
                                         createdAt: true,
+                                        metadata: true,
                                 },
                         },
                 },
@@ -837,6 +1012,28 @@ export async function persistConversationSalesInsight(
         analysis: SalesConversationAnalysis,
         options: PersistSalesInsightOptions = {},
 ): Promise<void> {
+        try {
+                await writeConversationSalesInsight(context, analysis, options, true)
+        } catch (error) {
+                // The satisfaction columns ship in their own migration. Until it
+                // is applied the snapshot is still saved, just without them.
+                if (!isMissingSatisfactionColumns(error)) throw error
+                await writeConversationSalesInsight(context, analysis, options, false)
+        }
+}
+
+function isMissingSatisfactionColumns(error: unknown): boolean {
+        if (typeof error !== 'object' || error === null) return false
+        const { code, name } = error as { code?: string; name?: string }
+        return code === 'P2022' || name === 'PrismaClientValidationError'
+}
+
+async function writeConversationSalesInsight(
+        context: SalesConversationContext,
+        analysis: SalesConversationAnalysis,
+        options: PersistSalesInsightOptions,
+        withSatisfaction: boolean,
+): Promise<void> {
         const now = new Date()
         const common = {
                 leadType: analysis.leadType,
@@ -853,6 +1050,13 @@ export async function persistConversationSalesInsight(
                 recommendedAction: analysis.recommendedAction,
                 explanation: analysis.explanation,
                 modelVersion: SALES_INTELLIGENCE_VERSION,
+                ...(withSatisfaction
+                        ? {
+                                satisfaction: analysis.satisfaction,
+                                topics: analysis.topics,
+                                aiTurnCount: analysis.aiTurnCount,
+                        }
+                        : {}),
                 analyzedMessageCount: context.messageCount,
                 analyzedAt: now,
                 ...(options.handoffRecommended !== undefined

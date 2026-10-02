@@ -15,7 +15,10 @@ describe('public adaptive UI contracts', () => {
     expect(mobileNav).toContain('grid-cols-5')
     expect(navbar).not.toContain('MarketingMobileMenu')
     expect(existsSync('components/marketing/mobile-menu.tsx')).toBe(false)
-    expect(backToTop).toContain('lg:bottom-6')
+    // Phones keep a single fixed layer (the bottom bar); back-to-top starts at md.
+    expect(mobileNav).toContain('md:hidden')
+    expect(backToTop).toContain('hidden h-11 w-11')
+    expect(backToTop).toContain('md:flex')
   })
 
   it('provides mobile legal navigation, documentation search, and code copy', () => {

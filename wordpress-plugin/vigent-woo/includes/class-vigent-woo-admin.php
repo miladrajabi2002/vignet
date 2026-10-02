@@ -82,37 +82,37 @@ class Vigent_Woo_Admin {
                         .vg-wrap * { box-sizing: border-box; }
 
                         /* Header — black, minimal */
-                        .vg-header { display: flex; align-items: center; gap: 14px; padding: 20px 24px; background: #000; border-radius: 16px; color: #fff; margin-bottom: 20px; }
+                        .vg-header { display: flex; align-items: center; gap: 14px; padding: 20px 24px; background: #111; border-radius: 16px; color: #fff; margin-bottom: 20px; }
                         .vg-logo { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
                         .vg-logo svg { width: 24px; height: 24px; }
                         .vg-header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
                         .vg-header .sub { margin: 3px 0 0; font-size: 12px; opacity: .6; color: #fff; }
-                        .vg-header .last-check { margin: 2px 0 0; font-size: 10px; opacity: .45; color: #fff; }
-                        .vg-header .pill { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+                        .vg-header .last-check { margin: 2px 0 0; font-size: 12px; opacity: .6; color: #fff; }
+                        .vg-header .pill { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
                         /* Disconnect button in header — red tint, sits next to the status pill */
                         .vg-header .vg-btn-disconnect { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(239,68,68,.15); color: #fca5a5; transition: all .12s; min-height: 44px; }
                         .vg-header .vg-btn-disconnect:hover { background: rgba(239,68,68,.3); color: #fff; border-color: rgba(239,68,68,.5); }
                         .vg-header .vg-btn-disconnect:disabled { opacity: .4; cursor: not-allowed; }
                         /* Update button in header — subtle blue tint, sits next to the disconnect button */
-                        .vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(59,130,246,.15); color: #93c5fd; transition: all .12s; min-height: 44px; }
-                        .vg-header .vg-btn-update:hover { background: rgba(59,130,246,.3); color: #fff; border-color: rgba(59,130,246,.5); }
+                        .vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.15); color: #d9d2fb; transition: all .12s; min-height: 44px; }
+                        .vg-header .vg-btn-update:hover { background: rgba(255,255,255,.2); color: #fff; border-color: rgba(255,255,255,.35); }
                         .vg-header .vg-btn-update:disabled { opacity: .4; cursor: not-allowed; }
                         .vg-header .vg-btn-update.has-update { background: rgba(16,185,129,.25); color: #6ee7b7; border-color: rgba(16,185,129,.5); animation: vg-pulse 1.8s ease-in-out infinite; }
                         @keyframes vg-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,.4); } 50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } }
-                        .vg-update-banner { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
-                        .vg-update-banner .icon { width: 38px; height: 38px; border-radius: 10px; background: #3b82f6; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-                        .vg-update-banner .text { flex: 1; font-size: 13px; color: #1e3a8a; line-height: 1.6; }
-                        .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #1e40af; }
-                        .vg-update-banner .vg-btn-install { background: #3b82f6; color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 36px; }
-                        .vg-update-banner .vg-btn-install:hover { background: #2563eb; color: #fff; }
+                        .vg-update-banner { background: #f3f1ff; border: 1px solid #d9d2fb; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+                        .vg-update-banner .icon { width: 38px; height: 38px; border-radius: 10px; background: #5b3de8; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                        .vg-update-banner .text { flex: 1; font-size: 13px; color: #3a2c8f; line-height: 1.6; }
+                        .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #3a2c8f; }
+                        .vg-update-banner .vg-btn-install { background: #5b3de8; color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 36px; }
+                        .vg-update-banner .vg-btn-install:hover { background: #4c2fd0; color: #fff; }
                         .vg-header .pill.ok { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
                         .vg-header .pill.warn { background: rgba(245, 158, 11, .2); color: #fcd34d; }
                         .vg-header .pill.err { background: rgba(239, 68, 68, .2); color: #fca5a5; }
 
                         /* Card — white, soft border */
-                        .vg-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+                        .vg-card { background: #fff; border: 1px solid #e4e3df; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
                         .vg-card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 700; color: #111; }
-                        .vg-card p { margin: 0 0 8px; color: #6b7280; font-size: 13px; line-height: 1.6; }
+                        .vg-card p { margin: 0 0 8px; color: #6f6a64; font-size: 13px; line-height: 1.6; }
                         .vg-card p:last-child { margin-bottom: 0; }
                         /* Card variant for a change that had to be dropped from the queue. */
                         .vg-card.vg-warn { background: #fffbeb; border-color: #fde68a; }
@@ -126,50 +126,50 @@ class Vigent_Woo_Admin {
                         .vg-live .icon { width: 20px; height: 20px; flex-shrink: 0; font-size: 18px; line-height: 1; }
                         .vg-live .text { flex: 1; font-size: 13px; }
                         .vg-live .text strong { display: block; font-weight: 700; margin-bottom: 2px; }
-                        .vg-live .text small { font-size: 11px; opacity: .8; }
+                        .vg-live .text small { font-size: 12px; opacity: .8; }
 
                         /* Buttons — black/white */
                         .vg-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
                         .vg-btns-center { justify-content: center; }
                         .vg-btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all .12s; min-height: 44px; }
-                        .vg-btn-black { background: #000; color: #fff; }
-                        .vg-btn-black:hover { background: #1a1a1a; color: #fff; }
-                        .vg-btn-white { background: #fff; border-color: #d1d5db; color: #111; }
-                        .vg-btn-white:hover { background: #f9fafb; }
+                        .vg-btn-black { background: #111; color: #fff; }
+                        .vg-btn-black:hover { background: #2a2a2a; color: #fff; }
+                        .vg-btn-white { background: #fff; border-color: #d6d4cf; color: #111; }
+                        .vg-btn-white:hover { background: #f5f5f3; }
                         .vg-btn:disabled { opacity: .4; cursor: not-allowed; }
 
                         /* Form */
                         .vg-field { margin-bottom: 14px; }
-                        .vg-field label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-                        .vg-field input, .vg-field select { width: 100%; padding: 11px 13px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 13px; font-family: "SF Mono", "Vazirmatn", monospace; direction: ltr; text-align: left; transition: border-color .12s; }
-                        .vg-field input:focus, .vg-field select:focus { outline: none; border-color: #000; }
-                        .vg-field .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+                        .vg-field label { display: block; font-size: 12px; font-weight: 600; color: #55524c; margin-bottom: 5px; }
+                        .vg-field input, .vg-field select { width: 100%; padding: 11px 13px; border: 1px solid #d6d4cf; border-radius: 10px; font-size: 13px; font-family: "SF Mono", "Vazirmatn", monospace; direction: ltr; text-align: left; transition: border-color .12s; }
+                        .vg-field input:focus, .vg-field select:focus { outline: none; border-color: #111; }
+                        .vg-field .hint { font-size: 12px; color: #6f6a64; margin-top: 4px; }
 
                         /* Minimal select — used for the category filter, RTL-friendly */
-                        .vg-select-minimal { width: 100%; padding: 10px 36px 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 13px; font-family: inherit; background-color: #fff; color: #111; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3e%3cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: left 10px center; background-size: 16px; transition: border-color .12s, box-shadow .12s; direction: rtl; text-align: right; }
-                        .vg-select-minimal:focus { outline: none; border-color: #000; box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
-                        .vg-select-minimal:hover { border-color: #9ca3af; }
+                        .vg-select-minimal { width: 100%; padding: 10px 36px 10px 12px; border: 1px solid #e4e3df; border-radius: 10px; font-size: 13px; font-family: inherit; background-color: #fff; color: #111; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3e%3cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: left 10px center; background-size: 16px; transition: border-color .12s, box-shadow .12s; direction: rtl; text-align: right; }
+                        .vg-select-minimal:focus { outline: none; border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
+                        .vg-select-minimal:hover { border-color: #6f6a64; }
 
                         /* Toggle */
-                        .vg-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: background-color .12s; }
-                        .vg-toggle:hover { background: #fafafa; }
-                        .vg-toggle input { margin-top: 2px; width: 18px; height: 18px; accent-color: #000; }
+                        .vg-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid #e4e3df; border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: background-color .12s; }
+                        .vg-toggle:hover { background: #f5f5f3; }
+                        .vg-toggle input { margin-top: 2px; width: 18px; height: 18px; accent-color: #111; }
                         .vg-toggle .label { font-size: 13px; font-weight: 600; color: #111; }
-                        .vg-toggle .sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+                        .vg-toggle .sub { font-size: 12px; color: #6f6a64; margin-top: 2px; }
                         .vg-toggle.off { opacity: .5; }
 
                         /* Progress */
                         .vg-progress { margin: 16px 0; }
-                        .vg-progress-bar-wrap { background: #f3f4f6; border-radius: 999px; height: 24px; overflow: hidden; position: relative; }
-                        .vg-progress-bar { background: #000; height: 100%; border-radius: 999px; transition: width .4s ease; width: 0%; }
-                        .vg-progress-text { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
-                        .vg-progress-info { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #6b7280; }
+                        .vg-progress-bar-wrap { background: #eeeeec; border-radius: 999px; height: 24px; overflow: hidden; position: relative; }
+                        .vg-progress-bar { background: #111; height: 100%; border-radius: 999px; transition: width .4s ease; width: 0%; }
+                        .vg-progress-text { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+                        .vg-progress-info { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #6f6a64; }
 
                         /* Stats — compact, used in management section after first push */
                         .vg-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-                        .vg-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; text-align: center; }
-                        .vg-stat .num { font-size: 26px; font-weight: 800; color: #000; line-height: 1; }
-                        .vg-stat .lbl { font-size: 11px; color: #9ca3af; margin-top: 5px; }
+                        .vg-stat { background: #fff; border: 1px solid #e4e3df; border-radius: 12px; padding: 18px; text-align: center; }
+                        .vg-stat .num { font-size: 26px; font-weight: 800; color: #111; line-height: 1; }
+                        .vg-stat .lbl { font-size: 12px; color: #6f6a64; margin-top: 5px; }
                         /* Highlighted stat for "paying customers" — distinct accent so it stands out. */
                         .vg-stat.vg-stat-payers { background: #f0fdf4; border-color: #bbf7d0; }
                         .vg-stat.vg-stat-payers .num { color: #15803d; }
@@ -179,15 +179,15 @@ class Vigent_Woo_Admin {
                         .vg-payers-card { padding: 18px 20px; }
                         .vg-payers-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
                         .vg-payers-copy { flex: 1 1 320px; min-width: 0; }
-                        .vg-payers-copy h2 { margin: 0 0 6px; font-size: 15px; font-weight: 800; color: #000; }
-                        .vg-payers-copy p { margin: 0 0 4px; font-size: 13px; color: #374151; line-height: 1.7; }
-                        .vg-payers-copy .vg-payers-sub { color: #6b7280; font-size: 12px; }
+                        .vg-payers-copy h2 { margin: 0 0 6px; font-size: 15px; font-weight: 800; color: #111; }
+                        .vg-payers-copy p { margin: 0 0 4px; font-size: 13px; color: #55524c; line-height: 1.7; }
+                        .vg-payers-copy .vg-payers-sub { color: #6f6a64; font-size: 12px; }
                         .vg-payers-actions { flex-shrink: 0; }
 
                         /* Steps list */
                         .vg-steps { list-style: none; padding: 0; margin: 12px 0 0; }
-                        .vg-steps li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; font-size: 13px; color: #374151; line-height: 1.6; }
-                        .vg-steps li .num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #000; color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+                        .vg-steps li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; font-size: 13px; color: #55524c; line-height: 1.6; }
+                        .vg-steps li .num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #111; color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
                         .vg-steps li .txt { flex: 1; }
                         .vg-steps li .txt strong { color: #111; display: block; margin-bottom: 2px; font-size: 13px; }
 
@@ -200,20 +200,20 @@ class Vigent_Woo_Admin {
                         .vg-center-icon { display: flex; justify-content: center; margin-bottom: 20px; }
                         .vg-center-icon svg { opacity: .8; }
                         .vg-center-title { font-size: 22px; font-weight: 800; color: #111; margin: 0 0 8px; }
-                        .vg-center-sub { font-size: 14px; color: #6b7280; max-width: 460px; margin: 0 auto 32px; line-height: 1.7; }
+                        .vg-center-sub { font-size: 14px; color: #6f6a64; max-width: 460px; margin: 0 auto 32px; line-height: 1.7; }
                         .vg-center-btn-wrap { display: flex; justify-content: center; margin-bottom: 32px; }
-                        .vg-btn-center { background: #000; color: #fff; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 14px; min-height: 56px; display: inline-flex; align-items: center; gap: 10px; transition: all .15s; text-decoration: none; border: none; cursor: pointer; }
-                        .vg-btn-center:hover { background: #1a1a1a; color: #fff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+                        .vg-btn-center { background: #111; color: #fff; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 14px; min-height: 56px; display: inline-flex; align-items: center; gap: 10px; transition: all .15s; text-decoration: none; border: none; cursor: pointer; }
+                        .vg-btn-center:hover { background: #2a2a2a; color: #fff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
                         .vg-btn-center:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
                         .vg-center-steps { max-width: 420px; margin: 0 auto; text-align: center; }
                         .vg-center-steps li { flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 0; }
                         .vg-center-steps li .num { width: 32px; height: 32px; font-size: 13px; margin: 0; }
                         .vg-center-steps li .txt { text-align: center; }
                         .vg-center-steps li .txt strong { text-align: center; margin-bottom: 4px; }
-                        .vg-center-info { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 12px; padding: 18px 22px; max-width: 420px; margin: 24px auto 0; text-align: center; }
-                        .vg-center-info p { font-size: 12px; font-weight: 600; color: #374151; margin: 0 0 8px; text-align: center; }
+                        .vg-center-info { background: #f5f5f3; border: 1px solid #eeeeec; border-radius: 12px; padding: 18px 22px; max-width: 420px; margin: 24px auto 0; text-align: center; }
+                        .vg-center-info p { font-size: 12px; font-weight: 600; color: #55524c; margin: 0 0 8px; text-align: center; }
                         .vg-center-info ul { list-style: none; padding: 0; margin: 0; text-align: center; }
-                        .vg-center-info ul li { font-size: 12px; color: #6b7280; line-height: 1.8; text-align: center; }
+                        .vg-center-info ul li { font-size: 12px; color: #6f6a64; line-height: 1.8; text-align: center; }
 
                         /* Push wizard steps (visual indicator) — horizontal pill row:
                               (1) ─── (2) ─── (3)
@@ -222,20 +222,20 @@ class Vigent_Woo_Admin {
                            stays inline (not on top) because horizontal space is tight when
                            "سفارش‌ها" is shown. */
                         .vg-wizard-steps { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 0 auto 24px; max-width: 520px; }
-                        .vg-wizard-step { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: #f3f4f6; font-size: 12px; color: #9ca3af; font-weight: 600; transition: all .2s; }
-                        .vg-wizard-step .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; background: #fff; flex-shrink: 0; }
-                        .vg-wizard-step.active { color: #111; background: #f3f4f6; }
-                        .vg-wizard-step.active .dot { background: #000; border-color: #000; color: #fff; }
+                        .vg-wizard-step { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: #eeeeec; font-size: 12px; color: #6f6a64; font-weight: 600; transition: all .2s; }
+                        .vg-wizard-step .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e4e3df; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #6f6a64; background: #fff; flex-shrink: 0; }
+                        .vg-wizard-step.active { color: #111; background: #eeeeec; }
+                        .vg-wizard-step.active .dot { background: #111; border-color: #111; color: #fff; }
                         .vg-wizard-step.done { color: #10b981; background: #ecfdf5; }
                         .vg-wizard-step.done .dot { background: #10b981; border-color: #10b981; color: #fff; }
-                        .vg-wizard-line { width: 20px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
+                        .vg-wizard-line { width: 20px; height: 2px; background: #e4e3df; flex-shrink: 0; }
 
                         .vg-connected-summary { display: flex; align-items: center; gap: 14px; padding: 20px; }
                         .vg-connected-icon { flex: 0 0 auto; display: flex; }
                         .vg-connected-copy { flex: 1; min-width: 180px; }
                         .vg-connected-copy h2 { margin-bottom: 4px; }
                         .vg-connected-copy p { margin: 0; }
-                        .vg-sync-note { color: #059669 !important; font-size: 11px !important; margin-top: 4px !important; }
+                        .vg-sync-note { color: #059669 !important; font-size: 12px !important; margin-top: 4px !important; }
                         .vg-connected-actions { margin: 0; justify-content: flex-end; }
                         .vg-btn:focus-visible, .vg-btn-center:focus-visible, .vg-btn-update:focus-visible, .vg-btn-disconnect:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
                         @media (max-width: 680px) {

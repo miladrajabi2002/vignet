@@ -83,7 +83,8 @@ describe('shared adaptive mobile UI contract', () => {
     // it must float above the mobile bottom nav with safe-area padding.
     expect(productGrid).toContain("queueUndo('product'")
     expect(undoSnackbar).toContain('env(safe-area-inset-bottom)')
-    expect(automationForm).toContain('[bottom:calc(6rem+env(safe-area-inset-bottom))]')
+    // The scenario form hides the bottom nav, so its action bar sits at the bottom edge.
+    expect(automationForm).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
     expect(automationManager).toContain('[bottom:calc(6rem+env(safe-area-inset-bottom))]')
   })
 

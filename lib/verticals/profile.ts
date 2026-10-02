@@ -17,6 +17,8 @@ export const businessProfileInputSchema = z.object({
   /** Free-text notes about the business kept from older profiles. */
   extras: z.array(z.string().trim().min(1).max(80)).max(12).default([]),
   locale: z.enum(['fa', 'en']).default('fa'),
+  /** Optional site or Instagram page given during setup. */
+  website: z.string().trim().max(300).optional(),
 })
 
 export type BusinessProfileInput = z.infer<typeof businessProfileInputSchema>
@@ -28,6 +30,8 @@ export interface BusinessProfile {
   services: string[]
   /** Free-text entries that are not a capability. */
   extras: string[]
+  /** Site or Instagram page the owner gave during setup, if any. */
+  website?: string
 }
 
 function dedupe(values: readonly string[]): string[] {
@@ -35,7 +39,7 @@ function dedupe(values: readonly string[]): string[] {
 }
 
 /** The JSON stored on Workspace.businessProfile. */
-export function normalizeBusinessProfile(input: Pick<BusinessProfileInput, 'businessName' | 'capabilities' | 'extras' | 'locale'>) {
+export function normalizeBusinessProfile(input: Pick<BusinessProfileInput, 'businessName' | 'capabilities' | 'extras' | 'locale'> & { website?: string }) {
   const capabilities = normalizeCapabilities(input.capabilities)
   const extras = dedupe(input.extras ?? []).filter((extra) => !findCapabilityByLabel(extra)).slice(0, 12)
   return {
@@ -44,6 +48,7 @@ export function normalizeBusinessProfile(input: Pick<BusinessProfileInput, 'busi
     // Labels stay alongside the keys so admin views (and an older build, on
     // rollback) still read a meaningful list.
     services: [...capabilities.map((key) => capabilityLabel(key, input.locale ?? 'fa')), ...extras].slice(0, 16),
+    ...(input.website?.trim() ? { website: input.website.trim() } : {}),
   }
 }
 
@@ -69,6 +74,7 @@ export function readBusinessProfile(value: unknown, businessType?: unknown): Bus
     capabilities,
     services,
     extras: services.filter((service) => !findCapabilityByLabel(service)),
+    ...(typeof record.website === 'string' && record.website.trim() ? { website: record.website.trim() } : {}),
   }
 }
 

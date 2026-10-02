@@ -825,6 +825,12 @@ model ConversationSalesInsight {
   handoffRecommended   Boolean             @default(false)
   handoffReasonCodes   String[]            @default([])
   modelVersion         String              @default("sales-heuristic-v1")
+  // 0–100, scored in code from the reply model's per-turn status lines (or
+  // from the heuristic for older threads). NULL = no evidence either way.
+  satisfaction         Int?
+  topics               String[]            @default([])
+  // How many exchanges carried a reply-model status line.
+  aiTurnCount          Int                 @default(0)
   analyzedMessageCount Int                 @default(0)
   analyzedAt           DateTime            @default(now())
   updatedAt            DateTime            @updatedAt

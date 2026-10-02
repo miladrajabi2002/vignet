@@ -17,6 +17,8 @@ export const promptFormatSchema = z.object({
 export const promptQAPairSchema = z.object({
   question: z.string().max(500),
   answer: z.string().max(2000),
+  // Absent means on: examples saved before the switch existed stay active.
+  enabled: z.boolean().optional(),
 })
 
 export const promptConversationSchema = z.object({

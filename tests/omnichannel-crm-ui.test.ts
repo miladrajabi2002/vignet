@@ -32,7 +32,7 @@ describe('omnichannel CRM user-visible contract', () => {
 
     expect(view).toContain('sticky top-[5.35rem]')
     expect(view).toContain('md:hidden')
-    expect(view).toContain('hidden divide-y')
+    expect(view).toContain('ui-ctable spatial-surface hidden')
     expect(view).toContain('params.set(\'contact\', id)')
     expect(view).toContain('<MobileBottomSheet')
     expect(view).toContain('<ContactDetailSheet')
@@ -81,11 +81,15 @@ describe('omnichannel CRM user-visible contract', () => {
     const filters = source('components/dashboard/conversation-filters.tsx')
     const detailLayout = source('components/crm/conversation-mobile-layout.tsx')
     const mobileNav = source('components/dashboard/mobile-nav.tsx')
+    const pane = source('components/crm/inbox-conversation-pane.tsx')
 
     expect(list).toContain('sticky top-[5.35rem]')
     expect(list).toContain('key={`mobile-${c.id}`}')
     expect(list).toContain('key={`desktop-${c.id}`}')
-    expect(list).toContain('<ConversationStatusBadge')
+    // From the tablet breakpoint up the list sits beside the open conversation.
+    expect(list).toContain('<InboxConversationPane')
+    expect(list).toContain("href={hrefWith({ c: c.id })}")
+    expect(pane).toContain('<ConversationStatusBadge')
     expect(list).toContain('prisma.conversation.count({ where })')
     expect(filters).toContain('<MobileBottomSheet')
     expect(filters).toContain('activeFacetCount')
@@ -108,7 +112,7 @@ describe('CRM avatar and customer deletion contract', () => {
 
     expect(contacts).toContain('contactAvatarSrc({')
     expect(conversations).toContain('<ContactAvatar src={channelAvatarSrc} alt={who} />')
-    expect(conversations).toContain('<ConversationStatusBadge')
+    expect(source('components/crm/inbox-conversation-pane.tsx')).toContain('<ConversationStatusBadge')
     expect(avatar).toContain('setUsingFallback(true)')
     expect(avatar).toContain('setBroken(true)')
   })
@@ -150,11 +154,13 @@ describe('conversation sales intelligence UI contract', () => {
     const filter = source('components/dashboard/conversation-filters.tsx')
     const backfill = source('components/crm/sales-insight-backfill.tsx')
 
-    expect(list).toContain('<SalesInsightBadge insight={c.salesInsight}')
+    expect(list).toContain('<SalesInsightText insight={c.salesInsight}')
     expect(list).toContain("'HIGH_INTENT'")
     expect(filter).toContain('activeSales')
-    expect(detail).toContain('<SalesInsightCard insight={displayedSalesInsight}')
-    expect(detail).toContain('analyzeSalesConversation({')
+    // The page and the inbox pane share one loader and one side column.
+    expect(detail).toContain('loadConversationView({')
+    expect(source('components/crm/conversation-details.tsx')).toContain('<SalesInsightCard insight={insight}')
+    expect(source('lib/conversations/view.ts')).toContain('analyzeSalesConversation({')
     expect(backfill).toContain("fetch('/api/conversations/sales-insights/backfill'")
     expect(backfill).toContain('router.refresh()')
   })

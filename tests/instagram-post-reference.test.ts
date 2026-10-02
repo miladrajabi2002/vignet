@@ -42,7 +42,8 @@ describe('Instagram post references', () => {
     expect(form).toContain('در حال دریافت شناسه دقیق پست از Meta')
     expect(form).toContain('فعال‌کردن شرط فالو')
     expect(form).toContain('id="automation-follow-gate"')
-    expect(manager).toContain('<CreateScenarioCard')
-    expect(manager).not.toContain('actions={')
+    // The "new scenario" action lives in the page header now.
+    expect(manager).toContain('actions={(')
+    expect(manager).toContain('سناریوی جدید')
   })
 })

@@ -20,6 +20,13 @@ import { looksLikePersonName } from '@/lib/ai/customer-identification'
 import { previousSessionPlanningRows } from '@/lib/ai/conversation-memory'
 import { closingReplyText } from '@/lib/ai/response-policy'
 import {
+        createTurnSignalStreamFilter,
+        extractTurnSignal,
+        groundTurnSignal,
+        visibleWhileStreaming,
+        type TurnSignal,
+} from '@/lib/ai/turn-signal'
+import {
         extractIdentity,
         applyExtractedIdentity,
         identificationInstruction,
@@ -1604,6 +1611,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         skillPlan,
                         conversationState: workingState,
                         restockOfferLine: restockOffer,
+                        turnSignal: true,
                 })
                 if (commerceTurn.kind === 'instruct' && messages[0]?.role === 'system') {
                         messages[0].content = insertBeforeTurnMarker(messages[0].content ?? '', `\n\n${commerceTurn.instruction}`)
@@ -1781,8 +1789,14 @@ async function persistAssistantTurn(params: {
         workingState: ConversationWorkingState
         stateExpectedRevision: number | null
         stateTrace: ConversationStateTrace
+        /** Status line the reply model appended; already stripped from `reply`. */
+        turnSignal?: TurnSignal | null
 }): Promise<{ messageId: string }> {
         const unanswered = detectUnanswered(params.reply, params.agent.fallbackMessage)
+        // A positive reading only stands when the customer's own words back it.
+        const turnSignal = params.turnSignal
+                ? groundTurnSignal(params.turnSignal, params.userMessage)
+                : null
         const receipts = buildTurnReceipts(
                 {
                         userMessage: params.userMessage,
@@ -1801,6 +1815,9 @@ async function persistAssistantTurn(params: {
                                 ...(unanswered ? { question: params.userMessage } : {}),
                                 agentSkillTrace: agentSkillTrace(params.skillPlan) as unknown as Prisma.InputJsonObject,
                                 conversationStateTrace: params.stateTrace as unknown as Prisma.InputJsonObject,
+                                ...(turnSignal
+                                        ? { turnSignal: turnSignal as unknown as Prisma.InputJsonObject }
+                                        : {}),
                         },
                 )
                 let created = true
@@ -1876,6 +1893,13 @@ async function persistAssistantTurn(params: {
                         metadata: { agentId: params.agent.id, conversationId: params.conversationId },
                 })
         })
+        // Fold the new status line into the stored snapshot. The pre-reply
+        // handoff check already saved one for this turn, without this exchange.
+        if (turnSignal && saved.created) {
+                await refreshConversationSalesInsight(params.conversationId).catch((error) =>
+                        console.error('[chat-engine] turn-signal insight refresh failed:', error),
+                )
+        }
         return { messageId: saved.messageId }
 }
 
@@ -2089,6 +2113,9 @@ export async function startChat(input: StartChatParams): Promise<StartChatResult
                         let usage: ChatUsage | null = null
                         let extraReceipts: ConversationReceipt[] = []
                         let providerFailed = false
+                        let turnSignal: TurnSignal | null = null
+                        // Keeps the hidden status line out of the live stream.
+                        const signalFilter = createTurnSignalStreamFilter()
                         try {
                                 const courseTurn = hasAgentSkill(skillPlan, 'course-enrollment')
                                         ? await maybeRunCourseAgentTurn({
@@ -2113,7 +2140,7 @@ export async function startChat(input: StartChatParams): Promise<StartChatResult
                                         })
                                         : null)
                                 if (bookingTurn) {
-                                        full = bookingTurn.content
+                                        ;({ text: full, signal: turnSignal } = extractTurnSignal(bookingTurn.content))
                                         usage = bookingTurn.usage
                                         extraReceipts = bookingTurn.receipts
                                         send({ type: 'delta', text: full })
@@ -2128,7 +2155,8 @@ export async function startChat(input: StartChatParams): Promise<StartChatResult
                                                 },
                                         })) {
                                                 full += delta
-                                                send({ type: 'delta', text: delta })
+                                                const visible = signalFilter.push(delta)
+                                                if (visible) send({ type: 'delta', text: visible })
                                         }
                                 }
                         } catch (e) {
@@ -2137,6 +2165,7 @@ export async function startChat(input: StartChatParams): Promise<StartChatResult
                                         workspaceId,
                                         metadata: { agentId: agent.id, model, conversationId },
                                 })
+                                full = extractTurnSignal(full).text
                                 if (!full) {
                                         full = agent.fallbackMessage || defaultProviderFailureText(turnLang)
                                         send({ type: 'delta', text: full })
@@ -2152,6 +2181,14 @@ export async function startChat(input: StartChatParams): Promise<StartChatResult
                                         contactId,
                                         contactName,
                                 })
+                        }
+
+                        // Take the status line off before any guard reads the reply: a
+                        // reply that was nothing but the line counts as empty.
+                        if (!providerFailed) {
+                                const extracted = extractTurnSignal(full)
+                                full = extracted.text
+                                turnSignal = extracted.signal ?? turnSignal
                         }
 
                         // A disconnect is not a provider failure: the reply was generated
@@ -2260,6 +2297,7 @@ export async function startChat(input: StartChatParams): Promise<StartChatResult
                                         inboundEventId: params.inboundEventId,
                                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                         serviceError: providerFailed,
+                                        turnSignal: providerFailed ? null : turnSignal,
                                 })
                                 send({ type: 'done', messageId })
                         } catch (e) {
@@ -2487,6 +2525,7 @@ export async function generateReply(
         let usage: ChatUsage | null = null
         let extraReceipts: ConversationReceipt[] = []
         let providerFailed = false
+        let turnSignal: TurnSignal | null = null
         try {
                 const courseTurn = hasAgentSkill(skillPlan, 'course-enrollment')
                         ? await maybeRunCourseAgentTurn({
@@ -2511,7 +2550,9 @@ export async function generateReply(
                         })
                         : null)
                 if (bookingTurn) {
-                        reply = bookingTurn.content.trim()
+                        const extracted = extractTurnSignal(bookingTurn.content)
+                        reply = extracted.text.trim()
+                        turnSignal = extracted.signal
                         usage = bookingTurn.usage
                         extraReceipts = bookingTurn.receipts
                         options.onTextUpdate?.(reply)
@@ -2526,7 +2567,8 @@ export async function generateReply(
                                 },
                         })) {
                                 reply += delta
-                                options.onTextUpdate(reply)
+                                // Live previews must never show the hidden status line.
+                                options.onTextUpdate(visibleWhileStreaming(reply))
                         }
                         reply = reply.trim()
                 } else {
@@ -2555,6 +2597,13 @@ export async function generateReply(
                         contactId,
                         contactName,
                 })
+        }
+        // Take the status line off before any guard reads the reply: a reply
+        // that was nothing but the line counts as empty.
+        {
+                const extracted = extractTurnSignal(reply)
+                reply = extracted.text.trim()
+                turnSignal = providerFailed ? null : extracted.signal ?? turnSignal
         }
         if (!reply) {
                 // Empty provider content is a failed reply for billing purposes.
@@ -2655,6 +2704,7 @@ export async function generateReply(
                         inboundEventId: params.inboundEventId,
                         inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                         serviceError: providerFailed,
+                        turnSignal: providerFailed ? null : turnSignal,
                 })
                 persistedMessageId = persisted.messageId
         } catch (e) {

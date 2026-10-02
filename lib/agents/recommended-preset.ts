@@ -1,5 +1,5 @@
 import {
-  getSuggestedRoleTemplate,
+  getRecommendedRoleForGoals,
   normalizePromptConfig,
 } from '@/lib/ai/prompt-builder'
 import { getVerticalPack } from '@/lib/verticals/registry'
@@ -29,9 +29,10 @@ const WELCOME_BY_BUSINESS = {
 export function getRecommendedAgentPreset(
   businessType: unknown,
   businessName?: string | null,
+  goalKeys?: readonly string[] | null,
 ) {
   const pack = getVerticalPack(businessType)
-  const role = getSuggestedRoleTemplate(pack.key)
+  const role = getRecommendedRoleForGoals(pack.key, goalKeys)
   const cleanBusinessName = businessName?.trim()
   const baseName = AGENT_NAME_BY_BUSINESS[pack.key]
   const name = (cleanBusinessName ? `${baseName} ${cleanBusinessName}` : baseName)

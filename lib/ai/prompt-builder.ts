@@ -38,6 +38,8 @@ export interface PromptFormatConfig {
 export interface PromptQAPair {
   question: string
   answer: string
+  /** Switched-off examples stay saved but are left out of the prompt. */
+  enabled?: boolean
 }
 
 export interface PromptConversationConfig {
@@ -1266,6 +1268,26 @@ export function getSuggestedRoleTemplate(businessType: unknown, baseKey?: string
   return BUSINESS_ROLE_TEMPLATES[type][0]
 }
 
+export type BusinessGoal = Pick<BusinessRoleSpec, 'key' | 'nameFa' | 'nameEn' | 'descFa' | 'descEn'>
+
+/** The jobs the recommended agent covers for a vertical, offered as goals at creation. */
+export function getBusinessGoals(businessType: unknown): BusinessGoal[] {
+  return BUSINESS_ROLE_SPECS[normalizeBusinessType(businessType)]
+    .map(({ key, nameFa, nameEn, descFa, descEn }) => ({ key, nameFa, nameEn, descFa, descEn }))
+}
+
+/**
+ * The recommendation narrowed to the chosen goals. No valid choice, or all
+ * of them, is the complete recommendation.
+ */
+export function getRecommendedRoleForGoals(businessType: unknown, goalKeys: readonly string[] | null | undefined): RoleTemplate {
+  const type = normalizeBusinessType(businessType)
+  const specs = BUSINESS_ROLE_SPECS[type]
+  const chosen = specs.filter((spec) => goalKeys?.includes(spec.key))
+  if (chosen.length === 0 || chosen.length === specs.length) return BUSINESS_ROLE_TEMPLATES[type][0]
+  return makeRecommendedBusinessRole(type, chosen)
+}
+
 export function getRoleTemplate(key: string): RoleTemplate | undefined {
   const legacyBusinessType = (Object.entries(BUSINESS_ROLE_SPECS) as [BusinessType, readonly BusinessRoleSpec[]][])
     .find(([, specs]) => specs.some((spec) => spec.key === key))?.[0]
@@ -1317,7 +1339,8 @@ function formatFormatLayer(cfg: PromptFormatConfig, isFa: boolean): string {
   return `### ${isFa ? 'فرمت پاسخ' : 'Response format'}\n${lines.map((l) => `• ${l}`).join('\n')}`
 }
 
-function formatQAPairs(pairs: PromptQAPair[], isFa: boolean): string {
+function formatQAPairs(allPairs: PromptQAPair[], isFa: boolean): string {
+  const pairs = allPairs.filter((pair) => pair.enabled !== false)
   if (!pairs.length) return ''
   const header = isFa ? 'نمونه سؤال و پاسخ' : 'Example Q&A'
   const blocks = pairs.map((p, i) => {

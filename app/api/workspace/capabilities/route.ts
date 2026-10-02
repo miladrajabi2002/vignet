@@ -36,6 +36,7 @@ export async function POST(request: Request) {
   }
 
   const next = normalizeBusinessProfile({
+    website: profile?.website,
     businessName: profile?.businessName ?? workspace.name,
     capabilities: [...current, parsed.data.add],
     extras: profile?.extras ?? [],
