@@ -297,15 +297,22 @@ export async function* streamChat(
       if (!trimmed || !trimmed.startsWith('data:')) continue
       const data = trimmed.slice(5).trim()
       if (data === '[DONE]') return
+      let json: Record<string, unknown>
       try {
-        const parsed: unknown = JSON.parse(data)
-        const json = asRecord(parsed)
-        const delta = asRecord(firstChoice(json).delta).content
-        if (typeof delta === 'string' && delta) yield delta
-        if (json.usage && opts.onUsage) opts.onUsage(parseUsage(json))
+        json = asRecord(JSON.parse(data))
       } catch {
         // Ignore keep-alive comments and malformed partial chunks.
+        continue
       }
+      // A failure after the 200 handshake arrives as an SSE payload with an
+      // `error` object (finish_reason "error"). Ending quietly would bill the
+      // truncated text as a complete reply.
+      if (json.error || firstChoice(json).finish_reason === 'error') {
+        throw new Error('OPENROUTER_STREAM_ERROR')
+      }
+      const delta = asRecord(firstChoice(json).delta).content
+      if (typeof delta === 'string' && delta) yield delta
+      if (json.usage && opts.onUsage) opts.onUsage(parseUsage(json))
     }
   }
 }

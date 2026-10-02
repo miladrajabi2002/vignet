@@ -116,6 +116,27 @@ export async function updatePlatformAiConfig(input: PlatformAiConfig): Promise<P
   return value
 }
 
+// The month-to-date sum scans every usage row of the month (the table is
+// indexed by workspace, not by date alone) and a single turn checks it up to
+// three times (reply, analyzer, memory). The ceiling is a soft operator cap,
+// so a short-lived per-process total is accurate enough.
+const SPEND_CACHE_MS = 30_000
+let spendCache: { monthStart: number; totalUSD: number; expiresAt: number } | null = null
+
+async function monthToDateSpendUSD(monthStart: Date): Promise<number> {
+  const now = Date.now()
+  if (spendCache && spendCache.monthStart === monthStart.getTime() && spendCache.expiresAt > now) {
+    return spendCache.totalUSD
+  }
+  const usage = await prisma.usageLog.aggregate({
+    where: { date: { gte: monthStart }, status: 'CAPTURED' },
+    _sum: { cost: true },
+  })
+  const totalUSD = usage._sum.cost ?? 0
+  spendCache = { monthStart: monthStart.getTime(), totalUSD, expiresAt: now + SPEND_CACHE_MS }
+  return totalUSD
+}
+
 /** Enforce the optional operator-set monthly wholesale spend ceiling. */
 export async function hasPlatformAiBudget(config?: PlatformAiConfig): Promise<boolean> {
   const policy = config ?? (await getPlatformAiConfig())
@@ -123,9 +144,5 @@ export async function hasPlatformAiBudget(config?: PlatformAiConfig): Promise<bo
   const monthStart = new Date()
   monthStart.setUTCDate(1)
   monthStart.setUTCHours(0, 0, 0, 0)
-  const usage = await prisma.usageLog.aggregate({
-    where: { date: { gte: monthStart }, status: 'CAPTURED' },
-    _sum: { cost: true },
-  })
-  return (usage._sum.cost ?? 0) < policy.monthlyBudgetUSD
+  return (await monthToDateSpendUSD(monthStart)) < policy.monthlyBudgetUSD
 }
