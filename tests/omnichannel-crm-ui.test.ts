@@ -87,7 +87,9 @@ describe('omnichannel CRM user-visible contract', () => {
     expect(list).toContain('key={`desktop-${c.id}`}')
     // From the tablet breakpoint up it is a full-width list; each row opens the conversation page.
     expect(list).toContain('href={`/conversations/${c.id}`}')
-    expect(list).toContain('<ConversationStatusBadge')
+    // Each row carries its state as one coloured dot beside the avatar.
+    expect(list).toContain("attention ? 'bg-amber-500' : displayStatus === 'OPEN' ? 'bg-[var(--signal)]'")
+    expect(list).not.toContain('InboxConversationPane')
     expect(list).toContain('prisma.conversation.count({ where })')
     expect(filters).toContain('<MobileBottomSheet')
     expect(filters).toContain('activeFacetCount')
@@ -112,7 +114,7 @@ describe('CRM avatar and customer deletion contract', () => {
 
     expect(contacts).toContain('contactAvatarSrc({')
     expect(conversations).toContain('<ContactAvatar src={channelAvatarSrc} alt={who} />')
-    expect(conversations).toContain('<ConversationStatusBadge')
+    expect(source('app/(dashboard)/conversations/[conversationId]/page.tsx')).toContain('<ConversationStatusBadge')
     expect(avatar).toContain('setUsingFallback(true)')
     expect(avatar).toContain('setBroken(true)')
   })
@@ -154,7 +156,7 @@ describe('conversation sales intelligence UI contract', () => {
     const filter = source('components/dashboard/conversation-filters.tsx')
     const backfill = source('components/crm/sales-insight-backfill.tsx')
 
-    expect(list).toContain('<SalesInsightBadge insight={c.salesInsight}')
+    expect(list).toContain('<SalesInsightText insight={c.salesInsight}')
     expect(list).toContain("'HIGH_INTENT'")
     expect(filter).toContain('activeSales')
     expect(detail).toContain('loadConversationView({')

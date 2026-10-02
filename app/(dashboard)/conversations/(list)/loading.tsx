@@ -2,50 +2,52 @@ import { ConversationCardSkeleton, Skeleton } from '@/components/ui/skeleton'
 import {
   ConversationFiltersSkeleton,
   DashboardHeaderSkeleton,
-  InboxFeedHeaderSkeleton,
-  InboxPanelSkeleton,
 } from '@/components/dashboard/dashboard-skeletons'
 
 /**
- * Route-level skeleton for /conversations — mirrors the page: PageHeader
- * (2 actions), the status count pills, the sticky filter card, then the mobile
- * card feed or the desktop inbox list, and pagination.
+ * Route-level skeleton for /conversations — mirrors the inbox: PageHeader
+ * (2 actions), the status tabs, then the mobile card feed or, from the tablet
+ * breakpoint up, the full-width list card with its filter bar.
  */
 export default function ConversationsLoading() {
   return (
-    <div className="mx-auto max-w-6xl min-w-0 space-y-6">
+    <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3">
       <DashboardHeaderSkeleton actions={2} />
 
-      {/* Status count pills */}
-      <div className="flex flex-wrap items-center gap-2">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} delay={-index * 80} className="h-10 w-28 rounded-full" />
+      {/* Status tabs */}
+      <div className="flex shrink-0 items-center gap-4 border-b border-[var(--border-subtle)] pb-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} delay={-index * 80} className="h-5 w-16 rounded-full" />
         ))}
       </div>
 
-      {/* Sticky filter card */}
-      <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-        <ConversationFiltersSkeleton selects={4} />
-      </div>
-
-      {/* Mobile inbox feed */}
+      {/* Mobile: sticky filter card + card feed */}
       <div className="space-y-3 md:hidden">
-        <InboxFeedHeaderSkeleton />
+        <ConversationFiltersSkeleton selects={0} />
         {Array.from({ length: 4 }).map((_, index) => (
           <ConversationCardSkeleton key={index} delay={-index * 130} />
         ))}
       </div>
 
-      {/* Desktop inbox list */}
-      <InboxPanelSkeleton className="hidden md:block" rows={6} />
-
-      {/* Pagination */}
-      <nav className="flex flex-wrap items-center justify-center gap-2 pt-2">
-        <Skeleton className="h-11 w-24 rounded-xl" />
-        <Skeleton delay={-80} className="h-11 w-11 rounded-xl" />
-        <Skeleton delay={-160} className="h-11 w-11 rounded-xl" />
-        <Skeleton delay={-240} className="h-11 w-24 rounded-xl" />
-      </nav>
+      {/* Tablet and up: filter bar above a full-width list */}
+      <div className="hidden overflow-hidden rounded-card border border-[var(--border-subtle)] bg-white md:block">
+        <div className="border-b border-[var(--border-subtle)] p-3">
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
+        <div className="divide-y divide-[var(--border-subtle)]">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-3 px-5 py-3">
+              <Skeleton delay={-index * 90} className="h-2 w-2 shrink-0 rounded-full" />
+              <Skeleton delay={-index * 90} className="h-10 w-10 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton delay={-index * 90} className="h-3.5 w-36 max-w-full rounded-full" />
+                <Skeleton delay={-index * 90} className="h-3 w-3/4 rounded-full" />
+              </div>
+              <Skeleton delay={-index * 90} className="h-3 w-12 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
