@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Package, Pencil, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
+import { LayoutGrid, Package, Pencil, Rows3, Store, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
@@ -135,10 +135,11 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                 ? 'bg-success'
                 : 'bg-danger'
           return (
-            <Link
+            // The title link is stretched over the card; edit and delete sit
+            // above it, so no link is nested inside another link.
+            <article
               key={p.id}
-              href={`/products/${p.id}`}
-              className="spatial-surface group flex flex-row overflow-hidden rounded-card transition-[border-color,transform] sm:flex-col hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+              className="spatial-surface group relative flex flex-row overflow-hidden rounded-card transition-[border-color,transform] sm:flex-col hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               {/* Phones get a compact row (small photo beside the text) so several products fit one screen. */}
               <div className="relative m-3 me-0 size-20 shrink-0 overflow-hidden rounded-2xl bg-[var(--bg-muted)] sm:m-0 sm:aspect-video sm:size-auto sm:rounded-none">
@@ -146,7 +147,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.images[0]} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-[var(--text-hint)]">
+                  <div className="flex h-full items-center justify-center text-[var(--text-muted)]">
                     <Package className="h-8 w-8" />
                   </div>
                 )}
@@ -159,7 +160,9 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
               <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
                 {/* Title — no underline on hover; the whole card is the link. */}
                 <h3 className="line-clamp-2 font-medium leading-7 text-[var(--text-primary)]" title={p.name}>
-                  {p.name}
+                  <Link href={`/products/${p.id}`} className="outline-none after:absolute after:inset-0 after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-[var(--focus-ring)]">
+                    {p.name}
+                  </Link>
                 </h3>
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--text-muted)]">
                   {p.category && <span>{p.category.name}</span>}
@@ -183,11 +186,10 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                   <span className="text-xs text-[var(--text-muted)]">
                     {p.queryCount > 0 ? t('queries', { count: fmt(p.queryCount) }) : t('noQueries')}
                   </span>
-                  <div className="flex items-center gap-2">
-                    {/* Edit button — stops propagation so it doesn't trigger the card link. */}
+                  <div className="relative z-10 flex items-center gap-2">
+                    {/* Edit and delete sit above the stretched title link. */}
                     <Link
                       href={`/products/${p.id}/edit`}
-                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] sm:min-h-9"
                       aria-label={t('edit')}
                     >
@@ -208,7 +210,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                   </div>
                 </div>
               </div>
-            </Link>
+            </article>
           )
         })}
       </div>
@@ -295,6 +297,10 @@ export function ProductsToolbar({
   defaultCategory,
   defaultStock,
   totalResults,
+  view = 'table',
+  storeLabel,
+  storeTone = 'neutral',
+  storeCard,
 }: {
   categories: { id: string; name: string }[]
   defaultQuery: string
@@ -302,6 +308,12 @@ export function ProductsToolbar({
   defaultCategory: string
   defaultStock: string
   totalResults: number
+  /** The table runs the catalog; cards are for looking at it. */
+  view?: 'table' | 'cards'
+  /** Store connection as one chip; the full card opens under the toolbar. */
+  storeLabel?: string
+  storeTone?: 'ok' | 'warn' | 'neutral'
+  storeCard?: React.ReactNode
 }) {
   const t = useTranslations('products')
   const router = useRouter()
@@ -312,6 +324,7 @@ export function ProductsToolbar({
   // stock, sort) update immediately because each change is a discrete action.
   const [searchInput, setSearchInput] = useState(defaultQuery)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+  const [storeOpen, setStoreOpen] = useState(false)
   const [isSearching, startSearchTransition] = useTransition()
   const filterTriggerRef = useRef<HTMLButtonElement>(null)
   const activeFacetCount = [
@@ -339,6 +352,7 @@ export function ProductsToolbar({
         sort: defaultSort,
         categoryId: defaultCategory,
         stock: defaultStock,
+        view: view === 'cards' ? 'cards' : '',
       }
       for (const [k, v] of Object.entries(merged)) {
         if (v && !(k === 'sort' && v === 'newest')) sp.set(k, v)
@@ -350,7 +364,7 @@ export function ProductsToolbar({
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, defaultQuery, defaultSort, defaultCategory, defaultStock, router])
+  }, [searchInput, defaultQuery, defaultSort, defaultCategory, defaultStock, view, router])
 
   function update(params: Record<string, string>) {
     const sp = new URLSearchParams()
@@ -358,6 +372,7 @@ export function ProductsToolbar({
     // page 1 — otherwise they'd land on an empty page if the new filter has
     // fewer results than the current page index.
     const isFilterChange =
+      params.view !== undefined ||
       params.q !== undefined ||
       params.categoryId !== undefined ||
       params.sort !== undefined ||
@@ -367,7 +382,7 @@ export function ProductsToolbar({
       sort: defaultSort,
       categoryId: defaultCategory,
       stock: defaultStock,
-      ...(isFilterChange ? {} : {}),
+      view: view === 'cards' ? 'cards' : '',
       ...params,
     }
     for (const [k, v] of Object.entries(merged)) {
@@ -381,8 +396,49 @@ export function ProductsToolbar({
 
   function clearFilters() {
     setSearchInput('')
-    router.push('/products', { scroll: false })
+    router.push(view === 'cards' ? '/products?view=cards' : '/products', { scroll: false })
   }
+
+  const storeChip = storeLabel ? (
+    <button
+      type="button"
+      onClick={() => setStoreOpen((open) => !open)}
+      aria-expanded={storeOpen}
+      className={cn(
+        'spatial-press inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control border px-3 text-[12px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+        storeOpen ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
+      )}
+    >
+      <Store className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="hidden sm:inline">{storeLabel}</span>
+      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', storeTone === 'ok' ? 'bg-success' : storeTone === 'warn' ? 'bg-amber-500' : 'bg-[var(--text-hint)]')} aria-hidden="true" />
+      <span className="sr-only sm:hidden">{storeLabel}</span>
+    </button>
+  ) : null
+
+  const viewToggle = (
+    <div role="group" aria-label={fa ? 'نوع نمایش' : 'View'} className="flex shrink-0 rounded-control border border-[var(--border-default)] bg-white p-0.5">
+      {([
+        { key: 'table', icon: Rows3, label: fa ? 'جدول' : 'Table' },
+        { key: 'cards', icon: LayoutGrid, label: fa ? 'کارت' : 'Cards' },
+      ] as const).map(({ key, icon: Icon, label }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => update({ view: key === 'cards' ? 'cards' : '' })}
+          aria-pressed={view === key}
+          aria-label={label}
+          title={label}
+          className={cn(
+            'grid h-10 w-10 place-items-center rounded-[calc(var(--radius-control)-2px)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+            view === key ? 'bg-black/[0.07] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+          )}
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  )
 
   function searchField(className?: string) {
     return (
@@ -442,6 +498,7 @@ export function ProductsToolbar({
                 </span>
               )}
             </button>
+            {storeChip}
           </div>
 
           {activeFacetCount > 0 && (
@@ -454,7 +511,7 @@ export function ProductsToolbar({
               )}
               {defaultStock && (
                 <ProductFilterChip
-                  label={defaultStock === 'in_stock' ? t('inStock') : t('outOfStock')}
+                  label={defaultStock === 'in_stock' ? t('inStock') : defaultStock === 'low_stock' ? t('lowStock') : defaultStock === 'hidden' ? (fa ? 'پنهان' : 'Hidden') : t('outOfStock')}
                   onRemove={() => update({ stock: '' })}
                 />
               )}
@@ -480,18 +537,6 @@ export function ProductsToolbar({
               ]}
             />
             <MaterialSelect
-              value={defaultStock}
-              onValueChange={(value) => update({ stock: value })}
-              ariaLabel={t('stockFilter')}
-              className="min-w-40"
-              options={[
-                { value: '', label: t('allStockStatuses') },
-                { value: 'in_stock', label: t('inStock') },
-                { value: 'out_of_stock', label: t('outOfStock') },
-                { value: 'low_stock', label: t('lowStock') },
-              ]}
-            />
-            <MaterialSelect
               value={defaultSort}
               onValueChange={(value) => update({ sort: value })}
               ariaLabel={t('sort')}
@@ -513,9 +558,15 @@ export function ProductsToolbar({
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
+            <span className="ms-auto flex items-center gap-2">
+              {storeChip}
+              {viewToggle}
+            </span>
           </div>
         </div>
       </div>
+
+      {storeOpen && <div key="store-card">{storeCard}</div>}
 
       <MobileBottomSheet
         open={filterSheetOpen}
@@ -537,7 +588,7 @@ export function ProductsToolbar({
             <button
               type="button"
               onClick={() => setFilterSheetOpen(false)}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               {t('showResults')} ({number.format(totalResults)})
             </button>

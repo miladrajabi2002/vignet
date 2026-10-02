@@ -59,7 +59,7 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
 
           <form onSubmit={save} className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="input min-h-12 flex-1 text-left text-sm" />
-            <button type="submit" disabled={saving} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-50">
+            <button type="submit" disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-50">
               {saving ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : saved ? <Check className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
               {saved ? t('saved') : t('save')}
             </button>

@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, Search, SlidersHorizontal, Users, X } from 'lucide-react'
-import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
+import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, MoreVertical, Search, SlidersHorizontal, Users, X } from 'lucide-react'
+import { ChannelBadge, ChannelGlyph, SourceTagBadges } from '@/components/crm/channel-badge'
 import { smartTime, formatDateTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
 import { displayPhone } from '@/lib/phone'
@@ -47,6 +47,10 @@ export interface ContactRow {
         avatarFallbackUrl?: string | null
         channelUsernames?: Partial<Record<ChannelType, string | null>>
         marketingOptIn: boolean
+        /** Last thing said in the customer's latest conversation. */
+        lastMessage?: string | null
+        /** 0–100 purchase likelihood from the latest conversation, when known. */
+        buyerProbability?: number | null
 }
 
 const STAGES = CONTACT_STAGES
@@ -379,7 +383,7 @@ export function ContactsView({
                         {limitNotice}
 
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                                <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
+                                <div className="ui-seg grid-flow-col" role="group">
                                         <ToggleBtn
                                                 active={view === 'list'}
                                                 onClick={() => setView('list')}
@@ -396,8 +400,8 @@ export function ContactsView({
                         </div>
 
                         <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-                                <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
-                                        <div className="flex items-center gap-2 md:hidden">
+                                <div className="ui-fbar spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
+                                        <div className="ui-fbar-compact flex items-center gap-2">
                                                 <ContactSearchField
                                                         value={query}
                                                         loading={isSearching}
@@ -430,7 +434,7 @@ export function ContactsView({
                                         </div>
 
                                         {activeFacetCount > 0 && (
-                                                <div className="mt-2 flex flex-wrap gap-2 md:hidden" aria-label={t('filters')}>
+                                                <div className="ui-fbar-compact mt-2 flex flex-wrap gap-2" aria-label={t('filters')}>
                                                         {stageFilter && (
                                                                 <ActiveFilterChip label={stageLabel} onRemove={() => setStageFilter('')} />
                                                         )}
@@ -443,7 +447,7 @@ export function ContactsView({
                                                 </div>
                                         )}
 
-                                        <div className="hidden flex-wrap items-center gap-2 md:flex">
+                                        <div className="ui-fbar-full flex-wrap items-center gap-2">
                                                 <ContactSearchField
                                                         value={query}
                                                         loading={isSearching}
@@ -464,6 +468,7 @@ export function ContactsView({
                         </div>
 
                         <MobileBottomSheet
+                                mobileOnly={false}
                                 open={filterSheetOpen}
                                 title={t('filters')}
                                 description={t('filtersDescription')}
@@ -483,7 +488,7 @@ export function ContactsView({
                                                 <button
                                                         type="button"
                                                         onClick={() => setFilterSheetOpen(false)}
-                                                        className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+                                                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                                                 >
                                                         {t('showResults')} ({filtered.length.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')})
                                                 </button>
@@ -629,13 +634,11 @@ function ToggleBtn({
 }) {
         return (
                 <button
+                        type="button"
                         onClick={onClick}
-                        className={cn(
-                                'flex min-h-11 items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm transition-colors',
-                                active
-                                        ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                        )}
+                        aria-pressed={active}
+                        data-active={active}
+                        className="ui-seg-tab min-h-9 gap-1.5 px-3 text-[13px]"
                 >
                         {icon}
                         {label}
@@ -776,64 +779,59 @@ function ListView({
                                 })}
                         </div>
 
-                        <div className="spatial-surface hidden divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card md:block">
-                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
-                                        <div className="min-w-0">
-                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{locale === 'fa' ? 'فهرست مشتریان' : 'Customer list'}</h2>
-                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{t('customersOnPage', { count: nf.format(rows.length) })}</p>
-                                        </div>
-                                        <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-secondary)]">{t('latestActivity')}</span>
+                        {/* Desktop: a table. Phone and last message collapse away as the column narrows. */}
+                        <div className="ui-ctable spatial-surface hidden overflow-hidden rounded-card md:block">
+                                <div className="ui-ctable-row border-b border-[var(--border-subtle)] px-4 py-2.5 text-[12px] text-[var(--text-muted)] sm:px-5">
+                                        <span />
+                                        <span>{locale === 'fa' ? 'مشتری' : 'Customer'}</span>
+                                        <span className="ui-ctable-phone">{locale === 'fa' ? 'شماره' : 'Phone'}</span>
+                                        <span className="ui-ctable-msg">{locale === 'fa' ? 'آخرین پیام' : 'Last message'}</span>
+                                        <span>{t('stage')}</span>
+                                        <span className="ui-ctable-time text-end">{t('latestActivity')}</span>
                                 </div>
-                                {rows.map((c) => (
-                                        <LiveArrivalItem
-                                                key={`desktop-${c.id}`}
-                                                itemId={c.id}
-                                                className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
-                                        >
-                                                <label className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-colors hover:bg-[var(--bg-hover)]">
-                                                        <input
-                                                                type="checkbox"
-                                                                checked={selected.has(c.id)}
-                                                                onChange={() => onToggleSelected(c.id)}
-                                                                className="h-4 w-4 accent-black"
-                                                                aria-label={`${t('selectCustomer')}: ${rowDisplayName(c, t('anonymous'))}`}
-                                                        />
-                                                </label>
-                                                <Link
-                                                        href={`/contacts/${c.id}`}
-                                                        className="flex min-w-0 flex-1 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                                                        aria-label={rowDisplayName(c, t('anonymous'))}
+                                {rows.map((c) => {
+                                        const name = rowDisplayName(c, t('anonymous'))
+                                        const firstChannel = c.channels[0]
+                                        const handle = firstChannel ? c.channelUsernames?.[firstChannel] : null
+                                        return (
+                                                <LiveArrivalItem
+                                                        key={`desktop-${c.id}`}
+                                                        itemId={c.id}
+                                                        className="ui-ctable-row border-t border-[var(--border-subtle)] px-4 py-1.5 transition-colors first:border-t-0 hover:bg-[var(--bg-hover)] sm:px-5"
                                                 >
-                                                        <ContactAvatar
-                                                                src={c.avatarUrl}
-                                                                fallbackSrc={c.avatarFallbackUrl}
-                                                                alt={rowDisplayName(c, t('anonymous'))}
-                                                        />
-                                                        <div className="min-w-0 flex-1">
-                                                                <div className="flex flex-wrap items-center gap-2">
-                                                                        <span className="truncate text-sm font-medium text-[var(--text-primary)]" title={rowDisplayName(c, t('anonymous'))}>{rowDisplayName(c, t('anonymous'))}</span>
-                                                                        {c.channels.map((ch) => {
-                                                                                const handle = c.channelUsernames?.[ch]
-                                                                                return (
-                                                                                        <span key={ch} className="inline-flex items-center gap-1">
-                                                                                                <ChannelBadge type={ch} />
-                                                                                                {handle && <span dir="ltr" className="text-[12px] text-[var(--text-muted)]">@{handle}</span>}
-                                                                                        </span>
-                                                                                )
-                                                                        })}
-                                                                        <SourceTagBadges tags={c.tags} />
-                                                                </div>
-                                                                <p className="truncate text-xs tabular-nums text-[var(--text-secondary)]" title={`${rowDisplayName(c, t('anonymous'))} — ${c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} ${t('conversations')}`}>
-                                                                        {c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} {t('conversations')} · {t('lastSeen')} <span className="tabular-nums" title={formatDateTime(c.lastActivity, locale)}>{smartTime(c.lastActivity, locale)}</span>
-                                                                </p>
-                                                                {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] text-emerald-600">{t('marketingConsent')}</span>}
+                                                        <label className="grid h-11 w-8 shrink-0 place-items-center">
+                                                                <input
+                                                                        type="checkbox"
+                                                                        checked={selected.has(c.id)}
+                                                                        onChange={() => onToggleSelected(c.id)}
+                                                                        className="h-4 w-4 accent-black"
+                                                                        aria-label={`${t('selectCustomer')}: ${name}`}
+                                                                />
+                                                        </label>
+                                                        <Link
+                                                                href={`/contacts/${c.id}`}
+                                                                className="flex min-w-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                        >
+                                                                <ContactAvatar src={c.avatarUrl} fallbackSrc={c.avatarFallbackUrl} alt="" size="xs" />
+                                                                <span className="min-w-0 truncate text-[13px] font-bold text-[var(--text-primary)]" title={name}>{name}</span>
+                                                                {c.channels.map((ch) => <ChannelGlyph key={ch} type={ch} />)}
+                                                                <SourceTagBadges tags={c.tags} />
+                                                        </Link>
+                                                        <span dir="ltr" className="ui-ctable-phone truncate text-end text-[12px] tabular-nums text-[var(--text-secondary)]">
+                                                                {c.phone ? displayPhone(c.phone) : handle ? `@${handle}` : '—'}
+                                                        </span>
+                                                        <span className="ui-ctable-msg truncate text-[12px] text-[var(--text-secondary)]" title={c.lastMessage ?? undefined}>
+                                                                {c.lastMessage || (locale === 'fa' ? `${nf.format(c.conversationCount)} گفتگو` : `${c.conversationCount} conversations`)}
+                                                        </span>
+                                                        <div onClick={(event) => event.stopPropagation()} className="min-w-0">
+                                                                <StageSelect value={c.stage} onChange={(nextStage) => onMove(c.id, nextStage)} />
                                                         </div>
-                                                </Link>
-                                                <div onClick={(event) => event.stopPropagation()} className="shrink-0">
-                                                        <StageSelect value={c.stage} onChange={(nextStage) => onMove(c.id, nextStage)} />
-                                                </div>
-                                        </LiveArrivalItem>
-                                ))}
+                                                        <span className="ui-ctable-time whitespace-nowrap text-end text-[12px] tabular-nums text-[var(--text-muted)]" title={formatDateTime(c.lastActivity, locale)}>
+                                                                {smartTime(c.lastActivity, locale)}
+                                                        </span>
+                                                </LiveArrivalItem>
+                                        )
+                                })}
                         </div>
                 </div>
         )
@@ -865,7 +863,7 @@ function PipelineView({
         }
 
         return (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-4">
                         {STAGES.map((stage) => {
                                 const items = rows.filter((r) => stageOf(r) === stage)
                                 const isOver = overStage === stage
@@ -886,7 +884,7 @@ function PipelineView({
                                                         handleDrop(stage)
                                                 }}
                                                 className={cn(
-                                                        'flex flex-col rounded-2xl border bg-[var(--bg-surface)] transition-colors',
+                                                        'flex w-[17rem] shrink-0 snap-start flex-col rounded-2xl border bg-[var(--bg-surface)] transition-colors md:w-auto',
                                                         isOver
                                                                 ? 'border-[var(--border-strong)] bg-[var(--bg-hover)]'
                                                                 : 'border-[var(--border-default)]',
@@ -896,7 +894,7 @@ function PipelineView({
                                                         <span className="text-sm font-medium text-[var(--text-primary)]">
                                                                 {t(STAGE_KEY[stage])}
                                                         </span>
-                                                        <span className="text-xs text-[var(--text-muted)]">{items.length}</span>
+                                                        <span className="text-xs tabular-nums text-[var(--text-muted)]">{items.length.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}</span>
                                                 </div>
                                                 <div className="flex flex-1 flex-col gap-2 p-3">
                                                         {items.length === 0 ? (
@@ -917,45 +915,44 @@ function PipelineView({
                                                                                         setOverStage(null)
                                                                                 }}
                                                                                 className={cn(
-                                                                                        'group cursor-grab rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 transition-opacity active:cursor-grabbing',
+                                                                                        'cursor-grab rounded-xl border border-[var(--border-subtle)] bg-white p-3 shadow-[var(--shadow-xs)] transition-opacity active:cursor-grabbing',
                                                                                         dragId === c.id && 'opacity-40',
                                                                                 )}
                                                                         >
-                                                                                <div className="flex items-center gap-2">
-                                                                                        <GripVertical className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
-                                                                                        <ContactAvatar
-                                                                                                src={c.avatarUrl}
-                                                                                                fallbackSrc={c.avatarFallbackUrl}
-                                                                                                alt={rowDisplayName(c, t('anonymous'))}
-                                                                                                size="xs"
-                                                                                        />
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                        <GripVertical className="h-4 w-4 shrink-0 text-[var(--text-hint)]" aria-hidden="true" />
                                                                                         <Link
                                                                                                 href={`/contacts/${c.id}`}
-                                                                                                className="truncate text-sm font-medium text-[var(--text-primary)]"
+                                                                                                className="min-w-0 truncate text-[13px] font-bold text-[var(--text-primary)]"
                                                                                         >
                                                                                                 {rowDisplayName(c, t('anonymous'))}
                                                                                         </Link>
+                                                                                        {c.channels.map((ch) => <ChannelGlyph key={ch} type={ch} />)}
+                                                                                        {/* Dragging needs a mouse; this is the same move for touch and keyboard. */}
+                                                                                        <label className="relative ms-auto grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg text-[var(--text-muted)] hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]">
+                                                                                                <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                                                                                                <select
+                                                                                                        value={stageOf(c)}
+                                                                                                        onChange={(e) => onMove(c.id, e.target.value as Stage)}
+                                                                                                        aria-label={`${t('stage')}: ${rowDisplayName(c, t('anonymous'))}`}
+                                                                                                        className="absolute inset-0 cursor-pointer opacity-0"
+                                                                                                >
+                                                                                                        {STAGES.map((option) => <option key={option} value={option}>{t(STAGE_KEY[option])}</option>)}
+                                                                                                </select>
+                                                                                        </label>
                                                                                 </div>
-                                                                                <Link
-                                                                                        href={`/contacts/${c.id}`}
-                                                                                        className="mt-1 flex flex-wrap items-center gap-1"
-                                                                                        aria-label={rowDisplayName(c, t('anonymous'))}
-                                                                                >
-                                                                                        {c.channels.map((ch) => (
-                                                                                                <ChannelBadge key={ch} type={ch} />
-                                                                                        ))}
-                                                                                        <SourceTagBadges tags={c.tags} />
+                                                                                <Link href={`/contacts/${c.id}`} tabIndex={-1} aria-hidden="true" className="mt-1 block">
+                                                                                        <p className="line-clamp-2 min-h-5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                                                                                                {c.lastMessage || (locale === 'fa' ? 'هنوز پیامی نیست' : 'No messages yet')}
+                                                                                        </p>
                                                                                 </Link>
-                                                                                <div className="mt-2 flex items-center justify-between">
-                                                                                        <Link
-                                                                                                href={`/contacts/${c.id}`}
-                                                                                                className="text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                                                                                        >
-                                                                                                {c.conversationCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')} {t('conversations')}
-                                                                                        </Link>
-                                                                                        <div onClick={(e) => e.stopPropagation()}>
-                                                                                                <StageSelect value={c.stage} onChange={(s) => onMove(c.id, s)} />
-                                                                                        </div>
+                                                                                <div className="mt-1.5 flex items-center justify-between gap-2 text-[12px] text-[var(--text-muted)]">
+                                                                                        <span className="whitespace-nowrap tabular-nums">{smartTime(c.lastActivity, locale === 'fa' ? 'fa' : 'en')}</span>
+                                                                                        {typeof c.buyerProbability === 'number' && (
+                                                                                                <span className={cn('whitespace-nowrap font-medium tabular-nums', c.buyerProbability >= 75 ? 'text-emerald-700' : '')}>
+                                                                                                        {Math.round(c.buyerProbability).toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}{locale === 'fa' ? '٪' : '%'}
+                                                                                                </span>
+                                                                                        )}
                                                                                 </div>
                                                                         </div>
                                                                         </LiveArrivalItem>

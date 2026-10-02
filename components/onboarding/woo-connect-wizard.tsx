@@ -290,7 +290,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                   {submitting ? (fa ? 'در حال ایجاد اتصال…' : 'Creating the connection…') : (fa ? 'ادامه' : 'Continue')}
@@ -309,9 +309,9 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
               className="space-y-4"
             >
               {/* Confirmed URL banner */}
-              <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-                <span dir="ltr" className="truncate text-xs font-medium text-green-800">
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span dir="ltr" className="truncate text-xs font-medium text-emerald-800">
                   {integration.storeUrl}
                 </span>
               </div>
@@ -380,9 +380,9 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                 initial={reduceMotion ? false : { scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, type: 'spring', bounce: 0.5 }}
-                className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-green-100"
+                className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100"
               >
-                <CheckCircle2 className="h-9 w-9 text-green-600" strokeWidth={2} />
+                <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={2} />
               </motion.div>
 
               <div>

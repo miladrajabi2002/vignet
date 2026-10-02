@@ -21,6 +21,9 @@ import { cn } from '@/lib/utils'
  *  - `icon`        ink tile with a soft top highlight.
  *  - `breadcrumbs` optional tiny trail above the title (admin detail pages).
  *  - `actions`     end-aligned on desktop, a single scrollable row on phones.
+ *                  When the column is too narrow for both (tablets next to
+ *                  the rail), the actions drop to a second row so the title
+ *                  never breaks inside a word.
  *
  * By request there is no kicker / eyebrow copy above the title — only the
  * optional breadcrumb trail, which is navigation, not decoration.
@@ -46,8 +49,8 @@ export function PageHeader({
 }) {
   return (
     <header className={cn('dashboard-page-header', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3 sm:min-w-[min(100%,17rem)] sm:flex-1 sm:gap-3.5">
           {back && <BackButton href={back.href} label={back.label} variant="icon" />}
           {back && Icon && <span aria-hidden className="hidden h-8 w-px shrink-0 bg-black/[0.08] sm:block" />}
           {Icon && (
@@ -58,7 +61,7 @@ export function PageHeader({
           <div className="min-w-0">
             {breadcrumbs && breadcrumbs.length > 0 && (
               <nav aria-label="breadcrumb" className="mb-0.5">
-                <ol className="flex flex-wrap items-center gap-1 text-[12.5px] font-medium text-[var(--text-muted)]">
+                <ol className="flex flex-wrap items-center gap-1 text-[13px] font-medium text-[var(--text-muted)]">
                   {breadcrumbs.map((crumb, index) => {
                     const last = index === breadcrumbs.length - 1
                     return (

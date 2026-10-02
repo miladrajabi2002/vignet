@@ -35,15 +35,9 @@ export function AutomationsReportSummary({
   const people = sum(list, 'people')
   if (!people) {
     return (
-      <section className="spatial-surface flex items-center gap-3 rounded-card p-4 sm:p-5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--bg-surface)] text-[var(--text-secondary)]"><BarChart3 className="h-5 w-5" /></span>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'گزارش اتوماسیون‌ها' : 'Automation report'}</p>
-          <p className="mt-0.5 text-[12.5px] leading-5 text-[var(--text-muted)]">
-            {fa ? 'از اولین اجرای هر سناریو، اینجا می‌بینید به چند نفر رسید، چند نفر ادامه دادند و چند سفارش یا رزرو آورد.' : 'After the first run you will see how many people each scenario reached and what they did next.'}
-          </p>
-        </div>
-      </section>
+      <p className="px-1 text-[12px] leading-5 text-[var(--text-muted)]">
+        {fa ? 'از اولین اجرای هر سناریو، اینجا می‌بینید به چند نفر رسید و چند سفارش یا رزرو آورد.' : 'After the first run you will see how many people each scenario reached and what it brought in.'}
+      </p>
     )
   }
   const reached = sum(list, 'reached') || people
@@ -65,29 +59,22 @@ export function AutomationsReportSummary({
     ...(gated ? [{ key: 'gate', Icon: UserCheck, label: fa ? 'فالو را تأیید کردند' : 'Confirmed the follow', value: confirmed, hint: fa ? `از ${fmt(gated, fa)} نفر` : `of ${gated}` }] : []),
   ]
 
+  // One quiet line of figures above the scenarios; the list is the page.
   return (
-    <section className="spatial-surface rounded-card p-4 sm:p-5" aria-labelledby="ig-report-title">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 id="ig-report-title" className="ui-h3">{fa ? 'نتیجه اتوماسیون‌ها' : 'Automation results'}</h2>
-          <p className="ui-caption mt-0.5">{fa ? '۳۰ روز گذشته · نتیجه‌ها تا ۷ روز بعد از هر اجرا در همان گفتگو شمرده می‌شوند' : 'Last 30 days · results counted in the same conversation up to 7 days after each run'}</p>
-        </div>
-        {best && results(best) > 0 && names[best.automationId] && (
-          <span className="inline-flex min-h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[12px] font-bold text-[var(--text-secondary)]">
-            {fa ? `پربازده‌ترین: «${names[best.automationId]}»` : `Top: “${names[best.automationId]}”`}
-          </span>
-        )}
-      </div>
-      <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {tiles.map(({ key, Icon, label, value, hint }) => (
-          <div key={key} className="rounded-2xl border border-[var(--border-subtle)] bg-white px-3 py-2.5">
-            <dt className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]"><Icon className="h-3.5 w-3.5" />{label}</dt>
-            <dd className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-lg font-bold tabular-nums text-[var(--text-primary)]">{fmt(value, fa)}</span>
-              {hint && <span className="text-[12px] tabular-nums text-[var(--text-muted)]">{hint}</span>}
-            </dd>
+    <section className="px-1" aria-label={fa ? 'نتیجه اتوماسیون‌ها در ۳۰ روز گذشته' : 'Automation results, last 30 days'}>
+      <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[12px] text-[var(--text-muted)]">
+        {tiles.map(({ key, label, value, hint }) => (
+          <div key={key} className="flex items-baseline gap-1.5">
+            <dd className="text-[15px] font-bold tabular-nums text-[var(--text-primary)]">{fmt(value, fa)}</dd>
+            <dt>{label}{hint ? ` (${hint})` : ''}</dt>
           </div>
         ))}
+        <div className="ms-auto flex flex-wrap items-baseline gap-x-3">
+          {best && results(best) > 0 && names[best.automationId] && (
+            <span className="font-medium text-[var(--text-secondary)]">{fa ? `پربازده‌ترین: «${names[best.automationId]}»` : `Top: “${names[best.automationId]}”`}</span>
+          )}
+          <span>{fa ? '۳۰ روز گذشته' : 'Last 30 days'}</span>
+        </div>
       </dl>
     </section>
   )

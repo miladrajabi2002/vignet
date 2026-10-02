@@ -76,7 +76,7 @@ const ICON_TONES: Record<ChannelType, string> = {
   TELEGRAM: 'text-sky-500',
   WHATSAPP: 'text-emerald-500',
   INSTAGRAM: 'text-fuchsia-500',
-  BALE: 'text-[#00a37a]',
+  BALE: 'text-[#047857]',
   RUBIKA: 'text-orange-500',
   WEB_WIDGET: 'text-violet-600',
   API: 'text-zinc-500',
@@ -109,6 +109,18 @@ export const CHANNEL_LABELS_FA: Record<ChannelType, string> = {
 export function channelLabel(type: string, locale: string): string {
   const labels: Record<string, string> = locale === 'en' ? CHANNEL_LABELS : CHANNEL_LABELS_FA
   return labels[type] ?? type
+}
+
+/** The app as a bare icon, for dense rows where a labelled chip is noise. */
+export function ChannelGlyph({ type, className }: { type: ChannelType; className?: string }) {
+  const Icon = ICONS[type]
+  const locale = useLocale()
+  const label = channelLabel(type, locale)
+  return (
+    <span role="img" aria-label={label} title={label} className={cn('inline-flex shrink-0', className)}>
+      <Icon aria-hidden="true" className={cn('h-3.5 w-3.5', ICON_TONES[type])} />
+    </span>
+  )
 }
 
 export function ChannelBadge({ type }: { type: ChannelType }) {
@@ -146,7 +158,7 @@ export function WooCommerceBadge() {
   const fa = useLocale() !== 'en'
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[12px] font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-purple-300"
+      className="inline-flex items-center gap-1 rounded-md border border-black/10 bg-black/[0.04] px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]"
       title={fa ? 'مشتری از طریق افزونه ووکامرس وارد شده است' : 'This customer came in through the WooCommerce plugin'}
     >
       <WooCommerceIcon className="h-3 w-3" />

@@ -152,7 +152,7 @@ export default async function ProductDetailPage(
               className="h-full w-full object-cover"
             />)
           ) : (
-            <div className="flex h-full items-center justify-center text-[var(--text-hint)]">
+            <div className="flex h-full items-center justify-center text-[var(--text-muted)]">
               <Package className="h-8 w-8" />
             </div>
           )}
@@ -219,7 +219,7 @@ export default async function ProductDetailPage(
             </div>
           )}
           <div className="mt-2 flex items-center gap-2">
-            <span dir="ltr" className="min-w-0 truncate text-xs text-[var(--text-hint)]">
+            <span dir="ltr" className="min-w-0 truncate text-xs text-[var(--text-muted)]">
               ID: {product.id}
             </span>
             <CopyButton value={product.id} label={t('copyId')} copiedLabel={t('copied')} />
@@ -366,7 +366,7 @@ export default async function ProductDetailPage(
                       className="h-14 w-14 shrink-0 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-hint)]">
+                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-muted)]">
                       <Package className="h-4 w-4" />
                     </div>
                   )}
@@ -447,7 +447,7 @@ function VariationMatrix({ variations, locale, fmt }: { variations: VariationRow
               <th scope="row" className="px-3 py-2 text-start font-medium text-[var(--text-primary)]">{row}</th>
               {cols.map((col) => {
                 const v = cell(row, col)
-                if (!v) return <td key={col} className="px-3 py-2 text-center text-[var(--text-hint)]">—</td>
+                if (!v) return <td key={col} className="px-3 py-2 text-center text-[var(--text-muted)]">—</td>
                 const count = v.manageStock ? v.stockQuantity ?? 0 : null
                 const inStock = count != null ? count > 0 : v.inStock !== false
                 return (

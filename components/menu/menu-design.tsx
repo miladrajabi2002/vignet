@@ -110,12 +110,12 @@ export function MenuDesign({
                   <span className="h-8 w-8 rounded-full" style={{ background: color }} />
                 </button>
               ))}
-              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border border-[var(--border-default)] px-3 text-[12.5px]">
+              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border border-[var(--border-default)] px-3 text-[13px]">
                 <input type="color" value={palette.accent} onChange={(event) => set('accent', event.target.value)} className="h-6 w-6 cursor-pointer rounded-full border-0 bg-transparent p-0" aria-label="رنگ دلخواه" />
                 دلخواه
               </label>
               {settings.accent && (
-                <button type="button" onClick={() => set('accent', null)} className="inline-flex h-11 items-center gap-1 rounded-full px-3 text-[12.5px] text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <button type="button" onClick={() => set('accent', null)} className="inline-flex h-11 items-center gap-1 rounded-full px-3 text-[13px] text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                   <RotateCcw className="h-3.5 w-3.5" />رنگ تم
                 </button>
               )}
@@ -126,7 +126,7 @@ export function MenuDesign({
             <p className="mb-2 text-[13px] font-medium text-[var(--text-secondary)]">چیدمان آیتم‌ها</p>
             <div className="ui-seg grid-cols-3" role="tablist" aria-label="چیدمان آیتم‌ها">
               {MENU_LAYOUTS.map((layout) => (
-                <button key={layout} type="button" role="tab" aria-selected={settings.layout === layout} onClick={() => set('layout', layout)} className="ui-seg-tab text-[12.5px]">{LAYOUT_LABELS[layout]}</button>
+                <button key={layout} type="button" role="tab" aria-selected={settings.layout === layout} onClick={() => set('layout', layout)} className="ui-seg-tab text-[13px]">{LAYOUT_LABELS[layout]}</button>
               ))}
             </div>
           </div>
@@ -174,7 +174,7 @@ export function MenuDesign({
           <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             <ExternalLink className="h-4 w-4" />منوی مشتری
           </a>
-          <p role="status" aria-live="polite" className={cn('text-[12.5px]', notice ? (notice.ok ? 'text-emerald-700' : 'text-red-700') : 'text-[var(--text-muted)]')}>
+          <p role="status" aria-live="polite" className={cn('text-[13px]', notice ? (notice.ok ? 'text-emerald-700' : 'text-red-700') : 'text-[var(--text-muted)]')}>
             {notice?.text ?? (dirty ? 'تغییرات ذخیره‌نشده دارید.' : 'همهٔ تغییرات ذخیره شده است.')}
           </p>
         </div>
@@ -196,7 +196,7 @@ function Panel({ title, hint, children }: { title: string; hint?: string; childr
   return (
     <section className="spatial-surface rounded-card p-4 sm:p-5">
       <h2 className="ui-h3">{title}</h2>
-      {hint && <p className="mt-0.5 text-[12.5px] text-[var(--text-muted)]">{hint}</p>}
+      {hint && <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{hint}</p>}
       <div className="mt-3">{children}</div>
     </section>
   )
@@ -226,7 +226,7 @@ function ToggleRow({ title, description, checked, disabled, onChange }: { title:
     <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-[var(--text-primary)]">{title}</p>
-        <p className="mt-0.5 text-[12.5px] leading-6 text-[var(--text-muted)]">{description}</p>
+        <p className="mt-0.5 text-[13px] leading-6 text-[var(--text-muted)]">{description}</p>
       </div>
       <Switch checked={checked && !disabled} disabled={disabled} onChange={onChange} aria-label={title} />
     </div>
@@ -267,7 +267,7 @@ function ImageField({ label, value, onChange, wide = false }: { label: string; v
             </button>
           </>
         ) : (
-          <button type="button" onClick={() => input.current?.click()} className="flex min-h-11 flex-col items-center gap-1 p-4 text-[12.5px] text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+          <button type="button" onClick={() => input.current?.click()} className="flex min-h-11 flex-col items-center gap-1 p-4 text-[13px] text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             {progress != null ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
             {progress != null ? `${Math.round(progress)}٪` : `انتخاب ${label}`}
           </button>

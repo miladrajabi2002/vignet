@@ -166,18 +166,18 @@ export function ConfirmDialog({
                     ))}
                 </span>
                 <div className="min-w-0 sm:flex-1">
-                  <h2 id={titleId} className="mt-3.5 text-[17px] font-bold tracking-tight text-[var(--text-primary)] sm:mt-0.5">
+                  <h2 id={titleId} className="mt-3.5 text-[18px] font-bold tracking-tight text-[var(--text-primary)] sm:mt-0.5">
                     {title}
                   </h2>
                   {description && (
-                    <p id={descriptionId} className="mt-1.5 text-[13.5px] leading-6 text-[var(--text-secondary)]">
+                    <p id={descriptionId} className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">
                       {description}
                     </p>
                   )}
                 </div>
               </div>
               {undoNote && (
-                <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-black/[0.06] bg-[var(--bg-surface)] px-3.5 py-2.5 text-start text-[12.5px] leading-6 text-[var(--text-secondary)]">
+                <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-black/[0.06] bg-[var(--bg-surface)] px-3.5 py-2.5 text-start text-[13px] leading-6 text-[var(--text-secondary)]">
                   <RotateCcw className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--text-primary)]" aria-hidden="true" />
                   <span>{undoNote}</span>
                 </p>

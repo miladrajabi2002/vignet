@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useLocale } from 'next-intl'
 import {
   Area,
@@ -29,7 +30,14 @@ export interface TrendPoint {
  * drawing for ~1.5s, which reads as faster and never fights
  * prefers-reduced-motion (a JS animation the CSS kill-switch can't stop).
  */
-export function ConversationChart({ data }: { data: TrendPoint[] }) {
+export function ConversationChart({
+  data,
+  empty,
+}: {
+  data: TrendPoint[]
+  /** Copy (and an optional next step) for a window with no activity at all. */
+  empty?: { title?: string; hint?: string; action?: { href: string; label: string } }
+}) {
   const locale = useLocale()
   const fa = locale === 'fa'
   const numberLocale = fa ? 'fa-IR' : 'en-US'
@@ -43,6 +51,31 @@ export function ConversationChart({ data }: { data: TrendPoint[] }) {
     fa
       ? { total: 'کل گفتگوها', resolved: 'حل‌شده', handoff: 'تحویل اپراتور' }[key]
       : { total: 'Total', resolved: 'Resolved', handoff: 'Handed off' }[key]
+
+  // No conversations in the window: keep the axes so the card still reads as a
+  // chart, and say when it fills up instead of drawing a flat line at zero.
+  if (peak === 0) {
+    return (
+      <div className="relative grid h-[12.5rem] w-full place-items-center sm:h-60">
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-5 top-2 border-b border-dashed border-[var(--border-strong)] [background:repeating-linear-gradient(to_bottom,transparent_0,transparent_calc(25%_-_1px),rgba(17,17,17,0.06)_calc(25%_-_1px),rgba(17,17,17,0.06)_25%)]"
+        />
+        <div className="relative max-w-xs rounded-xl bg-white px-4 py-2 text-center">
+          <p className="text-sm font-medium text-[var(--text-primary)]">{empty?.title ?? (fa ? 'هنوز داده‌ای برای این بازه نیست' : 'Nothing in this period yet')}</p>
+          <p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">{empty?.hint ?? (fa ? 'با اولین فعالیت، روند همین‌جا رسم می‌شود.' : 'The trend is drawn here from the first activity.')}</p>
+          {empty?.action && (
+            <Link
+              href={empty.action.href}
+              className="mt-2 inline-flex min-h-9 items-center justify-center rounded-control border border-[var(--border-default)] bg-white px-3.5 text-[13px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-xs)] transition-colors hover:border-[var(--border-hover)]"
+            >
+              {empty.action.label}
+            </Link>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

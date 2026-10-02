@@ -34,10 +34,10 @@ export function CheckoutCardView({ card, accent, onAccent }: { card: CheckoutCar
 			className="w-full max-w-[340px] rounded-3xl border border-[var(--border-default,#e5e7eb)] bg-white p-4 shadow-[0_12px_32px_-20px_rgba(0,0,0,.35)] dark:bg-neutral-900"
 		>
 			<div className="mb-2 flex flex-col gap-0.5">
-				<span className="text-[14px] font-extrabold text-neutral-900 dark:text-neutral-50">
+				<span className="text-[15px] font-extrabold text-neutral-900 dark:text-neutral-50">
 					{fa ? 'سفارش' : 'Order'} {card.code}
 				</span>
-				<span className="text-[11.5px] text-neutral-500">
+				<span className="text-[12px] text-neutral-500">
 					{fa ? 'پرداخت امن روی' : 'Secure payment on'} {card.storeHost}
 				</span>
 			</div>
@@ -45,7 +45,7 @@ export function CheckoutCardView({ card, accent, onAccent }: { card: CheckoutCar
 				{rows.map((row, index) => (
 					<div
 						key={index}
-						className={`flex justify-between gap-3 py-2 text-[12.5px] leading-6 ${
+						className={`flex justify-between gap-3 py-2 text-[13px] leading-6 ${
 							row.tone === 'total'
 								? 'font-extrabold text-neutral-900 dark:text-neutral-50'
 								: row.tone === 'muted'
@@ -62,7 +62,7 @@ export function CheckoutCardView({ card, accent, onAccent }: { card: CheckoutCar
 				href={card.url}
 				target="_blank"
 				rel="noopener noreferrer"
-				className="mt-3 flex min-h-[46px] items-center justify-center rounded-2xl text-[14px] font-extrabold transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+				className="mt-3 flex min-h-[46px] items-center justify-center rounded-2xl text-[15px] font-extrabold transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
 				style={{ backgroundColor: accent, color: onAccent }}
 			>
 				{fa ? 'پرداخت و ثبت سفارش' : 'Pay and place order'}

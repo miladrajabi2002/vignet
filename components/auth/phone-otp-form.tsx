@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useTranslations } from 'next-intl'
+import Link from 'next/link'
+import { useLocale, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowLeft, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import { toEnglishDigits } from '@/lib/phone'
@@ -24,6 +25,7 @@ export function PhoneOtpForm({
   nextPath?: string
 }) {
   const t = useTranslations('auth')
+  const locale = useLocale()
   const reduce = useReducedMotion()
 
   const [step, setStep] = useState<Step>('phone')
@@ -321,8 +323,12 @@ export function PhoneOtpForm({
               {loading ? t('sending') : t('sendCode')}
             </button>
 
-            <p className="mt-4 text-center text-xs text-[var(--text-muted)] sm:mt-6">
-              {t('noCard')}
+            <p className="mt-4 text-center text-xs leading-6 text-[var(--text-muted)] sm:mt-6">
+              {t('agreePrefix')}{' '}
+              <Link href="/terms" className="font-medium text-[var(--text-secondary)] underline underline-offset-4 hover:text-[var(--text-primary)]">{t('agreeTerms')}</Link>{' '}
+              {t('agreeAnd')}{' '}
+              <Link href="/privacy" className="font-medium text-[var(--text-secondary)] underline underline-offset-4 hover:text-[var(--text-primary)]">{t('agreePrivacy')}</Link>
+              {locale === 'en' ? '' : ' '}{t('agreeSuffix')}
             </p>
           </motion.div>
         ) : (

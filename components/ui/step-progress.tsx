@@ -43,7 +43,7 @@ export function StepProgress({
 							>
 								{done ? <Check aria-hidden className="h-3.5 w-3.5" strokeWidth={2.6} /> : nf.format(index + 1)}
 							</span>
-							<span className={cn('min-w-0 max-w-full truncate text-[12.5px] leading-5 sm:text-[12.5px]', active ? 'font-bold text-[var(--text-primary)]' : done ? 'font-medium text-[var(--text-secondary)]' : 'text-[var(--text-muted)]')}>
+							<span className={cn('min-w-0 max-w-full truncate text-[13px] leading-5 sm:text-[13px]', active ? 'font-bold text-[var(--text-primary)]' : done ? 'font-medium text-[var(--text-secondary)]' : 'text-[var(--text-muted)]')}>
 								{title}
 							</span>
 						</li>

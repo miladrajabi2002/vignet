@@ -101,6 +101,7 @@ export default async function SettingsPage() {
         navigationLabel={locale === 'fa' ? 'بخش‌های تنظیمات' : 'Settings sections'}
         labels={{
           business: locale === 'fa' ? 'کسب‌وکار' : 'Business',
+          capabilities: locale === 'fa' ? 'قابلیت‌ها' : 'Capabilities',
           operator: locale === 'fa' ? 'ربات مدیریت' : 'Manager bot',
           reports: locale === 'fa' ? 'گزارش‌ها' : 'Reports',
         }}

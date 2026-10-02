@@ -64,7 +64,7 @@ export function OnboardingShell({
                     )}>
                       {done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                     </span>
-                    <span className={cn('hidden truncate text-[12px] font-semibold lg:block', active || done ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{fa ? step.label : step.en}</span>
+                    <span className={cn('hidden truncate text-[12px] font-semibold lg:block', active || done ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{fa ? step.label : step.en}</span>
                   </div>
                   {index < STEPS.length - 1 && <span className={cn('mx-1.5 h-px min-w-3 flex-1 sm:mx-3', completed[index] ? 'bg-black' : 'bg-[var(--border-default)]')} />}
                 </div>
@@ -72,12 +72,17 @@ export function OnboardingShell({
             })}
           </div>
           {away ? (
-            <Link href="/onboarding" className="spatial-press inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-black px-3 text-[12px] font-semibold text-white shadow-[var(--shadow-control)] sm:text-xs">
+            <Link href="/onboarding" className="spatial-press inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-black px-3 text-[12px] font-semibold text-white shadow-[var(--shadow-control)] sm:text-xs">
               {setupReady ? (fa ? 'اتصال‌ها تمام شد؛ ادامه' : 'Connections done; continue') : (fa ? 'ادامه راه‌اندازی' : 'Continue setup')}
               <ChevronLeft className="h-3.5 w-3.5 ltr:rotate-180" />
             </Link>
           ) : <span className="hidden w-24 sm:block" />}
         </div>
+        {/* Phones only show step icons, so the current step is named in words. */}
+        <p className="mx-auto flex max-w-6xl items-center justify-between px-2 pt-2 text-[12px] text-[var(--text-muted)] lg:hidden">
+          <span className="font-bold text-[var(--text-primary)]">{fa ? STEPS[current].label : STEPS[current].en}</span>
+          <span className="tabular-nums">{fa ? `مرحله ${(current + 1).toLocaleString('fa-IR')} از ۴` : `Step ${current + 1} of 4`}</span>
+        </p>
       </header>
       <main className={cn('min-h-[calc(100dvh-5rem)]', away && 'px-4 pb-10 pt-5 sm:px-6')}>
         {children}

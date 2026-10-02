@@ -2,9 +2,11 @@
 
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Check, Loader2 } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { Switch } from '@/components/ui/switch'
+import { TagInput } from '@/components/ui/tag-input'
 import { cn } from '@/lib/utils'
 
 const STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
@@ -44,6 +46,7 @@ export function ContactDetailEditor({
 }) {
   const t = useTranslations('contacts')
   const router = useRouter()
+  const locale = useLocale() === 'en' ? 'en' : 'fa'
   const nameId = useId()
   const consentId = useId()
   const stageId = useId()
@@ -55,7 +58,7 @@ export function ContactDetailEditor({
       ? (initialStage as Stage)
       : 'lead',
   )
-  const [tags, setTags] = useState(initialTags.join(', '))
+  const [tags, setTags] = useState<string[]>(initialTags)
   const [notes, setNotes] = useState(initialNotes)
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn)
   const [busy, setBusy] = useState(false)
@@ -73,10 +76,7 @@ export function ContactDetailEditor({
         body: JSON.stringify({
           name: name.trim() || undefined,
           stage,
-          tags: tags
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
+          tags,
           notes: notes.trim() || null,
           marketingOptIn,
         }),
@@ -101,7 +101,7 @@ export function ContactDetailEditor({
       )}
     >
       <div>
-        <label htmlFor={nameId} className="text-xs text-[var(--text-secondary)]">
+        <label htmlFor={nameId} className="ui-field-label">
           {t('detail.name')}
         </label>
         <input
@@ -109,53 +109,38 @@ export function ContactDetailEditor({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('anonymous')}
-          className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
+          className="input"
         />
       </div>
 
-      <label htmlFor={consentId} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
-        <input
-          id={consentId}
-          type="checkbox"
-          checked={marketingOptIn}
-          onChange={(event) => setMarketingOptIn(event.target.checked)}
-          className="mt-1 h-4 w-4 accent-violet-500"
-        />
-        <span>
-          <span className="block text-sm text-[var(--text-primary)]">{t('detail.consentLabel')}</span>
-          <span className="mt-1 block text-[12px] leading-5 text-[var(--text-muted)]">{t('detail.consentHint')}</span>
-        </span>
-      </label>
-
       <div>
-        <span id={stageId} className="text-xs text-[var(--text-secondary)]">
+        <span id={stageId} className="ui-field-label">
           {t('stage')}
         </span>
         <MaterialSelect
           value={stage}
           onValueChange={(value) => setStage(value as Stage)}
           ariaLabel={t('stage')}
-          className="mt-1"
           buttonClassName="text-base sm:text-sm"
           options={STAGES.map((item) => ({ value: item, label: t(STAGE_KEY[item]) }))}
         />
       </div>
 
       <div>
-        <label htmlFor={tagsId} className="text-xs text-[var(--text-secondary)]">
+        <label htmlFor={tagsId} className="ui-field-label">
           {t('detail.tags')}
         </label>
-        <input
+        <TagInput
           id={tagsId}
           value={tags}
-          onChange={(e) => setTags(e.target.value)}
+          onChange={setTags}
+          locale={locale}
           placeholder={t('detail.tagsPlaceholder')}
-          className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
         />
       </div>
 
       <div>
-        <label htmlFor={notesId} className="text-xs text-[var(--text-secondary)]">
+        <label htmlFor={notesId} className="ui-field-label">
           {t('detail.notes')}
         </label>
         <textarea
@@ -164,8 +149,16 @@ export function ContactDetailEditor({
           onChange={(e) => setNotes(e.target.value)}
           rows={4}
           placeholder={t('detail.notesPlaceholder')}
-          className="mt-1 w-full resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-base text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
+          className="input resize-y leading-7"
         />
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-t border-[var(--border-subtle)] pt-4">
+        <span id={consentId}>
+          <span className="block text-[13px] text-[var(--text-primary)]">{t('detail.consentLabel')}</span>
+          <span className="mt-0.5 block text-[12px] leading-5 text-[var(--text-muted)]">{t('detail.consentHint')}</span>
+        </span>
+        <Switch checked={marketingOptIn} onChange={setMarketingOptIn} aria-label={t('detail.consentLabel')} />
       </div>
 
       {error && (
@@ -185,7 +178,8 @@ export function ContactDetailEditor({
           type="button"
           onClick={save}
           disabled={busy}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50"
+          aria-busy={busy}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-70"
         >
           {busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
           {t('detail.save')}

@@ -118,10 +118,14 @@ const ACCENTS = [
   { bar: 'bg-teal-500', soft: 'bg-teal-500/10 text-teal-800', hex: '#14b8a6' },
 ]
 
+/**
+ * Services used to get one of seven colours picked from their id. The colour
+ * meant nothing and clashed with the status colours, so every service now
+ * shares the ink accent; the palette above stays for a future explicit choice.
+ */
 export function serviceAccent(serviceId: string) {
-  let hash = 0
-  for (let index = 0; index < serviceId.length; index++) hash = (hash * 31 + serviceId.charCodeAt(index)) >>> 0
-  return ACCENTS[hash % ACCENTS.length]
+  void serviceId
+  return ACCENTS[0]
 }
 
 export function num(value: number, fa: boolean): string {

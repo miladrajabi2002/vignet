@@ -115,7 +115,7 @@ function GlassButton({
     <button
       type="button"
       className={cn(
-        'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-3.5 text-xs font-semibold text-white shadow-[var(--elev-1)] backdrop-blur-xl transition-[background-color,border-color,opacity] duration-200 hover:border-white/25 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
+        'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-xs font-semibold text-[var(--text-primary)] transition-[background-color,border-color,opacity] duration-200 hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
         className,
       )}
       {...props}
@@ -402,42 +402,40 @@ export function OperatorChannelSetup({
     : active
       ? t('connected')
       : copy('متوقف', 'Paused')
-  const statusTone = !info ? 'bg-white/10 text-white/65' : active ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-200'
+  const statusTone = !info ? 'bg-black/[0.05] text-[var(--text-secondary)]' : active ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'
   const deliveryValue = stats.deliveryRate === null
     ? '—'
     : `${localeNumber(stats.deliveryRate, fa)}٪`
 
   return (
     <section id="telegram-operator" className="spatial-surface scroll-mt-28 overflow-hidden rounded-sheet">
-      <div className="relative overflow-hidden bg-[#0b0b0d] px-5 py-6 text-white sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute -end-24 -top-28 h-72 w-72 rounded-full bg-sky-400/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 start-1/3 h-64 w-64 rounded-full bg-emerald-400/[0.07] blur-3xl" />
+      <div className="border-b border-[var(--border-subtle)] px-5 py-5 sm:px-6">
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl">
+            <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
               <Bot className="h-5 w-5" />
-              {info && active && <span className="absolute -end-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[#0b0b0d] bg-emerald-400" />}
+              {info && active && <span className="absolute -end-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />}
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-bold tracking-tight">{t('title')}</h2>
+                <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h2>
                 <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold', statusTone)}>
-                  <span className={cn('h-1.5 w-1.5 rounded-full', info && active ? 'bg-emerald-300' : info ? 'bg-amber-200' : 'bg-white/45')} />
+                  <span className={cn('h-1.5 w-1.5 rounded-full', info && active ? 'bg-emerald-500' : info ? 'bg-amber-500' : 'bg-black/25')} />
                   {headlineStatus}
                 </span>
               </div>
-              <p className="mt-2 max-w-2xl text-xs leading-6 text-white/55">{t('desc')}</p>
-              {info?.botUsername && <p dir="ltr" className="mt-2 w-max font-mono text-[12px] text-white/60">@{info.botUsername}</p>}
+              <p className="mt-2 max-w-2xl text-xs leading-6 text-[var(--text-muted)]">{t('desc')}</p>
+              {info?.botUsername && <p dir="ltr" className="mt-2 w-max font-mono text-[12px] text-[var(--text-secondary)]">@{info.botUsername}</p>}
             </div>
           </div>
 
           {info && (
             <div className="flex flex-wrap gap-2">
               {botUrl && (
-                <a href={botUrl} target="_blank" rel="noreferrer" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-3.5 text-xs font-semibold text-white shadow-[var(--elev-1)] backdrop-blur-xl transition-colors hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <a href={botUrl} target="_blank" rel="noreferrer" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <Send className="h-4 w-4" />
                   {copy('باز کردن ربات', 'Open bot')}
-                  <ExternalLink className="h-3.5 w-3.5 text-white/60" />
+                  <ExternalLink className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                 </a>
               )}
               <GlassButton onClick={() => void refreshHealth()} disabled={healthLoading} aria-label={copy('بررسی دوباره سلامت اتصال', 'Refresh connection health')}>
@@ -671,7 +669,7 @@ export function OperatorChannelSetup({
                 <button
                   type="button"
                   onClick={() => setShowTokenRotation((value) => !value)}
-                  className="spatial-press inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-[12px] font-bold text-[var(--text-secondary)] hover:bg-white"
+                  className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-[12px] font-bold text-[var(--text-secondary)] hover:bg-white"
                   aria-expanded={showTokenRotation}
                 >
                   <RotateCw className="h-4 w-4" />
@@ -681,7 +679,7 @@ export function OperatorChannelSetup({
                   <div className="mt-2 rounded-2xl border border-black/[0.07] bg-white p-3">
                     <label htmlFor="rotate-bot-token" className="text-[12px] font-bold text-[var(--text-secondary)]">{copy('توکن جدید', 'New token')}</label>
                     <input id="rotate-bot-token" dir="ltr" type="password" autoComplete="off" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder="1234567890:AA…" className="input mt-2 min-h-11 w-full font-mono text-sm" />
-                    <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-black px-3 text-[12px] font-bold text-white disabled:opacity-40">
+                    <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-3 text-[12px] font-bold text-white disabled:opacity-40">
                       {busy === 'connect' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <KeyRound className="h-4 w-4" />}
                       {copy('ثبت توکن جدید', 'Save new token')}
                     </button>
@@ -735,7 +733,7 @@ export function OperatorChannelSetup({
                 </div>
                 <input id="new-operator-chat-id" dir="ltr" type="text" inputMode="numeric" value={operatorChatId} onChange={(event) => setOperatorChatId(event.target.value)} placeholder="123456789" className="input min-h-12 w-full font-mono text-sm" />
               </div>
-              <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">
                 {busy === 'connect' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4" />}
                 {busy === 'connect' ? t('connecting') : t('connect')}
               </button>
@@ -746,7 +744,6 @@ export function OperatorChannelSetup({
           </div>
 
           <div id="settings-operator-benefits" className="relative scroll-mt-28 overflow-hidden rounded-card border border-black/[0.065] bg-black/[0.025] p-5">
-            <div className="absolute -end-14 -top-14 h-36 w-36 rounded-full bg-sky-200/35 blur-3xl" />
             <div className="relative">
               <div className="flex items-center gap-2"><MessageSquareText className="h-4 w-4 text-[var(--text-secondary)]" /><h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('بعد از اتصال چه دارید؟', 'What you get after connecting')}</h3></div>
               <div className="mt-4 space-y-2">

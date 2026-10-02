@@ -396,9 +396,9 @@ function IntegrationCard({
                 <div className="flex min-w-0 items-start gap-3">
                     <span className={cn(
                         'grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[var(--bg-base)] shadow-[var(--shadow-control)]',
-                        syncPausedByPlan ? 'bg-amber-500' : isPluginConfigured ? 'bg-green-600' : 'bg-[var(--text-primary)]',
+                        syncPausedByPlan ? 'bg-amber-500' : !integration.active ? 'bg-black/30' : isPluginConfigured ? 'bg-emerald-600' : 'bg-[var(--text-primary)]',
                     )}>
-                        {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+                        {isPluginConfigured && integration.active ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                     </span>
                     <div className="min-w-0">
                         <p dir="ltr" className="truncate text-base font-bold tracking-tight text-[var(--text-primary)]" title={integration.storeUrl}>
@@ -446,7 +446,7 @@ function IntegrationCard({
                         className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
                         {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        {integration.active ? (fa ? 'غیرفعال' : 'Disabled') : (fa ? 'فعال' : 'Enable')}
+                        {integration.active ? (fa ? 'غیرفعال کردن' : 'Disable') : (fa ? 'فعال کردن' : 'Enable')}
                     </button>
                     <button
                         type="button"

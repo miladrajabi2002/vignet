@@ -15,7 +15,10 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { ConversationChart, ChannelDonut, SatisfactionGauge } from '@/components/dashboard/charts/lazy'
+import { StatsCard } from '@/components/dashboard/stats-card'
+import { ConversationChart, ChannelDonut } from '@/components/dashboard/charts/lazy'
+import { satisfactionBucket } from '@/lib/ai/turn-signal'
+import { topicLabel } from '@/lib/conversations/topic-labels'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { channelLabel } from '@/components/crm/channel-badge'
 import { cn } from '@/lib/utils'
@@ -95,10 +98,17 @@ export default async function AnalyticsPage() {
       },
       _count: { _all: true },
     }),
-    prisma.message.findMany({
-      where: { conversation: { workspaceId }, rating: { not: null }, createdAt: { gte: since } },
-      select: { rating: true },
-    }),
+    // Satisfaction is read from the conversations themselves (see
+    // lib/ai/turn-signal.ts) — customers are never asked to rate.
+    prisma.conversationSalesInsight.findMany({
+      where: {
+        workspaceId,
+        satisfaction: { not: null },
+        conversation: { lastMessageAt: { gte: since }, deletedAt: null },
+      },
+      select: { satisfaction: true, topics: true },
+      // Empty until the satisfaction migration is applied.
+    }).catch(() => [] as Array<{ satisfaction: number | null; topics: string[] }>),
   ])
 
   const resolveRate = totalConversations > 0 ? Math.round((resolvedConversations / totalConversations) * 100) : 0
@@ -133,8 +143,20 @@ export default async function AnalyticsPage() {
   }))
 
   const avgMsgsPerConv = totalConversations > 0 ? Math.round((assistantMsgCount._count._all / totalConversations) * 10) / 10 : null
-  const csatCount = csatRows.length
-  const csatAvg = csatCount > 0 ? csatRows.reduce((s, m) => s + (m.rating ?? 0), 0) / csatCount : null
+  const csat = { satisfied: 0, neutral: 0, dissatisfied: 0 }
+  const topicCounts = new Map<string, number>()
+  for (const row of csatRows) {
+    if (row.satisfaction === null) continue
+    csat[satisfactionBucket(row.satisfaction)] += 1
+    for (const topic of row.topics) topicCounts.set(topic, (topicCounts.get(topic) ?? 0) + 1)
+  }
+  const csatCount = csat.satisfied + csat.neutral + csat.dissatisfied
+  // The headline is the classic CSAT ratio: of the customers who showed how
+  // they felt, how many left satisfied. Neutral threads are shown, not counted.
+  const csatDecided = csat.satisfied + csat.dissatisfied
+  const csatPct = csatDecided > 0 ? Math.round((csat.satisfied / csatDecided) * 100) : null
+  const topTopics = Array.from(topicCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4)
+  const pctSign = fa ? '٪' : '%'
 
   const Arrow = fa ? ArrowLeft : ArrowRight
 
@@ -156,15 +178,15 @@ export default async function AnalyticsPage() {
     {
       icon: Clock,
       label: fa ? 'پیام در هر گفتگو' : 'Msgs per convo',
-      value: avgMsgsPerConv !== null ? `${nfFa(avgMsgsPerConv, fa)}` : '—',
+      value: avgMsgsPerConv !== null ? `${nfFa(avgMsgsPerConv, fa)}` : null,
       hint: fa ? 'میانگین پاسخ‌های ایجنت' : 'avg agent replies',
       tone: 'default' as const,
     },
     {
       icon: Star,
       label: fa ? 'رضایت مشتری' : 'CSAT',
-      value: csatAvg !== null ? `${nfFa(Math.round(csatAvg * 20), fa)}${fa ? '٪' : '%'}` : '—',
-      hint: fa ? `از ${nfFa(csatCount, fa)} امتیاز` : `from ${nfFa(csatCount, fa)} ratings`,
+      value: csatPct !== null ? `${nfFa(csatPct, fa)}${pctSign}` : null,
+      hint: fa ? `از ${nfFa(csatDecided, fa)} گفتگو` : `from ${nfFa(csatDecided, fa)} conversations`,
       tone: 'success' as const,
     },
   ]
@@ -178,7 +200,7 @@ export default async function AnalyticsPage() {
         actions={
           <Link
             href="/overview"
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
             <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
             {fa ? 'بازگشت به نمای کلی' : 'Back to overview'}
@@ -188,29 +210,17 @@ export default async function AnalyticsPage() {
 
       {/* KPI row */}
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon
-          return (
-            <div
-              key={kpi.label}
-              className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-soft)]"
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    'grid h-9 w-9 place-items-center rounded-xl',
-                    kpi.tone === 'success' ? 'bg-[var(--signal-soft)] text-[var(--signal-strong)]' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]',
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-              </div>
-              <p className="mt-3 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{kpi.value}</p>
-              <p className="mt-0.5 text-[12px] font-medium text-[var(--text-secondary)]">{kpi.label}</p>
-              <p className="mt-1 text-[12px] text-[var(--text-muted)]">{kpi.hint}</p>
-            </div>
-          )
-        })}
+        {kpis.map((kpi) => (
+          <StatsCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            icon={kpi.icon}
+            hint={kpi.hint}
+            emptyText={fa ? 'بدون داده' : 'No data'}
+            tone={kpi.tone === 'success' ? 'signal' : 'default'}
+          />
+        ))}
       </section>
 
       {/* Main trend + channel donut */}
@@ -219,8 +229,15 @@ export default async function AnalyticsPage() {
           title={fa ? 'روند ۳۰ روزه گفتگوها' : '30-day conversation trend'}
           subtitle={fa ? 'گفتگوهای روزانه به‌همراه حل‌شده و تحویل اپراتور' : 'Daily conversations, resolutions and handoffs'}
         >
-          <ConversationChart data={trend} />
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-[12px]">
+          <ConversationChart
+            data={trend}
+            empty={{
+              title: fa ? 'هنوز گفتگویی ثبت نشده' : 'No conversations yet',
+              hint: fa ? 'با اولین گفتگو، روند همین‌جا رسم می‌شود.' : 'The trend is drawn here from the first conversation.',
+              action: { href: '/integrations', label: fa ? 'اتصال برنامه' : 'Connect an app' },
+            }}
+          />
+          <div className={cn('mt-3 flex flex-wrap items-center gap-4 text-[12px]', totalConversations === 0 && 'text-[var(--text-muted)]')}>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--text-primary)]" />{fa ? 'کل گفتگوها' : 'Total'}</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />{fa ? 'حل‌شده' : 'Resolved'}</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />{fa ? 'تحویل اپراتور' : 'Handed off'}</span>
@@ -244,7 +261,7 @@ export default async function AnalyticsPage() {
               </div>
             </>
           ) : (
-            <div className="grid h-40 place-items-center text-sm text-[var(--text-muted)]">{fa ? 'داده‌ای نیست' : 'No data'}</div>
+            <div className="grid h-40 place-items-center px-3 text-center text-sm leading-6 text-[var(--text-muted)]">{fa ? 'سهم هر برنامه بعد از اولین گفتگوها اینجا دیده می‌شود.' : 'Each app’s share appears here after the first conversations.'}</div>
           )}
         </DashboardPanel>
       </section>
@@ -317,24 +334,68 @@ export default async function AnalyticsPage() {
       <section className="grid gap-4 xl:grid-cols-[0.6fr_1fr]">
         <DashboardPanel
           title={fa ? 'رضایت مشتری' : 'Customer satisfaction'}
-          subtitle={fa ? 'میانگین امتیاز در ۳۰ روز' : 'Average rating, last 30 days'}
+          subtitle={fa ? 'از لحن و نتیجهٔ گفتگوهای ۳۰ روز اخیر' : 'From the tone and outcome of the last 30 days of conversations'}
         >
           {csatCount > 0 ? (
-            <div className="grid place-items-center py-4">
-              <SatisfactionGauge
-                value={csatAvg}
-                count={csatCount}
-                label={fa ? 'امتیاز' : 'ratings'}
-              />
+            <div className="py-2">
+              <div className="flex items-end justify-between gap-3">
+                <p className="text-3xl font-bold tabular-nums text-[var(--text-primary)]">
+                  {csatPct !== null ? `${nfFa(csatPct, fa)}${pctSign}` : '—'}
+                </p>
+                <p className="text-end text-xs leading-5 text-[var(--text-muted)]">
+                  {csatPct !== null
+                    ? (fa
+                        ? `${nfFa(csat.satisfied, fa)} راضی از ${nfFa(csatDecided, fa)} گفتگو با نظر روشن`
+                        : `${nfFa(csat.satisfied, fa)} satisfied of ${nfFa(csatDecided, fa)} with a clear view`)
+                    : (fa ? 'هنوز هیچ مشتری نظر روشنی نشان نداده' : 'No customer has shown a clear view yet')}
+                </p>
+              </div>
+              <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-[var(--bg-muted)]" aria-hidden="true">
+                <div className="h-full bg-emerald-500" style={{ width: `${(csat.satisfied / csatCount) * 100}%` }} />
+                <div className="h-full bg-[var(--border-strong)]" style={{ width: `${(csat.neutral / csatCount) * 100}%` }} />
+                <div className="h-full bg-red-500" style={{ width: `${(csat.dissatisfied / csatCount) * 100}%` }} />
+              </div>
+              <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                {([
+                  ['satisfied', fa ? 'راضی' : 'Satisfied', 'bg-emerald-500'],
+                  ['neutral', fa ? 'خنثی' : 'Neutral', 'bg-[var(--border-strong)]'],
+                  ['dissatisfied', fa ? 'ناراضی' : 'Dissatisfied', 'bg-red-500'],
+                ] as const).map(([key, label, dot]) => (
+                  <div key={key} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-2">
+                    <dd className="text-lg font-bold tabular-nums text-[var(--text-primary)]">{nfFa(csat[key], fa)}</dd>
+                    <dt className="mt-0.5 flex items-center justify-center gap-1.5 text-xs text-[var(--text-muted)]">
+                      <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden="true" />
+                      {label}
+                    </dt>
+                  </div>
+                ))}
+              </dl>
+              {csat.dissatisfied > 0 && (
+                <Link
+                  href="/conversations?sales=DISSATISFIED"
+                  className="ui-link mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--signal-strong)]"
+                >
+                  {fa ? 'دیدن گفتگوهای ناراضی' : 'See dissatisfied conversations'}
+                  <Arrow className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              )}
+              {topTopics.length > 0 && (
+                <p className="mt-3 border-t border-[var(--border-subtle)] pt-3 text-xs leading-6 text-[var(--text-secondary)]">
+                  <span className="font-semibold">{fa ? 'بیشترین موضوع‌ها: ' : 'Top topics: '}</span>
+                  {topTopics
+                    .map(([topic, count]) => `${topicLabel(topic, lang)} (${nfFa(count, fa)})`)
+                    .join(fa ? '، ' : ', ')}
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid h-40 place-items-center px-2 text-center">
               <div>
-                <p className="text-sm font-medium text-[var(--text-secondary)]">{fa ? 'هنوز امتیازی ثبت نشده' : 'No ratings yet'}</p>
+                <p className="text-sm font-medium text-[var(--text-secondary)]">{fa ? 'هنوز گفتگویی تحلیل نشده' : 'No conversations analysed yet'}</p>
                 <p className="mx-auto mt-1.5 max-w-xs text-xs leading-6 text-[var(--text-muted)]">
                   {fa
-                    ? 'امتیازها از پسند و نپسندی می‌آیند که زیر پاسخ‌های ایجنت ثبت می‌شود. با اولین امتیاز، میانگین همین‌جا دیده می‌شود.'
-                    : 'Ratings come from the thumbs up or down left under agent replies. The average appears here after the first one.'}
+                    ? 'رضایت از خودِ گفتگوها خوانده می‌شود؛ لازم نیست مشتری امتیاز بدهد. با اولین گفتگوها همین‌جا دیده می‌شود.'
+                    : 'Satisfaction is read from the conversations themselves; customers never have to rate. It appears here with the first conversations.'}
                 </p>
               </div>
             </div>

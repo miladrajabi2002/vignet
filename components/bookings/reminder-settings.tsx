@@ -36,7 +36,7 @@ export function ReminderSettingsCard({ fa, initialEnabled }: { fa: boolean; init
         </span>
         <div className="min-w-0 flex-1">
           <p className="ui-h3 leading-6">{fa ? 'یادآوری به مشتری' : 'Customer reminders'}</p>
-          <p className="text-[12.5px] leading-6 text-[var(--text-muted)]">
+          <p className="text-[13px] leading-6 text-[var(--text-muted)]">
             {fa ? '۲۴ ساعت و ۲ ساعت قبل از نوبت، در همان گفتگویی که مشتری با شما دارد.' : '24 h and 2 h before, in the customer’s own conversation.'}
           </p>
         </div>

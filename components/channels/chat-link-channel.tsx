@@ -195,7 +195,7 @@ export function ChatLinkChannel({
         const isLive = !!link?.enabled
 
         return (
-                <div className="spatial-surface rounded-card p-5 sm:p-6">
+                <div className="spatial-surface rounded-card p-4 sm:p-5">
                         <div className="flex flex-wrap items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
                                         <Link2 className="h-5 w-5" />
@@ -359,7 +359,7 @@ export function ChatLinkChannel({
                                                                         value={settings.displayName ?? ''}
                                                                         placeholder={agentName}
                                                                         onChange={(e) => patch({ displayName: e.target.value || null })}
-                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                 />
                                                         </Field>
 
@@ -368,7 +368,7 @@ export function ChatLinkChannel({
                                                                         value={settings.tagline ?? ''}
                                                                         placeholder={t('taglinePh')}
                                                                         onChange={(e) => patch({ tagline: e.target.value || null })}
-                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                 />
                                                         </Field>
 
@@ -406,7 +406,7 @@ export function ChatLinkChannel({
                                                                                         dir="ltr"
                                                                                         value={settings.primaryColor}
                                                                                         onChange={(e) => patch({ primaryColor: e.target.value })}
-                                                                                        className="w-28 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        className="w-28 rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
                                                                         </div>
                                                                 </div>
@@ -468,7 +468,7 @@ export function ChatLinkChannel({
                                                                                                         next[i] = e.target.value
                                                                                                         patch({ quickReplies: next })
                                                                                                 }}
-                                                                                                className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                                className="flex-1 rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                         />
                                                                                         <button
                                                                                                 type="button"
@@ -519,7 +519,7 @@ export function ChatLinkChannel({
                                                                                         onChange={(e) =>
                                                                                                 patch({ leadCaptureMessage: e.target.value || null })
                                                                                         }
-                                                                                        className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                                                                                        className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] disabled:cursor-not-allowed disabled:opacity-70"
                                                                                 />
                                                                         </Field>
                                                                         <Toggle
@@ -736,7 +736,7 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
         return (
                 <label className="block">
-                        <span className="mb-1.5 block text-sm text-[var(--text-primary)]">{label}</span>
+                        <span className="ui-field-label">{label}</span>
                         {children}
                 </label>
         )

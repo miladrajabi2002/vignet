@@ -115,6 +115,22 @@ export default async function AgentChannelsPage(
 
   const channelSections: ChannelMobileSection[] = [
     {
+      key: 'CHAT_LINK',
+      label: t('chatLink'),
+      hint: t('chatLinkHint'),
+      content: (
+        <ChatLinkChannel
+          agentId={agent.id}
+          agentName={agent.name}
+          appUrl={appUrl}
+          initialLink={chatLink}
+          suggestedSlug={suggestedSlug}
+          customerIdentificationRequired={agent.requireCustomerInfo}
+          customerIdentificationMessage={agent.customerInfoPrompt}
+        />
+      ),
+    },
+    {
       key: 'WEB_WIDGET',
       label: t('webWidget'),
       hint: t('widgetDesc'),
@@ -126,22 +142,6 @@ export default async function AgentChannelsPage(
           enabled={!!widget}
           channelId={widget?.id ?? null}
           config={(widget?.config as Record<string, unknown> | null) ?? null}
-          customerIdentificationRequired={agent.requireCustomerInfo}
-          customerIdentificationMessage={agent.customerInfoPrompt}
-        />
-      ),
-    },
-    {
-      key: 'CHAT_LINK',
-      label: t('chatLink'),
-      hint: t('chatLinkHint'),
-      content: (
-        <ChatLinkChannel
-          agentId={agent.id}
-          agentName={agent.name}
-          appUrl={appUrl}
-          initialLink={chatLink}
-          suggestedSlug={suggestedSlug}
           customerIdentificationRequired={agent.requireCustomerInfo}
           customerIdentificationMessage={agent.customerInfoPrompt}
         />
@@ -190,10 +190,16 @@ export default async function AgentChannelsPage(
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* A full quota is one message with one action, not a meter plus a warning. */}
       {usedChannels >= maxChannels ? (
         <PlanLimitNotice limit={channelLimit} locale={locale} />
+      ) : (
+      channelUsagePercent < 80 ? (
+        <p className="flex flex-wrap items-center justify-between gap-2 px-1 text-[13px] text-[var(--text-secondary)]" aria-label={t('quotaTitle')}>
+          <span className="font-bold text-[var(--text-primary)]">{t('quotaTitle')}</span>
+          <span className="tabular-nums text-[var(--text-muted)]">{t('quotaUsage', { used: nf.format(usedChannels), limit: nf.format(maxChannels) })}</span>
+        </p>
       ) : (
       <section className="spatial-surface rounded-card p-5 sm:p-6" aria-labelledby="channel-quota-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -228,6 +234,7 @@ export default async function AgentChannelsPage(
           />
         </div>
       </section>
+      )
       )}
 
       {/* ── Instagram OAuth status banners ──────────────────────────────── */}

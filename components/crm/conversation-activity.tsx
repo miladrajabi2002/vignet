@@ -1,5 +1,4 @@
 import {
-  ArrowRightLeft,
   BadgeCheck,
   BookOpenCheck,
   Boxes,
@@ -14,6 +13,7 @@ import {
   PackageCheck,
   Scale,
   Send,
+  StickyNote,
   TriangleAlert,
   UserRoundCheck,
 } from 'lucide-react'
@@ -41,7 +41,9 @@ type Receipt = {
 }
 
 type TimelineActivity = {
-  kind: 'customer_identified' | 'handoff_ready' | 'operator_reply' | 'campaign_sent'
+  kind: 'customer_identified' | 'handoff_ready' | 'operator_reply' | 'campaign_sent' | 'operator_note'
+  note?: string
+  author?: string
   fields?: Array<'name' | 'phone'>
   summaryReady?: boolean
   source?: 'dashboard' | 'telegram_bot' | 'agent'
@@ -236,7 +238,7 @@ function getTimelineActivity(metadata: Metadata): TimelineActivity | null {
   const raw = metadata?.vigentoActivity
   if (!raw || typeof raw !== 'object') return null
   const row = raw as Record<string, unknown>
-  if (!['customer_identified', 'handoff_ready', 'operator_reply', 'campaign_sent'].includes(String(row.kind))) {
+  if (!['customer_identified', 'handoff_ready', 'operator_reply', 'campaign_sent', 'operator_note'].includes(String(row.kind))) {
     return null
   }
   return row as TimelineActivity
@@ -289,6 +291,35 @@ function timelineCopy(activity: TimelineActivity, locale: Locale): {
   return { title: 'پیام کمپین تحویل شد', detail: 'در همین گفتگو ثبت شد' }
 }
 
+/**
+ * The moment the agent handed the conversation to a person: one amber line in
+ * the flow of messages, so the operator sees where their part starts.
+ */
+export function HandoffMarker({
+  locale,
+  dateLabel,
+  reason,
+}: {
+  locale: Locale
+  dateLabel: string
+  reason?: string | null
+}) {
+  return (
+    <div className="flex items-center gap-3 py-1" role="note">
+      <span className="h-px flex-1 bg-amber-500/25" aria-hidden="true" />
+      <span className="inline-flex max-w-[86%] items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-50 px-3 py-1 text-[12px] font-medium leading-5 text-amber-900">
+        <Headphones className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 truncate">
+          {locale === 'fa' ? 'ایجنت گفتگو را به شما سپرد' : 'The agent handed this to you'}
+          {reason ? ` · ${reason}` : ''}
+        </span>
+        <span className="shrink-0 font-normal text-amber-900/70">· {dateLabel}</span>
+      </span>
+      <span className="h-px flex-1 bg-amber-500/25" aria-hidden="true" />
+    </div>
+  )
+}
+
 export function ConversationTimelineActivity({
   metadata,
   locale,
@@ -300,38 +331,40 @@ export function ConversationTimelineActivity({
 }) {
   const activity = getTimelineActivity(metadata)
   if (!activity) return null
+
+  if (activity.kind === 'handoff_ready') return <HandoffMarker locale={locale} dateLabel={dateLabel} />
+
+  if (activity.kind === 'operator_note') {
+    if (!activity.note) return null
+    return (
+      <div className="mx-auto w-full max-w-[34rem] rounded-xl border border-dashed border-[var(--notif-strong)]/35 bg-[var(--notif-soft)] px-3.5 py-2.5" role="note">
+        <p className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--notif-strong)]">
+          <StickyNote className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {locale === 'fa' ? 'یادداشت داخلی' : 'Internal note'}
+          <span className="font-normal text-[var(--text-muted)]">
+            · {locale === 'fa' ? 'مشتری نمی‌بیند' : 'not visible to the customer'}
+          </span>
+        </p>
+        <p dir="auto" className="mt-1 whitespace-pre-wrap text-[13px] leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">{activity.note}</p>
+        <p className="mt-1 text-[12px] text-[var(--text-muted)]">
+          {activity.author ? `${activity.author} · ` : ''}{dateLabel}
+        </p>
+      </div>
+    )
+  }
+
   const copy = timelineCopy(activity, locale)
-  const Icon = activity.kind === 'customer_identified'
-    ? UserRoundCheck
-    : activity.kind === 'handoff_ready'
-      ? ArrowRightLeft
-      : Send
+  const Icon = activity.kind === 'customer_identified' ? UserRoundCheck : Send
 
   return (
-    <div className="relative flex items-center justify-center py-2" role="note">
-      <div className="absolute inset-x-4 top-1/2 h-px bg-[var(--border-subtle)]" />
-      <div
-        className={cn(
-          'relative flex max-w-[92%] items-center gap-2.5 rounded-xl border px-3 py-2 shadow-sm',
-          activity.kind === 'handoff_ready'
-            ? 'border-amber-500/20 bg-amber-500/[0.08]'
-            : 'border-[var(--border-default)] bg-[var(--bg-base)]',
-        )}
-      >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)] ring-1 ring-[var(--border-default)]">
-          {activity.kind === 'handoff_ready' ? (
-            <Headphones className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Icon className="h-4 w-4" aria-hidden="true" />
-          )}
-        </span>
-        <span className="min-w-0">
-          <span className="block text-xs font-medium text-[var(--text-primary)]">{copy.title}</span>
-          <span className="mt-0.5 block text-[12px] text-[var(--text-muted)]">
-            {copy.detail} · {dateLabel}
-          </span>
-        </span>
-      </div>
+    <div className="flex items-center gap-3 py-1" role="note">
+      <span className="h-px flex-1 bg-[var(--border-subtle)]" aria-hidden="true" />
+      <span className="inline-flex max-w-[86%] items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-white px-3 py-1 text-[12px] leading-5 text-[var(--text-secondary)]">
+        <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+        <span className="min-w-0 truncate" title={copy.detail}>{copy.title}</span>
+        <span className="shrink-0 text-[var(--text-muted)]">· {dateLabel}</span>
+      </span>
+      <span className="h-px flex-1 bg-[var(--border-subtle)]" aria-hidden="true" />
     </div>
   )
 }

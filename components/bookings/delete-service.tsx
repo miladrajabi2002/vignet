@@ -69,7 +69,7 @@ export function DeleteServicePanel({
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-red-500/10 text-red-600"><Trash2 className="h-5 w-5" /></span>
         <div className="min-w-0">
           <p className="text-sm font-bold text-[var(--text-primary)]">{fa ? `حذف «${service.name}»` : `Delete “${service.name}”`}</p>
-          <p className="mt-1 text-[12.5px] leading-6 text-[var(--text-secondary)]">
+          <p className="mt-1 text-[13px] leading-6 text-[var(--text-secondary)]">
             {fa ? 'ایجنت دیگر این خدمت را معرفی نمی‌کند و برایش نوبت نمی‌دهد. این کار برگشت‌پذیر نیست.' : 'The agent stops offering it. This cannot be undone.'}
           </p>
         </div>
@@ -80,7 +80,7 @@ export function DeleteServicePanel({
       )}
 
       {impact && blocked && (
-        <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] px-3.5 py-3 text-[12.5px] leading-6 text-amber-900">
+        <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] px-3.5 py-3 text-[13px] leading-6 text-amber-900">
           <AlertTriangle className="mt-1 h-4 w-4 shrink-0" />
           <p>
             {fa
@@ -91,7 +91,7 @@ export function DeleteServicePanel({
       )}
 
       {impact && !blocked && (
-        <p className="rounded-2xl bg-[var(--bg-subtle)] px-3.5 py-3 text-[12.5px] leading-6 text-[var(--text-secondary)]">
+        <p className="rounded-2xl bg-[var(--bg-subtle)] px-3.5 py-3 text-[13px] leading-6 text-[var(--text-secondary)]">
           {impact.total
             ? (fa ? `سابقه ${num(impact.total, true)} نوبت گذشته یا لغوشده این خدمت هم پاک می‌شود.` : `Its ${impact.total} past or cancelled bookings are removed too.`)
             : (fa ? 'این خدمت هیچ نوبتی ندارد.' : 'This service has no bookings.')}

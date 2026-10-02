@@ -193,12 +193,14 @@ export function MaterialSelect({
                                                                 onClick={() => select(index)}
                                                                 className={cn(
                                                                         'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-start transition-colors duration-100 disabled:opacity-40',
-                                                                        active ? 'bg-black text-white' : 'text-[var(--text-secondary)] hover:bg-black/[0.045]',
+                                                                        // The row under the pointer / keyboard is a quiet tint; the chosen
+                                                                        // value is marked by its ink label and check, not a black bar.
+                                                                        active ? 'bg-black/[0.06] text-[var(--text-primary)]' : checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
                                                                 )}
                                                         >
-                                                                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{option.label}</span>{option.description && <span className={cn('mt-0.5 block line-clamp-2 text-[12px] leading-4', active ? 'text-white/60' : 'text-[var(--text-muted)]')}>{option.description}</span>}</span>
-                                                                {option.meta !== undefined && <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[12px] tabular-nums', active ? 'bg-white/12 text-white/70' : 'bg-black/[0.045] text-[var(--text-muted)]')}>{option.meta}</span>}
-                                                                <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full', checked ? (active ? 'bg-white text-black' : 'bg-black text-white') : 'opacity-0')}><Check className="h-3 w-3" /></span>
+                                                                <span className="min-w-0 flex-1"><span className={cn('block truncate text-xs', checked ? 'font-bold' : 'font-medium')}>{option.label}</span>{option.description && <span className="mt-0.5 block line-clamp-2 text-[12px] leading-4 text-[var(--text-muted)]">{option.description}</span>}</span>
+                                                                {option.meta !== undefined && <span className="shrink-0 rounded-full bg-black/[0.045] px-2 py-0.5 text-[12px] tabular-nums text-[var(--text-muted)]">{option.meta}</span>}
+                                                                <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center text-[var(--text-primary)]', !checked && 'opacity-0')}><Check className="h-4 w-4" strokeWidth={2.5} /></span>
                                                         </button>
                                                 )
                                         })}

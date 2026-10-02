@@ -329,7 +329,7 @@ export function ServiceEditor({
         type="button"
         onClick={() => void save()}
         disabled={saving}
-        className="spatial-press inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="spatial-press inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
         {editing ? (fa ? 'ذخیره تغییرات' : 'Save changes') : catalog ? (fa ? 'ساخت خدمت' : 'Create service') : (fa ? 'ساخت خدمت و باز کردن رزرو' : 'Create and open booking')}
@@ -424,7 +424,7 @@ export function ServiceEditor({
                 ))}
                 <Chip active={customDuration} onClick={() => setCustomDuration(true)}>{fa ? 'دلخواه' : 'Custom'}</Chip>
                 {customDuration && (
-                  <label className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3">
+                  <label className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3">
                     <input
                       type="number"
                       min={10}
@@ -527,8 +527,8 @@ export function ServiceEditor({
                   <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:gap-3">
                     <div className="flex items-center gap-2.5 sm:w-28 sm:shrink-0 sm:pt-2.5">
                       <Switch checked={value.enabled} onChange={(checked) => updateDay(day.value, { enabled: checked })} aria-label={fa ? day.fa : day.en} />
-                      <span className={cn('text-sm font-bold', value.enabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{fa ? day.fa : day.en}</span>
-                      {!value.enabled && <span className="ms-auto text-xs text-[var(--text-hint)] sm:hidden">{fa ? 'تعطیل' : 'Closed'}</span>}
+                      <span className={cn('text-sm font-bold', value.enabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{fa ? day.fa : day.en}</span>
+                      {!value.enabled && <span className="ms-auto text-xs text-[var(--text-muted)] sm:hidden">{fa ? 'تعطیل' : 'Closed'}</span>}
                     </div>
                     <div className="min-w-0 flex-1">
                       {value.enabled ? (
@@ -557,7 +557,7 @@ export function ServiceEditor({
                           {issue && <InlineError text={issue === 'OVERLAP' ? (fa ? 'بازه‌ها هم‌پوشانی دارند.' : 'Ranges overlap.') : (fa ? 'ساعت پایان باید بعد از شروع باشد.' : 'End must be after start.')} />}
                         </div>
                       ) : (
-                        <p className="hidden pt-2.5 text-sm text-[var(--text-hint)] sm:block">{fa ? 'تعطیل' : 'Closed'}</p>
+                        <p className="hidden pt-2.5 text-sm text-[var(--text-muted)] sm:block">{fa ? 'تعطیل' : 'Closed'}</p>
                       )}
                     </div>
                   </div>
@@ -589,7 +589,7 @@ export function ServiceEditor({
             ) : (
               <p className="mt-2 text-xs text-[var(--signal-strong)]">{fa ? 'با این تنظیمات زمانی ساخته نمی‌شود.' : 'No times can be offered with these settings.'}</p>
             )}
-            <p className="mt-2.5 text-[12.5px] text-[var(--signal-strong)]/80">
+            <p className="mt-2.5 text-[13px] text-[var(--signal-strong)]/80">
               {fa
                 ? `${num(preview.slots.length, true)} نوبت در روز · هر نوبت تا ${num(capacity, true)} نفر`
                 : `${preview.slots.length} slots a day · up to ${capacity} per slot`}
@@ -726,12 +726,12 @@ function ClosureManager({ locale, service, onChange }: { locale: Locale; service
         <ul className="space-y-1.5">
           {upcoming.map((item) => (
             <li key={item.id} className="flex min-h-12 items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-white px-3">
-              <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', item.closed ? 'bg-red-500/10 text-red-600' : 'bg-sky-500/10 text-sky-700')}>
+              <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', item.closed ? 'bg-red-500/10 text-red-600' : 'bg-black/[0.05] text-[var(--text-secondary)]')}>
                 {item.closed ? <CalendarOff className="h-4 w-4" /> : <CalendarClock className="h-4 w-4" />}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-bold text-[var(--text-primary)]">{formatDateKey(item.date, locale, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                <p className="truncate text-[12.5px] text-[var(--text-muted)]">
+                <p className="truncate text-[13px] text-[var(--text-muted)]">
                   {item.closed ? (fa ? 'تعطیل' : 'Closed') : <span dir="ltr">{formatClock(item.startMinute ?? 0, fa)}–{formatClock(item.endMinute ?? 0, fa)}</span>}
                   {item.note ? ` · ${item.note}` : ''}
                 </p>
@@ -787,7 +787,7 @@ function Field({ label, hint, error, children }: { label: string; hint?: string;
     <label className="block">
       <span className="mb-1.5 flex items-baseline justify-between gap-2">
         <span className="text-xs font-bold text-[var(--text-secondary)]">{label}</span>
-        {hint ? <span className="text-[12px] text-[var(--text-hint)]">{hint}</span> : null}
+        {hint ? <span className="text-[12px] text-[var(--text-muted)]">{hint}</span> : null}
       </span>
       {children}
       {error ? <InlineError text={error} /> : null}
@@ -799,7 +799,7 @@ function Label({ text, hint }: { text: string; hint?: string }) {
   return (
     <div className="mb-2">
       <p className="text-xs font-bold text-[var(--text-secondary)]">{text}</p>
-      {hint ? <p className="mt-0.5 text-[12.5px] text-[var(--text-hint)]">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{hint}</p> : null}
     </div>
   )
 }

@@ -51,7 +51,7 @@ export function ChannelMobileSections({
         })}
       </div>
 
-      <div className="hidden space-y-6 md:block">
+      <div className="hidden space-y-2.5 md:block">
         {sections.map((section) => <div key={section.key}>{section.content}</div>)}
       </div>
     </>

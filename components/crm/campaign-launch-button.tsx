@@ -27,7 +27,7 @@ export function CampaignLaunchButton({
         onClick={() => setOpen(true)}
         disabled={disabled}
         aria-label={buttonLabel}
-        title={buttonLabel}
+        title={disabled ? (locale === 'fa' ? 'هنوز مخاطبی برای ارسال پیام نیست' : 'No recipients yet') : buttonLabel}
         className={`spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${compactOnMobile ? 'w-11 px-0 sm:w-auto sm:px-4' : 'px-4'}`}
       >
         <Megaphone className="h-4 w-4" aria-hidden="true" />
@@ -35,7 +35,7 @@ export function CampaignLaunchButton({
           {buttonLabel}
         </span>
       </button>
-      {open && <CampaignComposer audience={audience} locale={locale} onClose={() => setOpen(false)} />}
+      <CampaignComposer open={open} audience={audience} locale={locale} onClose={() => setOpen(false)} />
     </>
   )
 }

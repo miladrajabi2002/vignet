@@ -584,7 +584,6 @@
         .dashboard-page-header {
                 position: relative;
                 padding: 0.25rem 0.125rem 1.1rem;
-                animation: dashboard-header-arrive var(--motion-surface) var(--ease-spatial) both;
         }
 
         .dashboard-page-header::after {
@@ -611,7 +610,9 @@
         }
 
         .page-header-title {
-                overflow-wrap: anywhere;
+                /* Long names may wrap between words, never inside one. */
+                overflow-wrap: break-word;
+                text-wrap: balance;
         }
 
         .page-header-subtitle {
@@ -627,13 +628,13 @@
         }
 
         @media (min-width: 640px) {
-                .page-header-subtitle { font-size: 14px; }
+                .page-header-subtitle { font-size: 13px; }
         }
 
         @media (max-width: 639px) {
                 .dashboard-page-header { padding-bottom: 0.9rem; }
                 .page-header-icon { width: 2.5rem; height: 2.5rem; }
-                .dashboard-page-header .page-header-title { font-size: 20px; line-height: 1.5; }
+                .dashboard-page-header .page-header-title { font-size: 22px; line-height: 1.5; }
         }
 
         /* The "today" card is a plain white surface like every other panel;
@@ -1038,11 +1039,41 @@
            soft raised shadow, calm dark focus ring (no blue). Matches the
            MaterialSelect trigger exactly so text inputs and custom selects
            read as a single, unified control family. */
+        /* Field anatomy shared by every form: an ink 13px label, the control,
+           then an optional one-line hint. Explanations live in the hint — not in
+           brackets inside the label — and "optional" is a quiet chip. */
+        .ui-field-label {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                margin-bottom: 0.4rem;
+                font-size: 13px;
+                font-weight: 500;
+                line-height: 1.6;
+                color: var(--text-primary);
+        }
+        .ui-field-opt {
+                border-radius: 9999px;
+                background: var(--bg-muted);
+                padding: 0 0.5rem;
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 1.6;
+                color: var(--text-muted);
+        }
+        .ui-field-hint {
+                margin-top: 0.4rem;
+                font-size: 12px;
+                line-height: 1.7;
+                color: var(--text-muted);
+        }
+
         .input {
                 width: 100%;
                 min-height: 2.75rem;
                 border-radius: var(--radius-control);
-                border: 1px solid rgba(17, 17, 17, 0.1);
+                /* Visible on a white card without hover: 0.1 was nearly invisible. */
+                border: 1px solid rgba(17, 17, 17, 0.16);
                 background: #ffffff;
                 padding: 0.625rem 1rem;
                 color: var(--text-primary);
@@ -1053,13 +1084,14 @@
         .input::placeholder {
                 color: var(--text-hint);
         }
-        .input:hover {
-                border-color: rgba(17, 17, 17, 0.18);
+        .input:hover:not(:disabled) {
+                border-color: rgba(17, 17, 17, 0.28);
         }
         /* The field being typed in must be obvious in long forms: ink
            border + a 3px violet halo. Colour is left to mean something:
            green = accepted value, red = needs fixing. */
-        .input:focus {
+        .input:focus,
+        .input:focus-within {
                 border-color: var(--focus-field, #111111);
                 background: #ffffff;
                 box-shadow: 0 0 0 3px var(--focus-field-halo, rgba(91, 61, 232, 0.22));
@@ -1074,8 +1106,12 @@
         :where(label):has(> .input:focus) {
                 color: var(--text-primary);
         }
+        /* Grey fill means "cannot be edited"; every writable field stays white. */
         .input:disabled {
-                opacity: 0.45;
+                background: var(--bg-muted);
+                border-color: transparent;
+                color: var(--text-hint);
+                box-shadow: none;
                 cursor: not-allowed;
         }
 
@@ -1320,6 +1356,8 @@
 }
 .blog-content h2 {
         font-size: 1.4em;
+        /* Article-index anchors land below the fixed navbar. */
+        scroll-margin-top: 6.5rem;
 }
 .blog-content h3 {
         font-size: 1.18em;
@@ -1553,21 +1591,23 @@ html[dir='rtl'] .undo-indeterminate {
 			background: rgba(255, 255, 255, 0.55);
 		}
 	}
-	/* Icon tile inside a tab: quiet when idle, ink when selected. */
+	/* Icon inside a tab: a plain glyph — grey when idle, ink when selected.
+	   (It used to sit in a tile that turned solid black, a second "active"
+	   signal competing with the white pill itself.) */
 	.ui-seg-icon {
 		display: grid;
 		place-items: center;
 		flex-shrink: 0;
-		border-radius: 0.6rem;
-		background: rgba(17, 17, 17, 0.05);
-		color: var(--text-secondary);
-		transition: background-color 200ms ease, color 200ms ease;
+		width: auto !important;
+		height: auto !important;
+		background: none;
+		color: var(--text-hint);
+		transition: color 200ms ease;
 	}
 	.ui-seg-tab[aria-selected='true'] .ui-seg-icon,
 	.ui-seg-tab[aria-current='page'] .ui-seg-icon,
 	.ui-seg-tab[data-active='true'] .ui-seg-icon {
-		background: var(--text-primary);
-		color: #ffffff;
+		color: var(--text-primary);
 	}
 
 	/* ── ط۵ Status chips ───────────────────────────────────────────────── */
@@ -1613,16 +1653,14 @@ html[dir='rtl'] .undo-indeterminate {
 	.ui-link svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
 
 	/* ── ط۱۷ Type scale (the public site's rhythm, sized for an app) ──── */
+	/* Every role sits on the shared 9-step scale (12·13·15·18·22·28·36·48·64). */
 	.ui-h1 { font-size: 22px; line-height: 1.45; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
-	.ui-h2 { font-size: 17px; line-height: 1.6; font-weight: 700; color: var(--text-primary); }
-	.ui-h3 { font-size: 14.5px; line-height: 1.7; font-weight: 700; color: var(--text-primary); }
-	.ui-body { font-size: 14px; line-height: 1.9; color: var(--text-secondary); }
-	.ui-caption { font-size: 12.5px; line-height: 1.8; color: var(--text-muted); }
+	.ui-h2 { font-size: 18px; line-height: 1.6; font-weight: 700; color: var(--text-primary); }
+	.ui-h3 { font-size: 15px; line-height: 1.7; font-weight: 700; color: var(--text-primary); }
+	.ui-body { font-size: 15px; line-height: 1.9; color: var(--text-secondary); }
+	.ui-caption { font-size: 12px; line-height: 1.8; color: var(--text-muted); }
 	@media (min-width: 1024px) {
-		.ui-h1 { font-size: 26px; }
-		.ui-h2 { font-size: 19px; }
-		.ui-h3 { font-size: 15.5px; }
-		.ui-body { font-size: 14.5px; }
+		.ui-h1 { font-size: 28px; }
 	}
 	:lang(fa) .ui-h1, [dir='rtl'] .ui-h1 { letter-spacing: normal; }
 

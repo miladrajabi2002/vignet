@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CalendarOff, Clock3, MapPin, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { CalendarOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
@@ -27,7 +27,7 @@ export function WeekHoursGraph({ service, fa }: { service: ServiceRow; fa: boole
         const rules = service.weeklyRules.filter((rule) => rule.active && rule.weekday === day.value)
         return (
           <div key={day.value} className="flex items-center gap-2">
-            <span className={cn('w-4 shrink-0 text-center text-[12px] font-bold', rules.length ? 'text-[var(--text-secondary)]' : 'text-[var(--text-hint)]')}>{fa ? day.short : day.en.slice(0, 2)}</span>
+            <span className={cn('w-4 shrink-0 text-center text-[12px] font-bold', rules.length ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]')}>{fa ? day.short : day.en.slice(0, 2)}</span>
             <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-black/[0.045]" dir="ltr">
               {rules.map((rule, index) => (
                 <span
@@ -40,9 +40,50 @@ export function WeekHoursGraph({ service, fa }: { service: ServiceRow; fa: boole
           </div>
         )
       })}
-      <div className="flex justify-between ps-6 text-[12px] tabular-nums text-[var(--text-hint)]" dir="ltr">
+      <div className="flex justify-between ps-6 text-[12px] tabular-nums text-[var(--text-muted)]" dir="ltr">
         <span>0</span><span>6</span><span>12</span><span>18</span><span>24</span>
       </div>
+    </div>
+  )
+}
+
+function clock(minute: number, fa: boolean) {
+  const h = Math.floor(minute / 60)
+  const m = minute % 60
+  const text = m ? `${h}:${String(m).padStart(2, '0')}` : String(h)
+  return fa ? text.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : text
+}
+
+/** Seven weekday dots (filled = open) and the hours in words. */
+export function WeekDots({ service, fa }: { service: ServiceRow; fa: boolean }) {
+  const active = service.weeklyRules.filter((rule) => rule.active)
+  const ranges = new Set(active.map((rule) => `${rule.startMinute}-${rule.endMinute}`))
+  const perDay = new Map<number, number>()
+  for (const rule of active) perDay.set(rule.weekday, (perDay.get(rule.weekday) ?? 0) + 1)
+  const uniform = ranges.size === 1 && [...perDay.values()].every((count) => count === 1)
+  const first = active[0]
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+      <span className="flex gap-1" role="img" aria-label={fa ? `${num(perDay.size, true)} روز باز در هفته` : `${perDay.size} open days a week`}>
+        {WEEKDAYS.map((day) => (
+          <span
+            key={day.value}
+            className={cn(
+              'grid h-6 w-6 place-items-center rounded-full text-[12px] font-bold',
+              perDay.has(day.value)
+                ? service.active ? 'bg-[var(--text-primary)] text-white' : 'bg-black/30 text-white'
+                : 'bg-black/[0.05] text-[var(--text-hint)]',
+            )}
+          >
+            {fa ? day.short : day.en.slice(0, 1)}
+          </span>
+        ))}
+      </span>
+      <span className="text-[12px] tabular-nums text-[var(--text-secondary)]">
+        {uniform && first
+          ? (fa ? `${clock(first.startMinute, true)} تا ${clock(first.endMinute, true)}` : `${clock(first.startMinute, false)}–${clock(first.endMinute, false)}`)
+          : (fa ? 'ساعت‌ها در روزهای مختلف فرق دارد' : 'Hours vary by day')}
+      </span>
     </div>
   )
 }
@@ -68,7 +109,6 @@ export function ServicesBoard({
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {services.map((service) => {
-        const accent = serviceAccent(service.id)
         const today = dateKeyInTimeZone(new Date(), service.timezone)
         const closures = service.exceptions.filter((item) => item.date >= today)
         const openDays = new Set(service.weeklyRules.filter((rule) => rule.active).map((rule) => rule.weekday)).size
@@ -81,12 +121,14 @@ export function ServicesBoard({
             )}
           >
             <div className="flex items-start gap-3">
-              <span className={cn('mt-1 h-9 w-1.5 shrink-0 rounded-full', service.active ? accent.bar : 'bg-black/20')} aria-hidden />
               <div className="min-w-0 flex-1">
                 <h3 className="ui-h3 truncate">{service.name}</h3>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-[var(--text-muted)]">
-                  <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />{durationLabel(service.durationMinutes, fa)}</span>
-                  <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{fa ? `ظرفیت ${num(service.capacity, true)} نفر هم‌ زمان` : `${service.capacity} at once`}</span>
+                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)]">
+                  {[
+                    durationLabel(service.durationMinutes, fa),
+                    fa ? `ظرفیت ${num(service.capacity, true)} نفر` : `${service.capacity} at once`,
+                    service.location,
+                  ].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <Switch
@@ -100,19 +142,17 @@ export function ServicesBoard({
               />
             </div>
 
-            {service.location && (
-              <p className="mt-2 flex items-center gap-1 truncate text-[12px] text-[var(--text-muted)]"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{service.location}</span></p>
-            )}
-
-            <div className="mt-4 rounded-2xl bg-[var(--bg-base)] p-3 ring-1 ring-[var(--border-subtle)]">
+            {/* Open days as seven dots and the hours as one line; the full
+                weekly graph lives in the editor. */}
+            <div className="mt-3">
               {openDays ? (
-                <WeekHoursGraph service={service} fa={fa} />
+                <WeekDots service={service} fa={fa} />
               ) : (
-                <p className="py-6 text-center text-xs font-medium text-amber-700">{fa ? 'ساعت کاری ندارد؛ ایجنت زمانی پیشنهاد نمی‌دهد.' : 'No hours set, so the agent cannot offer times.'}</p>
+                <p className="text-xs font-medium text-amber-700">{fa ? 'ساعت کاری ندارد؛ ایجنت زمانی پیشنهاد نمی‌دهد.' : 'No hours set, so the agent cannot offer times.'}</p>
               )}
             </div>
 
-            <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+            <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
               <span className="ui-chip ui-chip-neutral">{fa ? `${num(service.appointmentCount, true)} رزرو` : `${service.appointmentCount} bookings`}</span>
               {closures.length > 0 && (
                 <span className="ui-chip ui-chip-danger"><CalendarOff className="h-3 w-3" />{fa ? `${num(closures.length, true)} تاریخ خاص` : `${closures.length} exceptions`}</span>
@@ -130,7 +170,7 @@ export function ServicesBoard({
               <button
                 type="button"
                 onClick={() => onEdit(service)}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 <Pencil className="h-3.5 w-3.5" />{fa ? 'ویرایش' : 'Edit'}
               </button>
@@ -142,7 +182,7 @@ export function ServicesBoard({
       <button
         type="button"
         onClick={onCreate}
-        className="group grid min-h-[16rem] place-items-center rounded-card border-2 border-dashed border-[var(--border-default)] p-6 text-center transition-colors hover:border-[var(--text-primary)] hover:bg-white/60"
+        className="group grid min-h-[10rem] place-items-center rounded-card border-2 border-dashed border-[var(--border-default)] p-6 text-center transition-colors hover:border-[var(--text-primary)] hover:bg-white/60"
       >
         <span>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)] transition-transform group-hover:scale-105">

@@ -15,25 +15,27 @@ import {
         Package,
         BookOpen,
         Zap,
-	Sparkles,
-	ShieldCheck,
 	CircleDashed,
-	Eye,
 } from 'lucide-react'
 import { findModel, type ModelAlias } from '@/lib/ai/models'
 import {
+        getBusinessGoals,
+        getRecommendedRoleForGoals,
         getRoleTemplatesForBusiness,
         getSuggestedRoleTemplate,
         normalizePromptConfig,
         type PromptConfig,
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
-import { fromLegacyBusinessKey, getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
+import { fromLegacyBusinessKey, type BusinessTypeValue } from '@/lib/verticals/registry'
 import { NaturalConversationControls } from './natural-conversation-controls'
+import { GoalPicker } from '@/components/agents/goal-picker'
 import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
 import { StepProgress } from '@/components/ui/step-progress'
+import { Switch } from '@/components/ui/switch'
+import { TagInput } from '@/components/ui/tag-input'
 
-const TOTAL = 3
+const TOTAL = 2
 
 interface FormState {
 	name: string
@@ -43,7 +45,6 @@ interface FormState {
         language: 'fa' | 'en'
         handoffEnabled: boolean
         handoffMessage: string
-        handoffKeywords: string
         requireCustomerInfo: boolean
         customerInfoPrompt: string
 }
@@ -230,9 +231,6 @@ export function AgentWizard({
         const resolvedBusinessType = businessType ?? fromLegacyBusinessKey(initialBusiness)
         const roleTemplates = getRoleTemplatesForBusiness(resolvedBusinessType)
         const defaultRole = getSuggestedRoleTemplate(resolvedBusinessType, preset?.role ?? 'full_service')
-        const businessLabel = locale === 'fa'
-                ? getVerticalPack(resolvedBusinessType).titleFa
-                : getVerticalPack(resolvedBusinessType).titleEn
 	const presetCopy = preset?.[locale]
 	const trialModelLabel = locale === 'fa' ? findModel(modelPolicy.trialModel).name : findModel(modelPolicy.trialModel).nameEn
 	const activeModelLabel = modelPolicy.plan === 'TRIAL'
@@ -246,6 +244,8 @@ export function AgentWizard({
 	const [selectedRole, setSelectedRole] = useState<RoleTemplate>(defaultRole)
 	const [draft, setDraft] = useState<ConfigDraft>(draftFromRole(defaultRole))
 	const [showEditor, setShowEditor] = useState(false)
+	const goalOptions = getBusinessGoals(resolvedBusinessType)
+	const [goals, setGoals] = useState<string[]>(() => goalOptions.map((goal) => goal.key))
 	const [form, setForm] = useState<FormState>({
 		name: presetCopy?.name ?? '',
 		welcomeMessage: presetCopy?.welcome ?? '',
@@ -254,10 +254,11 @@ export function AgentWizard({
                 language: locale,
                 handoffEnabled: true,
                 handoffMessage: '',
-                handoffKeywords: locale === 'fa' ? 'اپراتور، انسان، شکایت' : 'operator, human, complaint',
                 requireCustomerInfo: preset?.role === 'lead_capture',
 		customerInfoPrompt: '',
 	})
+
+	const [handoffWords, setHandoffWords] = useState<string[]>(locale === 'fa' ? ['اپراتور', 'انسان', 'شکایت'] : ['operator', 'human', 'complaint'])
 
 	useEffect(() => {
 		window.scrollTo({ top: 0, behavior: 'auto' })
@@ -269,11 +270,20 @@ export function AgentWizard({
         const setD = <K extends keyof ConfigDraft>(key: K, value: ConfigDraft[K]) =>
                 setDraft((d) => ({ ...d, [key]: value }))
 
-        function selectRole(role: RoleTemplate) {
+        function selectRole(picked: RoleTemplate) {
+                const role = picked.key === 'custom' ? picked : getRecommendedRoleForGoals(resolvedBusinessType, goals)
                 setSelectedRole(role)
                 setDraft(draftFromRole(role))
                 // The custom template is an empty canvas — open the editor right away.
                 setShowEditor(role.key === 'custom')
+        }
+
+        // Goals rebuild the recommended behavior, keeping the tone already picked.
+        function selectGoals(keys: string[]) {
+                const role = getRecommendedRoleForGoals(resolvedBusinessType, keys)
+                setGoals(keys)
+                setSelectedRole(role)
+                setDraft((d) => ({ ...draftFromRole(role), conversationFormality: d.conversationFormality }))
         }
 
         const canNext = step === 0 ? form.name.trim().length > 0 : true
@@ -297,10 +307,7 @@ export function AgentWizard({
                                         language: form.language,
                                         handoffEnabled: form.handoffEnabled,
                                         handoffMessage: form.handoffMessage || undefined,
-                                        handoffKeywords: form.handoffKeywords
-                                                .split(/[,\u060c]/)
-                                                .map((item) => item.trim())
-                                                .filter(Boolean),
+                                        handoffKeywords: handoffWords,
                                         requireCustomerInfo: form.requireCustomerInfo,
                                         customerInfoPrompt: form.customerInfoPrompt || undefined,
                                 }),
@@ -328,8 +335,31 @@ export function AgentWizard({
         }
 
 	const stepTitles = locale === 'fa'
-		? ['نام، شخصیت و قوانین', 'تحویل و تنظیمات پاسخ', 'بازبینی و ساخت']
-		: ['Name, persona & guardrails', 'Handoff & response settings', 'Review & create']
+		? ['ایجنت شما', 'مرز پاسخ و ساخت']
+		: ['Your agent', 'Boundaries & create']
+	const isFa = locale === 'fa'
+	const toneSample = TONE_SAMPLES[draft.conversationFormality][locale]
+	const reviewRows = [
+		{ ok: form.name.trim().length > 0, label: isFa ? 'نام' : 'Name', value: form.name || '—' },
+		{
+			ok: true,
+			label: isFa ? 'نقش و لحن' : 'Role and tone',
+			value: `${isFa ? selectedRole.nameFa : selectedRole.nameEn} · ${TONE_LABELS[draft.conversationFormality][locale]}`,
+		},
+		{ ok: true, label: isFa ? 'مدل' : 'Model', value: form.model || activeModelLabel },
+		{
+			ok: true,
+			label: isFa ? 'تحویل به اپراتور' : 'Operator handoff',
+			value: form.handoffEnabled ? (isFa ? 'فعال' : 'On') : (isFa ? 'خاموش' : 'Off'),
+		},
+		{
+			ok: workspaceProductCount > 0,
+			label: isFa ? 'محصولات و دانش' : 'Products and knowledge',
+			value: workspaceProductCount > 0
+				? (isFa ? `${workspaceProductCount.toLocaleString('fa-IR')} محصول` : `${workspaceProductCount} products`)
+				: (isFa ? 'بعد از ساخت' : 'After creation'),
+		},
+	]
 
         if (created) {
                 return (
@@ -365,7 +395,7 @@ export function AgentWizard({
                                                 <div className="mt-1 flex flex-wrap justify-center gap-3">
                                                         <button
                                                                 onClick={() => router.push(`/agents/${created.id}`)}
-                                                                className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+                                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-medium text-white shadow-[var(--shadow-control)]"
                                                         >
                                                                 <Zap className="h-4 w-4" />
                                                                 {t('startSetup')}
@@ -377,23 +407,44 @@ export function AgentWizard({
                 )
         }
 
+	const backButton = step === 0 && onboardingMode ? (
+		<button
+			type="button"
+			onClick={() => router.push('/onboarding')}
+			className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+		>
+			<ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+			{isFa ? 'بازگشت به راه‌اندازی' : 'Back to setup'}
+		</button>
+	) : step > 0 ? (
+		<button
+			type="button"
+			onClick={() => setStep((s) => Math.max(0, s - 1))}
+			className="inline-flex min-h-11 items-center gap-1 px-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+		>
+			<ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+			{tc('back')}
+		</button>
+	) : (
+		<span aria-hidden="true" className="min-h-11" />
+	)
+
 	return (
 		<div className="mx-auto max-w-4xl">
 			<p className="sr-only" aria-live="polite">{t('step', { n: step + 1, total: TOTAL })} — {stepTitles[step]}</p>
-			<StepProgress steps={[...stepTitles]} current={step} locale={locale === 'fa' ? 'fa' : 'en'} className="mb-6 sm:mb-8" />
+			<StepProgress steps={[...stepTitles]} current={step} locale={locale === 'fa' ? 'fa' : 'en'} className="mb-5 sm:mb-6" />
 
-                        <div className="spatial-surface rounded-sheet p-5 sm:p-7">
-                                <AnimatePresence mode="wait" initial={false}>
-                                        <motion.div
-                                                key={step}
-                                                initial={{ opacity: 0, x: 20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -20 }}
-                                                transition={{ duration: 0.25 }}
-                                                className="space-y-5"
-                                        >
-						{step === 0 && (
-							<>
+			<AnimatePresence mode="wait" initial={false}>
+				<motion.div
+					key={step}
+					initial={{ opacity: 0, x: 20 }}
+					animate={{ opacity: 1, x: 0 }}
+					exit={{ opacity: 0, x: -20 }}
+					transition={{ duration: 0.25 }}
+				>
+					{step === 0 && (
+						<div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+							<div className="spatial-surface space-y-4 rounded-sheet p-5 sm:p-6">
 								<Field label={t('name')}>
 									<input
 										autoFocus
@@ -403,82 +454,49 @@ export function AgentWizard({
 										className="input"
 									/>
 								</Field>
-								{/* Role template picker (6-layer engine) */}
-                                                                <div>
-                                                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                                                                <p className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                                                                                        <Sparkles className="h-3.5 w-3.5" />
-                                                                                        {t('roleTemplateLabel')}
-                                                                                </p>
-                                                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[12px] font-medium text-[var(--text-secondary)]">
-                                                                                        {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
-                                                                                </span>
-                                                                        </div>
-                                                                        <div className="grid gap-2 sm:grid-cols-2">
-                                                                                {roleTemplates.map((role) => {
-                                                                                        const selected = selectedRole.key === role.key
-                                                                                        const custom = role.key === 'custom'
-                                                                                        return (
-                                                                                                <button
-                                                                                                        key={role.key}
-                                                                                                        type="button"
-                                                                                                        onClick={() => selectRole(role)}
-                                                                                                        className={`w-full min-h-[7.25rem] rounded-2xl border p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-200 ${
-                                                                                                                selected
-                                                                                                                        ? 'border-black bg-black/[0.035] shadow-[var(--shadow-xs)]'
-                                                                                                                        : 'border-[var(--border-default)] bg-white hover:border-black/25 hover:bg-black/[0.015]'
-                                                                                                        }`}
-                                                                                                >
-                                                                                        <div className="flex items-start justify-between gap-3">
-                                                                                                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                                                                                                        {locale === 'fa' ? role.nameFa : role.nameEn}
-                                                                                                </p>
-                                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[11px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
-                                                                                                        {custom ? <Zap className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-                                                                                                </span>
-                                                                                        </div>
-                                                                                        <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
-                                                                                                {locale === 'fa' ? role.descFa : role.descEn}
-                                                                                                        </p>
-                                                                                        <p className="mt-2 text-[12px] font-medium text-[var(--text-hint)]">
-                                                                                                {custom
-                                                                                                        ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
-                                                                                                        : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
-                                                                                        </p>
-                                                                                                </button>
-                                                                                        )
-                                                                                })}
-                                                                        </div>
 
-                                                                        {/* 6-layer prompt engine — always visible, prominently labelled */}
-                                                                        <div className="mt-4 overflow-hidden rounded-2xl border border-black/[0.065] bg-black/[0.018]">
-                                                                                <button
-                                                                                        type="button"
-                                                                                        onClick={() => setShowEditor((v) => !v)}
-                                                                                        aria-expanded={showEditor}
-                                                                                        aria-controls="onboarding-behavior-editor"
-                                                                                        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-start"
-                                                                                >
-                                                                                        <span className="flex items-center gap-2">
-                                                                                                <span className="grid h-8 w-8 place-items-center rounded-xl bg-black text-white">
-                                                                                                        <Sparkles className="h-4 w-4" />
-                                                                                                </span>
-                                                                                                <span>
-                                                                                                        <span className="block text-sm font-semibold text-[var(--text-primary)]">
-                                                                                                                {locale === 'fa' ? 'بهبود رفتار ایجنت؛ بعد از اولین گفتگو' : 'Refine behavior after your first conversation'}
-                                                                                                        </span>
-                                                                                                        <span className="block text-[12px] text-[var(--text-muted)]">
-                                                                                                                {locale === 'fa' ? 'موتور ۶ لایه با تنظیمات پیشنهادی آماده است · ویرایش اختیاری' : 'Six layers are ready with suggested settings · editing is optional'}
-                                                                                                        </span>
-                                                                                                </span>
-                                                                                        </span>
-                                                                                        {showEditor ? <ChevronUp className="h-4 w-4 text-[var(--text-muted)]" /> : <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />}
-                                                                                </button>
-                                                                                <p className="px-4 pb-4 text-sm leading-7 text-[var(--text-secondary)]">
-                                                                                        {locale === 'fa' ? 'برای شروع لازم نیست این تنظیمات را تغییر دهید. ایجنت را راه‌اندازی کنید و خودتان یا مشتری‌هایتان با آن گفتگو کنید. بعد، از «بهبود ایجنت» می‌توانید لحن، بایدها و نبایدها و نحوه پاسخ‌گویی را دقیقاً مطابق نیازتان بهتر کنید. معرفی کسب‌وکار و سؤال‌های متداول را در بخش دانش اضافه کنید.' : 'You can start with these defaults. Set up the agent and try conversations yourself or with customers. Then use Improve agent to refine its tone, rules and responses. Add business information and FAQs in Knowledge.'}
-                                                                                </p>
-                                                                                {showEditor && (
-                                                                                        <div id="onboarding-behavior-editor" className="space-y-4 border-t border-[var(--border-subtle)] bg-white/60 p-4">
+								<div>
+									<span id="wizard-role" className="ui-field-label">{isFa ? 'نقش' : 'Role'}</span>
+									<div role="radiogroup" aria-labelledby="wizard-role" className="space-y-2">
+										{roleTemplates.map((role) => {
+											const selected = selectedRole.key === role.key
+											return (
+												<button
+													key={role.key}
+													type="button"
+													role="radio"
+													aria-checked={selected}
+													onClick={() => selectRole(role)}
+													className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-start transition-[border-color,box-shadow] duration-150 ${
+														selected
+															? 'border-[var(--text-primary)] shadow-[0_0_0_1px_var(--text-primary)]'
+															: 'border-[var(--border-default)] bg-white hover:border-black/25'
+													}`}
+												>
+													<span className={`h-5 w-5 shrink-0 rounded-full border bg-white ${selected ? 'border-[6px] border-[var(--text-primary)]' : 'border-black/30'}`} />
+													<span className="min-w-0">
+														<span className="block text-[13px] font-bold text-[var(--text-primary)]">{isFa ? role.nameFa : role.nameEn}</span>
+														<span className="block text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? role.descFa : role.descEn}</span>
+													</span>
+												</button>
+											)
+										})}
+									</div>
+									{selectedRole.key !== 'custom' && (
+										<GoalPicker id="wizard-goals" className="mt-4" goals={goalOptions} selected={goals} onChange={selectGoals} fa={isFa} />
+									)}
+									<button
+										type="button"
+										onClick={() => setShowEditor((v) => !v)}
+										aria-expanded={showEditor}
+										aria-controls="wizard-behavior-editor"
+										className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+									>
+										{showEditor ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+										{isFa ? 'ویرایش شش لایهٔ رفتار (اختیاری؛ بعداً هم از «بهبود ایجنت» می‌شود)' : 'Edit the six behavior layers (optional; also available later in Improve agent)'}
+									</button>
+									{showEditor && (
+										<div id="wizard-behavior-editor" className="space-y-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
                                                                                                 <LayerField n={1} label={t('layerPersonality')}>
                                                                                                         <textarea
                                                                                                                 value={draft.personality}
@@ -523,7 +541,7 @@ export function AgentWizard({
                                                                                                 <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
                                                                                                         <div className="grid gap-3 sm:grid-cols-2">
                                                                                                                 <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-rose-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-red-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
                                                                                                         </div>
                                                                                                 </LayerField>
                                                                                                 <LayerField n={4} label={t('layerFallback')}>
@@ -575,155 +593,197 @@ export function AgentWizard({
                                                                                                                 {locale === 'fa' ? 'هر خط یک نمونه: سؤال|پاسخ. حداکثر ۲۰ نمونه.' : 'One pair per line: question|answer. Max 20 pairs.'}
                                                                                                         </p>
                                                                                                 </LayerField>
-                                                                                        </div>
-                                                                                )}
-                                                                        </div>
-                                                                </div>
-                                                                <Field label={t('welcomeMessage')}>
-                                                                        <input
-                                                                                value={form.welcomeMessage}
-                                                                                onChange={(e) => set('welcomeMessage', e.target.value)}
-                                                                                placeholder={t('welcomePlaceholder')}
-                                                                                className="input"
-                                                                        />
-                                                                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                                                                                {t('welcomeHint')}
-                                                                        </p>
-                                                                </Field>
-                                                                <Field label={t('fallbackMessage')}>
-                                                                        <input
-                                                                                value={form.fallbackMessage}
-                                                                                onChange={(e) => set('fallbackMessage', e.target.value)}
-                                                                                className="input"
-                                                                        />
-                                                                </Field>
-                                                        </>
-                                                )}
-
-					{step === 1 && (
-						<div className="grid gap-4 lg:grid-cols-2">
-								<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                                                        <div className="mb-4 flex items-start gap-2">
-                                                                                <ShieldCheck className="mt-0.5 h-4 w-4 text-[var(--ok)]" />
-                                                                                <div>
-                                                                                        <h3 className="text-sm font-medium text-[var(--text-primary)]">{locale === 'fa' ? 'مرز پاسخ و تحویل امن' : 'Safe boundaries & handoff'}</h3>
-                                                                                        <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{locale === 'fa' ? 'موارد مبهم یا حساس با خلاصه به اپراتور منتقل می‌شوند.' : 'Ambiguous or sensitive cases are handed off with context.'}</p>
-                                                                                </div>
-                                                                        </div>
-                                                                        <label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-                                                                                <span>
-                                                                                        <span className="block">{locale === 'fa' ? 'انتقال خودکار در موقعیت‌های پیشنهادی' : 'Proactive human handoff'}</span>
-                                                                                        <span className="mt-0.5 block text-[12px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'برای اصطکاک، مذاکره یا طولانی‌شدن گفتگو؛ درخواست مستقیم و موارد پرخطر همیشه منتقل می‌شوند' : 'For friction, negotiation, or long chats; direct requests and high-risk cases always transfer'}</span>
-                                                                                </span>
-                                                                                <input type="checkbox" checked={form.handoffEnabled} onChange={(e) => set('handoffEnabled', e.target.checked)} className="h-4 w-4 accent-violet-500" />
-                                                                        </label>
-                                                                        {form.handoffEnabled && (
-                                                                                <div className="mt-3 space-y-3">
-                                                                                        <Field label={locale === 'fa' ? 'پیام تحویل' : 'Handoff message'}><input value={form.handoffMessage} onChange={(e) => set('handoffMessage', e.target.value)} className="input" /></Field>
-                                                                                        <Field label={locale === 'fa' ? 'کلمات تحویل' : 'Handoff keywords'}><input value={form.handoffKeywords} onChange={(e) => set('handoffKeywords', e.target.value)} className="input" /><p className="mt-1 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'با ویرگول جدا کنید؛ مثل اپراتور، شکایت، پرداخت ناموفق' : 'Comma-separated; e.g. operator, complaint, payment failed'}</p></Field>
-                                                                                </div>
-                                                                        )}
-                                                                        <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-                                                                                <span>
-                                                                                        <span className="block">{locale === 'fa' ? 'نام و شماره موبایل قبل از چت اجباری باشد' : 'Require name and mobile before chat'}</span>
-                                                                                        <span className="mt-0.5 block text-[12px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'در ویجت وب و چت‌لینک یک فرم یکپارچه نمایش داده می‌شود' : 'Shows one consistent form in the web widget and chat link'}</span>
-                                                                                </span>
-                                                                                <input type="checkbox" checked={form.requireCustomerInfo} onChange={(e) => set('requireCustomerInfo', e.target.checked)} className="h-4 w-4 accent-violet-500" />
-                                                                        </label>
-                                                                        {form.requireCustomerInfo && <div className="mt-3"><Field label={locale === 'fa' ? 'متن معرفی فرم (اختیاری)' : 'Pre-chat form message (optional)'}><textarea value={form.customerInfoPrompt} onChange={(e) => set('customerInfoPrompt', e.target.value)} rows={3} placeholder={locale === 'fa' ? 'برای اینکه بهتر راهنمایی‌تان کنیم، لطفاً نام و شماره موبایل خود را وارد کنید.' : 'To help you better, please enter your name and mobile number.'} className="input resize-none" /></Field></div>}
-                                                                </section>
-
-								<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-									<div className="flex items-start gap-2 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] p-3.5">
-										<Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-strong)]" />
-										<div>
-											<h3 className="text-sm font-medium text-[var(--text-primary)]">
-												{locale === 'fa' ? 'مدل پاسخ‌گویی فعلاً خودکار انتخاب می‌شود' : 'The response model is selected automatically for now'}
-											</h3>
-											<p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
-											{modelPolicy.plan === 'TRIAL'
-												? (locale === 'fa'
-													? `در دوره آزمایشی مدل «${trialModelLabel}» فعال است. بعداً از تنظیمات ایجنت می‌توانید مدل را تغییر دهید.`
-													: `The ${trialModelLabel} model is active during the trial. You can change it later in agent settings.`)
-												: (locale === 'fa'
-													? 'مدل پیش‌فرض ویجنت فعال است و بعداً از تنظیمات ایجنت قابل تغییر است.'
-													: 'The Vigent default model is active and can be changed later in agent settings.')}
-											</p>
 										</div>
+									)}
+								</div>
+
+								<div>
+									<span id="wizard-tone" className="ui-field-label">{isFa ? 'لحن' : 'Tone'}</span>
+									<div role="radiogroup" aria-labelledby="wizard-tone" className="ui-seg w-full grid-cols-3 sm:w-80">
+										{(['casual', 'balanced', 'formal'] as const).map((value) => (
+											<button
+												key={value}
+												type="button"
+												role="radio"
+												aria-checked={draft.conversationFormality === value}
+												data-active={draft.conversationFormality === value}
+												onClick={() => setD('conversationFormality', value)}
+												className="ui-seg-tab flex-1 px-5"
+											>
+												{TONE_LABELS[value][locale]}
+											</button>
+										))}
 									</div>
-								</section>
+								</div>
+
+								<Field label={t('welcomeMessage')}>
+									<input
+										value={form.welcomeMessage}
+										onChange={(e) => set('welcomeMessage', e.target.value)}
+										placeholder={t('welcomePlaceholder')}
+										className="input"
+									/>
+									<p className="ui-field-hint">{t('welcomeHint')}</p>
+								</Field>
 							</div>
+
+							{/* Live preview: follows the name, tone and greeting as they change. */}
+							<div className="rounded-sheet border border-[var(--border-subtle)] bg-[#fbfbfa] p-5 lg:sticky lg:top-24" aria-live="polite">
+								<div className="flex items-center justify-between gap-2">
+									<span className="truncate text-[13px] font-bold text-[var(--text-primary)]">{form.name.trim() || t('namePlaceholder')}</span>
+									<span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-medium text-emerald-700">
+										<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+										{isFa ? 'پیش‌نمایش' : 'Preview'}
+									</span>
+								</div>
+								<div className="mt-3 flex flex-col gap-2 text-[13px] leading-6">
+									<p className="ms-auto max-w-[85%] rounded-2xl rounded-se-md bg-[var(--text-primary)] px-3 py-2 text-white">
+										{form.welcomeMessage.trim() || t('welcomePlaceholder')}
+									</p>
+									<p className="max-w-[85%] rounded-2xl rounded-ss-md bg-black/[0.06] px-3 py-2 text-[var(--text-primary)]">
+										{isFa ? 'سفارشم کی می‌رسه؟' : 'When does my order arrive?'}
+									</p>
+									<p className="ms-auto max-w-[85%] rounded-2xl rounded-se-md bg-[var(--text-primary)] px-3 py-2 text-white">{toneSample}</p>
+								</div>
+								<p className="mt-3 text-[12px] leading-5 text-[var(--text-muted)]">
+									{isFa ? 'با تغییر نام، لحن یا پیام، همین گفتگو عوض می‌شود. جواب دوم فقط نمونهٔ لحن است.' : 'This exchange follows the name, tone and greeting. The second reply only shows the tone.'}
+								</p>
+							</div>
+						</div>
 					)}
 
-					{step === 2 && (
-						<ReviewCard
-							locale={locale}
-							form={form}
-							role={selectedRole}
-							knowledgeCount={workspaceProductCount}
-							modelLabel={form.model || activeModelLabel}
-							isTrial={modelPolicy.plan === 'TRIAL'}
-						/>
-                                        )}
-                                        </motion.div>
-                                </AnimatePresence>
+					{step === 1 && (
+						<div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+							<div className="spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-sheet">
+								<div className="p-4 sm:p-5">
+									<div className="flex items-center justify-between gap-4">
+										<div>
+											<p className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'}</p>
+											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'برای شکایت، مذاکره، درخواست مستقیم و موارد پرخطر' : 'For complaints, negotiation, direct requests and high-risk cases'}</p>
+										</div>
+										<Switch checked={form.handoffEnabled} onChange={(v) => set('handoffEnabled', v)} aria-label={isFa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'} />
+									</div>
+									{form.handoffEnabled && (
+										<div className="mt-3 space-y-3">
+											<div>
+												<label htmlFor="wizard-handoff-words" className="ui-field-label">{isFa ? 'کلمه‌هایی که همیشه تحویل می‌دهند' : 'Words that always hand off'}</label>
+												<TagInput
+													id="wizard-handoff-words"
+													value={handoffWords}
+													onChange={setHandoffWords}
+													locale={locale}
+													placeholder={isFa ? 'کلمه را بنویسید و Enter بزنید' : 'Type a word and press Enter'}
+												/>
+											</div>
+											<Field label={isFa ? 'پیامی که مشتری موقع تحویل می‌بیند' : 'Message the customer sees on handoff'}>
+												<input
+													value={form.handoffMessage}
+													onChange={(e) => set('handoffMessage', e.target.value)}
+													placeholder={isFa ? 'همکارم تا چند دقیقهٔ دیگر جواب می‌دهد.' : 'A teammate will reply in a few minutes.'}
+													className="input"
+												/>
+											</Field>
+										</div>
+									)}
+								</div>
 
-                                {error && <p className="mt-4 text-sm text-danger" role="alert">{tA('createFailed')}</p>}
+								<div className="p-4 sm:p-5">
+									<Field label={isFa ? 'وقتی جواب را نمی‌داند' : 'When it does not know the answer'}>
+										<input
+											value={form.fallbackMessage}
+											onChange={(e) => set('fallbackMessage', e.target.value)}
+											placeholder={isFa ? 'مطمئن نیستم؛ از همکارم می‌پرسم و خبر می‌دهم.' : 'I am not sure; I will check with a teammate and get back to you.'}
+											className="input"
+										/>
+										<p className="ui-field-hint">{isFa ? 'خالی بماند، ایجنت طبق الگوی نقش رفتار می‌کند.' : 'Left empty, the agent follows its role template.'}</p>
+									</Field>
+								</div>
 
-                                <div className="mt-8 flex items-center justify-between">
-                                        {step === 0 && onboardingMode ? (
-                                                <button
-                                                        type="button"
-                                                        onClick={() => router.push('/onboarding')}
-                                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/15 px-3 text-sm text-[var(--text-secondary)] transition-[color,background-color,border-color] hover:border-white/25 hover:bg-white/5 hover:text-[var(--text-primary)]"
-                                                >
-                                                        <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-                                                        {locale === 'fa' ? 'بازگشت به انتخاب روش ساخت' : 'Back to setup options'}
-                                                </button>
-                                        ) : step > 0 ? (
-                                                <button
-                                                        type="button"
-                                                        onClick={() => setStep((s) => Math.max(0, s - 1))}
-                                                        className="inline-flex min-h-11 items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                                >
-                                                        <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-                                                        {tc('back')}
-                                                </button>
-                                        ) : (
-                                                <span aria-hidden="true" className="min-h-11" />
-                                        )}
+								<div className="p-4 sm:p-5">
+									<div className="flex items-center justify-between gap-4">
+										<div>
+											<p className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'}</p>
+											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'فقط در ویجت سایت و لینک چت' : 'Website widget and chat link only'}</p>
+										</div>
+										<Switch checked={form.requireCustomerInfo} onChange={(v) => set('requireCustomerInfo', v)} aria-label={isFa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'} />
+									</div>
+									{form.requireCustomerInfo && (
+										<div className="mt-3">
+											<Field label={isFa ? 'متن بالای فرم (اختیاری)' : 'Text above the form (optional)'}>
+												<textarea value={form.customerInfoPrompt} onChange={(e) => set('customerInfoPrompt', e.target.value)} rows={2} placeholder={isFa ? 'برای اینکه بهتر راهنمایی‌تان کنیم، لطفاً نام و شماره موبایل خود را وارد کنید.' : 'To help you better, please enter your name and mobile number.'} className="input resize-none" />
+											</Field>
+										</div>
+									)}
+								</div>
+							</div>
 
-                                        {step < TOTAL - 1 ? (
-                                                <button
-                                                        type="button"
-                                                        onClick={() => canNext && setStep((s) => s + 1)}
-                                                        disabled={!canNext}
-                                                        className="inline-flex items-center gap-1 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
-                                                >
-                                                        {tc('next')}
-                                                        <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-                                                </button>
-                                        ) : (
-                                                <button
-                                                        type="button"
-                                                        onClick={submit}
-                                                        disabled={loading}
-                                                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
-                                                >
-                                                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-						{loading ? tA('creating') : (locale === 'fa' ? 'ساخت و ادامه' : 'Create and continue')}
-                                                </button>
-                                        )}
-                                </div>
-                        </div>
-                </div>
-        )
+							<div className="spatial-surface rounded-sheet p-4 sm:p-5 lg:sticky lg:top-24">
+								<h3 className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'بازبینی' : 'Review'}</h3>
+								<ul className="mt-2 divide-y divide-[var(--border-subtle)]">
+									{reviewRows.map((item) => (
+										<li key={item.label} className="flex items-center gap-2 py-2.5 text-[13px]">
+											{item.ok
+												? <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+												: <CircleDashed className="h-4 w-4 shrink-0 text-amber-600" />}
+											<span className="text-[var(--text-primary)]">{item.label}</span>
+											<span className="ms-auto max-w-[60%] truncate text-[12px] text-[var(--text-muted)]">{item.value}</span>
+										</li>
+									))}
+								</ul>
+								{error && <p className="mt-3 text-sm text-danger" role="alert">{tA('createFailed')}</p>}
+								<div className="mt-3 flex items-center justify-between gap-3">
+									{backButton}
+									<button
+										type="button"
+										onClick={submit}
+										disabled={loading}
+										aria-busy={loading}
+										className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-medium text-white shadow-[var(--shadow-control)] disabled:cursor-wait disabled:opacity-70"
+									>
+										{loading && <Loader2 className="h-4 w-4 animate-spin" />}
+										{loading ? tA('creating') : onboardingMode ? (isFa ? 'ساخت و ادامه' : 'Create and continue') : (isFa ? 'ساخت ایجنت' : 'Create agent')}
+									</button>
+								</div>
+							</div>
+						</div>
+					)}
+				</motion.div>
+			</AnimatePresence>
+
+			{step === 0 && (
+				<div className="mt-4 flex items-center justify-between">
+					{backButton}
+					<button
+						type="button"
+						onClick={() => canNext && setStep(1)}
+						disabled={!canNext}
+						className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-medium text-white shadow-[var(--shadow-control)]"
+					>
+						{tc('next')}
+						<ArrowRight className="h-4 w-4 rtl:rotate-180" />
+					</button>
+				</div>
+			)}
+		</div>
+	)
 }
+
+const TONE_LABELS = {
+	casual: { fa: 'صمیمی', en: 'Friendly' },
+	balanced: { fa: 'متعادل', en: 'Balanced' },
+	formal: { fa: 'رسمی', en: 'Formal' },
+} as const
+
+const TONE_SAMPLES = {
+	casual: { fa: 'سلام عزیزم 🌸 فردا دستت می‌رسه، خیالت راحت!', en: 'Hi there 🌸 it arrives tomorrow, no worries!' },
+	balanced: { fa: 'سلام! سفارشتون فردا به دستتون می‌رسه.', en: 'Hi! Your order arrives tomorrow.' },
+	formal: { fa: 'سلام، وقت بخیر. سفارش شما فردا تحویل داده می‌شود.', en: 'Hello. Your order will be delivered tomorrow.' },
+} as const
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
         return (
                 <label className="block">
-                        <span className="mb-2 block text-sm text-[var(--text-secondary)]">{label}</span>
+                        <span className="ui-field-label">{label}</span>
                         {children}
                 </label>
         )
@@ -739,82 +799,5 @@ function LayerField({ n, label, children }: { n: number; label: string; children
                         </span>
                         {children}
                 </label>
-        )
-}
-
-function ReviewCard({
-	locale,
-	form,
-	role,
-	knowledgeCount,
-	modelLabel,
-	isTrial,
-}: {
-	locale: 'fa' | 'en'
-	form: FormState
-	role: RoleTemplate
-	knowledgeCount: number
-	modelLabel: string
-	isTrial: boolean
-}) {
-	const isFa = locale === 'fa'
-	const checklist = [
-		{
-			ok: form.name.trim().length > 0,
-			label: isFa ? 'نام ایجنت' : 'Agent name',
-			value: form.name || '—',
-		},
-		{
-			ok: true,
-			label: isFa ? 'نقش و رفتار' : 'Role and behavior',
-			value: isFa ? role.nameFa : role.nameEn,
-		},
-		{
-			ok: true,
-			label: isFa ? 'مدل فعلی' : 'Current model',
-			value: isTrial
-				? (isFa ? `${modelLabel} · آزمایشی و قابل تغییر` : `${modelLabel} · trial, changeable later`)
-				: (isFa ? `${modelLabel} · قابل تغییر` : `${modelLabel} · changeable later`),
-		},
-		{
-			ok: true,
-			label: isFa ? 'تحویل گفتگو به اپراتور' : 'Human handoff',
-			value: form.handoffEnabled ? (isFa ? 'فعال' : 'Enabled') : (isFa ? 'فعلاً غیرفعال' : 'Disabled for now'),
-		},
-		{
-			ok: knowledgeCount > 0,
-			label: isFa ? 'محصولات و دانش' : 'Products and knowledge',
-			value: knowledgeCount > 0
-				? (isFa ? `${knowledgeCount.toLocaleString('fa-IR')} محصول آماده اتصال است` : `${knowledgeCount} products are ready to connect`)
-				: (isFa ? 'پس از ساخت می‌توانید از منو اضافه کنید' : 'You can add them from the menu after creation'),
-		},
-	]
-	return (
-		<div className="space-y-4">
-			<div className="flex items-start gap-3 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] p-4">
-				<Eye className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent-strong)]" />
-				<div>
-					<h3 className="text-sm font-bold text-[var(--text-primary)]">{isFa ? 'چک‌لیست آمادگی ایجنت' : 'Agent readiness checklist'}</h3>
-					<p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
-						{isFa ? 'جزئیات را یک‌بار بررسی کنید؛ محصولات، دانش و برنامه‌های ارتباطی بعداً هم قابل افزودن‌اند.' : 'Review the details once. Products, knowledge and connected apps can also be added later.'}
-					</p>
-				</div>
-			</div>
-			<div className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)]">
-				<ul className="divide-y divide-[var(--border-subtle)]">
-					{checklist.map((item) => (
-						<li key={item.label} className="flex items-start gap-3 px-4 py-3.5">
-							{item.ok
-								? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								: <CircleDashed className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
-							<div className="min-w-0 flex-1 sm:flex sm:items-start sm:justify-between sm:gap-4">
-								<span className="block text-xs font-medium text-[var(--text-primary)]">{item.label}</span>
-								<span className="mt-1 block text-xs leading-5 text-[var(--text-muted)] sm:mt-0 sm:max-w-[60%] sm:text-end">{item.value}</span>
-							</div>
-						</li>
-					))}
-				</ul>
-			</div>
-		</div>
         )
 }

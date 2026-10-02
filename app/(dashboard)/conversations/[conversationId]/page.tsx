@@ -1,31 +1,21 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
-import { Phone, Sparkles } from 'lucide-react'
 import { requireUser } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
-import { ConversationActions } from '@/components/crm/conversation-actions'
-import { ConversationDeleteAction } from '@/components/crm/conversation-delete-action'
+import { ConversationHeaderActions } from '@/components/crm/conversation-actions'
+import { ConversationDetails } from '@/components/crm/conversation-details'
 import { BackButton } from '@/components/dashboard/back-button'
 import {
         ConversationThread,
         type ThreadMessage,
 } from '@/components/crm/conversation-thread'
-import {
-        ConversationPanel,
-        type HandoffAlertProp,
-} from '@/components/crm/conversation-panel'
 import { displayPhone } from '@/lib/phone'
-import { contactDisplayName } from '@/lib/crm/display'
-import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
-import { CopyButton } from '@/components/ui/copy-button'
-import { contactAvatarSrc } from '@/lib/crm/avatar'
-import { SalesInsightBadge, SalesInsightCard } from '@/components/crm/sales-insight'
-import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
+import { SalesInsightBadge } from '@/components/crm/sales-insight'
+import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { ConversationMobileLayout } from '@/components/crm/conversation-mobile-layout'
-import { currentSessionMessages } from '@/lib/conversations/session'
+import { loadConversationView } from '@/lib/conversations/view'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -34,246 +24,82 @@ export default async function ConversationThreadPage(props: {
         const user = await requireUser()
         const t = await getTranslations('conversations')
         const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+        const fa = locale === 'fa'
 
-        const conversation = await prisma.conversation.findFirst({
-                where: { id: params.conversationId, workspaceId: user.workspaceId },
-                select: {
-                        id: true,
-                        channel: true,
-                        externalId: true,
-                        status: true,
-                        rating: true,
-                        summary: true,
-                        createdAt: true,
-                        agentId: true,
-                        workspace: { select: { businessType: true, language: true } },
-                        agent: { select: { id: true, name: true, language: true, roleTemplate: true } },
-                        contact: {
-                                select: {
-                                        id: true,
-                                        name: true,
-                                        phone: true,
-                                        telegramUsername: true,
-                                        telegramAvatarUrl: true,
-                                        baleUsername: true,
-                                        baleAvatarUrl: true,
-                                        rubikaUsername: true,
-                                        rubikaAvatarUrl: true,
-                                        whatsappName: true,
-                                        whatsappAvatarUrl: true,
-                                        instagramUsername: true,
-                                        instagramAvatarUrl: true,
-                                },
-                        },
-                        handoffAlerts: {
-                                orderBy: { createdAt: 'desc' },
-                                take: 1,
-                                select: {
-                                        id: true,
-                                        reason: true,
-                                        state: true,
-                                        createdAt: true,
-                                        contactName: true,
-                                        contactPhone: true,
-                                        summary: true,
-                                },
-                        },
-                        salesInsight: true,
-                        messages: {
-                                orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-                                select: {
-                                        id: true,
-                                        role: true,
-                                        content: true,
-                                        createdAt: true,
-                                        contentType: true,
-                                        unanswered: true,
-                                        metadata: true,
-                                },
-                        },
-                },
-        })
-        if (!conversation) notFound()
-
-        // Historical conversations remain useful immediately, even before the
-        // bounded inbox backfill has persisted their first snapshot.
-        const displayedSalesInsight = conversation.salesInsight ?? {
-                ...analyzeSalesConversation({
-                        messages: currentSessionMessages(conversation.messages),
-                        businessType: conversation.workspace.businessType,
-                        language: conversation.agent.language || conversation.workspace.language,
-                        roleTemplate: conversation.agent.roleTemplate,
-                }),
-                handoffRecommended: false,
-                analyzedAt: conversation.messages.at(-1)?.createdAt ?? conversation.createdAt,
-        }
-
-        // Pick the per-channel avatar + handle for the contact based on the
-        // conversation's channel so the header reflects the same identity the
-        // visitor is using on that platform.
-        const contactAvatarUrl =
-                conversation.channel === 'TELEGRAM'
-                        ? conversation.contact?.telegramAvatarUrl ?? null
-                        : conversation.channel === 'BALE'
-                                ? conversation.contact?.baleAvatarUrl ?? null
-                                : conversation.channel === 'RUBIKA'
-                                        ? conversation.contact?.rubikaAvatarUrl ?? null
-                                        : conversation.channel === 'WHATSAPP'
-                                                ? conversation.contact?.whatsappAvatarUrl ?? null
-                                                : conversation.channel === 'INSTAGRAM'
-                                                        ? conversation.contact?.instagramAvatarUrl ?? null
-                                                        : null
-        const contactAvatarSource = contactAvatarSrc({
-                contactId: conversation.contact?.id,
-                channel: conversation.channel,
-                rawUrl: contactAvatarUrl,
-        })
-        const contactHandle =
-                conversation.channel === 'TELEGRAM'
-                        ? conversation.contact?.telegramUsername ?? null
-                        : conversation.channel === 'BALE'
-                                ? conversation.contact?.baleUsername ?? null
-                                : conversation.channel === 'RUBIKA'
-                                        ? conversation.contact?.rubikaUsername ?? null
-                                        : conversation.channel === 'WHATSAPP'
-                                                ? conversation.contact?.whatsappName ?? null
-                                                : conversation.channel === 'INSTAGRAM'
-                                                        ? conversation.contact?.instagramUsername ?? null
-                                                        : null
-
-        // Resolve the contact's display name with a per-channel fallback so
-        // Instagram DMs (which only carry a sender id) show "کاربر اینستاگرام"
-        // instead of "ناشناس" until the visitor types their name.
-        const who = contactDisplayName({
-                name: conversation.contact?.name,
-                phone: conversation.contact?.phone,
-                handle: contactHandle,
-                channel: conversation.channel,
-                channelId: conversation.contact ? (conversation.channel as string) : null,
+        const view = await loadConversationView({
+                conversationId: params.conversationId,
+                workspaceId: user.workspaceId,
+                locale,
                 anonymousLabel: t('anonymous'),
         })
-
-        const latestAlert = conversation.handoffAlerts[0] ?? null
-        const handoffAlertProp: HandoffAlertProp | null = latestAlert
-                ? {
-                                id: latestAlert.id,
-                                reason: latestAlert.reason,
-                                state: latestAlert.state as 'open' | 'claimed' | 'resolved',
-                                createdAt: latestAlert.createdAt.toISOString(),
-                                contactName: latestAlert.contactName,
-                                contactPhone: latestAlert.contactPhone,
-                                summary: latestAlert.summary,
-                        }
-                : null
-
-        const showPanel =
-                conversation.status !== 'RESOLVED' &&
-                (conversation.status === 'HANDED_OFF' ||
-                        (handoffAlertProp != null && handoffAlertProp.state !== 'resolved'))
-
-        const latestInboundSource = [...conversation.messages]
-                .reverse()
-                .find((message) => message.role === 'USER')
-        const latestInboundSourceLabel = latestInboundSource
-                ? inboundSourceLabel(readInboundSource(latestInboundSource.metadata), locale)
-                : null
+        if (!view) notFound()
+        const { conversation, insight, handle, avatar, who, handoffAlert, sourceLabel, attention } = view
+        const meta = [
+                conversation.agent.name,
+                handle ? `@${handle}` : null,
+                conversation.contact?.phone ? displayPhone(conversation.contact.phone) : null,
+        ].filter(Boolean)
 
         return (
-                <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
+                <div className="mx-auto flex h-full max-w-7xl flex-col gap-3">
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
-                        <div className="spatial-surface flex shrink-0 flex-col gap-4 rounded-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                                <div className="flex min-w-0 items-center gap-3">
-                                        <ContactAvatar
-                                                src={contactAvatarSource}
-                                                alt={who}
-                                                size="md"
-                                                loading="eager"
-                                        />
-                                        <div className="min-w-0 flex-1">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                        {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">{who}</span>}
-                                                        <ChannelBadge type={conversation.channel} />
-                                                        <SalesInsightBadge insight={displayedSalesInsight} locale={locale} compactOnMobile />
-                                                </div>
-                                                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                                                        <span className="max-w-[16rem] truncate" title={conversation.agent.name}>{conversation.agent.name}</span>
-                                                        {contactHandle && (
-                                                                <span dir="ltr" className="inline-flex items-center gap-1">
-                                                                        @
-                                                                        <span className="align-middle">{contactHandle}</span>
-                                                                        <CopyButton
-                                                                                value={contactHandle}
-                                                                                label={t('copy')}
-                                                                                copiedLabel={t('copied')}
-                                                                                className="!min-h-6 !min-w-6 !rounded-lg !border-transparent !px-1 !bg-transparent hover:!bg-[var(--bg-hover)]"
-                                                                        />
-                                                                </span>
-                                                        )}
-                                                        {conversation.contact?.phone && (
-                                                                <span dir="ltr" className="inline-flex items-center gap-1">
-                                                                        <Phone className="h-3 w-3" />
-                                                                        <span className="align-middle">{displayPhone(conversation.contact.phone)}</span>
-                                                                        <CopyButton
-                                                                                value={conversation.contact.phone}
-                                                                                label={t('copy')}
-                                                                                copiedLabel={t('copied')}
-                                                                                className="!min-h-6 !min-w-6 !rounded-lg !border-transparent !px-1 !bg-transparent hover:!bg-[var(--bg-hover)]"
-                                                                        />
-                                                                </span>
-                                                        )}
-                                                </div>
+                        <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-card p-3 sm:p-4">
+                                <ContactAvatar src={avatar} alt={who} size="md" loading="eager" />
+                                <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                {conversation.contact?.id ? (
+                                                        <Link href={`/contacts/${conversation.contact.id}`} dir="auto" className="min-w-0 truncate text-lg font-bold tracking-tight text-[var(--text-primary)] hover:underline">{who}</Link>
+                                                ) : (
+                                                        <span dir="auto" className="min-w-0 truncate text-lg font-bold tracking-tight text-[var(--text-primary)]">{who}</span>
+                                                )}
+                                                <ChannelBadge type={conversation.channel} />
+                                                {attention && <ConversationStatusBadge status="HANDED_OFF" label={fa ? 'نیاز به اپراتور' : 'Needs operator'} attention />}
+                                                <span className="hidden sm:inline-flex"><SalesInsightBadge insight={insight} locale={locale} compactOnMobile /></span>
                                         </div>
+                                        <p className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">
+                                                {meta.map((item, index) => (
+                                                        <span key={index}>
+                                                                {index > 0 && ' · '}
+                                                                <bdi dir={index === 0 ? 'auto' : 'ltr'}>{item}</bdi>
+                                                        </span>
+                                                ))}
+                                        </p>
                                 </div>
-                                <ConversationDeleteAction conversationId={conversation.id} />
+                                <ConversationHeaderActions conversationId={conversation.id} status={conversation.status} />
                         </div>
 
                         <ConversationMobileLayout
-                          locale={locale}
-                          thread={<ConversationThread
-                                key={conversation.id}
-                                initialMessages={conversation.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString(), contentType: m.contentType, metadata: m.metadata as Record<string, unknown> | null })) as ThreadMessage[]}
-                                conversationId={conversation.id}
                                 locale={locale}
-                          />}
-                          details={<>
-                        <ConversationActions
-                                conversationId={conversation.id}
-                                status={conversation.status}
-                                rating={conversation.rating}
-                        />
-
-                        <SalesInsightCard insight={displayedSalesInsight} locale={locale} />
-                        {showPanel && (
-                                <ConversationPanel
-                                        status={conversation.status}
-                                        contactName={conversation.contact?.name ?? null}
-                                        contactPhone={conversation.contact?.phone ?? null}
-                                        channel={conversation.channel}
-                                        agentName={conversation.agent.name}
-                                        summary={conversation.summary}
-                                        handoffAlert={handoffAlertProp}
-                                        locale={locale}
-                                />
-                        )}
-
-                        {conversation.summary && (
-                                <div className="spatial-surface shrink-0 rounded-card p-4">
-                                        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                                                <Sparkles className="h-3.5 w-3.5" />
-                                                {t('summary')}
-                                                {latestInboundSourceLabel && (
-                                                        <span className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[12px] text-[var(--text-secondary)]">
-                                                                {latestInboundSourceLabel}
-                                                        </span>
-                                                )}
+                                thread={
+                                        <ConversationThread
+                                                key={conversation.id}
+                                                initialMessages={view.threadMessages as ThreadMessage[]}
+                                                conversationId={conversation.id}
+                                                locale={locale}
+                                                handoff={handoffAlert ? { at: handoffAlert.createdAt, reason: handoffAlert.reason } : null}
+                                        />
+                                }
+                                details={
+                                        <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-base)] shadow-[var(--elev-1)]">
+                                                <ConversationDetails
+                                                        locale={locale}
+                                                        conversationId={conversation.id}
+                                                        status={conversation.status}
+                                                        rating={conversation.rating}
+                                                        summary={conversation.summary}
+                                                        channel={conversation.channel}
+                                                        agentName={conversation.agent.name}
+                                                        sourceLabel={sourceLabel}
+                                                        contact={conversation.contact ? { id: conversation.contact.id, name: conversation.contact.name, phone: conversation.contact.phone } : null}
+                                                        handle={handle}
+                                                        handoffAlert={handoffAlert}
+                                                        insight={insight}
+                                                        copyLabel={t('copy')}
+                                                        copiedLabel={t('copied')}
+                                                />
                                         </div>
-                                        <p className="text-sm leading-relaxed text-[var(--text-primary)]">
-                                                {conversation.summary}
-                                        </p>
-                                </div>
-                        )}
-                          </>}
+                                }
                         />
                 </div>
         )

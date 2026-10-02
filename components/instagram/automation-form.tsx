@@ -1131,7 +1131,7 @@ export function AutomationForm({
                                         <div
                                                 id="automation-publish"
                                                 data-sticky-actions=""
-                                                className="sticky z-20 scroll-mt-28 [bottom:calc(6rem+env(safe-area-inset-bottom))] md:bottom-4"
+                                                className="sticky z-20 scroll-mt-28 [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:bottom-4"
                                         >
                                                 <div className="rounded-card border border-black/[0.07] bg-white/90 p-1.5 shadow-[var(--elev-2)] backdrop-blur-xl backdrop-saturate-150 sm:p-2">
                                                         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -1284,7 +1284,7 @@ function PreviewStage({
                                         </span>
                                         <div className="min-w-0">
                                                 <p className="text-sm font-bold text-[var(--text-primary)]">پیش‌نمایش زنده</p>
-                                                <p className="truncate text-[11px] text-[var(--text-muted)]">
+                                                <p className="truncate text-[12px] text-[var(--text-muted)]">
                                                         {modeLabel} · همان چیزی که مشتری می‌بیند
                                                 </p>
                                         </div>
@@ -1314,7 +1314,7 @@ const PHONE_RATIO = 2.12
 
 function LivePill() {
         return (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-bold text-success">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-bold text-success">
                         <span className="relative flex h-1.5 w-1.5">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
                                 <span className="relative h-1.5 w-1.5 rounded-full bg-success" />
@@ -1350,14 +1350,14 @@ function StageBackdrop({ className, children }: { className?: string; children: 
 function FlowSummary({ steps, className }: { steps: FlowStep[]; className?: string }) {
         return (
                 <div className={className}>
-                        <p className="mb-2 text-[11px] font-bold text-[var(--text-muted)]">مسیر سناریو</p>
+                        <p className="mb-2 text-[12px] font-bold text-[var(--text-muted)]">مسیر سناریو</p>
                         <ol className="flex flex-wrap items-center gap-x-1 gap-y-1.5">
                                 {steps.map((step, i) => (
                                         <li key={`${i}-${step.label}`} className="flex min-w-0 items-center gap-1">
                                                 {i > 0 && <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--text-hint)]" />}
                                                 <span
                                                         className={cn(
-                                                                'inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+                                                                'inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold',
                                                                 step.pending
                                                                         ? 'border-dashed border-[var(--border-hover)] text-[var(--text-muted)]'
                                                                         : 'border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-primary)]',
@@ -2890,17 +2890,16 @@ function SegmentedField<T extends string>({
                         {label && (
                                 <label className="text-xs font-medium text-[var(--text-secondary)]">{label}</label>
                         )}
-                        <div className="inline-flex w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-1">
+                        <div className="ui-seg w-full grid-flow-col [grid-auto-columns:minmax(0,1fr)]" role="radiogroup">
                                 {options.map((o) => (
                                         <button
                                                 key={o.value}
                                                 type="button"
+                                                role="radio"
+                                                aria-checked={value === o.value}
+                                                data-active={value === o.value}
                                                 onClick={() => onChange(o.value)}
-                                                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                                                        value === o.value
-                                                                ? 'bg-[var(--white)] text-[var(--bg-base)]'
-                                                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                                                }`}
+                                                className="ui-seg-tab min-h-9 px-3 text-xs"
                                         >
                                                 {o.label}
                                         </button>
@@ -2929,7 +2928,7 @@ function TagInput({
         placeholder?: string
 }) {
         return (
-                <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-2 focus-within:border-[var(--border-strong)]">
+                <div className="input flex h-auto min-h-11 flex-wrap items-center gap-1.5 px-2.5 py-2">
                         {tags.map((k) => (
                                 <span
                                         key={k}

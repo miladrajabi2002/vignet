@@ -224,7 +224,7 @@ function CourseCard({ course, fa, onEdit, onRoster }: { course: CourseRow; fa: b
         </div>
       </div>
 
-      <p className="flex items-center gap-1.5 rounded-xl bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px] text-[var(--text-secondary)]">
+      <p className="flex items-center gap-1.5 rounded-xl bg-[var(--bg-subtle)] px-3 py-2 text-[13px] text-[var(--text-secondary)]">
         <CalendarClock className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
         {course.sessions.length === 0
           ? (fa ? 'هنوز جلسه‌ای زمان‌بندی نشده' : 'No sessions scheduled yet')
@@ -234,10 +234,10 @@ function CourseCard({ course, fa, onEdit, onRoster }: { course: CourseRow; fa: b
       </p>
 
       <div className="mt-auto flex gap-2">
-        <button type="button" onClick={onRoster} className="spatial-press inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-white">
+        <button type="button" onClick={onRoster} className="spatial-press inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-white">
           <ListOrdered className="h-3.5 w-3.5" />{fa ? 'ثبت‌نام‌شدگان' : 'Roster'}
         </button>
-        <button type="button" onClick={onEdit} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+        <button type="button" onClick={onEdit} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
           {course.status === 'ARCHIVED' ? <Archive className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}{fa ? 'ویرایش' : 'Edit'}
         </button>
       </div>
@@ -257,8 +257,8 @@ function AgentStrip({ fa }: { fa: boolean }) {
       </div>
       <ol className="mt-3 grid gap-2 sm:grid-cols-4">
         {steps.map((step, index) => (
-          <li key={step} className="flex items-start gap-2 rounded-xl bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px] leading-6 text-[var(--text-secondary)]">
-            <span className={cn('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11.5px] font-bold', index === steps.length - 1 ? 'bg-[var(--ok)] text-white' : 'bg-[var(--signal-soft)] text-[var(--signal-strong)]')}>
+          <li key={step} className="flex items-start gap-2 rounded-xl bg-[var(--bg-subtle)] px-3 py-2 text-[13px] leading-6 text-[var(--text-secondary)]">
+            <span className={cn('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-bold', index === steps.length - 1 ? 'bg-[var(--ok)] text-white' : 'bg-[var(--signal-soft)] text-[var(--signal-strong)]')}>
               {index === steps.length - 1 ? <Check className="h-3 w-3" strokeWidth={3} /> : num(index + 1, fa)}
             </span>
             {step}

@@ -176,7 +176,7 @@ export function ContactQuickAdd({
               type="submit"
               form={formId}
               disabled={submitting}
-              className="inline-flex min-h-12 min-w-32 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting && (
                 <Loader2

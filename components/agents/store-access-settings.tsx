@@ -126,7 +126,7 @@ export function StoreAccessSettings({
         </div>
 
         <div className="mt-5 space-y-5">
-          <AccessGroup title={t('groupKnowledge')} columns={2}>
+          <AccessGroup title={t('groupKnowledge')}>
             <SwitchCard
               icon={Package}
               title={t('productsTitle')}
@@ -178,7 +178,7 @@ export function StoreAccessSettings({
               onChange={(enabled) => updateAccess('restockAlertsEnabled', enabled)}
             />
           </AccessGroup>
-          <AccessGroup title={t('groupSelling')} description={t('groupSellingDescription')} columns={3}>
+          <AccessGroup title={t('groupSelling')} description={t('groupSellingDescription')}>
             <SwitchCard
               icon={ClipboardList}
               title={t('orderCaptureTitle')}
@@ -260,15 +260,15 @@ export function StoreAccessSettings({
   )
 }
 
-/** A labelled set of switches: one column on phones, side-by-side cards on wide screens. */
-function AccessGroup({ title, description, columns, children }: { title: string; description?: string; columns: 2 | 3; children: ReactNode }) {
+/** A labelled list of switches. */
+function AccessGroup({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
     <div>
       <div className="mb-2">
         <h3 className="text-xs font-semibold text-[var(--text-muted)]">{title}</h3>
         {description && <p className="mt-1 max-w-3xl text-xs leading-6 text-[var(--text-secondary)]">{description}</p>}
       </div>
-      <div className={cn('grid gap-2.5 sm:grid-cols-2', columns === 3 ? 'xl:grid-cols-3' : '')}>
+      <div className="ui-switch-list divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white">
         {children}
       </div>
     </div>

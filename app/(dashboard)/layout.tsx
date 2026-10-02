@@ -116,7 +116,7 @@ export default async function DashboardLayout({
       >
         {t('skipToContent')}
       </a>
-      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} />
+      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} userName={user.name ?? user.phone} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           name={user.name}

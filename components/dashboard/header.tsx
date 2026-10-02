@@ -230,7 +230,7 @@ export async function Header({
             />
           </div>
           <MobileNav businessType={businessType} capabilities={capabilities} handedOffCount={handedOffCount} instagramConnected={instagramConnected} />
-          <div className="hidden min-w-0 sm:block md:hidden lg:block">
+          <div className="hidden min-w-0 sm:block">
             <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)] xl:text-[15px] xl:leading-6">
               {name ? t('greeting', { name }) : t('welcome')}
             </div>

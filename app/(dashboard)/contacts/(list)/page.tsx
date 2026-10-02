@@ -1,8 +1,9 @@
 import { getLocale } from 'next-intl/server'
 import type { ChannelType, Prisma } from '@prisma/client'
-import { Users, UserPlus, GitMerge, Tag } from 'lucide-react'
+import { ChevronDown, Users, UserPlus, GitMerge, Tag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { conversationPreviewText } from '@/lib/conversations/preview'
 import { ContactsView, type ContactRow } from '@/components/crm/contacts-view'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { Pagination } from '@/components/ui/pagination'
@@ -130,6 +131,17 @@ export default async function ContactsPage(
         instagramAvatarUrl: true,
         marketingOptIn: true,
         _count: { select: { conversations: { where: { deletedAt: null } } } },
+        // The latest conversation gives each row its last message and how
+        // likely the customer is to buy.
+        conversations: {
+          where: { deletedAt: null },
+          orderBy: { lastMessageAt: 'desc' },
+          take: 1,
+          select: {
+            messages: { where: { role: { in: ['USER', 'ASSISTANT'] } }, orderBy: { createdAt: 'desc' }, take: 1, select: { content: true } },
+            salesInsight: { select: { leadType: true, buyerProbability: true } },
+          },
+        },
       },
     }),
     prisma.contact.count({ where: { workspaceId: user.workspaceId } }),
@@ -244,6 +256,10 @@ export default async function ContactsPage(
       avatarFallbackUrl,
       channelUsernames,
       marketingOptIn: c.marketingOptIn,
+      lastMessage: c.conversations[0]?.messages[0] ? conversationPreviewText(c.conversations[0].messages[0].content).slice(0, 140) : null,
+      buyerProbability: c.conversations[0]?.salesInsight && c.conversations[0].salesInsight.leadType !== 'UNCLEAR'
+        ? c.conversations[0].salesInsight.buyerProbability
+        : null,
     }
   })
 
@@ -279,7 +295,12 @@ export default async function ContactsPage(
           ? <PlanLimitNotice limit={customerLimit} locale={locale} />
           : null}
         insights={
-          <div className="grid gap-4 lg:grid-cols-2">
+          <details className="group">
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-xl px-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+              {isFa ? 'نمودار قیف فروش و مشتریان جدید' : 'Pipeline and new-customer charts'}
+            </summary>
+          <div className="mt-2 grid gap-4 lg:grid-cols-2">
             <DashboardPanel
               title={isFa ? 'قیف فروش' : 'Sales Pipeline'}
               subtitle={isFa ? 'توزیع مشتریان بر اساس مرحله' : 'Customers by pipeline stage'}
@@ -306,6 +327,7 @@ export default async function ContactsPage(
               <ConversationChart data={contactTrendPoints} />
             </DashboardPanel>
           </div>
+          </details>
         }
         footer={
           <Pagination
@@ -326,6 +348,7 @@ export default async function ContactsPage(
       />
 
       <MetricsExplainer
+        collapsed
         title={
           locale === 'fa'
             ? 'این مشتریان از کجا می‌آیند؟'

@@ -26,6 +26,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PageHeader } from '@/components/dashboard/page-header'
 import { Switch } from '@/components/ui/switch'
 import { StatusChip } from '@/components/ui/status-chip'
 import { normalizePersian } from '@/lib/search/persian'
@@ -182,27 +183,21 @@ export function MenuWorkspace({
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <header className="dashboard-page-header spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)]">
-              <UtensilsCrossed className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h1 className="ui-h1">منوی دیجیتال</h1>
-              <p className="ui-body mt-0.5 max-w-xl">همان چیزی که مشتری با اسکن QR می‌بیند. هر تغییر اینجا یا در محصولات، همان لحظه در منو دیده می‌شود.</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+      <PageHeader
+        icon={UtensilsCrossed}
+        title="منوی دیجیتال"
+        subtitle="همان چیزی که مشتری با اسکن QR می‌بیند. هر تغییر اینجا یا در محصولات، همان لحظه در منو دیده می‌شود."
+        actions={
+          <>
             <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
               <ExternalLink className="h-4 w-4" />دیدن منوی مشتری
             </a>
             <Link href="/products/new" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90">
               <PackagePlus className="h-4 w-4" />افزودن آیتم
             </Link>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="ui-seg grid-cols-2 sm:w-[22rem]" role="tablist" aria-label="بخش‌های منو">
         <button type="button" role="tab" aria-selected={tab === 'items'} onClick={() => setTab('items')} className="ui-seg-tab">آیتم‌ها</button>
@@ -239,14 +234,14 @@ export function MenuWorkspace({
                 </label>
                 <div className="ui-seg grid-cols-4 sm:w-[20rem]" role="tablist" aria-label="فیلتر آیتم‌ها">
                   {([['all', 'همه'], ['visible', 'در منو'], ['hidden', 'پنهان'], ['attention', 'ناقص']] as const).map(([key, label]) => (
-                    <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)} className="ui-seg-tab text-[12.5px]">{label}</button>
+                    <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)} className="ui-seg-tab text-[13px]">{label}</button>
                   ))}
                 </div>
               </div>
 
               {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
               {filter === 'attention' && (
-                <p className="rounded-xl bg-amber-500/[0.08] px-3.5 py-2.5 text-[12.5px] leading-6 text-amber-900">آیتم‌های داخل منو که قیمت یا عکس ندارند. مشتری برای آیتم بی‌قیمت «برای قیمت پیام دهید» می‌بیند و آیتم با عکس بیشتر انتخاب می‌شود.</p>
+                <p className="rounded-xl bg-amber-500/[0.08] px-3.5 py-2.5 text-[13px] leading-6 text-amber-900">آیتم‌های داخل منو که قیمت یا عکس ندارند. مشتری برای آیتم بی‌قیمت «برای قیمت پیام دهید» می‌بیند و آیتم با عکس بیشتر انتخاب می‌شود.</p>
               )}
 
               {sections.length ? sections.map((section, index) => {
@@ -276,7 +271,7 @@ export function MenuWorkspace({
                   <div>
                     <Search className="mx-auto h-6 w-6 text-[var(--text-hint)]" />
                     <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">آیتمی با این مشخصات نیست</p>
-                    <button type="button" onClick={() => { setQuery(''); setFilter('all') }} className="mt-3 min-h-10 rounded-xl px-3 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">پاک کردن فیلترها</button>
+                    <button type="button" onClick={() => { setQuery(''); setFilter('all') }} className="mt-3 min-h-11 rounded-xl px-3 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">پاک کردن فیلترها</button>
                   </div>
                 </div>
               )}
@@ -306,17 +301,17 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
       {item.image ? (
         <img src={item.image} alt="" loading="lazy" decoding="async" width={56} height={56} className={cn('h-14 w-14 shrink-0 rounded-xl object-cover', (!item.active || soldOut(item)) && 'opacity-50 grayscale')} />
       ) : (
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-hint)]" title="بدون عکس"><ImageOff className="h-4 w-4" /></span>
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-muted)]" title="بدون عکس"><ImageOff className="h-4 w-4" /></span>
       )}
       <div className="min-w-0 flex-1">
         <p className={cn('truncate text-sm font-bold', item.active ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{item.name}</p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
           {item.price == null ? (
             <span className="font-medium text-amber-700">بدون قیمت</span>
           ) : (
             <span className="font-bold tabular-nums text-[var(--text-secondary)]">{fa(Math.round(item.price))} <span className="font-normal text-[var(--text-muted)]">تومان</span></span>
           )}
-          {discount && <span className="tabular-nums text-[var(--text-hint)] line-through">{fa(Math.round(item.comparePrice!))}</span>}
+          {discount && <span className="tabular-nums text-[var(--text-muted)] line-through">{fa(Math.round(item.comparePrice!))}</span>}
           {!item.active && <StatusChip tone="neutral">پنهان از منو</StatusChip>}
           {item.active && soldOut(item) && <StatusChip tone="warn">تمام شده</StatusChip>}
           {item.stock != null && item.stock > 0 && <span className="text-[var(--text-muted)]">موجودی {fa(item.stock)}</span>}
@@ -333,8 +328,8 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
               {soldOut(item) ? 'موجود شد' : 'تمام شد'}
             </button>
           )}
-          {item.synced && <span className="inline-flex items-center gap-1 text-[var(--text-hint)]" title="از فروشگاه متصل وارد شده؛ همگام‌سازی بعدی ممکن است تغییرات را بازنویسی کند."><RefreshCw className="h-3 w-3" />همگام با فروشگاه</span>}
-          {badges.map((badge) => <span key={badge} className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11.5px] font-bold text-[var(--text-secondary)]">{BADGE_LABELS[badge]}</span>)}
+          {item.synced && <span className="inline-flex items-center gap-1 text-[var(--text-muted)]" title="از فروشگاه متصل وارد شده؛ همگام‌سازی بعدی ممکن است تغییرات را بازنویسی کند."><RefreshCw className="h-3 w-3" />همگام با فروشگاه</span>}
+          {badges.map((badge) => <span key={badge} className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[12px] font-bold text-[var(--text-secondary)]">{BADGE_LABELS[badge]}</span>)}
         </p>
         <details className="group mt-1">
           <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-lg px-1.5 text-[12px] font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
@@ -357,7 +352,7 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
         </details>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <Link href={`/products/${item.id}/edit`} aria-label={`ویرایش ${item.name}`} className="grid h-11 w-11 place-items-center rounded-lg text-[var(--text-hint)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] sm:h-9 sm:w-9">
+        <Link href={`/products/${item.id}/edit`} aria-label={`ویرایش ${item.name}`} className="grid h-11 w-11 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] sm:h-9 sm:w-9">
           <Pencil className="h-4 w-4" />
         </Link>
         {busy ? <Loader2 className="mx-2.5 h-4 w-4 animate-spin text-[var(--text-hint)]" /> : (
@@ -430,7 +425,7 @@ function OrderButton({ label, disabled, onClick, children }: { label: string; di
 function Kpi({ label, value, tone, onClick }: { label: string; value: string; tone?: 'warn'; onClick?: () => void }) {
   const body = (
     <>
-      <dt className="truncate text-[12.5px] text-[var(--text-muted)]">{label}</dt>
+      <dt className="truncate text-[13px] text-[var(--text-muted)]">{label}</dt>
       <dd className={cn('text-lg font-bold tabular-nums leading-7', tone === 'warn' ? 'text-amber-700' : 'text-[var(--text-primary)]')}>{value}</dd>
     </>
   )
@@ -448,7 +443,7 @@ function EmptyMenu() {
       <h2 className="ui-h2 mt-4">منو هنوز خالی است</h2>
       <p className="ui-body mx-auto mt-1 max-w-md">منو از محصولات شما ساخته می‌شود: هر آیتم با دسته، قیمت و عکسش. اولین آیتم را اضافه کنید یا کاتالوگ فروشگاهتان را وصل کنید.</p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <Link href="/products/new" className="spatial-press inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)]"><PackagePlus className="h-4 w-4" />افزودن اولین آیتم</Link>
+        <Link href="/products/new" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)]"><PackagePlus className="h-4 w-4" />افزودن اولین آیتم</Link>
         <Link href="/integrations" className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-white px-5 text-sm font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)]"><Plug className="h-4 w-4" />اتصال فروشگاه</Link>
       </div>
     </section>
@@ -489,7 +484,7 @@ function SharePanel({ businessName, publicUrl, chatUrl }: { businessName: string
         <p className="mt-2 text-center text-[13px] font-bold text-[var(--text-primary)]">{tableId ? `QR میز ${tableId.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])}` : 'اسکن کنید و منو را ببینید'}</p>
       </div>
       <label className="block">
-        <span className="mb-1.5 block text-[12.5px] text-[var(--text-secondary)]">شمارهٔ میز (اختیاری)</span>
+        <span className="mb-1.5 block text-[13px] text-[var(--text-secondary)]">شمارهٔ میز (اختیاری)</span>
         <input value={table} onChange={(event) => setTable(event.target.value)} inputMode="numeric" placeholder="مثلاً ۷" className="input w-full" />
       </label>
       <div dir="ltr" className="flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-1 ps-3">
@@ -504,7 +499,7 @@ function SharePanel({ businessName, publicUrl, chatUrl }: { businessName: string
           {making ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}کارت رومیزی
         </button>
       </div>
-      <p className="text-[12.5px] leading-5 text-[var(--text-muted)]">کارت رومیزی یک تصویر آماده چاپ با نام کسب‌وکار و QR است (اندازه A6).</p>
+      <p className="text-[13px] leading-5 text-[var(--text-muted)]">کارت رومیزی یک تصویر آماده چاپ با نام کسب‌وکار و QR است (اندازه A6).</p>
       {chatUrl ? (
         <p className="flex items-start gap-2 rounded-xl bg-emerald-500/[0.07] px-3 py-2.5 text-[12px] leading-6 text-emerald-900">
           <MessageCircle className="mt-1 h-3.5 w-3.5 shrink-0" />دکمه «سؤال یا سفارش» در منو، مشتری را به گفتگو با ایجنت شما می‌برد.

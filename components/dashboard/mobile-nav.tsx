@@ -30,6 +30,8 @@ const SHEET_EXIT_MS = 220
 const DISMISS_DISTANCE = 110
 const DISMISS_VELOCITY = 0.55
 
+const FOCUS_FORM = /^\/(?:agents\/[^/]+\/)?instagram\/(?:new|[^/]+\/edit)(?:\/|$)/
+
 function isActivePath(pathname: string, href: string) {
 	return pathname === href || pathname.startsWith(`${href}/`)
 }
@@ -220,6 +222,10 @@ export function MobileNav({
 			? { opacity: Math.max(0.35, 1 - dragY / 420), transition: dragging ? 'none' : undefined }
 			: {}
 
+	// Create/edit forms carry their own bottom action bar; a second floating
+	// bar under it would cover the field being filled in.
+	if (FOCUS_FORM.test(pathname)) return null
+
 	return (
 		<div className="md:hidden">
 			{/*
@@ -255,7 +261,7 @@ export function MobileNav({
 												active
 												locale={numberLocale}
 												label={locale === 'en' ? 'Handed to operator' : 'تحویل‌شده به اپراتور'}
-												className="absolute -top-1.5 end-0 h-[1.1rem] min-w-[1.1rem] text-[11px] ring-2 ring-white"
+												className="absolute -top-1.5 end-0 h-[1.1rem] min-w-[1.1rem] text-[12px] ring-2 ring-white"
 											/>
 										)}
 									</span>
@@ -381,7 +387,7 @@ export function MobileNav({
 									className="dashboard-more-row spatial-press group mt-4 flex min-h-[3.25rem] items-center gap-3 rounded-control bg-[#111] px-3 text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
 								>
 									<Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
-									<span className="min-w-0 flex-1 truncate text-[13.5px]">
+									<span className="min-w-0 flex-1 truncate text-[13px]">
 										<span className="font-bold">{t('vigentoName')}</span>
 										<span className="text-white/60"> · {t('vigentoTagline')}</span>
 									</span>

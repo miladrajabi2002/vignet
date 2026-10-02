@@ -277,7 +277,7 @@ export function WooSetupCard({
                 <div className="flex min-w-0 items-start gap-3">
                     <span className={cn(
                         'grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[var(--bg-base)] shadow-[var(--shadow-control)]',
-                        syncPausedByPlan ? 'bg-amber-500' : isPluginConfigured ? 'bg-green-600' : 'bg-[var(--text-primary)]',
+                        syncPausedByPlan ? 'bg-amber-500' : isPluginConfigured ? 'bg-emerald-600' : 'bg-[var(--text-primary)]',
                     )}>
                         {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                     </span>
@@ -293,8 +293,8 @@ export function WooSetupCard({
                                     : syncPausedByPlan
                                         ? 'bg-amber-100 text-amber-800'
                                     : isPluginConfigured
-                                        ? 'bg-green-50 text-green-700'
-                                        : 'bg-yellow-50 text-yellow-700',
+                                        ? 'bg-emerald-50 text-emerald-700'
+                                        : 'bg-amber-50 text-amber-700',
                             )}>
                                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                                 {statusLabel}
@@ -353,26 +353,26 @@ export function WooSetupCard({
 
             {/* Pending state — guide user to install plugin */}
             {!isPluginConfigured && integration.active && (
-                <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <div className="flex items-start gap-3">
-                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-yellow-800">{fa ? 'در انتظار اتصال افزونه' : 'Waiting for the plugin'}</p>
-                            <p className="mt-1 text-xs leading-relaxed text-yellow-700">
+                            <p className="text-sm font-semibold text-amber-800">{fa ? 'در انتظار اتصال افزونه' : 'Waiting for the plugin'}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-amber-700">
                                 {fa ? 'افزونه را در وردپرس نصب کنید و دکمه «اتصال» را در آن بزنید. پس از اتصال، اینجا خودکار به‌روز می‌شود.' : 'Install the plugin in WordPress and press “Connect” in it. This card updates by itself once connected.'}
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 <a
                                     href="/api/downloads/wordpress-plugin"
                                     download
-                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-yellow-600 px-3 text-xs font-bold text-white transition-colors hover:bg-yellow-700"
+                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-amber-600 px-3 text-xs font-bold text-white transition-colors hover:bg-amber-700"
                                 >
                                     <Download className="h-3.5 w-3.5" />
                                     {fa ? 'دانلود افزونه' : 'Download plugin'}
                                 </a>
                                 <Link
                                     href="/docs/woocommerce"
-                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-yellow-300 px-3 text-xs font-medium text-yellow-800 transition-colors hover:bg-yellow-100"
+                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-300 px-3 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100"
                                 >
                                     {fa ? 'راهنما' : 'Guide'}
                                 </Link>

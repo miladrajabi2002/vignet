@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { getRecommendedAgentPreset } from '@/lib/agents/recommended-preset'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -28,6 +29,7 @@ export default async function OnboardingPage() {
   const businessProfile = readBusinessProfile(workspace.businessProfile, workspace.businessType)
   const hasProfile = !!businessProfile && !!workspace.businessType
   const pack = workspace.businessType ? getVerticalPack(workspace.businessType) : null
+  const preset = getRecommendedAgentPreset(workspace.businessType, businessProfile?.businessName)
 
   return (
     <OnboardingFlow
@@ -39,6 +41,7 @@ export default async function OnboardingPage() {
       businessType={workspace.businessType}
       businessProfile={businessProfile}
       agentTemplate={pack?.agentTemplate}
+      agentPreset={{ name: preset.name, welcomeMessage: preset.welcomeMessage }}
     />
   )
 }

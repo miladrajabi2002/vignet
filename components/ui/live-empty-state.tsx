@@ -42,7 +42,7 @@ export function LiveEmptyState({
 					<Icon className="h-6 w-6" strokeWidth={1.8} />
 				</span>
 				<h2 className="ui-h3 mt-4">{title}</h2>
-				{description ? <p className="ui-body mt-1.5 text-[13.5px]">{description}</p> : null}
+				{description ? <p className="ui-body mt-1.5 text-[13px]">{description}</p> : null}
 				{action || secondary ? (
 					<div className="mt-5 flex flex-wrap items-center justify-center gap-2">
 						{action ? (

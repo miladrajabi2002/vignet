@@ -61,7 +61,7 @@ export function LowStockCard({
         {lowCount > 0 && !off ? <PackageMinus className="h-5 w-5" /> : <BellRing className="h-5 w-5" />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[13.5px] font-bold text-[var(--text-primary)]">
+        <p className="text-[13px] font-bold text-[var(--text-primary)]">
           {off
             ? (fa ? 'هشدار موجودی کم خاموش است' : 'Low-stock alerts are off')
             : lowCount > 0
@@ -69,7 +69,7 @@ export function LowStockCard({
               : (fa ? 'موجودی همه محصولات کافی است' : 'Stock is fine everywhere')}
         </p>
         {editing ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-[var(--text-secondary)]">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-[var(--text-secondary)]">
             <label htmlFor="low-stock-threshold">{fa ? 'وقتی موجودی به' : 'Alert at'}</label>
             <input
               id="low-stock-threshold"
@@ -90,7 +90,7 @@ export function LowStockCard({
             {error && <span role="alert" className="text-red-700">{fa ? 'ذخیره نشد' : 'Not saved'}</span>}
           </div>
         ) : (
-          <p className="mt-0.5 text-[12.5px] leading-5 text-[var(--text-muted)]">
+          <p className="mt-0.5 text-[13px] leading-5 text-[var(--text-muted)]">
             {off
               ? (fa ? 'با روشن کردن، وقتی موجودی محصولی کم شود در پنل خبر می‌دهیم.' : 'Turn it on to hear when a product runs low.')
               : fa
@@ -101,12 +101,12 @@ export function LowStockCard({
       </div>
       {!editing && (
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)]">
+          <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)]">
             <Pencil className="h-3.5 w-3.5" />
             {off ? (fa ? 'روشن کردن' : 'Turn on') : (fa ? 'تغییر حد' : 'Change level')}
           </button>
           {lowCount > 0 && !off && !filtering && (
-            <Link href="/products?stock=low_stock" className="inline-flex min-h-10 items-center rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white">
+            <Link href="/products?stock=low_stock" className="inline-flex min-h-11 items-center rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white">
               {fa ? 'نمایش' : 'Show'}
             </Link>
           )}

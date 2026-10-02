@@ -7,11 +7,12 @@ import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 
 export type ImprovementTab = 'behavior' | 'knowledge' | 'learning'
 
-export function ImprovementTabs({ agentId, initialActive, isFa, panels, learningCount }: {
+export function ImprovementTabs({ agentId, initialActive, isFa, panels, learningCount, knowledgeCount }: {
   agentId: string
   initialActive: ImprovementTab
   isFa: boolean
   learningCount: number
+  knowledgeCount: number
   panels: Record<ImprovementTab, ReactNode>
 }) {
   const [active, setActive] = useState(initialActive)
@@ -20,10 +21,12 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
   const buttons = useRef<Array<HTMLButtonElement | null>>([])
   const container = useRef<HTMLDivElement>(null)
   const base = `/agents/${agentId}/improve`
+  const nf = (value: number) => value.toLocaleString(isFa ? 'fa-IR' : 'en-US')
+  // Each section says where it stands, so the list doubles as a status view.
   const tabs = [
-    { key: 'behavior', label: isFa ? 'رفتار و لحن' : 'Behavior', icon: SlidersHorizontal },
-    { key: 'knowledge', label: isFa ? 'دانش' : 'Knowledge', icon: BookOpen },
-    { key: 'learning', label: isFa ? 'تحلیل و بهبود' : 'Analyze & improve', icon: GraduationCap },
+    { key: 'behavior', label: isFa ? 'رفتار و لحن' : 'Behavior', icon: SlidersHorizontal, note: isFa ? '۶ لایه' : '6 layers' },
+    { key: 'knowledge', label: isFa ? 'دانش' : 'Knowledge', icon: BookOpen, note: isFa ? `${nf(knowledgeCount)} منبع` : `${knowledgeCount} sources` },
+    { key: 'learning', label: isFa ? 'تحلیل و بهبود' : 'Analyze & improve', icon: GraduationCap, note: pendingCount > 0 ? (isFa ? 'پیشنهاد تازه' : 'New suggestions') : (isFa ? 'پیشنهادی نیست' : 'Nothing pending') },
   ] as const
 
   useEffect(() => setActive(initialActive), [initialActive])
@@ -77,13 +80,14 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
   }
 
   return (
-    <div ref={container} className="min-w-0 space-y-4" onClickCapture={followSectionLink}>
+    <div ref={container} className="min-w-0 space-y-4 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-4 lg:space-y-0" onClickCapture={followSectionLink}>
+      {/* A segmented bar on phones and tablets, a side list with status on desktop. */}
       <div
         role="tablist"
         aria-label={isFa ? 'بخش‌های بهبود ایجنت' : 'Agent improvement sections'}
-        className="ui-seg ui-seg-solid sticky top-[var(--improvement-sticky-top,calc(max(0.75rem,env(safe-area-inset-top))+5rem))] z-20 grid-cols-3"
+        className="ui-seg ui-seg-solid sticky top-[var(--improvement-sticky-top,calc(max(0.75rem,env(safe-area-inset-top))+5rem))] z-20 grid-cols-3 improve-nav"
       >
-        {tabs.map(({ key, label, icon: Icon }, index) => (
+        {tabs.map(({ key, label, icon: Icon, note }, index) => (
           <button
             key={key}
             ref={(node) => { buttons.current[index] = node }}
@@ -100,34 +104,39 @@ export function ImprovementTabs({ agentId, initialActive, isFa, panels, learning
               if (event.key === 'End') next = tabs.length - 1
               if (event.key === 'ArrowRight') next = (index + (isFa ? -1 : 1) + tabs.length) % tabs.length
               if (event.key === 'ArrowLeft') next = (index + (isFa ? 1 : -1) + tabs.length) % tabs.length
+              if (event.key === 'ArrowDown') next = (index + 1) % tabs.length
+              if (event.key === 'ArrowUp') next = (index - 1 + tabs.length) % tabs.length
               if (next === undefined) return
               event.preventDefault()
               select(tabs[next].key)
               buttons.current[next]?.focus()
             }}
-            className="ui-seg-tab min-h-[3.75rem] flex-col gap-1 px-1.5 py-1.5 text-[12px] sm:min-h-12 sm:flex-row sm:gap-2.5 sm:text-[13px]"
+            className="ui-seg-tab min-h-12 gap-2 px-1.5 py-1.5 text-[12px] sm:text-[13px]"
           >
-            <span className="relative">
-              <span className="ui-seg-icon h-7 w-7"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
-              {key === 'learning' && (
-                <NavigationCountBadge
-                  count={pendingCount}
-                  active={active === key}
-                  locale={isFa ? 'fa-IR' : 'en-US'}
-                  label={isFa ? 'موارد در انتظار' : 'Pending items'}
-                  className="absolute -end-2.5 -top-2 h-[1.1rem] min-w-[1.1rem] text-[12px] ring-0 shadow-[0_0_0_2px_rgba(255,255,255,0.95)]"
-                />
-              )}
+            <Icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+            <span className="min-w-0 lg:flex-1">
+              <span className="block max-w-full truncate">{label}</span>
+              <span className="hidden text-[12px] font-normal leading-5 text-[var(--text-muted)] lg:block">{note}</span>
             </span>
-            <span className="max-w-full truncate">{label}</span>
+            {key === 'learning' && (
+              <NavigationCountBadge
+                count={pendingCount}
+                active={active === key}
+                locale={isFa ? 'fa-IR' : 'en-US'}
+                label={isFa ? 'موارد در انتظار' : 'Pending items'}
+                className="h-[1.15rem] min-w-[1.15rem] shrink-0 text-[12px] ring-0"
+              />
+            )}
           </button>
         ))}
       </div>
-      {tabs.map(({ key }) => (
-        <div key={key} id={`improve-panel-${key}`} role="tabpanel" aria-labelledby={`improve-tab-${key}`} hidden={active !== key}>
-          {panels[key]}
-        </div>
-      ))}
+      <div className="min-w-0">
+        {tabs.map(({ key }) => (
+          <div key={key} id={`improve-panel-${key}`} role="tabpanel" aria-labelledby={`improve-tab-${key}`} hidden={active !== key}>
+            {panels[key]}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { SwitchTrack } from '@/components/ui/switch'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -13,7 +14,6 @@ import {
   CalendarDays,
   Camera,
   Check,
-  EyeOff,
   GraduationCap,
   Headphones,
   Loader2,
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getDashboardNavForProfile } from '@/components/dashboard/nav-items'
+import { type VerticalChangeDetail } from '@/components/dashboard/vertical-change-notice'
 import {
   BUSINESS_TYPES,
   CORE_DASHBOARD_MODULES,
@@ -113,19 +114,17 @@ export function BusinessSettings({
   const [extras, setExtras] = useState<string[]>(saved.extras)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [justSaved, setJustSaved] = useState<{ added: DashboardModuleKey[]; hidden: DashboardModuleKey[]; previousType: BusinessTypeValue } | null>(null)
+  const [justSaved, setJustSaved] = useState<{ added: DashboardModuleKey[]; hidden: DashboardModuleKey[]; previousType: BusinessTypeValue; renamedTo?: string } | null>(null)
 
   const savedNav = useMemo(() => getDashboardNavForProfile(saved.capabilities), [saved])
-  const nextNav = useMemo(() => getDashboardNavForProfile(keys), [keys])
-  const savedKeys = useMemo(() => new Set(savedNav.map((item) => item.key)), [savedNav])
-  const nextKeys = useMemo(() => new Set(nextNav.map((item) => item.key)), [nextNav])
-  const added = nextNav.filter((item) => !savedKeys.has(item.key)).map((item) => item.key)
-  const hidden = savedNav.filter((item) => !nextKeys.has(item.key)).map((item) => item.key)
 
+  // Capabilities save the moment they are switched; only the name, the type
+  // and earlier free-text entries wait for the save bar.
   const dirty = type !== saved.type
     || name.trim() !== saved.name
-    || !sameSet(keys, saved.capabilities)
     || !sameSet(extras, saved.extras)
+  const [pendingKey, setPendingKey] = useState<CapabilityKey | null>(null)
+  const [typeOpen, setTypeOpen] = useState(false)
 
   const label = (module: DashboardModuleKey, businessType: BusinessTypeValue = type) =>
     getDashboardModuleLabel(module, businessType, locale, t(module))
@@ -135,48 +134,91 @@ export function BusinessSettings({
   const typeDefaults = getDefaultCapabilities(type)
   const missingDefaults = typeDefaults.filter((key) => !keys.includes(key))
 
-  function toggle(key: CapabilityKey) {
-    setKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]))
-    setError('')
-    setJustSaved(null)
+  async function persist(next: Saved, undoOf?: CapabilityKey[]): Promise<boolean> {
+    const response = await fetch('/api/onboarding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ businessType: next.type, businessName: next.name, capabilities: next.capabilities, extras: next.extras, locale: fa ? 'fa' : 'en' }),
+    })
+    if (!response.ok) return false
+    const result = await response.json().catch(() => ({})) as { vertical?: { titleFa?: string; titleEn?: string } }
+    const before = getDashboardNavForProfile(saved.capabilities)
+    const after = getDashboardNavForProfile(next.capabilities)
+    const beforeKeys = new Set(before.map((item) => item.key))
+    const afterKeys = new Set(after.map((item) => item.key))
+    const addedNow = after.filter((item) => !beforeKeys.has(item.key))
+    const hiddenNow = before.filter((item) => !afterKeys.has(item.key))
+    const modules = getDashboardModules(next.capabilities)
+    const detail = {
+      businessType: next.type,
+      capabilities: next.capabilities,
+      modules,
+      newlyEnabled: modules.filter((module) => !getDashboardModules(saved.capabilities).includes(module)),
+      added: addedNow.map((item) => ({ key: item.key, label: label(item.key, next.type), href: item.href })),
+      hidden: hiddenNow.map((item) => label(item.key, saved.type)),
+      typeChanged: next.type !== saved.type,
+      renamedTo: next.name !== saved.name ? next.name : undefined,
+      verticalTitle: fa ? result.vertical?.titleFa : result.vertical?.titleEn,
+      // A capability switch can be taken back from the toast.
+      undoCapabilities: undoOf,
+      changedAt: Date.now(),
+    } satisfies VerticalChangeDetail
+    try { localStorage.setItem('vigent:vertical-change', JSON.stringify(detail)) } catch {}
+    window.dispatchEvent(new CustomEvent('vigent:vertical-changed', { detail }))
+    setJustSaved({ added: addedNow.map((item) => item.key), hidden: hiddenNow.map((item) => item.key), previousType: saved.type, renamedTo: detail.renamedTo })
+    setSaved(next)
+    router.refresh()
+    return true
   }
+
+  // Switching a capability saves at once; the toast offers to take it back.
+  async function toggle(key: CapabilityKey) {
+    if (pendingKey) return
+    const previous = saved.capabilities
+    const nextKeys = keys.includes(key) ? keys.filter((item) => item !== key) : [...keys, key]
+    if (!nextKeys.length) { setError(fa ? 'حداقل یک قابلیت باید روشن بماند.' : 'At least one capability must stay on.'); return }
+    setError('')
+    setKeys(nextKeys)
+    setPendingKey(key)
+    try {
+      const ok = await persist({ ...saved, capabilities: nextKeys }, previous)
+      if (!ok) throw new Error()
+    } catch {
+      setKeys(previous)
+      setError(fa ? 'ذخیره انجام نشد؛ دوباره تلاش کنید.' : 'Could not save. Try again.')
+    } finally {
+      setPendingKey(null)
+    }
+  }
+
+  // "برگرداندن" in the toast hands the earlier capability set back here.
+  useEffect(() => {
+    function onUndo(event: Event) {
+      const previous = (event as CustomEvent<CapabilityKey[]>).detail
+      if (!Array.isArray(previous) || !previous.length) return
+      setKeys(previous)
+      void persist({ ...saved, capabilities: previous })
+    }
+    window.addEventListener('vigent:vertical-undo', onUndo)
+    return () => window.removeEventListener('vigent:vertical-undo', onUndo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved])
 
   function reset() {
     setType(saved.type)
     setName(saved.name)
-    setKeys(saved.capabilities)
     setExtras(saved.extras)
     setError('')
   }
 
   async function save() {
     if (name.trim().length < 2) { setError(fa ? 'نام کسب‌وکار را وارد کنید (حداقل ۲ نویسه).' : 'Enter a business name (2+ characters).'); return }
-    if (!keys.length) { setError(fa ? 'حداقل یک قابلیت را روشن کنید.' : 'Turn on at least one capability.'); return }
     setSaving(true)
     setError('')
     try {
-      const response = await fetch('/api/onboarding', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessType: type, businessName: name.trim(), capabilities: keys, extras, locale: fa ? 'fa' : 'en' }),
-      })
-      if (!response.ok) throw new Error()
-      const result = await response.json().catch(() => ({})) as { vertical?: { titleFa?: string; titleEn?: string } }
-      const modules = getDashboardModules(keys)
-      const newlyEnabled = modules.filter((module) => !getDashboardModules(saved.capabilities).includes(module))
-      const detail = {
-        businessType: type,
-        capabilities: keys,
-        modules,
-        newlyEnabled,
-        verticalTitle: fa ? result.vertical?.titleFa : result.vertical?.titleEn,
-        changedAt: Date.now(),
-      }
-      try { localStorage.setItem('vigent:vertical-change', JSON.stringify(detail)) } catch {}
-      window.dispatchEvent(new CustomEvent('vigent:vertical-changed', { detail }))
-      setJustSaved({ added, hidden, previousType: saved.type })
-      setSaved({ type, name: name.trim(), capabilities: keys, extras })
-      router.refresh()
+      const ok = await persist({ type, name: name.trim(), capabilities: keys, extras })
+      if (!ok) throw new Error()
+      setTypeOpen(false)
     } catch {
       setError(fa ? 'ذخیره انجام نشد؛ دوباره تلاش کنید.' : 'Could not save. Try again.')
     } finally {
@@ -184,26 +226,15 @@ export function BusinessSettings({
     }
   }
 
-  // Bring the confirmation into view: Save lives in the sticky bottom bar, so
-  // the user is usually far below the summary card when the save lands.
-  const savedPanelRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!justSaved) return
-    const frame = window.requestAnimationFrame(() => {
-      savedPanelRef.current?.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [justSaved, reduceMotion])
-
   const Arrow = fa ? ArrowLeft : ArrowRight
   const SavedIcon = TYPE_ICONS[saved.type]
   const savedPack = getVerticalPack(saved.type)
-  const operational = (nav: typeof nextNav) => nav.filter((item) => !CORE.has(item.key))
+  const operational = (nav: typeof savedNav) => nav.filter((item) => !CORE.has(item.key))
 
   return (
     <section id="settings-business-profile" className="scroll-mt-28 space-y-4">
       {/* Now — what the panel shows today */}
-      <div className="spatial-surface rounded-card p-4 sm:p-5">
+      <div className="settings-identity spatial-surface rounded-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)]">
             <SavedIcon className="h-5 w-5" />
@@ -223,7 +254,7 @@ export function BusinessSettings({
                   key={item.key}
                   href={item.href}
                   className={cn(
-                    'inline-flex min-h-9 items-center gap-1.5 rounded-xl border bg-white px-2.5 text-[12.5px] font-bold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]',
+                    'inline-flex min-h-9 items-center gap-1.5 rounded-xl border bg-white px-2.5 text-[13px] font-bold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]',
                     fresh ? 'border-emerald-500/40 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]' : 'border-[var(--border-default)]',
                   )}
                 >
@@ -232,186 +263,126 @@ export function BusinessSettings({
                 </Link>
               )
             }) : (
-              <span className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'فقط بخش‌های پایه (بدون بخش اختصاصی).' : 'Core sections only.'}</span>
+              <span className="text-[13px] text-[var(--text-muted)]">{fa ? 'فقط بخش‌های پایه (بدون بخش اختصاصی).' : 'Core sections only.'}</span>
             )}
           </div>
-          <p className="mt-2 text-[12.5px] leading-5 text-[var(--text-muted)]">
+          <p className="mt-2 text-[13px] leading-5 text-[var(--text-muted)]">
             {fa
               ? 'به‌علاوه بخش‌های پایه که همیشه هست: پیشخوان، ایجنت‌ها، گفتگوها، مشتریان، تحلیل، اتصال‌ها، اشتراک و تنظیمات.'
               : 'Plus the core sections every workspace has: overview, agents, conversations, contacts, analytics, integrations, billing and settings.'}
           </p>
         </div>
-        <AnimatePresence>
-          {justSaved && !dirty && (
-            <motion.div
-              ref={savedPanelRef}
-              initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              role="status"
-              className="mt-4 scroll-mt-28 overflow-hidden rounded-card border border-emerald-600/15 bg-[linear-gradient(180deg,rgba(236,253,245,0.9),rgba(255,255,255,0.96))] shadow-[0_18px_40px_-30px_rgba(5,150,105,0.55)]"
-            >
-              <div className="flex items-start gap-3 p-3.5 sm:p-4">
-                <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-600 text-white shadow-[0_10px_22px_-10px_rgba(5,150,105,0.9)]">
-                  {!reduceMotion && <span aria-hidden className="absolute inset-0 animate-ping rounded-full bg-emerald-500/35 [animation-iteration-count:2]" />}
-                  <Check className="relative h-5 w-5" strokeWidth={3} />
-                </span>
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <p className="text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'تغییرات ذخیره شد' : 'Changes saved'}</p>
-                  <p className="mt-0.5 text-[12.5px] leading-5 text-[var(--text-secondary)]">
-                    {justSaved.added.length
-                      ? (fa ? `${num(justSaved.added.length, fa)} بخش تازه به منوی پنل اضافه شد.` : `${justSaved.added.length} new section${justSaved.added.length > 1 ? 's' : ''} added to your menu.`)
-                      : justSaved.hidden.length
-                        ? (fa ? 'منوی پنل به‌روز شد.' : 'Your menu is updated.')
-                        : (fa ? 'اطلاعات کسب‌وکار به‌روز شد؛ منوی پنل همان است.' : 'Business details updated; your menu is unchanged.')}
-                  </p>
-                </div>
-                <button type="button" onClick={() => setJustSaved(null)} aria-label={fa ? 'بستن' : 'Dismiss'} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
-              </div>
-
-              {justSaved.added.length > 0 && (
-                <div className="border-t border-emerald-600/10 p-2.5 sm:p-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {justSaved.added.map((key, index) => {
-                      const item = nextNav.find((navItem) => navItem.key === key)
-                      if (!item) return null
-                      return (
-                        <motion.div
-                          key={key}
-                          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.12 + index * 0.06, duration: 0.24, ease: 'easeOut' }}
-                        >
-                          <Link
-                            href={item.href}
-                            className="spatial-press group flex min-h-[3.75rem] items-center gap-3 rounded-2xl border border-black/[0.06] bg-white px-3 shadow-[var(--shadow-xs)] transition-[border-color,box-shadow] hover:border-emerald-600/30 hover:shadow-[0_10px_24px_-18px_rgba(5,150,105,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                          >
-                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)]">
-                              <item.icon className="h-[1.1rem] w-[1.1rem]" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13.5px] font-bold text-[var(--text-primary)]">{label(key)}</span>
-                              <span className="mt-0.5 flex items-center gap-1 text-[12.5px] font-medium text-emerald-700">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                {fa ? 'به منو اضافه شد' : 'Added to the menu'}
-                              </span>
-                            </span>
-                            <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">
-                              {fa ? 'باز کردن' : 'Open'}
-                              <Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
-                            </span>
-                          </Link>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {justSaved.hidden.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 border-t border-emerald-600/10 px-3.5 py-2.5 text-[12.5px] text-[var(--text-muted)] sm:px-4">
-                  <EyeOff className="h-3.5 w-3.5 shrink-0" />
-                  <span className="font-bold text-[var(--text-secondary)]">{fa ? 'پنهان شد:' : 'Hidden:'}</span>
-                  {justSaved.hidden.map((key) => (
-                    <span key={key} className="rounded-lg bg-black/[0.045] px-2 py-0.5 font-semibold text-[var(--text-secondary)]">{label(key, justSaved.previousType)}</span>
-                  ))}
-                  <span>{fa ? '· اطلاعاتش پاک نمی‌شود و با روشن‌کردن دوباره برمی‌گردد.' : '· Its data is kept and returns when you turn it back on.'}</span>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="min-w-0 space-y-4">
-          {/* Name */}
-          <div className="spatial-surface rounded-card p-4 sm:p-5">
-            <label htmlFor="business-name" className="ui-h3 block">{fa ? 'نام کسب‌وکار' : 'Business name'}</label>
-            <p className="ui-caption mt-0.5">{fa ? 'ایجنت با همین نام خودش را معرفی می‌کند.' : 'The agent introduces itself with this name.'}</p>
-            <input
-              id="business-name"
-              value={name}
-              onChange={(event) => { setName(event.target.value); setError(''); setJustSaved(null) }}
-              placeholder={fa ? 'مثلاً کلینیک زیبایی رز' : 'e.g. Rose Beauty Clinic'}
-              className="input mt-3 min-h-12 w-full rounded-2xl text-sm"
-            />
-          </div>
-
-          {/* Business type */}
-          <div className="spatial-surface rounded-card p-4 sm:p-5">
-            <h3 className="ui-h3">{fa ? 'نوع کسب‌وکار' : 'Business type'}</h3>
-            <p className="ui-caption mt-0.5">{fa ? 'نوع کسب‌وکار لحن ایجنت و پیشنهادها را تعیین می‌کند. بخش‌های منو فقط با قابلیت‌های پایین روشن و خاموش می‌شوند.' : 'The type shapes the agent’s tone and suggestions. Menu sections follow only the capabilities below.'}</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {BUSINESS_TYPES.map((value) => {
-                const item = getVerticalPack(value)
-                const Icon = TYPE_ICONS[value]
-                const selected = type === value
-                const current = saved.type === value
-                const defaults = item.defaultCapabilities
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => {
-                      setType(value)
-                      // Nothing picked yet: start from this type's defaults.
-                      if (!keys.length) setKeys(getDefaultCapabilities(value))
-                      setError('')
-                      setJustSaved(null)
-                    }}
-                    className={cn(
-                      'relative flex min-h-[4.75rem] items-start gap-3 rounded-2xl border p-3 text-start transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
-                      selected ? 'border-[var(--text-primary)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)]' : 'border-[var(--border-default)] bg-white hover:border-[var(--border-strong)]',
-                    )}
-                  >
-                    <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors', selected ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]')}>
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? item.titleFa : item.titleEn}</span>
-                        {current && <span className="rounded-full bg-[var(--text-primary)] px-2 py-0.5 text-[12px] font-bold text-white">{fa ? 'فعلی' : 'Current'}</span>}
-                      </span>
-                      <span className="mt-0.5 block text-[12.5px] leading-5 text-[var(--text-muted)]">
-                        {defaults.length
-                          ? (fa ? `پیش‌فرض: ${defaults.map((key) => capabilityLabel(key, 'fa')).join('، ')}` : `Default: ${defaults.map((key) => capabilityLabel(key, 'en')).join(', ')}`)
-                          : (fa ? 'بدون پیش‌فرض؛ قابلیت‌ها را خودتان انتخاب کنید' : 'No defaults; pick your capabilities')}
-                      </span>
-                    </span>
-                    {selected && <Check className="mt-1 h-4 w-4 shrink-0 text-[var(--text-primary)]" strokeWidth={3} />}
-                  </button>
-                )
-              })}
+          {/* Name and type: two rows; the eight types open only when asked for. */}
+          <div className="settings-identity spatial-surface divide-y divide-[var(--border-subtle)] rounded-card px-4 sm:px-5">
+            <div className="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center sm:gap-4">
+              <div>
+                <label htmlFor="business-name" className="ui-h3 block">{fa ? 'نام کسب‌وکار' : 'Business name'}</label>
+                <p className="ui-caption mt-0.5">{fa ? 'ایجنت با همین نام خودش را معرفی می‌کند.' : 'The agent introduces itself with this name.'}</p>
+              </div>
+              <input
+                id="business-name"
+                value={name}
+                onChange={(event) => { setName(event.target.value); setError(''); setJustSaved(null) }}
+                placeholder={fa ? 'مثلاً کلینیک زیبایی رز' : 'e.g. Rose Beauty Clinic'}
+                className="input min-h-12 w-full text-sm"
+              />
             </div>
-            {type !== saved.type && missingDefaults.length > 0 && (
-              <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 sm:flex-row sm:items-center">
-                <p className="min-w-0 flex-1 text-[12.5px] leading-5 text-[var(--text-secondary)]">
-                  {fa
-                    ? `قابلیت پیش‌فرض «${fa ? pack.titleFa : pack.titleEn}» هنوز خاموش است: ${missingDefaults.map((key) => `«${capabilityLabel(key, 'fa')}»`).join('، ')}.`
-                    : `This type’s default is still off: ${missingDefaults.map((key) => capabilityLabel(key, 'en')).join(', ')}.`}
-                </p>
+            <div className="py-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-[10rem] flex-1">
+                  <h3 className="ui-h3">{fa ? 'نوع کسب‌وکار' : 'Business type'}</h3>
+                  <p className="ui-caption mt-0.5">{fa ? 'لحن ایجنت و پیشنهادها را تعیین می‌کند.' : 'Shapes the agent’s tone and suggestions.'}</p>
+                </div>
+                <span className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? pack.titleFa : pack.titleEn}</span>
                 <button
                   type="button"
-                  onClick={() => { setKeys((current) => [...current, ...missingDefaults.filter((key) => !current.includes(key))]); setJustSaved(null) }}
-                  className="spatial-press inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white"
+                  onClick={() => setTypeOpen((value) => !value)}
+                  aria-expanded={typeOpen}
+                  aria-controls="business-type-options"
+                  className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
                 >
-                  <Check className="h-3.5 w-3.5" />
-                  {fa ? 'روشن کن' : 'Turn on'}
+                  {typeOpen ? (fa ? 'بستن' : 'Close') : (fa ? 'تغییر' : 'Change')}
                 </button>
               </div>
-            )}
+              {(typeOpen || type !== saved.type) && (
+                <div id="business-type-options">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {BUSINESS_TYPES.map((value) => {
+                    const item = getVerticalPack(value)
+                    const Icon = TYPE_ICONS[value]
+                    const selected = type === value
+                    const current = saved.type === value
+                    const defaults = item.defaultCapabilities
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setType(value)
+                          // Nothing picked yet: start from this type's defaults.
+                          if (!keys.length) setKeys(getDefaultCapabilities(value))
+                          setError('')
+                          setJustSaved(null)
+                        }}
+                        className={cn(
+                          'relative flex min-h-[4.75rem] items-start gap-3 rounded-2xl border p-3 text-start transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+                          selected ? 'border-[var(--text-primary)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)]' : 'border-[var(--border-default)] bg-white hover:border-[var(--border-strong)]',
+                        )}
+                      >
+                        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors', selected ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]')}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? item.titleFa : item.titleEn}</span>
+                            {current && <span className="rounded-full bg-[var(--text-primary)] px-2 py-0.5 text-[12px] font-bold text-white">{fa ? 'فعلی' : 'Current'}</span>}
+                          </span>
+                          <span className="mt-0.5 block text-[13px] leading-5 text-[var(--text-muted)]">
+                            {defaults.length
+                              ? (fa ? `پیش‌فرض: ${defaults.map((key) => capabilityLabel(key, 'fa')).join('، ')}` : `Default: ${defaults.map((key) => capabilityLabel(key, 'en')).join(', ')}`)
+                              : (fa ? 'بدون پیش‌فرض؛ قابلیت‌ها را خودتان انتخاب کنید' : 'No defaults; pick your capabilities')}
+                          </span>
+                        </span>
+                        {selected && <Check className="mt-1 h-4 w-4 shrink-0 text-[var(--text-primary)]" strokeWidth={3} />}
+                      </button>
+                    )
+                  })}
+                </div>
+                {type !== saved.type && missingDefaults.length > 0 && (
+                  <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 sm:flex-row sm:items-center">
+                    <p className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--text-secondary)]">
+                      {fa
+                        ? `قابلیت پیش‌فرض «${fa ? pack.titleFa : pack.titleEn}» هنوز خاموش است: ${missingDefaults.map((key) => `«${capabilityLabel(key, 'fa')}»`).join('، ')}.`
+                        : `This type’s default is still off: ${missingDefaults.map((key) => capabilityLabel(key, 'en')).join(', ')}.`}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { const nextKeys = [...keys, ...missingDefaults.filter((key) => !keys.includes(key))]; setKeys(nextKeys); void persist({ ...saved, capabilities: nextKeys }, saved.capabilities) }}
+                      className="spatial-press inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      {fa ? 'روشن کن' : 'Turn on'}
+                    </button>
+                  </div>
+                )}
+
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Capabilities */}
-          <div className="spatial-surface rounded-card p-4 sm:p-5">
+          <div className="settings-capabilities spatial-surface rounded-card p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h3 className="ui-h3">{fa ? 'قابلیت‌ها' : 'Capabilities'}</h3>
-                <p className="ui-caption mt-0.5">{fa ? 'هر کدام را روشن کنید، بخشش به منو اضافه می‌شود و ایجنت هم از آن استفاده می‌کند. خاموش که باشد، ایجنت هم سراغش نمی‌رود.' : 'Each one adds its section and lets the agent use it. Off means the agent leaves it alone too.'}</p>
+                <p className="ui-caption mt-0.5">{fa ? 'روشن یعنی بخشش در منو می‌آید و ایجنت هم از آن استفاده می‌کند. هر تغییر همان لحظه ذخیره می‌شود.' : 'On adds its section and lets the agent use it. Every change saves at once.'}</p>
               </div>
-              <span className="inline-flex min-h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[12.5px] font-bold tabular-nums text-[var(--text-secondary)]">
+              <span className="inline-flex min-h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[13px] font-bold tabular-nums text-[var(--text-secondary)]">
                 {fa ? `${num(keys.length, fa)} روشن` : `${keys.length} on`}
               </span>
             </div>
@@ -434,47 +405,35 @@ export function BusinessSettings({
                       type="button"
                       role="switch"
                       aria-checked={on}
-                      onClick={() => toggle(option.key)}
-                      className={cn('flex w-full items-start gap-3 p-3 text-start transition-colors sm:p-3.5', on ? 'bg-[var(--bg-surface)]' : 'hover:bg-[var(--bg-hover)]')}
+                      aria-busy={pendingKey === option.key || undefined}
+                      disabled={pendingKey !== null}
+                      onClick={() => void toggle(option.key)}
+                      className="flex w-full items-center gap-3 p-3 text-start transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-wait sm:px-3.5"
                     >
-                      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors', on ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]')}>
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
                         <Icon className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? option.fa : option.en}</span>
-                          {isDefault
-                            ? <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[12px] font-bold text-[var(--text-secondary)]">{fa ? 'پیش‌فرض این نوع' : 'Type default'}</span>
-                            : recommended && <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[12px] font-bold text-[var(--text-secondary)]">{fa ? 'پیشنهادی' : 'Suggested'}</span>}
-                          {status && <ReadinessBadge state={status.state} fa={fa} />}
+                          <span className={cn('text-[13px] font-bold', on ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')}>{fa ? option.fa : option.en}</span>
+                          {/* "Ready" is the normal state and says nothing; only unfinished setup is flagged. */}
+                          {status?.state === 'setup' && <ReadinessBadge state="setup" fa={fa} />}
+                          {!on && (isDefault || recommended) && <span className="text-[12px] text-[var(--text-muted)]">{fa ? 'پیشنهادی' : 'Suggested'}</span>}
                         </span>
-                        <span className="mt-0.5 block text-[12.5px] leading-5 text-[var(--text-muted)]">{fa ? option.descriptionFa : option.descriptionEn}</span>
-                        <span className="mt-1.5 flex flex-wrap items-center gap-1 text-[12px] text-[var(--text-muted)]">
-                          {sections.length ? (
-                            <>
-                              <span>{fa ? 'در منو:' : 'Menu:'}</span>
-                              {sections.map((module) => (
-                                <span key={module} className="rounded-md bg-black/[0.04] px-1.5 py-0.5 font-medium text-[var(--text-secondary)]">{label(module)}</span>
-                              ))}
-                              {keptBy.length > 0 && (
-                                <span className="text-[var(--text-hint)]">
-                                  {fa
-                                    ? `· همراه «${[...new Set(keptBy)].map((key) => capabilityLabel(key, 'fa')).join('» و «')}» در منو می‌ماند`
-                                    : `· stays in the menu with ${[...new Set(keptBy)].map((key) => capabilityLabel(key, 'en')).join(' and ')}`}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span>{fa ? 'بدون بخش جدا؛ در رفتار ایجنت اثر دارد' : 'No separate section; shapes the agent'}</span>
-                          )}
+                        <span className="mt-0.5 block text-[12px] leading-5 text-[var(--text-muted)]">
+                          {fa ? option.descriptionFa : option.descriptionEn}
+                          {sections.length
+                            ? ` · ${fa ? 'در منو:' : 'Menu:'} ${sections.map((module) => label(module)).join(fa ? '، ' : ', ')}`
+                            : ` · ${fa ? 'بدون بخش جدا' : 'No separate section'}`}
+                          {keptBy.length > 0 && (fa
+                            ? ` (همراه «${[...new Set(keptBy)].map((key) => capabilityLabel(key, 'fa')).join('» و «')}» می‌ماند)`
+                            : ` (stays with ${[...new Set(keptBy)].map((key) => capabilityLabel(key, 'en')).join(' and ')})`)}
                         </span>
                       </span>
-                      <span aria-hidden className={cn('relative mt-1.5 h-6 w-11 shrink-0 rounded-full border transition-colors', on ? 'border-[var(--text-primary)] bg-[var(--text-primary)]' : 'border-[var(--border-hover)] bg-[var(--bg-muted)]')}>
-                        <span className={cn('absolute top-0.5 h-[1.125rem] w-[1.125rem] rounded-full bg-white shadow transition-[inset-inline-start] duration-150', on ? 'start-[1.375rem]' : 'start-0.5')} />
-                      </span>
+                      <SwitchTrack checked={on} pending={pendingKey === option.key} />
                     </button>
                     {status?.state === 'setup' && (
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 pb-3 pt-2 ps-[3.75rem] sm:px-3.5 sm:ps-[4rem]">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 pb-3 ps-[3.75rem] sm:px-3.5 sm:ps-[4rem]">
                         <ul className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-1">
                           {status.steps.map((step) => (
                             <li key={step.key} className={cn('inline-flex items-center gap-1 text-[12px]', step.done ? 'text-[var(--text-muted)]' : 'font-semibold text-[var(--text-primary)]')}>
@@ -497,7 +456,7 @@ export function BusinessSettings({
             </ul>
             {extras.length > 0 && (
               <div className="mt-3">
-                <p className="text-[12.5px] font-bold text-[var(--text-secondary)]">{fa ? 'موارد ثبت‌شده قبلی' : 'Earlier entries'}</p>
+                <p className="text-[13px] font-bold text-[var(--text-secondary)]">{fa ? 'موارد ثبت‌شده قبلی' : 'Earlier entries'}</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {extras.map((extra) => (
                     <span key={extra} className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[var(--border-default)] bg-white ps-2.5 pe-1 text-[12px] text-[var(--text-secondary)]">
@@ -528,14 +487,7 @@ export function BusinessSettings({
             <div className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border-default)] bg-white/95 p-3 shadow-[var(--elev-2)] backdrop-blur sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1 text-[12px] leading-5">
                 <p className="font-bold text-[var(--text-primary)]">{fa ? 'تغییرات ذخیره نشده' : 'Unsaved changes'}</p>
-                <p className="truncate text-[var(--text-muted)]">
-                  {added.length || hidden.length
-                    ? [
-                        added.length ? `${fa ? 'اضافه:' : 'Adds:'} ${added.map((key) => label(key)).join(fa ? '، ' : ', ')}` : '',
-                        hidden.length ? `${fa ? 'پنهان:' : 'Hides:'} ${hidden.map((key) => label(key, saved.type)).join(fa ? '، ' : ', ')}` : '',
-                      ].filter(Boolean).join(' · ')
-                    : (fa ? 'منوی پنل تغییری نمی‌کند.' : 'The menu stays the same.')}
-                </p>
+                <p className="truncate text-[var(--text-muted)]">{fa ? 'نام یا نوع کسب‌وکار' : 'Business name or type'}</p>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={reset} disabled={saving} className="min-h-11 flex-1 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] sm:flex-none">

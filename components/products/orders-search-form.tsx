@@ -138,8 +138,8 @@ export function OrdersSearchForm({
         onSubmit={(event) => event.preventDefault()}
         className="sticky top-[5.35rem] z-20 md:static md:z-auto"
       >
-        <div className="spatial-surface rounded-card !bg-white p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
-          <div className="flex items-center gap-2 md:hidden">
+        <div className="ui-fbar spatial-surface rounded-card !bg-white p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
+          <div className="ui-fbar-compact flex items-center gap-2">
             {searchField('orders-search-mobile')}
             <button
               ref={filterTriggerRef}
@@ -165,7 +165,7 @@ export function OrdersSearchForm({
           </div>
 
           {statusInput && selectedStatusLabel && (
-            <div className="mt-2 flex flex-wrap gap-2 md:hidden" aria-label={filtersLabel}>
+            <div className="ui-fbar-compact mt-2 flex flex-wrap gap-2" aria-label={filtersLabel}>
               <button
                 type="button"
                 onClick={() => setStatusInput('')}
@@ -177,7 +177,7 @@ export function OrdersSearchForm({
             </div>
           )}
 
-          <div className="hidden flex-wrap items-center gap-2 md:flex">
+          <div className="ui-fbar-full flex-wrap items-center gap-2">
             {searchField('orders-search', 'min-w-[12rem]')}
             <MaterialSelect
               value={statusInput}
@@ -205,6 +205,7 @@ export function OrdersSearchForm({
       </form>
 
       <MobileBottomSheet
+        mobileOnly={false}
         open={filtersOpen}
         title={filtersLabel}
         description={resultsLabel}

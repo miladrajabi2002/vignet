@@ -4,11 +4,14 @@ import {
   CircleDot,
   Gauge,
   Lightbulb,
+  Smile,
   Sparkles,
   Target,
 } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { satisfactionBucket } from '@/lib/ai/turn-signal'
+import { topicLabel } from '@/lib/conversations/topic-labels'
 
 export interface SalesInsightView {
   leadType: 'UNCLEAR' | 'INFORMATION_SEEKER' | 'BUYER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER'
@@ -32,6 +35,9 @@ export interface SalesInsightView {
   explanation: string | null
   handoffRecommended: boolean
   analyzedAt: Date | string
+  /** 0–100; null or absent when the thread shows no evidence either way. */
+  satisfaction?: number | null
+  topics?: string[]
 }
 
 type Locale = 'fa' | 'en'
@@ -84,6 +90,10 @@ const LABELS = {
   urgency: {
     fa: { LOW: 'کم', MEDIUM: 'متوسط', HIGH: 'زیاد' },
     en: { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' },
+  },
+  satisfaction: {
+    fa: { satisfied: 'راضی', neutral: 'خنثی', dissatisfied: 'ناراضی' },
+    en: { satisfied: 'Satisfied', neutral: 'Neutral', dissatisfied: 'Dissatisfied' },
   },
 } as const
 
@@ -167,14 +177,12 @@ function objectionLabel(code: string, locale: Locale): string {
 
 function probabilityTone(probability: number): string {
   if (probability >= 75) return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700'
-  if (probability >= 50) return 'border-amber-500/25 bg-amber-500/10 text-amber-700'
-  return 'border-violet-500/20 bg-violet-500/[0.08] text-violet-700'
+  return 'border-black/10 bg-black/[0.04] text-[var(--text-secondary)]'
 }
 
 function progressTone(probability: number): string {
   if (probability >= 75) return 'bg-emerald-500'
-  if (probability >= 50) return 'bg-amber-500'
-  return 'bg-violet-500'
+  return 'bg-black/30'
 }
 
 export function SalesInsightBadge({
@@ -208,6 +216,35 @@ export function SalesInsightBadge({
   )
 }
 
+/** Purchase likelihood as plain text: green only when the lead is hot. */
+export function SalesInsightText({
+  insight,
+  locale,
+  className,
+}: {
+  insight: Pick<SalesInsightView, 'leadType' | 'buyerProbability'>
+  locale: Locale
+  className?: string
+}) {
+  const probability = clampPercent(insight.buyerProbability)
+  const converted = insight.leadType === 'EXISTING_CUSTOMER'
+  const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+  return (
+    <span
+      className={cn(
+        'shrink-0 whitespace-nowrap text-[12px] font-medium tabular-nums',
+        converted || probability >= 75 ? 'text-emerald-700' : 'text-[var(--text-muted)]',
+        className,
+      )}
+      title={locale === 'fa' ? 'برآورد هوشمند احتمال خرید' : 'Estimated purchase probability'}
+    >
+      {converted
+        ? (locale === 'fa' ? 'مشتری فعلی' : 'Existing customer')
+        : locale === 'fa' ? `${nf.format(probability)}٪ احتمال خرید` : `${probability}% likely to buy`}
+    </span>
+  )
+}
+
 export function SalesInsightCard({
   insight,
   locale,
@@ -222,6 +259,8 @@ export function SalesInsightCard({
   const signals = insight.signalCodes.slice(0, 3)
   const objections = insight.objections.filter(Boolean).slice(0, 2)
   const risks = insight.riskFlags.slice(0, 2)
+  const satisfaction = typeof insight.satisfaction === 'number' ? clampPercent(insight.satisfaction) : null
+  const topics = (insight.topics ?? []).slice(0, 3)
 
   return (
     <section className="spatial-surface rounded-card p-4" aria-labelledby="sales-insight-title">
@@ -264,6 +303,15 @@ export function SalesInsightCard({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
+        {satisfaction !== null && (
+          <div className="col-span-2">
+            <Metric
+              icon={<Smile className="h-3.5 w-3.5" />}
+              label={locale === 'fa' ? 'رضایت مشتری' : 'Customer satisfaction'}
+              value={`${LABELS.satisfaction[locale][satisfactionBucket(satisfaction)]} · ${nf.format(satisfaction)}٪`}
+            />
+          </div>
+        )}
         <Metric
           icon={<CircleDot className="h-3.5 w-3.5" />}
           label={locale === 'fa' ? 'لحن' : 'Sentiment'}
@@ -275,6 +323,13 @@ export function SalesInsightCard({
           value={LABELS.urgency[locale][insight.urgency]}
         />
       </div>
+
+      {topics.length > 0 && (
+        <p className="mt-3 text-xs leading-5 text-[var(--text-secondary)]">
+          <span className="font-semibold">{locale === 'fa' ? 'موضوع گفتگو: ' : 'Topics: '}</span>
+          {topics.map((topic) => topicLabel(topic, locale)).join(locale === 'fa' ? '، ' : ', ')}
+        </p>
+      )}
 
       {(insight.explanation || signals.length > 0) && (
         <div className="mt-3">
@@ -307,8 +362,8 @@ export function SalesInsightCard({
       )}
 
       {insight.recommendedAction && (
-        <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.07] p-3">
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-violet-800">
+        <div className="mt-3 rounded-xl border border-[var(--signal)]/20 bg-[var(--signal-soft)] p-3">
+          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--signal-strong)]">
             <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
             {locale === 'fa' ? 'بهترین اقدام بعدی' : 'Recommended next action'}
           </p>

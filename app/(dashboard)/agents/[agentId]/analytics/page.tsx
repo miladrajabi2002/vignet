@@ -138,12 +138,14 @@ export default async function AgentAnalyticsPage(
         />
         <StatsCard
           label={t('avgRating')}
-          value={avgRating ? avgRating.toFixed(1) : '—'}
+          value={avgRating ? avgRating.toFixed(1) : null}
+          emptyText={locale === 'fa' ? 'بدون داده' : 'No data'}
           icon={Star}
         />
         <StatsCard
           label={locale === 'fa' ? 'هزینه پاسخ‌ها' : 'Reply cost'}
-          value={`${nf.format(Math.round(totalChargedIRR / 10))} ${locale === 'fa' ? 'تومان' : 'toman'}`}
+          value={nf.format(Math.round(totalChargedIRR / 10))}
+          unit={locale === 'fa' ? 'تومان' : 'toman'}
           icon={Cpu}
         />
       </div>
@@ -166,7 +168,13 @@ export default async function AgentAnalyticsPage(
         </DashboardPanel>
 
         <Panel title={t('conversationsTrend')}>
-          <ConversationChart data={trend} />
+          <ConversationChart
+            data={trend}
+            empty={{
+              title: locale === 'fa' ? 'هنوز گفتگویی ثبت نشده' : 'No conversations yet',
+              hint: locale === 'fa' ? 'با اولین گفتگوی این ایجنت، روند همین‌جا رسم می‌شود.' : 'The trend is drawn here from this agent’s first conversation.',
+            }}
+          />
         </Panel>
       </div>
 

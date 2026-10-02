@@ -82,23 +82,21 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
         key={key}
         href={href}
         aria-current={active ? 'page' : undefined}
+        // Page-level navigation: the current section is ink text on an ink
+        // underline. The filled pill is reserved for view switches (.ui-seg).
         className={cn(
-          'group relative inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-control px-3 py-2.5 text-xs font-semibold transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-1',
-          compact ? 'flex-col gap-1 px-1 py-1 text-[12px]' : 'min-w-fit shrink-0 whitespace-nowrap sm:min-w-[7rem] sm:flex-1',
+          'group relative inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-chip text-[13px] transition-colors duration-150 after:pointer-events-none after:absolute after:bottom-0 after:h-0.5 after:rounded-full after:bg-[var(--text-primary)] after:opacity-0 after:transition-opacity after:duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-1',
+          compact ? 'flex-col gap-1 px-1 py-1.5 text-[12px] after:inset-x-3' : 'shrink-0 whitespace-nowrap px-3.5 after:inset-x-2.5',
           active
-            ? 'bg-black text-white shadow-[var(--shadow-control)]'
-            : 'text-[var(--text-secondary)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]',
+            ? 'font-bold text-[var(--text-primary)] after:opacity-100'
+            : 'font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
         )}
       >
-        <span className={cn(
-          'grid shrink-0 place-items-center rounded-control border transition-colors duration-150',
-          compact ? 'h-7 w-7' : 'h-8 w-8',
-          active
-            ? 'border-white/15 bg-white/10 text-white'
-            : 'border-black/[0.055] bg-white text-[var(--text-muted)] group-hover:text-[var(--text-primary)]',
-        )}>
-          <Icon className="h-4 w-4" aria-hidden="true" />
-        </span>
+        <Icon
+          className={cn('h-[1.05rem] w-[1.05rem] shrink-0 transition-colors duration-150', active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')}
+          strokeWidth={active ? 2.2 : 1.9}
+          aria-hidden="true"
+        />
         <span className="flex max-w-full min-w-0 items-center justify-center gap-1.5">
           <span className="min-w-0 truncate">{label}</span>
           {typeof badge === 'number' && (
@@ -141,7 +139,7 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2">
-              <span className="truncate text-[14px] font-bold text-[var(--text-primary)]">{label}</span>
+              <span className="truncate text-[15px] font-bold text-[var(--text-primary)]">{label}</span>
               {typeof badge === 'number' && (
                 <NavigationCountBadge
                   count={badge}
@@ -168,23 +166,21 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
 
   return (
     <>
-      <nav className="grid grid-cols-4 gap-1 border-t border-black/[0.055] bg-white/95 p-1.5 backdrop-blur-xl md:hidden" aria-label={locale === 'fa' ? 'بخش‌های ایجنت' : 'Agent sections'}>
+      <nav className="grid grid-cols-4 gap-1 border-t border-black/[0.055] bg-white/95 px-1.5 backdrop-blur-xl md:hidden" aria-label={locale === 'fa' ? 'بخش‌های ایجنت' : 'Agent sections'}>
         {mobileTabs.map((tab) => renderTab(tab, true))}
         <button
           ref={moreTriggerRef}
           type="button"
           onClick={() => setMoreOpen(true)}
           aria-expanded={moreOpen}
-          className="inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-control px-1 py-1 text-[12px] font-semibold text-[var(--text-secondary)] hover:bg-black/[0.04]"
+          className="inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-chip px-1 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         >
-          <span className="grid h-7 w-7 place-items-center rounded-control border border-black/[0.055] bg-white text-[var(--text-muted)]">
-            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-          </span>
+          <MoreHorizontal className="h-[1.05rem] w-[1.05rem] text-[var(--text-hint)]" aria-hidden="true" />
           <span>{locale === 'fa' ? 'بیشتر' : 'More'}</span>
         </button>
       </nav>
 
-      <nav className="scrollbar-none hidden gap-1.5 overflow-x-auto border-t border-black/[0.055] bg-black/[0.018] p-2 md:flex" aria-label={locale === 'fa' ? 'بخش‌های ایجنت' : 'Agent sections'}>
+      <nav className="scrollbar-none hidden gap-1 overflow-x-auto border-t border-black/[0.055] px-2.5 md:flex" aria-label={locale === 'fa' ? 'بخش‌های ایجنت' : 'Agent sections'}>
         {tabs.map((tab) => renderTab(tab))}
       </nav>
 

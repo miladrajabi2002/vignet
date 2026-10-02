@@ -5,7 +5,8 @@ import type { ChannelType } from '@prisma/client'
 import { Phone, MessageSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
+import { ChannelBadge, ChannelGlyph, SourceTagBadges } from '@/components/crm/channel-badge'
+import { conversationPreviewText } from '@/lib/conversations/preview'
 import { ContactDetailEditor } from '@/components/crm/contact-detail'
 import { contactDisplayName } from '@/lib/crm/display'
 import { BackButton } from '@/components/dashboard/back-button'
@@ -40,6 +41,7 @@ export default async function ContactDetailPage(
           lastMessageAt: true,
           createdAt: true,
           agent: { select: { name: true } },
+          messages: { where: { role: { in: ['USER', 'ASSISTANT'] } }, orderBy: { createdAt: 'desc' }, take: 1, select: { content: true } },
         },
       },
     },
@@ -139,91 +141,57 @@ export default async function ContactDetailPage(
     contact.conversations[0]?.lastMessageAt ??
     contact.createdAt
 
+  const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+  const dateFmt = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+  const totalMessages = contact.conversations.reduce((sum, c) => sum + c.messageCount, 0)
+  const latest = contact.conversations[0]
+  const stageLabel = t(({ lead: 'stageLead', qualified: 'stageQualified', customer: 'stageCustomer', lost: 'stageLost' } as Record<string, string>)[contact.stage] ?? 'stageLead')
+
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-4">
       <BackButton href="/contacts" label={t('title')} />
 
-      {/* Header card — avatar + name + channels + phone + delete action */}
-      <div className="spatial-surface rounded-card p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <ContactAvatar
-              src={avatarUrl}
-              fallbackSrc={avatarFallbackUrl}
-              alt={who}
-              size="lg"
-              loading="eager"
-              className="bg-[var(--text-primary)]/5 text-[var(--text-primary)]"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                  {who}
-                </h1>
-                {channels.map((ch) => (
-                  <ChannelBadge key={ch} type={ch} />
-                ))}
-                <SourceTagBadges tags={contact.tags} />
-              </div>
+      {/* Header: who this is, the one useful action, and a menu for the rest. */}
+      <div className="spatial-surface rounded-card p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <ContactAvatar
+            src={avatarUrl}
+            fallbackSrc={avatarFallbackUrl}
+            alt={who}
+            size="lg"
+            loading="eager"
+            className="bg-[var(--text-primary)]/5 text-[var(--text-primary)]"
+          />
+          <div className="min-w-[10rem] flex-1">
+            <h1 className="flex flex-wrap items-center gap-2 text-[22px] font-bold leading-9 tracking-tight text-[var(--text-primary)]">
+              {who}
+              <SourceTagBadges tags={contact.tags} />
+            </h1>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-[var(--text-secondary)]">
+              <span>{stageLabel}</span>
+              {channels.map((ch) => <ChannelBadge key={ch} type={ch} />)}
               {contact.phone && (
-                <p
-                  dir="ltr"
-                  className="mt-0.5 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)]"
-                >
+                <span dir="ltr" className="inline-flex items-center gap-1 tabular-nums">
                   <Phone className="h-3.5 w-3.5" />
                   {displayPhone(contact.phone)}
-                </p>
+                </span>
               )}
-            </div>
+            </p>
           </div>
-          <ContactDeleteAction contactId={contact.id} />
+          {latest && (
+            <Link
+              href={`/conversations/${latest.id}`}
+              className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {locale === 'fa' ? 'پیام به مشتری' : 'Message customer'}
+            </Link>
+          )}
+          <ContactDeleteAction contactId={contact.id} compact />
         </div>
       </div>
 
-      {/* Per-channel identities */}
-      {identities.length > 0 && (
-        <div className="spatial-surface rounded-card p-4 sm:p-5">
-          <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
-            {locale === 'fa' ? 'هویت در برنامه‌ها' : 'Channel identities'}
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {identities.map((id) => (
-              <div
-                key={id.channel}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1.5"
-              >
-                {id.avatarUrl || id.channel === 'INSTAGRAM' ? (
-                  <ContactAvatar
-                    src={contactAvatarSrc({
-                      contactId: contact.id,
-                      channel: id.channel,
-                      rawUrl: id.avatarUrl,
-                    })}
-                    alt={id.handle ?? id.channel}
-                    size="xs"
-                  />
-                ) : null}
-                <ChannelBadge type={id.channel} />
-                {id.handle && (
-                  <span
-                    dir="ltr"
-                    className="text-xs text-[var(--text-primary)]"
-                  >
-                    @{id.handle}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 text-[12px] text-[var(--text-muted)]">
-            {locale === 'fa'
-              ? `آخرین فعالیت: ${relativeTime(lastActivity, locale)}`
-              : `Last activity: ${relativeTime(lastActivity, locale)}`}
-          </p>
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         {/* Editable details */}
         <ContactDetailEditor
           contactId={contact.id}
@@ -234,41 +202,60 @@ export default async function ContactDetailPage(
           initialMarketingOptIn={contact.marketingOptIn}
         />
 
-        {/* Conversation history */}
-        <div className="spatial-surface rounded-card p-5">
-          <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
-            {t('detail.history')}
-          </h2>
+        {/* Summary and timeline */}
+        <div className="spatial-surface rounded-card p-5 sm:p-6">
+          <h2 className="ui-h3">{locale === 'fa' ? 'خلاصه' : 'Summary'}</h2>
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[13px]">
+            <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'اولین تماس' : 'First contact'}</dt>
+            <dd className="text-[var(--text-primary)]">{dateFmt.format(contact.createdAt)}</dd>
+            <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'گفتگوها' : 'Conversations'}</dt>
+            <dd className="tabular-nums text-[var(--text-primary)]">
+              {locale === 'fa'
+                ? `${nf.format(contact.conversations.length)} گفتگو · ${nf.format(totalMessages)} پیام`
+                : `${contact.conversations.length} conversations · ${totalMessages} messages`}
+            </dd>
+            <dt className="text-[var(--text-muted)]">{t('detail.lastActivity')}</dt>
+            <dd className="text-[var(--text-primary)]">{relativeTime(lastActivity, locale)}</dd>
+            {identities.some((id) => id.handle) && (
+              <>
+                <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'شناسه‌ها' : 'Handles'}</dt>
+                <dd className="flex flex-wrap gap-x-3 gap-y-1">
+                  {identities.filter((id) => id.handle).map((id) => (
+                    <span key={id.channel} className="inline-flex items-center gap-1">
+                      <ChannelGlyph type={id.channel} />
+                      <span dir="ltr" className="text-[var(--text-primary)]">@{id.handle}</span>
+                    </span>
+                  ))}
+                </dd>
+              </>
+            )}
+          </dl>
+
+          <h2 className="ui-h3 mt-5 border-t border-[var(--border-subtle)] pt-4">{t('detail.history')}</h2>
           {contact.conversations.length === 0 ? (
-            <p className="py-8 text-center text-sm text-[var(--text-muted)]">
+            <p className="py-6 text-center text-sm text-[var(--text-muted)]">
               {t('detail.noHistory')}
             </p>
           ) : (
-            <div className="divide-y divide-[var(--border-subtle)]">
+            <div className="mt-1 divide-y divide-[var(--border-subtle)]">
               {contact.conversations.map((c) => (
                 <Link
                   key={c.id}
                   href={`/conversations/${c.id}`}
-                  className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-black/[0.035]"
+                  className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-black/[0.035]"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                    <MessageSquare className="h-4 w-4" />
-                  </div>
+                  <ChannelGlyph type={c.channel} className="grid h-8 w-8 place-items-center rounded-full border border-[var(--border-default)]" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm text-[var(--text-primary)]">
-                        {c.agent.name}
-                      </span>
-                      <ChannelBadge type={c.channel} />
-                    </div>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {c.messageCount} · {t('detail.lastActivity')}{' '}
-                      {relativeTime(
-                        new Date(c.lastMessageAt ?? c.createdAt),
-                        locale,
-                      )}
+                    <p className="truncate text-[13px] text-[var(--text-primary)]">
+                      {c.messages[0] ? conversationPreviewText(c.messages[0].content) : c.agent.name}
+                    </p>
+                    <p className="text-[12px] tabular-nums text-[var(--text-muted)]">
+                      {c.agent.name} · {nf.format(c.messageCount)} {locale === 'fa' ? 'پیام' : 'messages'}
                     </p>
                   </div>
+                  <span className="shrink-0 whitespace-nowrap text-[12px] text-[var(--text-muted)]">
+                    {relativeTime(new Date(c.lastMessageAt ?? c.createdAt), locale)}
+                  </span>
                 </Link>
               ))}
             </div>

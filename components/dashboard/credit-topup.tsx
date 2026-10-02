@@ -78,7 +78,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
         type="button"
         onClick={checkout}
         disabled={loading}
-        className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />

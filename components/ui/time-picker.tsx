@@ -216,10 +216,10 @@ function TimePickerPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[12.5px] font-bold text-[var(--text-muted)]">{label}</p>
+          <p className="text-[13px] font-bold text-[var(--text-muted)]">{label}</p>
           <p className="text-[28px] font-bold leading-9 tabular-nums tracking-tight text-[var(--text-primary)]" dir="ltr">
             <span>{localDigits(String(Math.min(draftHour, 24)).padStart(2, '0'), fa)}</span>
-            <span className="mx-0.5 text-[var(--text-hint)]">:</span>
+            <span className="mx-0.5 text-[var(--text-muted)]">:</span>
             <span>{localDigits(String(draftMinute).padStart(2, '0'), fa)}</span>
           </p>
         </div>
@@ -233,11 +233,11 @@ function TimePickerPanel({
       </div>
 
       <div>
-        <p className="mb-1.5 text-[12.5px] font-bold text-[var(--text-secondary)]">{fa ? 'ساعت' : 'Hour'}</p>
+        <p className="mb-1.5 text-[13px] font-bold text-[var(--text-secondary)]">{fa ? 'ساعت' : 'Hour'}</p>
         <div className="space-y-1">
           {HOUR_ROWS.map((row) => (
             <div key={row.fa} className="flex items-center gap-1.5">
-              <span className="flex w-5 shrink-0 justify-center text-[var(--text-hint)]" title={fa ? row.fa : row.en}>
+              <span className="flex w-5 shrink-0 justify-center text-[var(--text-muted)]" title={fa ? row.fa : row.en}>
                 <row.Icon className="h-3.5 w-3.5" aria-hidden />
                 <span className="sr-only">{fa ? row.fa : row.en}</span>
               </span>
@@ -272,7 +272,7 @@ function TimePickerPanel({
       </div>
 
       <div>
-        <p className="mb-1.5 text-[12.5px] font-bold text-[var(--text-secondary)]">{fa ? 'دقیقه' : 'Minute'}</p>
+        <p className="mb-1.5 text-[13px] font-bold text-[var(--text-secondary)]">{fa ? 'دقیقه' : 'Minute'}</p>
         <div className={cn('grid gap-1 ps-[1.625rem]', phone ? 'grid-cols-4' : 'grid-cols-6')} dir="ltr">
           {MINUTE_STEPS.map((minute) => {
             const hour = Math.min(draftHour, 23)
@@ -308,7 +308,7 @@ function TimePickerPanel({
           onClick={() => pickHour(24)}
           aria-pressed={draft >= 1440}
           className={cn(
-            'flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border text-[12.5px] font-bold transition-colors',
+            'flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border text-[13px] font-bold transition-colors',
             draft >= 1440 ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-dashed border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
           )}
         >
@@ -416,7 +416,7 @@ export function TimeRangeField({
           onChange={(value) => onChange({ start: value, end: end <= value ? Math.min(value + 60, 1440) : end })}
           className="min-w-0 flex-1 border-transparent bg-white shadow-[var(--shadow-xs)]"
         />
-        <span className="shrink-0 px-0.5 text-[12px] font-bold text-[var(--text-hint)]">{fa ? 'تا' : 'to'}</span>
+        <span className="shrink-0 px-0.5 text-[12px] font-bold text-[var(--text-muted)]">{fa ? 'تا' : 'to'}</span>
         <TimePicker
           value={end}
           fa={fa}
@@ -426,7 +426,7 @@ export function TimeRangeField({
           onChange={(value) => onChange({ start, end: value })}
           className="min-w-0 flex-1 border-transparent bg-white shadow-[var(--shadow-xs)]"
         />
-        <span className={cn('hidden shrink-0 px-2 text-[12.5px] font-medium sm:inline', invalid ? 'text-red-600' : 'text-[var(--text-muted)]')}>{spanLabel}</span>
+        <span className={cn('hidden shrink-0 px-2 text-[13px] font-medium sm:inline', invalid ? 'text-red-600' : 'text-[var(--text-muted)]')}>{spanLabel}</span>
       </div>
       {onRemove && (
         <button

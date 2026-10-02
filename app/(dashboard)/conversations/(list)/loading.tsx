@@ -1,66 +1,55 @@
-import { ConversationCardSkeleton } from '@/components/ui/skeleton'
+import { ConversationCardSkeleton, Skeleton } from '@/components/ui/skeleton'
 import {
   ConversationFiltersSkeleton,
   DashboardHeaderSkeleton,
-  DashboardPanelSkeleton,
-  InboxFeedHeaderSkeleton,
-  InboxPanelSkeleton,
 } from '@/components/dashboard/dashboard-skeletons'
-import { Skeleton } from '@/components/ui/skeleton'
 
 /**
- * Route-level skeleton for /conversations — an exact mirror of the page:
- * PageHeader (2 actions), status donut + 14-day trend panels, sticky filter
- * card, then the mobile card feed (same ConversationCardSkeleton as the
- * Analyze & Improve tab) / desktop inbox panel + pagination.
+ * Route-level skeleton for /conversations — mirrors the inbox: PageHeader
+ * (2 actions), the status tabs, then the mobile card feed or, from the tablet
+ * breakpoint up, the list column beside the open conversation.
  */
 export default function ConversationsLoading() {
   return (
-    <div className="mx-auto max-w-6xl min-w-0 space-y-6">
+    <div className="mx-auto flex min-w-0 max-w-[100rem] flex-col gap-3 md:h-[calc(100dvh-10.25rem)] md:min-h-[34rem]">
       <DashboardHeaderSkeleton actions={2} />
 
-      {/* Status donut + trend chart (lg:grid-cols-2) */}
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <DashboardPanelSkeleton action={false}>
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-[11.25rem] w-[11.25rem] shrink-0 rounded-full" />
-            <div className="min-w-0 flex-1 space-y-2.5">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Skeleton delay={-index * 90} className="h-2.5 w-2.5 shrink-0 rounded" />
-                  <Skeleton delay={-index * 90} className="h-3.5 w-20 max-w-full rounded-full" />
-                  <Skeleton delay={-index * 90} className="ms-auto h-3.5 w-10 rounded-full" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </DashboardPanelSkeleton>
-        <DashboardPanelSkeleton delay={-130} chartHeight={200} />
+      {/* Status tabs */}
+      <div className="flex shrink-0 items-center gap-4 border-b border-[var(--border-subtle)] pb-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} delay={-index * 80} className="h-5 w-16 rounded-full" />
+        ))}
       </div>
 
-      {/* Sticky filter card */}
-      <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-        <ConversationFiltersSkeleton selects={4} />
-      </div>
-
-      {/* Mobile inbox feed — same card skeleton as the improve tab */}
+      {/* Mobile: sticky filter card + card feed */}
       <div className="space-y-3 md:hidden">
-        <InboxFeedHeaderSkeleton />
+        <ConversationFiltersSkeleton selects={0} />
         {Array.from({ length: 4 }).map((_, index) => (
           <ConversationCardSkeleton key={index} delay={-index * 130} />
         ))}
       </div>
 
-      {/* Desktop inbox panel */}
-      <InboxPanelSkeleton className="hidden md:block" rows={6} />
-
-      {/* Pagination */}
-      <nav className="flex flex-wrap items-center justify-center gap-2 pt-2">
-        <Skeleton className="h-11 w-24 rounded-xl" />
-        <Skeleton delay={-80} className="h-11 w-11 rounded-xl" />
-        <Skeleton delay={-160} className="h-11 w-11 rounded-xl" />
-        <Skeleton delay={-240} className="h-11 w-24 rounded-xl" />
-      </nav>
+      {/* Tablet and up: list column beside the thread */}
+      <div className="hidden min-h-0 flex-1 overflow-hidden rounded-card border border-[var(--border-subtle)] bg-white md:grid md:grid-cols-[18rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]">
+        <div className="space-y-4 border-e border-[var(--border-subtle)] p-3">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-2.5">
+              <Skeleton delay={-index * 90} className="h-9 w-9 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton delay={-index * 90} className="h-3.5 w-28 max-w-full rounded-full" />
+                <Skeleton delay={-index * 90} className="h-3 w-full rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col justify-end gap-3 p-4">
+          <Skeleton className="h-10 w-2/5 self-end rounded-2xl" />
+          <Skeleton delay={-120} className="h-14 w-3/5 rounded-2xl" />
+          <Skeleton delay={-240} className="h-10 w-1/3 self-end rounded-2xl" />
+          <Skeleton delay={-360} className="mt-2 h-12 w-full rounded-xl" />
+        </div>
+      </div>
     </div>
   )
 }

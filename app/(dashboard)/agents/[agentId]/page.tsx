@@ -533,7 +533,7 @@ function AgentSetupPanel({
               {!step.done && (
                 <Link
                   href={step.href}
-                  className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                 >
                   {step.cta}
                   <ArrowRight className="h-3 w-3 rtl:rotate-180" />
@@ -560,25 +560,20 @@ function AgentGrowthPanel({
 }) {
   return (
     <section className="spatial-surface overflow-hidden rounded-card">
-      <div className="relative isolate overflow-hidden bg-black p-5 text-white sm:p-6">
-        <div aria-hidden className="pointer-events-none absolute -end-16 -top-24 h-52 w-52 rounded-full bg-white/[0.09] blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-20 start-1/4 h-40 w-40 rounded-full bg-success/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
+      <div className="border-b border-[var(--border-subtle)] p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-md">
-            <p className="text-[12px] font-bold uppercase tracking-wide text-white/60">
-              {fa ? 'مرکز رشد ایجنت' : 'Agent growth center'}
-            </p>
-            <h2 className="mt-0.5 text-base font-bold">
+            <h2 className="text-base font-bold text-[var(--text-primary)]">
               {fa ? 'وضعیت، اتصال‌ها و فرصت‌های رشد' : 'Status, connections and growth'}
             </h2>
-            <p className="mt-1 text-xs leading-5 text-white/60">
+            <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
               {fa
                 ? 'راه‌اندازی ضروری کامل شده؛ از اینجا سلامت اتصال‌ها و بهترین فرصت‌های بهبود را دنبال کنید.'
                 : 'Required setup is complete. Track connection health and the best improvement opportunities here.'}
             </p>
           </div>
-          <span className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white/10 px-3.5 text-xs font-bold text-white ring-1 ring-white/10">
-            <CheckCircle2 className="h-4 w-4 text-success" />
+          <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-xs font-bold text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" />
             {fa ? 'ایجنت آماده است' : 'Agent is ready'}
           </span>
         </div>

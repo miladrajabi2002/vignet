@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { ImprovementIntro } from '@/components/agents/improvement-intro'
-import { ToneMotion } from '@/components/motion/explainers'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -11,6 +9,7 @@ import {
         Loader2,
         Check,
         Trash2,
+        Pencil,
         Plus,
         X,
         Eye,
@@ -251,7 +250,7 @@ export function AgentSettingsForm({
                 { key: 'scope', label: tf('layerScope'), icon: ShieldAlert, hint: fa ? 'بایدها و نبایدهای پاسخ‌گویی.' : 'What it must and must never say.', filled: promptConfig.doSay.length + promptConfig.dontSay.length > 0 },
                 { key: 'fallback', label: tf('layerFallback'), icon: HelpCircle, hint: fa ? 'وقتی جواب را نمی‌داند چه کند.' : 'What it does when it does not know.', filled: Boolean(promptConfig.fallbackBehavior?.trim()) },
                 { key: 'format', label: tf('layerFormat'), icon: Type, hint: fa ? 'طول پاسخ، ایموجی، لینک و فهرست.' : 'Reply length, emoji, links and lists.', filled: true },
-                { key: 'qa', label: tf('layerQA'), icon: ListChecks, hint: fa ? 'چند نمونه پاسخ تا سبک شما را یاد بگیرد.' : 'A few sample answers so it learns your style.', filled: promptConfig.qaPairs.length > 0 },
+                { key: 'qa', label: tf('layerQA'), icon: ListChecks, hint: fa ? 'چند نمونه پاسخ تا سبک شما را یاد بگیرد.' : 'A few sample answers so it learns your style.', filled: promptConfig.qaPairs.some((pair) => pair.enabled !== false) },
         ]
         const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.key === activeTab))
         const filledCount = tabs.filter((tab) => tab.filled).length
@@ -261,12 +260,6 @@ export function AgentSettingsForm({
                 <div className="space-y-6">
                         {section === 'behavior' ? (
                         <>
-                        <ImprovementIntro section="behavior"
-                                visual={<ToneMotion locale={locale === 'fa' ? 'fa' : 'en'} />}
-                                title={locale === 'fa' ? 'رفتار و لحن ایجنت' : 'Agent behavior and tone'}
-                                description={locale === 'fa'
-                                        ? 'شخصیت و نقش ایجنت، لحن رسمی یا صمیمی، محدوده پاسخ‌گویی و بایدها و نبایدها را تنظیم کنید. مشخص کنید وقتی پاسخ را نمی‌داند چه رفتاری داشته باشد و پاسخ‌ها با چه طول و قالبی نوشته شوند. این تنظیمات کمک می‌کند ایجنت با سبک کسب‌وکار شما صحبت کند و پاسخ‌های یکدست‌تری بدهد.'
-                                        : 'Set the agent’s personality and role, formal or friendly tone, response boundaries and rules. Choose how it handles unknown answers and control response length and formatting. Use these settings to match your business voice and keep replies consistent.'} />
                         {/* ─ 6-LAYER PROMPT ENGINE ──────────────────────────────────── */}
                         <div id="behavior" className="scroll-mt-28 spatial-surface space-y-4 rounded-card p-4 sm:space-y-5 sm:p-6">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -323,7 +316,7 @@ export function AgentSettingsForm({
                                                                 setActiveTab(tabs[next].key)
                                                                 document.getElementById(`behavior-layer-tab-${tabs[next].key}`)?.focus()
                                                         }}
-                                                        className="ui-seg-tab min-h-[3.75rem] flex-col gap-1 px-1 py-1.5 text-[12.5px] sm:text-xs"
+                                                        className="ui-seg-tab min-h-[3.75rem] flex-col gap-1 px-1 py-1.5 text-[13px] sm:text-xs"
                                                 >
                                                         <span className="relative">
                                                                 <span className="ui-seg-icon h-7 w-7"><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span>
@@ -338,7 +331,7 @@ export function AgentSettingsForm({
                                         <span className="mt-0.5 shrink-0 rounded-full bg-[var(--text-primary)] px-2 py-0.5 text-[12px] font-bold tabular-nums text-white">
                                                 {fa ? `لایه ${layerNumber(activeIndex + 1)}` : `Layer ${activeIndex + 1}`}
                                         </span>
-                                        <p className="text-[12.5px] leading-6 text-[var(--text-secondary)]">{tabs[activeIndex].hint}</p>
+                                        <p className="text-[13px] leading-6 text-[var(--text-secondary)]">{tabs[activeIndex].hint}</p>
                                 </div>
 
                                 {/* Layer editors */}
@@ -366,7 +359,9 @@ export function AgentSettingsForm({
                                         />
                                 </Field>
 
-                                <div className="grid gap-2.5 md:grid-cols-3">
+                                {/* Columns follow the available width (not the viewport), so the
+                                    cards never squeeze to one word per line beside the sidebar. */}
+                                <div className="ui-switch-list divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white">
                                         <SwitchCard
                                                 icon={Power}
                                                 title={tf('agentActive')}
@@ -546,7 +541,7 @@ export function AgentSettingsForm({
                                         <button
                                                 type="button"
                                                 onClick={() => { setDeleteConfirmName(''); setDeleteOpen(true) }}
-                                                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-danger/30 bg-danger/5 px-4 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
+                                                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-danger/30 bg-danger/5 px-4 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
                                         >
                                                 <Trash2 className="h-4 w-4" />
                                                 {tf('delete')}
@@ -890,6 +885,7 @@ function ListEditor({
         limit: number
         isFa: boolean
 }) {
+        const fa = useLocale() !== 'en'
         const [draft, setDraft] = useState('')
         const limitReached = items.length >= limit
         function add() {
@@ -939,7 +935,7 @@ function ListEditor({
                                                                 type="button"
                                                                 onClick={() => onChange(items.filter((_, idx) => idx !== i))}
                                                                 className="text-[var(--text-muted)] transition-colors hover:text-danger"
-                                                                aria-label="remove"
+                                                                aria-label={fa ? `حذف «${item}»` : `Remove “${item}”`}
                                                         >
                                                                 <X className="h-3 w-3" />
                                                         </button>
@@ -988,6 +984,8 @@ function FormatToggle({
         )
 }
 
+const QA_LIMIT = 20
+
 function QAEditor({
         items,
         onChange,
@@ -997,63 +995,139 @@ function QAEditor({
         onChange: (items: PromptQAPair[]) => void
         t: (k: string) => string
 }) {
+        const fa = useLocale() !== 'en'
+        const num = (value: number) => value.toLocaleString(fa ? 'fa-IR' : 'en-US')
+        // Examples read as a short exchange; the fields only appear while editing.
+        const [editing, setEditing] = useState<number | null>(null)
+        const full = items.length >= QA_LIMIT
+
         function add() {
+                if (full) return
                 onChange([...items, { question: '', answer: '' }])
+                setEditing(items.length)
         }
         function update(i: number, patch: Partial<PromptQAPair>) {
                 onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
         }
         function remove(i: number) {
                 onChange(items.filter((_, idx) => idx !== i))
+                setEditing((current) => (current === null || current === i ? null : current > i ? current - 1 : current))
         }
+
         return (
                 <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <p className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'نمونه‌های شما' : 'Your examples'}</p>
+                                <span className="text-[12px] tabular-nums text-[var(--text-muted)]" aria-live="polite">
+                                        {fa ? `${num(items.length)} از ${num(QA_LIMIT)}` : `${items.length} of ${QA_LIMIT}`}
+                                </span>
+                                <button
+                                        type="button"
+                                        onClick={add}
+                                        disabled={full}
+                                        className="spatial-press ms-auto inline-flex min-h-10 items-center gap-1.5 rounded-control border border-[var(--border-default)] bg-white px-3 text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
+                                >
+                                        <Plus className="h-4 w-4" aria-hidden="true" />
+                                        {fa ? 'نمونهٔ تازه' : 'New example'}
+                                </button>
+                        </div>
+
                         {items.length === 0 && (
                                 <p className="rounded-xl border border-dashed border-[var(--border-default)] p-4 text-center text-xs text-[var(--text-muted)]">
                                         {t('qaEmpty')}
                                 </p>
                         )}
-                        {items.map((item, i) => (
-                                <div
-                                        key={i}
-                                        className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3"
-                                >
-                                        <div className="flex items-center justify-between">
-                                                <span className="text-[12px] font-medium text-[var(--text-muted)]">
-                                                        {t('qaPair')} {i + 1}
-                                                </span>
-                                                <button
-                                                        type="button"
-                                                        onClick={() => remove(i)}
-                                                        className="text-[var(--text-muted)] transition-colors hover:text-danger"
-                                                        aria-label="remove"
-                                                >
-                                                        <X className="h-3.5 w-3.5" />
-                                                </button>
-                                        </div>
-                                        <input
-                                                value={item.question}
-                                                onChange={(e) => update(i, { question: e.target.value })}
-                                                placeholder={t('qaQuestionPlaceholder')}
-                                                className="input text-sm"
-                                        />
-                                        <textarea
-                                                value={item.answer}
-                                                onChange={(e) => update(i, { answer: e.target.value })}
-                                                rows={2}
-                                                placeholder={t('qaAnswerPlaceholder')}
-                                                className="input resize-none text-sm"
-                                        />
-                                </div>
-                        ))}
-                        <button
-                                type="button"
-                                onClick={add}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                        >
-                                <Plus className="h-3.5 w-3.5" />
-                                {t('qaAdd')}
-                        </button>
+
+                        <div className="grid items-start gap-3 lg:grid-cols-2">
+                                {items.map((item, i) => {
+                                        const on = item.enabled !== false
+                                        const label = `${t('qaPair')} ${num(i + 1)}`
+                                        const open = editing === i || !item.question.trim() || !item.answer.trim()
+                                        return (
+                                                <div key={i} className="rounded-xl border border-[var(--border-subtle)] bg-white p-3">
+                                                        <div className="flex items-center gap-2">
+                                                                <span className="text-[12px] font-medium text-[var(--text-muted)]">{label}</span>
+                                                                {!on && <span className="ui-chip">{fa ? 'خاموش' : 'Off'}</span>}
+                                                                <span className="ms-auto flex items-center gap-1">
+                                                                        {!open && (
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => setEditing(i)}
+                                                                                        aria-label={fa ? `ویرایش ${label}` : `Edit ${label}`}
+                                                                                        className="grid h-9 w-9 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                                                >
+                                                                                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                                                </button>
+                                                                        )}
+                                                                        <button
+                                                                                type="button"
+                                                                                onClick={() => remove(i)}
+                                                                                aria-label={fa ? `حذف ${label}` : `Remove ${label}`}
+                                                                                className="grid h-9 w-9 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                                        >
+                                                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                                        </button>
+                                                                        <Switch
+                                                                                checked={on}
+                                                                                onChange={(value) => update(i, { enabled: value })}
+                                                                                aria-label={fa ? `استفاده از ${label}` : `Use ${label}`}
+                                                                        />
+                                                                </span>
+                                                        </div>
+
+                                                        {open ? (
+                                                                <div className="mt-2.5 space-y-2.5">
+                                                                        <label className="block">
+                                                                                <span className="ui-field-label">{fa ? 'مشتری می‌پرسد' : 'Customer asks'}</span>
+                                                                                <input
+                                                                                        value={item.question}
+                                                                                        onChange={(e) => update(i, { question: e.target.value })}
+                                                                                        maxLength={500}
+                                                                                        placeholder={t('qaQuestionPlaceholder')}
+                                                                                        className="input text-sm"
+                                                                                />
+                                                                        </label>
+                                                                        <label className="block">
+                                                                                <span className="ui-field-label">{fa ? 'ایجنت جواب می‌دهد' : 'Agent answers'}</span>
+                                                                                <textarea
+                                                                                        value={item.answer}
+                                                                                        onChange={(e) => update(i, { answer: e.target.value })}
+                                                                                        rows={3}
+                                                                                        maxLength={2000}
+                                                                                        placeholder={t('qaAnswerPlaceholder')}
+                                                                                        className="input resize-none text-sm"
+                                                                                />
+                                                                        </label>
+                                                                        {editing === i && item.question.trim() && item.answer.trim() && (
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => setEditing(null)}
+                                                                                        className="inline-flex min-h-9 items-center rounded-control px-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                                                >
+                                                                                        {fa ? 'بستن ویرایش' : 'Done editing'}
+                                                                                </button>
+                                                                        )}
+                                                                </div>
+                                                        ) : (
+                                                                // dir="ltr" pins the sides as in every Vigent chat: customer right, agent left.
+                                                                <div dir="ltr" className={`mt-2.5 flex flex-col gap-1.5 transition-opacity ${on ? '' : 'opacity-50'}`}>
+                                                                        <p dir="auto" className="max-w-[88%] self-end whitespace-pre-wrap rounded-2xl rounded-ee-md bg-[var(--bg-muted)] px-3 py-2 text-[13px] leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">
+                                                                                {item.question}
+                                                                        </p>
+                                                                        <p dir="auto" className="max-w-[88%] self-start whitespace-pre-wrap rounded-2xl rounded-es-md border border-[var(--signal-border)] bg-white px-3 py-2 text-[13px] leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">
+                                                                                {item.answer}
+                                                                        </p>
+                                                                </div>
+                                                        )}
+                                                </div>
+                                        )
+                                })}
+                        </div>
+                        <p className="ui-field-hint">
+                                {fa
+                                        ? 'نمونه‌ها فقط سبک جواب دادن را نشان می‌دهند. نمونهٔ خاموش ذخیره می‌ماند ولی ایجنت از آن استفاده نمی‌کند.'
+                                        : 'Examples only show the answering style. A switched-off example stays saved but the agent does not use it.'}
+                        </p>
                 </div>
         )
 }
@@ -1061,7 +1135,7 @@ function QAEditor({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
         return (
                 <label className="block">
-                        <span className="mb-2 block text-sm text-[var(--text-secondary)]">{label}</span>
+                        <span className="ui-field-label">{label}</span>
                         {children}
                 </label>
         )

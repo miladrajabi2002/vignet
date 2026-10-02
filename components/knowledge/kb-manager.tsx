@@ -9,11 +9,12 @@ import {
   Upload,
   Trash2,
   Loader2,
-  CheckCircle2,
   AlertCircle,
   Clock,
   Database,
   Pencil,
+  Plus,
+  MessageSquareText,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -85,6 +86,16 @@ export function KbManager({
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const sessionRedirectingRef = useRef(false)
+  // With sources already listed the form stays closed until asked for.
+  const [formOpen, setFormOpen] = useState(items.length === 0)
+  const formRef = useRef<HTMLElement>(null)
+  const totalChunks = items.reduce((sum, item) => sum + (item.status === 'READY' ? item.chunkCount : 0), 0)
+
+  function openForm(next: Mode) {
+    setMode(next)
+    setFormOpen(true)
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   function redirectAfterUnauthorized() {
     if (sessionRedirectingRef.current) return
@@ -185,6 +196,7 @@ export function KbManager({
       setName('')
       setContent('')
       setUrl('')
+      setFormOpen(false)
       router.refresh()
     } catch {
       setError(t('requestFailed'))
@@ -302,9 +314,238 @@ export function KbManager({
 
   return (
     <div className="space-y-6">
+      {/* What the agent knows comes first; adding a source is one tap away. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="ui-h3">{locale === 'fa' ? 'دانش ایجنت' : 'Agent knowledge'}</h2>
+          <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)]">
+            {items.length === 0
+              ? (locale === 'fa' ? 'هنوز منبعی اضافه نشده؛ ایجنت فقط از همین منابع جواب می‌دهد.' : 'No sources yet. The agent answers only from these sources.')
+              : (locale === 'fa'
+                ? `${items.length.toLocaleString('fa-IR')} منبع · ${totalChunks.toLocaleString('fa-IR')} قطعه · ایجنت فقط از همین‌ها جواب می‌دهد`
+                : `${items.length} sources · ${totalChunks} chunks · the agent answers only from these`)}
+          </p>
+        </div>
+        {items.length > 0 && !formOpen && (
+          <button type="button" onClick={() => openForm('text')} className="spatial-press inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-4 text-xs font-semibold text-white shadow-[var(--shadow-control)]">
+            <Plus className="h-4 w-4" />
+            {t('addSourceTitle')}
+          </button>
+        )}
+      </div>
+
+      {/* ── Added items list ──────────────────────────────────────────── */}
+      {items.length > 0 && (
+        <div className="spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="p-4"
+            >
+              {editingId === item.id ? (
+                /* ── Edit form (inline) ── */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">
+                      {t('editTitle')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]"
+                      aria-label={t('cancel')}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
+                      {t('name')}
+                    </label>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="input min-h-11"
+                    />
+                  </div>
+                  {item.type === 'URL' && (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
+                          {t('url')}
+                        </label>
+                        <input
+                          dir="ltr"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          className="input min-h-11 font-mono text-sm"
+                        />
+                      </div>
+                      <div className="spatial-inset rounded-2xl p-3">
+                        <label className="mb-2 block text-[12px] font-medium text-[var(--text-secondary)]">
+                          {t('refreshIntervalLabel')}
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CADENCE_MINUTES.map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setEditRefreshCadenceMinutes(m)}
+                              className={cn(
+                                'min-h-9 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium',
+                                editRefreshCadenceMinutes === m
+                                  ? 'border-black bg-black text-white'
+                                  : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)]',
+                              )}
+                            >
+                              {m === 0
+                                ? t('refreshManual')
+                                : m < 60
+                                  ? t('refreshMinutes', { m })
+                                  : m < 1440
+                                    ? t('refreshHours', { h: m / 60 })
+                                    : t('refreshDays', { d: m / 1440 })}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {item.type === 'TEXT' && (
+                    <div>
+                      <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
+                        {t('content')}
+                      </label>
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={5}
+                        placeholder={t('contentEditPlaceholder')}
+                        className="input resize-none"
+                      />
+                      <p className="mt-1 text-[12px] text-[var(--text-muted)]">
+                        {t('contentEditHint')}
+                      </p>
+                    </div>
+                  )}
+                  {item.type !== 'TEXT' && item.type !== 'URL' && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                      {t('editFileHint')}
+                    </p>
+                  )}
+                  {editError && (
+                    <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {editError}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={editLoading}
+                      className="min-h-10 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-black/[0.04]"
+                    >
+                      {t('cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(item)}
+                      disabled={editLoading}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {editLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {editLoading ? t('saving') : t('save')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── Display row ── */
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+                    <TypeIcon type={item.type} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+                      {item.name}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
+                      <span>{typeLabel(item.type, locale)}</span>
+                      {item.status === 'READY' && (
+                        <span>· {t('chunks', { count: item.chunkCount })}</span>
+                      )}
+                      {item.status === 'ERROR' && item.errorMsg && (
+                        <span className="text-danger">· {item.errorMsg}</span>
+                      )}
+                    </div>
+                    {item.type === 'URL' && item.lastIngestedAt && (
+                      <div className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
+                        <Clock className="h-3 w-3" />
+                        {t('lastRefreshed', {
+                          when: formatDateTime(new Date(item.lastIngestedAt), locale),
+                        })}
+                        {(() => {
+                          const minutes = cadenceMinutesOf(item)
+                          if (minutes <= 0) return ''
+                          return ` · ${minutes < 60
+                            ? t('refreshEveryMinutes', { m: minutes })
+                            : t('refreshEvery', { h: minutes / 60 })}`
+                        })()}
+                      </div>
+                    )}
+                    {item.type === 'URL' &&
+                      cadenceMinutesOf(item) > 0 &&
+                      !item.lastIngestedAt && (
+                        <div className="mt-1 text-[12px] text-[var(--amber)]">
+                          {t('refreshScheduled')}
+                        </div>
+                      )}
+                  </div>
+                  <StatusChip status={item.status} label={t(`status.${item.status}`)} />
+                  <button
+                    type="button"
+                    onClick={() => startEdit(item)}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-black/[0.04] hover:text-[var(--text-primary)] active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    aria-label={t('edit')}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(item.id)}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-danger/10 hover:text-danger active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
+                    aria-label={t('delete')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {items.length > 0 && !formOpen && (
+        <div className="grid gap-2 sm:grid-cols-3">
+          {tabs.map(({ key, label, description, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => openForm(key)}
+              className="spatial-press rounded-2xl border border-dashed border-black/20 px-3.5 py-3 text-start transition-colors hover:border-black/40 hover:bg-white"
+            >
+              <span className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--text-primary)]"><Icon className="h-4 w-4" />{label}</span>
+              <span className="mt-0.5 block text-[12px] leading-5 text-[var(--text-muted)]">{description}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Add form ──────────────────────────────────────────────────── */}
+      {formOpen && (
       <section
-        className="spatial-surface overflow-hidden rounded-card"
+        ref={formRef}
+        className="spatial-surface scroll-mt-28 overflow-hidden rounded-card"
         aria-labelledby="knowledge-add-title"
       >
         <div className="border-b border-black/[0.05] bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,248,250,0.78))] px-5 py-5 sm:px-6">
@@ -323,6 +564,16 @@ export function KbManager({
                 {t('addSourceSubtitle')}
               </p>
             </div>
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                aria-label={t('cancel')}
+                className="ms-auto grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -351,7 +602,7 @@ export function KbManager({
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold">{label}</span>
                     <span
-                      className="mt-0.5 block text-[12.5px] font-normal leading-5 text-[var(--text-muted)]"
+                      className="mt-0.5 block text-[13px] font-normal leading-5 text-[var(--text-muted)]"
                     >
                       {description}
                     </span>
@@ -520,212 +771,37 @@ export function KbManager({
           </div>
         </div>
       </section>
-
-      {/* ── Added items list ──────────────────────────────────────────── */}
-      {items.length === 0 ? (
-        <div className="spatial-surface rounded-card p-8 text-center">
-          <FileText className="mx-auto h-8 w-8 text-[var(--text-muted)]" />
-          <p className="mt-3 text-sm text-[var(--text-muted)]">{t('empty')}</p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="spatial-inset rounded-2xl p-4 transition-colors hover:border-[var(--border-hover)]"
-            >
-              {editingId === item.id ? (
-                /* ── Edit form (inline) ── */
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[var(--text-primary)]">
-                      {t('editTitle')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]"
-                      aria-label={t('cancel')}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
-                      {t('name')}
-                    </label>
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="input min-h-11"
-                    />
-                  </div>
-                  {item.type === 'URL' && (
-                    <>
-                      <div>
-                        <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
-                          {t('url')}
-                        </label>
-                        <input
-                          dir="ltr"
-                          value={editUrl}
-                          onChange={(e) => setEditUrl(e.target.value)}
-                          className="input min-h-11 font-mono text-sm"
-                        />
-                      </div>
-                      <div className="spatial-inset rounded-2xl p-3">
-                        <label className="mb-2 block text-[12px] font-medium text-[var(--text-secondary)]">
-                          {t('refreshIntervalLabel')}
-                        </label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {CADENCE_MINUTES.map((m) => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => setEditRefreshCadenceMinutes(m)}
-                              className={cn(
-                                'min-h-9 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium',
-                                editRefreshCadenceMinutes === m
-                                  ? 'border-black bg-black text-white'
-                                  : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)]',
-                              )}
-                            >
-                              {m === 0
-                                ? t('refreshManual')
-                                : m < 60
-                                  ? t('refreshMinutes', { m })
-                                  : m < 1440
-                                    ? t('refreshHours', { h: m / 60 })
-                                    : t('refreshDays', { d: m / 1440 })}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  {item.type === 'TEXT' && (
-                    <div>
-                      <label className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
-                        {t('content')}
-                      </label>
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        rows={5}
-                        placeholder={t('contentEditPlaceholder')}
-                        className="input resize-none"
-                      />
-                      <p className="mt-1 text-[12px] text-[var(--text-muted)]">
-                        {t('contentEditHint')}
-                      </p>
-                    </div>
-                  )}
-                  {item.type !== 'TEXT' && item.type !== 'URL' && (
-                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                      {t('editFileHint')}
-                    </p>
-                  )}
-                  {editError && (
-                    <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {editError}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      disabled={editLoading}
-                      className="min-h-10 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-black/[0.04]"
-                    >
-                      {t('cancel')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => saveEdit(item)}
-                      disabled={editLoading}
-                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-black px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                    >
-                      {editLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      {editLoading ? t('saving') : t('save')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* ── Display row ── */
-                <div className="flex items-center gap-3">
-                  <StatusIcon status={item.status} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">
-                      {item.name}
-                    </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
-                      <span className="rounded-md bg-[var(--bg-base)] px-1.5 py-0.5 font-mono text-[12px] uppercase tracking-wide">
-                        {item.type}
-                      </span>
-                      <span>{t(`status.${item.status}`)}</span>
-                      {item.status === 'READY' && (
-                        <span>· {t('chunks', { count: item.chunkCount })}</span>
-                      )}
-                      {item.status === 'ERROR' && item.errorMsg && (
-                        <span className="text-danger">· {item.errorMsg}</span>
-                      )}
-                    </div>
-                    {item.type === 'URL' && item.lastIngestedAt && (
-                      <div className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
-                        <Clock className="h-3 w-3" />
-                        {t('lastRefreshed', {
-                          when: formatDateTime(new Date(item.lastIngestedAt), locale),
-                        })}
-                        {(() => {
-                          const minutes = cadenceMinutesOf(item)
-                          if (minutes <= 0) return ''
-                          return ` · ${minutes < 60
-                            ? t('refreshEveryMinutes', { m: minutes })
-                            : t('refreshEvery', { h: minutes / 60 })}`
-                        })()}
-                      </div>
-                    )}
-                    {item.type === 'URL' &&
-                      cadenceMinutesOf(item) > 0 &&
-                      !item.lastIngestedAt && (
-                        <div className="mt-1 text-[12px] text-[var(--amber)]">
-                          {t('refreshScheduled')}
-                        </div>
-                      )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(item)}
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-black/[0.04] hover:text-[var(--text-primary)] active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                    aria-label={t('edit')}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(item.id)}
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-danger/10 hover:text-danger active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
-                    aria-label={t('delete')}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
       )}
+
     </div>
   )
 }
 
-function StatusIcon({ status }: { status: KbStatus }) {
-  if (status === 'READY')
-    return <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
-  if (status === 'ERROR')
-    return <AlertCircle className="h-5 w-5 shrink-0 text-danger" />
-  if (status === 'PROCESSING')
-    return <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[var(--text-secondary)]" />
-  return <Clock className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
+function typeLabel(type: string, locale: 'fa' | 'en') {
+  const fa = locale === 'fa'
+  if (type === 'URL') return fa ? 'لینک صفحه' : 'Web page'
+  if (type === 'FAQ') return fa ? 'پرسش و پاسخ' : 'Q&A'
+  if (type === 'PDF' || type === 'CSV') return fa ? `فایل ${type}` : `${type} file`
+  return fa ? 'متن' : 'Text'
+}
+
+function TypeIcon({ type }: { type: string }) {
+  const Icon = type === 'URL' ? Link2 : type === 'FAQ' ? MessageSquareText : type === 'PDF' || type === 'CSV' ? FileText : Pencil
+  return <Icon className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.8} />
+}
+
+function StatusChip({ status, label }: { status: KbStatus; label: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium',
+        status === 'READY' && 'bg-emerald-50 text-emerald-700',
+        status === 'ERROR' && 'bg-red-50 text-red-700',
+        (status === 'PENDING' || status === 'PROCESSING') && 'bg-black/[0.05] text-[var(--text-secondary)]',
+      )}
+    >
+      {status === 'PROCESSING' && <Loader2 className="h-3 w-3 animate-spin" />}
+      {label}
+    </span>
+  )
 }

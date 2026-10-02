@@ -1,3 +1,4 @@
+import { channelLabel } from '@/components/crm/channel-badge'
 import Link from 'next/link'
 import { BellRing, ClipboardList, MessageSquareText } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
@@ -20,9 +21,9 @@ const DRAFT_TONE: Record<string, string> = {
   SUBMITTED: 'bg-amber-50 text-amber-700',
   CONFIRMED: 'bg-emerald-50 text-emerald-700',
   CANCELLED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
-  LINK_SENT: 'bg-sky-50 text-sky-700',
-  PAYMENT_PENDING: 'bg-sky-50 text-sky-700',
-  PAYMENT_FAILED: 'bg-rose-50 text-rose-700',
+  LINK_SENT: 'bg-black/[0.05] text-[var(--text-secondary)]',
+  PAYMENT_PENDING: 'bg-amber-50 text-amber-800',
+  PAYMENT_FAILED: 'bg-red-50 text-red-700',
   PAID: 'bg-emerald-50 text-emerald-700',
   ON_HOLD: 'bg-amber-50 text-amber-700',
   EXPIRED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
@@ -194,7 +195,7 @@ export default async function ChatRequestsPage() {
                         {alert.conversation.contact?.phone && (
                           <span dir="ltr" className="text-xs text-[var(--text-secondary)]">{displayPhone(alert.conversation.contact.phone)}</span>
                         )}
-                        <span className="text-xs text-[var(--text-muted)]">{alert.channel}</span>
+                        <span className="text-xs text-[var(--text-muted)]">{channelLabel(alert.channel, locale)}</span>
                         <span className="text-xs text-[var(--text-muted)]">· {t(`alertStatus.${alert.status}` as 'alertStatus.ACTIVE')}</span>
                         <span className="ms-auto flex items-center gap-2">
                           <Link href={`/conversations/${alert.conversationId}`} className="ui-link">

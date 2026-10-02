@@ -72,12 +72,14 @@ const config: Config = {
         info: 'var(--blue)',
       },
       // Four concentric radius steps (tokens in globals.css). Tailwind's own
-      // lg / xl / 2xl / 3xl resolve onto the same steps so old and new classes agree.
+      // md / lg / xl / 2xl / 3xl resolve onto the same steps so old and new
+      // classes agree; `md` used to be a fifth, off-scale 6px.
       borderRadius: {
         chip: 'var(--radius-chip)',
         control: 'var(--radius-control)',
         card: 'var(--radius-card)',
         sheet: 'var(--radius-sheet)',
+        md: 'var(--radius-chip)',
         lg: 'var(--radius-chip)',
         xl: 'var(--radius-control)',
         '2xl': 'var(--radius-card)',

@@ -177,7 +177,7 @@ export function UndoSnackbar({
                 )}
               </span>
 
-              <p className="min-w-0 flex-1 text-[13.5px] font-semibold leading-5 text-[var(--text-primary)]">
+              <p className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-[var(--text-primary)]">
                 {message}
               </p>
 

@@ -1,19 +1,12 @@
-import { ImprovementGuide } from '@/components/agents/improvement-guide'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType, ConvStatus, Prisma } from '@prisma/client'
-import { MessagesSquare, Clock, Filter, RefreshCw } from 'lucide-react'
+import { MessagesSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { ChannelBadge } from '@/components/crm/channel-badge'
-import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
+import { ChannelGlyph } from '@/components/crm/channel-badge'
 import { ConversationFilters } from '@/components/dashboard/conversation-filters'
-import { ConversationChart } from '@/components/dashboard/charts/lazy'
-import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
-import {
-        conversationsDailyByWorkspace,
-} from '@/lib/dashboard/charts'
 import { smartTime, formatDateTime } from '@/lib/format'
 import { conversationPreviewText } from '@/lib/conversations/preview'
 import {
@@ -23,20 +16,17 @@ import {
 } from '@/lib/crm/display'
 import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
-import { DashboardPanel } from '@/components/dashboard/panel'
-import { DashboardDonut } from '@/components/dashboard/donut'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { dateLocaleTag } from '@/lib/localized-date'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
-import { SalesInsightBadge } from '@/components/crm/sales-insight'
+import { SalesInsightText } from '@/components/crm/sales-insight'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
 import { SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
-import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
+import { DISSATISFIED_BELOW } from '@/lib/ai/turn-signal'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import {
         LiveArrivalItem,
@@ -47,6 +37,8 @@ import {
 import { MobileConversationCard } from '@/components/crm/mobile-conversation-card'
 import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
+import { InboxConversationPane } from '@/components/crm/inbox-conversation-pane'
+import { InboxDesktopOnly, InboxRowPending } from '@/components/crm/inbox-pane'
 
 const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -60,9 +52,10 @@ const VALID_CHANNELS = new Set<ChannelType>([
         'API',
         'CHAT_LINK',
 ])
-type SalesFilter = 'HIGH_INTENT' | 'BUYER' | 'INFORMATION_SEEKER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER'
+type SalesFilter = 'HIGH_INTENT' | 'DISSATISFIED' | 'BUYER' | 'INFORMATION_SEEKER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER'
 const VALID_SALES_FILTERS = new Set<SalesFilter>([
         'HIGH_INTENT',
+        'DISSATISFIED',
         'BUYER',
         'INFORMATION_SEEKER',
         'EXISTING_CUSTOMER',
@@ -88,6 +81,7 @@ export default async function ConversationsPage(props: {
                 agent?: string
                 sales?: string
                 q?: string
+                c?: string
         }>
 }) {
         const searchParams = await props.searchParams
@@ -117,6 +111,8 @@ export default async function ConversationsPage(props: {
         if (agentFilter) where.agentId = agentFilter
         if (salesFilter === 'HIGH_INTENT') {
                 where.salesInsight = { is: { buyerProbability: { gte: 50 }, leadType: 'BUYER' } }
+        } else if (salesFilter === 'DISSATISFIED') {
+                where.salesInsight = { is: { satisfaction: { lt: DISSATISFIED_BELOW } } }
         } else if (salesFilter) {
                 where.salesInsight = { is: { leadType: salesFilter } }
         }
@@ -140,7 +136,6 @@ export default async function ConversationsPage(props: {
                 openCount,
                 resolvedCount,
                 handedOffCount,
-                convTrend,
                 channelGroups,
                 agents,
                 audienceContacts,
@@ -148,6 +143,7 @@ export default async function ConversationsPage(props: {
                 latestContactVersion,
                 salesGroups,
                 highIntentCount,
+                dissatisfiedCount,
                 missingSalesInsightCount,
         ] = await Promise.all([
                 prisma.conversation.findMany({
@@ -188,6 +184,8 @@ export default async function ConversationsPage(props: {
                                         },
                                 },
                                 messages: {
+                                        // Timeline rows (handoff, notes) are not messages to preview.
+                                        where: { role: { in: ['USER', 'ASSISTANT'] } },
                                         orderBy: { createdAt: 'desc' },
                                         // Keep enough history to fold a short run of legacy
                                         // standalone reactions into the message they belong to.
@@ -210,7 +208,6 @@ export default async function ConversationsPage(props: {
                 prisma.conversation.count({
                         where: { workspaceId: user.workspaceId, status: 'HANDED_OFF', handedOff: true },
                 }),
-                conversationsDailyByWorkspace(user.workspaceId, 14),
                 // Available channels for the filter pills.
                 prisma.conversation.groupBy({
                         by: ['channel'],
@@ -254,6 +251,10 @@ export default async function ConversationsPage(props: {
                 prisma.conversationSalesInsight.count({
                         where: { workspaceId: user.workspaceId, leadType: 'BUYER', buyerProbability: { gte: 50 } },
                 }),
+                prisma.conversationSalesInsight.count({
+                        where: { workspaceId: user.workspaceId, satisfaction: { lt: DISSATISFIED_BELOW } },
+                        // Zero until the satisfaction migration is applied.
+                }).catch(() => 0),
                 prisma.conversation.count({
                         where: {
                                 workspaceId: user.workspaceId,
@@ -282,24 +283,12 @@ export default async function ConversationsPage(props: {
                 query ?? '',
         ].join(':')
 
-        // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
-        const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
-        const convTrendPoints: TrendPoint[] = convTrend.series.map((value, i) => {
-                const d = new Date(Date.now() - (convTrend.series.length - 1 - i) * 86_400_000)
-                return { label: trendFormatter.format(d), value }
-        })
-
         // Build filter pill hrefs (resets to page 1).
         const channelLabels = isFa ? CHANNEL_LABELS_FA : null
         const availableChannels = channelGroups
                 .map((g) => ({ channel: g.channel, count: g._count._all }))
                 .sort((a, b) => b.count - a.count)
         const salesCounts = new Map(salesGroups.map((group) => [group.leadType, group._count._all]))
-        const statusDonut = [
-                { label: isFa ? 'باز' : 'Open', value: openCount },
-                { label: isFa ? 'حل‌شده' : 'Resolved', value: resolvedCount },
-                { label: isFa ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
-        ].filter((item) => item.value > 0)
         const statusLabels: Record<ConvStatus, string> = {
                 OPEN: isFa ? 'باز' : 'Open',
                 RESOLVED: isFa ? 'حل‌شده' : 'Resolved',
@@ -361,12 +350,38 @@ export default async function ConversationsPage(props: {
                 }
         })
 
+        const fmt = (value: number) => value.toLocaleString(isFa ? 'fa-IR' : 'en-US')
+        // Every link on this page keeps the active filters; `c` is the open conversation.
+        const hrefWith = (patch: Record<string, string | undefined>) => {
+                const sp = new URLSearchParams()
+                const values: Record<string, string | undefined> = {
+                        channel: channelFilter,
+                        status: statusFilter,
+                        agent: agentFilter,
+                        sales: salesFilter,
+                        q: query,
+                        page: page > 1 ? String(page) : undefined,
+                        ...patch,
+                }
+                for (const [key, value] of Object.entries(values)) if (value) sp.set(key, value)
+                const qs = sp.toString()
+                return qs ? `/conversations?${qs}` : '/conversations'
+        }
+        const requestedId = searchParams.c?.trim().slice(0, 64) || undefined
+        const selectedId = requestedId ?? pageItems[0]?.id
+        const statusTabs: Array<{ key: ConvStatus | undefined; label: string; count: number; urgent?: boolean }> = [
+                { key: undefined, label: isFa ? 'همه' : 'All', count: totalCount },
+                { key: 'HANDED_OFF', label: statusLabels.HANDED_OFF, count: handedOffCount, urgent: handedOffCount > 0 },
+                { key: 'OPEN', label: statusLabels.OPEN, count: openCount },
+                { key: 'RESOLVED', label: statusLabels.RESOLVED, count: resolvedCount },
+        ]
+        const filtered = Boolean(channelFilter || statusFilter || agentFilter || salesFilter || query)
+
         return (
-                <div className="mx-auto max-w-6xl min-w-0 space-y-6">
+                <div className="mx-auto flex min-w-0 max-w-[100rem] flex-col gap-3 md:h-[calc(100dvh-10.25rem)] md:min-h-[34rem]">
                         <PageHeader
                                 icon={MessagesSquare}
                                 title={t('title')}
-                                subtitle={t('subtitle')}
                                 actions={
                                         <>
                                                 <CampaignLaunchButton
@@ -392,276 +407,213 @@ export default async function ConversationsPage(props: {
                                 }
                         />
 
-                        {/* Counts first, as one quiet row: the list below is why people open this page. */}
-                        <div className="flex flex-wrap items-center gap-2">
-                                {[
-                                        { key: 'HANDED_OFF', label: statusLabels.HANDED_OFF, count: handedOffCount, urgent: handedOffCount > 0 },
-                                        { key: 'OPEN', label: statusLabels.OPEN, count: openCount, urgent: false },
-                                        { key: 'RESOLVED', label: statusLabels.RESOLVED, count: resolvedCount, urgent: false },
-                                ].map((item) => (
-                                        <Link
-                                                key={item.key}
-                                                href={statusFilter === item.key ? '/conversations' : `/conversations?status=${item.key}`}
-                                                aria-current={statusFilter === item.key ? 'true' : undefined}
-                                                className={cn(
-                                                        'inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-xs font-medium transition-colors',
-                                                        statusFilter === item.key
-                                                                ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
-                                                                : item.urgent
-                                                                        ? 'border-amber-300/70 bg-amber-50 text-amber-900 hover:bg-amber-100'
-                                                                        : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-                                                )}
-                                        >
-                                                <span className="text-sm font-bold tabular-nums">{item.count.toLocaleString(isFa ? 'fa-IR' : 'en-US')}</span>
-                                                {item.label}
-                                        </Link>
-                                ))}
-                                <Link href="/analytics" className="ms-auto inline-flex min-h-10 items-center px-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]">
-                                        {t('fullStats')} <span aria-hidden className="ms-1 rtl:rotate-180">→</span>
-                                </Link>
-                        </div>
-
-                        {/* ─── Filters: search + status + channel + agent (handed-off prioritized) ─── */}
-                        <Suspense fallback={<div className="h-16 rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
-                        <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
-                        <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
-                        <ConversationFilters
-                                isFa={isFa}
-                                activeStatus={statusFilter}
-                                activeChannel={channelFilter}
-                                activeAgent={agentFilter}
-                                activeSales={salesFilter}
-                                query={query}
-                                resultCount={matchedCount}
-                                basePath="/conversations"
-                                statusOptions={[
-                                        { key: 'ALL', label: isFa ? 'همه' : 'All', count: totalCount },
-                                        {
-                                                key: 'HANDED_OFF',
-                                                label: isFa ? 'تحویل اپراتور' : 'Handed off',
-                                                count: handedOffCount,
-                                        },
-                                        { key: 'OPEN', label: isFa ? 'باز' : 'Open', count: openCount },
-                                        {
-                                                key: 'RESOLVED',
-                                                label: isFa ? 'بسته‌شده' : 'Resolved',
-                                                count: resolvedCount,
-                                        },
-                                ]}
-                                channelOptions={[
-                                        { key: 'ALL', label: isFa ? 'همه' : 'All', count: 0 },
-                                        ...availableChannels.map((c) => ({
-                                                key: c.channel,
-                                                label: channelLabels?.[c.channel] ?? c.channel,
-                                                count: c.count,
-                                        })),
-                                ]}
-                                agentOptions={agents.map((agent) => ({
-                                        key: agent.id,
-                                        label: agent.name,
-                                        count: agent._count.conversations,
-                                }))}
-                                salesOptions={[
-                                        { key: 'ALL', label: isFa ? 'همه دسته‌های فروش' : 'All sales categories', count: totalCount },
-                                        { key: 'HIGH_INTENT', label: isFa ? 'فرصت‌های گرم (۵۰٪+)' : 'Warm opportunities (50%+)', count: highIntentCount },
-                                        { key: 'BUYER', label: isFa ? 'خریدار بالقوه' : 'Potential buyer', count: salesCounts.get('BUYER') ?? 0 },
-                                        { key: 'INFORMATION_SEEKER', label: isFa ? 'در حال کسب اطلاعات' : 'Information seeker', count: salesCounts.get('INFORMATION_SEEKER') ?? 0 },
-                                        { key: 'EXISTING_CUSTOMER', label: isFa ? 'مشتری فعلی' : 'Existing customer', count: salesCounts.get('EXISTING_CUSTOMER') ?? 0 },
-                                        { key: 'SUPPORT_SEEKER', label: isFa ? 'درخواست پشتیبانی' : 'Support request', count: salesCounts.get('SUPPORT_SEEKER') ?? 0 },
-                                ]}
-                        />
-                        </div>
-                        </div>
-                        </Suspense>
-
                         <LiveArrivalProvider key={liveScope} ids={pageItems.map((item) => item.id)}>
                         <LiveRefreshProbe
                                 resource="conversations"
                                 initialVersion={liveVersion}
                                 enabled={page === 1}
                         />
-                        {pageItems.length === 0 ? (
-                                channelFilter || statusFilter || agentFilter || salesFilter || query ? (
-                                <LiveEmptyState
-                                icon={MessagesSquare}
-                                title={isFa ? 'مکالمه‌ای با این فیلتر یافت نشد' : 'No conversations match these filters'}
-                                description={isFa ? 'فیلترها را کمتر کنید یا عبارت دیگری جستجو کنید.' : 'Loosen the filters or try another search.'}
-                                />
-                                ) : (
-                                <LiveEmptyState
-                                icon={MessagesSquare}
-                                preview="chat"
-                                title={t('empty')}
-                                description={isFa ? 'اولین برنامه را وصل کنید؛ پیام‌های مشتری‌ها از همهٔ برنامه‌ها همین‌جا کنار هم می‌آیند.' : 'Connect your first app — customer messages from every app will land here side by side.'}
-                                action={{ href: '/integrations', label: t('emptyCta') }}
-                                />
-                                )
-                        ) : (
-                                <div>
-                                        <div className="flex justify-end px-1">
-                                                <SalesInsightBackfill key={missingSalesInsightCount} missingCount={missingSalesInsightCount} locale={locale} />
-                                        </div>
 
-                                        <div className="space-y-3 md:hidden">
-                                                <div className="flex items-end justify-between gap-3 px-1">
-                                                        <div className="min-w-0">
-                                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
-                                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${matchedCount.toLocaleString('fa-IR')} گفتگوی منطبق` : `${matchedCount} matching conversations`}</p>
-                                                        </div>
-                                                        <LiveArrivalStatus resource="conversations" locale={locale} />
-                                                </div>
-
-                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
-                                                        <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
-                                                                <MobileConversationCard
-                                                                        conversationId={c.id}
-                                                                        who={who}
-                                                                        avatarSrc={channelAvatarSrc}
-                                                                        channelHandle={channelHandle}
-                                                                        sourceLabel={sourceLabel}
-                                                                        relativeTimeLabel={smartTime(when, locale)}
-                                                                        messageCountLabel={`${c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} ${isFa ? 'پیام' : 'messages'}`}
-                                                                        channel={c.channel}
-                                                                        status={displayStatus}
-                                                                        statusLabel={statusLabel}
-                                                                        attention={attention}
-                                                                        locale={locale}
-                                                                        lastMessage={last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
-                                                                        reactionEmoji={reactionEmoji}
-                                                                />
-                                                        </LiveArrivalItem>
-                                                ))}
-                                        </div>
-
-                                        <div className="spatial-surface hidden min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card md:block">
-                                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
-                                                        <div className="min-w-0">
-                                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
-                                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${matchedCount.toLocaleString('fa-IR')} گفتگوی منطبق از ${totalCount.toLocaleString('fa-IR')} پرونده` : `${matchedCount} matching conversations out of ${totalCount}`}</p>
-                                                        </div>
-                                                        <LiveArrivalStatus resource="conversations" locale={locale} />
-                                                </div>
-                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
-                                                        <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
-                                                                <Link
-                                                                        href={`/conversations/${c.id}`}
-                                                                        dir={isFa ? 'rtl' : 'ltr'}
-                                                                        className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5')}
-                                                                >
-                                                                        <ContactAvatar src={channelAvatarSrc} alt={who} />
-                                                                        <div className="min-w-0 flex-1">
-                                                                                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                                                                        <span dir="auto" className={cn('min-w-0 truncate text-sm text-[var(--text-primary)]', attention ? 'font-bold' : 'font-semibold')} title={who}>{who}</span>
-                                                                                        {/* A row waiting for a person says so beside the name, where the eye lands first. */}
-                                                                                        {attention && <span className="shrink-0"><ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} /></span>}
-                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[12px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
-                                                                                        {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
-                                                                                </div>
-                                                                                <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                                                                                        {reactionEmoji && (
-                                                                                                <span
-                                                                                                        dir="ltr"
-                                                                                                        className="emoji-glyph inline-flex h-5 shrink-0 items-center rounded-full border border-black/[0.08] bg-white px-1.5 text-[13px] leading-none shadow-sm"
-                                                                                                        aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}
-                                                                                                >
-                                                                                                        {reactionEmoji}
-                                                                                                </span>
-                                                                                        )}
-                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-xs leading-5 [overflow-wrap:anywhere]', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={last ? conversationPreviewText(last.content) : c.agent.name}>{last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
-                                                                                </div>
-                                                                        </div>
-                                                                        <span className="flex shrink-0 items-center gap-3 text-[12px] leading-5 text-[var(--text-muted)]">
-                                                                                <span className="flex max-w-xs flex-wrap items-center justify-end gap-1.5">
-                                                                                        {!attention && <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />}
-                                                                                        {/* The source chip beside the name already names the app. */}
-                                                                                        {!sourceLabel && <ChannelBadge type={c.channel} />}
-                                                                                        {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
-                                                                                </span>
-                                                                                {/* Time and size share one end-aligned column so they scan down the list. */}
-                                                                                <span className="flex w-[4.75rem] shrink-0 flex-col items-end tabular-nums">
-                                                                                        <span className={cn(attention && 'font-medium text-[var(--text-primary)]')} title={formatDateTime(when, locale)}>{smartTime(when, locale)}</span>
-                                                                                        <span>{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
-                                                                                </span>
-                                                                        </span>
-                                                                </Link>
-                                                        </LiveArrivalItem>
-                                                ))}
-                                        </div>
-                                </div>
-                        )}
-
-                        </LiveArrivalProvider>
-
-                        <Pagination
-                                page={page}
-                                hasNext={hasNext}
-                                makeHref={(p) => {
-                                        const sp = new URLSearchParams()
-                                        if (channelFilter) sp.set('channel', channelFilter)
-                                        if (statusFilter) sp.set('status', statusFilter)
-                                        if (agentFilter) sp.set('agent', agentFilter)
-                                        if (salesFilter) sp.set('sales', salesFilter)
-                                        if (query) sp.set('q', query)
-                                        if (p > 1) sp.set('page', String(p))
-                                        const qs = sp.toString()
-                                        return qs ? `/conversations?${qs}` : '/conversations'
-                                }}
-                        />
-
-                        {agents.length > 0 && (
-                          <div className="space-y-2">
-                            <ImprovementGuide agentId={agents.find((agent) => agent.id === agentFilter)?.id ?? agents[0].id} isFa={isFa} compact />
-                            {agents.length > 1 && <div className="flex flex-wrap gap-2">{agents.map((agent) => <Link key={agent.id} href={`/agents/${agent.id}/improve`} className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-xs">{isFa ? `بهبود ${agent.name}` : `Improve ${agent.name}`}</Link>)}</div>}
-                          </div>
-                        )}
-
-                        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-                                <DashboardPanel
-                                        title={isFa ? 'وضعیت گفتگوها' : 'Conversation status'}
-                                        subtitle={isFa ? 'نمای کلی پرونده‌های باز، حل‌شده و تحویل‌شده' : 'Open, resolved and handed-off cases'}
-                                >
-                                        <DashboardDonut data={statusDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
-                                </DashboardPanel>
-                                <DashboardPanel
-                                        title={isFa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
-                                        subtitle={isFa ? `${convTrend.total.toLocaleString('fa-IR')} گفتگو در این دوره` : `${convTrend.total} conversations in this period`}
-                                >
-                                        <ConversationChart data={convTrendPoints} />
-                                </DashboardPanel>
+                        {/* Status is the first cut of an inbox, so the counts are the tabs. */}
+                        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-subtle)]">
+                                <nav aria-label={isFa ? 'وضعیت گفتگو' : 'Conversation status'} className="-mb-px flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
+                                        {statusTabs.map((tab) => {
+                                                const active = statusFilter === tab.key
+                                                return (
+                                                        <Link
+                                                                key={tab.key ?? 'ALL'}
+                                                                href={hrefWith({ status: tab.key, page: undefined, c: undefined })}
+                                                                scroll={false}
+                                                                aria-current={active ? 'page' : undefined}
+                                                                className={cn(
+                                                                        'inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
+                                                                        active
+                                                                                ? 'border-[var(--text-primary)] font-bold text-[var(--text-primary)]'
+                                                                                : 'border-transparent font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                                                                )}
+                                                        >
+                                                                {tab.label}
+                                                                <span className={cn('rounded-full px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums', tab.urgent ? 'bg-amber-100 text-amber-900' : 'bg-black/[0.06] text-[var(--text-secondary)]')}>{fmt(tab.count)}</span>
+                                                        </Link>
+                                                )
+                                        })}
+                                </nav>
+                                <span className="hidden shrink-0 sm:block"><LiveArrivalStatus resource="conversations" locale={locale} /></span>
+                                <Link href="/analytics" className="hidden min-h-11 shrink-0 items-center text-[12px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] lg:inline-flex">
+                                        {t('fullStats')} <span aria-hidden className="ms-1 rtl:rotate-180">→</span>
+                                </Link>
                         </div>
 
+                        <div className={cn('min-w-0 md:min-h-0 md:flex-1 md:overflow-hidden md:rounded-card md:border md:border-[var(--border-subtle)] md:bg-white md:shadow-[var(--elev-1)]', pageItems.length > 0 && 'md:grid md:grid-cols-[18rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]')}>
+                                <div className="flex min-w-0 flex-col gap-3 md:min-h-0 md:gap-0 md:border-e md:border-[var(--border-subtle)]">
+                                        <Suspense fallback={<div className="h-16 rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
+                                        <div className="sticky top-[5.35rem] z-20 rounded-card border border-[var(--border-subtle)] bg-white p-2.5 shadow-[var(--elev-1)] md:static md:z-auto md:shrink-0 md:rounded-none md:border-0 md:border-b md:p-3 md:shadow-none">
+                                        <ConversationFilters
+                                                isFa={isFa}
+                                                activeStatus={statusFilter}
+                                                activeChannel={channelFilter}
+                                                activeAgent={agentFilter}
+                                                activeSales={salesFilter}
+                                                query={query}
+                                                resultCount={matchedCount}
+                                                basePath="/conversations"
+                                                statusOptions={[
+                                                        { key: 'ALL', label: isFa ? 'همه' : 'All', count: totalCount },
+                                                        {
+                                                                key: 'HANDED_OFF',
+                                                                label: isFa ? 'تحویل اپراتور' : 'Handed off',
+                                                                count: handedOffCount,
+                                                        },
+                                                        { key: 'OPEN', label: isFa ? 'باز' : 'Open', count: openCount },
+                                                        {
+                                                                key: 'RESOLVED',
+                                                                label: isFa ? 'بسته‌شده' : 'Resolved',
+                                                                count: resolvedCount,
+                                                        },
+                                                ]}
+                                                channelOptions={[
+                                                        { key: 'ALL', label: isFa ? 'همه' : 'All', count: 0 },
+                                                        ...availableChannels.map((c) => ({
+                                                                key: c.channel,
+                                                                label: channelLabels?.[c.channel] ?? c.channel,
+                                                                count: c.count,
+                                                        })),
+                                                ]}
+                                                agentOptions={agents.map((agent) => ({
+                                                        key: agent.id,
+                                                        label: agent.name,
+                                                        count: agent._count.conversations,
+                                                }))}
+                                                salesOptions={[
+                                                        { key: 'ALL', label: isFa ? 'همه دسته‌های فروش' : 'All sales categories', count: totalCount },
+                                                        { key: 'HIGH_INTENT', label: isFa ? 'فرصت‌های گرم (۵۰٪+)' : 'Warm opportunities (50%+)', count: highIntentCount },
+                                                        { key: 'DISSATISFIED', label: isFa ? 'مشتری ناراضی' : 'Dissatisfied customer', count: dissatisfiedCount },
+                                                        { key: 'BUYER', label: isFa ? 'خریدار بالقوه' : 'Potential buyer', count: salesCounts.get('BUYER') ?? 0 },
+                                                        { key: 'INFORMATION_SEEKER', label: isFa ? 'در حال کسب اطلاعات' : 'Information seeker', count: salesCounts.get('INFORMATION_SEEKER') ?? 0 },
+                                                        { key: 'EXISTING_CUSTOMER', label: isFa ? 'مشتری فعلی' : 'Existing customer', count: salesCounts.get('EXISTING_CUSTOMER') ?? 0 },
+                                                        { key: 'SUPPORT_SEEKER', label: isFa ? 'درخواست پشتیبانی' : 'Support request', count: salesCounts.get('SUPPORT_SEEKER') ?? 0 },
+                                                ]}
+                                        />
+                                        </div>
+                                        </Suspense>
 
-                        <MetricsExplainer
-                                title={
-                                        locale === 'fa' ? 'این لیست چگونه مرتب می‌شود؟' : 'How is this list ordered?'
-                                }
-                                items={[
-                                        {
-                                                icon: Clock,
-                                                term: locale === 'fa' ? 'ترتیب نمایش: ' : 'Sort order: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'مکالمات تحویل‌داده‌شده به اپراتور (نیاز به توجه) اول نمایش داده می‌شوند، سپس بقیه بر اساس زمان آخرین پیام (جدیدترین اول).'
-                                                                : 'Handed-off conversations (needing attention) are shown first, then the rest by last message time (newest first).',
-                                        },
-                                        {
-                                                icon: Filter,
-                                                term: locale === 'fa' ? 'فیلترها: ' : 'Filters: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'می‌توانید بر اساس برنامه، وضعیت و دسته هوش فروش—از جمله فرصت‌های گرم—فیلتر کنید. فیلترها در URL ذخیره می‌شوند تا قابل اشتراک‌گذاری باشند.'
-                                                                : 'Filter by channel, status, and sales-intelligence category—including warm opportunities. Filters stay in the URL for sharing.',
-                                        },
-                                        {
-                                                icon: RefreshCw,
-                                                term: locale === 'fa' ? 'به‌روزرسانی: ' : 'Live updates: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'گفتگوهای تازه به‌صورت خودکار وارد صندوق می‌شوند و برای چند لحظه با افکت ورود مشخص خواهند شد؛ نیازی به refresh دستی نیست.'
-                                                                : 'New conversations enter the inbox automatically and receive a brief arrival highlight; no manual refresh is needed.',
-                                        },
-                                ]}
-                        />
+                                        {pageItems.length === 0 ? (
+                                                <div className="md:grid md:flex-1 md:place-items-center md:p-6">
+                                                {filtered ? (
+                                                        <LiveEmptyState
+                                                                icon={MessagesSquare}
+                                                                title={isFa ? 'مکالمه‌ای با این فیلتر یافت نشد' : 'No conversations match these filters'}
+                                                                description={isFa ? 'فیلترها را کمتر کنید یا عبارت دیگری جستجو کنید.' : 'Loosen the filters or try another search.'}
+                                                        />
+                                                ) : (
+                                                        <LiveEmptyState
+                                                                icon={MessagesSquare}
+                                                                preview="chat"
+                                                                title={t('empty')}
+                                                                description={isFa ? 'اولین برنامه را وصل کنید؛ پیام‌های مشتری‌ها از همهٔ برنامه‌ها همین‌جا کنار هم می‌آیند.' : 'Connect your first app — customer messages from every app will land here side by side.'}
+                                                                action={{ href: '/integrations', label: t('emptyCta') }}
+                                                        />
+                                                )}
+                                                </div>
+                                        ) : (
+                                                <>
+                                                        <div className="flex items-center justify-between gap-3 px-1 md:shrink-0 md:border-b md:border-[var(--border-subtle)] md:px-3 md:py-1.5">
+                                                                <p className="text-[12px] text-[var(--text-muted)]">{isFa ? `${fmt(matchedCount)} گفتگو` : `${matchedCount} conversations`}</p>
+                                                                <SalesInsightBackfill key={missingSalesInsightCount} missingCount={missingSalesInsightCount} locale={locale} />
+                                                        </div>
+
+                                                        <div className="space-y-3 md:hidden">
+                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
+                                                                        <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
+                                                                                <MobileConversationCard
+                                                                                        conversationId={c.id}
+                                                                                        who={who}
+                                                                                        avatarSrc={channelAvatarSrc}
+                                                                                        channelHandle={channelHandle}
+                                                                                        sourceLabel={sourceLabel}
+                                                                                        relativeTimeLabel={smartTime(when, locale)}
+                                                                                        messageCountLabel={`${fmt(c.messageCount)} ${isFa ? 'پیام' : 'messages'}`}
+                                                                                        channel={c.channel}
+                                                                                        status={displayStatus}
+                                                                                        statusLabel={statusLabel}
+                                                                                        attention={attention}
+                                                                                        locale={locale}
+                                                                                        lastMessage={last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
+                                                                                        reactionEmoji={reactionEmoji}
+                                                                                />
+                                                                        </LiveArrivalItem>
+                                                                ))}
+                                                        </div>
+
+                                                        <div className="hidden min-h-0 flex-1 divide-y divide-[var(--border-subtle)] overflow-y-auto md:block">
+                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => {
+                                                                        const current = c.id === selectedId
+                                                                        const preview = last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name
+                                                                        return (
+                                                                        <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
+                                                                                <Link
+                                                                                        href={hrefWith({ c: c.id })}
+                                                                                        scroll={false}
+                                                                                        aria-current={current ? 'true' : undefined}
+                                                                                        dir={isFa ? 'rtl' : 'ltr'}
+                                                                                        className={cn('grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2.5 px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]', current ? 'bg-black/[0.055]' : 'hover:bg-[var(--bg-hover)]')}
+                                                                                >
+                                                                                        {/* State is one dot: amber waits for a person, violet is open, none is resolved. */}
+                                                                                        <span
+                                                                                                role="img"
+                                                                                                aria-label={statusLabel}
+                                                                                                title={statusLabel}
+                                                                                                className={cn('h-2 w-2 rounded-full', attention ? 'bg-amber-500' : displayStatus === 'OPEN' ? 'bg-[var(--signal)]' : 'bg-transparent')}
+                                                                                        />
+                                                                                        <ContactAvatar src={channelAvatarSrc} alt={who} />
+                                                                                        <div className="min-w-0">
+                                                                                                <div className="flex min-w-0 items-center gap-1.5">
+                                                                                                        <span dir="auto" className={cn('min-w-0 truncate text-[13px] text-[var(--text-primary)]', displayStatus === 'RESOLVED' ? 'font-medium' : 'font-bold')} title={who}>{who}</span>
+                                                                                                        <ChannelGlyph type={c.channel} />
+                                                                                                        <InboxRowPending />
+                                                                                                        <span
+                                                                                                                className={cn('ms-auto shrink-0 whitespace-nowrap ps-1 text-[12px] tabular-nums text-[var(--text-muted)]', attention && 'font-medium text-[var(--text-primary)]')}
+                                                                                                                title={`${formatDateTime(when, locale)} · ${fmt(c.messageCount)} ${isFa ? 'پیام' : 'messages'}`}
+                                                                                                        >
+                                                                                                                {smartTime(when, locale)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                                                                                                        {reactionEmoji && (
+                                                                                                                <span dir="ltr" className="emoji-glyph shrink-0 text-[13px] leading-none" aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}>{reactionEmoji}</span>
+                                                                                                        )}
+                                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-[12px] leading-5', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={preview}>{preview}</p>
+                                                                                                        {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightText insight={c.salesInsight} locale={locale} className="hidden lg:inline" />}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                </Link>
+                                                                        </LiveArrivalItem>
+                                                                        )
+                                                                })}
+                                                        </div>
+
+                                                        <div className="md:shrink-0 md:border-t md:border-[var(--border-subtle)] md:px-2 md:pb-2 empty:hidden">
+                                                                <Pagination
+                                                                        page={page}
+                                                                        hasNext={hasNext}
+                                                                        makeHref={(p) => hrefWith({ page: p > 1 ? String(p) : undefined, c: undefined })}
+                                                                />
+                                                        </div>
+                                                </>
+                                        )}
+                                </div>
+
+                                {selectedId && pageItems.length > 0 && (
+                                        <InboxDesktopOnly>
+                                                <div className="hidden min-h-0 min-w-0 md:grid">
+                                                        <Suspense key={selectedId} fallback={<div className="grid place-items-center text-[13px] text-[var(--text-muted)]">{isFa ? 'در حال باز کردن گفتگو…' : 'Opening conversation…'}</div>}>
+                                                                <InboxConversationPane conversationId={selectedId} workspaceId={user.workspaceId} locale={locale} />
+                                                        </Suspense>
+                                                </div>
+                                        </InboxDesktopOnly>
+                                )}
+                        </div>
+                        </LiveArrivalProvider>
                 </div>
         )
 }

@@ -36,8 +36,10 @@ import { parseProductShowcaseContent } from '@/components/products/product-showc
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
 import { OperatorReply } from './operator-reply'
+import { Headphones, Sparkles } from 'lucide-react'
 import {
         ConversationTimelineActivity,
+        HandoffMarker,
         MessageActivityReceipts,
 } from './conversation-activity'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
@@ -86,10 +88,19 @@ export function ConversationThread({
         initialMessages,
         conversationId,
         locale,
+        embedded = false,
+        handoff = null,
 }: {
         initialMessages: ThreadMessage[]
         conversationId: string
         locale: 'fa' | 'en'
+        /** Inside the inbox pane the surrounding card and header already exist. */
+        embedded?: boolean
+        /**
+         * When the agent handed the conversation over. Used only for threads
+         * whose handoff predates the timeline row, so the marker still shows.
+         */
+        handoff?: { at: string; reason: string | null } | null
 }) {
         const t = useTranslations('conversations')
         const router = useRouter()
@@ -215,6 +226,22 @@ export function ConversationThread({
         // A legacy reaction may start a session even though it is rendered as
         // a badge on an older bubble. Keep its boundary at its real timestamp.
         const messages = allMessages.filter((message) => visibleIds.has(message.id) || sessionBoundaries.has(message.id))
+        const hasHandoffRow = allMessages.some((message) => {
+                const activity = message.metadata && typeof message.metadata === 'object'
+                        ? (message.metadata as Record<string, unknown>).vigentoActivity
+                        : null
+                return message.role === 'SYSTEM' && Boolean(activity) && (activity as Record<string, unknown>).kind === 'handoff_ready'
+        })
+        // The marker sits before the first message that came after the handoff.
+        const handoffTime = handoff && !hasHandoffRow ? new Date(handoff.at).getTime() : null
+        const handoffBeforeId = handoffTime === null
+                ? null
+                : messages.find((message) => visibleIds.has(message.id) && new Date(message.createdAt).getTime() > handoffTime)?.id ?? 'END'
+        const handoffMarker = handoff && handoffTime !== null ? (
+                <div dir={locale === 'fa' ? 'rtl' : 'ltr'}>
+                        <HandoffMarker locale={locale} reason={handoff.reason} dateLabel={formatDateTime(new Date(handoff.at), locale)} />
+                </div>
+        ) : null
 
         // Clean up pending messages that are now in the server list (after refresh).
         useEffect(() => {
@@ -255,8 +282,10 @@ export function ConversationThread({
                 }
 
         return (
-                <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-sheet">
-                        <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
+                <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden', embedded ? 'min-h-0' : 'spatial-surface min-h-[36rem] rounded-sheet')}>
+                        {!embedded && (
+                                <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
+                        )}
                         {/* dir="ltr" pins the bubble sides: the CUSTOMER is always on the
                             visual RIGHT and the agent/operator on the LEFT, identically in
                             every locale — the same pin the chat-link page and the web widget
@@ -269,8 +298,9 @@ export function ConversationThread({
                                         const isLiveMessage = !initialMessageIdsRef.current.has(m.id)
                                         if (m.role === 'SYSTEM') {
                                                 return (
+                                                        <Fragment key={m.id}>
+                                                        {handoffBeforeId === m.id && handoffMarker}
                                                         <motion.div
-                                                                key={m.id}
                                                                 id={`message-${m.id}`}
                                                                 layout={reduceMotion ? false : 'position'}
                                                                 initial={isLiveMessage ? arrivalInitial : false}
@@ -286,6 +316,7 @@ export function ConversationThread({
                                                                 dateLabel={formatDateTime(new Date(m.createdAt), locale)}
                                                         />
                                                         </motion.div>
+                                                        </Fragment>
                                                 )
                                         }
                                         const isOperator =
@@ -309,6 +340,7 @@ export function ConversationThread({
                                         return (
                                                 <Fragment key={m.id}>
                                                 {sessionBoundaries.has(m.id) && <ConversationSessionDivider locale={locale} />}
+                                                {handoffBeforeId === m.id && handoffMarker}
                                                 <motion.div
                                                         key={m.id}
                                                         id={`message-${m.id}`}
@@ -351,14 +383,17 @@ export function ConversationThread({
                                                                                 transition={{ duration: reduceMotion ? 0.45 : 1.15, ease: [0.23, 1, 0.32, 1] }}
                                                                         />
                                                                 )}
+                                                                {/* Three voices, three looks: the customer is grey, the agent
+                                                                    is white with the violet AI edge, a person is ink. */}
                                                                 <ConversationBubble
                                                                         side={isUser ? 'end' : 'start'}
-                                                                        tone={isUser ? 'muted' : 'inverse'}
-                                                                        className="relative z-[1] max-w-full py-2"
+                                                                        tone={isUser ? 'muted' : isOperator ? 'inverse' : 'accent'}
+                                                                        className={cn('relative z-[1] max-w-full py-2', !isUser && !isOperator && 'border border-[var(--signal-border)] bg-white text-[var(--text-primary)]')}
                                                                 >
-                                                                        {isOperator && (
-                                                                                <span dir="auto" className="mb-0.5 block text-[12px] font-medium opacity-60">
-                                                                                        {t('operatorBadge')}
+                                                                        {!isUser && (
+                                                                                <span dir="auto" className={cn('mb-0.5 flex items-center gap-1 text-[12px] font-medium', isOperator ? 'opacity-60' : 'text-[var(--signal-strong)]')}>
+                                                                                        {isOperator ? <Headphones className="h-3 w-3" aria-hidden="true" /> : <Sparkles className="h-3 w-3" aria-hidden="true" />}
+                                                                                        {isOperator ? t('operatorBadge') : (locale === 'fa' ? 'ایجنت' : 'Agent')}
                                                                                 </span>
                                                                         )}
                                                                         {sourceLabel && (
@@ -376,9 +411,9 @@ export function ConversationThread({
                                                                         <span
                                                                                 className={cn(
                                                                                         'mt-1 block text-end text-[12px]',
-                                                                                        isUser
-                                                                                                ? 'text-[var(--text-muted)]'
-                                                                                                : 'text-[var(--bg-base)] opacity-40',
+                                                                                        isOperator
+                                                                                                ? 'text-[var(--bg-base)] opacity-40'
+                                                                                                : 'text-[var(--text-muted)]',
                                                                                 )}
                                                                         >
                                                                                 {formatDateTime(new Date(m.createdAt), locale)}
@@ -436,6 +471,7 @@ export function ConversationThread({
                                         )
                                 })}
                                 </AnimatePresence>
+                                {handoffBeforeId === 'END' && handoffMarker}
                                 {messages.length === 0 && (
                                         <p className="py-8 text-center text-sm text-[var(--text-muted)]">
                                                 {t('noMessages')}

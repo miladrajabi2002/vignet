@@ -39,7 +39,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
 const SIZES: Record<ButtonSize, string> = {
   // One height scale shared with the public site: 36 / 44 / 52.
   sm: 'min-h-9 px-3.5 text-[13px]',
-  md: 'min-h-11 px-[18px] text-[14px]',
+  md: 'min-h-11 px-[18px] text-[15px]',
   lg: 'min-h-[52px] px-6 text-[15px]',
 }
 

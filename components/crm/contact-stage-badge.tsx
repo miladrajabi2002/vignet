@@ -4,17 +4,17 @@ export const CONTACT_STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
 export type ContactStage = (typeof CONTACT_STAGES)[number]
 
 const STAGE_TONE: Record<ContactStage, string> = {
-  lead: 'border-sky-200 bg-sky-50 text-sky-700',
-  qualified: 'border-amber-200 bg-amber-50 text-amber-800',
+  lead: 'border-black/10 bg-black/[0.04] text-[var(--text-secondary)]',
+  qualified: 'border-[var(--signal)]/20 bg-[var(--signal-soft)] text-[var(--signal-strong)]',
   customer: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  lost: 'border-rose-200 bg-rose-50 text-rose-700',
+  lost: 'border-black/10 bg-black/[0.04] text-[var(--text-muted)]',
 }
 
 const DOT_TONE: Record<ContactStage, string> = {
-  lead: 'bg-sky-500',
-  qualified: 'bg-amber-500',
+  lead: 'bg-black/35',
+  qualified: 'bg-[var(--signal)]',
   customer: 'bg-emerald-500',
-  lost: 'bg-rose-500',
+  lost: 'bg-black/20',
 }
 
 export function asContactStage(stage: string): ContactStage {

@@ -67,7 +67,7 @@ export function CapabilityStatusPanel({
       action={<Link href="/settings#settings-business-profile" className="ui-link">{fa ? 'مدیریت' : 'Manage'}<Arrow aria-hidden /></Link>}
     >
       {ordered.length ? (
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {ordered.map((key) => {
             const status = readiness[key]
             const Icon = ICONS[key]
@@ -76,7 +76,7 @@ export function CapabilityStatusPanel({
             const total = status?.steps.length ?? 0
             const href = ready || !status?.next ? HOME[key] : status.next.href
             return (
-              <li key={key}>
+              <li key={key} className="min-w-0">
                 <Link
                   href={href}
                   className="group flex min-h-[4.25rem] items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2.5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)]"
@@ -88,7 +88,7 @@ export function CapabilityStatusPanel({
                     <span className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{capabilityLabel(key, fa ? 'fa' : 'en')}</span>
                       <span className={cn(
-                        'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[11.5px] font-bold',
+                        'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[12px] font-bold',
                         ready ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700',
                       )}>
                         {ready ? <Check className="h-3 w-3" strokeWidth={3} /> : <CircleDashed className="h-3 w-3" />}

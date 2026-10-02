@@ -4,9 +4,6 @@ import { useMemo, useState } from 'react'
 import {
   BriefcaseBusiness,
   CalendarClock,
-  CalendarDays,
-  Clock3,
-  MapPin,
   Pencil,
   Plus,
   Loader2,
@@ -17,16 +14,14 @@ import {
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Switch } from '@/components/ui/switch'
-import { StatusChip } from '@/components/ui/status-chip'
 import { normalizePersian } from '@/lib/search/persian'
 import { SERVICE_TEMPLATES, ServiceEditor, type ServiceTemplate } from '@/components/bookings/service-editor'
-import { WeekHoursGraph } from '@/components/bookings/services-board'
+import { WeekDots } from '@/components/bookings/services-board'
 import { DeleteServiceDialog } from '@/components/bookings/delete-service'
 import { enableBookingModule, openBookingSetup } from '@/components/services/enable-booking'
 import {
   durationLabel,
   num,
-  serviceAccent,
   type ServiceRow,
 } from '@/components/bookings/booking-model'
 
@@ -124,13 +119,13 @@ export function ServiceCatalog({
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)]"><Sparkles className="h-6 w-6" /></span>
           <h2 className="ui-h2 mt-4">اولین خدمت را معرفی کنید</h2>
           <p className="ui-body mx-auto mt-1 max-w-md">وقتی مشتری بپرسد «چه خدماتی دارید؟»، ایجنت دقیقاً از همین فهرست جواب می‌دهد، نه از حدس.</p>
-          <button type="button" onClick={() => openCreate()} className="spatial-press mt-5 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)]">
+          <button type="button" onClick={() => openCreate()} className="spatial-press mt-5 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)]">
             <Plus className="h-4 w-4" />افزودن اولین خدمت
           </button>
           <div className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-2">
             {SERVICE_TEMPLATES.map((template) => (
-              <button key={template.key} type="button" onClick={() => openCreate(template)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]">
-                {template.fa}<span className="font-normal text-[var(--text-hint)]">· {template.hintFa}</span>
+              <button key={template.key} type="button" onClick={() => openCreate(template)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]">
+                {template.fa}<span className="font-normal text-[var(--text-muted)]">· {template.hintFa}</span>
               </button>
             ))}
           </div>
@@ -162,40 +157,36 @@ export function ServiceCatalog({
           {visible.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visible.map((service) => {
-                const accent = serviceAccent(service.id)
                 const hasHours = service.weeklyRules.some((rule) => rule.active)
                 return (
                   <article key={service.id} className={cn('spatial-surface flex flex-col rounded-card p-4 transition-shadow hover:shadow-[var(--shadow-soft)]', !service.active && 'opacity-70')}>
                     <div className="flex items-start gap-3">
-                      <span className={cn('mt-1 h-9 w-1.5 shrink-0 rounded-full', service.active ? accent.bar : 'bg-black/20')} aria-hidden />
                       <div className="min-w-0 flex-1">
                         <h3 className="ui-h3 truncate">{service.name}</h3>
-                        <p className="mt-0.5 line-clamp-2 min-h-[2.75rem] text-[12.5px] leading-[1.4rem] text-[var(--text-secondary)]">{service.description || <span className="text-[var(--text-hint)]">بدون توضیح؛ یک جمله کوتاه به ایجنت کمک می‌کند بهتر معرفی کند.</span>}</p>
+                        <p className="mt-0.5 line-clamp-2 min-h-[2.75rem] text-[13px] leading-[1.4rem] text-[var(--text-secondary)]">{service.description || <span className="text-[var(--text-muted)]">بدون توضیح؛ یک جمله کوتاه به ایجنت کمک می‌کند بهتر معرفی کند.</span>}</p>
                       </div>
                       <Switch checked={service.active} onChange={(checked) => void toggle(service, checked)} aria-label={service.active ? 'غیرفعال کردن خدمت' : 'فعال کردن خدمت'} />
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      <StatusChip tone="neutral"><Clock3 className="h-3 w-3" />{durationLabel(service.durationMinutes, true)}</StatusChip>
-                      {service.price ? <StatusChip tone="neutral">{num(service.price, true)} تومان</StatusChip> : null}
-                      {service.location && <StatusChip tone="neutral" className="max-w-full"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{service.location}</span></StatusChip>}
-                      <StatusChip tone="neutral"><CalendarDays className="h-3 w-3" />{num(service.appointmentCount, true)} رزرو</StatusChip>
-                    </div>
+                    {/* Length, price and place as one line; open days as seven dots. */}
+                    <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
+                      {[
+                        durationLabel(service.durationMinutes, true),
+                        service.price ? `${num(service.price, true)} تومان` : null,
+                        service.location,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                    {hasHours && <div className="mt-2.5"><WeekDots service={service} fa /></div>}
 
-                    {hasHours && (
-                      <div className="mt-3 rounded-2xl bg-[var(--bg-base)] p-3 ring-1 ring-[var(--border-subtle)]">
-                        <WeekHoursGraph service={service} fa />
-                      </div>
-                    )}
-
-                    <div className="mt-auto flex items-center gap-1.5 pt-4">
-                      <button type="button" disabled={bookingBusy === service.id} onClick={() => void setUpBooking(service)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-60">
+                    <div className="mt-auto flex items-center gap-1.5 pt-3">
+                      <span className="text-[12px] font-medium tabular-nums text-[var(--text-primary)]">{num(service.appointmentCount, true)} رزرو</span>
+                      <button type="button" disabled={bookingBusy === service.id} onClick={() => void setUpBooking(service)} className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-60">
                         {bookingBusy === service.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />}{bookingEnabled && hasHours ? 'ساعت و ظرفیت' : 'فعال‌سازی رزرو'}
                       </button>
-                      <button type="button" onClick={() => setDeleting(service)} aria-label={`حذف ${service.name}`} title="حذف خدمت" className="ms-auto grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[var(--text-hint)] transition-colors hover:bg-red-50 hover:text-red-600">
+                      <button type="button" onClick={() => setDeleting(service)} aria-label={`حذف ${service.name}`} title="حذف خدمت" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[var(--text-hint)] transition-colors hover:bg-red-50 hover:text-red-600">
                         <Trash2 className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => setEditor({ open: true, service })} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+                      <button type="button" onClick={() => setEditor({ open: true, service })} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
                         <Pencil className="h-3.5 w-3.5" />ویرایش
                       </button>
                     </div>
@@ -203,7 +194,7 @@ export function ServiceCatalog({
                 )
               })}
               {filter !== 'inactive' && !query && (
-                <button type="button" onClick={() => openCreate()} className="group grid min-h-[13rem] place-items-center rounded-card border-2 border-dashed border-[var(--border-default)] p-6 text-center transition-colors hover:border-[var(--text-primary)] hover:bg-white/60">
+                <button type="button" onClick={() => openCreate()} className="group grid min-h-[9rem] place-items-center rounded-card border-2 border-dashed border-[var(--border-default)] p-6 text-center transition-colors hover:border-[var(--text-primary)] hover:bg-white/60">
                   <span>
                     <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)] transition-transform group-hover:scale-105"><Plus className="h-5 w-5" /></span>
                     <span className="mt-3 block text-sm font-bold text-[var(--text-primary)]">افزودن خدمت</span>
@@ -216,7 +207,7 @@ export function ServiceCatalog({
               <div>
                 <Search className="mx-auto h-6 w-6 text-[var(--text-hint)]" />
                 <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">خدمتی با این مشخصات پیدا نشد</p>
-                <button type="button" onClick={() => { setQuery(''); setFilter('all') }} className="mt-3 min-h-10 rounded-xl px-3 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">پاک کردن فیلترها</button>
+                <button type="button" onClick={() => { setQuery(''); setFilter('all') }} className="mt-3 min-h-11 rounded-xl px-3 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">پاک کردن فیلترها</button>
               </div>
             </div>
           )}
@@ -255,7 +246,7 @@ function Kpi({ label, value, small = false }: { label: string; value: string; sm
   return (
     <div className="flex min-w-0 flex-col-reverse px-2 py-2.5 text-center">
       <dt className="truncate text-[12px] text-[var(--text-muted)]">{label}</dt>
-      <dd className={cn('truncate font-bold tabular-nums leading-7 text-[var(--text-primary)]', small ? 'text-[14px]' : 'text-lg')}>{value}</dd>
+      <dd className={cn('truncate font-bold tabular-nums leading-7 text-[var(--text-primary)]', small ? 'text-[15px]' : 'text-lg')}>{value}</dd>
     </div>
   )
 }

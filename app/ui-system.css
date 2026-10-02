@@ -107,17 +107,49 @@
 	.ui-rtable tbody td:empty, .ui-rtable tbody td[data-label='']::before { display: none; }
 }
 
+/* ── Filter bars size to their own column, not the viewport ───────────
+   `.ui-fbar` shows the compact row (search + one "filters" button) until the
+   column can hold every control on a single line. Beside the sidebar a
+   tablet-wide page is often narrower than a phone in landscape, so a
+   viewport breakpoint wrapped the controls into three rows. */
+.ui-fbar { container-type: inline-size; }
+.ui-fbar .ui-fbar-full { display: none; }
+@container (min-width: 50rem) {
+	.ui-fbar .ui-fbar-compact { display: none; }
+	.ui-fbar .ui-fbar-full { display: flex; }
+}
+
 /* ── ط۲ One press feel for the app's tactile controls ─────────────────── */
 .spatial-press:active { transform: scale(0.97); }
 
 /* ── ط۱۶ Soft page entrance inside the dashboard ──────────────────────── */
-/* `backwards`, not `both`: a filled transform animation keeps the page
-   wrapper a containing block for `position: fixed` descendants, which pinned
-   in-page overlays (dialogs, sticky bars) to the page instead of the viewport. */
-.dashboard-main > * { animation: ui-page-in 420ms var(--vg-ease-out) backwards; }
+/* Moving between dashboard pages happens dozens of times a day, so the
+   entrance is a short fade with no travel: the page should feel instant, not
+   "settle" on every click. (Opacity only — a transform here would also make
+   the wrapper a containing block for `position: fixed` descendants.) */
+.dashboard-main > * { animation: ui-page-in 160ms ease-out backwards; }
 @keyframes ui-page-in {
-	from { opacity: 0.4; transform: translate3d(0, 8px, 0); }
-	to { opacity: 1; transform: none; }
+	from { opacity: 0.55; }
+	to { opacity: 1; }
+}
+
+/* ── A disabled filled button reads as "not available" ─────────────────
+   Ink buttons used to fade to 40%, which made them look like a grey
+   secondary action. Muted fill + grey label + no shadow is unmistakable.
+   Buttons that are merely busy (aria-busy) keep their ink. */
+:is(button, [role='button']):disabled:not([aria-busy='true']):is(
+	[class~='bg-black'],
+	[class~='bg-[#111]'],
+	[class~='bg-[#111111]'],
+	[class~='bg-[var(--text-primary)]'],
+	[class~='bg-[var(--accent)]'],
+	[class~='bg-[var(--white)]'],
+	[class~='bg-vg-ink']
+) {
+	background: var(--bg-muted) !important;
+	color: var(--text-hint) !important;
+	box-shadow: none !important;
+	opacity: 1 !important;
 }
 
 /* ── ط۱۳ Phones never pay for live backdrop blur ──────────────────────────
@@ -145,4 +177,91 @@
 	.lf-run,
 	.lf-vrun { animation: none !important; }
 	.lf-run, .lf-vrun { display: none; }
+}
+
+/* ── Improve agent: the three sections as a side list on desktop ───────
+   Below 1024px it stays the shared segmented bar. */
+@media (min-width: 1024px) {
+	.improve-nav {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: 0.5rem;
+		border-radius: var(--radius-card);
+		border: 1px solid var(--border-subtle);
+		background: #ffffff;
+		box-shadow: var(--elev-1);
+	}
+	.improve-nav .ui-seg-tab {
+		width: 100%;
+		min-height: 3.25rem;
+		justify-content: flex-start;
+		gap: 0.625rem;
+		padding-inline: 0.75rem;
+		border-radius: var(--radius-control);
+		text-align: start;
+	}
+	.improve-nav .ui-seg-tab[aria-selected='true'] {
+		background: rgba(17, 17, 17, 0.06);
+		box-shadow: none;
+		font-weight: 700;
+	}
+}
+
+/* ── Customers table ───────────────────────────────────────────────────
+   Six columns that fold by the width of the table itself (the sidebar can
+   be a rail or full width): time first, then phone, then the last message. */
+.ui-ctable { container-type: inline-size; }
+.ui-ctable-row {
+	display: grid;
+	grid-template-columns: 2rem minmax(9rem, 1.1fr) minmax(0, 0.9fr) minmax(0, 1.6fr) 8.5rem 7.5rem;
+	align-items: center;
+	column-gap: 0.875rem;
+}
+@container (max-width: 52rem) {
+	.ui-ctable-row { grid-template-columns: 2rem minmax(9rem, 1fr) minmax(0, 1.3fr) 8.5rem; }
+	.ui-ctable-phone,
+	.ui-ctable-time { display: none; }
+}
+@container (max-width: 36rem) {
+	.ui-ctable-row { grid-template-columns: 2rem minmax(0, 1fr) 8.5rem; }
+	.ui-ctable-msg { display: none; }
+}
+
+/* ── Settings: "Business" and "Capabilities" are two views of one panel ── */
+[data-view='business'] .settings-capabilities,
+[data-view='capabilities'] .settings-identity { display: none; }
+
+/* ── Products table ────────────────────────────────────────────────────
+   Photo, product, price, stock, customer questions, visibility, menu. The
+   questions column goes first when the table narrows; on a phone each
+   product is two lines: name over price and stock. */
+.ui-ptable { container-type: inline-size; }
+.ui-ptable-row {
+	display: grid;
+	grid-template-columns: 2.75rem minmax(9rem, 1.6fr) minmax(7.5rem, 1fr) minmax(6.5rem, 0.8fr) minmax(6rem, 0.8fr) 4rem 2.5rem;
+	align-items: center;
+	column-gap: 0.75rem;
+}
+@container (max-width: 46rem) {
+	.ui-ptable-row { grid-template-columns: 2.75rem minmax(8rem, 1.4fr) minmax(7rem, 1fr) minmax(6rem, 0.8fr) 4rem 2.5rem; }
+	.ui-ptable-ask,
+	.ui-ptable-compare { display: none; }
+}
+@container (max-width: 34rem) {
+	.ui-ptable-head { display: none; }
+	.ui-ptable-row {
+		grid-template-columns: 2.75rem minmax(0, 1fr) minmax(0, 1fr) auto 2.5rem;
+		grid-template-areas:
+			'img name name switch menu'
+			'img price stock switch menu';
+		column-gap: 0.5rem;
+		row-gap: 0;
+	}
+	.ui-ptable-row > :first-child { grid-area: img; }
+	.ui-ptable-name { grid-area: name; }
+	.ui-ptable-price { grid-area: price; }
+	.ui-ptable-stock { grid-area: stock; }
+	.ui-ptable-switch { grid-area: switch; }
+	.ui-ptable-menu { grid-area: menu; }
 }

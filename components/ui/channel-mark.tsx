@@ -15,7 +15,7 @@ type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
 export const CHANNEL_TONES: Record<ChannelKey, { tint: string; color: string; icon: Icon }> = {
 	INSTAGRAM: { tint: '#fdf2f8', color: '#be185d', icon: InstagramIcon },
 	TELEGRAM: { tint: '#eff6ff', color: '#0369a1', icon: TelegramIcon },
-	BALE: { tint: '#e6f7f1', color: '#00a37a', icon: BaleIcon },
+	BALE: { tint: '#e6f7f1', color: '#047857', icon: BaleIcon },
 	RUBIKA: { tint: '#fff7ed', color: '#c2410c', icon: RubikaIcon },
 	WEB_WIDGET: { tint: '#f3f1ff', color: '#5b3de8', icon: Globe },
 	CHAT_LINK: { tint: '#f4f4f5', color: '#3f3f46', icon: Link2 },

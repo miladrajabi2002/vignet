@@ -52,11 +52,11 @@ type TypeLabelKey = 'typeMessage' | 'typeHandoff' | 'typeAppointment' | 'typeCha
 // One icon + tone per notification type so the list scans by colour before
 // anyone reads a word. Tones stay soft; unread state is carried separately.
 const TYPE_META: Record<string, { icon: ComponentType<{ className?: string }>; tone: string; label: TypeLabelKey }> = {
-	NEW_MESSAGE: { icon: MessageSquareText, tone: 'bg-sky-50 text-sky-700 ring-sky-100', label: 'typeMessage' },
+	NEW_MESSAGE: { icon: MessageSquareText, tone: 'bg-black/[0.04] text-[var(--text-secondary)] ring-black/[0.06]', label: 'typeMessage' },
 	HANDOFF: { icon: Headset, tone: 'bg-amber-50 text-amber-700 ring-amber-100', label: 'typeHandoff' },
-	APPOINTMENT: { icon: CalendarCheck2, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100', label: 'typeAppointment' },
+	APPOINTMENT: { icon: CalendarCheck2, tone: 'bg-black/[0.04] text-[var(--text-secondary)] ring-black/[0.06]', label: 'typeAppointment' },
 	CHANNEL_DOWN: { icon: Unplug, tone: 'bg-red-50 text-red-700 ring-red-100', label: 'typeChannel' },
-	LEARNING: { icon: Sparkles, tone: 'bg-violet-50 text-violet-700 ring-violet-100', label: 'typeLearning' },
+	LEARNING: { icon: Sparkles, tone: 'bg-[var(--signal-soft)] text-[var(--signal-strong)] ring-[var(--signal)]/15', label: 'typeLearning' },
 	SYSTEM: { icon: Megaphone, tone: 'bg-zinc-100 text-zinc-700 ring-zinc-200/70', label: 'typeSystem' },
 }
 
@@ -415,7 +415,7 @@ export function NotificationBell() {
 							exit={{ opacity: 0, scale: 0.8 }}
 							transition={{ type: 'spring', bounce: 0, duration: 0.28 }}
 							aria-hidden="true"
-							className="absolute -end-1.5 -top-1.5 flex h-[1.2rem] min-w-[1.2rem] items-center justify-center rounded-full bg-[var(--notif)] text-[var(--notif-ink)] px-1 text-[11.5px] font-bold tabular-nums shadow-sm ring-2 ring-white"
+							className="absolute -end-1.5 -top-1.5 flex h-[1.2rem] min-w-[1.2rem] items-center justify-center rounded-full bg-[var(--notif)] text-[var(--notif-ink)] px-1 text-[12px] font-bold tabular-nums shadow-sm ring-2 ring-white"
 						>
 							{formatCount(unread)}
 						</motion.span>
@@ -548,15 +548,15 @@ export function NotificationBell() {
 										<span aria-hidden="true" className="mx-auto mb-3 block h-[5px] w-10 rounded-full bg-black/[0.16] sm:hidden" />
 										<div className="flex items-center gap-3">
 											<div className="min-w-0 flex-1">
-												<h2 id="notification-panel-title" className="flex items-center gap-2 text-[16px] font-bold leading-6 text-[var(--text-primary)]">
+												<h2 id="notification-panel-title" className="flex items-center gap-2 text-[15px] font-bold leading-6 text-[var(--text-primary)]">
 													{t('title')}
 													{unread > 0 && (
-														<span className="rounded-full bg-[var(--notif)] text-[var(--notif-ink)] px-2 py-px text-[11.5px] font-bold tabular-nums">
+														<span className="rounded-full bg-[var(--notif)] text-[var(--notif-ink)] px-2 py-px text-[12px] font-bold tabular-nums">
 															{formatCount(unread)}
 														</span>
 													)}
 												</h2>
-												<p className="mt-0.5 truncate text-[12.5px] text-[var(--text-muted)]">
+												<p className="mt-0.5 truncate text-[13px] text-[var(--text-muted)]">
 													{unread ? t('unreadCount', { count: unread }) : t('caughtUp')}
 												</p>
 											</div>
@@ -565,7 +565,7 @@ export function NotificationBell() {
 													type="button"
 													disabled={reading}
 													onClick={() => void markRead()}
-													className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+													className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
 												>
 													<CheckCheck className="h-4 w-4" aria-hidden="true" />
 													{t('markAllShort')}
@@ -604,7 +604,7 @@ export function NotificationBell() {
 														)}
 														<span className="relative">{t(value === 'all' ? 'filterAll' : 'filterUnread')}</span>
 														{value === 'unread' && unread > 0 && (
-															<span className="relative rounded-full bg-black/[0.07] px-1.5 text-[11.5px] font-bold tabular-nums">{formatCount(unread)}</span>
+															<span className="relative rounded-full bg-black/[0.07] px-1.5 text-[12px] font-bold tabular-nums">{formatCount(unread)}</span>
 														)}
 													</button>
 												)
@@ -619,7 +619,7 @@ export function NotificationBell() {
 												<span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-black text-white">
 													<BellRing className="h-4 w-4" aria-hidden="true" />
 												</span>
-												<p className="min-w-0 flex-1 text-[12.5px] leading-5 text-[var(--text-secondary)]">{t('enableBrowserHint')}</p>
+												<p className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--text-secondary)]">{t('enableBrowserHint')}</p>
 												<button
 													type="button"
 													onClick={enableBrowserNotifications}
@@ -641,7 +641,7 @@ export function NotificationBell() {
 													<section key={section.group} aria-labelledby={`notification-group-${section.group}`}>
 														<h3
 															id={`notification-group-${section.group}`}
-															className="px-3 pb-1.5 pt-2 text-[12px] font-medium text-[var(--text-hint)] sm:sticky sm:top-0 sm:z-[1] sm:bg-white"
+															className="px-3 pb-1.5 pt-2 text-[12px] font-medium text-[var(--text-muted)] sm:sticky sm:top-0 sm:z-[1] sm:bg-white"
 														>
 															{t(DAY_GROUP_KEY[section.group])}
 														</h3>
@@ -712,7 +712,9 @@ function NotificationRow({
 	const relative = smartTime(item.createdAt, locale)
 	const rowClass = cn(
 		'flex w-full min-w-0 items-start gap-3 py-3 pe-12 ps-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:rounded-[14px]',
-		item.read ? 'hover:bg-black/[0.03]' : 'bg-[var(--notif-soft)] hover:bg-[var(--notif-tint)]',
+		// Unread rows stay white: the gold dot and the bold title mark them. A
+		// full gold fill turned the whole panel yellow when everything was unread.
+		'hover:bg-black/[0.03]',
 	)
 	const content = (
 		<>
@@ -720,13 +722,13 @@ function NotificationRow({
 				<Icon className="h-[1.05rem] w-[1.05rem]" />
 			</span>
 			<span className="min-w-0 flex-1">
-				<span className={cn('line-clamp-2 block text-[14px] leading-6', item.read ? 'font-medium text-[var(--text-secondary)]' : 'font-bold text-[var(--text-primary)]')}>
+				<span className={cn('line-clamp-2 block text-[15px] leading-6', item.read ? 'font-medium text-[var(--text-secondary)]' : 'font-bold text-[var(--text-primary)]')}>
 					{item.title}
 				</span>
 				{item.body && (
-					<span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-[var(--text-muted)]">{item.body}</span>
+					<span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-[var(--text-muted)]">{item.body}</span>
 				)}
-				<span className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-[var(--text-hint)]">
+				<span className="mt-1.5 flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
 					<span className="font-medium">{typeLabel}</span>
 					<span aria-hidden="true">·</span>
 					<time dateTime={item.createdAt} title={formatDateTime(new Date(item.createdAt), locale)}>{relative}</time>
@@ -739,8 +741,8 @@ function NotificationRow({
 		<li
 			className={cn(
 				'group relative',
-				// Inset hairline between rows on the mobile grouped card.
-				!first && 'before:absolute before:end-3 before:start-[4rem] before:top-0 before:h-px before:bg-black/[0.06] before:content-[""] sm:before:hidden',
+				// Inset hairline between rows (rows are plain white on every size).
+				!first && 'before:absolute before:end-3 before:start-[4rem] before:top-0 before:h-px before:bg-black/[0.06] before:content-[""]',
 			)}
 		>
 			{item.link ? (
@@ -781,8 +783,8 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 					<CheckCheck className="h-[1.1rem] w-[1.1rem]" aria-hidden="true" />
 				</span>
 			</span>
-			<p className="mt-4 text-[14.5px] font-bold text-[var(--text-primary)]">{title}</p>
-			<p className="mt-1 max-w-[18rem] text-[12.5px] leading-6 text-[var(--text-muted)]">{body}</p>
+			<p className="mt-4 text-[15px] font-bold text-[var(--text-primary)]">{title}</p>
+			<p className="mt-1 max-w-[18rem] text-[13px] leading-6 text-[var(--text-muted)]">{body}</p>
 		</div>
 	)
 }
@@ -797,10 +799,10 @@ function ToastContent({ item, label }: { item: NotificationItem; label: string }
 				<span aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--notif)] ring-2 ring-white" />
 			</span>
 			<span className="min-w-0 flex-1">
-				<span className="block text-[11.5px] font-semibold text-[var(--notif-strong)]">{label}</span>
-				<span className="mt-0.5 line-clamp-2 block text-[14px] font-bold leading-6 text-black">{item.title}</span>
+				<span className="block text-[12px] font-semibold text-[var(--notif-strong)]">{label}</span>
+				<span className="mt-0.5 line-clamp-2 block text-[15px] font-bold leading-6 text-black">{item.title}</span>
 				{item.body && (
-					<span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-[var(--text-secondary)]">
+					<span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-[var(--text-secondary)]">
 						{item.body}
 					</span>
 				)}

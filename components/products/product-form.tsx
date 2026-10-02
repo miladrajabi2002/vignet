@@ -230,7 +230,7 @@ export function ProductForm({
 
   return (
     <div className="spatial-surface space-y-5 rounded-card p-4 sm:p-6">
-      <Field label={t('name')}>
+      <Field label={t('name')} hint={t('nameHint')}>
         <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('namePlaceholder')} className="input" />
       </Field>
       <Field label={t('description')}>
@@ -239,16 +239,16 @@ export function ProductForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('price')}>
-          <input type="number" value={form.price} onChange={(e) => set('price', e.target.value)} className="input" />
+          <UnitInput type="number" inputMode="numeric" unit={t('priceUnit')} value={form.price} onChange={(e) => set('price', e.target.value)} />
         </Field>
-        <Field label={t('comparePrice')}>
-          <input type="number" value={form.comparePrice} onChange={(e) => set('comparePrice', e.target.value)} className="input" />
+        <Field label={t('comparePrice')} optional={t('optional')} hint={t('comparePriceHint')}>
+          <UnitInput type="number" inputMode="numeric" unit={t('priceUnit')} value={form.comparePrice} onChange={(e) => set('comparePrice', e.target.value)} />
         </Field>
         <Field label={t('sku')}>
           <input dir="ltr" value={form.sku} onChange={(e) => set('sku', e.target.value)} className="input font-mono text-sm" />
         </Field>
-        <Field label={t('stock')}>
-          <input type="number" value={form.stock} onChange={(e) => set('stock', e.target.value)} className="input" />
+        <Field label={t('stock')} optional={t('optional')} hint={t('stockHint')}>
+          <input type="number" inputMode="numeric" value={form.stock} onChange={(e) => set('stock', e.target.value)} className="input" />
         </Field>
         {form.stock !== '' && (
           <Field label={t('lowStockThreshold')}>
@@ -640,11 +640,25 @@ function BulkVariationFill({ onApply }: { onApply: (field: 'stock' | 'price', va
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, optional, children }: { label: string; hint?: string; optional?: string; children: React.ReactNode }) {
   return (
     <fieldset className="block min-w-0">
-      <legend className="mb-2 block text-sm text-[var(--text-secondary)]">{label}</legend>
+      <legend className="ui-field-label">
+        {label}
+        {optional ? <span className="ui-field-opt">{optional}</span> : null}
+      </legend>
       {children}
+      {hint ? <p className="ui-field-hint">{hint}</p> : null}
     </fieldset>
+  )
+}
+
+/** Number field with its unit inside the control (end side), not in the label. */
+function UnitInput({ unit, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { unit: string }) {
+  return (
+    <div className="relative">
+      <input {...props} className="input pe-16" />
+      <span className="pointer-events-none absolute end-3.5 top-1/2 -translate-y-1/2 text-[12px] text-[var(--text-muted)]">{unit}</span>
+    </div>
   )
 }

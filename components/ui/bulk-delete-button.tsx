@@ -27,6 +27,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { Trash2, AlertTriangle, Ellipsis } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { queueUndo, type UndoKind } from '@/lib/undo-queue'
 
 interface BulkDeleteButtonProps {
@@ -68,6 +69,10 @@ interface BulkDeleteButtonProps {
   menuItems?: React.ReactNode
 }
 
+/** Restyles caller-supplied links (e.g. export) as full-width menu rows. */
+const MENU_LINK_CLASS =
+  '[&_a]:flex [&_a]:min-h-11 [&_a]:w-full [&_a]:items-center [&_a]:justify-start [&_a]:gap-2 [&_a]:rounded-xl [&_a]:border-0 [&_a]:bg-transparent [&_a]:px-3 [&_a]:text-xs [&_a]:font-medium [&_a]:text-[var(--text-primary)] [&_a]:shadow-none [&_a:hover]:bg-[var(--bg-hover)]'
+
 export function BulkDeleteButton({
   countEndpoint,
   deleteEndpoint,
@@ -99,7 +104,10 @@ export function BulkDeleteButton({
   useEffect(() => {
     if (!menuOpen) return
     const onPointer = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+      const target = event.target as Element
+      // On phones the menu is a bottom sheet portalled to <body>; it closes itself.
+      if (target.closest?.('[role="dialog"]')) return
+      if (!menuRef.current?.contains(target)) setMenuOpen(false)
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMenuOpen(false)
@@ -210,21 +218,44 @@ export function BulkDeleteButton({
             <div
               role="menu"
               onClick={() => setMenuOpen(false)}
-              className="absolute end-0 top-full z-40 mt-2 min-w-52 max-sm:fixed max-sm:inset-x-3 max-sm:bottom-24 max-sm:top-auto max-sm:mt-0 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-1.5 shadow-[var(--elev-2)] [&_a]:flex [&_a]:min-h-11 [&_a]:w-full [&_a]:items-center [&_a]:justify-start [&_a]:gap-2 [&_a]:rounded-xl [&_a]:border-0 [&_a]:bg-transparent [&_a]:px-3 [&_a]:text-xs [&_a]:font-medium [&_a]:text-[var(--text-primary)] [&_a]:shadow-none [&_a:hover]:bg-[var(--bg-hover)]"
+              className={`absolute end-0 top-full z-40 mt-2 hidden min-w-52 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-1.5 shadow-[var(--elev-2)] md:block ${MENU_LINK_CLASS}`}
             >
               {menuItems}
-              {menuItems ? <div aria-hidden className="my-1 h-px bg-[var(--border-subtle)]" /> : null}
+              {/* The destructive action is fenced off from the routine ones above it. */}
+              {menuItems ? <div aria-hidden className="mx-2 my-1.5 h-px bg-[var(--border-default)]" /> : null}
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => setOpen(true)}
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-start text-xs font-medium text-red-700 transition-colors hover:bg-red-50"
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-red-50/70 px-3 text-start text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 {buttonLabel}
               </button>
             </div>
           )}
+          {/* Phones get the same actions as a bottom sheet, like every other mobile menu. */}
+          <MobileBottomSheet
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            title={fa ? 'کارهای بیشتر' : 'More actions'}
+            closeLabel={fa ? 'بستن' : 'Close'}
+          >
+            <div
+              onClick={() => setMenuOpen(false)}
+              className={`space-y-2 [&_a]:!min-h-12 [&_a]:!bg-[var(--bg-base)] [&_a]:!text-sm ${MENU_LINK_CLASS}`}
+            >
+              {menuItems}
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-start text-sm font-medium text-red-700"
+              >
+                <Trash2 className="h-4 w-4" />
+                {buttonLabel}
+              </button>
+            </div>
+          </MobileBottomSheet>
         </div>
       ) : (
         <button

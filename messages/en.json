@@ -79,7 +79,7 @@
   "auth": {
     "badge": "Easy sign in & sign up — no password",
     "title": "Sign in to Vigent",
-    "subtitle": "Just your mobile number — no password, no forms",
+    "subtitle": "We’ll text a verification code to this number.",
     "phoneLabel": "Mobile number",
     "phonePlaceholder": "09123456789",
     "sendCode": "Send verification code",
@@ -104,7 +104,11 @@
       "SMS_FAILED": "Failed to send the SMS. Check the number and request a new code in a moment",
       "GENERIC": "Something went wrong. Please try again"
     },
-    "noCard": "Simple sign-in with just your phone number"
+    "agreePrefix": "By signing in you accept the",
+    "agreeTerms": "Terms of use",
+    "agreeAnd": "and",
+    "agreePrivacy": "Privacy policy",
+    "agreeSuffix": "."
   },
   "dashboard": {
     "overview": "Overview",
@@ -1098,10 +1102,15 @@
       "name": "Product name",
       "namePlaceholder": "e.g. Running shoes",
       "description": "Description",
-      "price": "Price (Toman)",
-      "comparePrice": "Original price (for discount)",
+      "price": "Price",
+      "priceUnit": "toman",
+      "nameHint": "The agent introduces the product to customers by this name.",
+      "optional": "Optional",
+      "comparePrice": "Price before discount",
+      "comparePriceHint": "When filled, the price above is shown as the discounted price.",
       "sku": "SKU",
-      "stock": "Stock (blank = unlimited)",
+      "stock": "Stock",
+      "stockHint": "Leave blank for unlimited.",
       "lowStockThreshold": "Low-stock alert at",
       "lowStockThresholdPlaceholder": "e.g. 3 (blank = store default)",
       "category": "Category",

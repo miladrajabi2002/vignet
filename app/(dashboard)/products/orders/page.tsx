@@ -157,7 +157,7 @@ export default async function OrdersPage({
               buttonLabel={t('deleteAll')}
               variant="menu"
             />
-            <span className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
+            <span className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
               {t('total', { count: totalOrders.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}
             </span>
           </>

@@ -340,7 +340,7 @@ export function AppointmentsWorkspace({
                     type="button"
                     onClick={goToday}
                     disabled={weekStart === todayKey && selectedDate === todayKey}
-                    className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-40"
+                    className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-40"
                   >
                     {fa ? 'امروز' : 'Today'}
                   </button>
@@ -386,13 +386,13 @@ export function AppointmentsWorkspace({
                         <span className={cn('text-[12px] font-medium', selected ? 'text-white/70' : 'text-[var(--text-muted)]')}>{weekday}</span>
                         <span className="text-lg font-bold leading-7 tabular-nums">{day}</span>
                         {closed ? (
-                          <span className={cn('mt-1 text-[12px]', selected ? 'text-white/70' : 'text-[var(--text-hint)]')}>{fa ? 'تعطیل' : 'Off'}</span>
+                          <span className={cn('mt-1 text-[12px]', selected ? 'text-white/70' : 'text-[var(--text-muted)]')}>{fa ? 'تعطیل' : 'Off'}</span>
                         ) : (
                           <span className="mt-1.5 flex w-full items-center gap-1 px-1.5 sm:px-2.5" dir="ltr">
                             <span className={cn('h-1 flex-1 overflow-hidden rounded-full', selected ? 'bg-white/20' : 'bg-black/[0.06]')}>
                               <span className={cn('block h-full rounded-full transition-[width] duration-500', selected ? 'bg-white' : 'bg-[var(--text-primary)]')} style={{ width: `${Math.min(100, (active / maxWeek) * 100)}%` }} />
                             </span>
-                            <span className={cn('text-[12px] font-bold tabular-nums', selected ? 'text-white' : active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{num(active, fa)}</span>
+                            <span className={cn('text-[12px] font-bold tabular-nums', selected ? 'text-white' : active ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{num(active, fa)}</span>
                           </span>
                         )}
                         {isToday && <span className={cn('absolute top-1.5 h-1.5 w-1.5 rounded-full end-1.5', selected ? 'bg-white' : 'bg-[var(--signal)]')} aria-hidden />}
@@ -418,7 +418,7 @@ export function AppointmentsWorkspace({
                     )}
                   </div>
                   {!selectedClosed && selectedDate >= todayKey && (
-                    <button type="button" onClick={() => setBooking({ open: true, serviceId: serviceFilter || undefined })} className="ms-auto inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]">
+                    <button type="button" onClick={() => setBooking({ open: true, serviceId: serviceFilter || undefined })} className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]">
                       <Plus className="h-3.5 w-3.5" />{fa ? 'نوبت در این روز' : 'Book this day'}
                     </button>
                   )}
@@ -578,7 +578,7 @@ function DayTimeline({
               : (fa ? 'ایجنت از گفتگوها رزرو می‌کند؛ دستی هم می‌توانید ثبت کنید.' : 'The agent books from chats; you can also add one.')}
           </p>
           {canBook && (
-            <button type="button" onClick={onBook} className="spatial-press mt-4 inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-white">
+            <button type="button" onClick={onBook} className="spatial-press mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-white">
               <Plus className="h-3.5 w-3.5" />{fa ? 'ثبت نوبت' : 'Book'}
             </button>
           )}
@@ -717,12 +717,12 @@ function AppointmentItem({
       {!cancelling && !confirmingDelete && (
         <div className="col-span-2 flex items-center justify-end gap-1.5 sm:col-span-1">
           {!terminal && primary && (
-            <button type="button" disabled={busy} onClick={() => void run(primary.status)} className="spatial-press inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => void run(primary.status)} className="spatial-press inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <primary.Icon className="h-3.5 w-3.5" />}{primary.label}
             </button>
           )}
           {!terminal && (
-            <button type="button" disabled={busy} onClick={() => onReschedule(appointment)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+            <button type="button" disabled={busy} onClick={() => onReschedule(appointment)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
               <ArrowLeftRight className="h-3.5 w-3.5" /><span className="hidden sm:inline">{fa ? 'جابه‌جایی' : 'Move'}</span>
             </button>
           )}
@@ -784,7 +784,7 @@ function AppointmentItem({
               <button type="button" onClick={() => { setCancelling(false); setReason('') }} className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm text-[var(--text-secondary)]">{fa ? 'بازگشت' : 'Back'}</button>
             </div>
           </div>
-          <p className="mt-2 text-[12.5px] text-red-700/80">{fa ? 'زمان آزاد می‌شود و به شما اعلان داده می‌شود.' : 'The time frees up and you get a notification.'}</p>
+          <p className="mt-2 text-[13px] text-red-700/80">{fa ? 'زمان آزاد می‌شود و به شما اعلان داده می‌شود.' : 'The time frees up and you get a notification.'}</p>
         </div>
       )}
     </article>
@@ -793,7 +793,7 @@ function AppointmentItem({
 
 function MenuItem({ onClick, Icon, danger = false, children }: { onClick: () => void; Icon: typeof Check; danger?: boolean; children: React.ReactNode }) {
   return (
-    <button type="button" role="menuitem" onClick={onClick} className={cn('flex min-h-10 w-full items-center gap-2 rounded-xl px-2.5 text-start text-[13px] font-medium transition-colors', danger ? 'text-red-600 hover:bg-red-50' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]')}>
+    <button type="button" role="menuitem" onClick={onClick} className={cn('flex min-h-11 w-full items-center gap-2 rounded-xl px-2.5 text-start text-[13px] font-medium transition-colors', danger ? 'text-red-600 hover:bg-red-50' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]')}>
       <Icon className="h-4 w-4" />{children}
     </button>
   )
@@ -810,7 +810,7 @@ function AgentPanel({ fa, services, onManage, remindersEnabled }: { fa: boolean;
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-white"><Bot className="h-4 w-4" /></span>
           <div className="min-w-0">
             <p className="ui-h3 leading-6">{fa ? 'ایجنت رزرو فعال است' : 'Booking agent is on'}</p>
-            <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? `${num(services.length, true)} خدمت قابل رزرو` : `${services.length} bookable services`}</p>
+            <p className="text-[13px] text-[var(--text-muted)]">{fa ? `${num(services.length, true)} خدمت قابل رزرو` : `${services.length} bookable services`}</p>
           </div>
           <StatusChip tone="ok" pulse className="ms-auto">{fa ? 'زنده' : 'Live'}</StatusChip>
         </div>
@@ -821,7 +821,7 @@ function AgentPanel({ fa, services, onManage, remindersEnabled }: { fa: boolean;
               <span className={cn('relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold ring-4 ring-white', index === steps.length - 1 ? 'bg-[var(--ok)] text-white' : 'bg-[var(--signal-soft)] text-[var(--signal-strong)]')}>
                 {index === steps.length - 1 ? <Check className="h-3 w-3" strokeWidth={3} /> : num(index + 1, fa)}
               </span>
-              <span className="pt-0.5 text-[12.5px] leading-6 text-[var(--text-secondary)]">{step}</span>
+              <span className="pt-0.5 text-[13px] leading-6 text-[var(--text-secondary)]">{step}</span>
             </li>
           ))}
         </ol>
@@ -829,13 +829,13 @@ function AgentPanel({ fa, services, onManage, remindersEnabled }: { fa: boolean;
       <ReminderSettingsCard fa={fa} initialEnabled={remindersEnabled} />
       <section className="spatial-surface rounded-card p-4">
         <p className="ui-h3">{fa ? 'قوانین ایمنی رزرو' : 'Booking safeguards'}</p>
-        <ul className="mt-2 space-y-1.5 text-[12.5px] leading-6 text-[var(--text-secondary)]">
+        <ul className="mt-2 space-y-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">
           {(fa
             ? ['پیش از ثبت، خلاصه را از مشتری تأیید می‌گیرد', 'قفل تراکنشی: دو نفر یک زمان را نمی‌گیرند', 'لغو و جابه‌جایی فقط برای نوبت خود مشتری']
             : ['Confirms a summary with the customer first', 'Transactional lock: no double booking', 'Cancel/move only the customer’s own booking']
           ).map((item) => <li key={item} className="flex items-start gap-2"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--ok)]" />{item}</li>)}
         </ul>
-        <button type="button" onClick={onManage} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+        <button type="button" onClick={onManage} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
           <LayoutGrid className="h-3.5 w-3.5" />{fa ? 'ساعت کاری و ظرفیت خدمات' : 'Service hours & capacity'}
         </button>
       </section>
@@ -847,9 +847,9 @@ function Onboarding({ fa, onCreate }: { fa: boolean; onCreate: (template?: Servi
   return (
     <section className="spatial-surface overflow-hidden rounded-sheet p-5 sm:p-7">
       <div className="grid items-center gap-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div>
+        <div className="text-center lg:text-start">
           <StatusChip tone="signal" dot>{fa ? 'رزرو خودکار با ایجنت' : 'Agent-powered booking'}</StatusChip>
-          <h2 className="mt-3 text-[22px] font-bold leading-10 text-[var(--text-primary)] sm:text-[26px]">
+          <h2 className="mt-3 text-balance text-[22px] font-bold leading-10 text-[var(--text-primary)] sm:text-[28px]">
             {fa ? 'اولین خدمت را بسازید؛ بقیه‌اش با ایجنت.' : 'Create your first service. The agent does the rest.'}
           </h2>
           <p className="ui-body mt-2">
@@ -857,7 +857,7 @@ function Onboarding({ fa, onCreate }: { fa: boolean; onCreate: (template?: Servi
               ? 'مدت، ظرفیت و ساعت کاری را یک‌بار تعریف کنید. از همان لحظه ایجنت در اینستاگرام، تلگرام و سایت زمان آزاد واقعی پیشنهاد می‌دهد و نوبت را بدون تداخل ثبت می‌کند.'
               : 'Set length, capacity and hours once. From then on the agent offers real free times on Instagram, Telegram and your site and books without conflicts.'}
           </p>
-          <ol className="mt-5 space-y-2.5">
+          <ol className="mx-auto mt-5 w-fit space-y-2.5 text-start lg:mx-0">
             {(fa
               ? ['خدمت و ساعت کاری را تعریف کنید (۱ دقیقه)', 'ایجنت زمان آزاد را به مشتری پیشنهاد می‌دهد', 'نوبت‌ها اینجا و در ربات تلگرام به شما می‌رسد']
               : ['Define a service and hours (1 minute)', 'The agent offers free times to customers', 'Bookings land here and in your Telegram bot']
@@ -868,16 +868,16 @@ function Onboarding({ fa, onCreate }: { fa: boolean; onCreate: (template?: Servi
               </li>
             ))}
           </ol>
-          <button type="button" onClick={() => onCreate()} className="spatial-press mt-6 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90">
+          <button type="button" onClick={() => onCreate()} className="spatial-press mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm sm:w-auto font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90">
             <Plus className="h-4 w-4" />{fa ? 'ساخت اولین خدمت' : 'Create first service'}
           </button>
           <div className="mt-5">
             <p className="ui-caption mb-2">{fa ? 'یا با یک الگوی آماده شروع کنید:' : 'Or start from a template:'}</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
               {SERVICE_TEMPLATES.map((template) => (
-                <button key={template.key} type="button" onClick={() => onCreate(template)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]">
+                <button key={template.key} type="button" onClick={() => onCreate(template)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]">
                   {fa ? template.fa : template.en}
-                  <span className="font-normal text-[var(--text-hint)]">· {fa ? template.hintFa : template.hintEn}</span>
+                  <span className="font-normal text-[var(--text-muted)]">· {fa ? template.hintFa : template.hintEn}</span>
                 </button>
               ))}
             </div>

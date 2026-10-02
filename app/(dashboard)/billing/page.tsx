@@ -276,7 +276,8 @@ export default async function BillingPage(
           <StatsCard label={locale === 'fa' ? 'پاسخ موفق هوش مصنوعی' : 'Successful AI replies'} value={nf.format(messagesUsed)} icon={Cpu} />
           <StatsCard
             label={locale === 'fa' ? 'اعتبار مصرف‌شده' : 'Credit charged'}
-            value={`${nf.format(chargedIRR / 10)} ${toman}`}
+            value={nf.format(chargedIRR / 10)}
+            unit={toman}
             icon={Wallet}
           />
         </div>

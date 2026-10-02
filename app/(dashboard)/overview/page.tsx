@@ -418,7 +418,13 @@ export default async function OverviewPage() {
           subtitle={fa ? 'یک روند اصلی؛ جزئیات کامل در بخش گزارش‌ها' : 'One primary trend; deeper analysis stays in Analytics'}
           action={<Link href="/analytics" className="ui-link">{fa ? 'گزارش کامل' : 'Full report'}<Arrow aria-hidden /></Link>}
         >
-          <ConversationChart data={trend} />
+          <ConversationChart
+            data={trend}
+            empty={{
+              title: fa ? 'هنوز گفتگویی ثبت نشده' : 'No conversations yet',
+              hint: fa ? 'با اولین گفتگو، روند همین‌جا رسم می‌شود.' : 'The trend is drawn here from the first conversation.',
+            }}
+          />
         </DashboardPanel>
 
         <DashboardPanel
@@ -559,7 +565,7 @@ function OutcomeCard({
   const DeltaIcon = !delta || delta.value === 0 ? Minus : delta.value > 0 ? TrendingUp : TrendingDown
   return (
     <Link href={href} className="dashboard-card group rounded-card border border-[var(--border-subtle)] bg-white p-4 transition-[border-color] hover:border-[var(--border-strong)] sm:p-5">
-      <span className="block text-[12.5px] font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
+      <span className="block text-[13px] font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
       <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)] sm:text-3xl">{value}</span>
         {delta && (
@@ -570,27 +576,8 @@ function OutcomeCard({
         )}
       </p>
       <p className="mt-1 min-h-4 text-[12px] leading-5 text-[var(--text-muted)]">{hint}</p>
-      {series?.length ? <MiniBars series={series} /> : null}
+      {series?.length ? <div className="mt-2 h-7"><Sparkline data={series} color="#111111" height={28} fluid /></div> : null}
     </Link>
-  )
-}
-
-/**
- * One bar per day. A smoothed line turns a week of sparse counts into the
- * same single bump on every card; bars keep each day readable on its own.
- */
-function MiniBars({ series }: { series: number[] }) {
-  const max = Math.max(...series, 1)
-  return (
-    <div aria-hidden className="mt-3 flex h-7 items-end gap-1">
-      {series.map((value, index) => (
-        <span
-          key={index}
-          className={cn('flex-1 rounded-sm', value > 0 ? 'bg-[var(--signal)]' : 'bg-[var(--border-default)]')}
-          style={{ height: value > 0 ? `${Math.max(14, Math.round((value / max) * 100))}%` : '2px', opacity: value > 0 && index < series.length - 1 ? 0.55 : 1 }}
-        />
-      ))}
-    </div>
   )
 }
 

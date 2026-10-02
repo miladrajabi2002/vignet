@@ -274,7 +274,7 @@ export function InstagramConnectFlow({
             type="button"
             onClick={onConnectClick}
             disabled={busy}
-            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
             {busy ? 'در حال انتقال به اینستاگرام…' : 'بررسی شرایط و اتصال'}
@@ -287,7 +287,7 @@ export function InstagramConnectFlow({
             type="button"
             onClick={back}
             disabled={busy}
-            className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+            className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
             <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             بازگشت به برنامه‌ها

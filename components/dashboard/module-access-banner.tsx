@@ -81,10 +81,10 @@ export function ModuleAccessBanner({
         </p>
       </div>
       <div className="flex gap-2">
-        <Link href="/settings#settings-business-profile" className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl px-3 text-xs font-bold text-[var(--signal-strong)] hover:bg-[var(--signal-tint)] sm:flex-none">
+        <Link href="/settings#settings-business-profile" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 text-xs font-bold text-[var(--signal-strong)] hover:bg-[var(--signal-tint)] sm:flex-none">
           {t('moduleOffSettings')}
         </Link>
-        <button type="button" onClick={() => void add()} disabled={busy} className="spatial-press inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[var(--signal-strong)] px-3.5 text-xs font-bold text-white disabled:opacity-60 sm:flex-none">
+        <button type="button" onClick={() => void add()} disabled={busy} className="spatial-press inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[var(--signal-strong)] px-3.5 text-xs font-bold text-white disabled:opacity-60 sm:flex-none">
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
           {t('moduleOffEnable')}
         </button>

@@ -15,7 +15,6 @@ import {
   dayPartOfMinute,
   durationLabel,
   num,
-  serviceAccent,
   shiftDateKey,
   weekdayOf,
   type AppointmentRow,
@@ -65,7 +64,17 @@ export function BookingDialog({
   const service = services.find((item) => item.id === serviceId)
   const timezone = service?.timezone ?? 'Asia/Tehran'
   const today = dateKeyInTimeZone(new Date(), timezone)
-  const [date, setDate] = useState(initialDate < today ? today : initialDate)
+  // Open on a day that can actually be booked: if the requested day is closed
+  // for this service, start on its next open day within the two-week strip.
+  const [date, setDate] = useState(() => {
+    const wanted = initialDate < today ? today : initialDate
+    if (reschedule || serviceOpenOn(service, wanted)) return wanted
+    for (let index = 0; index < 14; index++) {
+      const key = shiftDateKey(today, index)
+      if (key >= wanted && serviceOpenOn(service, key)) return key
+    }
+    return wanted
+  })
   const [partySize, setPartySize] = useState(reschedule?.partySize ?? 1)
   const [slots, setSlots] = useState<SlotRow[]>([])
   const [slot, setSlot] = useState<number | null>(null)
@@ -79,6 +88,15 @@ export function BookingDialog({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const strip = useMemo(() => Array.from({ length: 14 }, (_, index) => shiftDateKey(today, index)), [today])
+
+  // Switching to a service that is closed on the chosen day moves to its next open day.
+  function chooseService(id: string) {
+    setServiceId(id)
+    const next = services.find((item) => item.id === id)
+    if (!next || serviceOpenOn(next, date)) return
+    const open = strip.find((key) => key >= date && serviceOpenOn(next, key)) ?? strip.find((key) => serviceOpenOn(next, key))
+    if (open) setDate(open)
+  }
 
   useEffect(() => {
     if (!serviceId || !date) return
@@ -175,20 +193,18 @@ export function BookingDialog({
             <StepLabel index={1} text={fa ? 'خدمت' : 'Service'} />
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
               {services.map((item) => {
-                const accent = serviceAccent(item.id)
                 const active = item.id === serviceId
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setServiceId(item.id)}
+                    onClick={() => chooseService(item.id)}
                     aria-pressed={active}
                     className={cn(
                       'spatial-press flex shrink-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-start transition-colors',
                       active ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-default)] bg-white hover:border-[var(--border-strong)]',
                     )}
                   >
-                    <span className={cn('h-7 w-1 rounded-full', active ? 'bg-white/80' : accent.bar)} aria-hidden />
                     <span>
                       <span className="block text-[13px] font-bold">{item.name}</span>
                       <span className={cn('block text-[12px]', active ? 'text-white/70' : 'text-[var(--text-muted)]')}>{durationLabel(item.durationMinutes, fa)}</span>
@@ -226,6 +242,7 @@ export function BookingDialog({
                   key={key}
                   type="button"
                   onClick={() => setDate(key)}
+                  disabled={!open && !active}
                   aria-pressed={active}
                   className={cn(
                     'flex w-[3.6rem] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors',
@@ -233,14 +250,16 @@ export function BookingDialog({
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
                       : open
                         ? 'border-[var(--border-default)] bg-white text-[var(--text-primary)] hover:border-[var(--border-strong)]'
-                        : 'border-dashed border-[var(--border-default)] bg-transparent text-[var(--text-hint)]',
+                        : 'cursor-not-allowed border-transparent bg-black/[0.04] text-[var(--text-hint)]',
                   )}
                 >
-                  <span className={cn('text-[12px] font-medium', active ? 'text-white/70' : 'text-[var(--text-muted)]')}>
+                  <span className={cn('text-[12px] font-medium', active ? 'text-white/70' : open ? 'text-[var(--text-muted)]' : 'text-[var(--text-hint)]')}>
                     {key === today ? (fa ? 'امروز' : 'Today') : new Intl.DateTimeFormat(dateLocaleTag(locale), { weekday: 'short', timeZone: 'UTC' }).format(dateObj)}
                   </span>
                   <span className="text-base font-bold tabular-nums">{new Intl.DateTimeFormat(dateLocaleTag(locale), { day: 'numeric', timeZone: 'UTC' }).format(dateObj)}</span>
-                  <span className={cn('mt-0.5 h-1 w-1 rounded-full', open ? (active ? 'bg-white' : 'bg-emerald-500') : 'bg-transparent')} />
+                  {open
+                    ? <span className={cn('mt-0.5 h-1 w-1 rounded-full', active ? 'bg-white' : 'bg-emerald-500')} />
+                    : <span className="text-[12px] leading-4">{fa ? 'تعطیل' : 'Closed'}</span>}
                 </button>
               )
             })}
@@ -261,7 +280,7 @@ export function BookingDialog({
                   const part = DAY_PARTS[group.key]
                   return (
                     <div key={group.key}>
-                      <p className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-bold text-[var(--text-muted)]"><part.Icon className="h-3.5 w-3.5" />{fa ? part.fa : part.en}</p>
+                      <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-bold text-[var(--text-muted)]"><part.Icon className="h-3.5 w-3.5" />{fa ? part.fa : part.en}</p>
                       <div className="flex flex-wrap gap-1.5" dir="ltr">
                         {group.items.map((item) => {
                           const active = slot === item.startMinute
@@ -330,7 +349,7 @@ export function BookingDialog({
               type="button"
               onClick={() => void submit()}
               disabled={!canSubmit}
-              className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45"
+              className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : reschedule ? <ArrowLeftRight className="h-4 w-4" /> : <CalendarCheck2 className="h-4 w-4" />}
               {reschedule ? (fa ? 'انتقال به این زمان' : 'Move to this time') : (fa ? 'ثبت در تقویم' : 'Add to calendar')}

@@ -1,7 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     MessageCircle,
@@ -9,24 +8,19 @@ import {
     Circle,
     Plus,
     Loader2,
-    Bot,
-    Shield,
-    Zap,
     Settings2,
-    Save,
-    X,
     ChevronDown,
     Camera,
-    Check,
-    Heart,
     type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
 import { AutomationsReportSummary } from '@/components/instagram/automation-report'
 import type { AutomationReportMap } from '@/lib/instagram/automation-report'
-import { AutomationMotion, type AutomationKind } from '@/components/motion/explainers'
+import { InstagramScenarioDemo } from '@/components/instagram/scenario-demo'
+import type { InstagramDemoMode } from '@/components/marketing/home-variants/shared/mocks'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Switch } from '@/components/ui/switch'
+import { TagInput } from '@/components/ui/tag-input'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useTranslations, useLocale } from 'next-intl'
 import {
@@ -36,7 +30,6 @@ import {
         type ReplyPolicy,
         DEFAULT_SETTINGS,
         REPLY_POLICY_LABEL_KEY,
-        REPLY_POLICY_DESC_KEY,
 } from '@/components/instagram/types'
 
 interface TabDef {
@@ -187,122 +180,116 @@ export function InstagramAutomationManager({
                 }
         }
 
+        const fa = locale === 'fa'
+        const newHref = `/instagram/new?agentId=${agentId}&type=${activeTab}`
+        const activeTotal = automations.filter((item) => item.active).length
+        const settingsPanel = (
+                <ChannelSettingsRail
+                        settings={settings}
+                        onSave={saveSettings}
+                        entry={activeTab}
+                />
+        )
+
         return (
-                <div className="space-y-6">
-                        {/* Page header */}
+                <div className="space-y-4">
                         <PageHeader
                                 icon={Camera}
-                                title={t('manager.title')}
-                                subtitle={t('manager.subtitle')}
+                                title={fa ? 'اینستاگرام' : 'Instagram'}
+                                subtitle={fa
+                                        ? `@${accountUsername || 'vigent.bot'} · ${activeTotal.toLocaleString(numLocale)} سناریوی فعال از ${automations.length.toLocaleString(numLocale)}`
+                                        : `@${accountUsername || 'vigent.bot'} · ${activeTotal} active of ${automations.length} scenarios`}
+                                actions={(
+                                        <button
+                                                type="button"
+                                                onClick={() => router.push(newHref)}
+                                                className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-sm font-semibold text-white shadow-[var(--shadow-control)]"
+                                        >
+                                                <Plus className="h-4 w-4" />
+                                                {fa ? 'سناریوی جدید' : 'New scenario'}
+                                        </button>
+                                )}
                         />
 
-                        {/* Channel settings (slimmed down — replyPolicy + stopWords only) */}
-                        <ChannelSettingsCard
-                                settings={settings}
-                                onSave={saveSettings}
-                                accountUsername={accountUsername}
-                        />
+                        {/* One tab bar drives both the scenario list and that entry's settings. */}
+                        <div className="ui-seg grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>
+                                {TABS.map(({ key, labelKey, Icon }) => {
+                                        const activeCount = byType[key].filter((a) => a.active).length
+                                        const active = key === activeTab
+                                        return (
+                                                <button
+                                                        key={key}
+                                                        id={`scenario-tab-${key}`}
+                                                        type="button"
+                                                        role="tab"
+                                                        aria-selected={active}
+                                                        aria-controls={`scenario-panel-${key}`}
+                                                        onClick={() => setActiveTab(key)}
+                                                        className="ui-seg-tab min-h-12 gap-2 px-2 text-[13px]"
+                                                >
+                                                        <Icon className="hidden h-4 w-4 shrink-0 sm:block" />
+                                                        <span className="truncate">
+                                                                {key === 'STORY'
+                                                                        ? <>{fa ? 'استوری' : 'Story'}<span className="hidden sm:inline">{fa ? ' و واکنش' : ' & reactions'}</span></>
+                                                                        : t(labelKey)}
+                                                        </span>
+                                                        <span className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums ${active ? 'bg-[var(--text-primary)] text-white' : 'bg-black/[0.08] text-[var(--text-secondary)]'}`}>
+                                                                {activeCount.toLocaleString(numLocale)}
+                                                        </span>
+                                                </button>
+                                        )
+                                })}
+                        </div>
 
                         <AutomationsReportSummary
-                                fa={locale === 'fa'}
+                                fa={fa}
                                 reports={reports}
                                 names={Object.fromEntries(automations.map((item) => [item.id, item.name]))}
                         />
 
-                        <section className="spatial-surface space-y-4 rounded-card p-4 sm:p-5" aria-labelledby="instagram-scenarios-title">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="min-w-0">
-                                                <h2 id="instagram-scenarios-title" className="text-base font-bold tracking-tight text-[var(--text-primary)]">
-                                                        {locale === 'fa' ? 'سناریوهای پاسخ‌گویی' : 'Reply scenarios'}
-                                                </h2>
-                                                <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                                                        {locale === 'fa' ? 'برای هر ورودی، قوانین و پاسخ‌های مستقل بسازید.' : 'Create independent rules and replies for each entry point.'}
-                                                </p>
-                                        </div>
-                                        <span className="shrink-0 text-xs font-medium tabular-nums text-[var(--text-muted)]">
-                                                {locale === 'fa'
-                                                        ? `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} سناریوی فعال از ${automations.length.toLocaleString(numLocale)}`
-                                                        : `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} active of ${automations.length.toLocaleString(numLocale)}`}
-                                        </span>
-                                </div>
+                        {/* Phones and tablets: the entry's settings fold above its scenarios. */}
+                        <details className="group overflow-hidden rounded-card border border-[var(--border-subtle)] bg-white shadow-[var(--elev-1)] lg:hidden">
+                                <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-[13px] [&::-webkit-details-marker]:hidden">
+                                        <Settings2 className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                                        <span className="font-bold text-[var(--text-primary)]">{fa ? 'تنظیمات این ورودی' : 'Settings for this entry'}</span>
+                                        <span className="truncate text-[var(--text-muted)]">· {t(REPLY_POLICY_LABEL_KEY[settings[POLICY_KEY[activeTab]]])}</span>
+                                        <ChevronDown className="ms-auto h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180" />
+                                </summary>
+                                <div className="border-t border-[var(--border-subtle)] p-4">{settingsPanel}</div>
+                        </details>
 
-<div className="ui-seg grid-cols-1 sm:grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>
-                                        {TABS.map(({ key, labelKey, Icon }) => {
-                                                const count = byType[key].length
-                                                const activeCount = byType[key].filter((a) => a.active).length
-                                                const active = key === activeTab
-                                                const description = key === 'DIRECT_MESSAGE'
-                                                        ? locale === 'fa' ? 'پیام‌ها و کلیدواژه‌ها' : 'Messages and keywords'
-                                                        : key === 'COMMENT'
-                                                                ? locale === 'fa' ? 'پاسخ و هدایت به دایرکت' : 'Replies and DM routing'
-                                                                : locale === 'fa' ? 'ریپلای و واکنش استوری' : 'Story replies and reactions'
-                                                return (
-                                                        <button
-                                                                key={key}
-                                                                id={`scenario-tab-${key}`}
-                                                                type="button"
-                                                                role="tab"
-                                                                aria-selected={active}
-                                                                aria-controls={`scenario-panel-${key}`}
-                                                                onClick={() => setActiveTab(key)}
-className="ui-seg-tab group min-h-[4.5rem] justify-start gap-3 px-3.5 py-3 text-start"
-                                                                >
-                                                                <span className="ui-seg-icon h-9 w-9">
-                                                                        <Icon className="h-4 w-4" />
-                                                                </span>
-                                                                <span className="min-w-0 flex-1">
-                                                                        <span className="flex items-center justify-between gap-2">
-                                                                                <span className="text-sm font-semibold">{t(labelKey)}</span>
-<span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums ${active ? 'bg-[var(--text-primary)] text-white' : 'bg-black/[0.06] text-[var(--text-secondary)]'}`}>
-                                                                                        {activeCount.toLocaleString(numLocale)}
-                                                                                </span>
-                                                                        </span>
-<span className="mt-0.5 block truncate text-[12.5px] font-normal text-[var(--text-muted)]">
-                                                                                {description}{count > activeCount ? ` · ${count.toLocaleString(numLocale)}` : ''}
-                                                                        </span>
-                                                                </span>
-                                                        </button>
-                                                )
-                                        })}
-                                </div>
-
+                        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
                                 <div
                                         id={`scenario-panel-${activeTab}`}
                                         role="tabpanel"
                                         aria-labelledby={`scenario-tab-${activeTab}`}
-                                        className="space-y-3"
+                                        className="min-w-0"
                                 >
-                                {current.length === 0 ? (
-                                        <EmptyState
-                                                kind={EMPTY_MOTION_KIND[activeTab]}
-                                                text={t(currentTab.emptyKey)}
-                                                onCreate={() =>
-                                                        router.push(`/instagram/new?agentId=${agentId}&type=${activeTab}`)
-                                                }
-                                        />
-                                ) : (
-                                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                                                {current.map((a) => (
-                                                        <AutomationCard
-                                                                key={a.id}
-                                                                automation={a}
-                                                                agentId={agentId}
-                                                                report={reports[a.id]}
-                                                                onToggleActive={(next) => handleToggleActive(a, next)}
-                                                                onDelete={() => setDeleteTarget(a)}
-                                                        />
-                                                ))}
-                                                <CreateScenarioCard
-                                                        Icon={currentTab.Icon}
-                                                        typeLabel={t(currentTab.labelKey)}
-                                                        onCreate={() =>
-                                                                router.push(`/instagram/new?agentId=${agentId}&type=${activeTab}`)
-                                                        }
+                                        {current.length === 0 ? (
+                                                <EmptyState
+                                                        type={activeTab}
+                                                        text={t(currentTab.emptyKey)}
+                                                        onCreate={() => router.push(newHref)}
                                                 />
-                                        </div>
-                                )}
+                                        ) : (
+                                                <div className="spatial-surface divide-y divide-[var(--border-subtle)] rounded-card">
+                                                        {current.map((a) => (
+                                                                <AutomationCard
+                                                                        key={a.id}
+                                                                        automation={a}
+                                                                        agentId={agentId}
+                                                                        report={reports[a.id]}
+                                                                        onToggleActive={(next) => handleToggleActive(a, next)}
+                                                                        onDelete={() => setDeleteTarget(a)}
+                                                                />
+                                                        ))}
+                                                </div>
+                                        )}
                                 </div>
-                        </section>
+                                <aside className="spatial-surface hidden rounded-card p-4 lg:sticky lg:top-24 lg:block" aria-label={fa ? 'تنظیمات این ورودی' : 'Settings for this entry'}>
+                                        {settingsPanel}
+                                </aside>
+                        </div>
 
                         {/* Delete confirmation — shared ConfirmDialog primitive gives us
                             focus trap, Esc-to-close, scroll lock and focus restore for free. */}
@@ -337,408 +324,225 @@ className="ui-seg-tab group min-h-[4.5rem] justify-start gap-3 px-3.5 py-3 text-
         )
 }
 
-// ── Channel settings card (v3 — slimmed down) ────────────────────────────
-//   v3: only replyPolicy + stopWords. welcomeMessage + followUp* were
-//   removed from the UI per the task spec (they're still stored in the
-//   backend if previously set, but no longer editable here).
-function ChannelSettingsCard({
+const POLICY_KEY: Record<AutomationType, 'dmReplyPolicy' | 'commentReplyPolicy' | 'storyReplyPolicy'> = {
+        DIRECT_MESSAGE: 'dmReplyPolicy',
+        COMMENT: 'commentReplyPolicy',
+        STORY: 'storyReplyPolicy',
+}
+
+// ── Settings of one entry (direct, comment, story) ───────────────────────
+//   Every control saves on change; the two fixed-reply texts save when the
+//   field loses focus. Story reactions live with the story entry.
+function ChannelSettingsRail({
         settings,
         onSave,
-        accountUsername,
+        entry,
 }: {
         settings: InstagramAutomationSettings
         onSave: (next: InstagramAutomationSettings) => Promise<void>
-        accountUsername: string
+        entry: AutomationType
 }) {
         const t = useTranslations('instagram')
-        const locale = useLocale()
+        const fa = useLocale() === 'fa'
         const [draft, setDraft] = useState<InstagramAutomationSettings>(settings)
-        const [stopWordInput, setStopWordInput] = useState('')
-        const [saving, setSaving] = useState(false)
-        const [open, setOpen] = useState(true)
-        const [settingsTab, setSettingsTab] = useState<'dm' | 'story' | 'comment' | 'reaction'>('dm')
+        const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle')
+        const policyKey = POLICY_KEY[entry]
+        // Two copies of this panel exist (folded on phones, rail on desktop); keep both on the saved value.
+        useEffect(() => { setDraft(settings) }, [settings])
 
-        const dirty = JSON.stringify(draft) !== JSON.stringify(settings)
-        // Warn before leaving with unsaved IG settings edits.
-        useUnsavedChangesGuard(dirty)
-
-        function set<K extends keyof InstagramAutomationSettings>(
-                k: K,
-                v: InstagramAutomationSettings[K],
-        ) {
-                setDraft((d) => ({ ...d, [k]: v }))
-        }
-
-        function addStopWord(raw: string) {
-                const pieces = raw
-                        .split(/[,\n]/)
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                if (pieces.length === 0) return
-                set('stopWords', Array.from(new Set([...draft.stopWords, ...pieces])))
-                setStopWordInput('')
-        }
-
-        async function handleSave() {
-                setSaving(true)
+        async function commit(next: InstagramAutomationSettings) {
+                setDraft(next)
+                // A fixed reply that is switched on needs its text before it can be saved.
+                if ((next.storyReactionReplyEnabled && !next.storyReactionReplyText?.trim()) ||
+                        (next.commentEmojiReplyEnabled && !next.commentEmojiReplyText?.trim())) return
+                setState('saving')
                 try {
-                        await onSave(draft)
+                        await onSave(next)
+                        setState('saved')
+                        window.setTimeout(() => setState((value) => (value === 'saved' ? 'idle' : value)), 1800)
                 } catch {
-                        // Parent reports the localized error; keep the unsaved draft intact.
-                } finally {
-                        setSaving(false)
+                        // The parent shows the localized error; fall back to what is stored.
+                        setDraft(settings)
+                        setState('idle')
                 }
         }
 
-        const policyKey: 'dmReplyPolicy' | 'storyReplyPolicy' | 'commentReplyPolicy' =
-                settingsTab === 'dm'
-                        ? 'dmReplyPolicy'
-                        : settingsTab === 'comment'
-                                ? 'commentReplyPolicy'
-                                : 'storyReplyPolicy'
+        const POLICIES: { value: ReplyPolicy; title: string; hint: string }[] = [
+                { value: 'ALL_AGENT', title: fa ? 'همه را ایجنت جواب بدهد' : 'The agent answers everything', hint: fa ? 'سناریوها نادیده گرفته می‌شوند' : 'Scenarios are ignored' },
+                { value: 'AGENT_EXCEPT_SCENARIOS', title: fa ? 'ایجنت، به‌جز سناریوها' : 'The agent, except scenarios', hint: fa ? 'اگر سناریویی بخورد، همان جواب می‌دهد' : 'A matching scenario answers instead' },
+                { value: 'AUTOMATION_ONLY', title: fa ? 'فقط سناریوها' : 'Scenarios only', hint: fa ? 'ایجنت خاموش است' : 'The agent stays off' },
+        ]
 
-        function renderToggle(
+        function toggleRow(
                 key: 'storyReactionReplyEnabled' | 'commentEmojiReplyEnabled' | 'likeDmAfterReply' |
                         'likeStoryReplyAfterReply' | 'likeStoryReactionAfterReply' | 'likeCommentAfterReply',
                 label: string,
-                description: string,
+                hint?: string,
                 disabled = false,
         ) {
                 return (
-                        <div className={`flex min-h-[4.5rem] items-center justify-between gap-4 rounded-2xl border border-black/[0.06] bg-white/70 p-4 shadow-[var(--shadow-control)] ${disabled ? 'opacity-55' : ''}`}>
+                        <div className={`flex items-center justify-between gap-3 ${disabled ? 'opacity-55' : ''}`}>
                                 <div className="min-w-0">
-                                        <p className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{label}</p>
-                                        <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{description}</p>
+                                        <p className="text-[13px] text-[var(--text-primary)]">{label}</p>
+                                        {hint && <p className="text-[12px] leading-5 text-[var(--text-muted)]">{hint}</p>}
                                 </div>
                                 <Switch
                                         checked={Boolean(draft[key])}
                                         disabled={disabled}
-                                        onChange={(next) => set(key, next)}
+                                        onChange={(next) => void commit({ ...draft, [key]: next })}
                                         aria-label={label}
                                 />
                         </div>
                 )
         }
 
-        const POLICIES: { value: ReplyPolicy; labelKey: string; descKey: string; Icon: LucideIcon }[] = [
-                {
-                        value: 'ALL_AGENT',
-                        labelKey: REPLY_POLICY_LABEL_KEY.ALL_AGENT,
-                        descKey: REPLY_POLICY_DESC_KEY.ALL_AGENT,
-                        Icon: Bot,
-                },
-                {
-                        value: 'AGENT_EXCEPT_SCENARIOS',
-                        labelKey: REPLY_POLICY_LABEL_KEY.AGENT_EXCEPT_SCENARIOS,
-                        descKey: REPLY_POLICY_DESC_KEY.AGENT_EXCEPT_SCENARIOS,
-                        Icon: Shield,
-                },
-                {
-                        value: 'AUTOMATION_ONLY',
-                        labelKey: REPLY_POLICY_LABEL_KEY.AUTOMATION_ONLY,
-                        descKey: REPLY_POLICY_DESC_KEY.AUTOMATION_ONLY,
-                        Icon: Zap,
-                },
-        ]
+        function replyText(key: 'commentEmojiReplyText' | 'storyReactionReplyText', enabled: boolean, placeholder: string) {
+                if (!enabled) return null
+                return (
+                        <div>
+                                <textarea
+                                        value={draft[key] ?? ''}
+                                        onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value || null }))}
+                                        onBlur={() => { if ((draft[key] ?? '') !== (settings[key] ?? '')) void commit(draft) }}
+                                        placeholder={placeholder}
+                                        aria-label={t('manager.fixedReplyText')}
+                                        rows={2}
+                                        className="input min-h-[4.5rem] resize-none py-2 text-[13px] leading-6"
+                                />
+                                {!draft[key]?.trim() && <p className="mt-1 text-[12px] text-amber-700">{fa ? 'متن پاسخ را بنویسید تا ذخیره شود.' : 'Write the reply text to save.'}</p>}
+                        </div>
+                )
+        }
 
-        const SETTINGS_TABS = [
-                {
-                        key: 'dm' as const,
-                        Icon: MessageCircle,
-                        label: t('manager.settingsTabDm'),
-                        description: locale === 'fa' ? 'پیام‌های خصوصی' : 'Private messages',
-                },
-                {
-                        key: 'story' as const,
-                        Icon: Circle,
-                        label: t('manager.settingsTabStory'),
-                        description: locale === 'fa' ? 'ریپلای استوری' : 'Story replies',
-                },
-                {
-                        key: 'comment' as const,
-                        Icon: MessageSquare,
-                        label: t('manager.settingsTabComment'),
-                        description: locale === 'fa' ? 'کامنت و ایموجی' : 'Comments and emoji',
-                },
-                {
-                        key: 'reaction' as const,
-                        Icon: Heart,
-                        label: t('manager.settingsTabReaction'),
-                        description: locale === 'fa' ? 'واکنش‌های استوری' : 'Story reactions',
-                },
-        ]
+        const heading = entry === 'DIRECT_MESSAGE'
+                ? (fa ? 'چه کسی جواب دایرکت را بدهد؟' : 'Who answers direct messages?')
+                : entry === 'COMMENT'
+                        ? (fa ? 'چه کسی جواب کامنت را بدهد؟' : 'Who answers comments?')
+                        : (fa ? 'چه کسی جواب ریپلای استوری را بدهد؟' : 'Who answers story replies?')
 
         return (
-                <section className="overflow-hidden rounded-card border border-black/[0.06] bg-white/75 shadow-[var(--elev-2)] backdrop-blur-xl">
-                        <button
-                                type="button"
-                                onClick={() => setOpen((v) => !v)}
-                                className="flex min-h-[4.75rem] w-full items-center justify-between gap-3 px-5 py-4 text-start transition-[background-color,transform] duration-150 hover:bg-black/[0.025] active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:px-6"
-                                aria-expanded={open}
-                        >
-                                <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
-                                                <Settings2 className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                                <p className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
-                                                        {t('manager.settingsTitle')}
-                                                        <span className="ms-2 text-[12px] font-normal text-[var(--text-muted)]">
-                                                                @{accountUsername || 'vigent.bot'}
-                                                        </span>
-                                                </p>
-                                                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-                                                        {t('manager.settingsSubtitle')}
-                                                </p>
-                                        </div>
-                                </div>
-                                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.04]">
-                                        <ChevronDown className={`h-4 w-4 text-[var(--text-secondary)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+                <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                                <h2 id={`ig-policy-${entry}`} className="text-[13px] font-bold text-[var(--text-primary)]">{heading}</h2>
+                                <span className="shrink-0 text-[12px] text-emerald-700" role="status" aria-live="polite">
+                                        {state === 'saving' ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" /> : state === 'saved' ? (fa ? 'ذخیره شد ✓' : 'Saved ✓') : null}
                                 </span>
-                        </button>
-
-                        {open && (
-                                <div className="space-y-5 border-t border-black/[0.05] bg-[linear-gradient(180deg,rgba(250,250,251,0.7),rgba(255,255,255,0.92))] px-5 py-5 sm:px-6 sm:py-6">
-                                        <div className="ui-seg grid-cols-2 sm:grid-cols-4" role="tablist" aria-label={t('manager.settingsTabsAria')}>
-                                                {SETTINGS_TABS.map(({ key: tab, Icon, label, description }) => {
-                                                        const active = settingsTab === tab
-                                                        return (
-                                                                <button
-                                                                        key={tab}
-                                                                        id={`settings-tab-${tab}`}
-                                                                        type="button"
-                                                                        role="tab"
-                                                                        aria-selected={active}
-                                                                        aria-controls={`settings-panel-${tab}`}
-                                                                        onClick={() => setSettingsTab(tab)}
-                                                                        className="ui-seg-tab min-h-[3.75rem] justify-start gap-2.5 px-3 py-2.5 text-start"
-                                                                >
-                                                                        <Icon className="h-4 w-4 shrink-0" />
-                                                                        <span className="min-w-0">
-                                                                                <span className="block text-xs font-semibold">{label}</span>
-                                                                                <span className="mt-0.5 block truncate text-[12px] font-normal text-[var(--text-muted)]">{description}</span>
-                                                                        </span>
-                                                                </button>
-                                                        )
-                                                })}
-                                        </div>
-                                        <div id={`settings-panel-${settingsTab}`} role="tabpanel" aria-labelledby={`settings-tab-${settingsTab}`} className="space-y-5">
-                                        {/* Reply policy — segmented control */}
-                                        <div className={settingsTab === 'reaction' ? 'hidden' : 'space-y-2'}>
-                                                <p className="text-xs font-semibold text-[var(--text-primary)]">
-                                                        {t('manager.replyPolicyLabel')}
-                                                </p>
-                                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                                        {POLICIES.map(({ value, labelKey, descKey, Icon }) => {
-                                                                const active = draft[policyKey] === value
-                                                                return (
-                                                                        <button
-                                                                                key={value}
-                                                                                type="button"
-                                                                                onClick={() => set(policyKey, value)}
-                                                                                className={`group relative flex min-h-[8.5rem] flex-col items-start gap-2 rounded-2xl border p-4 text-start transition-[border-color,background-color,box-shadow,transform] duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
-                                                                                        active
-                                                                                                ? 'border-black bg-white shadow-[var(--shadow-control)]'
-                                                                                                : 'border-black/[0.07] bg-white/70 hover:border-black/20 hover:bg-white'
-                                                                                }`}
-                                                                        >
-                                                                                <div
-                                                                                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                                                                                                active
-                                                                                                        ? 'bg-black text-white'
-                                                                                                        : 'bg-black/[0.045] text-[var(--text-secondary)]'
-                                                                                        }`}
-                                                                                >
-                                                                                        <Icon className="h-4 w-4" />
-                                                                                </div>
-                                                                                <div>
-                                                                                        <p className="text-xs font-medium text-[var(--text-primary)]">{t(labelKey)}</p>
-                                                                                        <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
-                                                                                                {t(descKey)}
-                                                                                        </p>
-                                                                                </div>
-                                                                                {active && (
-                                                                                        <span className="absolute end-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-black text-white" aria-label={t('manager.activeBadge')}>
-                                                                                                <Check className="h-3 w-3" />
-                                                                                        </span>
-                                                                                )}
-                                                                        </button>
-                                                                )
-                                                        })}
-                                                </div>
-                                        </div>
-
-                                        {settingsTab === 'comment' && (
-                                                <div className="space-y-3">
-                                                        {renderToggle('commentEmojiReplyEnabled', t('manager.commentEmojiEnabled'), t('manager.commentEmojiEnabledHint'))}
-                                                        <label className="block text-xs font-medium text-[var(--text-secondary)]" htmlFor="comment-emoji-reply">{t('manager.fixedReplyText')}</label>
-                                                        <textarea id="comment-emoji-reply" value={draft.commentEmojiReplyText ?? ''} disabled={!draft.commentEmojiReplyEnabled} required={draft.commentEmojiReplyEnabled} onChange={(event) => set('commentEmojiReplyText', event.target.value || null)} placeholder={t('manager.commentEmojiPlaceholder')} className="min-h-24 w-full rounded-2xl border border-black/[0.08] bg-white p-3.5 text-sm leading-6 text-[var(--text-primary)] outline-none transition-[border-color,box-shadow] focus:border-black/30 focus:shadow-[0_0_0_3px_rgba(0,0,0,0.04)] disabled:cursor-not-allowed disabled:bg-black/[0.025] disabled:opacity-50" />
-                                                        {renderToggle('likeCommentAfterReply', t('manager.likeComment'), t('manager.likeCommentUnsupportedHint'), true)}
-                                                </div>
-                                        )}
-                                        {settingsTab === 'reaction' && (
-                                                <div className="space-y-3">
-                                                        {renderToggle('storyReactionReplyEnabled', t('manager.storyReactionEnabled'), t('manager.storyReactionEnabledHint'))}
-                                                        <label className="block text-xs font-medium text-[var(--text-secondary)]" htmlFor="story-reaction-reply">{t('manager.fixedReplyText')}</label>
-                                                        <textarea id="story-reaction-reply" value={draft.storyReactionReplyText ?? ''} disabled={!draft.storyReactionReplyEnabled} required={draft.storyReactionReplyEnabled} onChange={(event) => set('storyReactionReplyText', event.target.value || null)} placeholder={t('manager.storyReactionPlaceholder')} className="min-h-24 w-full rounded-2xl border border-black/[0.08] bg-white p-3.5 text-sm leading-6 text-[var(--text-primary)] outline-none transition-[border-color,box-shadow] focus:border-black/30 focus:shadow-[0_0_0_3px_rgba(0,0,0,0.04)] disabled:cursor-not-allowed disabled:bg-black/[0.025] disabled:opacity-50" />
-                                                        {renderToggle('likeStoryReactionAfterReply', t('manager.likeStoryReaction'), t('manager.likeAfterReplyHint'))}
-                                                </div>
-                                        )}
-                                        {settingsTab === 'dm' && renderToggle('likeDmAfterReply', t('manager.likeDm'), t('manager.likeAfterReplyHint'))}
-                                        {settingsTab === 'story' && renderToggle('likeStoryReplyAfterReply', t('manager.likeStoryReply'), t('manager.likeAfterReplyHint'))}
-
-                                        {/* Stop words */}
-                                        <div className="space-y-1.5">
-                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                        {t('manager.stopWordsLabel')}
-                                                </label>
-                                                <div className="flex min-h-12 flex-wrap items-center gap-1.5 rounded-2xl border border-black/[0.08] bg-white px-3 py-2.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.025)] transition-[border-color,box-shadow] focus-within:border-black/30 focus-within:shadow-[0_0_0_3px_rgba(0,0,0,0.04)]">
-                                                        {draft.stopWords.map((k) => (
-                                                                <span
-                                                                        key={k}
-                                                                        className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-muted)] px-2 py-0.5 text-xs text-[var(--text-primary)]"
-                                                                >
-                                                                        {k}
-                                                                        <button
-                                                                                type="button"
-                                                                                onClick={() =>
-                                                                                        set(
-                                                                                                'stopWords',
-                                                                                                draft.stopWords.filter((x) => x !== k),
-                                                                                        )
-                                                                                }
-                                                                                className="text-[var(--text-muted)] hover:text-[var(--danger)]"
-                                                                                aria-label={t('manager.stopWordsDeleteAria', { word: k })}
-                                                                        >
-                                                                                <X className="h-3 w-3" />
-                                                                        </button>
-                                                                </span>
-                                                        ))}
-                                                        <input
-                                                                value={stopWordInput}
-                                                                onChange={(e) => setStopWordInput(e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter' || e.key === ',') {
-                                                                                e.preventDefault()
-                                                                                addStopWord(stopWordInput)
-                                                                        } else if (
-                                                                                e.key === 'Backspace' &&
-                                                                                stopWordInput === '' &&
-                                                                                draft.stopWords.length > 0
-                                                                        ) {
-                                                                                set('stopWords', draft.stopWords.slice(0, -1))
-                                                                        }
-                                                                }}
-                                                                onBlur={() => addStopWord(stopWordInput)}
-                                                                placeholder={draft.stopWords.length ? '' : t('manager.stopWordsPlaceholder')}
-                                                                className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
-                                                        />
-                                                </div>
-                                                <p className="text-[12px] text-[var(--text-muted)]">
-                                                        {t('manager.stopWordsHint')}
-                                                </p>
-                                        </div>
-
-                                        {/* Save bar */}
-                                        <div className="flex flex-col gap-3 border-t border-black/[0.05] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                                                <p className="text-[12px] text-[var(--text-muted)]">
-                                                        {dirty
-                                                                ? t('manager.dirtyHint')
-                                                                : settingsTab === 'reaction'
-                                                                        ? t('manager.settingsSavedHint')
-                                                                        : t('manager.currentPolicyHint', {
-                                                                                policy: t(REPLY_POLICY_LABEL_KEY[draft[policyKey]]),
-                                                                        })}
-                                                </p>
+                        </div>
+                        <div role="radiogroup" aria-labelledby={`ig-policy-${entry}`} className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-xl border border-[var(--border-default)]">
+                                {POLICIES.map(({ value, title, hint }) => {
+                                        const active = draft[policyKey] === value
+                                        return (
                                                 <button
+                                                        key={value}
                                                         type="button"
-                                                        onClick={handleSave}
-                                                        disabled={!dirty || saving || (draft.storyReactionReplyEnabled && !draft.storyReactionReplyText?.trim()) || (draft.commentEmojiReplyEnabled && !draft.commentEmojiReplyText?.trim())}
-                                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                                                        role="radio"
+                                                        aria-checked={active}
+                                                        onClick={() => { if (!active) void commit({ ...draft, [policyKey]: value }) }}
+                                                        className="flex w-full items-center gap-3 px-3 py-2.5 text-start transition-colors hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
                                                 >
-                                                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                                        {t('manager.saveSettings')}
+                                                        <span className={`h-5 w-5 shrink-0 rounded-full border bg-white ${active ? 'border-[6px] border-[var(--text-primary)]' : 'border-black/30'}`} />
+                                                        <span className="min-w-0">
+                                                                <span className={`block text-[13px] text-[var(--text-primary)] ${active ? 'font-bold' : ''}`}>{title}</span>
+                                                                <span className="block text-[12px] leading-5 text-[var(--text-muted)]">{hint}</span>
+                                                        </span>
                                                 </button>
-                                        </div>
-                                        </div>
-                                </div>
+                                        )
+                                })}
+                        </div>
+
+                        {entry === 'DIRECT_MESSAGE' && toggleRow('likeDmAfterReply', fa ? 'لایک پیام پس از پاسخ' : 'Like the message after replying')}
+                        {entry === 'COMMENT' && (
+                                <>
+                                        {toggleRow('commentEmojiReplyEnabled', t('manager.commentEmojiEnabled'), t('manager.commentEmojiEnabledHint'))}
+                                        {replyText('commentEmojiReplyText', draft.commentEmojiReplyEnabled, t('manager.commentEmojiPlaceholder'))}
+                                        {toggleRow('likeCommentAfterReply', t('manager.likeComment'), t('manager.likeCommentUnsupportedHint'), true)}
+                                </>
                         )}
-                </section>
-        )
-}
+                        {entry === 'STORY' && (
+                                <>
+                                        {toggleRow('likeStoryReplyAfterReply', t('manager.likeStoryReply'))}
+                                        <p className="border-t border-[var(--border-subtle)] pt-3 text-[12px] font-bold text-[var(--text-secondary)]">{fa ? 'واکنش به استوری' : 'Story reactions'}</p>
+                                        {toggleRow('storyReactionReplyEnabled', t('manager.storyReactionEnabled'), t('manager.storyReactionEnabledHint'))}
+                                        {replyText('storyReactionReplyText', draft.storyReactionReplyEnabled, t('manager.storyReactionPlaceholder'))}
+                                        {toggleRow('likeStoryReactionAfterReply', t('manager.likeStoryReaction'))}
+                                </>
+                        )}
 
-function CreateScenarioCard({
-        Icon,
-        typeLabel,
-        onCreate,
-}: {
-        Icon: LucideIcon
-        typeLabel: string
-        onCreate: () => void
-}) {
-        const t = useTranslations('instagram')
-        const locale = useLocale()
-
-        return (
-                <button
-                        type="button"
-                        onClick={onCreate}
-                        aria-label={`${t('manager.addScenario')} — ${typeLabel}`}
-                        className="group flex min-h-[13rem] w-full flex-col items-center justify-center rounded-card border border-dashed border-black/15 bg-[linear-gradient(145deg,rgba(255,255,255,0.72),rgba(247,247,249,0.64))] p-6 text-center transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-black/35 hover:bg-white hover:shadow-[var(--elev-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 active:translate-y-0 motion-reduce:transform-none"
-                >
-                        <span className="relative grid h-12 w-12 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] transition-transform duration-200 group-hover:scale-105 motion-reduce:transform-none">
-                                <Icon aria-hidden="true" className="h-4 w-4 opacity-55" />
-                                <Plus aria-hidden="true" className="absolute h-5 w-5" />
-                        </span>
-                        <span className="mt-4 text-sm font-bold text-[var(--text-primary)]">
-                                {t('manager.addScenario')}
-                        </span>
-                        <span className="mt-1.5 max-w-xs text-xs leading-6 text-[var(--text-secondary)]">
-                                {locale === 'fa'
-                                        ? `یک سناریوی جدید برای ${typeLabel} بسازید.`
-                                        : `Create another scenario for ${typeLabel}.`}
-                        </span>
-                </button>
+                        <div className="border-t border-[var(--border-subtle)] pt-3">
+                                <label htmlFor={`ig-stop-${entry}`} className="ui-field-label">{fa ? 'کلمات توقف' : 'Stop words'}</label>
+                                <TagInput
+                                        id={`ig-stop-${entry}`}
+                                        value={draft.stopWords}
+                                        onChange={(words) => void commit({ ...draft, stopWords: words })}
+                                        locale={fa ? 'fa' : 'en'}
+                                        max={50}
+                                        placeholder={t('manager.stopWordsPlaceholder')}
+                                />
+                                <p className="ui-field-hint">{fa ? 'با دیدنشان ایجنت در آن گفتگو ساکت می‌شود؛ برای همهٔ ورودی‌ها مشترک است.' : 'On seeing one, the agent goes quiet in that conversation. Shared by all entries.'}</p>
+                        </div>
+                </div>
         )
 }
 
 // ── Empty state ─────────────────────────────────────────────────────────
 // The first-scenario moment is when "what does this do?" matters most, so
-// the empty tab plays that scenario type end to end (trigger → instant DM).
-const EMPTY_MOTION_KIND: Record<AutomationType, AutomationKind> = {
-        DIRECT_MESSAGE: 'dm',
-        COMMENT: 'comment',
-        STORY: 'story',
+// the empty tab plays that scenario type end to end on the Instagram phone
+// mockup: the customer writes, the store answers in the DM.
+const EMPTY_DEMO: Record<AutomationType, { mode: InstagramDemoMode; fa: string; en: string }> = {
+        DIRECT_MESSAGE: {
+                mode: 'direct',
+                fa: 'نمونهٔ دایرکت: مشتری در دایرکت سؤال می‌پرسد و فروشگاه فوراً جواب و کارت محصول می‌فرستد.',
+                en: 'DM sample: a customer asks in a DM and the store instantly replies with product cards.',
+        },
+        COMMENT: {
+                mode: 'comment',
+                fa: 'نمونهٔ کامنت: مشتری زیر پست کامنت می‌گذارد، فروشگاه زیر کامنت جواب می‌دهد و ادامه را در دایرکت می‌فرستد.',
+                en: 'Comment sample: a customer comments on a post, the store replies under it and continues in a DM.',
+        },
+        STORY: {
+                mode: 'story',
+                fa: 'نمونهٔ استوری: مشتری استوری را ریپلای می‌کند و فروشگاه در دایرکت جواب می‌دهد.',
+                en: 'Story sample: a customer replies to a story and the store answers in the DM.',
+        },
 }
 
 function EmptyState({
-        kind,
+        type,
         text,
         onCreate,
 }: {
-        kind: AutomationKind
+        type: AutomationType
         text: string
         onCreate: () => void
 }) {
         const t = useTranslations('instagram')
-        const locale = useLocale()
+        const fa = useLocale() !== 'en'
+        const demo = EMPTY_DEMO[type]
         return (
-                <div className="rounded-card border border-dashed border-black/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(247,247,249,0.78))] p-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-8">
-                        <AutomationMotion key={kind} locale={locale === 'en' ? 'en' : 'fa'} kind={kind} className="mx-auto max-w-xl" />
-                        <h3 className="mt-5 text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">
-                                {locale === 'fa' ? 'اولین سناریو را بسازید' : 'Create your first scenario'}
-                        </h3>
-                        <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-[var(--text-secondary)]">
-                                {text}
-                        </p>
-                        <button
-                                type="button"
-                                onClick={onCreate}
-                                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
-                        >
-                                <Plus className="h-4 w-4" />
-                                {t('manager.addScenario')}
-                        </button>
+                <div className="grid grid-cols-1 items-center gap-6 rounded-card border border-dashed border-black/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(247,247,249,0.78))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8 sm:p-8">
+                        <div className="min-w-0 text-center sm:text-start">
+                                <h3 className="text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+                                        {fa ? 'اولین سناریو را بسازید' : 'Create your first scenario'}
+                                </h3>
+                                <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-[var(--text-secondary)] sm:mx-0">
+                                        {text}
+                                </p>
+                                <button
+                                        type="button"
+                                        onClick={onCreate}
+                                        className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+                                >
+                                        <Plus className="h-4 w-4" />
+                                        {t('manager.addScenario')}
+                                </button>
+                        </div>
+                        <InstagramScenarioDemo
+                                key={type}
+                                locale={fa ? 'fa' : 'en'}
+                                mode={demo.mode}
+                                label={fa ? demo.fa : demo.en}
+                                className="mx-auto w-[260px] max-w-full"
+                        />
                 </div>
         )
 }

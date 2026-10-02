@@ -7,7 +7,6 @@ import type { ChannelType, ConvStatus } from '@prisma/client'
 import {
   AlertCircle,
   ArrowLeft,
-  BookOpen,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -455,12 +454,12 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-t border-[var(--border-subtle)] px-3 py-2">
-              <Link className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href={`/conversations/${conversation.id}`} target="_blank">
+              <Link className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href={`/conversations/${conversation.id}`} target="_blank">
                 {t('مشاهده گفتگو', 'Open conversation')}
                 <ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" />
               </Link>
               {conversation.contactId && (
-                <button type="button" className="min-h-10 rounded-xl px-3 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => updateSelection({ contactId: conversation.contactId! })}>
+                <button type="button" className="min-h-11 rounded-xl px-3 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => updateSelection({ contactId: conversation.contactId! })}>
                   {t('فقط گفتگوهای این مشتری', 'Only this customer')}
                 </button>
               )}
@@ -485,27 +484,25 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
   )
 
   return <div className="min-w-0 space-y-4 pb-4">
-    <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-start gap-3.5">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-black text-white shadow-[var(--shadow-control)]">
-            <WandSparkles className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">{t('تحلیل و بهبود', 'Analyze & improve')}</h2>
-              {automationEnabled && <StatusPill tone="success">{t('خودکارسازی فعال', 'Automation on')}</StatusPill>}
-            </div>
-            <p className="mt-1.5 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
-              {t('گفتگوها را بررسی کنید، مشکل‌های تکراری را پیدا کنید و دانش یا رفتار ایجنت را با شواهد واقعی بهتر کنید.', 'Review conversations, find recurring problems, and improve agent knowledge or behavior using real evidence.')}
-            </p>
-            {data && <p className="mt-3 text-xs text-[var(--text-muted)]">{number(data.pendingCount)} {t('پیشنهاد آمادهٔ بررسی', 'suggestions ready')}</p>}
-            {!data && (
-              <div className="mt-3" aria-hidden="true">
-                <Skeleton delay={-100} className="h-3 w-28 rounded-full" />
-              </div>
-            )}
+    <section className="spatial-surface overflow-hidden rounded-card p-4 sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">
+              {data && data.pendingCount > 0
+                ? t(`${number(data.pendingCount)} پیشنهاد آمادهٔ بررسی`, `${number(data.pendingCount)} suggestions ready`)
+                : t('تحلیل و بهبود', 'Analyze & improve')}
+            </h2>
+            {automationEnabled && <StatusPill tone="success">{t('خودکارسازی فعال', 'Automation on')}</StatusPill>}
           </div>
+          <p className="mt-1 max-w-2xl text-[13px] leading-6 text-[var(--text-muted)]">
+            {t('از روی گفتگوهای واقعی، دانش یا رفتار ایجنت را بهتر کنید.', 'Improve the agent’s knowledge or behavior from real conversations.')}
+          </p>
+          {!data && (
+            <div className="mt-2" aria-hidden="true">
+              <Skeleton delay={-100} className="h-3 w-28 rounded-full" />
+            </div>
+          )}
         </div>
         <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:flex">
           <Button
@@ -532,7 +529,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       </div>
       {/* On-demand explainer: closed by default so the daily workspace stays
           compact; the loop only runs while it is open and on screen. */}
-      <details className="group mt-4 border-t border-[var(--border-subtle)] pt-3">
+      <details className="group mt-3 border-t border-[var(--border-subtle)] pt-2">
         <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] [&::-webkit-details-marker]:hidden">
           <WandSparkles className="h-3.5 w-3.5" aria-hidden="true" />
           {t('این بخش چطور کار می‌کند؟', 'How does this work?')}
@@ -601,12 +598,6 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
       </div>
     )}
     <section role="tabpanel" id="analysis-panel-suggestions" aria-labelledby="analysis-tab-suggestions" hidden={tab !== 'suggestions'} className="space-y-3">
-      {data && pending.length > 0 && (
-        <div className="flex items-end justify-between gap-3 px-1 pb-1 pt-1">
-          <div><h3 className="text-sm font-bold">{t('پیشنهادهای آمادهٔ بررسی', 'Suggestions ready for review')}</h3><p className="mt-1 text-xs text-[var(--text-muted)]">{t('موارد مهم‌تر بالاتر نمایش داده می‌شوند.', 'Higher priority items appear first.')}</p></div>
-          <span className="text-xs font-semibold text-[var(--text-muted)]">{number(data.pendingCount)} {t('مورد', 'items')}</span>
-        </div>
-      )}
       {data && !pending.length && (
         <div className={`${surface} py-11 text-center`}>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-black/[0.04] text-[var(--text-secondary)]"><CircleCheck className="h-6 w-6" aria-hidden="true" /></span>
@@ -637,25 +628,51 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
               setSelectedId(suggestion.id)
             }}
           >
-            <div className="flex items-start gap-3.5">
-              <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/[0.045] text-[var(--text-secondary)]', tested && testedBetter && 'bg-emerald-50 text-emerald-700', tested && !testedBetter && 'bg-amber-50 text-amber-800')}>
-                {isTesting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : tested ? testedBetter ? <CircleCheck className="h-4 w-4" aria-hidden="true" /> : <AlertCircle className="h-4 w-4" aria-hidden="true" /> : isKnowledge ? <BookOpen className="h-4 w-4" aria-hidden="true" /> : isBehavior ? <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> : <MessageSquare className="h-4 w-4" aria-hidden="true" />}
+            {/* One quiet meta line instead of three pills; colour is kept for
+                priority and for a finished test. */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--text-secondary)]">
+              <span className={cn('h-2 w-2 shrink-0 rounded-full', suggestion.priority === 'HIGH' ? 'bg-amber-500' : 'bg-black/25')} aria-hidden="true" />
+              <span>
+                {isKnowledge ? t('دانش', 'Knowledge') : isBehavior ? t('رفتار و لحن', 'Behavior') : t('روند و ابزار', 'Flow & tools')}
+                {' · '}
+                {suggestion.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : suggestion.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}
+                {suggestion.draft.scope === 'CUSTOMER' ? ` · ${t('فقط این مشتری', 'This customer only')}` : ''}
               </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusPill>{isKnowledge ? t('دانش', 'Knowledge') : isBehavior ? t('رفتار و لحن', 'Behavior') : t('روند و ابزار', 'Flow & tools')}</StatusPill>
-                  <StatusPill>{suggestion.draft.scope === 'CUSTOMER' ? t('برای این مشتری', 'This customer') : t('برای همه', 'All customers')}</StatusPill>
-                  <StatusPill tone={suggestion.priority === 'HIGH' ? 'warning' : 'neutral'}>{suggestion.priority === 'HIGH' ? t('اولویت بالا', 'High priority') : suggestion.priority === 'MEDIUM' ? t('اولویت متوسط', 'Medium priority') : t('اولویت پایین', 'Low priority')}</StatusPill>
-                  {isTesting && <StatusPill><Loader2 className="me-1 h-3 w-3 animate-spin motion-reduce:animate-none" aria-hidden="true" />{t('در حال تست و ارزیابی', 'Testing & evaluating')}</StatusPill>}
-                  {!isTesting && tested && <StatusPill tone={testedBetter ? 'success' : 'warning'}>{testedBetter ? t('تست‌شده · بهتر', 'Tested · improved') : t('تست‌شده · نیاز به اصلاح', 'Tested · needs revision')}</StatusPill>}
-                </div>
-                <h3 className="mt-3 text-[15px] font-bold leading-7 text-[var(--text-primary)]">{suggestion.title}</h3>
-                <p className="mt-1 line-clamp-2 text-sm leading-7 text-[var(--text-secondary)]">{suggestion.diagnosis}</p>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
-                  <span className="text-xs text-[var(--text-muted)]">{number(suggestion.conversationCount)} {t('گفتگوی مرتبط', 'related conversations')}</span>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">{suggestion.draft.missing ? t('تکمیل اطلاعات', 'Complete information') : t('بررسی پیشنهاد', 'Review suggestion')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></span>
-                </div>
-              </div>
+              {isTesting && <StatusPill><Loader2 className="me-1 h-3 w-3 animate-spin motion-reduce:animate-none" aria-hidden="true" />{t('در حال تست و ارزیابی', 'Testing & evaluating')}</StatusPill>}
+              {!isTesting && tested && <StatusPill tone={testedBetter ? 'success' : 'warning'}>{testedBetter ? t('تست‌شده · بهتر', 'Tested · improved') : t('تست‌شده · نیاز به اصلاح', 'Tested · needs revision')}</StatusPill>}
+              {suggestion.conversationCount > 0 && (
+                <span className="ms-auto text-[var(--text-muted)]">{t(`از ${number(suggestion.conversationCount)} گفتگو`, `From ${number(suggestion.conversationCount)} conversations`)}</span>
+              )}
+            </div>
+            <h3 className="mt-2 text-[15px] font-bold leading-7 text-[var(--text-primary)]">{suggestion.title}</h3>
+            <p className="mt-0.5 line-clamp-2 text-sm leading-7 text-[var(--text-secondary)]">{suggestion.diagnosis}</p>
+            {/* What would actually change, readable without opening the card. */}
+            {(() => {
+              const draft = suggestion.draft
+              const change = draft.missing
+                ? { head: t('برای تکمیل لازم است:', 'Still needed:'), body: draft.missing }
+                : isBehavior && draft.behaviorPath
+                  ? {
+                      head: `${behaviorLabels[draft.behaviorPath]?.[fa ? 0 : 1] ?? draft.behaviorPath}:`,
+                      body: typeof draft.behaviorValue === 'string' && draft.behaviorPath === 'doSay'
+                        ? draft.behaviorValue
+                        : (behaviorLabels[String(draft.behaviorValue)]?.[fa ? 0 : 1] ?? String(draft.behaviorValue ?? '')),
+                    }
+                  : draft.answer
+                    ? { head: isKnowledge ? t('به دانش اضافه می‌شود:', 'Added to knowledge:') : t('تغییر پیشنهادی:', 'Proposed change:'), body: draft.answer }
+                    : null
+              if (!change) return null
+              return (
+                <p className="mt-2.5 line-clamp-2 rounded-xl border-s-[3px] border-[var(--signal)] bg-black/[0.03] px-3 py-2 text-[13px] leading-6 text-[var(--text-secondary)]">
+                  <span className="font-semibold text-[var(--text-primary)]">{change.head}</span> {change.body}
+                </p>
+              )
+            })()}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)]">
+                {suggestion.draft.missing ? t('تکمیل اطلاعات', 'Complete information') : tested ? t('دیدن نتیجه و اعمال', 'See result and apply') : t('تست و اعمال', 'Test and apply')}
+                <ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" />
+              </span>
             </div>
           </button>
         )
@@ -849,7 +866,7 @@ function LiveMetric({ label, value, className }: { label: string; value: string;
 }
 
 function FilterChip({ label, onRemove, fa }: { label: string; onRemove: () => void; fa: boolean }) {
-  return <button type="button" onClick={onRemove} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[12px] font-semibold text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+  return <button type="button" onClick={onRemove} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white px-2.5 text-[12px] font-semibold text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
     <span>{label}</span><X className="h-3 w-3" aria-hidden="true" /><span className="sr-only">{fa ? 'حذف فیلتر' : 'Remove filter'}</span>
   </button>
 }
@@ -950,7 +967,7 @@ function SuggestionDetail({ item: s, pricing, agentId, fa, busy, error, act, tri
     {s.kind === 'BEHAVIOR' && draft.behaviorPath && <div className={`${surface} space-y-3`}><h3 className="font-bold">{behaviorLabel(draft.behaviorPath)}</h3><p className="text-sm">{t('مقدار فعلی در زمان تحلیل: ', 'Value at analysis time: ')}{Array.isArray(draft.baseline) ? t(`${draft.baseline.length} دستور موجود حفظ می‌شود.`, `${draft.baseline.length} existing instructions are preserved.`) : behaviorLabel(draft.baseline)}</p><label className="block space-y-2 text-sm"><span>{t('مقدار پیشنهادی', 'Proposed value')}</span>{draft.behaviorPath === 'doSay' ? <textarea className={`${field} leading-8`} rows={4} maxLength={500} disabled={!pending} value={String(draft.behaviorValue ?? '')} onChange={(e) => setDraft({ ...draft, behaviorValue: e.target.value })} /> : <select disabled={!pending} className={field} value={String(draft.behaviorValue)} onChange={(e) => setDraft({ ...draft, behaviorValue: e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value })}>{behaviorValues[draft.behaviorPath].map((v) => <option key={String(v)} value={String(v)}>{behaviorLabel(v)}</option>)}</select>}</label></div>}
     {s.kind === 'BEHAVIOR' && draft.scope === 'CUSTOMER' && <div className={`${surface} space-y-3`}><div><h3 className="font-bold">{t('ترجیح تعامل این مشتری', 'This customer’s interaction preference')}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t('فقط در پروفایل همین مشتری ثبت می‌شود و وارد دانش یا رفتار عمومی ایجنت نخواهد شد.', 'Stored only on this customer profile; it never enters shared knowledge or global agent behavior.')}</p></div><label className="block space-y-2 text-sm"><span>{t('ترجیح صریح', 'Explicit preference')}</span><textarea className={`${field} leading-8`} rows={4} maxLength={500} disabled={!pending} value={draft.answer} onChange={(event) => setDraft({ ...draft, answer: event.target.value })} /></label></div>}
     {s.kind === 'TOOL' && <div className="space-y-3"><p className="text-sm leading-7">{draft.missing || t('این مورد نیاز به رسیدگی در تنظیمات یا منبع اصلی دارد. پس از اصلاح، رسیدگی را ثبت کنید.', 'Handle this in the source or settings, then record completion.')}</p><label className="block space-y-2 text-sm"><span>{t('یادداشت رسیدگی', 'Resolution note')}</span><textarea className={field} rows={3} value={draft.answer} disabled={!pending} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} /></label><div className="flex flex-wrap gap-2"><Link target="_blank" className={secondary} href={`/agents/${agentId}/improve?tab=knowledge`}>{t('دانش ایجنت', 'Knowledge')}</Link><Link target="_blank" className={secondary} href={`/agents/${agentId}/settings`}>{t('تنظیمات ایجنت', 'Agent settings')}</Link></div></div>}
-    {!!s.evidence.length && <details className="spatial-surface overflow-hidden rounded-card"><summary className="flex min-h-12 cursor-pointer items-center px-4 py-3 text-sm font-semibold">{t('نمونهٔ شواهد از گفتگوها', 'Conversation evidence sample')} ({s.evidence.length.toLocaleString(fa ? 'fa-IR' : 'en-US')})</summary><div className="space-y-3 border-t border-[var(--border-subtle)] px-4 pb-4">{s.evidence.map((e, i) => <div key={`${e.messageId}-${i}`} className="pt-3"><blockquote dir="auto" className={`${inset} whitespace-pre-wrap break-words p-3.5 text-sm leading-7 text-[var(--text-secondary)]`}>{e.message.content}</blockquote><Link target="_blank" className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]" href={`/conversations/${e.review.conversationId}#message-${e.messageId}`}>{t('رفتن به پیام شاهد', 'Open evidence message')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></Link></div>)}</div></details>}
+    {!!s.evidence.length && <details className="spatial-surface overflow-hidden rounded-card"><summary className="flex min-h-12 cursor-pointer items-center px-4 py-3 text-sm font-semibold">{t('نمونهٔ شواهد از گفتگوها', 'Conversation evidence sample')} ({s.evidence.length.toLocaleString(fa ? 'fa-IR' : 'en-US')})</summary><div className="space-y-3 border-t border-[var(--border-subtle)] px-4 pb-4">{s.evidence.map((e, i) => <div key={`${e.messageId}-${i}`} className="pt-3"><blockquote dir="auto" className={`${inset} whitespace-pre-wrap break-words p-3.5 text-sm leading-7 text-[var(--text-secondary)]`}>{e.message.content}</blockquote><Link target="_blank" className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]" href={`/conversations/${e.review.conversationId}#message-${e.messageId}`}>{t('رفتن به پیام شاهد', 'Open evidence message')}<ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" aria-hidden="true" /></Link></div>)}</div></details>}
     {isTesting && !preview && <section role="status" aria-live="polite" className="spatial-surface overflow-hidden rounded-card border-black/10 p-4 sm:p-5">
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]"><Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" /></span>
@@ -998,7 +1015,7 @@ function AutomationDialog({ initial, pricing, fa, busy, error, act, triggerRef, 
         <div className="min-w-0 flex-1"><p className="text-sm font-bold">{t('تحلیل روزانه', 'Daily analysis')}</p><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">{t(`گفتگوهای تازه یا دارای پیام جدید بررسی می‌شوند. هر درخواست موفق مدل ${pricing.modelNameFa}، ${(pricing.requestPriceIRR / 10).toLocaleString('fa-IR')} تومان خودکار از اعتبار کم می‌کند.`, `New or updated conversations are reviewed. Each successful ${pricing.modelNameEn} request automatically deducts ${(pricing.requestPriceIRR / 10).toLocaleString('en-US')} toman.`)}</p></div>
         <div className="flex min-h-11 items-center"><Switch checked={settings.daily} onChange={(daily) => setSettings({ ...settings, daily })} aria-label={t('تحلیل روزانه', 'Daily analysis')} /></div>
       </div>
-      {settings.daily && <div className={`${inset} space-y-3 p-3.5`}><label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('حداکثر گفتگو در هر روز', 'Daily conversation limit')}</span><input className={field} type="number" min={1} max={100} value={settings.count} onChange={(event) => setSettings({ ...settings, count: Math.max(1, Math.min(100, Number(event.target.value) || 1)) })} /></label><div className="grid grid-cols-3 gap-2">{[25, 50, 100].map((count) => <button key={count} type="button" className={cn('min-h-10 rounded-xl border bg-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', settings.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => setSettings({ ...settings, count })}>{count.toLocaleString(fa ? 'fa-IR' : 'en-US')}</button>)}</div></div>}
+      {settings.daily && <div className={`${inset} space-y-3 p-3.5`}><label className="block space-y-2 text-sm"><span className="text-xs font-semibold text-[var(--text-secondary)]">{t('حداکثر گفتگو در هر روز', 'Daily conversation limit')}</span><input className={field} type="number" min={1} max={100} value={settings.count} onChange={(event) => setSettings({ ...settings, count: Math.max(1, Math.min(100, Number(event.target.value) || 1)) })} /></label><div className="grid grid-cols-3 gap-2">{[25, 50, 100].map((count) => <button key={count} type="button" className={cn('min-h-11 rounded-xl border bg-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', settings.count === count ? 'border-black bg-black text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]')} onClick={() => setSettings({ ...settings, count })}>{count.toLocaleString(fa ? 'fa-IR' : 'en-US')}</button>)}</div></div>}
     </section>
 
     <section className={`${surface} space-y-4`}>

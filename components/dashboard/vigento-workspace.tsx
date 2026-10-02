@@ -216,8 +216,8 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
               <div className={message.role === 'user'
-                ? 'max-w-[86%] rounded-card rounded-br-md bg-black px-4 py-3 text-[13.5px] leading-7 text-white shadow-[var(--shadow-control)]'
-                : 'spatial-inset max-w-[92%] rounded-card rounded-bl-md px-4 py-3 text-[13.5px] leading-7 text-[var(--text-secondary)]'}>
+                ? 'max-w-[86%] rounded-card rounded-br-md bg-black px-4 py-3 text-[13px] leading-7 text-white shadow-[var(--shadow-control)]'
+                : 'spatial-inset max-w-[92%] rounded-card rounded-bl-md px-4 py-3 text-[13px] leading-7 text-[var(--text-secondary)]'}>
                 <ConversationText text={message.content} markdown={message.role === 'assistant'} />
               </div>
             </div>
@@ -226,18 +226,18 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
           {fresh ? (
             <div dir={fa ? 'rtl' : 'ltr'} className="space-y-4 pt-1">
               <div>
-                <p className="text-[12.5px] font-bold text-[var(--text-primary)]">{fa ? 'چه چیزی بپرسم؟' : 'What can I ask?'}</p>
+                <p className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'چه چیزی بپرسم؟' : 'What can I ask?'}</p>
                 <div className="mt-2 space-y-3">
                   {QUESTION_GROUPS.map((group) => (
                     <div key={group.en}>
-                      <p className="mb-1.5 text-[12.5px] font-semibold text-[var(--text-muted)]">{fa ? group.fa : group.en}</p>
+                      <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-muted)]">{fa ? group.fa : group.en}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {group.questions.map((question) => (
                           <button
                             key={question.en}
                             type="button"
                             onClick={() => void ask(fa ? question.fa : question.en)}
-                            className="spatial-press min-h-10 rounded-xl border border-[var(--border-default)] bg-white px-3 text-start text-[12.5px] text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--signal-border)] hover:text-[var(--text-primary)]"
+                            className="spatial-press min-h-10 rounded-xl border border-[var(--border-default)] bg-white px-3 text-start text-[13px] text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--signal-border)] hover:text-[var(--text-primary)]"
                           >
                             {fa ? question.fa : question.en}
                           </button>
@@ -248,7 +248,7 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
                 </div>
               </div>
               <div className="xl:hidden">
-                <p className="text-[12.5px] font-bold text-[var(--text-primary)]">{fa ? 'به چه چیزهایی دسترسی دارم؟' : 'What I can read'}</p>
+                <p className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'به چه چیزهایی دسترسی دارم؟' : 'What I can read'}</p>
                 <ul className="mt-2 grid grid-cols-2 gap-1.5">
                   {CAPABILITIES.map(({ icon: Icon, fa: faText, en }) => (
                     <li key={en[0]} className="flex items-center gap-2 rounded-xl bg-[var(--bg-surface)] px-2.5 py-2">
@@ -311,8 +311,8 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
                   <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[12.5px] font-semibold text-[var(--text-primary)]">{fa ? faText[0] : en[0]}</span>
-                  <span className="block truncate text-[12.5px] text-[var(--text-muted)]">{fa ? faText[1] : en[1]}</span>
+                  <span className="block truncate text-[13px] font-semibold text-[var(--text-primary)]">{fa ? faText[0] : en[0]}</span>
+                  <span className="block truncate text-[13px] text-[var(--text-muted)]">{fa ? faText[1] : en[1]}</span>
                 </span>
               </li>
             ))}

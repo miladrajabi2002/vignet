@@ -179,7 +179,7 @@ export function WebWidgetChannel({
         const unprotected = liveSettings.allowedDomains.length === 0
 
         return (
-                <div className="spatial-surface rounded-card p-5 sm:p-6">
+                <div className="spatial-surface rounded-card p-4 sm:p-5">
                         <div className="flex flex-wrap items-center gap-3">
                                 <ChannelMark channel="WEB_WIDGET" />
                                 <div className="flex-1">
@@ -213,7 +213,7 @@ export function WebWidgetChannel({
                                                 type="button"
                                                 onClick={enable}
                                                 disabled={busy}
-                                                className="ms-auto inline-flex min-h-11 items-center gap-1 rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-50"
+                                                className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
                                         >
                                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                                                 {t('enable')}
@@ -318,7 +318,7 @@ export function WebWidgetChannel({
                                                                                                         dir="ltr"
                                                                                                         value={settings.primaryColor}
                                                                                                         onChange={(e) => patch({ primaryColor: e.target.value })}
-                                                                                                        className="w-28 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                                        className="w-28 rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                                 />
                                                                                         </div>
                                                                                 </div>
@@ -394,7 +394,7 @@ export function WebWidgetChannel({
                                                                                         value={settings.headerTitle ?? ''}
                                                                                         placeholder={t('headerTitlePh')}
                                                                                         onChange={(e) => patch({ headerTitle: e.target.value || null })}
-                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
                                                                         </Field>
 
@@ -404,7 +404,7 @@ export function WebWidgetChannel({
                                                                                         value={settings.launcherLabel ?? ''}
                                                                                         placeholder={t('launcherLabelPh')}
                                                                                         onChange={(e) => patch({ launcherLabel: e.target.value || null })}
-                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
                                                                         </Field>
 
@@ -414,7 +414,7 @@ export function WebWidgetChannel({
                                                                                         value={settings.subtitle ?? ''}
                                                                                         placeholder={t('subtitlePh')}
                                                                                         onChange={(e) => patch({ subtitle: e.target.value || null })}
-                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
                                                                         </Field>
 
@@ -542,7 +542,7 @@ export function WebWidgetChannel({
                                                                                                                         next[i] = e.target.value
                                                                                                                         patch({ quickReplies: next })
                                                                                                                 }}
-                                                                                                                className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                                                className="flex-1 rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                                         />
                                                                                                         <button
                                                                                                                 type="button"
@@ -594,7 +594,7 @@ export function WebWidgetChannel({
                                                                                                 onChange={(e) =>
                                                                                                         patch({ leadCaptureMessage: e.target.value || null })
                                                                                                 }
-                                                                                                className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                                                                                                className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] disabled:cursor-not-allowed disabled:opacity-70"
                                                                                                 />
                                                                                         </Field>
                                                                                         <Toggle
@@ -624,7 +624,7 @@ export function WebWidgetChannel({
                                                                                                 setDomainsText(e.target.value)
                                                                                                 setSaved(false)
                                                                                         }}
-                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
                                                                                 <p className="mt-1 text-xs text-[var(--text-secondary)]">
                                                                                         {t('allowedDomainsHint')}
@@ -684,7 +684,7 @@ export function WebWidgetChannel({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
         return (
                 <label className="block">
-                        <span className="mb-1.5 block text-sm text-[var(--text-primary)]">{label}</span>
+                        <span className="ui-field-label">{label}</span>
                         {children}
                 </label>
         )

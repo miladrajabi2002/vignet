@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import type { ChannelType, ConvStatus } from '@prisma/client'
 import { ArrowLeft, Clock3, MessagesSquare } from 'lucide-react'
-import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ChannelBadge, ChannelGlyph } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
@@ -50,8 +50,7 @@ export function MobileConversationCard({
       <article
         className={cn(
           'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
-          attention &&
-            'border-amber-300/70 bg-amber-50/35 shadow-[0_14px_34px_rgba(245,158,11,0.08)]',
+          attention && 'border-amber-300/70',
         )}
       >
         <button
@@ -66,26 +65,29 @@ export function MobileConversationCard({
           <div className="flex min-w-0 items-center gap-3">
             <ContactAvatar src={avatarSrc} alt={who} size="md" />
             <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  role="img"
+                  aria-label={statusLabel}
+                  className={cn('h-2 w-2 shrink-0 rounded-full', attention ? 'bg-amber-500' : status === 'OPEN' ? 'bg-[var(--signal)]' : 'hidden')}
+                />
                 <span
                   dir="auto"
-                  className="min-w-0 truncate text-[15px] font-bold text-[var(--text-primary)]"
+                  className={cn('min-w-0 truncate text-[15px] text-[var(--text-primary)]', status === 'RESOLVED' ? 'font-medium' : 'font-bold')}
                 >
                   {who}
                 </span>
-                <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
+                <ChannelGlyph type={channel} />
+                <span className="ms-auto shrink-0 whitespace-nowrap text-[12px] text-[var(--text-muted)]">
                   {relativeTimeLabel}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <ConversationStatusBadge
-                  status={status}
-                  label={statusLabel}
-                  attention={attention}
-                />
-                <ChannelBadge type={channel} />
-              </div>
-              <div className="mt-2 flex min-w-0 items-center gap-1.5">
+              {attention && (
+                <div className="mt-1.5">
+                  <ConversationStatusBadge status={status} label={statusLabel} attention={attention} />
+                </div>
+              )}
+              <div className="mt-1 flex min-w-0 items-center gap-1.5">
                 {reactionEmoji && (
                   <span
                     dir="ltr"
@@ -130,7 +132,7 @@ export function MobileConversationCard({
             </button>
             <Link
               href={`/conversations/${conversationId}`}
-              className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+              className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               {isFa ? 'ورود به گفتگو' : 'Open conversation'}
               <ArrowLeft className="h-4 w-4 ltr:rotate-180" aria-hidden="true" />

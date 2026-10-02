@@ -63,14 +63,14 @@ export function SupportButton() {
             <a href={`tel:${SUPPORT_PHONE_E164}`} className={row}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--text-primary)] text-white"><Phone aria-hidden="true" className="h-[18px] w-[18px]" /></span>
               <span className="min-w-0">
-                <span className="block text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'تماس تلفنی' : 'Call us'}</span>
+                <span className="block text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'تماس تلفنی' : 'Call us'}</span>
                 <span className="block text-[12px] text-[var(--text-muted)]">{fa ? 'سریع‌ترین راه' : 'The fastest way'}</span>
               </span>
             </a>
             <a href={SUPPORT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={row}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eff6ff] text-[#0369a1]"><Send aria-hidden="true" className="h-[18px] w-[18px] -rotate-12" /></span>
               <span className="min-w-0">
-                <span className="block text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'پیام در تلگرام' : 'Message on Telegram'}</span>
+                <span className="block text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پیام در تلگرام' : 'Message on Telegram'}</span>
                 <span className="block text-[12px] text-[var(--text-muted)]">{fa ? 'با اسکرین‌شات خطا' : 'Send a screenshot'}</span>
               </span>
             </a>
@@ -83,7 +83,7 @@ export function SupportButton() {
               type="button"
               onClick={copyPhone}
               aria-label={fa ? 'کپی شماره پشتیبانی' : 'Copy support number'}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
               {copied ? <Check aria-hidden="true" className="h-3.5 w-3.5 text-[var(--ok)]" /> : <Copy aria-hidden="true" className="h-3.5 w-3.5" />}
               {copied ? (fa ? 'کپی شد' : 'Copied') : (fa ? 'کپی' : 'Copy')}
@@ -91,11 +91,11 @@ export function SupportButton() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-[var(--border-subtle)] pt-3">
-            <Link href="/vigento" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[12.5px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
+            <Link href="/vigento" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
               <Sparkles aria-hidden="true" className="h-4 w-4 text-[var(--signal)]" />
               {fa ? 'پرسیدن از ویجنتو' : 'Ask Vigento'}
             </Link>
-            <Link href="/docs" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[12.5px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
+            <Link href="/docs" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
               <BookOpen aria-hidden="true" className="h-4 w-4" />
               {fa ? 'مستندات' : 'Docs'}
             </Link>

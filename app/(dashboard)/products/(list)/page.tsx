@@ -6,6 +6,8 @@ import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductGrid, ProductsToolbar } from '@/components/products/product-grid'
+import { ProductTable } from '@/components/products/product-table'
+import { cn } from '@/lib/utils'
 import { Pagination } from '@/components/ui/pagination'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardBarList } from '@/components/dashboard/bar-list'
@@ -26,7 +28,7 @@ const PAGE_SIZE = 20
 
 export default async function ProductsPage(
   props: {
-    searchParams: Promise<{ q?: string; sort?: string; categoryId?: string; stock?: string; page?: string }>
+    searchParams: Promise<{ q?: string; sort?: string; categoryId?: string; stock?: string; page?: string; view?: string }>
   }
 ) {
   const searchParams = await props.searchParams;
@@ -38,9 +40,10 @@ export default async function ProductsPage(
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
   const categoryId = searchParams.categoryId ?? ''
-  const stock = ['in_stock', 'out_of_stock', 'low_stock'].includes(searchParams.stock ?? '')
+  const stock = ['in_stock', 'out_of_stock', 'low_stock', 'hidden'].includes(searchParams.stock ?? '')
     ? searchParams.stock!
     : ''
+  const view = searchParams.view === 'cards' ? 'cards' : 'table'
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   const stockAlert = await prisma.workspace.findUnique({
@@ -76,7 +79,9 @@ export default async function ProductsPage(
         ? { stock: 0 }
         : stock === 'low_stock'
           ? lowStockWhere
-          : {}),
+          : stock === 'hidden'
+            ? { active: false }
+            : {}),
     ...(q
       ? {
           AND: [{
@@ -93,7 +98,7 @@ export default async function ProductsPage(
   //    The recent-events panel was noisy and duplicated what the WooSetupCard
   //    already shows. Removing it keeps the products page focused on the
   //    catalog itself.
-  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs, lowStockCount, trackedStockCount] = await Promise.all([
+  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs, lowStockCount, trackedStockCount, allCount, inStockCount, outOfStockCount, hiddenCount] = await Promise.all([
     prisma.product.findMany({
       where: productWhere,
       orderBy,
@@ -138,6 +143,11 @@ export default async function ProductsPage(
     getEffectivePlanDefs(),
     prisma.product.count({ where: { workspaceId: user.workspaceId, active: true, ...lowStockWhere } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, stock: { not: null } } }),
+    // Counts for the status tabs: the whole catalog, not the current search.
+    prisma.product.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, OR: [{ stock: null }, { stock: { gt: 0 } }] } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, stock: 0 } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, active: false } }),
   ])
 
   const recommendedPlan = recommendedUpgradePlan(
@@ -188,6 +198,7 @@ export default async function ProductsPage(
     if (sort !== 'newest') sp.set('sort', sort)
     if (categoryId) sp.set('categoryId', categoryId)
     if (stock) sp.set('stock', stock)
+    if (view === 'cards') sp.set('view', 'cards')
     if (p > 1) sp.set('page', String(p))
     const qs = sp.toString()
     return qs ? `/products?${qs}` : '/products'
@@ -195,6 +206,38 @@ export default async function ProductsPage(
 
   // Total pages for the numeric pager. We cap at 1 when there's nothing.
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE))
+
+  const nf = (value: number) => value.toLocaleString(fa ? 'fa-IR' : 'en-US')
+  const tabHref = (key: string) => {
+    const sp = new URLSearchParams()
+    if (q) sp.set('q', q)
+    if (sort !== 'newest') sp.set('sort', sort)
+    if (categoryId) sp.set('categoryId', categoryId)
+    if (key) sp.set('stock', key)
+    if (view === 'cards') sp.set('view', 'cards')
+    const qs = sp.toString()
+    return qs ? `/products?${qs}` : '/products'
+  }
+  const statusTabs = [
+    { key: '', label: fa ? 'همه' : 'All', count: allCount, tone: '' },
+    { key: 'in_stock', label: t('inStock'), count: inStockCount, tone: '' },
+    ...(trackedStockCount > 0 ? [{ key: 'low_stock', label: t('lowStock'), count: lowStockCount, tone: lowStockCount > 0 ? 'warn' : '' }] : []),
+    { key: 'out_of_stock', label: t('outOfStock'), count: outOfStockCount, tone: outOfStockCount > 0 ? 'danger' : '' },
+    { key: 'hidden', label: fa ? 'پنهان' : 'Hidden', count: hiddenCount, tone: '' },
+  ]
+  const storeLabel = !wooIntegration
+    ? (fa ? 'اتصال فروشگاه' : 'Connect a store')
+    : wooIntegration.active
+      ? (wooIntegration.lastSyncStatus === 'error' || wooIntegration.lastSyncError ? (fa ? 'فروشگاه: خطا در همگام‌سازی' : 'Store: sync error') : (fa ? 'فروشگاه: همگام' : 'Store: synced'))
+      : (fa ? 'فروشگاه: همگام‌سازی خاموش' : 'Store: sync is off')
+  const storeTone: 'ok' | 'warn' | 'neutral' = !wooIntegration || !wooIntegration.active ? 'neutral' : wooIntegration.lastSyncError ? 'warn' : 'ok'
+  const storeCard = (
+    <WooSetupCard
+      integration={wooIntegration}
+      productLimit={!productCapacity.allowed ? productLimit : null}
+    />
+  )
+  const emptyCatalog = products.length === 0 && !q && !categoryId && !stock
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -245,25 +288,37 @@ export default async function ProductsPage(
         <PlanLimitNotice limit={productLimit} locale={fa ? 'fa' : 'en'} />
       )}
 
-      <WooSetupCard
-        integration={wooIntegration}
-        productLimit={!productCapacity.allowed ? productLimit : null}
-      />
-
-      {trackedStockCount > 0 && (
-        <LowStockCard
-          fa={fa}
-          lowCount={lowStockCount}
-          threshold={lowStockThreshold}
-          telegramConnected={Boolean(stockAlert?.operatorChannels[0]?.operatorChatId)}
-          filtering={stock === 'low_stock'}
-        />
-      )}
-
-      {products.length === 0 && !q && !categoryId && !stock ? (
-        <LiveEmptyState icon={Package} preview="cards" title={t('empty')} description={t('emptyDesc')} action={{ href: '/products/new', label: t('new') }} />
+      {emptyCatalog ? (
+        <>
+          {storeCard}
+          <LiveEmptyState icon={Package} preview="cards" title={t('empty')} description={t('emptyDesc')} action={{ href: '/products/new', label: t('new') }} />
+        </>
       ) : (
         <>
+          {/* Stock state is the first cut of a catalog, so the counts are the tabs. */}
+          <nav aria-label={t('stockFilter')} className="-mb-2 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] [scrollbar-width:none]">
+            {statusTabs.map((tab) => {
+              const active = stock === tab.key
+              return (
+                <Link
+                  key={tab.key || 'all'}
+                  href={tabHref(tab.key)}
+                  scroll={false}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    '-mb-px inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
+                    active
+                      ? 'border-[var(--text-primary)] font-bold text-[var(--text-primary)]'
+                      : 'border-transparent font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                  )}
+                >
+                  {tab.label}
+                  <span className={cn('rounded-full px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums', tab.tone === 'warn' ? 'bg-amber-100 text-amber-900' : tab.tone === 'danger' ? 'bg-red-50 text-red-700' : 'bg-black/[0.06] text-[var(--text-secondary)]')}>{nf(tab.count)}</span>
+                </Link>
+              )
+            })}
+          </nav>
+
           <ProductsToolbar
             categories={categories}
             defaultQuery={q}
@@ -271,8 +326,36 @@ export default async function ProductsPage(
             defaultCategory={categoryId}
             defaultStock={stock}
             totalResults={totalProducts}
+            view={view}
+            storeLabel={storeLabel}
+            storeTone={storeTone}
+            storeCard={storeCard}
           />
-          <ProductGrid products={pageProducts} />
+
+          {/* The alert level lives with the products it is about. */}
+          {stock === 'low_stock' && (
+            <LowStockCard
+              fa={fa}
+              lowCount={lowStockCount}
+              threshold={lowStockThreshold}
+              telegramConnected={Boolean(stockAlert?.operatorChannels[0]?.operatorChatId)}
+              filtering
+            />
+          )}
+
+          {pageProducts.length === 0 ? (
+            <p className="rounded-card border border-dashed border-[var(--border-default)] px-4 py-10 text-center text-[13px] text-[var(--text-muted)]">
+              {fa ? 'محصولی با این فیلتر پیدا نشد.' : 'No product matches this filter.'}
+            </p>
+          ) : view === 'cards' ? (
+            <ProductGrid products={pageProducts} />
+          ) : (
+            <ProductTable
+              products={pageProducts}
+              lowStockThreshold={lowStockThreshold}
+              storeSynced={Boolean(wooIntegration?.active)}
+            />
+          )}
           <Pagination
             page={page}
             totalPages={totalPages}

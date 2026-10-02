@@ -256,13 +256,13 @@ export function CourseEditor({
               </li>
             ))}
           </ul>
-          <button type="button" onClick={addSession} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+          <button type="button" onClick={addSession} className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
             <CalendarPlus className="h-4 w-4" />{fa ? 'افزودن جلسه (یک هفته بعد)' : 'Add a session (a week later)'}
           </button>
         </div>
 
         {deleteState !== 'idle' && (
-          <div role="alert" className={cn('flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[12.5px] leading-6', typeof deleteState === 'object' ? 'border border-amber-500/25 bg-amber-500/[0.08] text-amber-900' : 'border border-red-500/20 bg-red-50/70 text-red-800')}>
+          <div role="alert" className={cn('flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[13px] leading-6', typeof deleteState === 'object' ? 'border border-amber-500/25 bg-amber-500/[0.08] text-amber-900' : 'border border-red-500/20 bg-red-50/70 text-red-800')}>
             <AlertTriangle className="mt-1 h-4 w-4 shrink-0" />
             <p>
               {typeof deleteState === 'object'

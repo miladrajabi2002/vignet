@@ -585,7 +585,7 @@ function TabButton({
                         {count > 0 && (
                                 <span
                                         className={cn(
-                                                'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[11px]',
+                                                'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[12px]',
                                                 active ? 'bg-white/20 text-white' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]',
                                         )}
                                 >

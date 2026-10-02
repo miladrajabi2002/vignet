@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import {
   BriefcaseBusiness,
   CalendarDays,
   Camera,
   Check,
+  ChevronDown,
   GraduationCap,
   Headphones,
   Package,
@@ -89,12 +91,19 @@ export function CapabilityOptions({
   // menu both sell from the catalog), named so nothing appears unexplained.
   const productsVia = selected.includes('products') ? [] : capabilitiesBringingModule('products', selected)
 
+  // Capabilities outside the recommended set stay folded away until asked
+  // for, unless one of them is already switched on.
+  const [showMore, setShowMore] = useState(() => more.some((option) => selected.includes(option.key)))
+
   function renderOption(option: BusinessServiceOption, isRecommended: boolean) {
     const service = optionLabel(option, locale)
     const active = selected.includes(option.key)
     const meta = OPTION_META[option.key] ?? { icon: Sparkles, fa: [], en: [] }
     const Icon = meta.icon
-    const benefits = fa ? meta.fa : meta.en
+    const sections = collapseDashboardNavigationModules(option.modules)
+      .filter((module) => !CORE.has(module))
+      .map((module) => sectionLabel(module, businessType, locale))
+    const isDefault = typeDefaults.has(option.key)
 
     return (
       <button
@@ -102,99 +111,69 @@ export function CapabilityOptions({
         type="button"
         aria-pressed={active}
         onClick={() => onToggle(option.key)}
-        className={cn(
-          'spatial-press group relative min-h-[7.5rem] rounded-2xl border p-4 text-start transition-[border-color,background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
-          active
-            ? 'border-[var(--text-primary)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)]'
-            : 'border-[var(--border-default)] bg-white hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)]',
-        )}
+        className="spatial-press group flex w-full items-center gap-3 px-3.5 py-3 text-start transition-colors duration-150 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
       >
-        <span className="flex items-start gap-3">
+        <span className={cn(
+          'grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors duration-150',
+          active
+            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
+            : 'border-black/30 bg-white text-transparent',
+        )}>
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+          <Icon className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.8} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-bold leading-6 text-[var(--text-primary)]">{service}</span>
+          <span className="block text-[12px] leading-5 text-[var(--text-muted)]">
+            {fa ? option.descriptionFa : option.descriptionEn}
+            {sections.length > 0 && <span className="hidden sm:inline"> · {fa ? 'در منو: ' : 'In menu: '}{sections.join(fa ? '، ' : ', ')}</span>}
+          </span>
+        </span>
+        {(isDefault || isRecommended) && (
           <span className={cn(
-            'grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition-colors duration-150',
-            active
-              ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
-              : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]',
+            'hidden shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium sm:inline-flex',
+            isDefault ? 'bg-black/[0.06] text-[var(--text-secondary)]' : 'bg-[var(--signal-soft)] text-[var(--signal-strong)]',
           )}>
-            <Icon className="h-[1.1rem] w-[1.1rem]" strokeWidth={1.8} />
+            {isDefault ? (fa ? 'پیش‌فرض' : 'Default') : (fa ? 'پیشنهادی' : 'Recommended')}
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-start justify-between gap-2">
-              <span className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{service}</span>
-              <span className={cn(
-                'grid h-6 w-6 shrink-0 place-items-center rounded-lg border transition-colors duration-150',
-                active
-                  ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
-                  : 'border-[var(--border-default)] bg-white text-transparent',
-              )}>
-                <Check className="h-3.5 w-3.5" strokeWidth={3} />
-              </span>
-            </span>
-            <span className="mt-1 block text-[12px] leading-5 text-[var(--text-muted)]">
-              {fa ? option.descriptionFa : option.descriptionEn}
-            </span>
-          </span>
-        </span>
-
-        <span className="mt-3 flex flex-wrap items-center gap-1.5">
-          {typeDefaults.has(option.key) ? (
-            <span className="rounded-full bg-[var(--text-primary)] px-2 py-1 text-[12px] font-bold text-white">
-              {fa ? 'پیش‌فرض این نوع' : 'Default for this type'}
-            </span>
-          ) : isRecommended && (
-            <span className="rounded-full border border-[var(--border-default)] bg-white px-2 py-1 text-[12px] font-bold text-[var(--text-secondary)]">
-              {fa ? 'پیشنهادی' : 'Recommended'}
-            </span>
-          )}
-          {collapseDashboardNavigationModules(option.modules).filter((module) => !CORE.has(module)).map((module) => (
-            <span key={module} className="rounded-full bg-black/[0.05] px-2 py-1 text-[12px] font-bold text-[var(--text-secondary)]">
-              {fa ? 'منو: ' : 'Menu: '}{sectionLabel(module, businessType, locale)}
-            </span>
-          ))}
-          {benefits.map((benefit) => (
-            <span key={benefit} className="rounded-full border border-[var(--border-subtle)] bg-white px-2 py-1 text-[12px] font-medium text-[var(--text-muted)]">
-              {benefit}
-            </span>
-          ))}
-        </span>
+        )}
       </button>
     )
   }
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-[13px] font-medium text-[var(--text-primary)]">{title}</div>
-          <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{hint}</p>
-        </div>
-        <span className="inline-flex min-h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[12px] font-bold tabular-nums text-[var(--text-secondary)]">
-          {selected.length.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'انتخاب' : 'selected'}
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-[13px] font-medium text-[var(--text-primary)]">{title}</div>
+        <span className="shrink-0 text-[12px] tabular-nums text-[var(--text-muted)]">
+          {fa
+            ? `${selected.length.toLocaleString('fa-IR')} از ${options.length.toLocaleString('fa-IR')}`
+            : `${selected.length} of ${options.length}`}
         </span>
       </div>
 
-      {recommended.length > 0 && (
-        <div className="mt-4">
-          <div className="mb-2 flex items-center gap-2 text-[12px] font-bold text-[var(--text-secondary)]">
-            <Sparkles className="h-3.5 w-3.5" />
-            {fa ? 'پیشنهاد مناسب برای این کسب‌وکار' : 'Recommended for this business'}
-          </div>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {recommended.map((option) => renderOption(option, true))}
-          </div>
-        </div>
-      )}
-
-      {more.length > 0 && (
-        <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
-          <p className="mb-2 text-[12px] font-bold text-[var(--text-secondary)]">
-            {fa ? 'امکانات بیشتر' : 'More capabilities'}
-          </p>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {more.map((option) => renderOption(option, false))}
-          </div>
-        </div>
-      )}
+      <div className="mt-2 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white shadow-[var(--shadow-sm)]">
+        {recommended.map((option) => renderOption(option, true))}
+        {showMore && more.map((option) => renderOption(option, false))}
+        {more.length > 0 && !showMore && (
+          <button
+            type="button"
+            onClick={() => setShowMore(true)}
+            aria-expanded={false}
+            className="flex min-h-11 w-full items-center justify-between gap-3 bg-[var(--bg-base)] px-3.5 py-2.5 text-start text-[13px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
+          >
+            <span>
+              {fa
+                ? `${more.length.toLocaleString('fa-IR')} قابلیت دیگر: ${more.map((option) => option.fa.split(' و ')[0]).join('، ')}`
+                : `${more.length} more: ${more.map((option) => option.en).join(', ')}`}
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0" />
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{hint}</p>
 
       {productsVia.length > 0 && (
         <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-3 text-[12px] leading-5 text-[var(--text-secondary)]">

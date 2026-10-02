@@ -246,7 +246,7 @@ export function UploadDropzone<T = unknown>({
           aria-hidden="true"
         />
         <p className="text-sm font-medium text-[var(--text-secondary)]">{labels.dropHint}</p>
-        {labels.formatsHint && <p className="text-xs text-[var(--text-hint)]">{labels.formatsHint}</p>}
+        {labels.formatsHint && <p className="text-xs text-[var(--text-muted)]">{labels.formatsHint}</p>}
         <label
           htmlFor={inputId}
           onClick={(event) => event.stopPropagation()}

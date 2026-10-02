@@ -142,7 +142,7 @@ function ChannelSettings({
                 onChange={(e) =>
                   setItems((arr) => arr.map((v, j) => (j === i ? e.target.value : v)))
                 }
-                className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+                className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus:border-[var(--border-strong)]"
               />
             ))}
           </div>
@@ -357,7 +357,7 @@ export function MessengerChannel({
   }
 
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
+    <div className="spatial-surface rounded-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
         {enabled && isInstagram && botAvatar && failedAvatarUrl !== botAvatar ? (
           // Connected Instagram OAuth channel — show the IG profile avatar
@@ -428,7 +428,7 @@ export function MessengerChannel({
             disabled={busy}
             aria-expanded={open}
             aria-controls={`channel-details-${type.toLowerCase()}`}
-            className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-50"
+            className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
           >
             {t('connect')}
             <ChevronDown
@@ -505,7 +505,7 @@ export function MessengerChannel({
                       setValues((v) => ({ ...v, [f.key]: e.target.value }))
                     }
                     placeholder={t(f.placeholderKey)}
-                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+                    className="w-full rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus:border-[var(--border-strong)]"
                   />
                 </div>
               ))}

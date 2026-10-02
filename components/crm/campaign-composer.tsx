@@ -1,17 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
-  Megaphone,
   Send,
   ShieldCheck,
   Users,
-  X,
 } from 'lucide-react'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 
 type Preview = {
@@ -31,18 +29,17 @@ type DraftCampaign = {
 }
 
 export function CampaignComposer({
+  open,
   audience,
   locale,
   onClose,
 }: {
+  open: boolean
   audience: CampaignAudienceInput
   locale: 'fa' | 'en'
   onClose: () => void
 }) {
   const isFa = locale === 'fa'
-  const closeRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLElement>(null)
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [previewing, setPreviewing] = useState(true)
   const [name, setName] = useState(isFa ? 'اطلاع‌رسانی مشتریان' : 'Customer update')
@@ -55,36 +52,14 @@ export function CampaignComposer({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setPortalRoot(document.body)
-  }, [])
-
-  useEffect(() => {
-    if (!portalRoot) return
-
-    closeRef.current?.focus()
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !queueing) onClose()
-      if (event.key !== 'Tab') return
-      const focusables = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]',
-      ) ?? [])
-      if (!focusables.length) return
-      const first = focusables[0]
-      const last = focusables[focusables.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onClose, portalRoot, queueing])
-
-  useEffect(() => {
+    if (!open) return
+    // Every opening starts a fresh campaign for the audience on screen.
     let cancelled = false
+    setPreview(null)
+    setCampaign(null)
+    setConfirmed(false)
+    setQueued(false)
+    setError(null)
     setPreviewing(true)
     fetch('/api/campaigns/preview', {
       method: 'POST',
@@ -99,7 +74,7 @@ export function CampaignComposer({
       .catch(() => !cancelled && setError(isFa ? 'پیش‌نمایش مخاطبان آماده نشد.' : 'Audience preview failed.'))
       .finally(() => !cancelled && setPreviewing(false))
     return () => { cancelled = true }
-  }, [audience, isFa])
+  }, [open, audience, isFa])
 
   async function createDraft() {
     if (!preview || preview.eligibleCount === 0 || !message.trim() || !name.trim() || creating) return
@@ -136,6 +111,7 @@ export function CampaignComposer({
       })
       if (!response.ok) throw new Error('QUEUE_FAILED')
       setQueued(true)
+      setMessage('')
     } catch {
       setError(isFa ? 'کمپین وارد صف نشد؛ دوباره تأیید کنید.' : 'Campaign was not queued. Confirm again.')
     } finally {
@@ -147,26 +123,17 @@ export function CampaignComposer({
     ? 'برای لغو پیام‌های اطلاع‌رسانی، STOP را ارسال کنید.'
     : 'Recipients can reply STOP to opt out of future informational campaigns.'
 
-  if (!portalRoot) return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
-      <section
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="campaign-title"
-        className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-2xl sm:rounded-3xl"
-      >
-        <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/95 p-5 backdrop-blur">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-vg-signal"><Megaphone className="h-5 w-5" /></span>
-            <div><h2 id="campaign-title" className="font-bold text-[var(--text-primary)]">{isFa ? 'کمپین پیام‌رسانی امن' : 'Safe messaging campaign'}</h2><p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? 'پیش‌نمایش ← ساخت پیش‌نویس ← تأیید نهایی ← صف ارسال' : 'Preview → draft → final confirmation → delivery queue'}</p></div>
-          </div>
-          <button ref={closeRef} type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--bg-hover)]" aria-label={isFa ? 'بستن' : 'Close'}><X className="h-5 w-5" /></button>
-        </header>
-
-        <div className="space-y-5 p-5 sm:p-6">
+  return (
+    <MobileBottomSheet
+      open={open}
+      onClose={() => { if (!queueing) onClose() }}
+      title={isFa ? 'کمپین پیام‌رسانی امن' : 'Safe messaging campaign'}
+      description={isFa ? 'پیش‌نمایش ← ساخت پیش‌نویس ← تأیید نهایی ← صف ارسال' : 'Preview → draft → final confirmation → delivery queue'}
+      closeLabel={isFa ? 'بستن' : 'Close'}
+      mobileOnly={false}
+      panelClassName="md:max-w-2xl"
+    >
+        <div className="space-y-5 md:p-2">
           {queued ? (
             <div className="py-10 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-[var(--ok)]" />
@@ -208,9 +175,7 @@ export function CampaignComposer({
             </>
           )}
         </div>
-      </section>
-    </div>,
-    portalRoot,
+    </MobileBottomSheet>
   )
 }
 

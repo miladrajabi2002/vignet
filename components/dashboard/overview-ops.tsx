@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, BarChart3, Bot, Inbox, MessageSquareReply, Plug,
 import { TelegramIcon } from '@/components/marketing/social-links'
 import { ChannelMark, type ChannelKey } from '@/components/ui/channel-mark'
 import { cn } from '@/lib/utils'
+import { DemoPointer } from '@/components/motion/pointer'
 
 /*
  * Overview "operations center" (redesign, 1405).
@@ -82,7 +83,7 @@ export function OpsCenter({
 						{urgentCount === 0
 							? fa ? 'همه‌چیز روی روال است' : 'Everything is on track'
 							: fa ? `${fmt(locale, urgentCount)} مورد منتظر شماست` : `${fmt(locale, urgentCount)} items are waiting for you`}
-						<span className="block text-[15px] font-medium leading-7 text-[var(--text-muted)] lg:text-[17px]">
+						<span className="block text-[15px] font-medium leading-7 text-[var(--text-muted)] lg:text-[18px]">
 							{businessName} · {today}
 						</span>
 					</h1>
@@ -104,7 +105,7 @@ export function OpsCenter({
 										</span>
 										<span className="min-w-0 flex-1">
 											<span className="flex items-baseline gap-1.5">
-												<b className="text-[22px] font-bold leading-none tabular-nums text-[var(--text-primary)]">{fmt(locale, tile.value)}</b>
+												<b className={cn('text-[22px] font-bold leading-none tabular-nums', tile.value === 0 ? 'text-[var(--text-hint)]' : 'text-[var(--text-primary)]')}>{fmt(locale, tile.value)}</b>
 												<span className={cn('truncate text-[13px]', tile.urgent ? 'font-bold text-amber-950' : 'font-semibold text-[var(--text-primary)]')}>{tile.label}</span>
 											</span>
 											<span className={cn('mt-1 block truncate text-[12px]', tile.urgent ? 'text-amber-900/80' : 'text-[var(--text-muted)]')}>{tile.hint}</span>
@@ -117,11 +118,11 @@ export function OpsCenter({
 					</ul>
 
 					<div className="mt-4 flex flex-col gap-2 sm:flex-row">
-						<Link href={primaryAction.href} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13.5px] font-semibold text-white shadow-[var(--shadow-control)] hover:bg-[#2a2a2e]">
+						<Link href={primaryAction.href} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] hover:bg-[#2a2a2e]">
 							<PrimaryIcon className="h-4 w-4" />
 							{primaryAction.label}
 						</Link>
-						<Link href={secondaryAction.href} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-[13.5px] font-semibold text-[var(--text-primary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)]">
+						<Link href={secondaryAction.href} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-[13px] font-semibold text-[var(--text-primary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)]">
 							<SecondaryIcon className="h-4 w-4" />
 							{secondaryAction.label}
 						</Link>
@@ -182,7 +183,7 @@ export function LiveFlow({
 							<li key={input.channel}>
 								<Link href={`/conversations?channel=${input.channel}`} className="group flex items-center gap-2 rounded-xl py-1 pe-0 ps-1 hover:bg-[var(--bg-surface)]">
 									<ChannelMark channel={input.channel} size="sm" />
-									<span className="min-w-0 truncate text-[12.5px] font-semibold text-[var(--text-primary)]">{name}</span>
+									<span className="min-w-0 truncate text-[13px] font-semibold text-[var(--text-primary)]">{name}</span>
 									<span className="shrink-0 text-[12px] tabular-nums text-[var(--text-muted)]">{fmt(locale, input.count)}</span>
 									<span className={cn('lf-line ms-1 min-w-6 flex-1', input.count === 0 && 'lf-line-idle')}>
 										{input.count > 0 ? <span className="lf-run" style={{ animationDelay: `${index * 0.45}s` } as CSSProperties}><i /></span> : null}
@@ -192,7 +193,7 @@ export function LiveFlow({
 						)
 					}) : (
 						<li>
-							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[12.5px] font-semibold text-[var(--text-secondary)]">
+							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
 								<Plug className="h-4 w-4" />
 								{fa ? 'اتصال اولین برنامه' : 'Connect your first app'}
 							</Link>
@@ -212,9 +213,9 @@ export function LiveFlow({
 										{output.value > 0 ? <span className="lf-run lf-run-ok" style={{ animationDelay: `${1.2 + index * 0.5}s` } as CSSProperties}><i /></span> : null}
 									</span>
 									<span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', outputTone[output.tone])}><Icon className="h-3.5 w-3.5" /></span>
-									<span className="min-w-0">
-										<b className="block text-[14px] font-bold leading-5 tabular-nums text-[var(--text-primary)]">{fmt(locale, output.value)}</b>
-										<span className="block truncate text-[12px] text-[var(--text-muted)]">{output.label}</span>
+									<span className="shrink-0">
+										<b className={cn('block text-[15px] font-bold leading-5 tabular-nums', output.value === 0 ? 'text-[var(--text-hint)]' : 'text-[var(--text-primary)]')}>{fmt(locale, output.value)}</b>
+										<span className="block whitespace-nowrap text-[12px] text-[var(--text-muted)]">{output.label}</span>
 									</span>
 								</Link>
 							</li>
@@ -228,7 +229,7 @@ export function LiveFlow({
 				<ul className="flex flex-wrap justify-center gap-1.5">
 					{shown.length ? shown.map((input) => (
 						<li key={input.channel}>
-							<Link href={`/conversations?channel=${input.channel}`} className="flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white py-1 pe-2.5 ps-1">
+							<Link href={`/conversations?channel=${input.channel}`} className="flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white py-1 pe-2.5 ps-1">
 								<ChannelMark channel={input.channel} size="sm" className="rounded-full" />
 								<span className="text-[12px] font-semibold">{CHANNEL_NAMES[input.channel][locale]}</span>
 								<span className="text-[12px] tabular-nums text-[var(--text-muted)]">{fmt(locale, input.count)}</span>
@@ -236,7 +237,7 @@ export function LiveFlow({
 						</li>
 					)) : (
 						<li>
-							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[12.5px] font-semibold text-[var(--text-secondary)]">
+							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
 								<Plug className="h-4 w-4" />
 								{fa ? 'اتصال اولین برنامه' : 'Connect your first app'}
 							</Link>
@@ -276,11 +277,12 @@ function AgentNode({ locale, agentName, automationRate, compact = false }: { loc
 				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(91,61,232,0.4)] [animation-delay:1.4s]" />
 				<span className={cn('relative grid place-items-center rounded-full border border-[var(--border-default)] bg-white shadow-[0_20px_40px_-20px_rgba(91,61,232,0.6)]', compact ? 'h-[4.5rem] w-[4.5rem]' : 'h-24 w-24')}>
 					<span className={cn('flex flex-col items-center justify-center gap-0.5 rounded-full bg-[var(--text-primary)] text-white', compact ? 'h-14 w-14' : 'h-[4.5rem] w-[4.5rem]')}>
-						<Bot className="h-5 w-5 text-[#b9adff]" strokeWidth={1.8} />
-						<span className="max-w-[4rem] truncate text-[12px] font-bold">{agentName}</span>
+						<Bot className={cn('text-[#b9adff]', compact ? 'h-6 w-6' : 'h-7 w-7')} strokeWidth={1.8} />
 					</span>
 				</span>
 			</div>
+			{/* The name sits under the node in full — inside the circle it was cut to "…". */}
+			<span className="line-clamp-2 max-w-[8.5rem] text-balance text-center text-[12px] font-bold leading-5 text-[var(--text-primary)]">{agentName}</span>
 			{automationRate !== null ? (
 				<span className="ui-chip ui-chip-signal mt-1 whitespace-nowrap">
 					{fa ? `${fmt(locale, automationRate)}٪ خودکار` : `${fmt(locale, automationRate)}% automated`}
@@ -306,18 +308,17 @@ export function VigentoCard({
 		? ['امروز چه چیزی نیاز به توجه دارد؟', 'کدام محصول بیشتر پرسیده شد؟', 'هزینهٔ هوش مصنوعی این هفته چقدر بود؟']
 		: ['What needs attention today?', 'Which product was asked about most?', 'What did AI cost this week?']
 	return (
-		<section aria-labelledby="vigento-card-title" className="relative overflow-hidden rounded-sheet bg-[#0f0f12] p-5 text-white sm:p-7">
-			<div aria-hidden className="pointer-events-none absolute -top-24 end-[-4rem] h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(91,61,232,0.45),rgba(15,15,18,0))]" />
+		<section aria-labelledby="vigento-card-title" className="relative overflow-hidden rounded-sheet bg-[#111] p-5 text-white sm:p-7">
 			<div className="relative grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
 				<div>
 					<div className="flex items-center gap-2.5">
 						<span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white text-black"><Sparkles className="h-5 w-5" /></span>
 						<div>
 							<h2 id="vigento-card-title" className="text-[18px] font-bold leading-7">{fa ? 'ویجنتو' : 'Vigento'}</h2>
-							<p className="text-[12.5px] text-white/60">{fa ? 'دستیار هوشمند پنل شما' : 'Your panel’s AI assistant'}</p>
+							<p className="text-[13px] text-white/60">{fa ? 'دستیار هوشمند پنل شما' : 'Your panel’s AI assistant'}</p>
 						</div>
 					</div>
-					<p className="mt-4 hidden max-w-md text-[14px] leading-7 text-white/75 sm:block">
+					<p className="mt-4 hidden max-w-md text-[15px] leading-7 text-white/75 sm:block">
 						{fa
 							? 'به‌جای گشتن بین صفحه‌ها، بپرسید. ویجنتو گفتگوها، مشتری‌ها، فروشگاه، نوبت‌ها و هزینهٔ هوش مصنوعی را از دادهٔ زنده بررسی می‌کند و جواب کوتاه و دقیق می‌دهد.'
 							: 'Instead of hunting through pages, ask. Vigento reads conversations, customers, store, bookings and AI cost from live data and answers briefly and precisely.'}
@@ -325,13 +326,13 @@ export function VigentoCard({
 					<ul className="mt-4 flex flex-wrap gap-2">
 						{questions.map((question) => (
 							<li key={question}>
-								<Link href={`/vigento?q=${encodeURIComponent(question)}`} className="spatial-press inline-flex min-h-10 items-center rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-[12.5px] text-white/85 hover:bg-white/[0.12]">
+								<Link href={`/vigento?q=${encodeURIComponent(question)}`} className="spatial-press inline-flex min-h-11 items-center rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-[13px] text-white/85 hover:bg-white/[0.12]">
 									{question}
 								</Link>
 							</li>
 						))}
 					</ul>
-					<Link href="/vigento" className="spatial-press mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-[13.5px] font-bold text-black">
+					<Link href="/vigento" className="spatial-press mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-[13px] font-bold text-black">
 						{fa ? 'گفتگو با ویجنتو' : 'Chat with Vigento'}
 						<Arrow className="h-4 w-4" />
 					</Link>
@@ -385,8 +386,8 @@ function BotCapabilities({ fa, live = false }: { fa: boolean; live?: boolean }) 
 						{live ? <span aria-hidden className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-[var(--ok)] ring-2 ring-white" /> : null}
 					</span>
 					<span className="min-w-0">
-						<span className="block truncate text-[12.5px] font-semibold text-[var(--text-primary)]">{fa ? faText[0] : en[0]}</span>
-						<span className="hidden truncate text-[11.5px] text-[var(--text-muted)] sm:block">{fa ? faText[1] : en[1]}</span>
+						<span className="block truncate text-[13px] font-semibold text-[var(--text-primary)]">{fa ? faText[0] : en[0]}</span>
+						<span className="hidden truncate text-[12px] text-[var(--text-muted)] sm:block">{fa ? faText[1] : en[1]}</span>
 					</span>
 				</li>
 			))}
@@ -434,7 +435,7 @@ export function OperatorBotCard({ locale, connected = false, paused = false, bot
 
 					{/* Phones get the one-line pitch and the button; the feature tour starts at md. */}
 					<div className="mt-4 hidden border-t border-[var(--border-subtle)] pt-4 sm:mt-5 sm:pt-5 md:block">
-						<p className="mb-2 text-[12.5px] font-bold text-[var(--text-primary)]">
+						<p className="mb-2 text-[13px] font-bold text-[var(--text-primary)]">
 							{connected ? (fa ? 'در ربات شما فعال است' : 'Live in your bot') : (fa ? 'این ربات چه کارهایی می‌کند؟' : 'What the bot does')}
 						</p>
 						<BotCapabilities fa={fa} live={connected} />
@@ -444,18 +445,18 @@ export function OperatorBotCard({ locale, connected = false, paused = false, bot
 						{connected ? (
 							<>
 								{username ? (
-									<a href={`https://t.me/${encodeURIComponent(username)}?start=menu`} target="_blank" rel="noopener noreferrer" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2aabee] px-4 text-[13.5px] font-semibold text-white shadow-[0_10px_24px_-14px_rgba(42,171,238,0.95)] hover:bg-[#229ed9]">
+									<a href={`https://t.me/${encodeURIComponent(username)}?start=menu`} target="_blank" rel="noopener noreferrer" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2aabee] px-4 text-[13px] font-semibold text-white shadow-[0_10px_24px_-14px_rgba(42,171,238,0.95)] hover:bg-[#229ed9]">
 										<TelegramIcon className="h-4 w-4" />
 										{fa ? 'باز کردن ربات' : 'Open the bot'}
 									</a>
 								) : null}
-								<Link href="/settings#telegram-operator" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-[13.5px] font-semibold text-[var(--text-primary)] hover:border-[var(--border-hover)]">
+								<Link href="/settings#telegram-operator" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-[13px] font-semibold text-[var(--text-primary)] hover:border-[var(--border-hover)]">
 									{fa ? 'تنظیمات اتصال' : 'Connection settings'}
 									<Arrow className="h-4 w-4" />
 								</Link>
 							</>
 						) : (
-							<Link href="/settings#telegram-operator" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13.5px] font-semibold text-white shadow-[var(--shadow-control)] hover:bg-[#2a2a2e]">
+							<Link href="/settings#telegram-operator" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] hover:bg-[#2a2a2e]">
 								<TelegramIcon className="h-4 w-4" />
 								{fa ? 'وصل کردن ربات' : 'Connect the bot'}
 								<Arrow className="h-4 w-4" />
@@ -485,7 +486,7 @@ export function OperatorBotCard({ locale, connected = false, paused = false, bot
 
 const TG_WALL = { backgroundImage: 'radial-gradient(rgba(255,255,255,0.4) 1.4px, transparent 1.4px)', backgroundSize: '16px 16px' }
 const TG_IN = 'rounded-2xl rounded-bl-md bg-white px-3 pb-1.5 pt-2 text-[12px] leading-6 text-[#111] shadow-[0_1px_1px_rgba(0,0,0,0.08)]'
-const TG_KEY = 'relative block overflow-hidden rounded-lg bg-[#6f8f67]/80 px-1 py-1.5 text-center text-[11px] font-semibold leading-5 text-white'
+const TG_KEY = 'relative block overflow-hidden rounded-lg bg-[#6f8f67]/80 px-1 py-1.5 text-center text-[12px] font-semibold leading-5 text-white'
 
 function TelegramTopBar({ fa }: { fa: boolean }) {
 	return (
@@ -493,7 +494,7 @@ function TelegramTopBar({ fa }: { fa: boolean }) {
 			<span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#72d5fd] to-[#2a9ef1] text-[13px] font-bold text-white">{fa ? 'م' : 'M'}</span>
 			<span className="min-w-0 leading-tight">
 				<span className="block truncate text-[13px] font-bold text-[#111]">{fa ? 'مدیر فروشگاه من' : 'My shop manager'}</span>
-				<span className="block text-[11px] text-[#8a8f98]">{fa ? 'ربات' : 'bot'}</span>
+				<span className="block text-[12px] text-[#8a8f98]">{fa ? 'ربات' : 'bot'}</span>
 			</span>
 		</div>
 	)
@@ -518,15 +519,16 @@ function TgMeta({ fa, time, out = false }: { fa: boolean; time: [string, string]
 	)
 }
 
-function TgKeyboard({ fa, rows, tap }: { fa: boolean; rows: string[][]; tap?: { row: number; col: number; className: string } }) {
+function TgKeyboard({ fa, rows, tap }: { fa: boolean; rows: string[][]; tap?: { row: number; col: number; step: number; className: string } }) {
 	return (
 		<div dir={fa ? 'rtl' : 'ltr'} className="mt-1 space-y-1">
 			{rows.map((row, r) => (
 				<div key={r} className="grid gap-1" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
 					{row.map((label, c) => (
-						<span key={label} className={TG_KEY}>
+						<span key={label} className={cn(TG_KEY, tap && tap.row === r && tap.col === c && 'overflow-visible')}>
 							{label}
 							{tap && tap.row === r && tap.col === c ? <span className={cn('absolute inset-0 rounded-lg bg-white/40', tap.className)} /> : null}
+							{tap && tap.row === r && tap.col === c ? <DemoPointer at={tap.step} /> : null}
 						</span>
 					))}
 				</div>
@@ -550,7 +552,7 @@ function TelegramReplyPreview({ fa }: { fa: boolean }) {
 					<div dir={d} className={TG_IN}>
 						<p className="font-bold">{fa ? '🙋 یک گفتگو به شما سپرده شد' : '🙋 A chat was handed to you'}</p>
 						<p>{fa ? '👤 سارا · اینستاگرام' : '👤 Sara · Instagram'}</p>
-						<p className="mt-0.5 rounded-md border-s-2 border-[#2aabee] bg-[#f1f7fd] px-2 text-[11.5px] leading-6 text-[#3b4452]">
+						<p className="mt-0.5 rounded-md border-s-2 border-[#2aabee] bg-[#f1f7fd] px-2 text-[12px] leading-6 text-[#3b4452]">
 							{fa ? 'پرداخت کردم ولی سفارشم ثبت نشده' : 'I paid but my order isn’t showing'}
 						</p>
 						<TgMeta fa={fa} time={['۱۰:۱۴', '10:14']} />
@@ -558,12 +560,12 @@ function TelegramReplyPreview({ fa }: { fa: boolean }) {
 					<TgKeyboard
 						fa={fa}
 						rows={fa ? [['✍️ نوشتن پاسخ', '⚡ پاسخ آماده'], ['🙋 قبول گفتگو', '✅ حل شد']] : [['✍️ Write a reply', '⚡ Quick reply'], ['🙋 Claim', '✅ Resolved']]}
-						tap={{ row: 0, col: 0, className: 'vg-x2' }}
+						tap={{ row: 0, col: 0, step: 2, className: 'vg-x2' }}
 					/>
 				</div>
 				<div dir={d} className={cn('vg-t3 max-w-[82%] self-start', TG_IN)}>
 					<p className="font-bold">{fa ? '✍️ پاسخ به سارا' : '✍️ Reply to Sara'}</p>
-					<p className="text-[11.5px] text-[var(--text-secondary)]">{fa ? 'همین‌جا بنویسید؛ در اینستاگرام برایش ارسال می‌شود.' : 'Type it here — it goes out on Instagram.'}</p>
+					<p className="text-[12px] text-[var(--text-secondary)]">{fa ? 'همین‌جا بنویسید؛ در اینستاگرام برایش ارسال می‌شود.' : 'Type it here — it goes out on Instagram.'}</p>
 					<TgMeta fa={fa} time={['۱۰:۱۵', '10:15']} />
 				</div>
 				<div dir={d} className="vg-t5 max-w-[78%] self-end rounded-2xl rounded-br-md bg-[#effdde] px-3 pb-1.5 pt-2 text-[12px] leading-6 text-[#111] shadow-[0_1px_1px_rgba(0,0,0,0.08)]">

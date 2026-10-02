@@ -188,8 +188,8 @@ export function ConversationFilters({
         }
 
         return (
-                <>
-                        <div className="md:hidden">
+                <div className="ui-fbar">
+                        <div className="ui-fbar-compact">
                                 <form onSubmit={submitSearch} className="flex items-center gap-2">
                                         <ConversationSearchField {...searchProps} />
                                         <button
@@ -231,7 +231,7 @@ export function ConversationFilters({
                         <form
                                 action={basePath}
                                 method="get"
-                                className="hidden flex-wrap items-center gap-2 md:flex"
+                                className="ui-fbar-full flex-wrap items-center gap-2"
                                 onSubmit={submitSearch}
                         >
                                 {activeStatus && (
@@ -362,6 +362,7 @@ export function ConversationFilters({
                         </form>
 
                         <MobileBottomSheet
+                                mobileOnly={false}
                                 open={filterOpen}
                                 title={isFa ? 'فیلتر گفتگوها' : 'Conversation filters'}
                                 description={
@@ -385,7 +386,7 @@ export function ConversationFilters({
                                                 <button
                                                         type="button"
                                                         onClick={() => setFilterOpen(false)}
-                                                        className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+                                                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                                                 >
                                                         {isFa ? 'نمایش نتایج' : 'Show results'} ({nf.format(resultCount)})
                                                 </button>
@@ -470,7 +471,7 @@ export function ConversationFilters({
                                         )}
                                 </div>
                         </MobileBottomSheet>
-                </>
+                </div>
         )
 }
 

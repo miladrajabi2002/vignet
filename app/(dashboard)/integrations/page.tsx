@@ -1,3 +1,4 @@
+import { channelLabel } from '@/components/crm/channel-badge'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
@@ -209,7 +210,7 @@ export default async function IntegrationsPage() {
                                                         </div>
                                                         <div>
                                                                 <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                        {name}
+                                                                        {locale === 'fa' ? channelLabel(type, 'fa') : name}
                                                                 </p>
                                                                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
                                                                         {available

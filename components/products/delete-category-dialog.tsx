@@ -67,7 +67,7 @@ export function DeleteCategoryDialog({
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-red-500/10 text-red-600"><Trash2 className="h-5 w-5" /></span>
           <div className="min-w-0">
             <p className="text-sm font-bold text-[var(--text-primary)]">{fa ? `حذف «${category.name}»` : `Delete “${category.name}”`}</p>
-            <p className="mt-1 text-[12.5px] leading-6 text-[var(--text-secondary)]">
+            <p className="mt-1 text-[13px] leading-6 text-[var(--text-secondary)]">
               {fa ? 'خود محصولات حذف نمی‌شوند؛ فقط این دسته از ساختار کاتالوگ و منو برداشته می‌شود.' : 'Products are never deleted; only this category leaves the catalog and menu structure.'}
             </p>
           </div>
@@ -80,7 +80,7 @@ export function DeleteCategoryDialog({
         )}
 
         {impact && (
-          <ul className="space-y-2 text-[12.5px] leading-6">
+          <ul className="space-y-2 text-[13px] leading-6">
             <li className="rounded-2xl bg-[var(--bg-subtle)] px-3.5 py-3 text-[var(--text-secondary)]">
               {impact.products
                 ? (fa

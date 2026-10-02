@@ -225,7 +225,7 @@ export function WidgetPreview({
                                                 >
                                                         <Icon className="h-[18px] w-[18px]" />
                                                         <span
-                                                                className="absolute bottom-[-2px] h-2.5 w-2.5 rounded-full bg-green-500"
+                                                                className="absolute bottom-[-2px] h-2.5 w-2.5 rounded-full bg-emerald-500"
                                                                 style={{
                                                                         insetInlineEnd: -2,
                                                                         border: `2px solid ${gradientHead ? accent : c.head}`,
@@ -390,7 +390,7 @@ export function WidgetPreview({
                                                                                 <div className="mt-0.5 truncate text-[12px]" style={{ color: c.muted }}>
                                                                                         {demo.productDesc}
                                                                                 </div>
-                                                                                <div className="mt-1 text-[12.5px] font-bold" style={{ color: c.text }}>
+                                                                                <div className="mt-1 text-[13px] font-bold" style={{ color: c.text }}>
                                                                                         {demo.productPrice}
                                                                                 </div>
                                                                         </div>

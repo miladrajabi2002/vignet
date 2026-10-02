@@ -1,7 +1,8 @@
 'use client'
 
-import type { ComponentType, ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 /**
@@ -77,9 +78,10 @@ export function SwitchTrack({ checked, pending }: { checked: boolean; pending?: 
 }
 
 /**
- * A settings card built around one Switch: icon, title and switch on the
- * first line, a description, then an optional badge, a live on/off status
- * and — when the switch is locked — the reason it is locked.
+ * One setting as a list row: title (with an optional count badge), a short
+ * description that expands on demand, and the Switch. The switch itself is
+ * the on/off status, so no separate "enabled / disabled" text is drawn.
+ * Stack several inside `.ui-switch-list` to get the hairline dividers.
  */
 export function SwitchCard({
         icon: Icon,
@@ -109,44 +111,53 @@ export function SwitchCard({
         disabledLabel: string
         children?: ReactNode
 }) {
+        const [expanded, setExpanded] = useState(false)
+        const fa = useLocale() !== 'en'
+        const long = typeof description === 'string' && description.length > 90
         return (
-                <div className="flex h-full flex-col gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3.5">
-                        <div className="flex items-center gap-3">
-                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
-                                        <Icon className="h-4 w-4" />
-                                </span>
-                                <h3 className="min-w-0 flex-1 text-sm font-bold leading-6 text-[var(--text-primary)]">
+                <div className="flex items-start gap-3 px-3.5 py-3">
+                        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
+                                <Icon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                                <h3 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] font-bold leading-6 text-[var(--text-primary)]">
                                         {title}
+                                        {badge && (
+                                                <span className="inline-flex rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[12px] font-normal leading-5 text-[var(--text-muted)]">
+                                                        {badge}
+                                                </span>
+                                        )}
                                 </h3>
-                                <Switch
-                                        checked={checked}
-                                        onChange={onChange}
-                                        pending={pending}
-                                        disabled={disabled}
-                                        aria-label={title}
-                                        title={lockedReason ?? (checked ? enabledLabel : disabledLabel)}
-                                />
-                        </div>
-                        <p className="text-xs leading-6 text-[var(--text-secondary)]">
-                                {description}
-                        </p>
-                        {lockedReason && (
-                                <p className="rounded-xl bg-[var(--bg-muted)] px-2.5 py-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-                                        {lockedReason}
+                                <p className={cn('text-[12px] leading-6 text-[var(--text-secondary)]', long && !expanded && 'line-clamp-1')}>
+                                        {description}
                                 </p>
-                        )}
-                        {children}
-                        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-0.5">
-                                {badge && (
-                                        <span className="inline-flex rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[12px] text-[var(--text-muted)]">
-                                                {badge}
-                                        </span>
+                                {long && (
+                                        <button
+                                                type="button"
+                                                onClick={() => setExpanded((value) => !value)}
+                                                aria-expanded={expanded}
+                                                className="text-[12px] font-medium text-[var(--text-muted)] underline decoration-dotted underline-offset-4 hover:text-[var(--text-primary)]"
+                                        >
+                                                {expanded ? (fa ? 'کمتر' : 'Less') : (fa ? 'بیشتر' : 'More')}
+                                                <span className="sr-only"> — {title}</span>
+                                        </button>
                                 )}
-                                <span className={cn('inline-flex items-center gap-1 text-[12px] font-medium', checked ? 'text-success' : 'text-[var(--text-muted)]')}>
-                                        <span className={cn('h-1.5 w-1.5 rounded-full', checked ? 'bg-success' : 'bg-[var(--border-strong)]')} />
-                                        {checked ? enabledLabel : disabledLabel}
-                                </span>
+                                {lockedReason && (
+                                        <p className="mt-1.5 rounded-xl bg-[var(--bg-muted)] px-2.5 py-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                                                {lockedReason}
+                                        </p>
+                                )}
+                                {children}
                         </div>
+                        <Switch
+                                checked={checked}
+                                onChange={onChange}
+                                pending={pending}
+                                disabled={disabled}
+                                aria-label={title}
+                                title={lockedReason ?? (checked ? enabledLabel : disabledLabel)}
+                                className="mt-0.5"
+                        />
                 </div>
         )
 }
