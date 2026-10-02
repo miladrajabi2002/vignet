@@ -214,8 +214,8 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 							</ol>
 						</nav>
 						<SectionPill icon={PillIcon} className="mt-2">{card?.name[locale] ?? solution.serviceType}</SectionPill>
-						<h1 className="mt-4 text-balance text-[30px] font-bold leading-[1.5] lg:text-[46px] lg:leading-[1.45]">{solution.title}</h1>
-						<p className="mt-3.5 text-[15px] leading-[1.95] text-vg-sub lg:text-[17px]">{solution.subtitle}</p>
+						<h1 className="mt-4 text-balance text-[28px] font-bold leading-[1.5] lg:text-[48px] lg:leading-[1.45]">{solution.title}</h1>
+						<p className="mt-3.5 text-[15px] leading-[1.95] text-vg-sub lg:text-[18px]">{solution.subtitle}</p>
 						{SOLUTION_ANSWERS[solution.slug] ? (
 							<div className="mt-5 rounded-card border border-vg-line border-s-[3px] border-s-vg-signal bg-white px-[18px] py-4 text-start">
 								<p className="text-[12px] font-bold text-vg-signal">{copy.shortAnswer}</p>
@@ -234,19 +234,19 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 <dl className="vg-rv mx-auto grid max-w-[1200px] grid-cols-2 overflow-hidden rounded-3xl border border-vg-line bg-white lg:grid-cols-4">
 					{stats.map((stat, i) => (
 						<div key={stat.label} className={cn('flex flex-col-reverse px-5 py-[18px] lg:px-6 lg:py-[22px]', i % 2 === 0 && 'border-e border-black/[0.06]', i < 2 && 'border-b border-black/[0.06] lg:border-b-0', i === 1 && 'lg:border-e')}>
-							<dt className="mt-1 text-[13px] text-vg-cap lg:text-[14px]">{stat.label}</dt>
-							<dd className="text-[24px] font-bold leading-[1.3] lg:text-[30px]">{stat.value}</dd>
+							<dt className="mt-1 text-[13px] text-vg-cap lg:text-[15px]">{stat.label}</dt>
+							<dd className="text-[22px] font-bold leading-[1.3] lg:text-[28px]">{stat.value}</dd>
 						</div>
 					))}
 				</dl>
 			</section>
 
 			{/* Benefits */}
-			<section aria-labelledby="changes-title" className="vg-cv px-4 lg:border-y lg:border-black/[0.06] lg:bg-white lg:py-24">
+			<section aria-labelledby="changes-title" className="vg-cv px-4 lg:border-y lg:border-black/[0.06] lg:bg-white lg:py-[120px]">
 				<Container className="px-0 sm:px-0 xl:px-0">
 <div className="vg-rv flex flex-col items-center text-center">
 						<SectionPill icon={Sparkles}>{copy.changesPill}</SectionPill>
-						<h2 id="changes-title" className="mt-3 text-[24px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[38px] lg:leading-[1.4]">{copy.changesTitle}</h2>
+						<h2 id="changes-title" className="mt-3 text-[22px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[36px] lg:leading-[1.4]">{copy.changesTitle}</h2>
 					</div>
 <ul className="vg-rv-group mt-5 grid grid-cols-1 gap-2.5 lg:mt-8 lg:grid-cols-2 lg:gap-4">
 						{solution.benefits.map((benefit, i) => {
@@ -255,8 +255,8 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 								<li key={benefit.title} className="vg-lift flex gap-3.5 rounded-3xl border border-black/[0.05] bg-white p-5 text-start lg:gap-[18px] lg:bg-vg-bg lg:p-7">
 									<span aria-hidden className="inline-flex size-11 shrink-0 items-center justify-center rounded-control bg-vg-ink text-white lg:size-12 lg:rounded-control"><Icon className="size-5" strokeWidth={1.8} /></span>
 									<div>
-										<h3 className="text-[16.5px] font-bold leading-[1.6] lg:text-[19px]">{benefit.title}</h3>
-										<p className="mt-1.5 text-[14px] leading-[1.95] text-vg-sub lg:text-[15px]">{benefit.desc}</p>
+										<h3 className="text-[16.5px] font-bold leading-[1.6] lg:text-[18px]">{benefit.title}</h3>
+										<p className="mt-1.5 text-[15px] leading-[1.95] text-vg-sub lg:text-[15px]">{benefit.desc}</p>
 									</div>
 								</li>
 							)
@@ -266,11 +266,11 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 			</section>
 
 			{/* Setup */}
-			<section aria-labelledby="setup-title" className="vg-cv px-4 pt-12 lg:pt-24">
+			<section aria-labelledby="setup-title" className="vg-cv px-4 pt-14 md:pt-20 lg:pt-[120px]">
 				<div className="mx-auto max-w-[1200px]">
 <div className="vg-rv flex flex-col items-center text-center">
 						<SectionPill icon={Rocket}>{copy.setupPill}</SectionPill>
-						<h2 id="setup-title" className="mt-3 text-[24px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[38px] lg:leading-[1.4]">{copy.setupTitle}</h2>
+						<h2 id="setup-title" className="mt-3 text-[22px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[36px] lg:leading-[1.4]">{copy.setupTitle}</h2>
 					</div>
 {/* The three steps play in order on one 12s clock: each card lights
 					    (vg-gN) while its bar fills, so "three short steps" is seen. */}
@@ -282,10 +282,10 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 									<span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-black/[0.04]"><span className={cn('vg-fx absolute inset-0 bg-vg-signal', STEP_FILL[i])} /></span>
 									<div className="flex items-center justify-between">
 										<span aria-hidden className="inline-flex size-11 items-center justify-center rounded-control bg-vg-tint text-vg-signal"><Icon className="size-5" strokeWidth={1.8} /></span>
-										<span aria-hidden className="text-[40px] font-bold text-black/[0.08]">{copy.nums[i] ?? i + 1}</span>
+										<span aria-hidden className="text-[36px] font-bold text-black/[0.08]">{copy.nums[i] ?? i + 1}</span>
 									</div>
-									<h3 className="mt-3 text-[17px] font-bold lg:mt-4 lg:text-[18px]">{stepTitles[i] ?? step}</h3>
-									<p className="mt-1.5 text-[14px] leading-[1.9] text-vg-sub lg:text-[14.5px]">{step}</p>
+									<h3 className="mt-3 text-[18px] font-bold lg:mt-4 lg:text-[18px]">{stepTitles[i] ?? step}</h3>
+									<p className="mt-1.5 text-[15px] leading-[1.9] text-vg-sub lg:text-[15px]">{step}</p>
 								</li>
 							)
 						})}
@@ -297,7 +297,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
 			{/* Internal links: related articles and solutions */}
 			{reading.length ? (
-				<section aria-labelledby="more-title" className="vg-cv px-4 pt-12 lg:pt-20">
+				<section aria-labelledby="more-title" className="vg-cv px-4 pt-14 md:pt-20 lg:pt-[120px]">
 					<div className="mx-auto max-w-[1200px]">
 <h2 id="more-title" className="vg-rv text-center text-[15px] font-bold text-vg-cap lg:text-start">{copy.more}</h2>
 <ul className="vg-rv-group mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:gap-4">
@@ -305,7 +305,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 								<li key={item.href}>
 									<Link href={item.href} className="vg-press vg-lift flex h-full flex-col gap-2 rounded-card border border-vg-line bg-white p-5 text-start">
 										<span className="flex items-center gap-1.5 text-[12px] text-vg-signal"><FileText aria-hidden className="size-3.5" strokeWidth={1.8} />{item.kind}</span>
-										<span className="text-[15.5px] font-bold leading-[1.8]">{item.title}</span>
+										<span className="text-[15px] font-bold leading-[1.8]">{item.title}</span>
 										<span className="mt-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-vg-sub">{item.cta}<ForwardArrow locale={locale} className="size-3.5" /></span>
 									</Link>
 								</li>

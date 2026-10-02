@@ -5,7 +5,7 @@ import { Check, ChevronDown, MessageSquareText } from 'lucide-react'
 import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
-import { InstagramIcon } from '@/components/marketing/social-links'
+import { InstagramGlyph } from '@/components/marketing/social-links'
 import { MarketingSectionPill } from '@/components/marketing/animated-pill'
 
 const PLAN_TRANSLATION_KEY: Record<PaidPlan, 'starter' | 'pro' | 'business'> = {
@@ -66,7 +66,7 @@ export async function PricingSection() {
 
                                 <div className="mx-auto mt-9 hidden max-w-3xl gap-3 sm:grid sm:grid-cols-2">
                                         <div className="spatial-surface flex items-start gap-3 rounded-card p-4">
-                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><InstagramIcon className="h-4 w-4" /></span>
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><InstagramGlyph className="h-4 w-4" /></span>
                                                 <div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'اتوماسیون ثابت اینستاگرام بدون کسر اعتبار' : 'Instagram automation uses no AI credit'}</p><p className="mt-1 text-[12px] leading-5 text-black/45">{locale === 'fa' ? 'در طول اشتراک یا دورهٔ آزمایشی فعال، سناریوهای بدون هوش مصنوعی اعتبار مصرف نمی‌کنند' : 'During an active subscription or trial, non-AI scenarios consume no credit'}</p></div>
                                         </div>
                                         <div className="spatial-surface flex items-start gap-3 rounded-card p-4">
@@ -99,7 +99,7 @@ export async function PricingSection() {
                                                         open={view.recommended || undefined}
                                                         data-scroll-reveal="up"
                                                         style={{ '--reveal-order': index } as CSSProperties}
-                                                        className={`group rounded-card border bg-white shadow-[var(--shadow-sm)] ${view.recommended ? 'border-black/35 open:border-black' : 'border-[var(--border-default)] open:border-black/15'}`}
+                                                        className={`group rounded-card border bg-white ${view.recommended ? 'border-[var(--signal)] shadow-[0_0_0_1px_var(--signal),var(--elev-1)]' : 'border-[var(--border-default)] shadow-[var(--shadow-sm)] open:border-black/15'}`}
                                                 >
                                                         <summary className="flex min-h-[4.5rem] cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] [&::-webkit-details-marker]:hidden sm:min-h-20 sm:px-5 sm:py-4">
                                                                 <MobilePlanHeader view={view} suffix={t('tomanPerMonth')} />
@@ -110,7 +110,7 @@ export async function PricingSection() {
                                         ))}
                                 </div>
 
-                                <div className="mt-6 hidden grid-cols-1 gap-4 md:grid md:grid-cols-3">
+                                <div className="mt-8 hidden grid-cols-1 gap-3 md:grid md:grid-cols-3 lg:gap-4">
                                         {PAID_PLANS.map((plan) => {
                                                 const def = defs[plan]
                                                 const key = PLAN_TRANSLATION_KEY[plan]
@@ -121,19 +121,22 @@ export async function PricingSection() {
                                                 return (
                                                         <article
                                                                 key={plan}
-                                                                                className={`relative flex flex-col rounded-2xl border bg-white p-6 md:p-7 ${recommended ? 'border-black/45 shadow-[var(--elev-2)] md:-translate-y-2' : 'border-[var(--border-default)]'}`}
+                                                                                // The recommended plan is the only card with the violet ring, a soft
+                                                                                // tinted top and level-2 depth, so it reads first at a glance.
+                                                                                className={`relative flex flex-col rounded-2xl border p-5 lg:p-7 ${recommended ? 'border-[var(--signal)] bg-[linear-gradient(var(--signal-soft),#fff_7rem)] shadow-[0_0_0_1px_var(--signal),var(--elev-2)]' : 'border-[var(--border-default)] bg-white'}`}
                                                                                 style={recommended ? undefined : { boxShadow: 'var(--shadow-sm)' }}
                                                         >
                                                                                 {recommended ? (
-                                                                                        <span className="absolute start-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black px-3 py-1 text-[12px] font-semibold text-white">
+                                                                                        <span className="absolute start-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--signal)] px-3 py-1 text-[12px] font-semibold text-white">
                                                                                                 {locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'}
                                                                                         </span>
                                                                                 ) : null}
-                                                                <h3 className="text-xl font-medium text-[var(--text-primary)]">{t(`plans.${key}.name`)}</h3>
-                                                                <p className="mt-2 min-h-12 text-sm leading-6 text-[var(--text-secondary)]">{t(`plans.${key}.audience`)}</p>
-                                                                <div className="mt-5 flex items-baseline gap-1.5">
-                                                                        <span className="text-3xl font-light tabular-nums text-[var(--text-primary)]">{number.format(def.priceIRR / 10)}</span>
-                                                                        <span className="text-xs text-[var(--text-muted)]">{t('tomanPerMonth')}</span>
+                                                                <h3 className="text-xl font-bold text-[var(--text-primary)]">{t(`plans.${key}.name`)}</h3>
+                                                                <p className="mt-2 min-h-[4.5rem] text-sm leading-6 text-[var(--text-secondary)] lg:min-h-12">{t(`plans.${key}.audience`)}</p>
+                                                                {/* Tablets stack the unit under the figure so "toman / month" never wraps. */}
+                                                                <div className="mt-5 flex flex-col lg:flex-row lg:items-baseline lg:gap-1.5">
+                                                                        <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)] lg:text-3xl">{number.format(def.priceIRR / 10)}</span>
+                                                                        <span className="whitespace-nowrap text-xs text-[var(--text-muted)]">{t('tomanPerMonth')}</span>
                                                                 </div>
                                                                 <ul className="mt-6 flex-1 space-y-3 text-sm text-[var(--text-secondary)]">
                                                                         <Feature>{locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`}</Feature>
@@ -185,12 +188,12 @@ function MobilePlanHeader({ view, suffix }: { view: MobilePlanView; suffix: stri
                 <div className="min-w-0 text-start">
                         <div className="flex flex-wrap items-center gap-2">
                                 <h3 className="text-lg font-bold text-[var(--text-primary)]">{view.name}</h3>
-                                {view.recommended ? <span className="rounded-full bg-black px-2.5 py-1 text-[12px] font-semibold leading-4 text-white">{view.recommendedLabel}</span> : null}
+                                {view.recommended ? <span className="rounded-full bg-[var(--signal)] px-2.5 py-1 text-[12px] font-semibold leading-4 text-white">{view.recommendedLabel}</span> : null}
                         </div>
                         <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{view.audience}</p>
                         <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
-                                <span className="text-2xl font-light tabular-nums text-[var(--text-primary)]">{view.price}</span>
-                                <span className="text-xs text-[var(--text-muted)]">{suffix}</span>
+                                <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">{view.price}</span>
+                                <span className="whitespace-nowrap text-xs text-[var(--text-muted)]">{suffix}</span>
                         </div>
                 </div>
         )

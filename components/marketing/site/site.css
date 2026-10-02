@@ -27,11 +27,13 @@
 	transition: transform 160ms var(--vg-ease-out), background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, color 200ms ease;
 }
 .vg-press:active { transform: scale(.97); }
-.vg-lift { transition: transform 300ms var(--vg-ease-out), box-shadow 300ms ease, border-color 300ms ease; }
+/* Resting cards sit a little off the canvas (contact + ambient shadow), so
+   hover only has to add a 2px lift instead of jumping to a heavy shadow. */
+.vg-lift { box-shadow: 0 1px 2px rgba(17, 17, 17, .04), 0 8px 24px -12px rgba(17, 17, 17, .1); transition: transform 180ms var(--vg-ease-out), box-shadow 180ms ease, border-color 180ms ease; }
 .vg-zoom img { transition: transform 600ms var(--vg-ease-out); }
 
 @media (hover: hover) and (pointer: fine) {
-	.vg-lift:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -30px rgba(17, 17, 17, .35); border-color: rgba(17, 17, 17, .16); }
+	.vg-lift:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(17, 17, 17, .05), 0 18px 36px -18px rgba(17, 17, 17, .2); border-color: rgba(17, 17, 17, .12); }
 	.vg-zoom:hover img { transform: scale(1.04); }
 	.vg-btn-dark:hover { background-color: #2a2a2e; }
 	.vg-btn-ghost:hover { background-color: #ffffff; border-color: rgba(17, 17, 17, .2); }
@@ -75,15 +77,24 @@
 	position: absolute; inset: 1px; z-index: -1; border-radius: inherit;
 	background: radial-gradient(circle at 15% 120%, rgba(91, 61, 232, .3), transparent 48%), #0b0b0e;
 }
-.vg-sp { position: relative; isolation: isolate; display: inline-grid; overflow: hidden; border-radius: 9999px; padding: 1px; background: rgba(17, 17, 17, .08); }
+.vg-sp { position: relative; isolation: isolate; display: inline-grid; overflow: hidden; border-radius: 9999px; padding: 1.5px; background: rgba(17, 17, 17, .08); }
+/* Two opposed comets: a long soft tail that sharpens into a bright head, so
+   some light is always visible on the outline wherever the orbit is. */
 .vg-sp-spin {
 	position: absolute; inset: -300%; z-index: -2;
-	background: conic-gradient(from 0deg, transparent 0deg 300deg, #9685fb 340deg, #5b3de8 360deg);
-	animation: vg-spin 5s linear infinite;
+	background: conic-gradient(from 0deg,
+		transparent 0deg 70deg, rgba(150, 133, 251, .28) 120deg, #765ff2 160deg, #5b3de8 174deg, #fb7185 180deg,
+		transparent 180deg 250deg, rgba(150, 133, 251, .28) 300deg, #765ff2 340deg, #5b3de8 354deg, #fb7185 360deg);
+	animation: vg-spin 6s linear infinite; will-change: transform;
 }
-.vg-sp-surface { position: absolute; inset: 1px; z-index: -1; border-radius: inherit; background: #ffffff; }
+.vg-sp-surface { position: absolute; inset: 1.5px; z-index: -1; border-radius: inherit; background: #ffffff; }
 .vg-sp-dark { background: rgba(255, 255, 255, .1); }
-.vg-sp-dark .vg-sp-surface { background: #101014; }
+.vg-sp-dark .vg-sp-spin {
+	background: conic-gradient(from 0deg,
+		transparent 0deg 70deg, rgba(118, 95, 242, .3) 120deg, #9685fb 160deg, #d8d1ff 174deg, #ffffff 180deg,
+		transparent 180deg 250deg, rgba(118, 95, 242, .3) 300deg, #9685fb 340deg, #f9a8d4 354deg, #ffffff 360deg);
+}
+.vg-sp-dark .vg-sp-surface { background: radial-gradient(circle at 15% 130%, rgba(91, 61, 232, .26), transparent 50%), #101014; }
 
 /* ── Motion vocabulary ───────────────────────────────────────────────── */
 .vg-flow { stroke-dasharray: 3 9; animation: vg-dash 1.4s linear infinite; }
@@ -111,6 +122,8 @@
 .vg-sq2 { animation: vg-sq2 9s ease-in-out infinite; }
 .vg-sq3 { animation: vg-sq3 9s ease-in-out infinite; }
 .vg-sq4 { animation: vg-sq4 9s ease-in-out infinite; }
+/* A key inside a vg-sq row that the demo pointer presses just before vg-sq3 lands. */
+.vg-sq-hit { animation: vg-sq-hit 9s ease-in-out infinite; }
 .vg-c1 { animation: vg-c1 12s ease-in-out infinite; }
 .vg-c2 { animation: vg-c2 12s ease-in-out infinite; opacity: 0; }
 .vg-c3 { animation: vg-c3 12s ease-in-out infinite; opacity: 0; }
@@ -142,7 +155,8 @@
 /* Off-screen blocks hold their loops (MotionPauser adds .vg-on in view).
    Standalone loops — pill borders, button sheens, status pings — follow the
    same rule, so nothing spins below the fold. On phones every loop outside
-   the hero plays one cycle, then rests (`.vg-done`, see MotionPauser). */
+   the hero plays one cycle, then rests (`.vg-done`, see MotionPauser); pill
+   borders are the exception and keep orbiting while on screen. */
 .vg-anim:not(.vg-on) *,
 .vg-anim:not(.vg-on) *::after,
 .vg-sp:not(.vg-on) > .vg-sp-spin,
@@ -175,6 +189,7 @@
 @keyframes vg-sq1 { 0% { opacity: 0; transform: translateY(8px); } 5%, 92% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @keyframes vg-sq2 { 0%, 20% { opacity: 0; transform: translateY(8px); } 26%, 92% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @keyframes vg-sq3 { 0%, 40% { opacity: 0; transform: translateY(8px); } 46%, 92% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes vg-sq-hit { 0%, 37.5% { transform: none; background-color: rgba(255, 255, 255, .8); box-shadow: none; } 38.6% { transform: scale(.95); background-color: #ffffff; } 41%, 100% { transform: none; background-color: #ffffff; box-shadow: 0 0 0 1.5px rgba(3, 105, 161, .35); } }
 @keyframes vg-sq4 { 0%, 60% { opacity: 0; transform: translateY(8px); } 66%, 92% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @keyframes vg-c1 { 0% { opacity: 0; transform: translateY(8px); } 3%, 29% { opacity: 1; transform: none; } 33%, 100% { opacity: 0; transform: translateY(-6px); } }
 @keyframes vg-c2 { 0%, 33% { opacity: 0; transform: translateY(8px); } 36%, 62% { opacity: 1; transform: none; } 66%, 100% { opacity: 0; transform: translateY(-6px); } }
@@ -429,6 +444,9 @@
    laptops get it scaled down as one unit so the packet paths stay exact. */
 .vg-stage { zoom: .8; }
 @media (min-width: 1280px) { .vg-stage { zoom: 1; } }
+/* The tablet stage is a 760px canvas; 768px screens leave it 736px. */
+.vg-tstage { zoom: .94; }
+@media (min-width: 800px) { .vg-tstage { zoom: 1; } }
 /* The phone stage is a fixed 358px canvas; 360px/320px handsets shrink it. */
 @media (max-width: 389px) { .vg-mstage { zoom: .9; } }
 @media (max-width: 351px) { .vg-mstage { zoom: .8; } }
@@ -470,7 +488,8 @@
 	animation-duration: var(--vg-T, 12s); animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-fill-mode: both;
 	animation-delay: calc(var(--vg-T, 12s) * .09 * var(--vg-cur-at, 0));
 }
-.vg-cur-step { top: 62%; left: 50%; transition: none; animation-name: vg-cur-step; }
+/* Smaller and lower than the scripted one: its targets are chips and keys, and the label must stay readable. */
+.vg-cur-step { top: 80%; left: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; transition: none; animation-name: vg-cur-step; }
 .vg-cur-step i { animation-name: vg-cur-step-press; }
 .vg-cur-step::after { animation-name: vg-cur-step-ripple; }
 @keyframes vg-cur-step { 0% { opacity: 0; transform: translate(14px, 22px); } 1.5% { opacity: 1; transform: translate(14px, 22px); } 5%, 8.5% { opacity: 1; transform: none; } 9.5%, 100% { opacity: 0; transform: none; } }

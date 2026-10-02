@@ -22,8 +22,9 @@ import {
 	UserCheck,
 	Zap,
 } from 'lucide-react'
-import { InstagramIcon } from '@/components/marketing/social-links'
+import { InstagramGlyph } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
+import { DemoPointer } from '@/components/motion/pointer'
 import { CHANNELS, ChannelBadge, type IconType, type SiteLocale } from '../ui'
 
 /*
@@ -228,7 +229,7 @@ function EcommerceScene({ locale }: { locale: SiteLocale }) {
 				<div className={cn(IN, 'vg-t4 bg-white')}>{t('دومی رو برمی‌دارم', 'I’ll take the second one')}</div>
 				<div className={cn(OUT, 'vg-t5 w-[230px] bg-white text-vg-ink shadow-[0_10px_30px_-18px_rgba(17,17,17,0.5)] ring-1 ring-vg-line')}>
 					<div className="flex items-center gap-2 text-[12px] font-bold"><ShoppingCart className="size-3.5 text-vg-signal" strokeWidth={2} />{t('ترِیل پرو · سایز ۴۲', 'Trail Pro · size 42')}</div>
-					<div className="mt-1 flex items-center justify-between text-[11.5px] text-vg-sub">{t('۲٬۸۵۰٬۰۰۰ تومان', '2,850,000 toman')}<span className="rounded-md bg-vg-ink px-2 py-0.5 text-[11px] text-white">{t('پرداخت امن', 'Pay')}</span></div>
+					<div className="mt-1 flex items-center justify-between text-[11.5px] text-vg-sub">{t('۲٬۸۵۰٬۰۰۰ تومان', '2,850,000 toman')}<span className="relative rounded-md bg-vg-ink px-2 py-0.5 text-[11px] text-white">{t('پرداخت امن', 'Pay')}<DemoPointer at={6} /></span></div>
 				</div>
 				<div className="mt-auto flex flex-wrap justify-center gap-1.5">
 					<Chip step={7}><CheckCheck className="size-3.5" strokeWidth={2} />{t('سفارش #۱۰۴۲ ثبت شد', 'Order #1042 placed')}</Chip>
@@ -330,7 +331,7 @@ function InstagramScene({ locale }: { locale: SiteLocale }) {
 				</div>
 			</div>
 			<div className="flex flex-wrap justify-center gap-1.5">
-				<Chip step={1} tone="violet"><InstagramIcon className="size-3.5" />{t('کامنت ← دایرکت خودکار', 'Comment → auto DM')}</Chip>
+				<Chip step={1} tone="violet"><InstagramGlyph className="size-3.5" strokeWidth={2} />{t('کامنت ← دایرکت خودکار', 'Comment → auto DM')}</Chip>
 				<Chip step={8}><Zap className="size-3.5" strokeWidth={2} />{t('سناریوی ثابت، بدون مصرف اعتبار', 'Fixed scenario, no credit used')}</Chip>
 			</div>
 		</Frame>
@@ -360,7 +361,7 @@ function TelegramScene({ locale }: { locale: SiteLocale }) {
 						<span key={key} className="relative rounded-lg bg-white/70 py-1.5 text-center text-[11px] font-medium text-[#1c6f9e] lg:text-[12px]">
 							{key}
 							{i === 1 ? <span className="vg-x1 absolute inset-0 rounded-lg bg-[#2aabee]/25" /> : null}
-							{i === 1 ? <span className="vg-cur vg-cur-step" style={{ '--vg-cur-at': 1 } as CSSProperties}><i /></span> : null}
+							{i === 1 ? <DemoPointer at={1} /> : null}
 						</span>
 					))}
 				</div>

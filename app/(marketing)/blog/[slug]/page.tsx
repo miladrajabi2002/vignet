@@ -9,7 +9,7 @@ import {
         deriveSeoDescription,
         toPersianDigits,
 } from '@/lib/blog/helpers'
-import { Calendar, Clock, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Calendar, Clock, ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { SocialLinks } from '@/components/marketing/social-links'
 import { TrendSpark } from '@/components/blog/trend-spark'
@@ -25,6 +25,21 @@ export const revalidate = 300
 
 interface Props {
         params: Promise<{ slug: string }>
+}
+
+/**
+ * Gives every H2 of the rendered article an anchor and returns the list for
+ * the "in this article" index (side column on desktop, a disclosure on phones).
+ */
+function withHeadingAnchors(html: string) {
+        const toc: { id: string; title: string }[] = []
+        const anchored = html.replace(/<h2>([\s\S]*?)<\/h2>/g, (_match, inner: string) => {
+                const title = inner.replace(/<[^>]+>/g, '').trim()
+                const id = `s-${toc.length + 1}`
+                toc.push({ id, title })
+                return `<h2 id="${id}">${inner}</h2>`
+        })
+        return { html: anchored, toc }
 }
 
 
@@ -79,7 +94,8 @@ export default async function PublicBlogPostPage(props: Props) {
         })
     if (!post) notFound()
 
-    const html = renderMarkdown(post.content)
+    const { html, toc } = withHeadingAnchors(renderMarkdown(post.content))
+    const showToc = toc.length >= 3
     const plainExcerpt = post.excerpt || deriveExcerpt(post.content)
 
     // JSON-LD structured data for Google rich results.
@@ -171,10 +187,10 @@ export default async function PublicBlogPostPage(props: Props) {
                                 ) : (
                                         <MarketingHeroPill className="relative z-10">بلاگ</MarketingHeroPill>
                                 )}
-                                <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-[27px] font-bold sm:text-4xl leading-[1.18] tracking-[-0.04em] text-vg-ink lg:text-5xl rtl:leading-[1.4] rtl:tracking-normal">
+                                <h1 className="relative z-10 mt-6 max-w-4xl text-balance text-[28px] font-bold sm:text-4xl leading-[1.18] tracking-[-0.04em] text-vg-ink lg:text-5xl rtl:leading-[1.4] rtl:tracking-normal">
                                         {post.title}
                                 </h1>
-                                <p className="relative z-10 mt-5 max-w-3xl text-[16px] leading-8 text-vg-sub">{plainExcerpt}</p>
+                                <p className="relative z-10 mt-5 max-w-3xl text-[15px] leading-8 text-vg-sub">{plainExcerpt}</p>
                                 <div className="relative z-10 mt-6 flex items-center justify-between gap-4 border-t border-black/[0.08] pt-5">
                                         <div className="flex flex-wrap items-center gap-4 text-[13px] text-vg-cap">
                                                 <span className="inline-flex items-center gap-1">
@@ -201,14 +217,32 @@ export default async function PublicBlogPostPage(props: Props) {
                                         className="mx-auto mb-10 aspect-[16/10] h-auto w-full max-w-5xl rounded-sheet border border-black/10 bg-black/[0.035] object-cover shadow-[var(--elev-2)]"
                                 />
                         )}
-            {/* Body */}
+            {/* Body: the text column starts on the same edge as the title, and the
+                column that frees up carries the article index on desktop. */}
+            <div className="mx-auto max-w-5xl px-1 sm:px-2 lg:grid lg:grid-cols-[minmax(0,40rem)_15rem] lg:justify-between lg:gap-12">
+            {showToc && (
+                                <details className="vg-details mb-6 max-w-[40rem] rounded-2xl border border-[var(--border-default)] bg-white px-4 lg:hidden">
+                                        <summary className="flex min-h-12 items-center justify-between text-sm font-medium text-[var(--text-primary)]">
+                                                {locale === 'fa' ? 'در این مقاله' : 'In this article'}
+                                                <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+                                        </summary>
+                                        <ol className="vg-details-body border-t border-[var(--border-subtle)] py-2">
+                                                {toc.map((item) => (
+                                                        <li key={item.id}>
+                                                                <a href={`#${item.id}`} className="flex min-h-11 items-center text-sm leading-6 text-[var(--text-secondary)]">{item.title}</a>
+                                                        </li>
+                                                ))}
+                                        </ol>
+                                </details>
+                        )}
+            <div className="min-w-0">
             <div
                                 dir={locale === 'fa' ? 'rtl' : 'ltr'}
-                                className={`blog-content mx-auto max-w-[40rem] px-1 text-[16px] leading-[2.05] text-[#1f2937] sm:text-[17px] sm:leading-[2.1] ${locale === 'fa' ? 'text-right' : 'text-left'}`}
+                                className={`blog-content max-w-[40rem] text-[15px] leading-[2.05] text-[#1f2937] sm:text-[18px] sm:leading-[2.1] ${locale === 'fa' ? 'text-right' : 'text-left'}`}
                                 dangerouslySetInnerHTML={{ __html: html }}
                         />
             {/* Social follow bar — keep readers connected after they finish */}
-            <div className="mx-auto mt-10 flex max-w-[40rem] flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-5 shadow-[var(--elev-1)] sm:flex-row sm:justify-between">
+            <div className="mt-10 flex max-w-[40rem] flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-5 shadow-[var(--elev-1)] sm:flex-row sm:justify-between">
                                 <div>
                                         <p className="text-sm font-medium text-[var(--text-primary)]">
                                                 {locale === 'fa' ? 'ما را دنبال کنید' : 'Follow us'}
@@ -222,7 +256,7 @@ export default async function PublicBlogPostPage(props: Props) {
                                 <SocialLinks variant="default" />
                         </div>
             {/* Footer nav */}
-            <footer className="mx-auto mt-12 max-w-[40rem] border-t border-[var(--border-default)] pt-6">
+            <footer className="mt-12 max-w-[40rem] border-t border-[var(--border-default)] pt-6">
                                 <div className="grid gap-4 sm:grid-cols-2">
                                         {prev ? (
                                                 <Link
@@ -258,6 +292,22 @@ export default async function PublicBlogPostPage(props: Props) {
                                         )}
                                 </div>
                         </footer>
+            </div>
+            {showToc && (
+                                <aside className="hidden lg:block">
+                                        <nav aria-label={locale === 'fa' ? 'در این مقاله' : 'In this article'} className="sticky top-28 border-s border-black/10 ps-4">
+                                                <p className="text-[12px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'در این مقاله' : 'In this article'}</p>
+                                                <ol className="mt-2 space-y-0.5">
+                                                        {toc.map((item) => (
+                                                                <li key={item.id}>
+                                                                        <a href={`#${item.id}`} className="block rounded-lg py-1.5 text-[13px] leading-6 text-vg-sub transition-colors hover:text-vg-ink">{item.title}</a>
+                                                                </li>
+                                                        ))}
+                                                </ol>
+                                        </nav>
+                                </aside>
+                        )}
+            </div>
         </article>
     );
 }

@@ -208,7 +208,7 @@ export default async function SolutionsIndexPage() {
 				<div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[470px] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(199,189,240,0.3),rgba(245,245,243,0))] lg:h-[500px] lg:w-[900px]" />
 				<div className="relative mx-auto flex max-w-[1200px] flex-col items-center">
 					<SectionPill icon={Layers}>{copy.pill}</SectionPill>
-					<h1 className="mt-4 max-w-[900px] text-balance text-[32px] font-bold leading-[1.45] lg:mt-[18px] lg:text-[56px] lg:leading-[1.35]">
+					<h1 className="mt-4 max-w-[900px] text-balance text-[32px] font-bold leading-[1.45] lg:mt-[18px] lg:text-[64px] lg:leading-[1.35]">
 						{copy.h1}
 						<span className="block font-medium text-vg-dim">{copy.h1Tail}</span>
 					</h1>
@@ -235,26 +235,26 @@ export default async function SolutionsIndexPage() {
 				<div className="mx-auto max-w-[1200px]">
 					<div className="vg-rv flex flex-col items-center text-center lg:flex-row lg:items-end lg:justify-between lg:text-start">
 						<div>
-<h2 id="problems-title" className="text-[24px] font-bold leading-[1.5] lg:mt-2 lg:text-[34px] lg:leading-[1.4]">{copy.problemsTitle}</h2>
+<h2 id="problems-title" className="text-[22px] font-bold leading-[1.5] lg:mt-2 lg:text-[36px] lg:leading-[1.4]">{copy.problemsTitle}</h2>
 						</div>
-						<span className="hidden text-[14px] text-vg-cap lg:inline">{copy.tapHint}</span>
+						<span className="hidden text-[15px] text-vg-cap lg:inline">{copy.tapHint}</span>
 					</div>
 
 <div className="vg-rv-group mt-4 flex flex-col gap-2 lg:hidden">
 						{problems.map((item, index) => (
 							<details key={item.short} name="problems" open={index === 0} className="vg-details rounded-card border border-vg-line bg-white text-start open:border-black/[0.14] open:shadow-[var(--elev-1)]">
 								<summary className="vg-press flex min-h-[58px] items-center gap-3 rounded-card px-3.5 py-2.5 text-[15px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-vg-signal">
-									<span className="inline-flex size-8 shrink-0 items-center justify-center rounded-chip bg-[#f4f4f5] text-[14px] text-vg-sub">{item.num}</span>
+									<span className="inline-flex size-8 shrink-0 items-center justify-center rounded-chip bg-[#f4f4f5] text-[15px] text-vg-sub">{item.num}</span>
 									<h3 className="grow">{item.short}</h3>
 								</summary>
 {/* Fragment target inside the body: browsers auto-open the <details>. */}
 								<div id={`problem-${index}`} className="vg-details-body scroll-mt-28 px-4 pb-4">
-									<p className="text-[13.5px] leading-[1.9] text-vg-cap">{item.problem}</p>
+									<p className="text-[13px] leading-[1.9] text-vg-cap">{item.problem}</p>
 									<div className="mt-2.5 rounded-2xl bg-[#f0fdf4] px-3.5 py-3">
 										<p className="flex items-center gap-1.5 text-[12px] font-bold text-vg-ok"><Sparkles aria-hidden className="size-3.5" strokeWidth={2} />{copy.answerTag}</p>
-										<p className="mt-1 text-[14.5px] font-medium leading-[1.9]">{item.answer}</p>
+										<p className="mt-1 text-[15px] font-medium leading-[1.9]">{item.answer}</p>
 									</div>
-									<Link href={item.href} className="vg-press mt-2.5 flex min-h-12 items-center justify-between rounded-control bg-vg-ink px-3.5 text-[14px] font-medium text-white">
+									<Link href={item.href} className="vg-press mt-2.5 flex min-h-12 items-center justify-between rounded-control bg-vg-ink px-3.5 text-[15px] font-medium text-white">
 										{copy.viewFor(item.solution)}
 										<ForwardArrow locale={locale} />
 									</Link>
@@ -273,12 +273,12 @@ export default async function SolutionsIndexPage() {
 			</section>
 
 			{/* Solution cards */}
-<section id="all-solutions" aria-labelledby="solutions-grid-title" className="vg-cv mt-12 scroll-mt-24 px-4 lg:mt-0 lg:border-y lg:border-black/[0.06] lg:bg-white lg:py-[100px]">
+<section id="all-solutions" aria-labelledby="solutions-grid-title" className="vg-cv mt-14 scroll-mt-24 px-4 md:mt-20 lg:mt-0 lg:border-y lg:border-black/[0.06] lg:bg-white lg:py-[120px]">
 				<Container className="px-0 sm:px-0 xl:px-0">
 					<div className="vg-rv flex flex-col items-center text-center">
 						<SectionPill icon={Check}>{copy.gridPill}</SectionPill>
-						<h2 id="solutions-grid-title" className="mt-3 text-balance text-[24px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[40px] lg:leading-[1.4]">{copy.gridTitle}</h2>
-						<p className="mt-2 text-[14.5px] text-vg-sub lg:mt-2.5 lg:text-[16px]">{copy.gridLead}</p>
+						<h2 id="solutions-grid-title" className="mt-3 text-balance text-[22px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[36px] lg:leading-[1.4]">{copy.gridTitle}</h2>
+						<p className="mt-2 text-[15px] text-vg-sub lg:mt-2.5 lg:text-[15px]">{copy.gridLead}</p>
 					</div>
 <ul className="vg-rv-group mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:mt-9 lg:grid-cols-3 lg:gap-4">
 						{solutions.map((slug, index) => {
@@ -300,13 +300,13 @@ export default async function SolutionsIndexPage() {
 											</span>
 											{featured ? <span className="text-[12px] text-[#b9adff]">{copy.popular}</span> : null}
 										</span>
-										<h3 className="mt-1 text-[19px] font-bold lg:text-[20px]">{meta.name[locale]}</h3>
-										<p className={cn('max-w-[560px] text-[14px] leading-[1.9] lg:text-[14.5px]', featured ? 'text-[#d4d4d8]' : 'text-vg-sub')}>{meta.card[locale]}</p>
+										<h3 className="mt-1 text-[18px] font-bold lg:text-[22px]">{meta.name[locale]}</h3>
+										<p className={cn('max-w-[560px] text-[15px] leading-[1.9] lg:text-[15px]', featured ? 'text-[#d4d4d8]' : 'text-vg-sub')}>{meta.card[locale]}</p>
 										<span className="mt-auto flex items-center justify-between gap-3 pt-1">
 											<span className="flex flex-wrap gap-1.5">
 												{meta.tags[locale].map((tag) => <span key={tag} className={cn('rounded-full px-2.5 py-1 text-[12px]', featured ? 'bg-white/10' : 'bg-[#f4f4f5]')}>{tag}</span>)}
 											</span>
-											<span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-medium', featured ? 'text-white' : 'text-vg-signal')}>
+											<span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium', featured ? 'text-white' : 'text-vg-signal')}>
 												{copy.cardCta}
 												<ForwardArrow locale={locale} />
 											</span>
@@ -319,9 +319,9 @@ export default async function SolutionsIndexPage() {
 						<li className="hidden lg:block">
 							<a href={SUPPORT_TEL} aria-label={copy.helpAria} className="vg-press vg-lift flex h-full min-h-[220px] flex-col gap-2.5 rounded-3xl border border-dashed border-black/15 p-[26px] text-start">
 								<span aria-hidden className="inline-flex size-[46px] items-center justify-center rounded-control bg-white text-vg-ink"><Phone className="size-[21px]" strokeWidth={1.8} /></span>
-								<h3 className="mt-1 text-[20px] font-bold">{copy.helpTitle}</h3>
-								<p className="text-[14.5px] leading-[1.9] text-vg-sub">{copy.helpBody}</p>
-								<span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-[13.5px] font-medium text-vg-signal">{copy.helpCta}<ForwardArrow locale={locale} /></span>
+								<h3 className="mt-1 text-[22px] font-bold">{copy.helpTitle}</h3>
+								<p className="text-[15px] leading-[1.9] text-vg-sub">{copy.helpBody}</p>
+								<span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-[13px] font-medium text-vg-signal">{copy.helpCta}<ForwardArrow locale={locale} /></span>
 							</a>
 						</li>
 					</ul>
@@ -329,11 +329,11 @@ export default async function SolutionsIndexPage() {
 			</section>
 
 			{/* Before / after */}
-			<section aria-labelledby="before-after-title" className="vg-cv mt-12 px-4 lg:mt-0 lg:pt-[100px]">
+			<section aria-labelledby="before-after-title" className="vg-cv mt-14 px-4 md:mt-20 lg:mt-0 lg:pt-[120px]">
 				<div className="mx-auto max-w-[1200px]">
 					<div className="vg-rv flex flex-col items-center text-center">
 						<SectionPill icon={Clock}>{copy.baPill}</SectionPill>
-						<h2 id="before-after-title" className="mt-3 text-[24px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[40px] lg:leading-[1.4]">{copy.baTitle}</h2>
+						<h2 id="before-after-title" className="mt-3 text-[22px] font-bold leading-[1.5] lg:mt-3.5 lg:text-[36px] lg:leading-[1.4]">{copy.baTitle}</h2>
 					</div>
 					<div className="mt-4 overflow-hidden lg:mt-[30px] lg:rounded-card lg:border lg:border-vg-line lg:bg-white">
 						<div aria-hidden className="hidden grid-cols-3 gap-5 bg-[#fafaf9] px-7 py-4 text-[13px] font-medium text-vg-cap lg:grid">
@@ -348,11 +348,11 @@ export default async function SolutionsIndexPage() {
 											<span aria-hidden className="inline-flex size-[34px] items-center justify-center rounded-chip bg-[#f4f4f5] lg:size-9 lg:rounded-chip"><Icon className="size-4" strokeWidth={1.8} /></span>
 											{row.situation}
 										</span>
-										<span className="mt-2.5 flex items-center gap-2 text-[13.5px] text-vg-cap lg:mt-0 lg:text-[15px]">
+										<span className="mt-2.5 flex items-center gap-2 text-[13px] text-vg-cap lg:mt-0 lg:text-[15px]">
 											<X aria-hidden className="size-4 shrink-0 text-[#b91c1c]" strokeWidth={2} />
 											<span className="sr-only">{copy.baCols[1]}: </span>{row.without}
 										</span>
-										<span className="mt-1.5 flex items-center gap-2 text-[13.5px] font-medium text-[#166534] lg:mt-0 lg:text-[15px]">
+										<span className="mt-1.5 flex items-center gap-2 text-[13px] font-medium text-[#166534] lg:mt-0 lg:text-[15px]">
 											<Check aria-hidden className="size-4 shrink-0" strokeWidth={2.2} />
 											<span className="sr-only">{copy.baCols[2]}: </span>{row.with}
 										</span>

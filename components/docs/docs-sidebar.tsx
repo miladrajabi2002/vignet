@@ -90,7 +90,7 @@ export function DocsSidebar() {
         type="button"
         onClick={() => setOpen(true)}
         aria-expanded={open}
-        className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-white px-3 text-start text-sm font-semibold text-black md:hidden"
+        className="flex min-h-12 w-full items-center gap-3 rounded-[calc(var(--radius-card)-4px)] px-3 text-start text-sm font-semibold text-[var(--text-primary)] md:hidden"
       >
         <List className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">
@@ -101,19 +101,19 @@ export function DocsSidebar() {
 
       <nav className="hidden min-w-0 flex-col gap-1 md:flex" aria-label={locale === 'fa' ? 'فهرست مستندات' : 'Documentation navigation'}>
         <div className="mb-2">
-          <DocsSearchField query={query} onQueryChange={setQuery} locale={locale} dark />
+          <DocsSearchField query={query} onQueryChange={setQuery} locale={locale} />
         </div>
         {filteredItems.map(({ slug, href, icon: Icon, title }) => {
           const active = pathname === href
           return (
-            <Link key={slug} href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', active ? 'bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.08)]' : 'text-white/60 hover:bg-white/[0.08] hover:text-white')}>
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <Link key={slug} href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', active ? 'bg-[var(--signal-soft)] font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]')}>
+              <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-[var(--signal)]' : 'text-[var(--text-hint)]')} aria-hidden="true" />
               {locale === 'fa' ? title.fa : title.en}
             </Link>
           )
         })}
         {filteredItems.length === 0 && (
-          <p className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs leading-6 text-white/60">
+          <p className="rounded-xl border border-dashed border-[var(--border-default)] px-3 py-5 text-center text-xs leading-6 text-[var(--text-muted)]">
             {locale === 'fa' ? 'راهنمایی با این عبارت پیدا نشد.' : 'No guide matches this search.'}
           </p>
         )}
@@ -139,7 +139,7 @@ export function DocsSidebar() {
           {filteredItems.map(({ slug, href, icon: Icon, title }) => {
             const active = pathname === href
             return (
-              <Link key={slug} href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-12 items-center gap-3 rounded-xl border px-3 text-sm font-semibold', active ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-primary)]')}>
+              <Link key={slug} href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-12 items-center gap-3 rounded-xl border px-3 text-sm font-semibold', active ? 'border-[var(--signal-border)] bg-[var(--signal-soft)] text-[var(--text-primary)]' : 'border-[var(--border-default)] bg-white text-[var(--text-primary)]')}>
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {locale === 'fa' ? title.fa : title.en}
               </Link>

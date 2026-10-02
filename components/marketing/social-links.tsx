@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type SVGProps } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -33,6 +33,35 @@ export function InstagramIcon({ className }: { className?: string }) {
 				transform="translate(4.2 4.2) scale(.65)"
 				d="M6.8 0h10.4A6.8 6.8 0 0 1 24 6.8v10.4a6.8 6.8 0 0 1-6.8 6.8H6.8A6.8 6.8 0 0 1 0 17.2V6.8A6.8 6.8 0 0 1 6.8 0zM6.8 2.16a4.64 4.64 0 0 0-4.64 4.64v10.4a4.64 4.64 0 0 0 4.64 4.64h10.4a4.64 4.64 0 0 0 4.64-4.64V6.8a4.64 4.64 0 0 0-4.64-4.64zM12 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM18.406 4.154a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"
 			/>
+		</svg>
+	)
+}
+
+/**
+ * Instagram as a single-colour line glyph (follows currentColor and
+ * strokeWidth like a lucide icon) — for rows of line icons, where the
+ * full-colour app logo above would stand out.
+ */
+export function InstagramGlyph({ strokeWidth = 2, ...props }: SVGProps<SVGSVGElement>) {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+			<rect x="2" y="2" width="20" height="20" rx="5" />
+			<path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+			<path d="M17.5 6.5h.01" />
+		</svg>
+	)
+}
+
+/**
+ * Telegram's paper plane as a single-colour line glyph (follows currentColor
+ * and strokeWidth like a lucide icon) — the hollow counterpart of the filled
+ * mark below, for rows of line icons.
+ */
+export function TelegramGlyph({ strokeWidth = 2, ...props }: SVGProps<SVGSVGElement>) {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+			<path d="M21 4 2.5 11.2l5.7 2.1L10 19.5l2.6-3.2 5 3.7L21 4z" />
+			<path d="M8.2 13.3 17 7.7l-6.2 6.9" />
 		</svg>
 	)
 }

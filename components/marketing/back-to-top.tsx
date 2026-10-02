@@ -79,7 +79,9 @@ export function BackToTop() {
       aria-label={locale === 'fa' ? 'بازگشت به بالا' : 'Back to top'}
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
-      className={`back-to-top fixed end-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] text-[var(--text-primary)] transition-[opacity,transform,background-color,border-color] duration-200 ease-[var(--ease-spatial)] [bottom:calc(6rem+env(safe-area-inset-bottom))] motion-reduce:transform-none motion-reduce:transition-none lg:bottom-6 ${
+      // Phones already carry the fixed bottom bar; a second floating layer sat
+      // on top of row controls (FAQ toggles), so the button starts at md.
+      className={`back-to-top fixed bottom-6 end-6 z-40 hidden h-11 w-11 items-center justify-center rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] text-[var(--text-primary)] transition-[opacity,transform,background-color,border-color] duration-200 ease-[var(--ease-spatial)] motion-reduce:transform-none motion-reduce:transition-none md:flex ${
         visible
           ? 'pointer-events-auto translate-y-0 scale-100 opacity-100 hover:-translate-y-0.5 active:scale-95'
           : 'pointer-events-none translate-y-2 scale-95 opacity-0'

@@ -81,14 +81,14 @@ export async function PopularPosts() {
 	const c = COPY[locale]
 
 	return (
-		<section id="blog" aria-labelledby="blog-title" className="vg-cv scroll-mt-24 pt-12 lg:py-[110px]">
+		<section id="blog" aria-labelledby="blog-title" className="vg-cv scroll-mt-24 pt-14 md:pt-20 lg:py-[120px]">
 			<Container className="px-0 sm:px-0 xl:px-0">
-				<SectionHead id="blog-title" className="vg-rv px-4 sm:px-6" pill={c.pill} icon={Flame} iconClassName="text-[#ea580c]" title={c.title} lead={c.lead} titleClassName="lg:text-[42px] lg:leading-[1.4]" />
+				<SectionHead id="blog-title" className="vg-rv px-4 sm:px-6" pill={c.pill} icon={Flame} iconClassName="text-[#ea580c]" title={c.title} lead={c.lead} titleClassName="lg:text-[48px] lg:leading-[1.4]" />
 				<ul className="vg-rv-group vg-noscroll mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 sm:px-6 lg:mt-10 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible xl:px-0">
 					{posts.map((post, index) => <PostCard key={post.id} post={post} rank={index} locale={locale} />)}
 				</ul>
 				<div className="mt-3.5 flex justify-center lg:mt-10">
-					<Link href="/blog" className={cn(btnGhost, 'min-h-11 rounded-full px-[18px] text-[13.5px] lg:h-12 lg:px-6 lg:text-[14.5px]')}>
+					<Link href="/blog" className={cn(btnGhost, 'min-h-11 rounded-full px-[18px] text-[13px] lg:h-12 lg:px-6 lg:text-[15px]')}>
 						<BookOpen aria-hidden className="hidden size-[17px] lg:block" strokeWidth={1.8} />
 						{c.all}
 						<ForwardArrow locale={locale} className="size-[15px] lg:hidden" />
@@ -134,8 +134,8 @@ function PostCard({ post, rank, locale }: { post: Post; rank: number; locale: Si
 							{c.ranks[rank] ?? c.ranks[2]}
 						</span>
 					</div>
-					<h3 className="mt-3 line-clamp-2 text-[15.5px] font-bold leading-[1.8] lg:mt-3.5 lg:text-[17.5px] lg:leading-[1.75]">{post.title}</h3>
-					<p className="mt-2 hidden text-[14px] leading-[1.9] text-vg-sub lg:line-clamp-2">{excerpt}</p>
+					<h3 className="mt-3 line-clamp-2 text-[15px] font-bold leading-[1.8] lg:mt-3.5 lg:text-[18px] lg:leading-[1.75]">{post.title}</h3>
+					<p className="mt-2 hidden text-[15px] leading-[1.9] text-vg-sub lg:line-clamp-2">{excerpt}</p>
 					<div className="mt-auto flex items-center justify-between gap-3 pt-3 lg:pt-[18px]">
 						<span className="flex items-center gap-3 text-[12px] text-vg-cap">
 							<span className="inline-flex items-center gap-1"><Eye aria-hidden className="size-3.5" strokeWidth={1.8} />{c.views(views)}</span>

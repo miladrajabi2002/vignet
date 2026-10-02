@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { Phone } from 'lucide-react'
-import { InstagramIcon, SOCIAL_URLS, TelegramIcon } from '@/components/marketing/social-links'
+import { Phone, Send } from 'lucide-react'
+import { InstagramGlyph, SOCIAL_URLS } from '@/components/marketing/social-links'
 import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { Logo } from '@/components/ui/logo'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
@@ -56,7 +56,7 @@ tagline: 'An AI agent for sales, support and CRM',
 	},
 } as const
 
-const iconBtn = 'vg-press inline-flex size-11 items-center justify-center rounded-full border border-vg-line bg-white text-vg-ink'
+const iconBtn = 'vg-press inline-flex size-11 items-center justify-center rounded-full border border-vg-line bg-white text-vg-sub lg:size-10'
 
 /**
  * Minimal public footer: brand line, status + socials, one row of links and
@@ -75,10 +75,10 @@ export async function Footer() {
 					<div className="flex flex-col items-center gap-2.5 lg:flex-row lg:gap-[18px]">
 						<Logo className="h-6 w-[104px] lg:h-[26px] lg:w-[116px]" />
 						<span aria-hidden className="hidden h-[22px] w-px bg-black/[0.12] lg:block" />
-						<p className="text-[13px] leading-[1.9] text-vg-cap lg:text-[14px]">{c.tagline}</p>
+						<p className="text-[13px] leading-[1.9] text-vg-cap lg:text-[15px]">{c.tagline}</p>
 					</div>
 					<div className="order-last mt-3 flex items-center gap-2 lg:order-none lg:mt-0">
-						<Link href={`${prefix}/status`} className="vg-press inline-flex h-11 items-center gap-2 rounded-full border border-vg-line bg-white px-3.5 text-[12.5px] text-vg-sub lg:h-10 lg:text-[13px]">
+						<Link href={`${prefix}/status`} className="vg-press inline-flex h-11 items-center gap-2 rounded-full border border-vg-line bg-white px-3.5 text-[13px] text-vg-sub lg:h-10 lg:text-[13px]">
 							<span aria-hidden className="vg-ping relative inline-flex size-2">
 								<span className="vg-ring absolute inset-0 rounded-full bg-[#22c55e]" />
 								<span className="relative size-2 rounded-full bg-[#16a34a]" />
@@ -86,13 +86,13 @@ export async function Footer() {
 							<span className="lg:hidden">{c.statusShort}</span>
 							<span className="hidden lg:inline">{c.status}</span>
 						</Link>
-						<a href={SOCIAL_URLS.instagram} target="_blank" rel="noopener noreferrer" aria-label={c.instagram} className={iconBtn}><InstagramIcon className="size-5" /></a>
-						<a href={SOCIAL_URLS.telegram} target="_blank" rel="noopener noreferrer" aria-label={c.telegram} className={iconBtn}><TelegramIcon className="size-5 text-[#229ED9]" /></a>
+						<a href={SOCIAL_URLS.instagram} target="_blank" rel="noopener noreferrer" aria-label={c.instagram} className={iconBtn}><InstagramGlyph className="size-[18px]" strokeWidth={1.8} /></a>
+						<a href={SOCIAL_URLS.telegram} target="_blank" rel="noopener noreferrer" aria-label={c.telegram} className={iconBtn}><Send aria-hidden className="size-[18px]" strokeWidth={1.8} /></a>
 					</div>
 				</div>
 
 				<nav aria-label={c.nav} className="mt-2.5 flex flex-col items-center lg:mt-0 lg:flex-row lg:justify-between">
-					<ul className="flex flex-wrap items-center justify-center gap-x-2.5 text-[13.5px] lg:gap-x-[30px] lg:text-[14px]">
+					<ul className="flex flex-wrap items-center justify-center gap-x-2.5 text-[13px] lg:gap-x-[30px] lg:text-[15px]">
 						{c.links.map((link, i) => (
 							<li key={link.href} className={'desktop' in link ? 'hidden lg:block' : 'flex items-center gap-x-2.5'}>
 								{i > 0 && !('desktop' in link) ? <span aria-hidden className="text-black/20 lg:hidden">·</span> : null}
@@ -106,7 +106,7 @@ export async function Footer() {
 					</a>
 				</nav>
 
-				<div className="mt-1.5 flex flex-wrap justify-center gap-x-3.5 gap-y-1 text-[12px] text-vg-cap lg:mt-[26px] lg:justify-between lg:border-t lg:border-black/[0.06] lg:pt-[18px] lg:text-[12.5px]">
+				<div className="mt-1.5 flex flex-wrap justify-center gap-x-3.5 gap-y-1 text-[12px] text-vg-cap lg:mt-[26px] lg:justify-between lg:border-t lg:border-black/[0.06] lg:pt-[18px] lg:text-[13px]">
 					<span className="flex flex-wrap items-center justify-center gap-x-3.5 lg:gap-4">
 						<span>{c.copyright}</span>
 						<Link href={`${prefix}/privacy`} className="vg-flink inline-flex min-h-10 items-center lg:min-h-0">{c.privacy}</Link>

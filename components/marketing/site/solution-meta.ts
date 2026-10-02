@@ -1,5 +1,5 @@
 import { Bot, Headset, Inbox, Send, ShoppingCart, Store } from 'lucide-react'
-import { InstagramIcon } from '@/components/marketing/social-links'
+import { InstagramGlyph } from '@/components/marketing/social-links'
 import type { IconType, SiteLocale } from './ui'
 
 /**
@@ -37,7 +37,7 @@ export const SOLUTION_CARDS: Record<string, { icon: IconType; name: Record<SiteL
 		tags: { fa: ['تیم پشتیبانی'], en: ['Support teams'] },
 	},
 	instagram: {
-		icon: InstagramIcon as IconType,
+		icon: InstagramGlyph as IconType,
 		name: { fa: 'پاسخگوی اینستاگرام', en: 'Instagram responder' },
 		pitch: { fa: 'دایرکت، کامنت و استوری', en: 'DMs, comments and stories' },
 		card: { fa: 'دایرکت و کامنت خودکار، کامنت به دایرکت و چند اکانت.', en: 'Automatic DMs and comments, comment-to-DM and multiple accounts.' },

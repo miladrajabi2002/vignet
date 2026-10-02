@@ -47,7 +47,7 @@ export default async function NotFound() {
 					<span className="vg-nf-num">{faNum(locale, 404)}</span>
 				</div>
 
-				<h1 className="mt-8 text-[26px] font-bold leading-[1.5] lg:text-[34px]">{c.h1}</h1>
+				<h1 className="mt-8 text-[28px] font-bold leading-[1.5] lg:text-[36px]">{c.h1}</h1>
 				<p className="mt-2 max-w-sm text-[15px] leading-8 text-vg-sub">{c.lead}</p>
 
 				<Link href="/" className="vg-press vg-btn-dark mt-8 inline-flex h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-vg-ink px-7 text-[15px] font-medium text-white shadow-[var(--shadow-control)]">

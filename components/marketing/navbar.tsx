@@ -54,7 +54,7 @@ const COPY = {
 /**
  * Public-site header: a floating glass bar (blur only on desktop — phones get
  * an opaque surface) with the wordmark centred. On phones the page links move
- * to the bottom tab bar.
+ * to the bottom tab bar; tablets (md and up) already get the full link row.
  */
 export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const locale = toSiteLocale(useLocale())
@@ -107,29 +107,30 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 			<nav
 				aria-label={copy.primaryNav}
 				className={cn(
-					'vg-glass relative mx-auto grid h-[58px] max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center rounded-card border px-2 transition-[border-color,box-shadow] duration-200 lg:flex lg:h-16 lg:justify-between lg:rounded-card lg:px-2.5',
+					'vg-glass relative mx-auto grid h-[58px] max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center rounded-card border px-2 transition-[border-color,box-shadow] duration-200 md:flex md:justify-between md:px-2.5 lg:h-16',
 					scrolled ? 'border-black/10 shadow-[var(--elev-1)]' : 'border-black/[0.07] shadow-[var(--elev-1)]',
 				)}
 			>
-				<div className="col-start-1 flex items-center justify-start lg:hidden">
+				<div className="col-start-1 flex items-center justify-start md:hidden">
 					<LanguageSwitcher bare className="vg-press inline-flex size-11 items-center justify-center rounded-xl text-vg-sub">
 						<Globe aria-hidden className="size-[18px]" strokeWidth={1.8} />
 						<span className="sr-only">{copy.langAria}</span>
 					</LanguageSwitcher>
 				</div>
 
-				{/* Off the homepage, a home chip leads the desktop links. */}
-				<div className="hidden items-center gap-0.5 lg:flex">
+				{/* Off the homepage, a home chip leads the desktop links (the wordmark
+				    is the home link on tablets, where the row is tighter). */}
+				<div className="hidden items-center gap-0.5 md:flex">
 				{!isLandingPath ? (
 					<>
 						<Link
 							href={home}
-							className="vg-navlink vg-press inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-[14px] text-vg-sub focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal"
+							className="vg-navlink vg-press hidden min-h-11 items-center gap-1.5 rounded-xl px-3 text-[15px] text-vg-sub focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal lg:inline-flex"
 						>
 							<House aria-hidden className="size-4" strokeWidth={1.8} />
 							{copy.home}
 						</Link>
-						<span aria-hidden className="mx-1 h-5 w-px bg-black/10" />
+						<span aria-hidden className="mx-1 hidden h-5 w-px bg-black/10 lg:block" />
 					</>
 				) : null}
 				<ul className="flex items-center gap-0.5">
@@ -143,7 +144,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 									href={link.href}
 									aria-current={active ? (link.id === 'solutions' || link.id === 'blog' ? 'page' : 'location') : undefined}
 									className={cn(
-										'vg-press relative inline-flex min-h-11 items-center rounded-xl px-3.5 text-[14px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal',
+										'vg-press relative inline-flex min-h-11 items-center rounded-xl px-2.5 text-[13px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal lg:px-3.5 lg:text-[15px]',
 										active ? 'bg-black/[0.055] font-medium text-vg-ink' : 'vg-navlink text-vg-sub',
 									)}
 								>
@@ -161,25 +162,25 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 					<Link
 						href={home}
 						aria-label={copy.homeAria}
-					className="col-start-2 inline-flex min-h-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal lg:absolute lg:left-1/2 lg:-translate-x-1/2"
+					className="col-start-2 inline-flex min-h-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal md:absolute md:left-1/2 md:-translate-x-1/2"
 				>
 					<Logo priority className="h-7 w-28 lg:h-[26px] lg:w-[116px]" />
 				</Link>
 
-				<div className="col-start-3 hidden items-center justify-end gap-2 lg:flex">
-					<LanguageSwitcher bare className="vg-navlink vg-press inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-[13px] text-vg-sub">
+				<div className="col-start-3 hidden items-center justify-end gap-1.5 md:flex lg:gap-2">
+					<LanguageSwitcher bare className="vg-navlink vg-press inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-[13px] text-vg-sub lg:px-3">
 						<Globe aria-hidden className="size-4" strokeWidth={1.8} />
 						<span lang={locale === 'fa' ? 'en' : 'fa'}>{copy.lang}</span>
 					</LanguageSwitcher>
 					{authenticated ? (
-						<Link href="/overview" aria-label={copy.dashboardAria} className="vg-press vg-btn-dark inline-flex h-11 items-center gap-2 rounded-control bg-vg-ink px-4 text-[14px] font-medium text-white">
+						<Link href="/overview" aria-label={copy.dashboardAria} className="vg-press vg-btn-dark inline-flex h-11 items-center gap-2 rounded-control bg-vg-ink px-4 text-[15px] font-medium text-white">
 							<span aria-hidden className="flex size-4 items-center justify-center rounded-full bg-emerald-500"><Check className="size-2.5" strokeWidth={3} /></span>
 							{copy.dashboard}
 						</Link>
 					) : (
 						<>
-							<Link href="/login" className="vg-press vg-btn-ghost inline-flex h-11 items-center rounded-control border border-black/10 bg-white px-4 text-[14px] font-medium text-vg-ink">{copy.login}</Link>
-							<Link href={SIGNUP_HREF} className="vg-press vg-btn-dark inline-flex h-11 items-center gap-2 rounded-control bg-vg-ink px-[18px] text-[14px] font-medium text-white">
+							<Link href="/login" className="vg-press vg-btn-ghost inline-flex h-11 items-center rounded-control border border-black/10 bg-white px-3 text-[15px] font-medium text-vg-ink lg:px-4">{copy.login}</Link>
+							<Link href={SIGNUP_HREF} className="vg-press vg-btn-dark inline-flex h-11 items-center gap-2 rounded-control bg-vg-ink px-3.5 text-[15px] font-medium text-white lg:px-[18px]">
 								{copy.start}
 								<ForwardArrow locale={locale} />
 							</Link>
@@ -188,12 +189,12 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 				</div>
 
 				{isLandingPath ? (
-					<span aria-hidden className="col-start-3 size-11 justify-self-end lg:hidden" />
+					<span aria-hidden className="col-start-3 size-11 justify-self-end md:hidden" />
 				) : (
 					<Link
 						href={home}
 						aria-label={copy.home}
-						className="vg-press col-start-3 inline-flex size-11 items-center justify-center justify-self-end rounded-xl text-vg-sub focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal lg:hidden"
+						className="vg-press col-start-3 inline-flex size-11 items-center justify-center justify-self-end rounded-xl text-vg-sub focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal md:hidden"
 					>
 						<House aria-hidden className="size-[18px]" strokeWidth={1.8} />
 					</Link>

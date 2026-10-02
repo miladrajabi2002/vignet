@@ -62,7 +62,7 @@ export default async function PublicBlogIndexPage() {
                                 <h1 className="mt-5 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl lg:text-6xl">
                                         بلاگ ویجنت
                                 </h1>
-                                <p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub sm:text-[17px]">
+                                <p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub sm:text-[18px]">
                                         مقالات و آموزش‌های هوش مصنوعی، چت‌بات‌ها و اتوماسیون فروش
                                 </p>
                                 </div>

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { Check, ShieldCheck, Sparkles } from 'lucide-react'
 import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
-import { InstagramIcon } from '@/components/marketing/social-links'
+import { InstagramGlyph } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { Container, SIGNUP_HREF, SectionHead, btnDark, btnGhost, type SiteLocale } from '../ui'
 import { PlanLimits, PlanTabs, type PlanView } from './plan-tabs'
@@ -96,7 +96,7 @@ export async function Pricing({ locale }: { locale: SiteLocale }) {
 	})
 
 	return (
-		<section id="pricing" aria-labelledby="pricing-title" className="vg-cv scroll-mt-24 pt-[52px] lg:border-y lg:border-black/[0.06] lg:bg-white lg:py-[110px]">
+		<section id="pricing" aria-labelledby="pricing-title" className="vg-cv scroll-mt-24 pt-14 md:pt-20 lg:border-y lg:border-black/[0.06] lg:bg-white lg:py-[120px]">
 			<Container>
 				<SectionHead
 					id="pricing-title"
@@ -112,8 +112,8 @@ export async function Pricing({ locale }: { locale: SiteLocale }) {
 					<div className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-4">
 						<span aria-hidden className="inline-flex size-10 items-center justify-center rounded-xl bg-vg-signal text-white lg:size-12 lg:rounded-control"><Sparkles className="size-[19px] lg:size-[22px]" strokeWidth={1.8} /></span>
 						<div>
-							<h3 className="text-[16px] font-bold lg:text-[18px]">{c.trialTitle}</h3>
-							<p className="text-[13px] leading-[1.9] text-vg-sub lg:mt-0.5 lg:text-[14px]">{c.trialBody}</p>
+							<h3 className="text-[15px] font-bold lg:text-[18px]">{c.trialTitle}</h3>
+							<p className="text-[13px] leading-[1.9] text-vg-sub lg:mt-0.5 lg:text-[15px]">{c.trialBody}</p>
 						</div>
 					</div>
 					<Link href={SIGNUP_HREF} className={cn(btnDark, 'hidden h-12 rounded-control px-[22px] text-[15px] shadow-none lg:inline-flex')}>{c.trialCta}</Link>
@@ -127,12 +127,12 @@ export async function Pricing({ locale }: { locale: SiteLocale }) {
 					{plans.map((plan) => (
 						<article
 							key={plan.id}
-							className={cn('relative flex flex-col rounded-card border bg-white p-[30px]', plan.recommended ? 'border-vg-ink shadow-[0_0_0_1px_#111111,var(--elev-2)]' : 'vg-lift border-black/10')}
+							className={cn('relative flex flex-col rounded-card border p-[30px]', plan.recommended ? 'border-vg-signal bg-[linear-gradient(#f3f1ff,#fff_7rem)] shadow-[0_0_0_1px_#5b3de8,var(--elev-2)]' : 'vg-lift border-black/10 bg-white')}
 						>
-							{plan.recommended ? <span className="absolute end-6 top-6 rounded-full bg-vg-soft px-3 py-[5px] text-[12px] font-medium text-[#4c2fd0]">{plan.badge}</span> : null}
-							<h3 className="text-[20px] font-bold">{plan.name}</h3>
-							<p className="mt-1.5 text-[14px] leading-[1.8] text-vg-cap">{plan.audience}</p>
-							<p className="mt-[22px] flex items-baseline gap-2"><span className="text-[38px] font-bold tabular-nums">{plan.price}</span><span className="text-[14px] text-vg-cap">{plan.unit}</span></p>
+							{plan.recommended ? <span className="absolute end-6 top-6 rounded-full bg-vg-signal px-3 py-[5px] text-[12px] font-medium text-white">{plan.badge}</span> : null}
+							<h3 className="text-[22px] font-bold">{plan.name}</h3>
+							<p className="mt-1.5 text-[15px] leading-[1.8] text-vg-cap">{plan.audience}</p>
+							<p className="mt-[22px] flex items-baseline gap-2"><span className="text-[36px] font-bold tabular-nums">{plan.price}</span><span className="text-[15px] text-vg-cap">{plan.unit}</span></p>
 							<div className="mt-[22px]">
 								<PlanLimits plan={plan} />
 							</div>
@@ -149,14 +149,14 @@ export async function Pricing({ locale }: { locale: SiteLocale }) {
 					))}
 				</div>
 
-				<p className="vg-rv mx-auto mt-4 flex max-w-[860px] items-start justify-center gap-2 px-2 text-center text-[13px] leading-[1.9] text-vg-sub lg:mt-6 lg:text-[14px]">
+				<p className="vg-rv mx-auto mt-4 flex max-w-[860px] items-start justify-center gap-2 px-2 text-center text-[13px] leading-[1.9] text-vg-sub lg:mt-6 lg:text-[15px]">
 					<Check aria-hidden className="mt-[5px] size-4 shrink-0 text-vg-ok" strokeWidth={2.2} />
 					<span>{c.same}</span>
 				</p>
 
-				<ul className="vg-rv-group mt-2.5 flex flex-col gap-2 text-start text-[13px] lg:mt-4 lg:flex-row lg:gap-4 lg:text-[14px]">
+				<ul className="vg-rv-group mt-2.5 flex flex-col gap-2 text-start text-[13px] lg:mt-4 lg:flex-row lg:gap-4 lg:text-[15px]">
 					<li className="flex grow basis-0 items-center gap-2.5 rounded-2xl border border-black/[0.06] bg-white p-3.5 lg:gap-3 lg:rounded-card lg:border-0 lg:bg-vg-bg lg:px-5 lg:py-[18px]">
-						<span aria-hidden className="inline-flex size-[18px] shrink-0 text-[#be185d] lg:size-5"><InstagramIcon className="size-full" /></span>
+						<span aria-hidden className="inline-flex size-[18px] shrink-0 text-[#be185d] lg:size-5"><InstagramGlyph className="size-full" /></span>
 						<span><b className="font-normal lg:font-bold">{c.noteA}</b> <span className="hidden text-vg-cap lg:inline">{c.noteASub}</span></span>
 					</li>
 					<li className="flex grow basis-0 items-center gap-2.5 rounded-2xl border border-black/[0.06] bg-white p-3.5 lg:gap-3 lg:rounded-card lg:border-0 lg:bg-vg-bg lg:px-5 lg:py-[18px]">

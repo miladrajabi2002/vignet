@@ -35,7 +35,7 @@ import type { HomeLocale } from './types'
 /* Instagram direct simulator — faithful UI + fast AI reply loop      */
 /* ------------------------------------------------------------------ */
 
-type InstagramDemoMode = 'direct' | 'story' | 'comment'
+export type InstagramDemoMode = 'direct' | 'story' | 'comment'
 
 const INSTAGRAM_SCENARIO_DELAYS: Record<InstagramDemoMode, readonly number[]> = {
 	direct: [650, 1600, 650, 1400, 2000, 1100, 650, 1400, 1400, 1700, 1100, 650, 1400, 4800],
@@ -560,18 +560,26 @@ function InstagramConversationScreen({ locale, mode, step }: { locale: HomeLocal
 	)
 }
 
-export function InstagramMock({ locale, inverse = true, className, active = true }: { locale: HomeLocale; inverse?: boolean; className?: string; active?: boolean }) {
+/**
+ * `only` pins the demo to one scenario and renders the phone alone (no
+ * scenario picker) — the dashboard's empty Instagram tab replays the flow
+ * that tab is about.
+ */
+export function InstagramMock({ locale, inverse = true, className, active = true, only }: { locale: HomeLocale; inverse?: boolean; className?: string; active?: boolean; only?: InstagramDemoMode }) {
 	const fa = locale === 'fa'
 	const reduce = useReducedMotion()
-	const [mode, setMode] = useState<InstagramDemoMode>('direct')
-	const [step, setStep] = useState(reduce ? INSTAGRAM_SCENARIO_DELAYS.direct.length - 1 : 0)
+	const firstMode = only ?? 'direct'
+	const [mode, setMode] = useState<InstagramDemoMode>(firstMode)
+	const [step, setStep] = useState(reduce ? INSTAGRAM_SCENARIO_DELAYS[firstMode].length - 1 : 0)
+	// Bumped on every replay of a pinned scenario so the screen crossfades back to its start.
+	const [run, setRun] = useState(0)
 	const scenarioOrder: InstagramDemoMode[] = ['direct', 'story', 'comment']
 
 	useEffect(() => {
 		if (!active) return
-		setMode('direct')
-		setStep(reduce ? INSTAGRAM_SCENARIO_DELAYS.direct.length - 1 : 0)
-	}, [active, reduce])
+		setMode(firstMode)
+		setStep(reduce ? INSTAGRAM_SCENARIO_DELAYS[firstMode].length - 1 : 0)
+	}, [active, firstMode, reduce])
 
 	useEffect(() => {
 		if (!active) return
@@ -588,6 +596,11 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 		const delay = delays[step] ?? 2200
 		const timer = window.setTimeout(() => {
 			if (step >= delays.length - 1) {
+				if (only) {
+					setRun((current) => current + 1)
+					setStep(0)
+					return
+				}
 				const currentIndex = scenarioOrder.indexOf(mode)
 				setMode(scenarioOrder[(currentIndex + 1) % scenarioOrder.length])
 				setStep(0)
@@ -598,7 +611,7 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 		return () => window.clearTimeout(timer)
 		// scenarioOrder is intentionally static for this deterministic demo.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [active, mode, reduce, step])
+	}, [active, mode, only, reduce, step])
 
 	const scenarios = [
 		{
@@ -631,6 +644,30 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 	}
 	const tabLabel = fa ? 'سناریوهای اینستاگرام' : 'Instagram scenarios'
 
+	const phone = (
+		<IgPhone tone={showStoryViewer ? 'dark' : 'light'} className={only ? undefined : 'max-w-[260px] sm:max-w-[320px]'}>
+			<div className="relative min-h-0 flex-1 overflow-hidden">
+				<IgStatusBar tone={showStoryViewer ? 'dark' : 'light'} overlay />
+				<AnimatePresence mode="wait" initial={false}>
+					<m.div
+						key={showStoryViewer ? 'story-viewer' : showCommentFeed ? 'comment-feed' : `${mode}-conversation-${run}`}
+						initial={reduce ? false : { opacity: 0, transform: 'translateX(8px) scale(0.99)' }}
+						animate={{ opacity: 1, transform: 'translateX(0px) scale(1)' }}
+						exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-6px) scale(0.99)' }}
+						transition={{ duration: 0.22, ease: EASE_OUT }}
+						className="h-full"
+					>
+						{renderScenarioScreen()}
+					</m.div>
+				</AnimatePresence>
+			</div>
+		</IgPhone>
+	)
+
+	if (only) {
+		return <div dir={fa ? 'rtl' : 'ltr'} className={cn('relative', className)}>{phone}</div>
+	}
+
 	return (
 		<div
 			dir={fa ? 'rtl' : 'ltr'}
@@ -641,23 +678,7 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 			)}
 		>
 			<div className="grid items-center justify-center gap-4 md:grid-cols-[minmax(300px,370px)_minmax(210px,250px)] md:gap-7">
-				<IgPhone tone={showStoryViewer ? 'dark' : 'light'} className="max-w-[260px] sm:max-w-[320px]">
-					<div className="relative min-h-0 flex-1 overflow-hidden">
-						<IgStatusBar tone={showStoryViewer ? 'dark' : 'light'} overlay />
-						<AnimatePresence mode="wait" initial={false}>
-							<m.div
-								key={showStoryViewer ? 'story-viewer' : showCommentFeed ? 'comment-feed' : `${mode}-conversation`}
-								initial={reduce ? false : { opacity: 0, transform: 'translateX(8px) scale(0.99)' }}
-								animate={{ opacity: 1, transform: 'translateX(0px) scale(1)' }}
-								exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-6px) scale(0.99)' }}
-								transition={{ duration: 0.22, ease: EASE_OUT }}
-								className="h-full"
-							>
-								{renderScenarioScreen()}
-							</m.div>
-						</AnimatePresence>
-					</div>
-				</IgPhone>
+				{phone}
 
 				<div>
 					<p className="sr-only" aria-live="polite">{activeScenario.label}</p>

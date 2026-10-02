@@ -251,7 +251,7 @@
 	.ob-track { margin-inline: 10px; }
 	.ob-lbl { display: block; grid-column: 1 / -1; margin-top: 8px; padding-inline-end: 12px; line-height: 1.7; }
 	.ob-lbl b { display: block; font-size: 13.5px; font-weight: 500; color: #6f6a64; transition: color .3s ease; }
-	.ob-lbl small { font-size: 12px; color: #8c8780; }
+	.ob-lbl small { font-size: 12px; color: #6f6a64; }
 	.ob-node.on .ob-lbl b, .ob-node.done .ob-lbl b, .ob-goal.live .ob-lbl b { color: #111111; font-weight: 700; }
 	.ob-goal .ob-dot { margin-block: 4px; }
 	.ob-heads { margin-top: 18px; padding-inline-start: 8px; }

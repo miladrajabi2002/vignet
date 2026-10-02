@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { MouseEvent } from 'react'
 import { usePathname } from 'next/navigation'
 import { CircleDollarSign, House, LayoutDashboard, LayoutGrid, LogIn, Rocket } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,13 @@ export function MarketingMobileBottomNav({
 	copy: MobileNavCopy
 }) {
 	const pathname = usePathname()
+	const scrollHomeToTop = (event: MouseEvent<HTMLAnchorElement>) => {
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+		event.preventDefault()
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+		window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
+		if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search)
+	}
 	const items = [
 		{
 			id: 'home',
@@ -57,12 +65,15 @@ export function MarketingMobileBottomNav({
 	return (
 		<nav
 			aria-label={copy.primaryNav}
-			className="marketing-mobile-bottom-nav fixed inset-x-3 isolate z-50 mx-auto grid h-[4.65rem] max-w-lg grid-cols-5 items-end gap-0.5 rounded-card border border-black/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,249,247,0.9))] p-1.5 shadow-[var(--elev-2)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-px before:z-0 before:rounded-[calc(1.65rem-2px)] before:border before:border-white/70 [bottom:max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+			className="marketing-mobile-bottom-nav fixed inset-x-3 isolate z-50 mx-auto grid h-[4.65rem] max-w-lg grid-cols-5 items-end gap-0.5 rounded-card border border-black/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,249,247,0.9))] p-1.5 shadow-[var(--elev-2)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-px before:z-0 before:rounded-[calc(1.65rem-2px)] before:border before:border-white/70 [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
 		>
 			{items.slice(0, 2).map(({ id, href, label, icon: Icon, active }) => (
 				<Link
 					key={id}
 					href={href}
+					// Home doubles as "back to top" on the homepage (phones have no
+					// floating back-to-top button — this bar is the only fixed layer).
+					onClick={id === 'home' && isLandingPath ? scrollHomeToTop : undefined}
 					aria-current={active ? (id === 'home' ? 'page' : 'location') : undefined}
 					className={cn(
 						'group relative z-10 flex min-h-[3.75rem] min-w-0 flex-col items-center justify-center gap-0.5 rounded-card px-0.5 text-[12px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-1 motion-reduce:transition-none',

@@ -95,7 +95,7 @@ const card = 'rounded-card border border-vg-line bg-white lg:rounded-sheet'
 export function QuickFacts({ locale }: { locale: SiteLocale }) {
 	const copy = COPY[locale]
 	return (
-		<section id="what" aria-labelledby="what-title" className="vg-cv scroll-mt-24 pt-[52px] lg:pb-[120px] lg:pt-10">
+		<section id="what" aria-labelledby="what-title" className="vg-cv scroll-mt-24 pt-14 md:pt-20 lg:pb-[120px] lg:pt-10">
 			<Container>
 				<div className="vg-rv flex flex-col items-center gap-10 text-center lg:flex-row lg:items-end lg:justify-between lg:text-start">
 					<div className="flex flex-col items-center lg:items-start">
@@ -107,9 +107,9 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 								{copy.pill}
 							</span>
 						</span>
-						<h2 id="what-title" className="mt-3 text-[26px] font-bold leading-[1.5] lg:mt-4 lg:text-[44px] lg:leading-[1.35]">{copy.title}</h2>
+						<h2 id="what-title" className="mt-3 text-[28px] font-bold leading-[1.5] lg:mt-4 lg:text-[48px] lg:leading-[1.35]">{copy.title}</h2>
 					</div>
-					<p className="hidden max-w-[420px] text-[16px] leading-[1.9] text-vg-sub lg:block">{copy.lead}</p>
+					<p className="hidden max-w-[420px] text-[15px] leading-[1.9] text-vg-sub lg:block">{copy.lead}</p>
 				</div>
 
 				<div className="vg-anim vg-rv-group mt-[18px] grid grid-cols-2 gap-2.5 lg:mt-10 lg:grid-cols-12 lg:gap-4" style={{ '--vg-T': '10s' } as CSSProperties}>
@@ -117,7 +117,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 					<article className="relative col-span-2 flex flex-col overflow-hidden rounded-card bg-[#0f0f12] px-5 py-6 text-center text-white lg:col-span-7 lg:h-[390px] lg:rounded-sheet lg:p-[34px] lg:text-start">
 						<div aria-hidden className="pointer-events-none absolute -top-[110px] start-[30px] h-[260px] w-[300px] rounded-[50%] bg-[radial-gradient(closest-side,rgba(91,61,232,0.4),rgba(15,15,18,0))] lg:-top-[140px] lg:start-auto lg:end-[-100px] lg:h-[420px] lg:w-[420px]" />
 						<h3 className="relative text-[12px] font-normal text-[#a1a1aa] lg:text-[13px]">{copy.whatQ}</h3>
-						<p className="relative mt-2 text-[18px] font-medium leading-[1.9] lg:mt-3.5 lg:text-[27px] lg:leading-[1.8]">{copy.what}</p>
+						<p className="relative mt-2 text-[18px] font-medium leading-[1.9] lg:mt-3.5 lg:text-[28px] lg:leading-[1.8]">{copy.what}</p>
 						<ul className="relative mt-3.5 flex flex-wrap justify-center gap-1.5 text-[12px] lg:mt-auto lg:justify-start lg:gap-2 lg:text-[13px]">
 							{copy.verbs.map((verb, i) => {
 								const Icon = VERB_ICONS[i]
@@ -154,7 +154,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 								)
 							})}
 						</ul>
-						<div className="mt-3 flex items-center justify-center gap-2.5 text-[13px] font-medium lg:mt-auto lg:justify-start lg:rounded-2xl lg:bg-vg-bg lg:px-3.5 lg:py-3 lg:text-[14px] lg:font-normal">
+						<div className="mt-3 flex items-center justify-center gap-2.5 text-[13px] font-medium lg:mt-auto lg:justify-start lg:rounded-2xl lg:bg-vg-bg lg:px-3.5 lg:py-3 lg:text-[15px] lg:font-normal">
 							<span aria-hidden className="relative hidden size-[18px] lg:inline-flex">
 								<span className="vg-ring absolute -inset-1.5 rounded-full border border-[rgba(91,61,232,0.4)]" />
 								<Inbox className="relative size-full" strokeWidth={1.8} />
@@ -166,8 +166,8 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 					{/* C — who (chips on phones, a list with context on desktop) */}
 					<article className={cn(card, 'vg-lift order-last col-span-2 flex flex-col px-3 py-[18px] text-center lg:order-none lg:col-span-4 lg:h-[330px] lg:p-7 lg:text-start')}>
 						<h3 className="text-[12px] font-normal text-vg-cap lg:text-[13px]">{copy.whoQ}</h3>
-						<p className="mt-1.5 hidden text-[20px] font-bold lg:block">{copy.who}</p>
-						<ul className="mt-2.5 flex flex-wrap justify-center gap-1.5 text-[13px] lg:mt-auto lg:flex-col lg:flex-nowrap lg:gap-1 lg:text-[14px]">
+						<p className="mt-1.5 hidden text-[22px] font-bold lg:block">{copy.who}</p>
+						<ul className="mt-2.5 flex flex-wrap justify-center gap-1.5 text-[13px] lg:mt-auto lg:flex-col lg:flex-nowrap lg:gap-1 lg:text-[15px]">
 							{copy.segments.map((segment, i) => {
 								const Icon = SEGMENT_ICONS[i]
 								return (
@@ -188,9 +188,9 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 							<span className="hidden lg:inline">{copy.setupQ}</span>
 						</h3>
 						<p className="mt-1.5 flex items-baseline justify-center gap-1 lg:mt-3.5 lg:justify-start lg:gap-2">
-							<span className="text-[36px] font-bold leading-none lg:text-[56px]">{copy.setupValue}</span>
-							<span className="text-[14px] font-bold lg:text-[20px]">{copy.setupUnit}</span>
-							<span className="hidden text-[14px] text-vg-cap lg:inline">{copy.setupNote}</span>
+							<span className="text-[36px] font-bold leading-none lg:text-[64px]">{copy.setupValue}</span>
+							<span className="text-[15px] font-bold lg:text-[22px]">{copy.setupUnit}</span>
+							<span className="hidden text-[15px] text-vg-cap lg:inline">{copy.setupNote}</span>
 						</p>
 						<p className="mt-1.5 text-[12px] text-vg-sub lg:hidden">{copy.setupMobile}</p>
 						<div aria-hidden className="mt-[22px] hidden h-2.5 gap-1 lg:flex" style={{ '--vg-T': '9s' } as CSSProperties}>
@@ -203,7 +203,7 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 						<div aria-hidden className="mt-2 hidden justify-between text-[12px] text-vg-cap lg:flex">
 							{copy.setupSteps.map((step) => <span key={step}>{step}</span>)}
 						</div>
-						<ul className="mt-auto hidden flex-col gap-2 text-[14px] lg:flex">
+						<ul className="mt-auto hidden flex-col gap-2 text-[15px] lg:flex">
 							{copy.setupChecks.map((item) => <li key={item}><CheckLine className="gap-2">{item}</CheckLine></li>)}
 						</ul>
 					</article>
@@ -214,11 +214,11 @@ export function QuickFacts({ locale }: { locale: SiteLocale }) {
 							<span className="lg:hidden">{copy.controlShort}</span>
 							<span className="hidden lg:inline">{copy.controlQ}</span>
 						</h3>
-						<p className="mt-2 text-[16px] font-bold leading-[1.6] lg:mt-1.5 lg:text-[20px]">{copy.control}</p>
+						<p className="mt-2 text-[15px] font-bold leading-[1.6] lg:mt-1.5 lg:text-[22px]">{copy.control}</p>
 						<p className="mt-1.5 text-[12px] text-vg-sub lg:hidden">{copy.controlMobile}</p>
 						<ul className="mt-auto hidden flex-col gap-2.5 lg:flex">
 							{copy.toggles.map((item) => (
-								<li key={item} className="flex items-center justify-between gap-2.5 rounded-control bg-vg-bg px-3.5 py-3 text-[14px]">
+								<li key={item} className="flex items-center justify-between gap-2.5 rounded-control bg-vg-bg px-3.5 py-3 text-[15px]">
 									{item}
 									<span aria-hidden className="relative h-5 w-9 shrink-0 rounded-full bg-vg-ink"><span className="absolute end-0.5 top-0.5 size-4 rounded-full bg-white" /></span>
 								</li>

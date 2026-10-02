@@ -9,9 +9,12 @@ const REVEAL = '.vg-rv, .vg-rv-group'
 const LOOPS = '.vg-anim, .vg-sp, .vg-hp, .vg-sheen, .vg-ping'
 const ENTRANCE_MS = 1400
 /* Phone motion budget: only the hero keeps looping; any other loop plays one
-   cycle the first time it is seen and then rests on its finished frame. */
+   cycle the first time it is seen and then rests on its finished frame.
+   Pill borders are exempt: a frozen orbit reads as a broken outline, and one
+   composited rotation is cheap, so they keep running while on screen. */
 const PHONE = '(max-width: 1023px)'
 const HERO = '[data-vg-hero]'
+const PILLS = '.vg-sp, .vg-hp'
 const REST_AT = 0.9
 const MAX_CYCLE_MS = 14_000
 /* Where a loop rests. Sequenced scenes are complete at 90% of their clock;
@@ -24,11 +27,17 @@ const REST_OVERRIDES: Record<string, number> = {
 	'vg-tap': 0.999,
 }
 
+/** A pill border's orbit, which never rests (see PILLS). */
+function inPill(animation: Animation): boolean {
+	const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null
+	return Boolean(target?.closest(PILLS))
+}
+
 /** Freeze a block's loops on a readable frame. */
 function rest(block: Element) {
 	for (const animation of block.getAnimations({ subtree: true })) {
 		const timing = animation.effect?.getTiming()
-		if (!timing || timing.iterations !== Infinity || typeof timing.duration !== 'number') continue
+		if (!timing || timing.iterations !== Infinity || typeof timing.duration !== 'number' || inPill(animation)) continue
 		const name = 'animationName' in animation ? String(animation.animationName) : ''
 		animation.pause()
 		animation.currentTime = (timing.delay ?? 0) + timing.duration * (REST_OVERRIDES[name] ?? REST_AT)
@@ -41,7 +50,7 @@ function cycleMs(block: Element): number {
 	let longest = 0
 	for (const animation of block.getAnimations({ subtree: true })) {
 		const timing = animation.effect?.getTiming()
-		if (timing?.iterations === Infinity && typeof timing.duration === 'number') longest = Math.max(longest, timing.duration)
+		if (timing?.iterations === Infinity && typeof timing.duration === 'number' && !inPill(animation)) longest = Math.max(longest, timing.duration)
 	}
 	return Math.min(longest, MAX_CYCLE_MS)
 }
@@ -51,8 +60,8 @@ function cycleMs(block: Element): number {
  *
  * 1. Loops: every decorative `.vg-anim` block (and each standalone loop in
  *    LOOPS) starts paused (site.css) and only runs while near the viewport,
- *    so off-screen demos cost no frames. On phones only the hero loops;
- *    every other block plays one cycle on first sight, then rests.
+ *    so off-screen demos cost no frames. On phones only the hero and the
+ *    pill borders loop; every other block plays one cycle, then rests.
  * 2. Entrances: `.vg-rv` blocks and `.vg-rv-group` children fade/rise in the
  *    first time they scroll into view. Content is server-rendered visible;
  *    this effect arms the hidden state (`html.vg-rv-ready`) only after
@@ -78,7 +87,7 @@ export function MotionPauser() {
 		const once = window.matchMedia(PHONE).matches
 		const resting = new WeakSet<Element>()
 		const scheduleRest = (block: Element) => {
-			if (resting.has(block) || block.closest(HERO)) return
+			if (resting.has(block) || block.matches(PILLS) || block.closest(HERO)) return
 			resting.add(block)
 			// Measured after `.vg-on` so the block's CSS animations exist.
 			const timer = window.setTimeout(() => {

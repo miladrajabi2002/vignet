@@ -327,13 +327,16 @@
                 return FONT_FAMILY.inherit
         }
         function injectFont() {
-                if (config.font === 'inherit' || widgetAssetExists('vgt-font')) return
+                // @font-face rules are ignored inside a shadow tree, so the font
+                // stylesheet goes in the host document's <head>; it only
+                // declares faces and cannot restyle the host page.
+                if (config.font === 'inherit' || document.getElementById('vgt-font')) return
                 var link = document.createElement('link')
                 link.id = 'vgt-font'
                 link.rel = 'stylesheet'
                 var href = FONT_LINKS[config.font] || FONT_LINKS.vazirmatn
                 link.href = href
-                appendWidgetAsset(link)
+                document.head.appendChild(link)
         }
 
         // ---- Stylesheet ----
@@ -522,6 +525,8 @@
                         '.vgt-card-image{display:block;width:100%;height:156px;object-fit:cover;background:var(--vgt-surface);}' +
                         '.vgt-card-placeholder{display:flex;align-items:center;justify-content:center;color:var(--vgt-muted);}' +
                         '.vgt-card-placeholder svg{width:30px;height:30px;opacity:.5;}' +
+                        // No photo: a short strip, so the name and price stay in view.
+                        '.vgt-card-image.vgt-card-placeholder{height:64px;}' +
                         '.vgt-card-row{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 10px;}' +
                         '.vgt-card-thumb{width:58px;height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;' +
                         'border-radius:14px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
@@ -679,7 +684,7 @@
                         '.vgt-brand{text-align:center;font-size:11px;color:var(--vgt-muted);padding-top:9px;direction:ltr;}' +
                         '.vgt-brand a{color:var(--vgt-muted);text-decoration:none;font-weight:600;letter-spacing:.2px;}' +
                         // teaser (auto-greet)
-                        '.vgt-teaser{position:absolute;bottom:76px;max-width:260px;background:var(--vgt-bg);color:var(--vgt-text);' +
+                        '.vgt-teaser{position:absolute;bottom:76px;width:max-content;max-width:260px;background:var(--vgt-bg);color:var(--vgt-text);' +
                         'border:1px solid var(--vgt-border);border-radius:16px;padding:13px 32px 13px 15px;font-size:13.5px;line-height:1.6;cursor:pointer;' +
                         'box-shadow:0 16px 40px -20px rgba(0,0,0,.34);animation:vgt-teaser-in var(--vgt-motion-surface) var(--vgt-ease) both;' +
                         'transition:transform var(--vgt-motion-control) var(--vgt-ease);}' +

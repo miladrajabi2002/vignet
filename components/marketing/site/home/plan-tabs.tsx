@@ -19,7 +19,7 @@ export function PlanLimits({ plan }: { plan: PlanView }) {
 			<dl className="mt-1.5 divide-y divide-black/[0.06] border-y border-black/[0.08]">
 				{plan.limits.map((row) => (
 					<div key={row.label} className="flex items-baseline justify-between gap-3 py-2.5">
-						<dt className="text-[14px] text-vg-sub">{row.label}</dt>
+						<dt className="text-[15px] text-vg-sub">{row.label}</dt>
 						<dd className="whitespace-nowrap text-[15px] font-bold tabular-nums">
 							{row.value}
 							{row.unit ? <span className="ms-1 text-[12px] font-normal text-vg-cap">{row.unit}</span> : null}
@@ -65,12 +65,15 @@ export function PlanTabs({ plans, label }: { plans: PlanView[]; label: string })
 				id="plan-panel"
 				role="tabpanel"
 				aria-labelledby={`plan-tab-${plan.id}`}
-				className="vg-pop mt-3 flex flex-col items-center rounded-card border border-black/10 bg-white px-[18px] py-6 shadow-[var(--elev-2)]"
+				className={cn(
+					'vg-pop mt-3 flex flex-col items-center rounded-card border px-[18px] py-6',
+					plan.recommended ? 'border-vg-signal bg-[linear-gradient(#f3f1ff,#fff_7rem)] shadow-[0_0_0_1px_#5b3de8,var(--elev-2)]' : 'border-black/10 bg-white shadow-[var(--elev-2)]',
+				)}
 			>
 				{plan.recommended ? <span className="mb-2.5 rounded-full bg-vg-signal px-3 py-1 text-[12px] font-medium text-white">{plan.badge}</span> : null}
-				<h3 className="text-[20px] font-bold">{plan.name}</h3>
+				<h3 className="text-[22px] font-bold">{plan.name}</h3>
 				<p className="mt-1 text-[13px] leading-[1.9] text-vg-cap">{plan.audience}</p>
-				<p className="mt-4 flex items-baseline gap-1.5"><span className="text-[34px] font-bold tabular-nums">{plan.price}</span><span className="text-[13px] text-vg-cap">{plan.unit}</span></p>
+				<p className="mt-4 flex items-baseline gap-1.5"><span className="text-[36px] font-bold tabular-nums">{plan.price}</span><span className="text-[13px] text-vg-cap">{plan.unit}</span></p>
 				<div className="mt-4 w-full">
 					<PlanLimits plan={plan} />
 				</div>

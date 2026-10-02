@@ -119,11 +119,11 @@ export function Hero({ locale }: { locale: SiteLocale }) {
 		<section data-vg-hero className="relative flex flex-col items-center px-4 pt-[88px] text-center lg:pt-[142px]">
 			<div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[470px] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(199,189,240,0.35),rgba(245,245,243,0))] lg:top-10 lg:h-[520px] lg:w-[900px]" />
 			<HeroPill className="relative">{copy.pill}</HeroPill>
-			<h1 className="relative mt-[18px] text-[36px] font-bold leading-[1.35] lg:mt-7 lg:text-[76px] lg:leading-[1.18]">
+			<h1 className="relative mt-[18px] text-[36px] font-bold leading-[1.35] md:text-[48px] md:leading-[1.3] lg:mt-7 lg:text-[64px] lg:leading-[1.2] xl:text-[80px] xl:leading-[1.18]">
 				{copy.h1a}
-				<br className="lg:hidden" /> {copy.h1b}
+				<br className="md:hidden" /> {copy.h1b}
 			</h1>
-			<p className="relative mt-3.5 max-w-[640px] text-[15px] leading-[1.95] text-vg-sub lg:mt-6 lg:text-[19px] lg:leading-[1.9]">{copy.lead}</p>
+			<p className="relative mt-3.5 max-w-[640px] text-[15px] leading-[1.95] text-vg-sub lg:mt-6 lg:text-[18px] lg:leading-[1.9]">{copy.lead}</p>
 			<div className="relative mt-5 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3 lg:mt-9">
 				<Link href={SIGNUP_HREF} className={cn(btnDark, btnLg, 'vg-sheen w-full sm:w-auto')}>
 					{copy.start}
@@ -141,40 +141,89 @@ export function Hero({ locale }: { locale: SiteLocale }) {
 				</a>
 			</div>
 
-			<div role="img" aria-label={copy.stageLabel} className="vg-anim relative mt-6 w-full lg:mt-14">
-				<DesktopStage locale={locale} />
+			<div role="img" aria-label={copy.stageLabel} className="vg-anim relative mt-6 w-full md:mt-10 lg:mt-14">
+				<WideStage locale={locale} geo={STAGE_DESKTOP} className="hidden lg:flex" />
+				<WideStage locale={locale} geo={STAGE_TABLET} className="hidden md:flex lg:hidden" />
 				<MobileStage locale={locale} />
 			</div>
 		</section>
 	)
 }
 
-/* ── Desktop stage: channels → agent → recorded results on a 1200×480 grid ── */
+/* ── Wide stage: channels → agent → recorded results on a fixed grid ─────
+   Desktop draws it at 1200×480; tablets get the same three columns on a
+   760×500 grid (narrower cards, shorter result lines) instead of the phone
+   stack floating between two empty margins. */
 
-const W = 1200
 type Box = { x: number; y: number; w: number; h?: number }
+type StageGeo = {
+	W: number
+	H: number
+	/** Class that scales the whole canvas on viewports narrower than it. */
+	zoomClass: string
+	channel: { x: number; w: number }
+	result: { x: number; w: number }
+	/** Bubbles, thinking pill and annotation chips share the centre column. */
+	bubble: { x: number; w: number; replyY: number }
+	think: { x: number; w: number }
+	chips: { x: number; w: number }
+	ring: { x: number }
+	core: { x: number }
+	/** Control points of the inbound / outbound curves (x only; y is shared). */
+	inCurve: [number, number, number]
+	outCurve: [number, number, number, number]
+	compact: boolean
+}
 
-function place(box: Box, mirror: boolean, width = W): CSSProperties {
+const STAGE_DESKTOP: StageGeo = {
+	W: 1200, H: 480, zoomClass: 'vg-stage',
+	channel: { x: 1000, w: 170 },
+	result: { x: 30, w: 260 },
+	bubble: { x: 468, w: 264, replyY: 378 },
+	think: { x: 470, w: 260 },
+	chips: { x: 440, w: 320 },
+	ring: { x: 516 },
+	core: { x: 526 },
+	inCurve: [850, 820, 690],
+	outCurve: [510, 400, 410, 290],
+	compact: false,
+}
+const STAGE_TABLET: StageGeo = {
+	W: 760, H: 500, zoomClass: 'vg-tstage',
+	channel: { x: 594, w: 150 },
+	result: { x: 16, w: 214 },
+	bubble: { x: 262, w: 236, replyY: 376 },
+	think: { x: 250, w: 260 },
+	chips: { x: 235, w: 290 },
+	ring: { x: 296 },
+	core: { x: 306 },
+	inCurve: [545, 525, 470],
+	outCurve: [290, 262, 262, 230],
+	compact: true,
+}
+
+function place(box: Box, mirror: boolean, width: number): CSSProperties {
 	return { position: 'absolute', top: box.y, left: mirror ? width - box.x - box.w : box.x, width: box.w, ...(box.h ? { height: box.h } : {}) }
 }
-const mx = (x: number, mirror: boolean, width = W) => (mirror ? width - x : x)
+const mx = (x: number, mirror: boolean, width: number) => (mirror ? width - x : x)
 
-function DesktopStage({ locale }: { locale: SiteLocale }) {
+function WideStage({ locale, geo, className }: { locale: SiteLocale; geo: StageGeo; className: string }) {
 	const copy = COPY[locale]
 	const m = locale === 'en'
+	const W = geo.W
 	const inPaths = CHANNELS.map((_, i) => {
 		const y = 76 + i * 68
-		return `M${mx(1000, m)} ${y} C ${mx(850, m)} ${y}, ${mx(820, m)} 240, ${mx(690, m)} 240`
+		return `M${mx(geo.channel.x, m, W)} ${y} C ${mx(geo.inCurve[0], m, W)} ${y}, ${mx(geo.inCurve[1], m, W)} 240, ${mx(geo.inCurve[2], m, W)} 240`
 	})
-	const outPaths = [96, 198, 300, 402].map((y) => `M${mx(510, m)} 240 C ${mx(400, m)} 240, ${mx(410, m)} ${y}, ${mx(290, m)} ${y}`)
+	const outPaths = [96, 198, 300, 402].map((y) => `M${mx(geo.outCurve[0], m, W)} 240 C ${mx(geo.outCurve[1], m, W)} 240, ${mx(geo.outCurve[2], m, W)} ${y}, ${mx(geo.outCurve[3], m, W)} ${y}`)
 	const glow = ['vg-g1', 'vg-g2', '', '', 'vg-g3', '']
 	const bubbleIn = m ? '16px 16px 16px 4px' : '16px 16px 4px 16px'
 	const bubbleOut = m ? '16px 16px 4px 16px' : '16px 16px 16px 4px'
 
 	return (
-		<div className="hidden justify-center lg:flex">
-			<div className="vg-stage vg-dots relative h-[480px] w-[1200px] shrink-0 overflow-hidden rounded-sheet border border-vg-line bg-white text-start shadow-[0_50px_90px_-56px_rgba(17,17,17,0.45)]" aria-hidden>
-				<svg width={W} height={480} viewBox={`0 0 ${W} 480`} fill="none" className="absolute inset-0">
+		<div className={cn('justify-center', className)}>
+			<div className={cn(geo.zoomClass, 'vg-dots relative shrink-0 overflow-hidden rounded-sheet border border-vg-line bg-white text-start shadow-[0_50px_90px_-56px_rgba(17,17,17,0.45)]')} style={{ width: W, height: geo.H }} aria-hidden>
+				<svg width={W} height={geo.H} viewBox={`0 0 ${W} ${geo.H}`} fill="none" className="absolute inset-0">
 					{inPaths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#5b3de8" strokeOpacity={0.35} strokeWidth={1.5} />)}
 					{outPaths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#15803d" strokeOpacity={0.35} strokeWidth={1.5} />)}
 				</svg>
@@ -188,14 +237,14 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 					<div key={`out-${beat.result}`} className="vg-pkt vg-shot" style={{ background: '#15803d', boxShadow: '0 0 0 4px rgba(21,128,61,0.15)', offsetPath: `path('${outPaths[beat.result]}')`, animationDelay: `${beat.outAt}s` }} />
 				))}
 
-				<div className="text-[12px] font-medium text-vg-cap" style={place({ x: 1000, y: 18, w: 170 }, m)}>{copy.inputs}</div>
-				<div className="text-[12px] font-medium text-vg-cap" style={place({ x: 30, y: 18, w: 260 }, m)}>{copy.outputs}</div>
+				<div className="text-[12px] font-medium text-vg-cap" style={place({ x: geo.channel.x, y: 18, w: geo.channel.w }, m, W)}>{copy.inputs}</div>
+				<div className="text-[12px] font-medium text-vg-cap" style={place({ x: geo.result.x, y: 18, w: geo.result.w }, m, W)}>{copy.outputs}</div>
 
 				{CHANNELS.map((channel, i) => (
 					<div
 						key={channel.id}
-						className={cn('flex items-center gap-2.5 rounded-control border border-vg-line bg-white px-2 text-[14px] font-medium', glow[i])}
-						style={place({ x: 1000, y: 50 + i * 68, w: 170, h: 52 }, m)}
+						className={cn('flex items-center gap-2.5 rounded-control border border-vg-line bg-white px-2 font-medium', geo.compact ? 'text-[13px]' : 'text-[14px]', glow[i])}
+						style={place({ x: geo.channel.x, y: 50 + i * 68, w: geo.channel.w, h: 52 }, m, W)}
 					>
 						<ChannelBadge channel={channel} />
 						{channel.label[locale]}
@@ -206,22 +255,22 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 					<div
 						key={msg.who}
 						className={cn('border border-vg-line bg-white px-3.5 py-2.5 text-[13px] leading-[1.8] shadow-[0_16px_30px_-20px_rgba(17,17,17,0.4)]', ['vg-c1', 'vg-c2', 'vg-c3'][i])}
-						style={{ ...place({ x: 468, y: 52, w: 264 }, m), borderRadius: bubbleIn }}
+						style={{ ...place({ x: geo.bubble.x, y: 52, w: geo.bubble.w }, m, W), borderRadius: bubbleIn }}
 					>
 						<div className="text-[12px] font-medium" style={{ color: msg.color }}>{msg.who}</div>
 						{msg.text}
 					</div>
 				))}
 
-				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)]" style={place({ x: 516, y: 156, w: 168, h: 168 }, m)} />
-				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)] [animation-delay:1.4s]" style={place({ x: 516, y: 156, w: 168, h: 168 }, m)} />
-				<div className="flex items-center justify-center rounded-full border border-vg-line bg-white shadow-[0_24px_50px_-24px_rgba(91,61,232,0.6)]" style={place({ x: 526, y: 166, w: 148, h: 148 }, m)}>
+				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)]" style={place({ x: geo.ring.x, y: 156, w: 168, h: 168 }, m, W)} />
+				<div className="vg-ring rounded-full border-[1.5px] border-[rgba(91,61,232,0.45)] [animation-delay:1.4s]" style={place({ x: geo.ring.x, y: 156, w: 168, h: 168 }, m, W)} />
+				<div className="flex items-center justify-center rounded-full border border-vg-line bg-white shadow-[0_24px_50px_-24px_rgba(91,61,232,0.6)]" style={place({ x: geo.core.x, y: 166, w: 148, h: 148 }, m, W)}>
 					<div className="flex size-[104px] flex-col items-center justify-center gap-0.5 rounded-full bg-vg-ink text-white">
 						<Sparkles className="vg-spin size-6 text-[#b9adff]" strokeWidth={1.8} />
 						<span className="text-[15px] font-bold">{copy.agent}</span>
 					</div>
 				</div>
-				<div className="vg-think flex justify-center" style={place({ x: 470, y: 334, w: 260 }, m)}>
+				<div className="vg-think flex justify-center" style={place({ x: geo.think.x, y: 334, w: geo.think.w }, m, W)}>
 					<Thinking label={copy.thinking} />
 				</div>
 
@@ -229,7 +278,7 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 					<div
 						key={reply.source}
 						className={cn('bg-vg-ink px-3.5 py-2.5 text-[13px] leading-[1.8] text-white', ['vg-r1', 'vg-r2', 'vg-r3'][i])}
-						style={{ ...place({ x: 468, y: 378, w: 264 }, m), borderRadius: bubbleOut }}
+						style={{ ...place({ x: geo.bubble.x, y: geo.bubble.replyY, w: geo.bubble.w }, m, W), borderRadius: bubbleOut }}
 					>
 						{reply.text}
 						<div className="mt-0.5 text-[12px] text-[#b9adff]">{reply.source}</div>
@@ -239,7 +288,7 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 					<div
 						key={chip}
 						className={cn('flex [animation-delay:.4s]', REPLY_CLOCK[i], i === 1 ? 'justify-end' : 'justify-start')}
-						style={place({ x: 440, y: 336, w: 320 }, m)}
+						style={place({ x: geo.chips.x, y: 336, w: geo.chips.w }, m, W)}
 					>
 						<HeroChip index={i} text={chip} />
 					</div>
@@ -250,15 +299,15 @@ function DesktopStage({ locale }: { locale: SiteLocale }) {
 					return (
 						<div
 							key={result.title}
-							className={cn('flex items-center gap-3 rounded-2xl border border-vg-line bg-white px-3.5', RESULT_LIT[i])}
-							style={place({ x: 30, y: 56 + i * 102, w: 260, h: 80 }, m)}
+							className={cn('flex items-center rounded-2xl border border-vg-line bg-white', geo.compact ? 'gap-2.5 px-3' : 'gap-3 px-3.5', RESULT_LIT[i])}
+							style={place({ x: geo.result.x, y: 56 + i * 102, w: geo.result.w, h: 80 }, m, W)}
 						>
 							<span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl" style={{ background: tint, color }}>
 								<Icon className="size-5" strokeWidth={1.8} />
 							</span>
-							<div>
-								<div className="text-[14px] font-bold">{result.title}</div>
-								<div className="mt-0.5 text-[12px] text-vg-cap">{result.detail}</div>
+							<div className="min-w-0">
+								<div className="text-[14px] font-bold">{geo.compact && 'mobileTitle' in result ? result.mobileTitle : result.title}</div>
+								<div className="mt-0.5 text-[12px] text-vg-cap">{geo.compact ? result.short : result.detail}</div>
 							</div>
 						</div>
 					)
@@ -295,7 +344,7 @@ function MobileStage({ locale }: { locale: SiteLocale }) {
 	const bubbleOut = m ? '16px 16px 4px 16px' : '16px 16px 16px 4px'
 
 	return (
-		<div className="flex justify-center lg:hidden">
+		<div className="flex justify-center md:hidden">
 			<div className="vg-mstage vg-dots relative h-[606px] w-[358px] shrink-0 overflow-hidden rounded-sheet border border-vg-line bg-white shadow-[0_40px_70px_-48px_rgba(17,17,17,0.5)]" aria-hidden>
 				<svg width={MW} height={606} viewBox={`0 0 ${MW} 606`} fill="none" className="absolute inset-0">
 					{paths.map((d) => <path key={d} className="vg-flow" d={d} stroke="#5b3de8" strokeOpacity={0.32} strokeWidth={1.4} />)}

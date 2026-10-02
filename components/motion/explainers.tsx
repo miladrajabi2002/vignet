@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { InstagramIcon, TelegramIcon } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
+import { DemoPointer } from './pointer'
 
 /*
  * Explainer motion graphics (public pages, docs and dashboard).
@@ -123,7 +124,7 @@ function Tap({ step }: { step: number }) {
 			<span className={cn(`vg-x${step}`, 'pointer-events-none absolute inset-0 rounded-[inherit]')}>
 				<span className="vg-tap absolute inset-0 rounded-[inherit] border-2 border-vg-signal" />
 			</span>
-			<span className="vg-cur vg-cur-step" style={{ '--vg-cur-at': step } as CSSProperties}><i /></span>
+			<DemoPointer at={step} />
 		</>
 	)
 }
@@ -384,8 +385,9 @@ export function ToneMotion({ locale, className }: { locale: MotionLocale; classN
 			<Head icon={SlidersHorizontal} title={t('لحن پاسخ', 'Reply tone')} />
 			<div className="relative flex rounded-xl bg-[#f4f4f5] p-1 text-[12px]">
 				<span className="vg-seg absolute inset-y-1 start-1 w-[calc(50%-4px)] rounded-chip bg-white shadow-[0_1px_2px_rgba(17,17,17,0.08)]" style={seg} />
-				<span className="relative grow basis-0 p-[6px] text-center font-medium">{t('صمیمی', 'Friendly')}</span>
-				<span className="relative grow basis-0 p-[6px] text-center font-medium">{t('رسمی', 'Formal')}</span>
+				{/* The pill moves at 40% and back at 90% of the loop; each press lands right before. */}
+				<span className="relative grow basis-0 p-[6px] text-center font-medium">{t('صمیمی', 'Friendly')}<DemoPointer at={9.3} /></span>
+				<span className="relative grow basis-0 p-[6px] text-center font-medium">{t('رسمی', 'Formal')}<DemoPointer at={3.75} /></span>
 			</div>
 			<div className="flex flex-col gap-2 rounded-2xl bg-vg-bg p-2.5">
 				<div className={IN}>{t('سفارشم کی می‌رسه؟', 'When will my order arrive?')}</div>

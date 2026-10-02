@@ -2,6 +2,7 @@ import { ArrowLeftRight, Bell, BellRing, BookOpen, Brain, CalendarCheck, ChartCo
 import type { CSSProperties } from 'react'
 import { TelegramIcon } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
+import { DemoPointer } from '@/components/motion/pointer'
 import { Container, SectionHead, type IconType, type SiteLocale } from '../ui'
 
 const COPY = {
@@ -206,9 +207,9 @@ function Toggle() {
 	return <span aria-hidden className="relative inline-block h-5 w-9 shrink-0 rounded-full bg-vg-ink"><span className="absolute end-0.5 top-0.5 size-4 rounded-full bg-white" /></span>
 }
 
-/** Same switch, being flipped on and off (offset from the tone pill). */
+/** Same switch, being flipped on and off — between the tone pill's moves, never with them. */
 function LiveToggle() {
-	const timing = { animationDuration: '6s', animationDelay: '-3s' }
+	const timing = { animationDuration: '6s', animationDelay: '-1.5s' }
 	return (
 		<span aria-hidden className="relative inline-block h-5 w-9 shrink-0 overflow-hidden rounded-full bg-[#d4d4d8]">
 			<span className="vg-knob-track absolute inset-0 rounded-full bg-vg-ink" style={timing} />
@@ -278,8 +279,8 @@ function HiddenCapabilities({ locale }: { locale: SiteLocale }) {
 	return (
 		<div className="mt-9 lg:mt-16">
 			<div className="vg-rv flex flex-col items-center text-center lg:flex-row lg:items-end lg:justify-between lg:text-start">
-				<h3 className="text-[20px] font-bold leading-[1.6] lg:text-[28px]">{h.title}</h3>
-				<p className="mt-1 max-w-[460px] text-[13.5px] leading-[1.9] text-vg-sub lg:mt-0 lg:text-[15px]">{h.lead}</p>
+				<h3 className="text-[22px] font-bold leading-[1.6] lg:text-[28px]">{h.title}</h3>
+				<p className="mt-1 max-w-[460px] text-[13px] leading-[1.9] text-vg-sub lg:mt-0 lg:text-[15px]">{h.lead}</p>
 			</div>
 			<ul className="vg-rv-group mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:mt-7 lg:grid-cols-4 lg:gap-3">
 				{h.items.map((item, i) => {
@@ -288,8 +289,8 @@ function HiddenCapabilities({ locale }: { locale: SiteLocale }) {
 						<li key={item.t} className="vg-lift flex gap-3 rounded-card border border-vg-line bg-white p-3.5 text-start lg:flex-col lg:gap-2.5 lg:p-5">
 							<span aria-hidden className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-vg-tint text-vg-signal"><Icon className="size-[19px]" strokeWidth={1.8} /></span>
 							<div>
-								<h4 className="text-[14.5px] font-bold leading-[1.7] lg:text-[15.5px]">{item.t}</h4>
-								<p className="mt-0.5 text-[12.5px] leading-[1.85] text-vg-sub lg:text-[13.5px]">{item.d}</p>
+								<h4 className="text-[15px] font-bold leading-[1.7] lg:text-[15px]">{item.t}</h4>
+								<p className="mt-0.5 text-[13px] leading-[1.85] text-vg-sub lg:text-[13px]">{item.d}</p>
 							</div>
 						</li>
 					)
@@ -302,7 +303,7 @@ function HiddenCapabilities({ locale }: { locale: SiteLocale }) {
 export function Capabilities({ locale }: { locale: SiteLocale }) {
 	const c = COPY[locale]
 	return (
-		<section id="capabilities" className="vg-cv scroll-mt-24 pt-[52px] lg:pb-[120px] lg:pt-5">
+		<section id="capabilities" className="vg-cv scroll-mt-24 pt-14 md:pt-20 lg:pb-[120px] lg:pt-0">
 			<Container>
 				<SectionHead
 					pill={c.pill}
@@ -314,18 +315,19 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 				/>
 
 				{/* Phones: one column of rows, icon beside the text, so each
-				    capability reads at full width instead of three cramped lines. */}
-				<ul className="vg-rv-group mt-[18px] grid grid-cols-1 gap-2 lg:hidden">
+				    capability reads at full width instead of three cramped lines.
+				    Tablets run the same rows in two columns. */}
+				<ul className="vg-rv-group mt-[18px] grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-2.5 lg:hidden">
 					{c.mobile.map((item, i) => {
 						const cue = MOBILE_KEYS[i]
 						const Icon = MOBILE_ICONS[cue]
 						return (
-							<li key={item.t} className="flex items-center gap-3 rounded-card border border-vg-line bg-white px-3.5 py-3">
+							<li key={item.t} className="flex items-center gap-3 rounded-card border border-vg-line bg-white px-3.5 py-3 md:last:col-span-2">
 								<span aria-hidden className="inline-flex size-[42px] shrink-0 items-center justify-center rounded-control bg-vg-ink text-white">
 									<Icon className="size-[19px]" strokeWidth={1.8} />
 								</span>
 								<div className="min-w-0">
-									<h3 className="flex flex-wrap items-center gap-2 text-[14.5px] font-bold leading-[1.6]">
+									<h3 className="flex flex-wrap items-center gap-2 text-[15px] font-bold leading-[1.6]">
 										{item.t}
 										{cue === 'sell' ? <span className="rounded-full bg-vg-signal px-2 py-0.5 text-[12px] font-medium text-white">{c.preNew}</span> : null}
 									</h3>
@@ -341,13 +343,13 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					<article className={cn(bento, 'col-span-7 h-[420px] flex-row gap-7')}>
 						<div className="flex w-[250px] shrink-0 flex-col">
 							<span aria-hidden className="inline-flex size-11 items-center justify-center rounded-control bg-vg-ink text-white"><BookOpen className="size-5" strokeWidth={1.8} /></span>
-							<h3 className="mt-[18px] text-[21px] font-bold leading-[1.6]">{c.learnTitle}</h3>
-							<p className="mt-2 text-[14px] leading-[1.95] text-vg-sub">{c.learnBody}</p>
+							<h3 className="mt-[18px] text-[22px] font-bold leading-[1.6]">{c.learnTitle}</h3>
+							<p className="mt-2 text-[15px] leading-[1.95] text-vg-sub">{c.learnBody}</p>
 						</div>
 						<div aria-hidden className="flex grow flex-col gap-2.5 rounded-card bg-vg-bg p-[18px]">
 							<div className="flex justify-between text-[12px] text-vg-cap"><span>{c.learnCenter}</span><span className="text-[#b45309]">{c.learnNew}</span></div>
 							<div className="vg-sq1 rounded-control bg-white px-3.5 py-3 text-[13px] leading-[1.8]"><span className="text-vg-cap">{c.learnAsked}</span> {c.learnQ}</div>
-							<div className="vg-sq2 rounded-control border border-[rgba(91,61,232,0.3)] bg-white px-3.5 py-3 text-[13px] leading-[1.8]"><span className="font-medium text-vg-signal">{c.learnSuggest}</span> {c.learnA} <span className="text-[#9ca3af]">{c.learnSrc}</span></div>
+							<div className="vg-sq2 rounded-control border border-[rgba(91,61,232,0.3)] bg-white px-3.5 py-3 text-[13px] leading-[1.8]"><span className="font-medium text-vg-signal">{c.learnSuggest}</span> {c.learnA} <span className="text-vg-cap">{c.learnSrc}</span></div>
 							<div className="vg-sq3 flex gap-2">
 								<span className="inline-flex h-9 items-center gap-1.5 rounded-chip bg-vg-ink px-3.5 text-[12px] text-white"><Check className="size-3.5" strokeWidth={2.2} />{c.learnApprove}</span>
 								<span className="inline-flex h-9 items-center rounded-chip border border-black/10 bg-white px-3.5 text-[12px]">{c.learnEdit}</span>
@@ -361,14 +363,14 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 							<span aria-hidden className="inline-flex size-11 items-center justify-center rounded-control bg-vg-ink text-white"><ShoppingCart className="size-5" strokeWidth={1.8} /></span>
 							<span className="rounded-full bg-vg-signal px-2 py-[3px] text-[12px] text-white">{c.preNew}</span>
 						</div>
-						<h3 className="mt-[18px] text-[21px] font-bold">{c.sellTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.95] text-vg-sub">{c.sellBody}</p>
+						<h3 className="mt-[18px] text-[22px] font-bold">{c.sellTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.95] text-vg-sub">{c.sellBody}</p>
 						{/* Cart → payment link → paid on the store's own gateway → WooCommerce order, on the sq clock. */}
 						<div aria-hidden className="mt-auto flex flex-col gap-2">
 							<div className="vg-sq1 flex flex-col gap-1.5 rounded-card bg-vg-bg p-3 text-[12px]">
 								<div className="flex items-center justify-between">
 									<span className="inline-flex items-center gap-1.5 font-bold"><ShoppingCart className="size-3.5" strokeWidth={2} />{c.sellCart}</span>
-									<span className="inline-flex items-center gap-1 text-[11px] text-vg-cap" dir="ltr"><Lock className="size-3 text-vg-ok" strokeWidth={2.2} />{c.sellHost}</span>
+									<span className="inline-flex items-center gap-1 text-[12px] text-vg-cap" dir="ltr"><Lock className="size-3 text-vg-ok" strokeWidth={2.2} />{c.sellHost}</span>
 								</div>
 								<div className="flex justify-between tabular-nums"><span>{c.sellItem}</span><span>{c.sellItemPrice}</span></div>
 								<div className="flex justify-between tabular-nums text-vg-cap"><span>{c.sellShip}</span><span>{c.sellShipPrice}</span></div>
@@ -385,14 +387,14 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[360px]')}>
-						<h3 className="text-[20px] font-bold">{c.bookTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.bookBody}</p>
+						<h3 className="text-[22px] font-bold">{c.bookTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.bookBody}</p>
 						{/* A question, the free slots (one taken), the pick, the confirmation. */}
 						<div aria-hidden className="mt-auto flex flex-col gap-2">
 							<div className="vg-sq1 self-start rounded-[14px_14px_4px_14px] bg-[#f4f4f5] px-3 py-[7px] text-[12px] ltr:self-end ltr:rounded-[14px_14px_14px_4px]">{c.bookAsk}</div>
 							<div className="vg-sq2 flex gap-1.5">
 								{c.bookSlots.map((slot, i) => (
-									<span key={slot} className={cn('flex h-9 grow items-center justify-center rounded-xl border text-[12.5px] font-semibold tabular-nums', i === 0 ? 'border-transparent bg-vg-bg text-vg-dim line-through' : i === 1 ? 'border-vg-signal bg-vg-tint text-[#4c2fd0] shadow-[0_0_0_3px_rgba(91,61,232,0.08)]' : 'border-vg-line bg-white')}>{slot}</span>
+									<span key={slot} className={cn('relative flex h-9 grow items-center justify-center rounded-xl border text-[13px] font-semibold tabular-nums', i === 0 ? 'border-transparent bg-vg-bg text-vg-dim line-through' : i === 1 ? 'border-vg-signal bg-vg-tint text-[#4c2fd0] shadow-[0_0_0_3px_rgba(91,61,232,0.08)]' : 'border-vg-line bg-white')}>{slot}{i === 1 ? <DemoPointer at={3.5} clock="9s" /> : null}</span>
 								))}
 							</div>
 							<div className="flex flex-wrap items-center gap-1.5">
@@ -405,26 +407,26 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					<article className={cn(bento, 'col-span-4 h-[360px]')}>
 						<div className="flex items-center gap-2.5">
 							<span aria-hidden className="inline-flex size-9 items-center justify-center rounded-xl bg-[#eff6ff] text-[#0369a1]"><TelegramIcon className="size-[18px]" /></span>
-							<h3 className="text-[20px] font-bold">{c.botTitle}</h3>
+							<h3 className="text-[22px] font-bold">{c.botTitle}</h3>
 						</div>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.botBody}</p>
-						{/* An alert lands with glass buttons, then the morning report. */}
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.botBody}</p>
+						{/* An alert lands with glass buttons, the manager taps Resolve, then the morning report. */}
 						<div aria-hidden className="mt-auto flex flex-col gap-1.5 rounded-card bg-[#eef3f8] p-2.5">
 							<div className="vg-sq1 rounded-[14px_14px_14px_4px] bg-white px-3 py-2 text-[12px] leading-[1.8] shadow-[0_1px_1px_rgba(17,17,17,0.06)] ltr:rounded-[14px_14px_4px_14px]">
-								<span className="block text-[11px] font-semibold text-[#0369a1]">{c.botName}</span>
+								<span className="block text-[12px] font-semibold text-[#0369a1]">{c.botName}</span>
 								{c.botAlert}
 							</div>
 							<div className="vg-sq2 grid grid-cols-2 gap-1.5">
 								<span className="flex h-8 items-center justify-center rounded-lg bg-white/80 text-[12px] font-medium text-[#0369a1]">{c.botReply}</span>
-								<span className="flex h-8 items-center justify-center rounded-lg bg-white/80 text-[12px] font-medium text-[#0369a1]">{c.botClose}</span>
+								<span className="vg-sq-hit relative flex h-8 items-center justify-center rounded-lg bg-white/80 text-[12px] font-medium text-[#0369a1]">{c.botClose}<DemoPointer at={3.5} clock="9s" /></span>
 							</div>
 							<div className="vg-sq3 rounded-[14px_14px_14px_4px] bg-white px-3 py-2 text-[12px] leading-[1.8] shadow-[0_1px_1px_rgba(17,17,17,0.06)] ltr:rounded-[14px_14px_4px_14px]">{c.botReport}</div>
 						</div>
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[360px]')}>
-						<h3 className="text-[20px] font-bold">{c.langTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.langBody}</p>
+						<h3 className="text-[22px] font-bold">{c.langTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.langBody}</p>
 						{/* The same agent, three languages, each reply in kind. */}
 						<div aria-hidden className="mt-auto flex flex-col gap-1.5 text-[12px] leading-[1.7]">
 							<div dir="ltr" className="vg-sq1 self-end rounded-[14px_14px_4px_14px] bg-[#f4f4f5] px-3 py-1.5 rtl:self-start rtl:rounded-[14px_14px_14px_4px]">Do you ship to Dubai?</div>
@@ -435,8 +437,8 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[360px]')}>
-						<h3 className="text-[20px] font-bold">{c.inboxTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.inboxBody}</p>
+						<h3 className="text-[22px] font-bold">{c.inboxTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.inboxBody}</p>
 						{/* A live inbox: every few seconds a new conversation lands on top
 						    and the rest shift down (seamless conveyor, see .vg-conv). */}
 						<div aria-hidden className="relative mt-auto h-[178px] overflow-hidden" style={{ '--vg-row': '46px' } as CSSProperties}>
@@ -460,8 +462,8 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[360px] border-vg-ink bg-vg-ink text-white')}>
-						<h3 className="text-[20px] font-bold">{c.voiceTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-[#d4d4d8]">{c.voiceBody}</p>
+						<h3 className="text-[22px] font-bold">{c.voiceTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-[#d4d4d8]">{c.voiceBody}</p>
 						<div aria-hidden className="mt-auto rounded-card bg-[#1f1f23] p-4">
 							<div className="flex h-10 items-center gap-1">
 								{WAVE_DELAYS.map((delay) => <span key={delay} className="vg-wave h-9 w-1 rounded bg-[#b9adff]" style={{ animationDelay: `${delay}s` }} />)}
@@ -473,8 +475,8 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[360px]')}>
-						<div className="flex items-center gap-2"><h3 className="text-[20px] font-bold">{c.preTitle}</h3><span className="rounded-full bg-vg-signal px-2 py-[3px] text-[12px] text-white">{c.preNew}</span></div>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.preBody}</p>
+						<div className="flex items-center gap-2"><h3 className="text-[22px] font-bold">{c.preTitle}</h3><span className="rounded-full bg-vg-signal px-2 py-[3px] text-[12px] text-white">{c.preNew}</span></div>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.preBody}</p>
 						<div aria-hidden className="mt-auto flex flex-col gap-2">
 							<div className="vg-sq1 self-end rounded-[14px_14px_14px_4px] bg-vg-ink px-3 py-[9px] text-[12px] leading-[1.8] text-white ltr:self-start">{c.preAgent}</div>
 							<div className="vg-sq2 self-start rounded-[14px_14px_4px_14px] bg-[#f4f4f5] px-3 py-[9px] text-[12px] ltr:self-end">{c.preUser}</div>
@@ -483,8 +485,8 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[340px]')}>
-						<h3 className="text-[20px] font-bold">{c.crmTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.crmBody}</p>
+						<h3 className="text-[22px] font-bold">{c.crmTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.crmBody}</p>
 						<div aria-hidden className="mt-auto flex flex-col gap-2.5 rounded-card bg-vg-bg p-3.5">
 							<div className="flex items-center gap-2.5">
 								<span className="inline-flex size-[34px] items-center justify-center rounded-full bg-vg-soft text-[13px] font-bold text-[#4c2fd0]">{c.crmInitial}</span>
@@ -497,26 +499,26 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[340px]')}>
-						<h3 className="text-[20px] font-bold">{c.ctrlTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.ctrlBody}</p>
+						<h3 className="text-[22px] font-bold">{c.ctrlTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.ctrlBody}</p>
 						<div aria-hidden className="mt-auto flex flex-col gap-2">
 							{/* The owner flips tone and a rule; the pill glides, the knob slides. */}
 							<div className="relative flex rounded-xl bg-[#f4f4f5] p-1 text-[12px]">
 								<span className="vg-seg absolute inset-y-1 start-1 w-[calc(50%-4px)] rounded-chip bg-white shadow-[0_1px_2px_rgba(17,17,17,0.08)]" />
-								<span className="relative grow basis-0 p-[7px] text-center font-medium">{c.ctrlTone[0]}</span>
-								<span className="relative grow basis-0 p-[7px] text-center font-medium">{c.ctrlTone[1]}</span>
+								<span className="relative grow basis-0 p-[7px] text-center font-medium">{c.ctrlTone[0]}<DemoPointer at={9.3} clock="6s" /></span>
+								<span className="relative grow basis-0 p-[7px] text-center font-medium">{c.ctrlTone[1]}<DemoPointer at={3.75} clock="6s" /></span>
 							</div>
 							{c.ctrlRules.map((rule, i) => <div key={rule} className="flex items-center justify-between px-0.5 py-1.5 text-[13px]">{rule}{i === 0 ? <Toggle /> : <LiveToggle />}</div>)}
 						</div>
 					</article>
 
 					<article className={cn(bento, 'col-span-4 h-[340px]')}>
-						<h3 className="text-[20px] font-bold">{c.repTitle}</h3>
-						<p className="mt-2 text-[14px] leading-[1.9] text-vg-sub">{c.repBody}</p>
+						<h3 className="text-[22px] font-bold">{c.repTitle}</h3>
+						<p className="mt-2 text-[15px] leading-[1.9] text-vg-sub">{c.repBody}</p>
 						<div aria-hidden className="mt-auto flex h-[110px] items-end gap-2.5 border-b border-black/10 px-1">
 							{BAR_HEIGHTS.map((h, i) => <span key={i} className="vg-grow grow rounded-t-md" style={{ height: `${h}%`, background: BAR_COLORS[i], animationDelay: `${i * 0.15}s` }} />)}
 						</div>
-						<div className="mt-1.5 text-[12px] text-[#9ca3af]">{c.repSample}</div>
+						<div className="mt-1.5 text-[12px] text-vg-cap">{c.repSample}</div>
 					</article>
 				</div>
 				<HiddenCapabilities locale={locale} />

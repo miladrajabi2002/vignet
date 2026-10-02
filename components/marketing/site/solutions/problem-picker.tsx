@@ -48,11 +48,11 @@ export function ProblemPicker({ problems, labels }: { problems: ProblemView[]; l
 							aria-controls="problem-panel"
 							onClick={() => setActive(index)}
 							className={cn(
-								'vg-press flex grow items-center gap-3.5 rounded-card border px-[18px] text-start text-[16px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal',
+								'vg-press flex grow items-center gap-3.5 rounded-card border px-[18px] text-start text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal',
 								on ? 'border-vg-ink bg-vg-ink font-bold text-white shadow-[var(--elev-1)]' : 'vg-lift border-vg-line bg-white font-medium text-vg-ink',
 							)}
 						>
-							<span className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-chip text-[14px]', on ? 'bg-vg-signal text-white' : 'bg-[#f4f4f5] text-vg-sub')}>{item.num}</span>
+							<span className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-chip text-[15px]', on ? 'bg-vg-signal text-white' : 'bg-[#f4f4f5] text-vg-sub')}>{item.num}</span>
 							<span className="grow">{item.short}</span>
 						</button>
 					)
@@ -66,8 +66,8 @@ export function ProblemPicker({ problems, labels }: { problems: ProblemView[]; l
 				<p key={`a-${active}`} className="vg-pop mt-2.5 text-[23px] font-bold leading-[1.85] [animation-delay:60ms]">{current.answer}</p>
 				<span key={`g-${active}`} className="vg-pop mt-4 inline-flex h-8 items-center gap-1.5 self-start rounded-full bg-[#f0fdf4] px-3 text-[13px] font-medium text-[#166534] [animation-delay:120ms]"><Check aria-hidden className="size-3.5" strokeWidth={2.4} />{current.gain}</span>
 				<div className="mt-auto flex items-center justify-between rounded-card bg-vg-tint px-5 py-4">
-					<div><div className="text-[12px] text-vg-cap">{labels.related}</div><div className="text-[17px] font-bold">{current.solution}</div></div>
-					<Link href={current.href} className="vg-press vg-btn-dark inline-flex h-[46px] items-center gap-2 rounded-control bg-vg-ink px-[18px] text-[14px] font-medium text-white">{labels.view}{labels.arrow}</Link>
+					<div><div className="text-[12px] text-vg-cap">{labels.related}</div><div className="text-[18px] font-bold">{current.solution}</div></div>
+					<Link href={current.href} className="vg-press vg-btn-dark inline-flex h-[46px] items-center gap-2 rounded-control bg-vg-ink px-[18px] text-[15px] font-medium text-white">{labels.view}{labels.arrow}</Link>
 				</div>
 			</div>
 		</div>

@@ -86,8 +86,8 @@ export function SectionHead({
 	return (
 		<div className={cn('flex flex-col', align === 'center' ? 'items-center text-center' : 'items-center text-center lg:items-start lg:text-start', className)}>
 			<SectionPill icon={icon} iconClassName={iconClassName} dark={dark}>{pill}</SectionPill>
-			<h2 id={id} className={cn('mt-3 text-balance text-[26px] font-bold leading-[1.5] lg:mt-4 lg:text-[44px] lg:leading-[1.38]', titleClassName)}>{title}</h2>
-			{lead ? <p className={cn('mt-2 max-w-[660px] text-[14.5px] leading-[1.95] lg:mt-3.5 lg:text-[17px] lg:leading-[1.9]', dark ? 'text-[#a1a1aa]' : 'text-vg-sub')}>{lead}</p> : null}
+			<h2 id={id} className={cn('mt-3 text-balance text-[28px] font-bold leading-[1.5] lg:mt-4 lg:text-[48px] lg:leading-[1.38]', titleClassName)}>{title}</h2>
+			{lead ? <p className={cn('mt-2 max-w-[660px] text-[15px] leading-[1.95] lg:mt-3.5 lg:text-[18px] lg:leading-[1.9]', dark ? 'text-[#a1a1aa]' : 'text-vg-sub')}>{lead}</p> : null}
 		</div>
 	)
 }
@@ -149,7 +149,7 @@ export type ChannelId = 'instagram' | 'telegram' | 'bale' | 'rubika' | 'site' | 
 export const CHANNELS: { id: ChannelId; icon: IconType; tint: string; color: string; label: Record<SiteLocale, string>; short: Record<SiteLocale, string> }[] = [
 	{ id: 'instagram', icon: InstagramIcon as IconType, tint: '#fdf2f8', color: '#be185d', label: { fa: 'اینستاگرام', en: 'Instagram' }, short: { fa: 'اینستاگرام', en: 'Instagram' } },
 	{ id: 'telegram', icon: TelegramIcon as IconType, tint: '#eff6ff', color: '#0369a1', label: { fa: 'تلگرام', en: 'Telegram' }, short: { fa: 'تلگرام', en: 'Telegram' } },
-	{ id: 'bale', icon: BaleIcon as IconType, tint: '#e6f7f1', color: '#00a37a', label: { fa: 'بله', en: 'Bale' }, short: { fa: 'بله', en: 'Bale' } },
+	{ id: 'bale', icon: BaleIcon as IconType, tint: '#e6f7f1', color: '#047857', label: { fa: 'بله', en: 'Bale' }, short: { fa: 'بله', en: 'Bale' } },
 	{ id: 'rubika', icon: RubikaIcon as IconType, tint: '#fff7ed', color: '#c2410c', label: { fa: 'روبیکا', en: 'Rubika' }, short: { fa: 'روبیکا', en: 'Rubika' } },
 	{ id: 'site', icon: Globe, tint: '#f3f1ff', color: '#5b3de8', label: { fa: 'ویجت سایت', en: 'Website widget' }, short: { fa: 'سایت', en: 'Website' } },
 	{ id: 'link', icon: Link2, tint: '#f4f4f5', color: '#3f3f46', label: { fa: 'لینک چت بیو', en: 'Bio chat link' }, short: { fa: 'لینک چت', en: 'Chat link' } },

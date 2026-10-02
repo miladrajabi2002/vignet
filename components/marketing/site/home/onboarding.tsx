@@ -1,5 +1,5 @@
-import { Check, Globe, GraduationCap, MessageSquare, RefreshCw, Rocket, Send, ShoppingBag, Sparkles, CalendarDays, BriefcaseBusiness, Utensils } from 'lucide-react'
-import { InstagramIcon } from '@/components/marketing/social-links'
+import { Check, Globe, GraduationCap, MessageSquare, RefreshCw, Rocket, ShoppingBag, Sparkles, CalendarDays, BriefcaseBusiness, Utensils } from 'lucide-react'
+import { InstagramGlyph, TelegramGlyph } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { Container, SectionPill, type IconType, type SiteLocale } from '../ui'
 import { OnboardingPlayer, type PlayerStep } from './onboarding-player'
@@ -62,8 +62,8 @@ function Pointer() {
 function Scenes({ locale }: { locale: SiteLocale }) {
 	const c = COPY[locale]
 	const channels: { icon: IconType; color: string }[] = [
-		{ icon: InstagramIcon as IconType, color: '#be185d' },
-		{ icon: Send, color: '#0369a1' },
+		{ icon: InstagramGlyph as IconType, color: '#be185d' },
+		{ icon: TelegramGlyph as IconType, color: '#0369a1' },
 		{ icon: Globe, color: '#5b3de8' },
 		{ icon: MessageSquare, color: '#047857' },
 	]
@@ -152,7 +152,7 @@ function Scenes({ locale }: { locale: SiteLocale }) {
 			</div>
 			<div className="ob-chat">
 				<span className="ob-wait">{c.p4.waiting}</span>
-				<div className="ob-bq"><InstagramIcon />{c.p4.q}</div>
+				<div className="ob-bq"><InstagramGlyph />{c.p4.q}</div>
 				<div className="ob-reply"><span className="ob-dots"><i /><i /><i /></span><span className="ob-ba">{c.p4.a}</span></div>
 				<div className="ob-pc"><span className="ob-pc-th"><ShoppingBag strokeWidth={1.8} /></span><span><b>{c.p4.product}</b><small>{c.p4.productMeta}</small></span></div>
 				<span className="ob-okp">{c.p4.answered}</span>
@@ -166,7 +166,7 @@ export function Onboarding({ locale }: { locale: SiteLocale }) {
 	const c = COPY[locale]
 	const steps: PlayerStep[] = c.steps.map((step, i) => ({ ...step, num: c.nums[i], eyebrow: `${c.stepOf[0]} ${c.nums[i]} ${c.stepOf[1]} · ${step.duration}` }))
 	return (
-		<section id="start" aria-labelledby="start-title" className="vg-cv pt-[52px] lg:py-[120px]">
+		<section id="start" aria-labelledby="start-title" className="vg-cv pt-14 md:pt-20 lg:py-[120px]">
 			<Container>
 				<OnboardingPlayer
 					fa={locale === 'fa'}
@@ -176,12 +176,12 @@ export function Onboarding({ locale }: { locale: SiteLocale }) {
 					intro={
 						<div className="flex flex-col items-center lg:items-start">
 							<SectionPill icon={Rocket}>{c.pill}</SectionPill>
-							<h2 id="start-title" className="mt-3 text-balance text-[26px] font-bold leading-[1.5] lg:mt-4 lg:text-[44px] lg:leading-[1.35]">
+							<h2 id="start-title" className="mt-3 text-balance text-[28px] font-bold leading-[1.5] lg:mt-4 lg:text-[48px] lg:leading-[1.35]">
 								{c.title}
 								<span className="hidden lg:inline">{locale === 'fa' ? '،' : ','}</span>
 								<span className="hidden font-medium text-vg-dim lg:block">{c.titleTail}</span>
 							</h2>
-							<p className="mt-2 text-[14.5px] leading-[1.95] text-vg-sub lg:hidden">{c.leadMobile}</p>
+							<p className="mt-2 text-[15px] leading-[1.95] text-vg-sub lg:hidden">{c.leadMobile}</p>
 						</div>
 					}
 				>

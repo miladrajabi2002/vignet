@@ -123,7 +123,7 @@ export function FutureCta() {
 					>
 						<span ref={textRef}>{variant.title}</span>
 					</h2>
-					<p className="mx-auto mt-4 max-w-xl text-pretty text-[14px] leading-7 text-vg-sub sm:mt-6 sm:max-w-2xl sm:text-[16px] sm:leading-8">{variant.desc}</p>
+					<p className="mx-auto mt-4 max-w-xl text-pretty text-[15px] leading-7 text-vg-sub sm:mt-6 sm:max-w-2xl sm:text-[15px] sm:leading-8">{variant.desc}</p>
 					<CtaPair
 						locale={locale}
 						className="mt-7 sm:mt-9"

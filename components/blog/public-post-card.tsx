@@ -21,7 +21,7 @@ export type PublicPost = {
 export function PublicPostCard({ post, locale, featured = false }: { post: PublicPost; locale: 'fa' | 'en'; featured?: boolean }) {
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 	return (
-		<article className={`group overflow-hidden rounded-card border border-black/[0.08] bg-white shadow-[var(--elev-2)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-black/15 hover:shadow-[var(--elev-2)] ${featured ? 'grid lg:grid-cols-[1.2fr_0.8fr]' : 'flex flex-col'}`}>
+		<article className={`group overflow-hidden rounded-card border border-black/[0.08] bg-white shadow-[var(--elev-1)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-black/15 hover:shadow-[var(--elev-2)] ${featured ? 'grid lg:grid-cols-[1.2fr_0.8fr]' : 'flex flex-col'}`}>
 			{post.coverImage ? (
 				<Link href={`/blog/${post.slug}`} className="block min-h-52 overflow-hidden bg-black/[0.035]">
 					<BlogImage
