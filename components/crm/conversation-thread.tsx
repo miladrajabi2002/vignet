@@ -92,12 +92,15 @@ export function ConversationThread({
         embedded = false,
         handoff = null,
         channel,
+        commentThread = false,
 }: {
         initialMessages: ThreadMessage[]
         conversationId: string
         locale: 'fa' | 'en'
         /** The conversation's channel; decides how operator product cards are sent. */
         channel?: ChannelType
+        /** A public Instagram comment thread; operator replies go out as comment replies. */
+        commentThread?: boolean
         /** Inside the inbox pane the surrounding card and header already exist. */
         embedded?: boolean
         /**
@@ -499,6 +502,7 @@ export function ConversationThread({
                                 <OperatorReply
                                         conversationId={conversationId}
                                         channel={channel}
+                                        commentThread={commentThread}
                                         onSent={handleSent}
                                 />
                         </div>

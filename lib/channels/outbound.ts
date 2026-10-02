@@ -5,6 +5,11 @@ import { readPageToken } from '@/lib/instagram/config'
 import { sendProductCarousel } from '@/lib/instagram/media'
 import { getAdapter, isMessengerType, type MessengerType } from '@/lib/channels/registry'
 import {
+  classifyProviderFailure,
+  isInstagramCommentThread,
+  type ProviderFailureReason,
+} from '@/lib/channels/delivery-errors'
+import {
   formatProductFallback,
   messengerProductCard,
   type ReplyLanguage,
@@ -34,7 +39,8 @@ export type OutboundDeliveryReason =
   | 'channel_inactive'
   | 'credentials_missing'
   | 'channel_retired'
-  | 'provider_error'
+  | 'products_need_dm'
+  | ProviderFailureReason
 
 export type OutboundDeliveryResult = {
   status: OutboundDeliveryStatus
@@ -93,7 +99,7 @@ export async function sendOutbound(
     await getAdapter(target.channel, target.token).sendText(target.recipient, text)
     return { status: 'sent' }
   } catch (cause) {
-    return { status: 'failed', reason: 'provider_error', cause }
+    return { status: 'failed', reason: classifyProviderFailure(cause), cause }
   }
 }
 
@@ -124,6 +130,12 @@ export async function sendOutboundProducts(params: {
 }): Promise<OutboundDeliveryResult> {
   const target = await resolveMessengerTarget(params.agentId, params.channel, params.externalId)
   if (!target.ok) return target.result
+  // A comment thread is a public reply: Meta has no carousel there, and a
+  // numbered list would be cut to one comment. Refuse before sending anything
+  // so the operator is not left with half a delivery.
+  if (target.channel === 'INSTAGRAM' && isInstagramCommentThread(target.recipient) && params.products.length > 0) {
+    return { status: 'unavailable', reason: 'products_need_dm' }
+  }
 
   const adapter = getAdapter(target.channel, target.token)
   const text = params.text.trim()
@@ -170,9 +182,9 @@ export async function sendOutboundProducts(params: {
   } catch (cause) {
     return delivered
       ? { status: 'sent', cause }
-      : { status: 'failed', reason: 'provider_error', cause }
+      : { status: 'failed', reason: classifyProviderFailure(cause), cause }
   }
 
-  if (!delivered) return { status: 'failed', reason: 'provider_error', cause: lastError }
+  if (!delivered) return { status: 'failed', reason: classifyProviderFailure(lastError), cause: lastError }
   return { status: 'sent' }
 }

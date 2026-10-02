@@ -21,6 +21,7 @@ export async function loadConversationView(params: {
                 select: {
                         id: true,
                         channel: true,
+                        externalId: true,
                         status: true,
                         handedOff: true,
                         rating: true,

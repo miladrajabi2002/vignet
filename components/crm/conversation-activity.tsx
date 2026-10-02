@@ -18,6 +18,7 @@ import {
   UserRoundCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { deliveryReasonDetail, deliveryReasonLabel } from '@/lib/channels/delivery-errors'
 
 type Locale = 'fa' | 'en'
 type Metadata = Record<string, unknown> | null
@@ -219,15 +220,17 @@ export function MessageActivityReceipts({
         </span>
       )}
       {deliveryStatus === 'failed' && (
-        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[12px] leading-4 text-amber-700 dark:text-amber-300">
+        <span role="listitem" title={deliveryReasonDetail(deliveryReason, locale === 'fa') ?? undefined} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[12px] leading-4 text-amber-700 dark:text-amber-300">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {locale === 'fa' ? 'ارسال به برنامه ناموفق بود' : 'Channel delivery failed'}
+          {deliveryReasonLabel(deliveryReason, locale === 'fa')
+            ?? (locale === 'fa' ? 'ارسال به برنامه ناموفق بود' : 'Channel delivery failed')}
         </span>
       )}
       {deliveryStatus === 'unavailable' && !storedInConversation && (
-        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[12px] leading-4 text-amber-700 dark:text-amber-300">
+        <span role="listitem" title={deliveryReasonDetail(deliveryReason, locale === 'fa') ?? undefined} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[12px] leading-4 text-amber-700 dark:text-amber-300">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {locale === 'fa' ? 'برنامه آمادهٔ ارسال نیست' : 'Channel is not ready to send'}
+          {deliveryReasonLabel(deliveryReason, locale === 'fa')
+            ?? (locale === 'fa' ? 'برنامه آمادهٔ ارسال نیست' : 'Channel is not ready to send')}
         </span>
       )}
     </div>

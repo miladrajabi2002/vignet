@@ -7,6 +7,7 @@ import type { ChannelType } from '@prisma/client'
 import { Check, CircleCheck, Loader2, Package, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { cn } from '@/lib/utils'
+import { deliveryReasonDetail } from '@/lib/channels/delivery-errors'
 import type { ThreadMessage } from './conversation-thread'
 
 type DeliveryFeedback = {
@@ -67,10 +68,13 @@ function productDeliveryHint(channel: ChannelType | undefined, fa: boolean): str
 export function OperatorReply({
   conversationId,
   channel,
+  commentThread = false,
   onSent,
 }: {
   conversationId: string
   channel?: ChannelType
+  /** A public Instagram comment thread: text replies only, no product cards. */
+  commentThread?: boolean
   onSent?: (message: ThreadMessage) => void
 }) {
   const t = useTranslations('conversations')
@@ -189,12 +193,14 @@ export function OperatorReply({
   ) : delivery?.status === 'failed' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
       <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-      {fa ? 'ارسال به برنامه ناموفق بود. اتصال برنامه را بررسی و دوباره تلاش کنید.' : 'Channel delivery failed. Check the connection and try again.'}
+      {deliveryReasonDetail(delivery.reason, fa)
+        ?? (fa ? 'ارسال به برنامه ناموفق بود. اتصال برنامه را بررسی و دوباره تلاش کنید.' : 'Channel delivery failed. Check the connection and try again.')}
     </p>
   ) : delivery?.status === 'unavailable' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
       <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-      {fa ? 'این برنامه اکنون آمادهٔ ارسال نیست. اتصال برنامه را بررسی کنید.' : 'This channel is not ready to send. Check its connection.'}
+      {deliveryReasonDetail(delivery.reason, fa)
+        ?? (fa ? 'این برنامه اکنون آمادهٔ ارسال نیست. اتصال برنامه را بررسی کنید.' : 'This channel is not ready to send. Check its connection.')}
     </p>
   ) : delivery?.status === 'sent' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
@@ -278,10 +284,12 @@ export function OperatorReply({
         <button
           type="button"
           onClick={() => setPickerOpen((open) => !open)}
-          disabled={noteMode}
+          disabled={noteMode || commentThread}
           aria-expanded={pickerOpen}
           aria-haspopup="dialog"
-          title={fa ? 'چند محصول را با عکس و قیمت برای مشتری بفرستید' : 'Send several products with photo and price'}
+          title={commentThread
+            ? (deliveryReasonDetail('products_need_dm', fa) ?? undefined)
+            : (fa ? 'چند محصول را با عکس و قیمت برای مشتری بفرستید' : 'Send several products with photo and price')}
           className={cn(CHIP, pickerOpen || attached.length > 0 ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : CHIP_IDLE)}
         >
           <Package className="h-3.5 w-3.5" aria-hidden="true" />

@@ -16,6 +16,7 @@ import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { ConversationMobileLayout } from '@/components/crm/conversation-mobile-layout'
 import { loadConversationView } from '@/lib/conversations/view'
+import { isInstagramCommentThread } from '@/lib/channels/delivery-errors'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -78,6 +79,7 @@ export default async function ConversationThreadPage(props: {
                                                 conversationId={conversation.id}
                                                 locale={locale}
                                                 channel={conversation.channel}
+                                                commentThread={conversation.channel === 'INSTAGRAM' && isInstagramCommentThread(conversation.externalId)}
                                                 handoff={handoffAlert ? { at: handoffAlert.createdAt, reason: handoffAlert.reason } : null}
                                         />
                                 }
