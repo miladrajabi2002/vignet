@@ -208,26 +208,6 @@
 	}
 }
 
-/* ── Customers table ───────────────────────────────────────────────────
-   Six columns that fold by the width of the table itself (the sidebar can
-   be a rail or full width): time first, then phone, then the last message. */
-.ui-ctable { container-type: inline-size; }
-.ui-ctable-row {
-	display: grid;
-	grid-template-columns: 2rem minmax(9rem, 1.1fr) minmax(0, 0.9fr) minmax(0, 1.6fr) 8.5rem 7.5rem;
-	align-items: center;
-	column-gap: 0.875rem;
-}
-@container (max-width: 52rem) {
-	.ui-ctable-row { grid-template-columns: 2rem minmax(9rem, 1fr) minmax(0, 1.3fr) 8.5rem; }
-	.ui-ctable-phone,
-	.ui-ctable-time { display: none; }
-}
-@container (max-width: 36rem) {
-	.ui-ctable-row { grid-template-columns: 2rem minmax(0, 1fr) 8.5rem; }
-	.ui-ctable-msg { display: none; }
-}
-
 /* ── Settings: "Business" and "Capabilities" are two views of one panel ── */
 [data-view='business'] .settings-capabilities,
 [data-view='capabilities'] .settings-identity { display: none; }
