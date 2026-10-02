@@ -196,9 +196,19 @@ export function InstagramAutomationManager({
                         <PageHeader
                                 icon={Camera}
                                 title={fa ? 'اینستاگرام' : 'Instagram'}
-                                subtitle={fa
-                                        ? `@${accountUsername || 'vigent.bot'} · ${activeTotal.toLocaleString(numLocale)} سناریوی فعال از ${automations.length.toLocaleString(numLocale)}`
-                                        : `@${accountUsername || 'vigent.bot'} · ${activeTotal} active of ${automations.length} scenarios`}
+                                subtitle={(
+                                        // The handle is Latin and the count Persian: each gets its own
+                                        // direction so the bidi algorithm cannot shuffle the "@" and dot.
+                                        <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                                                <bdi dir="ltr">@{accountUsername || 'vigent.bot'}</bdi>
+                                                <span aria-hidden="true">·</span>
+                                                <span>
+                                                        {fa
+                                                                ? `${activeTotal.toLocaleString(numLocale)} از ${automations.length.toLocaleString(numLocale)} سناریو فعال`
+                                                                : `${activeTotal} of ${automations.length} scenarios active`}
+                                                </span>
+                                        </span>
+                                )}
                                 actions={(
                                         <button
                                                 type="button"

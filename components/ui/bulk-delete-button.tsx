@@ -22,12 +22,11 @@
  * is the real security gate; this button is just UX.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Trash2, AlertTriangle, Ellipsis } from 'lucide-react'
+import { Trash2, AlertTriangle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { queueUndo, type UndoKind } from '@/lib/undo-queue'
 
 interface BulkDeleteButtonProps {
@@ -57,21 +56,13 @@ interface BulkDeleteButtonProps {
   /** Called after a successful deletion — usually to navigate or
    *  clear local state. router.refresh() is always called automatically. */
   onDeleted?: () => void
-  /** Use an icon-only trigger on narrow screens to keep action rails on one row. */
-  compactOnMobile?: boolean
   /**
-   * `menu` tucks the delete action inside a quiet «⋯» overflow menu, so a
-   * once-a-year destructive action does not sit beside the page's daily
-   * primary button. `button` keeps the standalone red trigger.
+   * Use an icon-only trigger on narrow screens to keep action rails on one
+   * row. The button stays visible rather than hiding in a «⋯» menu: one
+   * icon takes no more room than the menu would, and it is one tap less.
    */
-  variant?: 'button' | 'menu'
-  /** Extra rows shown above the delete action inside the «⋯» menu. */
-  menuItems?: React.ReactNode
+  compactOnMobile?: boolean
 }
-
-/** Restyles caller-supplied links (e.g. export) as full-width menu rows. */
-const MENU_LINK_CLASS =
-  '[&_a]:flex [&_a]:min-h-11 [&_a]:w-full [&_a]:items-center [&_a]:justify-start [&_a]:gap-2 [&_a]:rounded-xl [&_a]:border-0 [&_a]:bg-transparent [&_a]:px-3 [&_a]:text-xs [&_a]:font-medium [&_a]:text-[var(--text-primary)] [&_a]:shadow-none [&_a:hover]:bg-[var(--bg-hover)]'
 
 export function BulkDeleteButton({
   countEndpoint,
@@ -87,8 +78,6 @@ export function BulkDeleteButton({
   extraWarning,
   onDeleted,
   compactOnMobile = false,
-  variant = 'button',
-  menuItems,
 }: BulkDeleteButtonProps) {
   const router = useRouter()
   const locale = useLocale()
@@ -98,27 +87,6 @@ export function BulkDeleteButton({
   const [error, setError] = useState<string | null>(null)
   const [count, setCount] = useState<number | null>(null)
   const [countLoading, setCountLoading] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target as Element
-      // On phones the menu is a bottom sheet portalled to <body>; it closes itself.
-      if (target.closest?.('[role="dialog"]')) return
-      if (!menuRef.current?.contains(target)) setMenuOpen(false)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointer)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointer)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
 
   // When the dialog opens, fetch the actual record count so the user
   // sees «۱۲۳ محصول حذف می‌شود» instead of a generic warning. This
@@ -201,76 +169,18 @@ export function BulkDeleteButton({
 
   return (
     <>
-      {variant === 'menu' ? (
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((value) => !value)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-label={fa ? 'کارهای بیشتر' : 'More actions'}
-            title={fa ? 'کارهای بیشتر' : 'More actions'}
-            className="inline-flex size-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-          >
-            <Ellipsis className="h-4 w-4" />
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              onClick={() => setMenuOpen(false)}
-              className={`absolute end-0 top-full z-40 mt-2 hidden min-w-52 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-1.5 shadow-[var(--elev-2)] md:block ${MENU_LINK_CLASS}`}
-            >
-              {menuItems}
-              {/* The destructive action is fenced off from the routine ones above it. */}
-              {menuItems ? <div aria-hidden className="mx-2 my-1.5 h-px bg-[var(--border-default)]" /> : null}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setOpen(true)}
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-red-50/70 px-3 text-start text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                {buttonLabel}
-              </button>
-            </div>
-          )}
-          {/* Phones get the same actions as a bottom sheet, like every other mobile menu. */}
-          <MobileBottomSheet
-            open={menuOpen}
-            onClose={() => setMenuOpen(false)}
-            title={fa ? 'کارهای بیشتر' : 'More actions'}
-            closeLabel={fa ? 'بستن' : 'Close'}
-          >
-            <div
-              onClick={() => setMenuOpen(false)}
-              className={`space-y-2 [&_a]:!min-h-12 [&_a]:!bg-[var(--bg-base)] [&_a]:!text-sm ${MENU_LINK_CLASS}`}
-            >
-              {menuItems}
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-start text-sm font-medium text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-                {buttonLabel}
-              </button>
-            </div>
-          </MobileBottomSheet>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={buttonLabel}
-          title={buttonLabel}
-          className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 ${compactOnMobile ? 'w-11 px-0 sm:w-auto sm:px-3' : 'px-3'}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          <span className={compactOnMobile ? 'hidden sm:inline' : undefined}>
-            {buttonLabel}
-          </span>
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={buttonLabel}
+        title={buttonLabel}
+        className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 ${compactOnMobile ? 'w-11 px-0 sm:w-auto sm:px-3' : 'px-3'}`}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        <span className={compactOnMobile ? 'hidden sm:inline' : undefined}>
+          {buttonLabel}
+        </span>
+      </button>
 
       <ConfirmDialog
         open={open}

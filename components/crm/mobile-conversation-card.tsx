@@ -7,6 +7,7 @@ import { ArrowLeft, Clock3, MessagesSquare } from 'lucide-react'
 import { ChannelBadge, ChannelGlyph } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
+import { SatisfactionText } from '@/components/crm/sales-insight'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ export function MobileConversationCard({
   status,
   statusLabel,
   attention,
+  satisfaction,
   locale,
   lastMessage,
   reactionEmoji,
@@ -37,6 +39,8 @@ export function MobileConversationCard({
   status: ConvStatus
   statusLabel: string
   attention: boolean
+  /** Automatic 0–100 satisfaction read; null when there is no evidence yet. */
+  satisfaction?: number | null
   locale: 'fa' | 'en'
   lastMessage: string
   reactionEmoji?: string | null
@@ -82,9 +86,15 @@ export function MobileConversationCard({
                   {relativeTimeLabel}
                 </span>
               </div>
-              {attention && (
-                <div className="mt-1.5">
-                  <ConversationStatusBadge status={status} label={statusLabel} attention={attention} />
+              {(attention || sourceLabel || typeof satisfaction === 'number') && (
+                <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                  {attention && <ConversationStatusBadge status={status} label={statusLabel} attention={attention} />}
+                  {sourceLabel && (
+                    <span className="shrink-0 whitespace-nowrap rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]">
+                      {sourceLabel}
+                    </span>
+                  )}
+                  <SatisfactionText satisfaction={satisfaction} locale={locale} />
                 </div>
               )}
               <div className="mt-1 flex min-w-0 items-center gap-1.5">

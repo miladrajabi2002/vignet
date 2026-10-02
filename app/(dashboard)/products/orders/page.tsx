@@ -244,7 +244,7 @@ export default async function OrdersPage({
               entityLabel={locale === 'en' ? 'orders' : 'سفارش'}
               entitySingularLabel={locale === 'en' ? 'order' : 'سفارش'}
               buttonLabel={t('deleteAll')}
-              variant="menu"
+              compactOnMobile
             />
             <span className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
               {t('total', { count: totalOrders.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}

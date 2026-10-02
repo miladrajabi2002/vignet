@@ -2,7 +2,9 @@ import {
   AlertTriangle,
   ArrowUpRight,
   CircleDot,
+  Frown,
   Gauge,
+  Meh,
   Lightbulb,
   Smile,
   Sparkles,
@@ -241,6 +243,43 @@ export function SalesInsightText({
       {converted
         ? (locale === 'fa' ? 'مشتری فعلی' : 'Existing customer')
         : locale === 'fa' ? `${nf.format(probability)}٪ احتمال خرید` : `${probability}% likely to buy`}
+    </span>
+  )
+}
+
+/**
+ * The automatic satisfaction read of a conversation as one quiet word with a
+ * face; nothing when the thread holds no evidence either way.
+ */
+export function SatisfactionText({
+  satisfaction,
+  locale,
+  className,
+  showScore = false,
+}: {
+  satisfaction?: number | null
+  locale: Locale
+  className?: string
+  showScore?: boolean
+}) {
+  if (typeof satisfaction !== 'number') return null
+  const score = clampPercent(satisfaction)
+  const bucket = satisfactionBucket(score)
+  const Icon = bucket === 'satisfied' ? Smile : bucket === 'dissatisfied' ? Frown : Meh
+  const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+  const label = LABELS.satisfaction[locale][bucket]
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium tabular-nums',
+        bucket === 'satisfied' ? 'text-emerald-700' : bucket === 'dissatisfied' ? 'text-red-700' : 'text-[var(--text-muted)]',
+        className,
+      )}
+      title={`${locale === 'fa' ? 'رضایت مشتری (خودکار)' : 'Customer satisfaction (automatic)'}: ${nf.format(score)}٪`}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+      {showScore && <span className="text-[var(--text-muted)]">· {nf.format(score)}٪</span>}
     </span>
   )
 }

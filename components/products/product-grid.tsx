@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { queueUndo } from '@/lib/undo-queue'
+import { rememberProductsView } from '@/lib/products/view-preference'
 
 export interface ProductCard {
   id: string
@@ -425,7 +426,10 @@ export function ProductsToolbar({
         <button
           key={key}
           type="button"
-          onClick={() => update({ view: key === 'cards' ? 'cards' : '' })}
+          onClick={() => {
+            rememberProductsView(key)
+            update({ view: key === 'cards' ? 'cards' : '' })
+          }}
           aria-pressed={view === key}
           aria-label={label}
           title={label}
@@ -617,6 +621,7 @@ export function ProductsToolbar({
                 { value: 'in_stock', label: t('inStock') },
                 { value: 'out_of_stock', label: t('outOfStock') },
                 { value: 'low_stock', label: t('lowStock') },
+                { value: 'hidden', label: fa ? 'پنهان' : 'Hidden' },
               ]}
             />
           </ProductFilterField>

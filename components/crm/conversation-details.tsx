@@ -27,7 +27,6 @@ export function ConversationDetails({
         locale,
         conversationId,
         status,
-        rating,
         summary,
         channel,
         agentName,
@@ -42,7 +41,6 @@ export function ConversationDetails({
         locale: 'fa' | 'en'
         conversationId: string
         status: ConvStatus
-        rating: number | null
         summary: string | null
         channel: ChannelType
         agentName: string
@@ -60,6 +58,11 @@ export function ConversationDetails({
         const copyClass = '!min-h-7 !min-w-7 !rounded-lg !border-transparent !bg-transparent !px-1 hover:!bg-[var(--bg-hover)]'
 
         return (
+                <>
+                {/* Who answers next matters on every visit, so it sits above the tabs. */}
+                <div className="border-b border-[var(--border-subtle)] p-3">
+                        <ConversationActions key={conversationId} conversationId={conversationId} status={status} satisfaction={insight.satisfaction ?? null} />
+                </div>
                 <ConversationSideTabs
                         locale={locale}
                         attention={waiting}
@@ -102,7 +105,6 @@ export function ConversationDetails({
                                                 </section>
                                         )}
 
-                                        <ConversationActions key={conversationId} conversationId={conversationId} status={status} rating={rating} />
                                 </>
                         }
                         customer={
@@ -154,6 +156,7 @@ export function ConversationDetails({
                         }
                         sales={<SalesInsightCard insight={insight} locale={locale} />}
                 />
+                </>
         )
 }
 

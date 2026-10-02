@@ -104,7 +104,6 @@ export function ContactsView({
         insights,
         limitNotice,
         customerLimitReached = false,
-        upgradeHref,
         footer,
 }: {
         initial: ContactRow[]
@@ -122,7 +121,6 @@ export function ContactsView({
         insights?: React.ReactNode
         limitNotice?: React.ReactNode
         customerLimitReached?: boolean
-        upgradeHref?: string
         footer?: React.ReactNode
 }) {
         const t = useTranslations('contacts')
@@ -311,10 +309,10 @@ export function ContactsView({
                         download
                         title={t('exportDescription')}
                         aria-label={t('exportExcel')}
-                        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-4 sm:text-sm"
+                        className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-0 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:w-auto sm:px-4 sm:text-sm"
                 >
                         <Download className="h-4 w-4" aria-hidden="true" />
-                        <span>{t('exportExcel')}</span>
+                        <span className="hidden sm:inline">{t('exportExcel')}</span>
                 </a>
         )
 
@@ -332,11 +330,8 @@ export function ContactsView({
                                 subtitle={t('subtitle')}
                                 actions={
                                         <>
-                                                <ContactQuickAdd
-                                                        locale={locale}
-                                                        limitReached={customerLimitReached}
-                                                        upgradeHref={upgradeHref}
-                                                />
+                                                {/* At the limit the notice below carries the upgrade; no second button for it here. */}
+                                                {!customerLimitReached && <ContactQuickAdd locale={locale} />}
                                                 <CampaignLaunchButton
                                                         audience={campaignAudience}
                                                         locale={locale}
@@ -348,6 +343,7 @@ export function ContactsView({
                                                                         : `Message ${selected.size} customers`
                                                                 : undefined}
                                                 />
+                                                {exportLink}
                                                 <BulkDeleteButton
                                                         countEndpoint="/api/contacts/bulk"
                                                         deleteEndpoint="/api/contacts/bulk"
@@ -369,9 +365,6 @@ export function ContactsView({
                                                         extraWarning={locale === 'fa'
                                                                 ? 'گفتگوهای مشتریان حفظ می‌شوند؛ با حذف یا بازگردانی، لینک گفتگوها هم به همان شکل برمی‌گردد.'
                                                                 : 'Conversations are preserved; restoring also brings their links back.'}
-                                                        // A selection makes delete the task at hand, so it steps out of the menu.
-                                                        variant={selected.size > 0 ? 'button' : 'menu'}
-                                                        menuItems={exportLink}
                                                         compactOnMobile
                                                         undoKind="contact"
                                                         onDeleted={() => setSelected(new Set())}

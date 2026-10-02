@@ -89,7 +89,6 @@ export default async function ConversationThreadPage(props: {
                                                         locale={locale}
                                                         conversationId={conversation.id}
                                                         status={conversation.status}
-                                                        rating={conversation.rating}
                                                         summary={conversation.summary}
                                                         channel={conversation.channel}
                                                         agentName={conversation.agent.name}

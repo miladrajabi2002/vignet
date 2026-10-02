@@ -12,6 +12,7 @@ import { ChevronRight, ChevronLeft } from 'lucide-react'
  * RTL-aware: in Persian the chevrons read right-to-left, so "previous" uses
  * the right chevron and "next" the left. The numeric pager renders a sliding
  * window of pages around the current page so very long catalogs stay usable.
+ * On phones prev/next shrink to their chevrons so the row never wraps.
  */
 export async function Pagination({
   page,
@@ -58,7 +59,7 @@ export async function Pagination({
 
   return (
     <nav
-      className="flex flex-wrap items-center justify-center gap-2 pt-2"
+      className="flex items-center justify-center gap-1.5 pt-2 sm:gap-2"
       aria-label="pagination"
     >
       <PageLink
@@ -81,6 +82,7 @@ export async function Pagination({
             href={makeHref(p)}
             page={p}
             current={p === page}
+            numberLocale={numberLocale}
           />
         ),
       )}
@@ -105,10 +107,12 @@ function NumericLink({
   href,
   page,
   current,
+  numberLocale,
 }: {
   href: string
   page: number
   current: boolean
+  numberLocale: string
 }) {
   return (
     <Link
@@ -120,7 +124,7 @@ function NumericLink({
           : 'inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
       }
     >
-      {page}
+      {page.toLocaleString(numberLocale)}
     </Link>
   )
 }
@@ -137,14 +141,14 @@ function PageLink({
   iconAfter?: boolean
 }) {
   const base =
-    'inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-sm transition-colors'
+    'inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-xl border px-2 text-sm transition-colors sm:px-3'
   if (!href) {
     return (
       <span
         className={`${base} cursor-not-allowed border-[var(--border-subtle)] text-[var(--text-muted)] opacity-50`}
       >
         {!iconAfter && icon}
-        {label}
+        <span className="sr-only sm:not-sr-only">{label}</span>
         {iconAfter && icon}
       </span>
     )
@@ -155,7 +159,7 @@ function PageLink({
       className={`${base} border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]`}
     >
       {!iconAfter && icon}
-      {label}
+      <span className="sr-only sm:not-sr-only">{label}</span>
       {iconAfter && icon}
     </Link>
   )

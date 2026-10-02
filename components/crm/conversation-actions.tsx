@@ -10,20 +10,19 @@ import {
   Headset,
   Loader2,
   Maximize2,
-  MoreVertical,
   RotateCcw,
-  Star,
   Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Switch } from '@/components/ui/switch'
+import { SatisfactionText } from '@/components/crm/sales-insight'
 import { queueUndo } from '@/lib/undo-queue'
 import { cn } from '@/lib/utils'
 
 type Status = 'OPEN' | 'RESOLVED' | 'HANDED_OFF'
 
-async function patchConversation(conversationId: string, body: { status?: Status; rating?: number }) {
+async function patchConversation(conversationId: string, body: { status?: Status }) {
   const response = await fetch(`/api/conversations/${conversationId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -34,7 +33,8 @@ async function patchConversation(conversationId: string, body: { status?: Status
 
 /**
  * Conversation header actions: the one thing an operator does when finished
- * («حل شد»), with the rare ones (full page, delete) behind a menu.
+ * («حل شد»), then the rare ones (full page, delete) as plain icon buttons —
+ * two icons take no more room than a «⋯» menu and need one tap less.
  */
 export function ConversationHeaderActions({
   conversationId,
@@ -52,7 +52,6 @@ export function ConversationHeaderActions({
   const router = useRouter()
   const [status, setStatus] = useState<Status>(initialStatus)
   const [busy, setBusy] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -121,45 +120,28 @@ export function ConversationHeaderActions({
         {resolved ? (fa ? 'بازگشایی' : 'Reopen') : (fa ? 'حل شد' : 'Resolve')}
       </button>
 
-      <div className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false) }}>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((value) => !value)}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          aria-label={fa ? 'کارهای دیگر' : 'More actions'}
+      {fullPageHref && (
+        <Link
+          href={fullPageHref}
+          aria-label={fa ? 'باز کردن در صفحهٔ کامل' : 'Open full page'}
+          title={fa ? 'باز کردن در صفحهٔ کامل' : 'Open full page'}
           className="grid h-10 w-10 place-items-center rounded-control border border-[var(--border-default)] bg-white text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
-          <MoreVertical className="h-4 w-4" aria-hidden="true" />
-        </button>
-        {menuOpen && (
-          <div role="menu" className="absolute end-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-xl border border-[var(--border-default)] bg-white py-1 shadow-[var(--elev-2)]">
-            {fullPageHref && (
-              <Link
-                href={fullPageHref}
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 px-3 text-start text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-              >
-                <Maximize2 className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-                {fa ? 'باز کردن در صفحهٔ کامل' : 'Open full page'}
-              </Link>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false)
-                setDeleteError(null)
-                setShowDelete(true)
-              }}
-              className="flex min-h-11 w-full items-center gap-2 px-3 text-start text-[13px] text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              {t('delete')}
-            </button>
-          </div>
-        )}
-      </div>
+          <Maximize2 className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          setDeleteError(null)
+          setShowDelete(true)
+        }}
+        aria-label={t('delete')}
+        title={t('delete')}
+        className="grid h-10 w-10 place-items-center rounded-control border border-[var(--border-default)] bg-white text-[var(--text-secondary)] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+      >
+        <Trash2 className="h-4 w-4" aria-hidden="true" />
+      </button>
 
       <ConfirmDialog
         open={showDelete}
@@ -181,24 +163,24 @@ export function ConversationHeaderActions({
 }
 
 /**
- * Who answers next (agent or operator) and the satisfaction score: two quiet
- * rows in the summary tab instead of a coloured card.
+ * Who answers next (agent or operator), above the side tabs because it is the
+ * one control an operator reaches for mid-conversation, and the customer's
+ * satisfaction as the AI reads it from the thread (no manual score).
  */
 export function ConversationActions({
   conversationId,
   status: initialStatus,
-  rating: initialRating,
+  satisfaction,
 }: {
   conversationId: string
   status: Status
-  rating: number | null
+  /** Automatic 0–100 read; null until the thread shows evidence either way. */
+  satisfaction?: number | null
 }) {
   const t = useTranslations('conversations')
+  const locale = useLocale() === 'en' ? 'en' : 'fa'
   const router = useRouter()
   const [status, setStatus] = useState<Status>(initialStatus)
-  const [rating, setRating] = useState<number | null>(initialRating)
-  const [busy, setBusy] = useState(false)
-  const [hover, setHover] = useState<number | null>(null)
   const [aiMode, setAiMode] = useState(initialStatus !== 'HANDED_OFF')
   const [togglingAi, setTogglingAi] = useState(false)
   const [modeError, setModeError] = useState(false)
@@ -207,19 +189,6 @@ export function ConversationActions({
     setStatus(initialStatus)
     setAiMode(initialStatus !== 'HANDED_OFF')
   }, [initialStatus])
-
-  async function rate(value: number) {
-    if (busy) return
-    setBusy(true)
-    try {
-      if (await patchConversation(conversationId, { rating: value })) {
-        setRating(value)
-        router.refresh()
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function toggleAi(next: boolean) {
     if (togglingAi || status === 'RESOLVED') return
@@ -281,32 +250,11 @@ export function ConversationActions({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-3.5 py-1.5">
+      <div className="flex min-h-11 items-center justify-between gap-2 px-3.5 py-1.5">
         <span className="text-[13px] text-[var(--text-secondary)]">{t('csat')}</span>
-        <div className="flex items-center" dir="ltr">
-          {[1, 2, 3, 4, 5].map((value) => (
-            <button
-              key={value}
-              type="button"
-              disabled={busy}
-              onClick={() => void rate(value)}
-              onMouseEnter={() => setHover(value)}
-              onMouseLeave={() => setHover(null)}
-              className="inline-flex h-10 w-9 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
-              aria-label={`${value}`}
-              aria-pressed={rating === value}
-            >
-              <Star
-                className={cn(
-                  'h-4 w-4 transition-colors',
-                  (hover ?? rating ?? 0) >= value
-                    ? 'fill-[var(--amber)] text-[var(--amber)]'
-                    : 'text-[var(--text-muted)]',
-                )}
-              />
-            </button>
-          ))}
-        </div>
+        {typeof satisfaction === 'number'
+          ? <SatisfactionText satisfaction={satisfaction} locale={locale} showScore />
+          : <span className="text-[12px] text-[var(--text-muted)]">{t('csatPending')}</span>}
       </div>
     </div>
   )

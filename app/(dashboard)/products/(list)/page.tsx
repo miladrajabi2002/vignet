@@ -1,7 +1,8 @@
 import { LowStockCard } from '@/components/products/low-stock-card'
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { ArrowUpLeft, Plus, Package, FolderTree } from 'lucide-react'
+import { Plus, Package, FolderTree } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -23,6 +24,7 @@ import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
+import { PRODUCTS_VIEW_COOKIE } from '@/lib/products/view-preference'
 
 const PAGE_SIZE = 20
 
@@ -43,7 +45,11 @@ export default async function ProductsPage(
   const stock = ['in_stock', 'out_of_stock', 'low_stock', 'hidden'].includes(searchParams.stock ?? '')
     ? searchParams.stock!
     : ''
-  const view = searchParams.view === 'cards' ? 'cards' : 'table'
+  // An explicit ?view= wins; otherwise the last view this browser picked.
+  const savedView = (await cookies()).get(PRODUCTS_VIEW_COOKIE)?.value
+  const view = searchParams.view === 'cards' || searchParams.view === 'table'
+    ? searchParams.view
+    : savedView === 'cards' ? 'cards' : 'table'
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   const stockAlert = await prisma.workspace.findUnique({
@@ -247,18 +253,21 @@ export default async function ProductsPage(
         subtitle={t('subtitle')}
         actions={
           <>
-            <Link
-              href={productCapacity.allowed ? '/products/new' : recommendedPlan ? `/billing?plan=${recommendedPlan}#plan-${recommendedPlan}` : '/billing#vigent-plans'}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
-            >
-              {productCapacity.allowed ? <Plus className="h-4 w-4" /> : <ArrowUpLeft className="h-4 w-4" />}
-              {productCapacity.allowed ? t('new') : fa ? 'افزایش ظرفیت' : 'Increase capacity'}
-            </Link>
+            {/* At the limit the notice under the tabs carries the upgrade; no second button for it here. */}
+            {productCapacity.allowed && (
+              <Link
+                href="/products/new"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                {t('new')}
+              </Link>
+            )}
             <Link
               href="/products/categories"
               aria-label={t('manageCategories')}
               title={t('manageCategories')}
-              className="inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-0 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:w-auto sm:px-4"
+              className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-0 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-xs)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:w-auto sm:px-4"
             >
               <FolderTree className="h-4 w-4" />
               <span className="hidden sm:inline">{t('manageCategories')}</span>
@@ -271,7 +280,7 @@ export default async function ProductsPage(
               entityLabel={fa ? 'محصولات' : 'products'}
               entitySingularLabel={fa ? 'محصول' : 'product'}
               buttonLabel={t('deleteAll')}
-              variant="menu"
+              compactOnMobile
             />
           </>
         }
@@ -295,8 +304,9 @@ export default async function ProductsPage(
         </>
       ) : (
         <>
-          {/* Stock state is the first cut of a catalog, so the counts are the tabs. */}
-          <nav aria-label={t('stockFilter')} className="-mb-2 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] [scrollbar-width:none]">
+          {/* Stock state is the first cut of a catalog, so the counts are the tabs.
+              Phones pick stock in the filter sheet instead, so the tabs are desktop only. */}
+          <nav aria-label={t('stockFilter')} className="-mb-2 hidden gap-1 md:flex overflow-x-auto border-b border-[var(--border-subtle)] [scrollbar-width:none]">
             {statusTabs.map((tab) => {
               const active = stock === tab.key
               return (

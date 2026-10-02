@@ -5,7 +5,7 @@ import type { ChannelType, ConvStatus, Prisma } from '@prisma/client'
 import { MessagesSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { ChannelGlyph } from '@/components/crm/channel-badge'
+import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationFilters } from '@/components/dashboard/conversation-filters'
 import { smartTime, formatDateTime } from '@/lib/format'
 import { conversationPreviewText } from '@/lib/conversations/preview'
@@ -23,7 +23,7 @@ import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
-import { SalesInsightText } from '@/components/crm/sales-insight'
+import { SalesInsightText, SatisfactionText } from '@/components/crm/sales-insight'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
 import { SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
 import { DISSATISFIED_BELOW } from '@/lib/ai/turn-signal'
@@ -191,7 +191,7 @@ export default async function ConversationsPage(props: {
                                         select: { id: true, content: true, role: true, metadata: true, createdAt: true },
                                 },
                                 salesInsight: {
-                                        select: { leadType: true, buyerProbability: true },
+                                        select: { leadType: true, buyerProbability: true, satisfaction: true },
                                 },
                         },
                 }),
@@ -365,12 +365,7 @@ export default async function ConversationsPage(props: {
                 const qs = sp.toString()
                 return qs ? `/conversations?${qs}` : '/conversations'
         }
-        const statusTabs: Array<{ key: ConvStatus | undefined; label: string; count: number; urgent?: boolean }> = [
-                { key: undefined, label: isFa ? 'همه' : 'All', count: totalCount },
-                { key: 'HANDED_OFF', label: statusLabels.HANDED_OFF, count: handedOffCount, urgent: handedOffCount > 0 },
-                { key: 'OPEN', label: statusLabels.OPEN, count: openCount },
-                { key: 'RESOLVED', label: statusLabels.RESOLVED, count: resolvedCount },
-        ]
+        const totalPages = Math.max(1, Math.ceil(matchedCount / PAGE_SIZE))
         const filtered = Boolean(channelFilter || statusFilter || agentFilter || salesFilter || query)
 
         return (
@@ -394,7 +389,7 @@ export default async function ConversationsPage(props: {
                                                         entityLabel={isFa ? 'گفتگو' : 'conversation'}
                                                         entitySingularLabel={isFa ? 'گفتگو' : 'conversation'}
                                                         buttonLabel={t('deleteAll')}
-                                                        variant="menu"
+                                                        compactOnMobile
                                                         extraWarning={isFa
                                                                 ? 'تاریخچه پیام‌ها حذف می‌شود اما بلافاصله بعد از حذف، چند ثانیه فرصت «بازگردانی» کامل خواهید داشت. اطلاعات مشتریان حفظ می‌شود.'
                                                                 : 'Message history is removed, but you get a few seconds to fully undo right after the delete. Customer info is preserved.'}
@@ -409,36 +404,6 @@ export default async function ConversationsPage(props: {
                                 initialVersion={liveVersion}
                                 enabled={page === 1}
                         />
-
-                        {/* Status is the first cut of an inbox, so the counts are the tabs. */}
-                        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-subtle)]">
-                                <nav aria-label={isFa ? 'وضعیت گفتگو' : 'Conversation status'} className="-mb-px flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
-                                        {statusTabs.map((tab) => {
-                                                const active = statusFilter === tab.key
-                                                return (
-                                                        <Link
-                                                                key={tab.key ?? 'ALL'}
-                                                                href={hrefWith({ status: tab.key, page: undefined })}
-                                                                scroll={false}
-                                                                aria-current={active ? 'page' : undefined}
-                                                                className={cn(
-                                                                        'inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
-                                                                        active
-                                                                                ? 'border-[var(--text-primary)] font-bold text-[var(--text-primary)]'
-                                                                                : 'border-transparent font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                                                                )}
-                                                        >
-                                                                {tab.label}
-                                                                <span className={cn('rounded-full px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums', tab.urgent ? 'bg-amber-100 text-amber-900' : 'bg-black/[0.06] text-[var(--text-secondary)]')}>{fmt(tab.count)}</span>
-                                                        </Link>
-                                                )
-                                        })}
-                                </nav>
-                                <span className="hidden shrink-0 sm:block"><LiveArrivalStatus resource="conversations" locale={locale} /></span>
-                                <Link href="/analytics" className="hidden min-h-11 shrink-0 items-center text-[12px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] lg:inline-flex">
-                                        {t('fullStats')} <span aria-hidden className="ms-1 rtl:rotate-180">→</span>
-                                </Link>
-                        </div>
 
                         <div className="min-w-0 md:overflow-hidden md:rounded-card md:border md:border-[var(--border-subtle)] md:bg-white md:shadow-[var(--elev-1)]">
                                 <div className="flex min-w-0 flex-col gap-3 md:gap-0">
@@ -515,7 +480,10 @@ export default async function ConversationsPage(props: {
                                                 <>
                                                         <div className="flex items-center justify-between gap-3 px-1 md:shrink-0 md:border-b md:border-[var(--border-subtle)] md:px-3 md:py-1.5">
                                                                 <p className="text-[12px] text-[var(--text-muted)]">{isFa ? `${fmt(matchedCount)} گفتگو` : `${matchedCount} conversations`}</p>
-                                                                <SalesInsightBackfill key={missingSalesInsightCount} missingCount={missingSalesInsightCount} locale={locale} />
+                                                                <div className="flex items-center gap-2">
+                                                                        <LiveArrivalStatus resource="conversations" locale={locale} />
+                                                                        <SalesInsightBackfill key={missingSalesInsightCount} missingCount={missingSalesInsightCount} locale={locale} />
+                                                                </div>
                                                         </div>
 
                                                         <div className="space-y-3 md:hidden">
@@ -533,6 +501,7 @@ export default async function ConversationsPage(props: {
                                                                                         status={displayStatus}
                                                                                         statusLabel={statusLabel}
                                                                                         attention={attention}
+                                                                                        satisfaction={c.salesInsight?.satisfaction ?? null}
                                                                                         locale={locale}
                                                                                         lastMessage={last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
                                                                                         reactionEmoji={reactionEmoji}
@@ -542,7 +511,7 @@ export default async function ConversationsPage(props: {
                                                         </div>
 
                                                         <div className="hidden divide-y divide-[var(--border-subtle)] md:block">
-                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => {
+                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => {
                                                                         const preview = last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name
                                                                         return (
                                                                         <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
@@ -562,7 +531,11 @@ export default async function ConversationsPage(props: {
                                                                                         <div className="min-w-0">
                                                                                                 <div className="flex min-w-0 items-center gap-1.5">
                                                                                                         <span dir="auto" className={cn('min-w-0 truncate text-sm text-[var(--text-primary)]', displayStatus === 'RESOLVED' ? 'font-medium' : 'font-bold')} title={who}>{who}</span>
-                                                                                                        <ChannelGlyph type={c.channel} />
+                                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-32 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[12px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
+                                                                                                        {/* Where the message came in: the Instagram entry (DM, comment, story) or the app itself. */}
+                                                                                                        {sourceLabel
+                                                                                                                ? <span className="shrink-0 whitespace-nowrap rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>
+                                                                                                                : <ChannelBadge type={c.channel} />}
                                                                                                         <InboxRowPending />
                                                                                                         <span
                                                                                                                 className={cn('ms-auto shrink-0 whitespace-nowrap ps-1 text-[12px] tabular-nums text-[var(--text-muted)]', attention && 'font-medium text-[var(--text-primary)]')}
@@ -576,6 +549,7 @@ export default async function ConversationsPage(props: {
                                                                                                                 <span dir="ltr" className="emoji-glyph shrink-0 text-[13px] leading-none" aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}>{reactionEmoji}</span>
                                                                                                         )}
                                                                                                         <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-[13px] leading-5', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={preview}>{preview}</p>
+                                                                                                        <SatisfactionText satisfaction={c.salesInsight?.satisfaction} locale={locale} />
                                                                                                         {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightText insight={c.salesInsight} locale={locale} className="hidden lg:inline" />}
                                                                                                 </div>
                                                                                         </div>
@@ -584,18 +558,18 @@ export default async function ConversationsPage(props: {
                                                                         )
                                                                 })}
                                                         </div>
-
-                                                        <div className="md:shrink-0 md:border-t md:border-[var(--border-subtle)] md:px-2 md:pb-2 empty:hidden">
-                                                                <Pagination
-                                                                        page={page}
-                                                                        hasNext={hasNext}
-                                                                        makeHref={(p) => hrefWith({ page: p > 1 ? String(p) : undefined })}
-                                                                />
-                                                        </div>
                                                 </>
                                         )}
                                 </div>
                         </div>
+                        {pageItems.length > 0 && (
+                                <Pagination
+                                        page={page}
+                                        totalPages={totalPages}
+                                        hasNext={hasNext}
+                                        makeHref={(p) => hrefWith({ page: p > 1 ? String(p) : undefined })}
+                                />
+                        )}
                         </LiveArrivalProvider>
                 </div>
         )

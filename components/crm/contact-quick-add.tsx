@@ -4,7 +4,7 @@ import { type FormEvent, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, ArrowUpLeft, Check, Loader2, UserPlus } from 'lucide-react'
+import { ArrowRight, Check, Loader2, UserPlus } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { MaterialSelect } from '@/components/ui/material-select'
 import {
@@ -29,12 +29,8 @@ type CreateError =
 
 export function ContactQuickAdd({
   locale,
-  limitReached = false,
-  upgradeHref = '/billing#vigent-plans',
 }: {
   locale: 'fa' | 'en'
-  limitReached?: boolean
-  upgradeHref?: string
 }) {
   const t = useTranslations('contacts')
   const router = useRouter()
@@ -119,18 +115,6 @@ export function ContactQuickAdd({
   const errorLabel = error
     ? t(`quickAdd.errors.${error}`)
     : null
-
-  if (limitReached) {
-    return (
-      <Link
-        href={upgradeHref}
-        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] sm:px-4 sm:text-sm"
-      >
-        <ArrowUpLeft className="h-4 w-4" aria-hidden="true" />
-        {t('quickAdd.increaseCapacity')}
-      </Link>
-    )
-  }
 
   return (
     <>

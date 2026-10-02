@@ -114,8 +114,7 @@ export function channelLabel(type: string, locale: string): string {
 /** The app as a bare icon, for dense rows where a labelled chip is noise. */
 export function ChannelGlyph({ type, className }: { type: ChannelType; className?: string }) {
   const Icon = ICONS[type]
-  const locale = useLocale()
-  const label = channelLabel(type, locale)
+  const label = CHANNEL_LABELS[type]
   return (
     <span role="img" aria-label={label} title={label} className={cn('inline-flex shrink-0', className)}>
       <Icon aria-hidden="true" className={cn('h-3.5 w-3.5', ICON_TONES[type])} />
@@ -123,13 +122,14 @@ export function ChannelGlyph({ type, className }: { type: ChannelType; className
   )
 }
 
+// App names are brand names, so the badge keeps them in English in both
+// panel languages, the way they appear on the customer's phone.
 export function ChannelBadge({ type }: { type: ChannelType }) {
   const Icon = ICONS[type]
-  const locale = useLocale()
   return (
     <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-white px-1.5 text-[12px] font-medium leading-none text-[var(--text-secondary)]">
       <Icon aria-hidden="true" className={cn('h-3.5 w-3.5 shrink-0', ICON_TONES[type])} />
-      {channelLabel(type, locale)}
+      {CHANNEL_LABELS[type]}
     </span>
   )
 }

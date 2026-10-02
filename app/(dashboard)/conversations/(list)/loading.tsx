@@ -6,20 +6,13 @@ import {
 
 /**
  * Route-level skeleton for /conversations — mirrors the inbox: PageHeader
- * (2 actions), the status tabs, then the mobile card feed or, from the tablet
+ * (2 actions), then the mobile card feed or, from the tablet
  * breakpoint up, the full-width list card with its filter bar.
  */
 export default function ConversationsLoading() {
   return (
     <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3">
       <DashboardHeaderSkeleton actions={2} />
-
-      {/* Status tabs */}
-      <div className="flex shrink-0 items-center gap-4 border-b border-[var(--border-subtle)] pb-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} delay={-index * 80} className="h-5 w-16 rounded-full" />
-        ))}
-      </div>
 
       {/* Mobile: sticky filter card + card feed */}
       <div className="space-y-3 md:hidden">

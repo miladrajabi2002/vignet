@@ -175,9 +175,6 @@ export default async function ContactsPage(
     recommendedPlan,
     recommendedLimit: recommendedPlan ? planResourceLimit(planDefs[recommendedPlan], 'customers') : null,
   }
-  const upgradeHref = recommendedPlan
-    ? `/billing?plan=${recommendedPlan}#plan-${recommendedPlan}`
-    : '/billing#vigent-plans'
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
@@ -290,7 +287,6 @@ export default async function ContactsPage(
         detailContactId={detailContactId}
         detailReturnTo={detailReturnTo}
         customerLimitReached={!customerCapacity.allowed}
-        upgradeHref={upgradeHref}
         limitNotice={!customerCapacity.allowed
           ? <PlanLimitNotice limit={customerLimit} locale={locale} />
           : null}
@@ -332,6 +328,7 @@ export default async function ContactsPage(
         footer={
           <Pagination
             page={page}
+            totalPages={Math.max(1, Math.ceil(matchedCount / PAGE_SIZE))}
             hasNext={hasNext}
             makeHref={(nextPage) => {
               const params = new URLSearchParams()
