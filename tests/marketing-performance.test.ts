@@ -146,7 +146,7 @@ describe('marketing launch performance boundaries', () => {
 
 		expect(source).toContain('snap-x snap-mandatory')
 		expect(source).toContain('overflow-x-auto')
-		expect(source).toContain('md:grid')
+		expect(source).toContain('lg:grid lg:grid-cols-3')
 		expect(source).not.toContain('marketing-story-section hidden')
 		expect(source).toContain('loading="lazy"')
 		expect(source).toContain('width={560}')

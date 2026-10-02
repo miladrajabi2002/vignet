@@ -11,29 +11,29 @@ const mobileNav = readFileSync(
 	'utf8',
 )
 
-describe('marketing navbar landing variants', () => {
-	it('keeps exact /1 through /5 routes and their section anchors on the active landing page', () => {
-		expect(navbar).toContain("const HOME_VARIANT_PATH = /^\\/[1-5]$/")
-		expect(navbar).toContain("const isLandingPath = pathname === '/' || homeVariantPath !== null")
-		expect(navbar).toContain("if (link.id === 'home') return { ...link, href: homeVariantPath }")
-		expect(navbar).toContain('href: `${homeVariantPath}#${link.id}`')
-		expect(navbar).toContain("href={homeVariantPath ?? '/'}")
-		expect(navbar).toContain("? isLandingPath && activeSection === ''")
+describe('marketing navbar landing routes', () => {
+	it('treats / and /en as the landing page and keeps section anchors on it', () => {
+		expect(navbar).toContain("const english = pathname === '/en' || pathname.startsWith('/en/')")
+		expect(navbar).toContain("const isLandingPath = basePath === '/'")
+		expect(navbar).toContain("const home = english ? '/en' : '/'")
+		expect(navbar).toContain("{ id: 'capabilities', href: `${home}#capabilities`")
+		expect(navbar).toContain("{ id: 'pricing', href: `${home}#pricing`")
 		expect(navbar).toContain(': isLandingPath && activeSection === link.id')
 	})
 
-	it('keeps variant pricing context while docs and onboarding use stable routes', () => {
-		expect(navbar).toContain("homeHref={homeVariantPath ?? '/'}")
-		expect(mobileNav).toContain("href: '/docs'")
+	it('passes the landing context to the mobile bar while onboarding uses a stable route', () => {
+		expect(navbar).toContain('homeHref={home}')
+		expect(navbar).toContain('isLandingPath={isLandingPath}')
 		expect(mobileNav).toContain('href="/login?next=/onboarding"')
+		expect(mobileNav).toContain('href: `${homeHref}#capabilities`')
 		expect(mobileNav).toContain('href: `${homeHref}#pricing`')
 	})
 
-	it('keeps the desktop destination list aligned with the mobile navigation', () => {
-		expect(navbar).toContain("{ href: '/', id: 'home', label: copy.home }")
-		expect(navbar).toContain("{ href: '/docs', id: 'docs', label: t('docs') }")
-		expect(navbar).toContain("{ href: '/#pricing', id: 'pricing', label: t('pricing') }")
-		expect(navbar).not.toContain("{ href: '/blog', id: 'blog'")
-		expect(navbar).not.toContain("{ href: '/#solutions', id: 'solutions'")
+	it('keeps the desktop destinations in sync with the scroll-spy sections', () => {
+		expect(navbar).toContain("const SECTION_IDS = ['capabilities', 'instagram', 'pricing', 'blog'] as const")
+		expect(navbar).toContain("{ id: 'solutions', href: '/solutions', label: copy.solutions }")
+		expect(navbar).toContain("{ id: 'blog', href: '/blog', label: copy.blog }")
+		// Solutions and the blog are real pages, so they mark the current page, not a scroll location.
+		expect(navbar).toContain("link.id === 'solutions' || link.id === 'blog' ? 'page' : 'location'")
 	})
 })

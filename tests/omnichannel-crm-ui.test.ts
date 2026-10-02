@@ -96,7 +96,9 @@ describe('omnichannel CRM user-visible contract', () => {
     expect(filters).toContain('text-base sm:text-sm')
     expect(detailLayout).toContain('role="tablist"')
     expect(detailLayout).toContain("type MobileConversationTab = 'thread' | 'details'")
-    expect(detailLayout).toContain('min-h-11')
+    // Tabs use the shared segmented control, whose .ui-seg-tab keeps a 44px target.
+    expect(detailLayout).toContain('className="ui-seg-tab')
+    expect(source('app/globals.css')).toMatch(/\.ui-seg-tab \{[^}]*min-height: 2\.75rem/)
     expect(detailLayout).toContain("'ArrowLeft', 'ArrowRight', 'Home', 'End'")
     expect(detailLayout).toContain('tabIndex={tab === key ? 0 : -1}')
     expect(mobileNav).toContain('the labelled "More" item')

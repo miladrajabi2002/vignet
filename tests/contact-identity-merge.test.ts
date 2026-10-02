@@ -19,11 +19,34 @@ const mocks = vi.hoisted(() => {
       update: vi.fn(),
     },
   }
-  return { tx, withLocks: vi.fn() }
+  class WorkspaceResourceLimitError extends Error {
+    constructor(
+      public readonly resource: string,
+      public readonly limit: number,
+    ) {
+      super('CUSTOMER_LIMIT')
+      this.name = 'WorkspaceResourceLimitError'
+    }
+  }
+  return {
+    tx,
+    withLocks: vi.fn(),
+    getLimit: vi.fn(),
+    assertCapacity: vi.fn(),
+    WorkspaceResourceLimitError,
+  }
 })
 
 vi.mock('@/lib/crm/contact-identity-lock', () => ({
   withContactIdentityLocks: mocks.withLocks,
+}))
+
+// The plan's customer cap is resolved before the identity lock; keep these
+// merge tests off the real database.
+vi.mock('@/lib/billing/entitlements', () => ({
+  getWorkspaceResourceLimit: mocks.getLimit,
+  assertWorkspaceResourceCapacity: mocks.assertCapacity,
+  WorkspaceResourceLimitError: mocks.WorkspaceResourceLimitError,
 }))
 
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
@@ -65,6 +88,8 @@ describe('cross-channel contact identity merge', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.withLocks.mockImplementation(async (_workspaceId, _identities, operation) => operation(mocks.tx))
+    mocks.getLimit.mockResolvedValue({ plan: 'PRO', limit: 1000 })
+    mocks.assertCapacity.mockResolvedValue(undefined)
     mocks.tx.campaignRecipient.findMany.mockResolvedValue([])
     mocks.tx.conversation.updateMany.mockResolvedValue({ count: 1 })
     mocks.tx.appointment.updateMany.mockResolvedValue({ count: 0 })
@@ -149,5 +174,21 @@ describe('cross-channel contact identity merge', () => {
       where: { id: 'contact-old' },
       data: expect.objectContaining({ telegramId: 'telegram-new', phone: '09128352271' }),
     }))
+  })
+
+  it('returns null instead of creating a contact once the plan customer cap is reached', async () => {
+    mocks.getLimit.mockResolvedValue({ plan: 'TRIAL', limit: 50 })
+    mocks.assertCapacity.mockRejectedValue(new mocks.WorkspaceResourceLimitError('customers', 50))
+    mocks.tx.contact.findMany.mockResolvedValueOnce([])
+
+    const id = await resolveInboundContact({
+      workspaceId: 'workspace-1',
+      channel: 'TELEGRAM',
+      senderId: 'telegram-brand-new',
+    })
+
+    expect(id).toBeNull()
+    expect(mocks.assertCapacity).toHaveBeenCalledWith(mocks.tx, 'workspace-1', 'customers', 50)
+    expect(mocks.tx.contact.create).not.toHaveBeenCalled()
   })
 })

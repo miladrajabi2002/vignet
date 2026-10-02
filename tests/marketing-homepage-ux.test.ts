@@ -5,255 +5,212 @@ import { describe, expect, it } from 'vitest'
 const root = process.cwd()
 const read = (path: string) => readFileSync(join(root, path), 'utf8')
 
+const HOME_SECTIONS = [
+	'components/marketing/site/home/hero.tsx',
+	'components/marketing/site/home/quick-facts.tsx',
+	'components/marketing/site/home/capabilities.tsx',
+	'components/marketing/site/home/instagram.tsx',
+	'components/marketing/site/home/onboarding.tsx',
+	'components/marketing/site/home/solutions-strip.tsx',
+	'components/marketing/site/home/pricing.tsx',
+	'components/marketing/popular-posts.tsx',
+	'components/marketing/site/faq.tsx',
+]
+
 describe('marketing homepage UX contracts', () => {
-        it('keeps every homepage navigation anchor backed by a real section', () => {
-                const navbar = read('components/marketing/navbar.tsx')
-                const sections = [
-                        'components/marketing/hero.tsx',
-                        'components/marketing/capabilities-section.tsx',
-                        'components/marketing/home-onboarding.tsx',
-                        'components/marketing/pricing-section.tsx',
-                ].map(read).join('\n')
-                const anchorIds = [...navbar.matchAll(/href: '\/#([^']+)'/g)].map((match) => match[1])
+	it('keeps every homepage navigation anchor backed by a real section', () => {
+		const sections = HOME_SECTIONS.map(read).join('\n')
+		const linkSources = [
+			'components/marketing/navbar.tsx',
+			'components/marketing/mobile-bottom-nav.tsx',
+			'components/marketing/footer.tsx',
+			'components/marketing/site/home/hero.tsx',
+		].map(read).join('\n')
+		const anchorIds = new Set([
+			...[...linkSources.matchAll(/\$\{home(?:Href)?\}#([a-z-]+)/g)].map((match) => match[1]),
+			...[...linkSources.matchAll(/['"](?:\/en)?\/#([a-z-]+)['"]/g)].map((match) => match[1]),
+			...[...linkSources.matchAll(/href="#([a-z-]+)"/g)].map((match) => match[1]),
+		])
 
-                expect(anchorIds).toEqual(['pricing'])
-                expect(anchorIds).not.toContain('businesses')
-                for (const id of anchorIds) expect(sections).toContain(`id="${id}"`)
-                expect(read('app/(marketing)/solutions/[slug]/page.tsx')).not.toContain('#businesses')
-        })
+		expect([...anchorIds].sort()).toEqual(['capabilities', 'instagram', 'pricing', 'what'])
+		for (const id of anchorIds) expect(sections).toContain(`id="${id}"`)
+		expect(read('app/(marketing)/solutions/[slug]/page.tsx')).not.toContain('/#demo')
+	})
 
-        it('uses a persistent five-destination mobile bar with a session-aware account action', () => {
-                const mobileNav = read('components/marketing/mobile-bottom-nav.tsx')
-                const navbar = read('components/marketing/navbar.tsx')
+	it('uses a persistent five-destination mobile bar with a session-aware account action', () => {
+		const mobileNav = read('components/marketing/mobile-bottom-nav.tsx')
+		const navbar = read('components/marketing/navbar.tsx')
 
-                expect(mobileNav).toContain('grid-cols-5')
-                expect(mobileNav).toContain('env(safe-area-inset-bottom)')
-                expect(mobileNav).toContain("href={authenticated ? '/overview' : '/login'}")
-                expect(mobileNav).toContain("href: '/docs'")
-                expect(mobileNav).toContain('copy.startFree')
-                expect(mobileNav).toContain('bg-emerald-500')
-                expect(navbar).toContain('<MarketingMobileBottomNav')
-                expect(navbar).not.toContain('MarketingMobileMenu')
-                expect(existsSync(join(root, 'components/marketing/mobile-menu.tsx'))).toBe(false)
-                expect(navbar).toContain('col-start-3 hidden items-center')
-        })
+		expect(mobileNav).toContain('grid-cols-5')
+		expect(mobileNav).toContain('env(safe-area-inset-bottom)')
+		expect(mobileNav).toContain("href={authenticated ? '/overview' : '/login'}")
+		expect(mobileNav).toContain('href="/login?next=/onboarding"')
+		expect(mobileNav).toContain('copy.startFree')
+		expect(mobileNav).toContain('bg-emerald-500')
+		expect(mobileNav).toContain("window.matchMedia('(prefers-reduced-motion: reduce)')")
+		expect(navbar).toContain('<MarketingMobileBottomNav')
+		expect(navbar).not.toContain('MarketingMobileMenu')
+		expect(existsSync(join(root, 'components/marketing/mobile-menu.tsx'))).toBe(false)
+		expect(navbar).toContain('col-start-3 hidden items-center')
+	})
 
-        it('does not render sub-nine-pixel copy inside the hero product mockup', () => {
-                const mockup = [
-                        'components/marketing/hero.tsx',
-                        'components/marketing/neural-operation-graph.tsx',
-                ].map(read).join('\n')
-                const pixelSizes = [...mockup.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)]
-                        .map((match) => Number(match[1]))
-                        .filter((size) => size < 9)
+	it('does not render sub-nine-pixel copy inside the hero product mockup', () => {
+		const hero = read('components/marketing/site/home/hero.tsx')
+		const pixelSizes = [...hero.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)]
+			.map((match) => Number(match[1]))
+			.filter((size) => size < 9)
 
-                expect(pixelSizes).toEqual([])
-        })
+		expect(pixelSizes).toEqual([])
+	})
 
-        it('keeps the hero on a single primary call to action and away from the old demo', () => {
-                const hero = read('components/marketing/hero.tsx')
-                const graph = read('components/marketing/neural-operation-graph.tsx')
-                const page = read('app/(marketing)/page.tsx')
-                const solutionPage = read('app/(marketing)/solutions/[slug]/page.tsx')
+	it('keeps the hero on a single primary call to action and away from the old demo', () => {
+		const hero = read('components/marketing/site/home/hero.tsx')
+		const ui = read('components/marketing/site/ui.tsx')
+		const page = read('app/(marketing)/page.tsx')
 
-                expect(hero).not.toContain('یک ایجنت، یک پاسخ دقیق')
-                expect(hero).not.toContain('پیام دریافت شد')
-                expect(hero).not.toContain('دانش پیدا شد')
-                expect(hero).not.toContain('پاسخ و اقدام ثبت شد')
-                expect(graph).not.toContain('sharedBrain')
-                expect(existsSync(join(root, 'components/marketing/demo-section.tsx'))).toBe(false)
-                expect(page).not.toContain('DemoSection')
-                expect(page).not.toContain('OperationsSection')
-                expect(existsSync(join(root, 'components/marketing/social-proof.tsx'))).toBe(false)
-                expect(hero).not.toContain('href="#demo"')
-                expect(solutionPage).toContain('href="/#vigento"')
-                expect(solutionPage).not.toContain('/#demo')
-        })
+		expect(ui).toContain("export const SIGNUP_HREF = '/login?next=/onboarding'")
+		expect(hero.match(/<Link href=\{SIGNUP_HREF\}/g)).toHaveLength(1)
+		// The secondary action scrolls to the "what is Vigent" section instead of a separate demo.
+		expect(hero).toContain('href="#what"')
+		expect(hero).not.toContain('href="#demo"')
+		expect(existsSync(join(root, 'components/marketing/demo-section.tsx'))).toBe(false)
+		expect(existsSync(join(root, 'components/marketing/social-proof.tsx'))).toBe(false)
+		expect(page).not.toContain('DemoSection')
+		expect(page).not.toContain('OperationsSection')
+	})
 
-        it('renders final geometry before native hash navigation aligns a homepage target', () => {
-                const styles = read('app/globals.css')
+	it('reveals sections only after hydration and never hides content for reduced motion', () => {
+		const pauser = read('components/marketing/site/motion-pauser.tsx')
+		const styles = read('components/marketing/site/site.css')
 
-                expect(styles).toContain('html:has(.marketing-story-section:target) .marketing-story-section')
-                expect(styles).toContain('html.marketing-motion-ready .marketing-story-section:target')
-        })
+		// Content is server-rendered visible; the hidden pre-reveal state is armed by a
+		// class on <html> that MotionPauser only adds when entrances are enabled.
+		expect(styles).toContain('.vg-rv-ready .vg-rv:not(.vg-in)')
+		expect(pauser).toContain("const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches")
+		expect(pauser).toContain('const entrances = supportsIO && !reduce')
+		expect(pauser).toContain("if (entrances) root.classList.add('vg-rv-ready')")
+		// Blocks already on screen are revealed in the same frame, so nothing flashes.
+		expect(pauser).toContain('rect.top < window.innerHeight * 0.9 && rect.bottom > 0')
+		expect(styles).toContain('.vg-cv { content-visibility: auto;')
+	})
 
-        it('renders stable section geometry and primes reveals before they enter a mobile viewport', () => {
-                const styles = read('app/globals.css')
-                const controller = read('components/marketing/section-reveal.tsx')
+	it('registers marketing sections that stream in after the reveal controller mounts', () => {
+		const pauser = read('components/marketing/site/motion-pauser.tsx')
 
-                expect(styles).toContain('@media (max-width: 767px)')
-                expect(styles).toContain('content-visibility: visible')
-                expect(styles).toContain('contain-intrinsic-size: none')
-                expect(styles).toContain('.marketing-mobile-bottom-nav')
-                expect(controller).toContain("rootMargin: '0px 0px 30% 0px'")
-                expect(controller).toContain('threshold: 0.01')
-        })
+		expect(pauser).toContain('new MutationObserver')
+		expect(pauser).toContain("document.getElementById('marketing-main')")
+		expect(pauser).toContain('mutations.disconnect()')
+	})
 
-        it('registers marketing sections that stream in after the reveal controller mounts', () => {
-                const controller = read('components/marketing/section-reveal.tsx')
+	it('marks the middle pricing plan as the recommended default', () => {
+		const pricing = read('components/marketing/pricing-section.tsx')
 
-                expect(controller).toContain('new MutationObserver')
-                expect(controller).toContain('mutation.addedNodes.forEach(observeWithin)')
-                expect(controller).toContain("document.getElementById('marketing-main')")
-                expect(controller).toContain('mutationObserver.disconnect()')
-        })
+		expect(pricing).toContain("recommended: plan === 'PRO'")
+		// Mobile plan accordions start collapsed (tap to expand; the exclusive
+		// `name` group keeps a single card open) — the recommended plan keeps its
+		// highlight but no longer pre-expands on phones.
+		expect(pricing).toContain('name="mobile-pricing-plan"')
+		expect(pricing).not.toContain('open={view.recommended}')
+		expect(pricing).toContain("locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'")
+	})
 
-        it('keeps the unified-inbox story after capabilities', () => {
-                const page = read('app/(marketing)/page.tsx')
-                const channels = read('components/marketing/channels-section.tsx')
+	it('plays DM, story reply and comment-to-DM as one staged Instagram simulation', () => {
+		const mocks = read('components/marketing/home-variants/shared/mocks.tsx')
 
-                expect(page).toContain("import('@/components/marketing/channels-section')")
-                expect(page).toContain('<ChannelsSection locale={locale} />')
-                expect(page.indexOf('<CapabilitiesSection locale={locale} />')).toBeLessThan(
-                        page.indexOf('<ChannelsSection locale={locale} />'),
-                )
-                expect(page).toContain('<TrustedBySection locale={locale} />')
-                expect(channels).toContain("title: 'صندوق پیام یکپارچه'")
-                expect(channels).toContain('پیام‌ها از هر برنامه‌ای')
-                expect(channels).toContain("flowLabel: 'اتصال برنامه‌ها به صندوق پیام یکپارچه'")
-                expect(channels).not.toContain('پیام جدید از')
-                expect(channels).not.toContain('IncomingNotifications')
-                expect(channels).not.toContain('marketing-incoming-note')
-                expect(channels).not.toContain('marketing-node-ring')
-                expect(channels).toContain("previewLabel: 'پیام‌ها اینجا جمع می‌شوند'")
-                expect(channels).toContain('left-1/2')
-                expect(channels).toContain('600 292')
-                expect(channels).toContain('180 456')
-                expect(channels).toContain('min-h-[640px]')
-                expect(channels).toContain('gap-x-3 gap-y-3')
-                expect(channels).toContain("liveShort: 'آنلاین'")
-                expect(channels).toContain('id="unified-system"')
-                expect(channels).toContain('loading="lazy"')
-                expect(channels).toContain('marketing-section-channels')
-        })
+		expect(mocks).toContain("export type InstagramDemoMode = 'direct' | 'story' | 'comment'")
+		expect(mocks).toContain("fa ? 'دایرکت هوشمند' : 'Smart DM'")
+		expect(mocks).toContain("fa ? 'ریپلای استوری' : 'Story reply'")
+		expect(mocks).toContain("fa ? 'کامنت به دایرکت' : 'Comment to DM'")
+		expect(mocks).toContain('const INSTAGRAM_SCENARIO_DELAYS: Record<InstagramDemoMode, readonly number[]>')
+		expect(mocks).toContain("const showStoryViewer = mode === 'story' && step < 2")
+		expect(mocks).toContain("const showCommentFeed = mode === 'comment' && step < 4")
+		for (const part of [
+			'InstagramStoryViewer',
+			'InstagramStoryReplyCard',
+			'InstagramSeen',
+			'InstagramIncomingReply',
+			'InstagramProductCatalog',
+			'useInstagramTypedText',
+		]) {
+			expect(mocks).toContain(part)
+		}
+		// Timers stop off screen and reduced motion jumps to the final, readable frame.
+		expect(mocks).toContain('useReducedMotion()')
+		expect(mocks).toContain('if (!active || reduce) return')
+		expect(mocks).toContain('INSTAGRAM_SCENARIO_DELAYS[firstMode].length - 1')
+		expect(mocks).toContain('return () => window.clearTimeout(timer)')
+		expect(mocks).not.toContain('شبیه‌ساز زندهٔ اینستاگرام')
+	})
 
-        it('marks the middle pricing plan as the recommended default', () => {
-                const pricing = read('components/marketing/pricing-section.tsx')
+	it('defers the Instagram simulation until its reserved viewport area is reached', () => {
+		const section = read('components/marketing/site/home/instagram.tsx')
+		const lazyDemo = read('components/marketing/instagram-demo-lazy.tsx')
+		const demo = read('components/marketing/instagram-demo.tsx')
 
-                expect(pricing).toContain("recommended: plan === 'PRO'")
-                // Mobile plan accordions start collapsed (tap to expand; the exclusive
-                // `name` group keeps a single card open) — the recommended plan keeps its
-                // highlight but no longer pre-expands on phones.
-                expect(pricing).toContain('name="mobile-pricing-plan"')
-                expect(pricing).not.toContain('open={view.recommended}')
-                expect(pricing).toContain("locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'")
-        })
+		expect(section).toContain('<InstagramDemoLazy locale={locale} />')
+		expect(lazyDemo).toContain("import dynamic from 'next/dynamic'")
+		expect(lazyDemo).toContain('ssr: false')
+		expect(lazyDemo).toContain('new IntersectionObserver')
+		expect(lazyDemo).toContain("mobile ? '1400px 0px' : '600px 0px'")
+		expect(lazyDemo).toContain('min-h-[30rem] md:min-h-[45rem]')
+		expect(lazyDemo).toContain('<InstagramDemo locale={locale} active={inView} />')
+		expect(demo).toContain('<InstagramMock locale={locale} inverse active={active} />')
+		expect(demo).toContain('<LazyMotion features={loadMotionFeatures} strict>')
+	})
 
-        it('plays DM, story reply and comment-to-DM as one staged Instagram simulation', () => {
-                const mocks = read('components/marketing/home-variants/shared/mocks.tsx')
+	it('keeps the initial homepage motion path free of Framer Motion', () => {
+		for (const file of [
+			...HOME_SECTIONS,
+			'components/marketing/navbar.tsx',
+			'components/marketing/mobile-bottom-nav.tsx',
+			'components/marketing/footer.tsx',
+			'components/marketing/site/motion-pauser.tsx',
+			'components/marketing/instagram-demo-lazy.tsx',
+		]) {
+			expect(read(file), file).not.toContain('framer-motion')
+		}
+	})
 
-                expect(mocks).toContain("type InstagramDemoMode = 'direct' | 'story' | 'comment'")
-                expect(mocks).toContain("fa ? 'دایرکت هوشمند' : 'Smart DM'")
-                expect(mocks).toContain("fa ? 'ریپلای استوری' : 'Story reply'")
-                expect(mocks).toContain("fa ? 'کامنت به دایرکت' : 'Comment to DM'")
-                expect(mocks).toContain('showCommentFeed')
-                expect(mocks).toContain('showStoryViewer')
-                expect(mocks).toContain('InstagramDarkConversationScreen')
-                expect(mocks).toContain('InstagramStoryViewer')
-                expect(mocks).toContain('InstagramStoryReplyCard')
-                expect(mocks).toContain('InstagramSeen')
-                expect(mocks).toContain('InstagramIncomingReply')
-                expect(mocks).toContain('InstagramMessageComposer')
-                expect(mocks).toContain('useInstagramTypedText')
-                expect(mocks).toContain("fa ? 'مشتری در حال نوشتن پیام است'")
-                expect(mocks).toContain('InstagramProductCatalog')
-                expect(mocks).toContain('INSTAGRAM_SCENARIO_DELAYS')
-                expect(mocks).toContain('direct: [650, 1600, 650')
-                expect(mocks).toContain('story: [2000, 1600, 700')
-                expect(mocks).toContain('comment: [1600, 650, 900')
-                expect(mocks).toContain("mode === 'comment' && step < 4")
-                expect(mocks).toContain("id: 'story-follow-up'")
-                expect(mocks).toContain("id: 'comment-follow-up'")
-                expect(mocks).toContain("fa ? 'مشتری در حال نوشتن کامنت است'")
-                expect(mocks).toContain("fa ? 'مشتری در حال نوشتن ریپلای استوری است'")
-                expect(mocks).toContain('key="send"')
-                expect(mocks).toContain('key="camera"')
-                expect(mocks).toContain('absolute right-1.5 top-1/2')
-                expect(mocks).not.toContain('absolute left-1.5 top-1/2')
-                expect(mocks).toContain('if (!active || reduce) return')
-                expect(mocks).toContain('<AnimatePresence mode="wait" initial={false}>')
-                expect(mocks).toContain("dir=\"ltr\"")
-                expect(mocks).toContain("className=\"ml-auto flex w-[82%] shrink-0 flex-col items-end\"")
-                expect(mocks).toContain("fa ? 'ویجنت این گفتگو را هوشمند پاسخ می‌دهد'")
-                expect(mocks).toContain("fa ? 'دایرکت با موفقیت ارسال شد'")
-                expect(mocks).toContain('useReducedMotion()')
-                expect(mocks).toContain('md:hidden')
-                expect(mocks).toContain('InstagramPhoneStatusBar')
-                expect(mocks).toContain('aspect-[393/852]')
-                expect(mocks).toContain('rounded-[50px]')
-                expect(mocks).toContain('rounded-[43px]')
-                expect(mocks).toContain('min-h-11')
-                expect(mocks).toContain('activeScenario + 1')
-                expect(mocks).toContain('در حال نمایش:')
-                expect(mocks).not.toContain('از ۹')
-                expect(mocks).not.toContain('شبیه‌ساز زندهٔ اینستاگرام')
-        })
+	it('uses one adaptive onboarding flow instead of duplicated or viewport-locking markup', () => {
+		const onboarding = read('components/marketing/site/home/onboarding.tsx')
+		const player = read('components/marketing/site/home/onboarding-player.tsx')
 
-        it('defers the Instagram simulation until its reserved viewport area is reached', () => {
-                const lazyDemo = read('components/marketing/instagram-demo-lazy.tsx')
-                const demo = read('components/marketing/instagram-demo.tsx')
+		expect(onboarding.match(/<OnboardingPlayer\b/g)).toHaveLength(1)
+		expect(player).toContain('role="tablist"')
+		expect(player).toContain('role="tabpanel"')
+		for (const source of [onboarding, player]) {
+			expect(source).not.toContain('360svh')
+			expect(source).not.toContain('sticky top-0 h-[100svh]')
+		}
+	})
 
-                expect(lazyDemo).toContain("import dynamic from 'next/dynamic'")
-                expect(lazyDemo).toContain('ssr: false')
-                expect(lazyDemo).toContain('new IntersectionObserver')
-                expect(lazyDemo).toContain("mobile ? '1400px 0px' : '600px 0px'")
-                expect(lazyDemo).toContain('min-h-[30rem] md:min-h-[45rem]')
-                expect(demo).toContain('<InstagramMock locale={locale} inverse active />')
-                expect(demo).toContain('LazyMotion')
-        })
+	it('advertises the active language without inventing duplicate hreflang URLs', () => {
+		const page = read('app/(marketing)/page.tsx')
 
-        it('keeps the initial homepage motion path free of Framer Motion', () => {
-                for (const file of [
-                        'components/marketing/hero.tsx',
-                        'components/marketing/neural-operation-graph.tsx',
-                        'components/marketing/channels-section.tsx',
-                        'components/marketing/trusted-by-section.tsx',
-                        'components/marketing/future-cta.tsx',
-                        'components/marketing/faq-section.tsx',
-                ]) {
-                        expect(read(file), file).not.toContain('framer-motion')
-                }
-        })
+		expect(page).toContain("locale: locale === 'fa' ? 'fa_IR' : 'en_US'")
+		expect(page).toContain("alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR']")
+		expect(page).toContain("'content-language': locale === 'fa' ? 'fa-IR' : 'en-US'")
+		expect(page).toContain('title: { absolute: copy.title }')
+		expect(page).toContain('/android-chrome-512x512.png')
+		expect(page).not.toContain('/icon.png')
+		// /en URLs are real (middleware rewrite + x-vigent-locale), so hreflang
+		// alternates are now expected — and must point at the /en prefix.
+		expect(page).toMatch(/languages:\s*\{[^}]*en:\s*`\$\{SITE_URL\}\/en`/s)
+		expect(page).toContain("'x-default': SITE_URL")
+	})
 
-        it('uses one adaptive onboarding flow instead of duplicated or viewport-locking markup', () => {
-                const onboarding = read('components/marketing/home-onboarding.tsx')
+	it('publishes a directly callable support number from the shared constant', () => {
+		const footer = read('components/marketing/footer.tsx')
+		const page = read('app/(marketing)/page.tsx')
+		const contact = read('lib/marketing/contact.ts')
 
-                expect(onboarding).toContain('lg:hidden')
-                expect(onboarding).toContain('lg:grid-cols-[0.72fr_1.28fr]')
-                expect(onboarding.match(/<StepCard/g)).toHaveLength(1)
-                expect(onboarding).not.toContain('compact')
-                expect(onboarding).toContain('data-scroll-reveal="up"')
-                expect(onboarding).not.toContain('360svh')
-                expect(onboarding).not.toContain('sticky top-0 h-[100svh]')
-        })
-
-        it('advertises the active language without inventing duplicate hreflang URLs', () => {
-                const page = read('app/(marketing)/page.tsx')
-
-                expect(page).toContain("locale: locale === 'fa' ? 'fa_IR' : 'en_US'")
-                expect(page).toContain("alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR']")
-                expect(page).toContain("'content-language': locale === 'fa' ? 'fa-IR' : 'en-US'")
-                expect(page).toContain('title: { absolute: copy.title }')
-                expect(page).toContain('/android-chrome-512x512.png')
-                expect(page).not.toContain('/icon.png')
-                // /en URLs are real (middleware rewrite + x-vigent-locale), so hreflang
-                // alternates are now expected — and must point at the /en prefix.
-                expect(page).toMatch(/languages:\s*\{[^}]*en:\s*`\$\{SITE_URL\}\/en`/s)
-                expect(page).toContain("'x-default': SITE_URL")
-        })
-
-        it('publishes a directly callable support number from the shared constant', () => {
-                const footer = read('components/marketing/footer.tsx')
-                const page = read('app/(marketing)/page.tsx')
-                const contact = read('lib/marketing/contact.ts')
-
-                // The number lives in exactly one place; every surface must consume it.
-                expect(contact).toContain("export const SUPPORT_PHONE_E164 = '+989128352271'")
-                expect(contact).toContain("export const SUPPORT_PHONE_DISPLAY = '09128352271'")
-                expect(footer).toContain('href={`tel:${SUPPORT_PHONE_E164}`}')
-                expect(footer).toContain('{SUPPORT_PHONE_DISPLAY}')
-                expect(footer).toContain('aria-label={copy.supportAriaLabel}')
-                expect(page).toContain('telephone: SUPPORT_PHONE_E164')
-                expect(page).toContain("contactType: 'customer support'")
-        })
+		// The number lives in exactly one place; every surface must consume it.
+		expect(contact).toContain("export const SUPPORT_PHONE_E164 = '+989128352271'")
+		expect(contact).toContain("export const SUPPORT_PHONE_DISPLAY = '09128352271'")
+		expect(footer).toContain('href={`tel:${SUPPORT_PHONE_E164}`}')
+		expect(footer).toContain('{faNum(locale, SUPPORT_PHONE_DISPLAY)}')
+		expect(footer).toContain('aria-label={`${c.call} ${faNum(locale, SUPPORT_PHONE_DISPLAY)}`}')
+		expect(page).toContain('telephone: SUPPORT_PHONE_E164')
+		expect(page).toContain("contactType: 'customer support'")
+	})
 })

@@ -67,10 +67,11 @@ describe('shared adaptive mobile UI contract', () => {
     expect(mobileOrder).toContain('aria-haspopup="dialog"')
     expect(orders).toContain('spatial-surface hidden overflow-hidden rounded-card !bg-white')
     expect(search).toContain('spatial-surface rounded-card !bg-white')
-    expect(tabs).toContain('spatial-surface grid gap-1')
-    // Products / orders / chat requests share one segmented control.
+    // Products / orders / chat requests share the app-wide segmented control.
+    expect(tabs).toContain("'ui-seg sm:inline-grid'")
+    expect(tabs).toContain('className="ui-seg-tab')
     expect(tabs).toContain("items.length === 3 ? 'grid-cols-3")
-    expect(tabs).toContain("selected ? 'bg-white/10' : 'bg-black/[0.045]'")
+    expect(tabs).toContain("aria-current={selected ? 'page' : undefined}")
   })
 
   it('keeps fixed feedback and actions above the mobile bottom navigation', () => {
@@ -206,7 +207,9 @@ describe('shared adaptive mobile UI contract', () => {
     expect(dashboardHeader).toContain('(daysLeft / PERIOD_DAYS) * 100')
     expect(dashboardHeader).toContain('daysLeft !== null && daysLeft > 0')
     expect(dashboardHeader).toContain('bg-emerald-500')
-    expect(dashboardHeader).toContain('href="/vigento"')
+    // The Vigento shortcut lives in the sidebar and the mobile bottom nav, not the header.
+    expect(source('components/dashboard/sidebar.tsx')).toContain('href="/vigento"')
+    expect(source('components/dashboard/mobile-nav.tsx')).toContain('href="/vigento"')
     expect(dashboardHeader).not.toContain('remainingPercent')
     expect(dashboardHeader).not.toContain('percentLabel')
   })

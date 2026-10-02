@@ -12,7 +12,6 @@ import { ForwardArrow, SIGNUP_HREF, toSiteLocale } from '@/components/marketing/
 import { cn } from '@/lib/utils'
 
 const SECTION_IDS = ['capabilities', 'instagram', 'pricing', 'blog'] as const
-const HOME_VARIANT_PATH = /^\/[1-5]$/
 
 const COPY = {
 	fa: {
@@ -65,9 +64,8 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 	// /en/* is the English URL of the same page, so /en is a homepage too.
 	const english = pathname === '/en' || pathname.startsWith('/en/')
 	const basePath = english ? pathname.slice(3) || '/' : pathname
-	const homeVariantPath = HOME_VARIANT_PATH.test(basePath) ? pathname : null
-	const isLandingPath = basePath === '/' || homeVariantPath !== null
-	const home = homeVariantPath ?? (english ? '/en' : '/')
+	const isLandingPath = basePath === '/'
+	const home = english ? '/en' : '/'
 
 	useEffect(() => {
 		const onScroll = () => setScrolled(window.scrollY > 10)
