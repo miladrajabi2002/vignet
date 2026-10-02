@@ -955,6 +955,7 @@ model UsageLog {
   walletEntries WalletLedger[]
 
   @@index([workspaceId, date])
+  @@index([date, status])
 }
 
 enum UsageStatus {
