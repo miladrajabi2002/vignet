@@ -20,10 +20,12 @@ import { cn } from '@/lib/utils'
  *                  keeps its width.
  *  - `icon`        ink tile with a soft top highlight.
  *  - `breadcrumbs` optional tiny trail above the title (admin detail pages).
- *  - `actions`     end-aligned on desktop, a single scrollable row on phones.
- *                  When the column is too narrow for both (tablets next to
- *                  the rail), the actions drop to a second row so the title
- *                  never breaks inside a word.
+ *  - `actions`     end-aligned beside the title at every width. On phones the
+ *                  title keeps at least 8rem, the actions take the rest (and
+ *                  scroll if they still do not fit), and the subtitle moves
+ *                  under both at full width. When a tablet column is too
+ *                  narrow for both, the actions drop to a second row so the
+ *                  title never breaks inside a word.
  *
  * By request there is no kicker / eyebrow copy above the title — only the
  * optional breadcrumb trail, which is navigation, not decoration.
@@ -49,7 +51,7 @@ export function PageHeader({
 }) {
   return (
     <header className={cn('dashboard-page-header', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="grid grid-cols-[minmax(8rem,1fr)_auto] items-center gap-x-3 gap-y-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-center gap-3 sm:min-w-[min(100%,17rem)] sm:flex-1 sm:gap-3.5">
           {back && <BackButton href={back.href} label={back.label} variant="icon" />}
           {back && Icon && <span aria-hidden className="hidden h-8 w-px shrink-0 bg-black/[0.08] sm:block" />}
@@ -83,14 +85,16 @@ export function PageHeader({
               </nav>
             )}
             <h1 className="ui-h1 page-header-title">{title}</h1>
-            {subtitle && <p className="page-header-subtitle">{subtitle}</p>}
+            {subtitle && <p className="page-header-subtitle max-sm:hidden">{subtitle}</p>}
           </div>
         </div>
         {actions && (
-          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:w-auto sm:shrink-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0">
+          <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto py-0.5 [&>:first-child]:ms-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:shrink-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:py-0">
             {actions}
           </div>
         )}
+        {/* Phones: the subtitle runs under the title and the actions at full width. */}
+        {subtitle && <p className="page-header-subtitle col-span-2 !mt-0 sm:hidden">{subtitle}</p>}
       </div>
     </header>
   )

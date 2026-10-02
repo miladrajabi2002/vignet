@@ -197,15 +197,6 @@ export default async function AnalyticsPage() {
         icon={BarChart3}
         title={fa ? 'تحلیل گفتگوها' : 'Conversation analytics'}
         subtitle={fa ? `۳۰ روز گذشته · ${workspace.name}` : `Last 30 days · ${workspace.name}`}
-        actions={
-          <Link
-            href="/overview"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-          >
-            <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
-            {fa ? 'بازگشت به نمای کلی' : 'Back to overview'}
-          </Link>
-        }
       />
 
       {/* KPI row */}

@@ -81,8 +81,15 @@ export function AutomationCard({
                                 className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
                                 aria-label={t('card.editScenarioAria', { name: automation.name })}
                         >
-                                <h3 className={`truncate text-[15px] font-bold leading-7 ${automation.active ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
-                                        {automation.name}
+                                <h3 className={`flex min-w-0 items-center gap-2 text-[15px] font-bold leading-7 ${automation.active ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
+                                        {/* A live scenario breathes: a green dot with a soft pulse beside its name. */}
+                                        {automation.active && (
+                                                <span role="img" aria-label={fa ? 'فعال' : 'Live'} title={fa ? 'فعال' : 'Live'} className="relative inline-flex h-2 w-2 shrink-0">
+                                                        <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:hidden" />
+                                                        <span aria-hidden="true" className="relative h-2 w-2 rounded-full bg-emerald-500" />
+                                                </span>
+                                        )}
+                                        <span className="min-w-0 truncate">{automation.name}</span>
                                 </h3>
                                 <p className="truncate text-[12px] leading-5 text-[var(--text-muted)]">
                                         <span className={automation.active ? 'text-[var(--text-primary)]' : undefined}>{trigger}</span>

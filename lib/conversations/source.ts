@@ -95,3 +95,23 @@ export function inboundSourceLabel(source: InboundSource | null, locale: 'fa' | 
   }
   return (locale === 'fa' ? fa : en)[source.kind] ?? (locale === 'fa' ? 'پیام اینستاگرام' : 'Instagram message')
 }
+
+const INSTAGRAM_TAGS: Record<InboundSourceKind, string> = {
+  DM: 'Instagram Direct',
+  COMMENT: 'Instagram Comment',
+  REACTION: 'Instagram Reaction',
+  STORY_REPLY: 'Instagram Story',
+  STORY_REACTION: 'Instagram Story',
+  STORY_MENTION: 'Instagram Mention',
+  MESSAGE: 'Instagram',
+}
+
+/**
+ * The app badge text for a conversation, in English like every app name:
+ * Instagram says which entry the customer used (Direct, Comment, Story…);
+ * other apps have one entry, so the plain channel badge says it all (null).
+ */
+export function inboundSourceTag(source: InboundSource | null): string | null {
+  if (!source || source.channel !== 'INSTAGRAM') return null
+  return INSTAGRAM_TAGS[source.kind] ?? 'Instagram'
+}

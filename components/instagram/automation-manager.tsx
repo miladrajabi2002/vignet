@@ -213,10 +213,12 @@ export function InstagramAutomationManager({
                                         <button
                                                 type="button"
                                                 onClick={() => router.push(newHref)}
-                                                className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-sm font-semibold text-white shadow-[var(--shadow-control)]"
+                                                aria-label={fa ? 'سناریوی جدید' : 'New scenario'}
+                                                title={fa ? 'سناریوی جدید' : 'New scenario'}
+                                                className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl bg-black px-0 text-sm font-semibold text-white shadow-[var(--shadow-control)] sm:w-auto sm:px-4"
                                         >
                                                 <Plus className="h-4 w-4" />
-                                                {fa ? 'سناریوی جدید' : 'New scenario'}
+                                                <span className="hidden sm:inline">{fa ? 'سناریوی جدید' : 'New scenario'}</span>
                                         </button>
                                 )}
                         />

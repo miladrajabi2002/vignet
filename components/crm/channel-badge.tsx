@@ -124,12 +124,12 @@ export function ChannelGlyph({ type, className }: { type: ChannelType; className
 
 // App names are brand names, so the badge keeps them in English in both
 // panel languages, the way they appear on the customer's phone.
-export function ChannelBadge({ type }: { type: ChannelType }) {
+export function ChannelBadge({ type, label }: { type: ChannelType; label?: string | null }) {
   const Icon = ICONS[type]
   return (
     <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-white px-1.5 text-[12px] font-medium leading-none text-[var(--text-secondary)]">
       <Icon aria-hidden="true" className={cn('h-3.5 w-3.5 shrink-0', ICON_TONES[type])} />
-      {CHANNEL_LABELS[type]}
+      {label || CHANNEL_LABELS[type]}
     </span>
   )
 }

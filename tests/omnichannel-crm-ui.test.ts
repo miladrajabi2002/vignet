@@ -87,8 +87,12 @@ describe('omnichannel CRM user-visible contract', () => {
     expect(list).toContain('key={`desktop-${c.id}`}')
     // From the tablet breakpoint up it is a full-width list; each row opens the conversation page.
     expect(list).toContain('href={`/conversations/${c.id}`}')
-    // Each row carries its state as one coloured dot beside the avatar.
-    expect(list).toContain("attention ? 'bg-amber-500' : displayStatus === 'OPEN' ? 'bg-[var(--signal)]'")
+    // Each row carries its state as one coloured dot beside the avatar; the
+    // amber one blinks while the conversation waits for an operator.
+    expect(list).toContain("<ConversationStatusDot attention={attention} open={displayStatus === 'OPEN'}")
+    const dot = source('components/crm/conversation-status-dot.tsx')
+    expect(dot).toContain('animate-ping')
+    expect(dot).toContain("attention ? 'bg-amber-500' : open ? 'bg-[var(--signal)]'")
     expect(list).not.toContain('InboxConversationPane')
     expect(list).toContain('prisma.conversation.count({ where })')
     expect(filters).toContain('<MobileBottomSheet')

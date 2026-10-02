@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
 import { currentSessionMessages } from '@/lib/conversations/session'
-import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { inboundSourceTag, readInboundSource } from '@/lib/conversations/source'
 import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 
@@ -122,8 +122,9 @@ export async function loadConversationView(params: {
                 : null
 
         const latestInbound = [...conversation.messages].reverse().find((message) => message.role === 'USER')
-        const sourceLabel = latestInbound
-                ? inboundSourceLabel(readInboundSource(latestInbound.metadata), params.locale)
+        // "Instagram Direct", "Instagram Comment"…; null for single-entry apps.
+        const sourceTag = latestInbound
+                ? inboundSourceTag(readInboundSource(latestInbound.metadata))
                 : null
 
         return {
@@ -133,7 +134,7 @@ export async function loadConversationView(params: {
                 avatar,
                 who,
                 handoffAlert,
-                sourceLabel,
+                sourceTag,
                 attention: conversation.handedOff && conversation.status !== 'RESOLVED',
                 threadMessages: conversation.messages.map((m) => ({
                         id: m.id,

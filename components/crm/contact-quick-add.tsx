@@ -127,14 +127,16 @@ export function ContactQuickAdd({
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 sm:px-4 sm:text-sm"
+        aria-label={saved ? t('quickAdd.saved') : t('quickAdd.button')}
+        title={saved ? t('quickAdd.saved') : t('quickAdd.button')}
+        className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl bg-black px-0 text-xs font-bold text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 sm:w-auto sm:px-4 sm:text-sm"
       >
         {saved ? (
           <Check className="h-4 w-4" aria-hidden="true" />
         ) : (
           <UserPlus className="h-4 w-4" aria-hidden="true" />
         )}
-        {saved ? t('quickAdd.saved') : t('quickAdd.button')}
+        <span className="hidden sm:inline">{saved ? t('quickAdd.saved') : t('quickAdd.button')}</span>
       </button>
 
       <MobileBottomSheet

@@ -3,20 +3,26 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import type { ChannelType, ConvStatus } from '@prisma/client'
-import { ArrowLeft, Clock3, MessagesSquare } from 'lucide-react'
-import { ChannelBadge, ChannelGlyph } from '@/components/crm/channel-badge'
+import { ArrowLeft, Clock3, Lightbulb, MessageSquareText, MessagesSquare, Sparkles } from 'lucide-react'
+import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
-import { SatisfactionText } from '@/components/crm/sales-insight'
+import { ConversationStatusDot } from '@/components/crm/conversation-status-dot'
+import { SalesInsightText, SatisfactionText, type SalesInsightView } from '@/components/crm/sales-insight'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
 
+/**
+ * One conversation in the phone inbox. The row stays short (who, which app,
+ * how they feel); tapping it opens a summary sheet — what they want, their
+ * last message, the next step — so most checks never need the full thread.
+ */
 export function MobileConversationCard({
   conversationId,
   who,
   avatarSrc,
   channelHandle,
-  sourceLabel,
+  sourceTag,
   relativeTimeLabel,
   messageCountLabel,
   channel,
@@ -24,6 +30,9 @@ export function MobileConversationCard({
   statusLabel,
   attention,
   satisfaction,
+  summary,
+  recommendedAction,
+  buyerProbability,
   locale,
   lastMessage,
   reactionEmoji,
@@ -32,7 +41,8 @@ export function MobileConversationCard({
   who: string
   avatarSrc?: string | null
   channelHandle?: string | null
-  sourceLabel?: string | null
+  /** "Instagram Direct", "Instagram Comment"…; null shows the plain app name. */
+  sourceTag?: string | null
   relativeTimeLabel: string
   messageCountLabel: string
   channel: ChannelType
@@ -41,6 +51,9 @@ export function MobileConversationCard({
   attention: boolean
   /** Automatic 0–100 satisfaction read; null when there is no evidence yet. */
   satisfaction?: number | null
+  summary?: string | null
+  recommendedAction?: string | null
+  buyerProbability?: Pick<SalesInsightView, 'leadType' | 'buyerProbability'> | null
   locale: 'fa' | 'en'
   lastMessage: string
   reactionEmoji?: string | null
@@ -63,56 +76,29 @@ export function MobileConversationCard({
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
-          aria-label={`${isFa ? 'نمایش جزئیات گفتگو با' : 'Show conversation details for'} ${who}`}
+          aria-label={`${isFa ? 'نمایش خلاصه گفتگو با' : 'Show conversation summary for'} ${who}`}
           className="spatial-press block min-h-16 w-full p-4 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
         >
           <div className="flex min-w-0 items-center gap-3">
             <ContactAvatar src={avatarSrc} alt={who} size="md" />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
-                <span
-                  role="img"
-                  aria-label={statusLabel}
-                  className={cn('h-2 w-2 shrink-0 rounded-full', attention ? 'bg-amber-500' : status === 'OPEN' ? 'bg-[var(--signal)]' : 'hidden')}
-                />
+                {(attention || status === 'OPEN') && (
+                  <ConversationStatusDot attention={attention} open={status === 'OPEN'} label={statusLabel} />
+                )}
                 <span
                   dir="auto"
                   className={cn('min-w-0 truncate text-[15px] text-[var(--text-primary)]', status === 'RESOLVED' ? 'font-medium' : 'font-bold')}
                 >
                   {who}
                 </span>
-                <ChannelGlyph type={channel} />
                 <span className="ms-auto shrink-0 whitespace-nowrap text-[12px] text-[var(--text-muted)]">
                   {relativeTimeLabel}
                 </span>
               </div>
-              {(attention || sourceLabel || typeof satisfaction === 'number') && (
-                <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
-                  {attention && <ConversationStatusBadge status={status} label={statusLabel} attention={attention} />}
-                  {sourceLabel && (
-                    <span className="shrink-0 whitespace-nowrap rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]">
-                      {sourceLabel}
-                    </span>
-                  )}
-                  <SatisfactionText satisfaction={satisfaction} locale={locale} />
-                </div>
-              )}
-              <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                {reactionEmoji && (
-                  <span
-                    dir="ltr"
-                    className="emoji-glyph inline-flex h-5 shrink-0 items-center rounded-full border border-black/[0.08] bg-white px-1.5 text-[13px] leading-none shadow-sm"
-                    aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}
-                  >
-                    {reactionEmoji}
-                  </span>
-                )}
-                <p
-                  dir={isFa ? 'rtl' : 'ltr'}
-                  className="min-w-0 flex-1 truncate text-start text-xs text-[var(--text-secondary)]"
-                >
-                  {lastMessage}
-                </p>
+              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <ChannelBadge type={channel} label={sourceTag} />
+                <SatisfactionText satisfaction={satisfaction} locale={locale} />
               </div>
             </div>
             <ArrowLeft
@@ -128,8 +114,8 @@ export function MobileConversationCard({
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
         title={who}
-        description={isFa ? 'جزئیات گفتگو' : 'Conversation details'}
-        closeLabel={isFa ? 'بستن جزئیات گفتگو' : 'Close conversation details'}
+        description={isFa ? 'خلاصه گفتگو' : 'Conversation summary'}
+        closeLabel={isFa ? 'بستن خلاصه گفتگو' : 'Close conversation summary'}
         motionPreset="detail"
         footer={
           <div className="grid grid-cols-[auto_1fr] gap-2">
@@ -138,7 +124,7 @@ export function MobileConversationCard({
               onClick={() => setOpen(false)}
               className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
-              {isFa ? 'انصراف' : 'Cancel'}
+              {isFa ? 'بستن' : 'Close'}
             </button>
             <Link
               href={`/conversations/${conversationId}`}
@@ -150,7 +136,7 @@ export function MobileConversationCard({
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-4">
             <ContactAvatar src={avatarSrc} alt={who} size="lg" />
             <div className="min-w-0 flex-1">
@@ -168,50 +154,79 @@ export function MobileConversationCard({
                   label={statusLabel}
                   attention={attention}
                 />
-                <ChannelBadge type={channel} />
+                <ChannelBadge type={channel} label={sourceTag} />
               </div>
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-black/[0.03] p-3.5">
-              <dt className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
-                <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
-                {isFa ? 'تعداد پیام‌ها' : 'Messages'}
-              </dt>
-              <dd className="mt-1.5 text-sm font-bold text-[var(--text-primary)]">
-                {messageCountLabel}
-              </dd>
+          <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
+            <h3 className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--text-secondary)]">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              {isFa ? 'چه می‌خواهد؟' : 'What do they want?'}
+            </h3>
+            <p dir="auto" className="mt-1.5 text-[13px] leading-6 text-[var(--text-primary)]">
+              {summary || (isFa ? 'هنوز خلاصه‌ای برای این گفتگو ساخته نشده است.' : 'No summary has been written for this conversation yet.')}
+            </p>
+            {recommendedAction && (
+              <div className="mt-3 rounded-xl border border-[var(--signal-border)] bg-[var(--signal-soft)] p-3">
+                <p className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--signal-strong)]">
+                  <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
+                  {isFa ? 'قدم بعدی' : 'Next step'}
+                </p>
+                <p dir="auto" className="mt-1 text-[13px] leading-6 text-[var(--text-primary)]">{recommendedAction}</p>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
+            <h3 className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--text-secondary)]">
+              <MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />
+              {isFa ? 'آخرین پیام' : 'Last message'}
+            </h3>
+            <div className="mt-1.5 flex min-w-0 items-start gap-1.5">
+              {reactionEmoji && (
+                <span dir="ltr" className="emoji-glyph shrink-0 text-[15px] leading-6" aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}>
+                  {reactionEmoji}
+                </span>
+              )}
+              <p dir="auto" className="line-clamp-4 min-w-0 flex-1 text-[13px] leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">
+                {lastMessage}
+              </p>
             </div>
-            <div className="rounded-2xl bg-black/[0.03] p-3.5">
-              <dt className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
-                <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-                {isFa ? 'آخرین فعالیت' : 'Last activity'}
-              </dt>
-              <dd className="mt-1.5 text-sm font-bold text-[var(--text-primary)]">
-                {relativeTimeLabel}
-              </dd>
-            </div>
+          </section>
+
+          <dl className="grid grid-cols-2 gap-2">
+            <SheetStat icon={<MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />} label={isFa ? 'تعداد پیام‌ها' : 'Messages'}>
+              {messageCountLabel}
+            </SheetStat>
+            <SheetStat icon={<Clock3 className="h-3.5 w-3.5" aria-hidden="true" />} label={isFa ? 'آخرین فعالیت' : 'Last activity'}>
+              {relativeTimeLabel}
+            </SheetStat>
+            {buyerProbability && (
+              <SheetStat label={isFa ? 'فروش' : 'Sales'}>
+                <SalesInsightText insight={buyerProbability} locale={locale} className="!text-sm" />
+              </SheetStat>
+            )}
+            {typeof satisfaction === 'number' && (
+              <SheetStat label={isFa ? 'رضایت مشتری' : 'Satisfaction'}>
+                <SatisfactionText satisfaction={satisfaction} locale={locale} showScore />
+              </SheetStat>
+            )}
           </dl>
-
-          {sourceLabel && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-default)] bg-white px-4 py-3">
-              <span className="text-xs text-[var(--text-muted)]">
-                {isFa ? 'منبع گفتگو' : 'Conversation source'}
-              </span>
-              <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                {sourceLabel}
-              </span>
-            </div>
-          )}
-
-          <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
-            {isFa
-              ? 'برای مشاهده پیام‌ها و پاسخ‌دادن، ورود به گفتگو را تأیید کنید.'
-              : 'Confirm opening the conversation to read messages and reply.'}
-          </p>
         </div>
       </MobileBottomSheet>
     </>
+  )
+}
+
+function SheetStat({ icon, label, children }: { icon?: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-black/[0.03] p-3.5">
+      <dt className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
+        {icon}
+        {label}
+      </dt>
+      <dd className="mt-1.5 text-sm font-bold text-[var(--text-primary)]">{children}</dd>
+    </div>
   )
 }

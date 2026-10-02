@@ -18,7 +18,7 @@ import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
-import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { inboundSourceTag, readInboundSource } from '@/lib/conversations/source'
 import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
@@ -38,6 +38,7 @@ import { MobileConversationCard } from '@/components/crm/mobile-conversation-car
 import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
 import { InboxRowPending } from '@/components/crm/inbox-row-pending'
+import { ConversationStatusDot } from '@/components/crm/conversation-status-dot'
 
 const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -161,6 +162,7 @@ export default async function ConversationsPage(props: {
                                 status: true,
                                 handedOff: true,
                                 messageCount: true,
+                                summary: true,
                                 lastMessageAt: true,
                                 createdAt: true,
                                 agent: { select: { name: true } },
@@ -191,7 +193,7 @@ export default async function ConversationsPage(props: {
                                         select: { id: true, content: true, role: true, metadata: true, createdAt: true },
                                 },
                                 salesInsight: {
-                                        select: { leadType: true, buyerProbability: true, satisfaction: true },
+                                        select: { leadType: true, buyerProbability: true, satisfaction: true, recommendedAction: true },
                                 },
                         },
                 }),
@@ -298,8 +300,8 @@ export default async function ConversationsPage(props: {
                 const lastInbound = [...presentation.messages].reverse().find((message) => message.role === 'USER')
                 const lastReactions = last ? presentation.reactionsByMessageId.get(last.id) ?? [] : []
                 const reactionEmoji = lastReactions.at(-1)?.emoji ?? null
-                const sourceLabel = lastInbound
-                        ? inboundSourceLabel(readInboundSource(lastInbound.metadata), locale)
+                const sourceTag = lastInbound
+                        ? inboundSourceTag(readInboundSource(lastInbound.metadata))
                         : null
                 const channelHandle = channelHandleFor({
                         channel: conversation.channel,
@@ -337,7 +339,7 @@ export default async function ConversationsPage(props: {
                         conversation,
                         last,
                         reactionEmoji,
-                        sourceLabel,
+                        sourceTag,
                         channelHandle,
                         channelAvatarSrc,
                         who,
@@ -373,12 +375,14 @@ export default async function ConversationsPage(props: {
                         <PageHeader
                                 icon={MessagesSquare}
                                 title={t('title')}
+                                subtitle={t('subtitle')}
                                 actions={
                                         <>
                                                 <CampaignLaunchButton
                                                         audience={{ selectedContactIds: audienceContacts.flatMap((row) => row.contactId ? [row.contactId] : []) }}
                                                         locale={locale}
                                                         disabled={audienceContacts.length === 0}
+                                                        compactOnMobile
                                                 />
 
                                                 <BulkDeleteButton
@@ -487,14 +491,17 @@ export default async function ConversationsPage(props: {
                                                         </div>
 
                                                         <div className="space-y-3 md:hidden">
-                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
+                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceTag, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
                                                                         <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
                                                                                 <MobileConversationCard
                                                                                         conversationId={c.id}
                                                                                         who={who}
                                                                                         avatarSrc={channelAvatarSrc}
                                                                                         channelHandle={channelHandle}
-                                                                                        sourceLabel={sourceLabel}
+                                                                                        sourceTag={sourceTag}
+                                                                                        summary={c.summary}
+                                                                                        recommendedAction={c.salesInsight?.recommendedAction ?? null}
+                                                                                        buyerProbability={c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' ? c.salesInsight : null}
                                                                                         relativeTimeLabel={smartTime(when, locale)}
                                                                                         messageCountLabel={`${fmt(c.messageCount)} ${isFa ? 'پیام' : 'messages'}`}
                                                                                         channel={c.channel}
@@ -511,7 +518,7 @@ export default async function ConversationsPage(props: {
                                                         </div>
 
                                                         <div className="hidden divide-y divide-[var(--border-subtle)] md:block">
-                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => {
+                                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceTag, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => {
                                                                         const preview = last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name
                                                                         return (
                                                                         <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
@@ -520,22 +527,14 @@ export default async function ConversationsPage(props: {
                                                                                         dir={isFa ? 'rtl' : 'ltr'}
                                                                                         className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:px-5"
                                                                                 >
-                                                                                        {/* State is one dot: amber waits for a person, violet is open, none is resolved. */}
-                                                                                        <span
-                                                                                                role="img"
-                                                                                                aria-label={statusLabel}
-                                                                                                title={statusLabel}
-                                                                                                className={cn('h-2 w-2 rounded-full', attention ? 'bg-amber-500' : displayStatus === 'OPEN' ? 'bg-[var(--signal)]' : 'bg-transparent')}
-                                                                                        />
+                                                                                        <ConversationStatusDot attention={attention} open={displayStatus === 'OPEN'} label={statusLabel} />
                                                                                         <ContactAvatar src={channelAvatarSrc} alt={who} />
                                                                                         <div className="min-w-0">
                                                                                                 <div className="flex min-w-0 items-center gap-1.5">
                                                                                                         <span dir="auto" className={cn('min-w-0 truncate text-sm text-[var(--text-primary)]', displayStatus === 'RESOLVED' ? 'font-medium' : 'font-bold')} title={who}>{who}</span>
                                                                                                         {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-32 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[12px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
-                                                                                                        {/* Where the message came in: the Instagram entry (DM, comment, story) or the app itself. */}
-                                                                                                        {sourceLabel
-                                                                                                                ? <span className="shrink-0 whitespace-nowrap rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>
-                                                                                                                : <ChannelBadge type={c.channel} />}
+                                                                                                        {/* The app, and for Instagram the entry the customer used: "Instagram Direct", "Instagram Comment"… */}
+                                                                                                        <ChannelBadge type={c.channel} label={sourceTag} />
                                                                                                         <InboxRowPending />
                                                                                                         <span
                                                                                                                 className={cn('ms-auto shrink-0 whitespace-nowrap ps-1 text-[12px] tabular-nums text-[var(--text-muted)]', attention && 'font-medium text-[var(--text-primary)]')}

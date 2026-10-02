@@ -257,10 +257,12 @@ export default async function ProductsPage(
             {productCapacity.allowed && (
               <Link
                 href="/products/new"
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+                aria-label={t('new')}
+                title={t('new')}
+                className="inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-0 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 sm:w-auto sm:px-4"
               >
                 <Plus className="h-4 w-4" />
-                {t('new')}
+                <span className="hidden sm:inline">{t('new')}</span>
               </Link>
             )}
             <Link

@@ -34,7 +34,7 @@ export default async function ConversationThreadPage(props: {
                 anonymousLabel: t('anonymous'),
         })
         if (!view) notFound()
-        const { conversation, insight, handle, avatar, who, handoffAlert, sourceLabel, attention } = view
+        const { conversation, insight, handle, avatar, who, handoffAlert, sourceTag, attention } = view
         const meta = [
                 conversation.agent.name,
                 handle ? `@${handle}` : null,
@@ -54,7 +54,7 @@ export default async function ConversationThreadPage(props: {
                                                 ) : (
                                                         <span dir="auto" className="min-w-0 truncate text-lg font-bold tracking-tight text-[var(--text-primary)]">{who}</span>
                                                 )}
-                                                <ChannelBadge type={conversation.channel} />
+                                                <ChannelBadge type={conversation.channel} label={sourceTag} />
                                                 {attention && <ConversationStatusBadge status="HANDED_OFF" label={fa ? 'نیاز به اپراتور' : 'Needs operator'} attention />}
                                                 <span className="hidden sm:inline-flex"><SalesInsightBadge insight={insight} locale={locale} compactOnMobile /></span>
                                         </div>
@@ -92,7 +92,7 @@ export default async function ConversationThreadPage(props: {
                                                         summary={conversation.summary}
                                                         channel={conversation.channel}
                                                         agentName={conversation.agent.name}
-                                                        sourceLabel={sourceLabel}
+                                                        sourceTag={sourceTag}
                                                         contact={conversation.contact ? { id: conversation.contact.id, name: conversation.contact.name, phone: conversation.contact.phone } : null}
                                                         handle={handle}
                                                         handoffAlert={handoffAlert}

@@ -30,7 +30,7 @@ export function ConversationDetails({
         summary,
         channel,
         agentName,
-        sourceLabel,
+        sourceTag,
         contact,
         handle,
         handoffAlert,
@@ -44,7 +44,8 @@ export function ConversationDetails({
         summary: string | null
         channel: ChannelType
         agentName: string
-        sourceLabel?: string | null
+        /** "Instagram Direct", "Instagram Comment"…; null shows the plain app name. */
+        sourceTag?: string | null
         contact: { id: string; name: string | null; phone: string | null } | null
         handle: string | null
         handoffAlert: HandoffAlertProp | null
@@ -122,7 +123,7 @@ export function ConversationDetails({
                                                         ) : '—'}
                                                 </Row>
                                                 <Row label={fa ? 'برنامه' : 'App'}>
-                                                        <ChannelBadge type={channel} />
+                                                        <ChannelBadge type={channel} label={sourceTag} />
                                                 </Row>
                                                 {handle && (
                                                         <Row label={fa ? 'شناسه' : 'Handle'}>
@@ -130,11 +131,6 @@ export function ConversationDetails({
                                                                         <span className="truncate">@{handle}</span>
                                                                         <CopyButton value={handle} label={copyLabel} copiedLabel={copiedLabel} className={copyClass} />
                                                                 </span>
-                                                        </Row>
-                                                )}
-                                                {sourceLabel && (
-                                                        <Row label={fa ? 'از کجا آمد' : 'Came from'}>
-                                                                <span className="truncate text-[var(--text-primary)]">{sourceLabel}</span>
                                                         </Row>
                                                 )}
                                                 <Row label={fa ? 'ایجنت' : 'Agent'}>
