@@ -779,27 +779,23 @@ function ListView({
                                 })}
                         </div>
 
-                        {/* Desktop: a table. Phone and last message collapse away as the column narrows. */}
-                        <div className="ui-ctable spatial-surface hidden overflow-hidden rounded-card md:block">
-                                <div className="ui-ctable-row border-b border-[var(--border-subtle)] px-4 py-2.5 text-[12px] text-[var(--text-muted)] sm:px-5">
-                                        <span />
-                                        <span>{locale === 'fa' ? 'مشتری' : 'Customer'}</span>
-                                        <span className="ui-ctable-phone">{locale === 'fa' ? 'شماره' : 'Phone'}</span>
-                                        <span className="ui-ctable-msg">{locale === 'fa' ? 'آخرین پیام' : 'Last message'}</span>
-                                        <span>{t('stage')}</span>
-                                        <span className="ui-ctable-time text-end">{t('latestActivity')}</span>
+                        <div className="spatial-surface hidden divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card md:block">
+                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
+                                        <div className="min-w-0">
+                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{locale === 'fa' ? 'فهرست مشتریان' : 'Customer list'}</h2>
+                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{t('customersOnPage', { count: nf.format(rows.length) })}</p>
+                                        </div>
+                                        <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-secondary)]">{t('latestActivity')}</span>
                                 </div>
                                 {rows.map((c) => {
                                         const name = rowDisplayName(c, t('anonymous'))
-                                        const firstChannel = c.channels[0]
-                                        const handle = firstChannel ? c.channelUsernames?.[firstChannel] : null
                                         return (
                                                 <LiveArrivalItem
                                                         key={`desktop-${c.id}`}
                                                         itemId={c.id}
-                                                        className="ui-ctable-row border-t border-[var(--border-subtle)] px-4 py-1.5 transition-colors first:border-t-0 hover:bg-[var(--bg-hover)] sm:px-5"
+                                                        className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
                                                 >
-                                                        <label className="grid h-11 w-8 shrink-0 place-items-center">
+                                                        <label className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-colors hover:bg-[var(--bg-hover)]">
                                                                 <input
                                                                         type="checkbox"
                                                                         checked={selected.has(c.id)}
@@ -810,25 +806,37 @@ function ListView({
                                                         </label>
                                                         <Link
                                                                 href={`/contacts/${c.id}`}
-                                                                className="flex min-w-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                                className="flex min-w-0 flex-1 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                                aria-label={name}
                                                         >
-                                                                <ContactAvatar src={c.avatarUrl} fallbackSrc={c.avatarFallbackUrl} alt="" size="xs" />
-                                                                <span className="min-w-0 truncate text-[13px] font-bold text-[var(--text-primary)]" title={name}>{name}</span>
-                                                                {c.channels.map((ch) => <ChannelGlyph key={ch} type={ch} />)}
-                                                                <SourceTagBadges tags={c.tags} />
+                                                                <ContactAvatar
+                                                                        src={c.avatarUrl}
+                                                                        fallbackSrc={c.avatarFallbackUrl}
+                                                                        alt={name}
+                                                                />
+                                                                <div className="min-w-0 flex-1">
+                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                                <span className="truncate text-sm font-medium text-[var(--text-primary)]" title={name}>{name}</span>
+                                                                                {c.channels.map((ch) => {
+                                                                                        const handle = c.channelUsernames?.[ch]
+                                                                                        return (
+                                                                                                <span key={ch} className="inline-flex items-center gap-1">
+                                                                                                        <ChannelBadge type={ch} />
+                                                                                                        {handle && <span dir="ltr" className="text-[12px] text-[var(--text-muted)]">@{handle}</span>}
+                                                                                                </span>
+                                                                                        )
+                                                                                })}
+                                                                                <SourceTagBadges tags={c.tags} />
+                                                                        </div>
+                                                                        <p className="truncate text-xs tabular-nums text-[var(--text-secondary)]" title={`${name} — ${nf.format(c.conversationCount)} ${t('conversations')}`}>
+                                                                                {nf.format(c.conversationCount)} {t('conversations')} · {t('lastSeen')} <span className="tabular-nums" title={formatDateTime(c.lastActivity, locale)}>{smartTime(c.lastActivity, locale)}</span>
+                                                                        </p>
+                                                                        {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] text-emerald-600">{t('marketingConsent')}</span>}
+                                                                </div>
                                                         </Link>
-                                                        <span dir="ltr" className="ui-ctable-phone truncate text-end text-[12px] tabular-nums text-[var(--text-secondary)]">
-                                                                {c.phone ? displayPhone(c.phone) : handle ? `@${handle}` : '—'}
-                                                        </span>
-                                                        <span className="ui-ctable-msg truncate text-[12px] text-[var(--text-secondary)]" title={c.lastMessage ?? undefined}>
-                                                                {c.lastMessage || (locale === 'fa' ? `${nf.format(c.conversationCount)} گفتگو` : `${c.conversationCount} conversations`)}
-                                                        </span>
-                                                        <div onClick={(event) => event.stopPropagation()} className="min-w-0">
+                                                        <div onClick={(event) => event.stopPropagation()} className="shrink-0">
                                                                 <StageSelect value={c.stage} onChange={(nextStage) => onMove(c.id, nextStage)} />
                                                         </div>
-                                                        <span className="ui-ctable-time whitespace-nowrap text-end text-[12px] tabular-nums text-[var(--text-muted)]" title={formatDateTime(c.lastActivity, locale)}>
-                                                                {smartTime(c.lastActivity, locale)}
-                                                        </span>
                                                 </LiveArrivalItem>
                                         )
                                 })}

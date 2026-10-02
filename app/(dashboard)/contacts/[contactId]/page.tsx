@@ -151,7 +151,7 @@ export default async function ContactDetailPage(
     <div className="mx-auto max-w-6xl space-y-4">
       <BackButton href="/contacts" label={t('title')} />
 
-      {/* Header: who this is, the one useful action, and a menu for the rest. */}
+      {/* Header: who this is, the one useful action, and delete. */}
       <div className="spatial-surface rounded-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
           <ContactAvatar
