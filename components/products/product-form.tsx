@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, ImageOff, Layers, Loader2, Plus, Sparkles, Star, X } from 'lucide-react'
+import { ArrowRight, ImageOff, Layers, Plus, Sparkles, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { SAVED_BEAT_MS, SaveButton, useSaveState } from '@/components/ui/save-button'
 import { UploadDropzone, uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 import { ProductImage } from '@/components/products/product-image'
 
@@ -134,14 +135,14 @@ export function ProductForm({
   const [imageUrl, setImageUrl] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [upgradeRequired, setUpgradeRequired] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const saveState = useSaveState()
 
   const set = <K extends keyof ProductFormData>(k: K, v: ProductFormData[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
 
 
   async function submit() {
-    setSubmitting(true)
+    saveState.start()
     setFormError(null)
     setUpgradeRequired(false)
     // Build the attributes object. Manual attributes stay as flat string
@@ -210,12 +211,16 @@ export function ProductForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-    )
-    if (res.ok) {
-      router.push(returnTo ?? '/products')
-      router.refresh()
+    ).catch(() => null)
+    if (res?.ok) {
+      // Let the button confirm the save before the page moves on.
+      saveState.done()
+      window.setTimeout(() => {
+        router.push(returnTo ?? '/products')
+        router.refresh()
+      }, SAVED_BEAT_MS)
     } else {
-      const result = await res.json().catch(() => null) as { error?: string; limit?: number; upgradeUrl?: string } | null
+      const result = await res?.json().catch(() => null) as { error?: string; limit?: number; upgradeUrl?: string } | null
       const isPlanLimit = result?.error === 'PRODUCT_LIMIT' || result?.error === 'PLAN_BLOCKED'
       setUpgradeRequired(isPlanLimit)
       setFormError(
@@ -225,7 +230,7 @@ export function ProductForm({
             ? t('planBlocked')
           : t('saveFailed'),
       )
-      setSubmitting(false)
+      saveState.fail()
     }
   }
 
@@ -547,14 +552,14 @@ export function ProductForm({
         </div>
       )}
 
-      <button
+      <SaveButton
+        state={saveState.state}
         onClick={submit}
-        disabled={submitting || !form.name.trim()}
-        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 motion-reduce:transform-none sm:w-auto"
-      >
-        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        {mode === 'edit' ? t('save') : submitting ? t('creating') : returnTo ? t('saveAndContinue') : t('create')}
-      </button>
+        disabled={!form.name.trim()}
+        label={mode === 'edit' ? t('save') : returnTo ? t('saveAndContinue') : t('create')}
+        savingLabel={mode === 'edit' ? undefined : t('creating')}
+        className="w-full sm:w-auto"
+      />
     </div>
   )
 }

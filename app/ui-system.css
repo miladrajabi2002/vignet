@@ -137,7 +137,7 @@
    Ink buttons used to fade to 40%, which made them look like a grey
    secondary action. Muted fill + grey label + no shadow is unmistakable.
    Buttons that are merely busy (aria-busy) keep their ink. */
-:is(button, [role='button']):disabled:not([aria-busy='true']):is(
+:is(button, [role='button']):disabled:not([aria-busy='true']):not([data-save-state='saved']):is(
 	[class~='bg-black'],
 	[class~='bg-[#111]'],
 	[class~='bg-[#111111]'],
@@ -150,6 +150,34 @@
 	color: var(--text-hint) !important;
 	box-shadow: none !important;
 	opacity: 1 !important;
+}
+
+/* ── One save feel (components/ui/save-button.tsx) ───────────────────────
+   The label swaps with a short fade-and-rise inside a fixed-width cell, the
+   icon fades in, the check draws itself, and one soft ring leaves the button.
+   Nothing else moves, so it reads the same on a phone and on a desktop. */
+.ui-save-label { display: inline-grid; }
+.ui-save-label > span {
+	grid-area: 1 / 1;
+	text-align: center;
+	white-space: nowrap;
+	transition: opacity 180ms ease, transform 240ms var(--vg-ease-out), visibility 0s linear 0s;
+}
+.ui-save-label > span:not([data-on]) {
+	opacity: 0;
+	transform: translateY(5px);
+	visibility: hidden;
+	transition: opacity 120ms ease, transform 120ms ease, visibility 0s linear 120ms;
+}
+.ui-save-icon { animation: ui-save-icon 200ms var(--vg-ease-out) both; }
+.ui-save-check { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ui-save-check 320ms var(--vg-ease-out) 60ms forwards; }
+.ui-save[data-save-state='saved'] { animation: ui-save-ring 700ms var(--vg-ease-out); }
+.ui-save[data-save-state='idle']:disabled:not([class~='bg-[#111]']) { opacity: 0.5; }
+@keyframes ui-save-icon { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes ui-save-check { to { stroke-dashoffset: 0; } }
+@keyframes ui-save-ring {
+	from { box-shadow: var(--shadow-control), 0 0 0 0 rgba(16, 185, 129, 0.45); }
+	to { box-shadow: var(--shadow-control), 0 0 0 7px rgba(16, 185, 129, 0); }
 }
 
 /* ── ط۱۳ Phones never pay for live backdrop blur ──────────────────────────
@@ -171,6 +199,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.ui-save, .ui-save-icon, .ui-save-label > span { animation: none !important; transition: none !important; }
+	.ui-save-check { animation: none; stroke-dashoffset: 0; }
 	.dashboard-main > *,
 	.lf-line,
 	.lf-vline,

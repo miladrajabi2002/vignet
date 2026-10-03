@@ -8,12 +8,15 @@ const REVEAL = '.vg-rv, .vg-rv-group'
    button sheens, status pings) that used to run forever, even off-screen. */
 const LOOPS = '.vg-anim, .vg-sp, .vg-hp, .vg-sheen, .vg-ping'
 const ENTRANCE_MS = 1400
-/* Phone motion budget: only the hero keeps looping; any other loop plays one
-   cycle the first time it is seen and then rests on its finished frame.
-   Pill borders are exempt: a frozen orbit reads as a broken outline, and one
-   composited rotation is cheap, so they keep running while on screen. */
+/* Phone motion budget (public site): only the hero keeps looping; any other
+   loop plays one cycle the first time it is seen and then rests on its
+   finished frame. Pill borders are exempt: a frozen orbit reads as a broken
+   outline, and one composited rotation is cheap, so they keep running while
+   on screen. The user panel is exempt too: its loops are live data (the
+   overview flow, empty states), and a flow that stops after one pass reads
+   as frozen. They still pause off-screen and under reduced motion. */
 const PHONE = '(max-width: 1023px)'
-const HERO = '[data-vg-hero]'
+const HERO = '[data-vg-hero], #dashboard-main'
 const PILLS = '.vg-sp, .vg-hp'
 const REST_AT = 0.9
 const MAX_CYCLE_MS = 14_000
@@ -60,8 +63,9 @@ function cycleMs(block: Element): number {
  *
  * 1. Loops: every decorative `.vg-anim` block (and each standalone loop in
  *    LOOPS) starts paused (site.css) and only runs while near the viewport,
- *    so off-screen demos cost no frames. On phones only the hero and the
- *    pill borders loop; every other block plays one cycle, then rests.
+ *    so off-screen demos cost no frames. On phones only the hero, the pill
+ *    borders and the user panel loop; every other block plays one cycle,
+ *    then rests.
  * 2. Entrances: `.vg-rv` blocks and `.vg-rv-group` children fade/rise in the
  *    first time they scroll into view. Content is server-rendered visible;
  *    this effect arms the hidden state (`html.vg-rv-ready`) only after

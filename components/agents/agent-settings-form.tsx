@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
         Loader2,
-        Check,
         Trash2,
         Pencil,
         Plus,
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react'
 import { ModelSelect } from '@/components/agent-builder/model-select'
 import { Switch, SwitchCard } from '@/components/ui/switch'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import {
         buildLayeredPrompt,
@@ -139,7 +139,7 @@ export function AgentSettingsForm({
         const [activeTab, setActiveTab] = useState<LayerTab>('personality')
         const [showPreview, setShowPreview] = useState(false)
 
-        const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+        const saveState = useSaveState()
         const [saveError, setSaveError] = useState('')
 
         // ─ F3: customer identification
@@ -159,9 +159,9 @@ export function AgentSettingsForm({
         )
 
         async function save() {
-                if (status === 'saving') return
+                if (saveState.saving) return
                 setSaveError('')
-                setStatus('saving')
+                saveState.start()
                 try {
                 const keywords = form.handoffKeywords
                         .split(/[,\u060c]/)
@@ -188,14 +188,13 @@ export function AgentSettingsForm({
                         }),
                 })
                 if (res.ok) {
-                        setStatus('saved')
+                        saveState.done()
                         router.refresh()
-                        setTimeout(() => setStatus('idle'), 2000)
                 } else {
                         throw new Error('SAVE_FAILED')
                 }
                 } catch {
-                        setStatus('idle')
+                        saveState.fail()
                         setSaveError(locale === 'fa' ? 'تنظیمات ذخیره نشد. دوباره تلاش کنید.' : 'Settings could not be saved. Please try again.')
                 }
         }
@@ -285,10 +284,7 @@ export function AgentSettingsForm({
                                                         <Eye className="h-4 w-4" />
                                                         {tf('previewPrompt')}
                                                 </button>
-                                                <button type="button" onClick={save} disabled={status === 'saving'} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
-                                                        {status === 'saving' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Check className="h-4 w-4" strokeWidth={2.5} />}
-                                                        {status === 'saved' ? tc('saved') : tc('save')}
-                                                </button>
+                                                <SaveButton state={saveState.state} onClick={save} label={tc('save')} savingLabel={tc('saving')} savedLabel={tc('saved')} />
                                         </div>
                                 </div>
                                 {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
@@ -507,21 +503,8 @@ export function AgentSettingsForm({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
-                                        <button
-                                                onClick={save}
-                                                disabled={status === 'saving'}
-                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--white)] px-6 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
-                                        >
-                                                {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
-                                                {status === 'saved' ? tc('saved') : tc('save')}
-                                        </button>
+                                        <SaveButton state={saveState.state} onClick={save} label={tc('save')} savingLabel={tc('saving')} savedLabel={tc('saved')} />
                                         {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
-                                        {status === 'saved' && (
-                                                <span className="inline-flex items-center gap-1 text-sm text-success">
-                                                        <Check className="h-4 w-4" />
-                                                        {tf('saved')}
-                                                </span>
-                                        )}
                         </div>
 
                         {/* Danger zone — delete agent */}

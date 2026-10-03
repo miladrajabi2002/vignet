@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Loader2, Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
+import { Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { AGENT_MODELS, type ModelAlias } from '@/lib/ai/models'
 
 type NumberPath =
@@ -35,7 +36,7 @@ const TOMAN_SCALE = 10
 
 export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialConfig }) {
   const [value, setValue] = useState(initial)
-  const [saving, setSaving] = useState(false)
+  const saveState = useSaveState()
   const [message, setMessage] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
 
@@ -75,7 +76,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
   }
 
   async function save() {
-    setSaving(true)
+    saveState.start()
     setMessage(null)
     try {
       const response = await fetch('/api/admin/platform-settings', {
@@ -87,11 +88,11 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       const next = await response.json() as PlatformCommercialConfig
       setValue(next)
       setDirty(false)
+      saveState.done()
       setMessage('تنظیمات ذخیره شد و از درخواست بعدی روی سیستم اعمال می‌شود.')
     } catch {
+      saveState.fail()
       setMessage('ذخیره انجام نشد. مقدارهای واردشده را بررسی و دوباره تلاش کنید.')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -104,10 +105,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             <h2 className="mt-2 text-lg font-bold text-black">مدل‌های صوتی و حریم خصوصی</h2>
             <p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">کلیدها و secretها همچنان فقط در ENV می‌مانند؛ اینجا فقط سیاست‌های امن و قابل تغییر ذخیره می‌شوند.</p>
           </div>
-          <button type="button" onClick={save} disabled={!dirty || saving} className="admin-primary-button min-w-36">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : dirty ? <Save className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-            {saving ? 'در حال ذخیره' : dirty ? 'ذخیره تغییرات' : 'ذخیره شده'}
-          </button>
+          <SaveButton state={saveState.state} dirty={dirty} onClick={save} icon={<Save className="h-4 w-4" />} label="ذخیره تغییرات" />
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
           <div className="rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
@@ -187,10 +185,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
 
       <div className="flex flex-col-reverse gap-3 rounded-2xl border border-black/[0.07] bg-white/80 p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
         <p role="status" className={cn('text-xs leading-6', message?.includes('نشد') ? 'text-red-600' : 'text-emerald-700')}>{message ?? (dirty ? 'تغییرات هنوز ذخیره نشده‌اند.' : 'تنظیمات با runtime همگام است.')}</p>
-        <button type="button" onClick={save} disabled={!dirty || saving} className="admin-primary-button">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          ذخیره همه تنظیمات
-        </button>
+        <SaveButton state={saveState.state} dirty={dirty} onClick={save} icon={<Save className="h-4 w-4" />} label="ذخیره همه تنظیمات" />
       </div>
     </div>
   )

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
 import { ChannelMark } from '@/components/ui/channel-mark'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 
 export type MessengerKind =
   | 'TELEGRAM'
@@ -85,12 +86,10 @@ function ChannelSettings({
   const [items, setItems] = useState<string[]>(
     initialQuickReplies.length ? initialQuickReplies : [''],
   )
-  const [busy, setBusy] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const saveState = useSaveState()
 
   async function save() {
-    setBusy(true)
-    setSaved(false)
+    saveState.start()
     try {
       const quickReplies = items.map((s) => s.trim()).filter(Boolean).slice(0, 4)
       const res = await fetch(`/api/agents/${agentId}/channels/${channelId}`, {
@@ -98,12 +97,10 @@ function ChannelSettings({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quickReplies }),
       })
-      if (res.ok) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
-      }
-    } finally {
-      setBusy(false)
+      if (!res.ok) throw new Error('SAVE_FAILED')
+      saveState.done()
+    } catch {
+      saveState.fail()
     }
   }
 
@@ -155,15 +152,7 @@ function ChannelSettings({
             >
               + {t('msgrQuickRepliesAdd')}
             </button>
-            <button
-              type="button"
-              onClick={save}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {saved ? t('saved') : t('save')}
-            </button>
+            <SaveButton state={saveState.state} onClick={save} size="sm" label={t('save')} savingLabel={t('saving')} savedLabel={t('saved')} />
           </div>
         </div>
       )}

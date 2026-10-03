@@ -1,19 +1,18 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
-  Check,
   CheckCircle2,
   Gauge,
-  Loader2,
   Save,
   ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { Switch } from '@/components/ui/switch'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import type { ModelAlias } from '@/lib/ai/models'
 
 type ModelOption = {
@@ -62,7 +61,7 @@ export function AiModelPolicyForm({
   currentMonthSpendUSD: number
 }) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const saveState = useSaveState()
   const [defaultModel, setDefaultModel] = useState(initialPolicy.defaultModel)
   const [enabledModels, setEnabledModels] = useState<ModelAlias[]>(initialPolicy.enabledModels)
   const [trialModel, setTrialModel] = useState<ModelAlias>(initialPolicy.trialModel)
@@ -124,7 +123,8 @@ export function AiModelPolicyForm({
       return
     }
 
-    startTransition(async () => {
+    saveState.start()
+    await (async () => {
       try {
         const response = await fetch('/api/admin/ai-settings', {
           method: 'PUT',
@@ -147,15 +147,17 @@ export function AiModelPolicyForm({
           throw new Error(body && 'error' in body ? body.error : 'UNKNOWN')
         }
 
+        saveState.done()
         setNotice({ tone: 'success', message: 'سیاست مدل و سقف هزینه با موفقیت ذخیره شد.' })
         router.refresh()
       } catch (error) {
+        saveState.fail()
         setNotice({
           tone: 'error',
           message: errorMessage(error instanceof Error ? error.message : 'UNKNOWN'),
         })
       }
-    })
+    })()
   }
 
   return (
@@ -171,21 +173,13 @@ export function AiModelPolicyForm({
             تنظیمات فقط aliasهای امن را ذخیره می‌کند و به کلید OpenRouter دسترسی ندارد.
           </p>
         </div>
-        <button
-          type="button"
+        <SaveButton
+          state={saveState.state}
+          dirty={dirty}
           onClick={savePolicy}
-          disabled={isPending || !dirty}
-          className="admin-primary-button"
-        >
-          {isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : dirty ? (
-            <Save className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Check className="h-4 w-4" aria-hidden="true" />
-          )}
-          {isPending ? 'در حال ذخیره…' : dirty ? 'ذخیره تنظیمات' : 'ذخیره‌شده'}
-        </button>
+          icon={<Save className="h-4 w-4" aria-hidden="true" />}
+          label="ذخیره تنظیمات"
+        />
       </div>
 
       <fieldset className="mt-5">

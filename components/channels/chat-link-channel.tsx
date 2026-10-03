@@ -23,6 +23,7 @@ import {
 import { COMPOSER_GEOMETRY, SendButton } from '@/components/chat/chat-composer'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import {
         normalizeChatLinkSettings,
         normalizeSlug,
@@ -72,8 +73,9 @@ export function ChatLinkChannel({
                 initialLink?.settings ?? normalizeChatLinkSettings(null),
         )
         const [showSettings, setShowSettings] = useState(false)
-        const [saving, setSaving] = useState(false)
-        const [saved, setSaved] = useState(false)
+        const saveState = useSaveState()
+        const [removing, setRemoving] = useState(false)
+        const saving = saveState.saving || removing
         const [copied, setCopied] = useState(false)
         const [error, setError] = useState<string | null>(null)
         const [qr, setQr] = useState<string | null>(null)
@@ -88,7 +90,6 @@ export function ChatLinkChannel({
 
         function patch(p: Partial<ChatLinkSettings>) {
                 setSettings((s) => ({ ...s, ...p }))
-                setSaved(false)
         }
 
         const effectiveSettings: ChatLinkSettings = {
@@ -106,8 +107,7 @@ export function ChatLinkChannel({
                         setError(t('slugInvalid'))
                         return
                 }
-                setSaving(true)
-                setSaved(false)
+                saveState.start()
                 try {
                         const res = await fetch(`/api/agents/${agentId}/chat-link`, {
                                 method: 'PUT',
@@ -125,23 +125,23 @@ export function ChatLinkChannel({
                                                                 ? tc('channelLimitError')
                                                         : t('saveError'),
                                 )
+                                saveState.fail()
                                 return
                         }
                         setLink(data.link)
                         setSlug(data.link.slug)
                         setSettings(data.link.settings)
-                        setSaved(true)
+                        saveState.done()
                         router.refresh()
                 } catch {
+                        saveState.fail()
                         setError(t('saveError'))
-                } finally {
-                        setSaving(false)
                 }
-        }, [agentId, slug, slugValid, settings, t, tc, router])
+        }, [agentId, slug, slugValid, settings, t, tc, router, saveState])
 
         const remove = useCallback(async () => {
                 setError(null)
-                setSaving(true)
+                setRemoving(true)
                 try {
                         const res = await fetch(`/api/agents/${agentId}/chat-link`, { method: 'DELETE' })
                         if (!res.ok) {
@@ -155,7 +155,7 @@ export function ChatLinkChannel({
                 } catch {
                         setError(t('saveError'))
                 } finally {
-                        setSaving(false)
+                        setRemoving(false)
                 }
         }, [agentId, t, router])
 
@@ -272,7 +272,6 @@ export function ChatLinkChannel({
                                                                                 value={slug}
                                                                                 onChange={(e) => {
                                                                                         setSlug(e.target.value.toLowerCase())
-                                                                                        setSaved(false)
                                                                                         setError(null)
                                                                                 }}
                                                                                 placeholder="my-shop"
@@ -535,19 +534,14 @@ export function ChatLinkChannel({
 
                                                 {/* Save */}
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                        <Button
+                                                        <SaveButton
+                                                                state={saveState.state}
                                                                 onClick={save}
-                                                                disabled={saving || !slugValid}
-                                                                loading={saving}
-                                                        >
-                                                                {saving ? t('saving') : link ? t('save') : t('publish')}
-                                                        </Button>
-                                                        {saved && (
-                                                                <span className="inline-flex items-center gap-1 text-sm text-success">
-                                                                        <Check className="h-4 w-4" />
-                                                                        {t('saved')}
-                                                                </span>
-                                                        )}
+                                                                disabled={!slugValid}
+                                                                label={link ? t('save') : t('publish')}
+                                                                savingLabel={t('saving')}
+                                                                savedLabel={t('saved')}
+                                                        />
                                                         {error && <span className="text-sm text-danger">{error}</span>}
                                                         {link && (
                                                                 <span className="ms-auto text-xs text-[var(--text-muted)]">
