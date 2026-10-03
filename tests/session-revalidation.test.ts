@@ -3,14 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   findUnique: vi.fn(),
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`)
+  }),
 }))
+
+vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 
 vi.mock('@/auth', () => ({ auth: mocks.auth }))
 vi.mock('@/lib/prisma', () => ({
   prisma: { user: { findUnique: mocks.findUnique } },
 }))
 
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser, requireUser } from '@/lib/session'
 
 const staleAdmin = {
   id: 'user-1',
@@ -60,5 +65,30 @@ describe('session claim revalidation', () => {
 
     await expect(getCurrentUser()).resolves.toBeNull()
     expect(mocks.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('sends an ended owner support session back to the owner instead of /login', async () => {
+    mocks.auth.mockResolvedValue({
+      user: {
+        ...staleAdmin,
+        impersonatedByAdmin: true,
+        impersonationExpiresAt: Date.now() - 1,
+        impersonatorId: 'owner-1',
+      },
+    })
+
+    await expect(requireUser()).rejects.toThrow('REDIRECT:/api/auth/support-return')
+  })
+
+  it('signs out an ended support session that does not record its owner', async () => {
+    mocks.auth.mockResolvedValue({
+      user: {
+        ...staleAdmin,
+        impersonatedByAdmin: true,
+        impersonationExpiresAt: Date.now() - 1,
+      },
+    })
+
+    await expect(requireUser()).rejects.toThrow('REDIRECT:/api/auth/force-logout')
   })
 })

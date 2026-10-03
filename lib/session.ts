@@ -10,6 +10,7 @@ export interface SessionUser {
   name?: string | null
   impersonatedByAdmin?: boolean
   impersonationExpiresAt?: number
+  impersonatorId?: string
 }
 
 /** Return the current session user, or null if unauthenticated. */
@@ -46,6 +47,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
         ...current,
         impersonatedByAdmin: true,
         impersonationExpiresAt: tokenUser.impersonationExpiresAt,
+        impersonatorId: tokenUser.impersonatorId,
       }
     : current
 }
@@ -70,6 +72,19 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
  */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser()
-  if (!user) redirect('/api/auth/force-logout')
+  if (!user) {
+    // An owner support session that ran out returns to the owner's own
+    // account (the route re-verifies the owner) instead of the login form.
+    redirect(await hasEndedSupportSession() ? '/api/auth/support-return' : '/api/auth/force-logout')
+  }
   return user
+}
+
+async function hasEndedSupportSession(): Promise<boolean> {
+  const tokenUser = (await auth())?.user as SessionUser | undefined
+  return Boolean(
+    tokenUser?.impersonatedByAdmin
+    && tokenUser.impersonatorId
+    && (!tokenUser.impersonationExpiresAt || tokenUser.impersonationExpiresAt <= Date.now()),
+  )
 }

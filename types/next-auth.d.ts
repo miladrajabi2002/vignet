@@ -9,6 +9,8 @@ declare module 'next-auth' {
       phone: string
       impersonatedByAdmin?: boolean
       impersonationExpiresAt?: number
+    impersonatorId?: string
+      impersonatorId?: string
     } & DefaultSession['user']
   }
 
@@ -18,6 +20,7 @@ declare module 'next-auth' {
     phone: string
     impersonatedByAdmin?: boolean
     impersonationExpiresAt?: number
+    impersonatorId?: string
   }
 }
 
@@ -29,5 +32,6 @@ declare module 'next-auth/jwt' {
     phone: string
     impersonatedByAdmin?: boolean
     impersonationExpiresAt?: number
+    impersonatorId?: string
   }
 }

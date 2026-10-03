@@ -79,7 +79,10 @@ export async function startUserImpersonation(formData: FormData): Promise<void> 
   })
   if (!user) throw new Error('IMPERSONATION_USER_NOT_FOUND')
 
-  const grant = createAdminImpersonationGrant(user.id, user.workspaceId)
+  // Switching from one customer to another keeps the original owner as the
+  // impersonator, so the session can always fall back to the owner account.
+  const impersonatorId = current.impersonatedByAdmin ? current.impersonatorId : current.id
+  const grant = createAdminImpersonationGrant(user.id, user.workspaceId, Date.now(), impersonatorId)
   await prisma.adminAuditLog.create({
     data: {
       adminPhone: ADMIN_OWNER_PHONE || 'unconfigured',

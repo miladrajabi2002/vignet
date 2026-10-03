@@ -10,6 +10,8 @@ export type AdminImpersonationGrant = {
   grantExpiresAt: number
   sessionExpiresAt: number
   nonce: string
+  /** The owner account that opened this support session. */
+  impersonatorId?: string
 }
 
 function secret(): string {
@@ -37,6 +39,7 @@ export function createAdminImpersonationGrant(
   userId: string,
   workspaceId: string,
   now = Date.now(),
+  impersonatorId?: string,
 ): { token: string; sessionExpiresAt: number } {
   const payload: AdminImpersonationGrant = {
     version: 1,
@@ -45,6 +48,7 @@ export function createAdminImpersonationGrant(
     grantExpiresAt: now + GRANT_TTL_MS,
     sessionExpiresAt: now + ADMIN_IMPERSONATION_SESSION_TTL_MS,
     nonce: crypto.randomUUID(),
+    ...(impersonatorId ? { impersonatorId } : {}),
   }
   const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
   return {
@@ -83,6 +87,8 @@ export function verifyAdminImpersonationGrant(
       || typeof payload.sessionExpiresAt !== 'number'
       || payload.sessionExpiresAt <= now
       || payload.sessionExpiresAt > latestAllowedSessionExpiry
+      || (payload.impersonatorId !== undefined
+        && (typeof payload.impersonatorId !== 'string' || !payload.impersonatorId))
     ) {
       return null
     }

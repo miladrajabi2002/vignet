@@ -37,6 +37,17 @@ describe('admin user impersonation grants', () => {
     expect(verifyAdminImpersonationGrant('x'.repeat(4_097), now)).toBeNull()
   })
 
+  it('carries the owner who opened the support session', () => {
+    const now = 1_800_000_000_000
+    const { token } = createAdminImpersonationGrant('user-1', 'workspace-1', now, 'owner-1')
+
+    expect(verifyAdminImpersonationGrant(token, now)?.impersonatorId).toBe('owner-1')
+    expect(verifyAdminImpersonationGrant(
+      createAdminImpersonationGrant('user-1', 'workspace-1', now).token,
+      now,
+    )?.impersonatorId).toBeUndefined()
+  })
+
   it('binds grants to admin credential rotation', () => {
     const now = 1_800_000_000_000
     const { token } = createAdminImpersonationGrant('user-1', 'workspace-1', now)

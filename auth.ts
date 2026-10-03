@@ -74,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ...user,
           impersonatedByAdmin: true,
           impersonationExpiresAt: grant.sessionExpiresAt,
+          impersonatorId: grant.impersonatorId,
         }
       },
     }),

@@ -60,6 +60,7 @@ export const authConfig = {
         token.name = user.name ?? null
         token.impersonatedByAdmin = user.impersonatedByAdmin === true
         token.impersonationExpiresAt = user.impersonationExpiresAt
+        token.impersonatorId = user.impersonatorId
       }
       return token
     },
@@ -72,6 +73,9 @@ export const authConfig = {
         session.user.impersonatedByAdmin = token.impersonatedByAdmin === true
         session.user.impersonationExpiresAt = typeof token.impersonationExpiresAt === 'number'
           ? token.impersonationExpiresAt
+          : undefined
+        session.user.impersonatorId = typeof token.impersonatorId === 'string'
+          ? token.impersonatorId
           : undefined
       }
       return session
