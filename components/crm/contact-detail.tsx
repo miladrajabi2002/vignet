@@ -3,9 +3,9 @@
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check, Loader2 } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { Switch } from '@/components/ui/switch'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { TagInput } from '@/components/ui/tag-input'
 import { cn } from '@/lib/utils'
 
@@ -61,13 +61,11 @@ export function ContactDetailEditor({
   const [tags, setTags] = useState<string[]>(initialTags)
   const [notes, setNotes] = useState(initialNotes)
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn)
-  const [busy, setBusy] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const saveState = useSaveState()
   const [error, setError] = useState<string | null>(null)
 
   async function save() {
-    setBusy(true)
-    setSaved(false)
+    saveState.start()
     setError(null)
     try {
       const res = await fetch(`/api/contacts/${contactId}`, {
@@ -84,12 +82,11 @@ export function ContactDetailEditor({
       if (!res.ok) throw new Error('SAVE_FAILED')
       const body = await res.json().catch(() => null)
       if (body?.contact) onSaved?.(body.contact)
-      setSaved(true)
+      saveState.done()
       router.refresh()
     } catch {
+      saveState.fail()
       setError(t('detail.saveFailed'))
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -168,22 +165,7 @@ export function ContactDetailEditor({
       )}
 
       <div className="flex items-center justify-end gap-2">
-        {saved && (
-          <span className="inline-flex items-center gap-1 text-xs text-success">
-            <Check className="h-3.5 w-3.5" />
-            {t('detail.saved')}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy}
-          aria-busy={busy}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-70"
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
-          {t('detail.save')}
-        </button>
+        <SaveButton state={saveState.state} onClick={save} label={t('detail.save')} savedLabel={t('detail.saved')} />
       </div>
 
     </div>

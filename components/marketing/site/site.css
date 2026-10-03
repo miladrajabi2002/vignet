@@ -155,8 +155,9 @@
 /* Off-screen blocks hold their loops (MotionPauser adds .vg-on in view).
    Standalone loops — pill borders, button sheens, status pings — follow the
    same rule, so nothing spins below the fold. On phones every loop outside
-   the hero plays one cycle, then rests (`.vg-done`, see MotionPauser); pill
-   borders are the exception and keep orbiting while on screen. */
+   the hero and the user panel plays one cycle, then rests (`.vg-done`, see
+   MotionPauser); pill borders are the exception and keep orbiting while on
+   screen. */
 .vg-anim:not(.vg-on) *,
 .vg-anim:not(.vg-on) *::after,
 .vg-sp:not(.vg-on) > .vg-sp-spin,

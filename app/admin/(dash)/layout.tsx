@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ExternalLink, LogOut, ShieldCheck } from 'lucide-react'
+import { ArrowRight, ExternalLink, LogOut } from 'lucide-react'
 import { ADMIN_OWNER_NAME, requireAdmin } from '@/lib/admin/auth'
 import { adminLogout } from '../login/actions'
 import { AdminNavContent, BrandHeader } from './admin-nav'
@@ -40,7 +40,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <div className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] text-[var(--text-muted)]">
               <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40 motion-reduce:animate-none" /><span className="relative h-2 w-2 rounded-full bg-emerald-500" /></span>
               <span className="min-w-0 flex-1"><b className="block truncate text-xs text-black">{ADMIN_OWNER_NAME} · مالک پلتفرم</b><span className="mt-0.5 block truncate">دسترسی امن و ثبت‌شونده</span></span>
-              <ShieldCheck className="h-4 w-4 text-emerald-600/70" />
+              <form action={adminLogout}>
+                <button
+                  type="submit"
+                  aria-label="خروج از پنل مدیریت"
+                  title="خروج از پنل مدیریت"
+                  className="spatial-press inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-black"
+                >
+                  <LogOut className="h-4 w-4 rtl:rotate-180" />
+                </button>
+              </form>
             </div>
           </div>
         </aside>
@@ -54,16 +63,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
             <div className="flex items-center gap-2">
               <Link href="/" aria-label="مشاهده سایت" title="مشاهده سایت" className="spatial-press inline-flex h-10 items-center gap-2 rounded-xl px-3 text-[12px] font-semibold text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-black"><ExternalLink className="h-4 w-4" /><span className="hidden sm:inline">مشاهده سایت</span></Link>
-              <form action={adminLogout}>
-              <button
-                type="submit"
-                aria-label="خروج از پنل مدیریت"
-                title="خروج"
-                className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-black"
-              >
-                <LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" />
-              </button>
-            </form>
+              {/* The owner reaches /admin from the user dashboard; this is the way back. */}
+              <Link href="/overview" className="spatial-press inline-flex h-10 items-center gap-1.5 rounded-xl bg-black px-3 text-[12px] font-semibold text-white shadow-[var(--shadow-control)] hover:bg-[#2a2a2e]">
+                <ArrowRight className="h-4 w-4 ltr:rotate-180" aria-hidden="true" />
+                <span className="sm:hidden">پنل کاربر</span>
+                <span className="hidden sm:inline">بازگشت به داشبورد</span>
+              </Link>
             </div>
           </div>
           </header>

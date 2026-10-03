@@ -6,6 +6,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, ExternalLink, ImagePlus, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 import { PublicMenu } from '@/components/menu/public-menu'
 import {
@@ -40,7 +41,7 @@ export function MenuDesign({
 }) {
   const [settings, setSettings] = useState<MenuSettings>(initial)
   const [saved, setSaved] = useState(() => JSON.stringify(initial))
-  const [saving, setSaving] = useState(false)
+  const saveState = useSaveState()
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const dirty = JSON.stringify(settings) !== saved
   const set = <K extends keyof MenuSettings>(key: K, value: MenuSettings[K]) => setSettings((current) => ({ ...current, [key]: value }))
@@ -49,18 +50,18 @@ export function MenuDesign({
   const previewData = useMemo(() => ({ name: businessName, slug, settings, sections, chatUrl, table: '۷' }), [businessName, slug, settings, sections, chatUrl])
 
   async function save() {
-    setSaving(true)
+    saveState.start()
     setNotice(null)
     const response = await fetch('/api/menu/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     }).catch(() => null)
-    setSaving(false)
     if (response?.ok) {
       setSaved(JSON.stringify(settings))
-      setNotice({ ok: true, text: 'ذخیره شد؛ منوی مشتری همین حالا به‌روز است.' })
+      saveState.done()
     } else {
+      saveState.fail()
       setNotice({ ok: false, text: response?.status === 402 ? 'پلن فضای کاری فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'ذخیره نشد. آدرس‌ها باید با https شروع شوند و ساعت‌ها به شکل ۰۹:۳۰ باشند.' })
     }
   }
@@ -168,14 +169,12 @@ export function MenuDesign({
         </Panel>
 
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-white/95 p-3 shadow-[var(--shadow-control)] backdrop-blur">
-          <button type="button" disabled={!dirty || saving} onClick={() => void save()} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-white disabled:opacity-40">
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}ذخیرهٔ طراحی
-          </button>
+          <SaveButton state={saveState.state} dirty={dirty} onClick={() => void save()} label="ذخیرهٔ طراحی" />
           <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             <ExternalLink className="h-4 w-4" />منوی مشتری
           </a>
           <p role="status" aria-live="polite" className={cn('text-[13px]', notice ? (notice.ok ? 'text-emerald-700' : 'text-red-700') : 'text-[var(--text-muted)]')}>
-            {notice?.text ?? (dirty ? 'تغییرات ذخیره‌نشده دارید.' : 'همهٔ تغییرات ذخیره شده است.')}
+            {notice?.text ?? (dirty ? 'تغییرات ذخیره‌نشده دارید.' : 'همهٔ تغییرات ذخیره شده و منوی مشتری به‌روز است.')}
           </p>
         </div>
       </div>

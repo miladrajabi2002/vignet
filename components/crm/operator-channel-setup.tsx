@@ -39,6 +39,7 @@ import {
   Wifi,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { cn } from '@/lib/utils'
 import { dateLocaleTag } from '@/lib/localized-date'
@@ -190,6 +191,7 @@ export function OperatorChannelSetup({
   const [botToken, setBotToken] = useState('')
   const [operatorChatId, setOperatorChatId] = useState(current?.operatorChatId ?? '')
   const [busy, setBusy] = useState<BusyAction>(null)
+  const chatSave = useSaveState()
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [health, setHealth] = useState<OperatorChannelHealth | null>(null)
   const [healthLoading, setHealthLoading] = useState(Boolean(current))
@@ -313,6 +315,7 @@ export function OperatorChannelSetup({
   async function saveChatId() {
     if (!info || !operatorChatId.trim() || busy) return
     setBusy('chat')
+    chatSave.start()
     setFeedback(null)
     try {
       const response = await fetch('/api/operator-channel', {
@@ -325,10 +328,11 @@ export function OperatorChannelSetup({
       } | null
       if (!response.ok || !data?.operatorChannel) throw new Error('SAVE_CHAT_FAILED')
       setInfo((value) => (value ? { ...value, ...data.operatorChannel } : value))
-      setFeedback({ tone: 'success', message: copy('شناسه اپراتور ذخیره شد.', 'Operator chat id was saved.') })
+      chatSave.done()
       router.refresh()
       void refreshHealth()
     } catch {
+      chatSave.fail()
       setFeedback({ tone: 'error', message: t('saveFailed') })
     } finally {
       setBusy(null)
@@ -592,15 +596,13 @@ export function OperatorChannelSetup({
                       placeholder="123456789"
                       className="input min-h-11 min-w-0 flex-1 font-mono text-sm"
                     />
-                    <button
-                      type="button"
+                    <SaveButton
+                      state={chatSave.state}
                       onClick={() => void saveChatId()}
-                      disabled={busy !== null || !operatorChatId.trim() || operatorChatId.trim() === (info.operatorChatId ?? '')}
-                      className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white shadow-[var(--shadow-control)] disabled:cursor-not-allowed disabled:opacity-35"
-                    >
-                      {busy === 'chat' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Save className="h-4 w-4" />}
-                      {copy('ذخیره', 'Save')}
-                    </button>
+                      dirty={Boolean(operatorChatId.trim()) && operatorChatId.trim() !== (info.operatorChatId ?? '')}
+                      disabled={busy !== null && busy !== 'chat'}
+                      icon={<Save className="h-4 w-4" />}
+                    />
                   </div>
                 </div>
 

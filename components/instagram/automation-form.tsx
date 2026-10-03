@@ -48,6 +48,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
+import { SAVED_BEAT_MS, SaveButton, useSaveState } from '@/components/ui/save-button'
 import { IphonePreview } from '@/components/instagram/iphone-preview'
 import type { MediaItem } from '@/components/instagram/media-uploader'
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -265,7 +266,7 @@ export function AutomationForm({
         // Warn before the tab is closed/reloaded with unsaved scenario edits.
         useUnsavedChangesGuard(formDirty)
         const [keywordInput, setKeywordInput] = useState('')
-        const [busy, setBusy] = useState(false)
+        const saveState = useSaveState()
         const [error, setError] = useState<string | null>(null)
         const [postReferencesTouched, setPostReferencesTouched] = useState(false)
         const [resolvingPostReferences, setResolvingPostReferences] = useState(false)
@@ -602,8 +603,9 @@ export function AutomationForm({
                                 return
                         }
                 }
-                setBusy(true)
+                saveState.start()
                 setError(null)
+                let saved = false
                 try {
                         const resolvedPostIds = type === 'COMMENT' && form.postFilter === 'SPECIFIC'
                                 ? await resolvePostReferences(true)
@@ -638,7 +640,7 @@ export function AutomationForm({
                                         )
                                         return
                                 }
-                                router.push('/instagram')
+                                saved = true
                         } else if (initial) {
                                 const res = await fetch(`${base}/${initial.id}`, {
                                         method: 'PATCH',
@@ -652,10 +654,16 @@ export function AutomationForm({
                                                 : 'ذخیره ناموفق بود.')
                                         return
                                 }
-                                router.push('/instagram')
+                                saved = true
                         }
                 } finally {
-                        setBusy(false)
+                        if (saved) {
+                                // Let the button confirm the save before the page moves on.
+                                saveState.done()
+                                window.setTimeout(() => router.push('/instagram'), SAVED_BEAT_MS)
+                        } else {
+                                saveState.fail()
+                        }
                 }
         }
 
@@ -1155,18 +1163,13 @@ export function AutomationForm({
                                                                 >
                                                                         انصراف
                                                                 </Link>
-                                                                <button
+                                                                <SaveButton
                                                                         type="submit"
-                                                                        disabled={busy || !ready}
-                                                                        className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-bold transition-[opacity,background-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 lg:flex-none ${
-                                                                                ready
-                                                                                        ? 'spatial-press bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)] hover:opacity-90 disabled:opacity-60'
-                                                                                        : 'cursor-not-allowed bg-black/[0.06] text-[var(--text-muted)]'
-                                                                        }`}
-                                                                >
-                                                                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" strokeWidth={2.5} />}
-                                                                        {mode === 'create' ? 'افزودن سناریو' : 'ذخیره تغییرات'}
-                                                                </button>
+                                                                        state={saveState.state}
+                                                                        disabled={!ready}
+                                                                        label={mode === 'create' ? 'افزودن سناریو' : 'ذخیره تغییرات'}
+                                                                        className="flex-1 lg:flex-none"
+                                                                />
                                                         </div>
                                                 </div>
                                         </div>

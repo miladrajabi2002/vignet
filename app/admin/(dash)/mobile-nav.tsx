@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   CreditCard,
   LayoutDashboard,
+  LogOut,
   Menu,
   MessagesSquare,
   Users,
@@ -14,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { AdminNavContent, BrandHeader } from './admin-nav'
+import { adminLogout } from '../login/actions'
 import { cn } from '@/lib/utils'
 
 const PRIMARY_ITEMS: Array<{
@@ -184,6 +186,15 @@ export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: nu
             <div className="min-h-0 flex-1 overflow-hidden">
               <AdminNavContent onNavigate={() => setOpen(false)} mailUnreadCount={mailUnreadCount} />
             </div>
+            <form action={adminLogout} className="mt-2 border-t border-black/[0.07] pt-2">
+              <button
+                type="submit"
+                className="spatial-press inline-flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-black"
+              >
+                <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                خروج از پنل مدیریت
+              </button>
+            </form>
           </aside>
         </div>,
         document.body,

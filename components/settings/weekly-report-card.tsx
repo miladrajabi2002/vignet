@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { BarChart3, Check, Loader2, Mail, MessageSquareText, TrendingUp } from 'lucide-react'
+import { BarChart3, Mail, MessageSquareText, TrendingUp } from 'lucide-react'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 
 /**
  * Weekly business report opt-in. The report feature ships later — this card
@@ -12,14 +13,12 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
   const t = useTranslations('settings.weeklyReport')
   const fa = useLocale() !== 'en'
   const [email, setEmail] = useState(initialEmail)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const saveState = useSaveState()
   const [error, setError] = useState(false)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    setSaved(false)
+    saveState.start()
     setError(false)
     try {
       const res = await fetch('/api/workspace/report-email', {
@@ -27,16 +26,11 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       })
-      if (!res.ok) {
-        setError(true)
-        return
-      }
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      if (!res.ok) throw new Error('SAVE_FAILED')
+      saveState.done()
     } catch {
+      saveState.fail()
       setError(true)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -59,10 +53,7 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
 
           <form onSubmit={save} className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="input min-h-12 flex-1 text-left text-sm" />
-            <button type="submit" disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-50">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : saved ? <Check className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
-              {saved ? t('saved') : t('save')}
-            </button>
+            <SaveButton type="submit" state={saveState.state} icon={<Mail className="h-4 w-4" />} label={t('save')} savedLabel={t('saved')} />
           </form>
           <p aria-live="polite" className="mt-2 min-h-5 text-xs text-red-600">{error ? t('error') : ''}</p>
         </div>

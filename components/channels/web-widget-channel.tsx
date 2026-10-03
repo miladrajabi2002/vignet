@@ -30,6 +30,7 @@ import {
 } from '@/lib/widget/config'
 import { WidgetPreview, WIDGET_ICON_COMPONENTS } from './widget-preview'
 import { ChannelMark } from '@/components/ui/channel-mark'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 
 /** Curated brand-color presets — one tap instead of fiddling with the picker. */
 const COLOR_PRESETS = [
@@ -71,8 +72,7 @@ export function WebWidgetChannel({
         const [copied, setCopied] = useState(false)
         const [detailsOpen, setDetailsOpen] = useState(false)
         const [showSettings, setShowSettings] = useState(false)
-        const [saving, setSaving] = useState(false)
-        const [saved, setSaved] = useState(false)
+        const saveState = useSaveState()
         const [error, setError] = useState<string | null>(null)
 
         const initial = normalizeWidgetSettings(config)
@@ -90,7 +90,6 @@ export function WebWidgetChannel({
 
         function patch(p: Partial<WidgetSettings>) {
                 setSettings((s) => ({ ...s, ...p }))
-                setSaved(false)
         }
 
         async function enable() {
@@ -134,8 +133,7 @@ export function WebWidgetChannel({
         }
 
         async function save() {
-                setSaving(true)
-                setSaved(false)
+                saveState.start()
                 setError(null)
                 const domains = normalizeDomains(domainsText)
                 try {
@@ -149,13 +147,12 @@ export function WebWidgetChannel({
                         })
                         if (!res.ok) throw new Error('save failed')
                         setDomainsText(domains.join('\n'))
-                        setSaved(true)
+                        saveState.done()
                         // Cache invalidation happens server-side in the POST /channels route.
                         router.refresh()
                 } catch {
+                        saveState.fail()
                         setError(t('saveError'))
-                } finally {
-                        setSaving(false)
                 }
         }
 
@@ -622,7 +619,6 @@ export function WebWidgetChannel({
                                                                                         placeholder={t('allowedDomainsPh')}
                                                                                         onChange={(e) => {
                                                                                                 setDomainsText(e.target.value)
-                                                                                                setSaved(false)
                                                                                         }}
                                                                                         className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
@@ -639,20 +635,7 @@ export function WebWidgetChannel({
                                                                 </section>
 
                                                                 <div className="flex items-center gap-3">
-                                                                        <button
-                                                                                onClick={save}
-                                                                                disabled={saving}
-                                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
-                                                                        >
-                                                                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                                                                {saving ? t('saving') : t('save')}
-                                                                        </button>
-                                                                        {saved && (
-                                                                                <span className="inline-flex items-center gap-1 text-sm text-success">
-                                                                                        <Check className="h-4 w-4" />
-                                                                                        {t('saved')}
-                                                                                </span>
-                                                                        )}
+                                                                        <SaveButton state={saveState.state} dirty={settingsDirty} onClick={save} label={t('save')} savingLabel={t('saving')} savedLabel={t('saved')} />
                                                                 </div>
                                                         </div>
 

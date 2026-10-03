@@ -1,6 +1,7 @@
 'use client'
 
 import { SwitchTrack } from '@/components/ui/switch'
+import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -16,7 +17,6 @@ import {
   Check,
   GraduationCap,
   Headphones,
-  Loader2,
   Package,
   QrCode,
   Settings2,
@@ -112,7 +112,8 @@ export function BusinessSettings({
   const [name, setName] = useState(saved.name)
   const [keys, setKeys] = useState<CapabilityKey[]>(saved.capabilities)
   const [extras, setExtras] = useState<string[]>(saved.extras)
-  const [saving, setSaving] = useState(false)
+  const saveState = useSaveState()
+  const saving = saveState.saving
   const [error, setError] = useState('')
   const [justSaved, setJustSaved] = useState<{ added: DashboardModuleKey[]; hidden: DashboardModuleKey[]; previousType: BusinessTypeValue; renamedTo?: string } | null>(null)
 
@@ -213,16 +214,16 @@ export function BusinessSettings({
 
   async function save() {
     if (name.trim().length < 2) { setError(fa ? 'نام کسب‌وکار را وارد کنید (حداقل ۲ نویسه).' : 'Enter a business name (2+ characters).'); return }
-    setSaving(true)
+    saveState.start()
     setError('')
     try {
       const ok = await persist({ type, name: name.trim(), capabilities: keys, extras })
       if (!ok) throw new Error()
+      saveState.done()
       setTypeOpen(false)
     } catch {
+      saveState.fail()
       setError(fa ? 'ذخیره انجام نشد؛ دوباره تلاش کنید.' : 'Could not save. Try again.')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -472,9 +473,9 @@ export function BusinessSettings({
 
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
 
-      {/* Save bar — only while something changed */}
+      {/* Save bar — while something changed, and for the moment it confirms the save */}
       <AnimatePresence>
-        {dirty && (
+        {(dirty || saveState.saved) && (
           <motion.div
             initial={reduceMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -490,13 +491,10 @@ export function BusinessSettings({
                 <p className="truncate text-[var(--text-muted)]">{fa ? 'نام یا نوع کسب‌وکار' : 'Business name or type'}</p>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={reset} disabled={saving} className="min-h-11 flex-1 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] sm:flex-none">
+                <button type="button" onClick={reset} disabled={saving || saveState.saved} className="min-h-11 flex-1 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] sm:flex-none">
                   {fa ? 'برگرداندن' : 'Discard'}
                 </button>
-                <button type="button" onClick={() => void save()} disabled={saving} className="spatial-press inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-60 sm:flex-none">
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  {fa ? 'ذخیره' : 'Save'}
-                </button>
+                <SaveButton state={saveState.state} onClick={() => void save()} className="flex-1 sm:flex-none" />
               </div>
             </div>
           </motion.div>

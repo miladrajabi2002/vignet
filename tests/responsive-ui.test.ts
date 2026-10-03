@@ -49,7 +49,8 @@ describe('shared adaptive mobile UI contract', () => {
     expect(page).toContain('totalResults={totalProducts}')
     expect(productForm).toContain('grid gap-4 sm:grid-cols-2')
     expect(productForm).toContain('mt-3 grid gap-2 sm:grid-cols-3')
-    expect(productForm).toContain('min-h-11 w-full')
+    expect(productForm).toContain('<SaveButton')
+    expect(productForm).toContain('className="w-full sm:w-auto"')
   })
 
   it('aligns orders with the shared commerce and customer mobile patterns', () => {
