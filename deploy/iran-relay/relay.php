@@ -84,7 +84,11 @@ if (!is_string($nonce) || !preg_match('/^[A-Za-z0-9-]{16,64}$/', $nonce)) {
 }
 if (!is_dir(NONCE_DIR)) {
     @mkdir(NONCE_DIR, 0700, true);
-    @file_put_contents(NONCE_DIR . '/.htaccess', "Require all denied\nDeny from all\n");
+}
+// Some hosts ignore .htaccess — a blank index also stops directory listing.
+if (!file_exists(NONCE_DIR . '/index.html')) {
+    @file_put_contents(NONCE_DIR . '/.htaccess', "Options -Indexes\n<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n");
+    @file_put_contents(NONCE_DIR . '/index.html', '');
 }
 $nonceFile = NONCE_DIR . '/' . $nonce;
 if (file_exists($nonceFile)) {
@@ -93,7 +97,7 @@ if (file_exists($nonceFile)) {
 @touch($nonceFile);
 if (mt_rand(1, 50) === 1) {
     foreach (glob(NONCE_DIR . '/*') ?: [] as $file) {
-        if (is_file($file) && filemtime($file) < time() - 2 * MAX_CLOCK_SKEW) {
+        if (is_file($file) && basename($file) !== 'index.html' && filemtime($file) < time() - 2 * MAX_CLOCK_SKEW) {
             @unlink($file);
         }
     }
