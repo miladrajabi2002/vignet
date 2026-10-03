@@ -148,7 +148,7 @@ async function callRelay(
   }
   if (!res.ok || json.ok !== true) {
     const reason = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-    throw new Error(`IRAN_RELAY_${reason.toUpperCase()}`)
+    throw new Error(`IRAN_RELAY_${reason.toUpperCase().replace(/^RELAY_/, '')}`)
   }
   return json
 }
@@ -194,6 +194,12 @@ export interface IranRelayHealth {
   mode: IranRelayMode
 }
 
+const RELAY_ERROR_HINTS: Record<string, string> = {
+  IRAN_RELAY_NOT_CONFIGURED: 'RELAY_SECRET داخل فایل روی هاست ایران هنوز مقدار پیش‌فرض است',
+  IRAN_RELAY_BAD_SIGNATURE: 'RELAY_SECRET روی هاست با IRAN_RELAY_SECRET سرور یکی نیست',
+  IRAN_RELAY_STALE_REQUEST: 'ساعت هاست ایران با سرور بیش از ۵ دقیقه اختلاف دارد',
+}
+
 /** Signed PING — proves the relay is reachable and shares our secret. */
 export async function iranRelayHealth(): Promise<IranRelayHealth> {
   const config = relayConfig()
@@ -212,10 +218,11 @@ export async function iranRelayHealth(): Promise<IranRelayHealth> {
       mode: config.mode,
     }
   } catch (error) {
+    const message = (error as Error).message
     return {
       state: 'down',
       latencyMs: Date.now() - started,
-      detail: `رله پاسخ نداد (${(error as Error).message.slice(0, 80)})`,
+      detail: RELAY_ERROR_HINTS[message] ?? `رله پاسخ نداد (${message.slice(0, 80)})`,
       mode: config.mode,
     }
   }
