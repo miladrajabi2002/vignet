@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bot,
   BrainCircuit,
+  Cpu,
   CreditCard,
   Database,
   FileText,
@@ -72,6 +73,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'هوش مصنوعی',
     items: [
       { href: '/admin/ai', label: 'مدل‌ها و سیاست AI', short: 'مدل‌ها', icon: BrainCircuit },
+      { href: '/admin/agent-core', label: 'هستهٔ ایجنت', short: 'هسته', icon: Cpu },
       { href: '/admin/skills', label: 'اسکیل‌های بهبود', short: 'اسکیل‌ها', icon: Radar },
       { href: '/admin/settings', label: 'تنظیمات پلتفرم', short: 'تنظیمات', icon: Settings2 },
     ],

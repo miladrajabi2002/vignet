@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   otpDeleteMany: vi.fn(),
   errorDeleteMany: vi.fn(),
   syncDeleteMany: vi.fn(),
+  understandingDeleteMany: vi.fn(),
   executeRaw: vi.fn(),
   workspaceFindFirst: vi.fn(),
   workspaceFindMany: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock('@/lib/prisma', () => ({
     oTPLog: { deleteMany: mocks.otpDeleteMany },
     errorLog: { deleteMany: mocks.errorDeleteMany },
     storeSyncLog: { deleteMany: mocks.syncDeleteMany },
+    turnUnderstandingLog: { deleteMany: mocks.understandingDeleteMany },
     workspace: {
       findFirst: mocks.workspaceFindFirst,
       findMany: mocks.workspaceFindMany,
@@ -36,6 +38,7 @@ describe('bounded data retention', () => {
     mocks.otpDeleteMany.mockResolvedValue({ count: 2 })
     mocks.errorDeleteMany.mockResolvedValue({ count: 3 })
     mocks.syncDeleteMany.mockResolvedValue({ count: 4 })
+    mocks.understandingDeleteMany.mockResolvedValue({ count: 6 })
     mocks.executeRaw.mockResolvedValue(5)
     mocks.workspaceFindFirst.mockResolvedValue({ id: 'platform-workspace' })
     mocks.workspaceFindMany.mockResolvedValue([{ id: 'orphan-1' }])
@@ -52,6 +55,10 @@ describe('bounded data retention', () => {
       syncLogsByAge: 4,
       syncLogsOverCap: 5,
       orphanWorkspaces: 1,
+      understandingLogs: 6,
+    })
+    expect(mocks.understandingDeleteMany).toHaveBeenCalledWith({
+      where: { createdAt: { lt: new Date('2026-05-10T12:00:00.000Z') } },
     })
 
     expect(mocks.syncDeleteMany).toHaveBeenCalledWith({

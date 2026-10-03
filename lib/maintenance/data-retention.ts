@@ -7,6 +7,9 @@ const STORE_SYNC_SUCCESS_RETENTION_DAYS = 7
 const STORE_SYNC_ERROR_RETENTION_DAYS = 30
 export const STORE_SYNC_LOGS_PER_INTEGRATION = 500
 const ORPHAN_WORKSPACE_GRACE_DAYS = 7
+// Per-turn understanding readings: enough history for the admin report's
+// 90-day view and for comparing a rollout, without growing forever.
+const UNDERSTANDING_LOG_RETENTION_DAYS = 90
 
 interface CleanupResult {
   otpLogs: number
@@ -14,6 +17,7 @@ interface CleanupResult {
   syncLogsByAge: number
   syncLogsOverCap: number
   orphanWorkspaces: number
+  understandingLogs: number
 }
 
 /**
@@ -30,7 +34,11 @@ export async function cleanupOldRecords(now = new Date()): Promise<CleanupResult
     now.getTime() - STORE_SYNC_ERROR_RETENTION_DAYS * DAY_MS,
   )
 
-  const [otp, errors, syncLogsByAge] = await Promise.all([
+  const understandingCutoff = new Date(
+    now.getTime() - UNDERSTANDING_LOG_RETENTION_DAYS * DAY_MS,
+  )
+
+  const [otp, errors, syncLogsByAge, understandingLogs] = await Promise.all([
     prisma.oTPLog.deleteMany({ where: { sentAt: { lt: auditCutoff } } }),
     prisma.errorLog.deleteMany({ where: { createdAt: { lt: auditCutoff } } }),
     prisma.storeSyncLog.deleteMany({
@@ -41,6 +49,10 @@ export async function cleanupOldRecords(now = new Date()): Promise<CleanupResult
         ],
       },
     }),
+    prisma.turnUnderstandingLog
+      .deleteMany({ where: { createdAt: { lt: understandingCutoff } } })
+      // The table arrives with the agent-core migration.
+      .catch(() => ({ count: 0 })),
   ])
 
   // Time retention handles normal traffic. This hard per-integration ceiling
@@ -98,5 +110,6 @@ export async function cleanupOldRecords(now = new Date()): Promise<CleanupResult
     syncLogsByAge: syncLogsByAge.count,
     syncLogsOverCap: Number(syncLogsOverCap),
     orphanWorkspaces: deletedOrphans.count,
+    understandingLogs: understandingLogs.count,
   }
 }

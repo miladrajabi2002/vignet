@@ -636,15 +636,21 @@ export function advanceConversationWorkingState(params: {
     && textAfterReset.length >= 2
     && intent !== 'GENERAL'
     && !params.productPlan?.requestNewTopic
+  // Product memory survives a topic reset on this path too: «همون اولی» may come back.
+  const memory = next.discussedEntities
   if (resetRequested && !resetCarriesNewGoal) {
     const reset = createEmptyConversationWorkingState(next.sessionStartId)
     reset.status = 'RESET'
+    if (memory) reset.discussedEntities = memory
     reset.lastTurn = { relation: 'RESET', intent, sourceMessageId: params.messageId }
     reset.throughId = params.messageId
     reset.throughAt = new Date(params.createdAt).toISOString()
     return reset
   }
-  if (resetCarriesNewGoal) next = createEmptyConversationWorkingState(next.sessionStartId)
+  if (resetCarriesNewGoal) {
+    next = createEmptyConversationWorkingState(next.sessionStartId)
+    if (memory) next.discussedEntities = memory
+  }
   const correctionRequested = CORRECTION_RE.test(normalized)
   const correctionCarriesNewGoal = correctionRequested && Boolean(next.activeGoal) && (
     Boolean(params.productPlan?.resetProductContext && params.productPlan.isProductTurn)
