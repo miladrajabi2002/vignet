@@ -10,6 +10,8 @@ import {
 import { stripProductTokens } from '@/lib/widget/config'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { loadConversationSession, sessionMessageWhere } from '@/lib/conversations/session-store'
+import { parseConversationWorkingState } from '@/lib/ai/conversation-state'
+import { buildLiveSummary } from '@/lib/conversations/live-summary'
 
 export interface SummaryJobData {
   conversationId: string
@@ -83,6 +85,8 @@ export function buildFallbackSummary(
   messages: SummaryMessage[],
   language: string,
   rollingMemory?: string | null,
+  /** Structured facts (goal, product, cart, stated details) from the live state. */
+  structured?: string | null,
 ): string | null {
   const turns = messages.filter((message) => message.role !== 'SYSTEM' && message.content.trim())
   const latestUser = [...turns].reverse().find((message) => message.role === 'USER')
@@ -131,6 +135,7 @@ export function buildFallbackSummary(
 
   if (language === 'en') {
     const parts = [
+      structured ? compact(structured, 420) : null,
       rollingMemory ? `Relevant history: ${compact(rollingMemory, 340)}` : null,
       `Customer request${sourceLabel ? ` via ${sourceLabel}` : ''}: ${recentRequests.join(' → ') || intent}`,
       outcome ? `Latest agent response: ${compact(outcome, 190)}` : null,
@@ -144,6 +149,7 @@ export function buildFallbackSummary(
   }
 
   const parts = [
+    structured ? compact(structured, 420) : null,
     rollingMemory ? `سابقه مرتبط: ${compact(rollingMemory, 340)}` : null,
     `درخواست مشتری${sourceLabel ? ` از طریق ${sourceLabel}` : ''}: ${recentRequests.join(' ← ') || intent}`,
     outcome ? `آخرین پاسخ ایجنت: ${compact(outcome, 190)}` : null,
@@ -183,6 +189,12 @@ export async function ensureConversationSummary(
       summary: true,
       agent: { select: { id: true, language: true, model: true } },
       memory: { select: { summary: true, sessionStartId: true } },
+      workingState: { select: { state: true, sessionStartId: true } },
+      orderDrafts: {
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+        select: { code: true, status: true, expecting: true, items: true, customerName: true, city: true },
+      },
       messages: {
         where: sessionMessageWhere(session),
         orderBy: { createdAt: 'desc' },
@@ -203,7 +215,14 @@ export async function ensureConversationSummary(
   const rollingMemory = conversation.memory?.sessionStartId === session.start.id
     ? conversation.memory.summary.trim() || null
     : null
-  const fallback = buildFallbackSummary(messages, conversation.agent.language, rollingMemory) ?? existingSummary
+  const structured = buildLiveSummary({
+    state: conversation.workingState && conversation.workingState.sessionStartId === session.start.id
+      ? parseConversationWorkingState(conversation.workingState.state, conversation.workingState.sessionStartId)
+      : null,
+    draft: (conversation.orderDrafts ?? [])[0] ?? null,
+    language: conversation.agent.language,
+  })
+  const fallback = buildFallbackSummary(messages, conversation.agent.language, rollingMemory, structured) ?? existingSummary
   if (!fallback) return { summary: null, source: 'empty' }
 
   // Greetings and emoji-only reactions are factual classification tasks. Keep
@@ -279,7 +298,7 @@ export async function ensureConversationSummary(
       model,
       messages: [
         { role: 'system', content: instruction },
-        { role: 'user', content: transcript },
+        { role: 'user', content: structured ? `Known structured facts (trusted): ${structured}\n\nTranscript:\n${transcript}` : transcript },
       ],
       temperature: 0.2,
       maxTokens: 280,

@@ -197,6 +197,8 @@ export type Capability =
 export interface TurnCandidates {
   capabilities: Capability[]
   pending: PendingQuestion | null
+  /** What the customer is in the middle of (short answers continue it). */
+  task: 'product' | 'order' | 'booking' | 'course' | 'support' | null
   /** The cards of the agent's recent replies, most recent showcase order first. */
   shownCards: ProductCandidate[]
   cart: CartCandidate[]

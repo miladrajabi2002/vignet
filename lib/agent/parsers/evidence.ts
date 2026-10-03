@@ -66,7 +66,10 @@ export function priceAppearsIn(value: number, message: string): boolean {
   const text = normalizeEvidenceText(message)
   const numbers = (text.match(/\d+(?:[.,/]\d+)?/g) ?? []).map((raw) => Number(raw.replace(/,/g, '').replace('/', '.')))
   const multipliers = [1, ...UNIT_WORDS.filter(([pattern]) => pattern.test(text)).map(([, multiplier]) => multiplier)]
-  return numbers.some((number) => multipliers.some((multiplier) => Math.abs(number * multiplier - value) < 1))
+  // «۵۰۰ تومن» is colloquial for 500 thousand Toman.
+  const colloquialThousands = /تومن|تومان|toman/u.test(text)
+  return numbers.some((number) => multipliers.some((multiplier) => Math.abs(number * multiplier - value) < 1)
+    || (colloquialThousands && number < 10_000 && Math.abs(number * 1_000 - value) < 1))
 }
 
 /** A word or phrase occurs in the text (normalized, spacing-insensitive). */

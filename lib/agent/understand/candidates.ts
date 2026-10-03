@@ -67,7 +67,7 @@ export function recentShownCardIds(history: ChatMessage[], lookback = 4): string
 export function vocabularySample(vocabulary: ReadonlySet<string> | null | undefined, limit = 40): string[] {
   if (!vocabulary?.size) return []
   return [...vocabulary]
-    .filter((token) => token.length >= 3 && !/^\d+$/.test(token))
+    .filter((token) => token.length >= 3 && !/^[0-9\u06F0-\u06F9\u0660-\u0669]+$/.test(token))
     .sort((a, b) => b.length - a.length || a.localeCompare(b))
     .slice(0, limit * 2)
     .sort((a, b) => a.localeCompare(b))
@@ -165,9 +165,19 @@ export async function buildTurnCandidates(input: BuildCandidatesInput): Promise<
   const services: NamedCandidate[] = input.serviceNames.slice(0, 15).map((name, index) => ({ ref: `svc:${index + 1}`, id: name, name }))
   const courseCandidates: NamedCandidate[] = courses.map((course, index) => ({ ref: `course:${index + 1}`, id: course.id, name: course.title }))
 
+  const goal = input.state.activeGoal?.intent
+  const task: TurnCandidates['task'] = draftItems.length || input.openCheckout
+    ? 'order'
+    : goal === 'BOOKING' ? 'booking'
+      : goal === 'SERVICE' && courseCandidates.length ? 'course'
+        : goal === 'PRODUCT' ? 'product'
+          : goal === 'ORDER' ? 'order'
+            : goal === 'SUPPORT' ? 'support'
+              : null
   return {
     capabilities: input.capabilities,
     pending: pendingFrom(input),
+    task,
     shownCards,
     cart,
     active,

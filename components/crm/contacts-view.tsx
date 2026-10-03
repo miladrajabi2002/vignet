@@ -50,8 +50,21 @@ export interface ContactRow {
         marketingOptIn: boolean
         /** Last thing said in the customer's latest conversation. */
         lastMessage?: string | null
-        /** 0–100 purchase likelihood from the latest conversation, when known. */
+        /** 0–100 likelihood of buying, across all conversations and real outcomes. */
         buyerProbability?: number | null
+        buyerLevel?: 'customer' | 'hot' | 'warm' | 'exploring' | 'cold' | null
+        /** Strongest evidence behind the score (shown as the tooltip). */
+        buyerReason?: 'paid_order' | 'booking' | 'enrollment' | 'filed_order' | 'checkout' | 'cart' | 'conversation' | null
+}
+
+const BUYER_REASON: Record<NonNullable<ContactRow['buyerReason']>, readonly [string, string]> = {
+        paid_order: ['سفارش پرداخت‌شده دارد', 'Has a paid order'],
+        booking: ['نوبت رزروشده دارد', 'Has a booked appointment'],
+        enrollment: ['در دوره ثبت‌نام کرده', 'Enrolled in a course'],
+        filed_order: ['پیش‌سفارش ثبت کرده', 'Filed a pre-order'],
+        checkout: ['لینک پرداخت گرفته و منتظر پرداخت است', 'Has an unpaid payment link'],
+        cart: ['سبد خرید در حال تکمیل دارد', 'Has a cart in progress'],
+        conversation: ['از روی گفتگوهای اخیرش', 'From recent conversations'],
 }
 
 const STAGES = CONTACT_STAGES
@@ -954,8 +967,13 @@ function PipelineView({
                                                                                 <div className="mt-1.5 flex items-center justify-between gap-2 text-[12px] text-[var(--text-muted)]">
                                                                                         <span className="whitespace-nowrap tabular-nums">{smartTime(c.lastActivity, locale === 'fa' ? 'fa' : 'en')}</span>
                                                                                         {typeof c.buyerProbability === 'number' && (
-                                                                                                <span className={cn('whitespace-nowrap font-medium tabular-nums', c.buyerProbability >= 75 ? 'text-emerald-700' : '')}>
-                                                                                                        {Math.round(c.buyerProbability).toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}{locale === 'fa' ? '٪' : '%'}
+                                                                                                <span
+                                                                                                        title={c.buyerReason ? BUYER_REASON[c.buyerReason][locale === 'fa' ? 0 : 1] : undefined}
+                                                                                                        className={cn('whitespace-nowrap font-medium tabular-nums', c.buyerProbability >= 75 ? 'text-emerald-700' : '')}
+                                                                                                >
+                                                                                                        {c.buyerLevel === 'customer'
+                                                                                                                ? (locale === 'fa' ? 'مشتری ✓' : 'Customer ✓')
+                                                                                                                : `${Math.round(c.buyerProbability).toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}${locale === 'fa' ? '٪' : '%'}`}
                                                                                                 </span>
                                                                                         )}
                                                                                 </div>

@@ -35,6 +35,8 @@ ACTS (1-3, in message order; a message can carry several: «هزینه ارسا�
 - greeting / thanks / goodbye / defer («باید فکر کنم», «بعداً خبر می‌دم») / smalltalk: only when the message carries nothing else.
 - reset_topic: «بی‌خیال، یه چیز دیگه». other: none of the above.
 
+TASK. task says what the customer is in the middle of; a short answer continues it: during booking «شنبه ساعت ۵» → booking with date/time; during course → course; during order → order_details / cart_edit / order_confirm.
+
 PENDING. If pending is given and the message answers it, set answers_pending=true: «آره/باشه/بله» to confirm_order_summary or confirm_cancel → order_confirm; «نه» → order_decline; «آره خبرم کن» to restock_offer → restock_subscribe; «آره نشون بده» to showcase_offer → product_search with display=showcase; an answer to ask_slot → the matching act (order_details for order fields, product_search attributes for product preferences).
 
 RELATION to the conversation: new_goal | refinement (narrows the current request) | answer (to the agent's question) | reference (points at something shown) | correction («نه منظورم…») | side_question (unrelated question mid-task) | reset | greeting | closing | other.
@@ -65,6 +67,7 @@ export function buildUnderstandPayload(input: UnderstandPayloadInput): string {
   })
   const payload = {
     capabilities: c.capabilities,
+    task: c.task,
     pending: c.pending ? { kind: c.pending.kind, ...(c.pending.slot ? { slot: c.pending.slot } : {}), ...(c.pending.text ? { text: bounded(c.pending.text, 160) } : {}) } : null,
     cards: c.shownCards.slice(0, 10).map(product),
     active: c.active ? product(c.active) : null,

@@ -4,6 +4,8 @@ import { currentSessionMessages } from '@/lib/conversations/session'
 import { inboundSourceTag, readInboundSource } from '@/lib/conversations/source'
 import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { parseConversationWorkingState } from '@/lib/ai/conversation-state'
+import { buildLiveSummary } from '@/lib/conversations/live-summary'
 
 /**
  * One conversation as the operator sees it: thread, customer identity on that
@@ -60,6 +62,12 @@ export async function loadConversationView(params: {
                                 },
                         },
                         salesInsight: true,
+                        workingState: { select: { state: true, sessionStartId: true } },
+                        orderDrafts: {
+                                orderBy: { updatedAt: 'desc' },
+                                take: 1,
+                                select: { code: true, status: true, expecting: true, items: true, customerName: true, city: true },
+                        },
                         messages: {
                                 orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
                                 select: {
@@ -121,6 +129,18 @@ export async function loadConversationView(params: {
                         }
                 : null
 
+        // Open conversations have no handoff summary yet: a live, factual one
+        // from the structured state (goal, product, cart, stated details).
+        const liveSummary = conversation.summary
+                ? null
+                : buildLiveSummary({
+                        state: conversation.workingState
+                                ? parseConversationWorkingState(conversation.workingState.state, conversation.workingState.sessionStartId)
+                                : null,
+                        draft: (conversation.orderDrafts ?? [])[0] ?? null,
+                        language: conversation.agent.language || conversation.workspace.language,
+                })
+
         const latestInbound = [...conversation.messages].reverse().find((message) => message.role === 'USER')
         // "Instagram Direct", "Instagram Comment"…; null for single-entry apps.
         const sourceTag = latestInbound
@@ -130,6 +150,7 @@ export async function loadConversationView(params: {
         return {
                 conversation,
                 insight,
+                liveSummary,
                 handle,
                 avatar,
                 who,

@@ -13,6 +13,7 @@ import { detectRestockRequest } from '@/lib/commerce/restock'
 import { hasBookingIntent } from '@/lib/bookings/intent'
 import { hasCourseIntent } from '@/lib/courses/intent'
 import { detectsOrderTracking } from '@/lib/ai/order-context'
+import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
 import type { ActType, TurnUnderstanding, VerifiedUnderstanding } from '@/lib/agent/understand/types'
 
 export interface LegacyReading {
@@ -65,6 +66,18 @@ export function legacyReading(input: LegacyReadingInput): LegacyReading {
   if (input.capabilities.bookings && hasBookingIntent(window)) acts.push('booking')
   if (input.capabilities.courses && hasCourseIntent(window)) acts.push('course')
   if (input.capabilities.tracking && detectsOrderTracking(input.message) && !acts.includes('order_start')) acts.push('order_status')
+  // The handoff policy's keyword reading (human request, distress, order problem).
+  const heuristic = analyzeSalesConversation({
+    messages: [
+      ...input.history.flatMap((item) => item.role === 'user' || item.role === 'assistant'
+        ? [{ role: item.role === 'user' ? 'USER' as const : 'ASSISTANT' as const, content: item.content ?? '' }]
+        : []),
+      { role: 'USER', content: input.message },
+    ],
+    heuristicOnly: true,
+  })
+  if (heuristic.operational.explicitHumanRequest) acts.push('human_request')
+  else if (heuristic.operational.severeDistress || heuristic.operational.orderIssue) acts.push('complaint')
   if (!acts.length) acts.push('other')
   return {
     acts: [...new Set(acts)],

@@ -3,6 +3,7 @@ import type { ChannelType, Prisma } from '@prisma/client'
 import { ChevronDown, Users, UserPlus, GitMerge, Tag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { contactBuyerScore, EMPTY_OUTCOMES, outcomesFromDrafts } from '@/lib/crm/buyer-score'
 import { conversationPreviewText } from '@/lib/conversations/preview'
 import { ContactsView, type ContactRow } from '@/components/crm/contacts-view'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
@@ -133,13 +134,15 @@ export default async function ContactsPage(
         _count: { select: { conversations: { where: { deletedAt: null } } } },
         // The latest conversation gives each row its last message and how
         // likely the customer is to buy.
+        // The latest conversations give each row its last message, and the
+        // buyer score reads across all of them (not only the latest one).
         conversations: {
           where: { deletedAt: null },
           orderBy: { lastMessageAt: 'desc' },
-          take: 1,
+          take: 6,
           select: {
             messages: { where: { role: { in: ['USER', 'ASSISTANT'] } }, orderBy: { createdAt: 'desc' }, take: 1, select: { content: true } },
-            salesInsight: { select: { leadType: true, buyerProbability: true } },
+            salesInsight: { select: { leadType: true, buyerProbability: true, stage: true, analyzedAt: true } },
           },
         },
       },
@@ -178,6 +181,40 @@ export default async function ContactsPage(
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
+  // Real outcomes behind the buyer score: carts, payment links, paid orders,
+  // bookings and course places of the contacts on this page.
+  const pageContactIds = pageContacts.map((contact) => contact.id)
+  const [draftRows, bookingRows, enrollmentRows] = pageContactIds.length
+    ? await Promise.all([
+      prisma.orderDraft.findMany({
+        where: { workspaceId: user.workspaceId, contactId: { in: pageContactIds } },
+        select: { contactId: true, status: true },
+      }).catch(() => []),
+      prisma.appointment.groupBy({
+        by: ['contactId'],
+        where: { workspaceId: user.workspaceId, contactId: { in: pageContactIds }, status: { in: ['CONFIRMED', 'COMPLETED'] } },
+        _count: { _all: true },
+      }).catch(() => []),
+      prisma.courseEnrollment.groupBy({
+        by: ['contactId'],
+        where: { workspaceId: user.workspaceId, contactId: { in: pageContactIds }, status: { in: ['CONFIRMED', 'PENDING'] } },
+        _count: { _all: true },
+      }).catch(() => []),
+    ])
+    : [[], [], []]
+  const outcomes = outcomesFromDrafts(draftRows)
+  for (const row of bookingRows) {
+    if (!row.contactId) continue
+    const entry = outcomes.get(row.contactId) ?? { ...EMPTY_OUTCOMES }
+    entry.bookings += row._count._all
+    outcomes.set(row.contactId, entry)
+  }
+  for (const row of enrollmentRows) {
+    if (!row.contactId) continue
+    const entry = outcomes.get(row.contactId) ?? { ...EMPTY_OUTCOMES }
+    entry.enrollments += row._count._all
+    outcomes.set(row.contactId, entry)
+  }
   const liveVersion = contactLiveVersion({ count: totalCount, latest: latestContact })
   const listParams = new URLSearchParams()
   if (page > 1) listParams.set('page', String(page))
@@ -254,9 +291,13 @@ export default async function ContactsPage(
       channelUsernames,
       marketingOptIn: c.marketingOptIn,
       lastMessage: c.conversations[0]?.messages[0] ? conversationPreviewText(c.conversations[0].messages[0].content).slice(0, 140) : null,
-      buyerProbability: c.conversations[0]?.salesInsight && c.conversations[0].salesInsight.leadType !== 'UNCLEAR'
-        ? c.conversations[0].salesInsight.buyerProbability
-        : null,
+      ...(() => {
+        const buyer = contactBuyerScore(
+          c.conversations.flatMap((conversation) => conversation.salesInsight ? [conversation.salesInsight] : []),
+          outcomes.get(c.id) ?? EMPTY_OUTCOMES,
+        )
+        return { buyerProbability: buyer.score, buyerLevel: buyer.level, buyerReason: buyer.reason }
+      })(),
     }
   })
 

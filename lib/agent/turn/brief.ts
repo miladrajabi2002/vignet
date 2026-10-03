@@ -43,11 +43,12 @@ export function composeTurnBrief(params: {
   const fa = params.lang !== 'en'
   const lines: string[] = []
   const asks = route.brief.filter((item) => item.ask)
+  const number = (value: number) => fa ? value.toLocaleString('fa-IR') : String(value)
   if (asks.length > 1) {
     lines.push(fa
-      ? `مشتری در همین پیام ${asks.length} چیز خواسته؛ به همه، به همین ترتیب و کوتاه جواب بده:`
+      ? `مشتری در همین پیام ${number(asks.length)} چیز خواسته؛ به همه، به همین ترتیب و کوتاه جواب بده:`
       : `The customer asked ${asks.length} things in this message; answer all of them, in this order, briefly:`)
-    asks.forEach((item, index) => lines.push(`${index + 1}) ${item.ask}`))
+    asks.forEach((item, index) => lines.push(`${number(index + 1)}) ${item.ask}`))
   }
   const products = Object.values(params.refs).filter((ref) => ref.kind === 'product' || ref.kind === 'cart')
   if (params.showRefs !== false && products.length) {

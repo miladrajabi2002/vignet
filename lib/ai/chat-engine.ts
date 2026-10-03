@@ -1144,14 +1144,19 @@ async function prepareTurn(params: StartChatParams): Promise<
 
                 const turnHistory = historyForProductTurn(modelHistory, productRequest)
                 const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
+                // A booking/course dialog continues on short answers («شنبه ساعت ۵»)
+                // to the agent's own question, even when the answer alone reads
+                // as nothing in particular.
+                const continuesTask = (intent: 'BOOKING' | 'SERVICE') => loadedState.state.activeGoal?.intent === intent
+                        && ['ANSWER', 'REFINEMENT', 'CORRECTION', 'REFERENCE'].includes(workingState.lastTurn?.relation ?? '')
                 const bookingIntent = routed('bookings') && route
-                        ? route.booking !== null
+                        ? route.booking !== null || continuesTask('BOOKING')
                         : hasBookingIntent([
                                 ...planningHistory,
                                 { role: 'user', content: message },
                         ])
                 const courseIntent = routed('courses') && route
-                        ? route.course !== null
+                        ? route.course !== null || continuesTask('SERVICE')
                         : hasCourseIntent([
                                 ...planningHistory,
                                 { role: 'user', content: message },
@@ -1270,7 +1275,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 ? understanding.outcome?.ok === true && understanding.outcome.verified.answersPending
                                         && understanding.candidates?.pending?.kind === 'booking_confirm'
                                 : undefined,
-                        bookingIntentKnown: routed('bookings') && route?.booking !== null && route !== null,
+                        bookingIntentKnown: routed('bookings') && route !== null && bookingIntent,
                         courseHint: routed('courses') && route?.course ? [route.course.action, route.course.hint].filter(Boolean).join(' ') : undefined,
                         discussedProducts: catalogProducts
                                 .filter((product) => product.fullTermMatch)
