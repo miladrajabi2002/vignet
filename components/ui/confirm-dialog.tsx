@@ -192,7 +192,7 @@ export function ConfirmDialog({
               )}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/60 px-4 pt-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4">
+            <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_60%,transparent)] px-4 pt-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4">
               <button
                 ref={cancelRef}
                 type="button"

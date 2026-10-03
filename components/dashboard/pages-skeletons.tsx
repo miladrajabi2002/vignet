@@ -387,7 +387,7 @@ export function ServiceStatTileSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the sticky services search bar (mobile wrapper included). */
 export function SearchBarSkeleton({ delay = 0, className }: { delay?: number; className?: string }) {
   return (
-    <div className={cn('sticky top-[5.25rem] z-20 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-2 shadow-sm backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none', className)}>
+    <div className={cn('sticky top-[5.25rem] z-20 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_95%,transparent)] p-2 shadow-sm backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none', className)}>
       <Skeleton delay={delay} className="h-11 w-full rounded-xl" />
     </div>
   )
@@ -409,7 +409,7 @@ export function EmptyDashedCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors SettingsMobileTabs: 3-pill tab bar (mobile only). */
 export function SettingsMobileTabsSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="sticky top-[5.25rem] z-30 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl md:hidden">
+    <div className="sticky top-[5.25rem] z-30 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_95%,transparent)] p-1.5 shadow-sm backdrop-blur-xl md:hidden">
       <div className="grid grid-cols-3 gap-1">
         {[0, 1, 2].map((index) => (
           <div key={index} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1">

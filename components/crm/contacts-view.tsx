@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, MoreVertical, Search, SlidersHorizontal, Users, X } from 'lucide-react'
 import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
-import { ChannelBadge, ChannelGlyph, SourceTagBadges } from '@/components/crm/channel-badge'
+import { ChannelBadge, ChannelGlyph, SourceTagBadges, isSourceTag } from '@/components/crm/channel-badge'
 import { smartTime, formatDateTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
 import { displayPhone } from '@/lib/phone'
@@ -728,7 +728,7 @@ function ListView({
                                                                         <div className="mt-3 flex flex-wrap items-center gap-1.5">
                                                                                 {c.channels.map((channel) => <ChannelBadge key={channel} type={channel} />)}
                                                                                 <SourceTagBadges tags={c.tags} />
-                                                                                {c.tags.slice(0, 2).map((tag) => (
+                                                                                {c.tags.filter((tag) => !isSourceTag(tag)).slice(0, 2).map((tag) => (
                                                                                         <span key={tag} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[12px] text-[var(--text-secondary)]">{tag}</span>
                                                                                 ))}
                                                                         </div>

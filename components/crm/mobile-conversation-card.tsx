@@ -6,6 +6,7 @@ import type { ChannelType, ConvStatus } from '@prisma/client'
 import { ArrowLeft, Clock3, Lightbulb, MessageSquareText, MessagesSquare, Sparkles } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { ConversationDeleteAction } from '@/components/crm/conversation-actions'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { ConversationStatusDot } from '@/components/crm/conversation-status-dot'
 import { SalesInsightText, SatisfactionText, type SalesInsightView } from '@/components/crm/sales-insight'
@@ -118,7 +119,12 @@ export function MobileConversationCard({
         closeLabel={isFa ? 'بستن خلاصه گفتگو' : 'Close conversation summary'}
         motionPreset="detail"
         footer={
-          <div className="grid grid-cols-[auto_1fr] gap-2">
+          <div className="grid grid-cols-[auto_auto_1fr] gap-2">
+            <ConversationDeleteAction
+              conversationId={conversationId}
+              variant="sheet"
+              onDeleted={() => setOpen(false)}
+            />
             <button
               type="button"
               onClick={() => setOpen(false)}

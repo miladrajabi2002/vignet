@@ -420,7 +420,7 @@ export function SalesInsightCard({
       )}
 
       {insight.recommendedAction && (
-        <div className="mt-3 rounded-xl border border-[var(--signal)]/20 bg-[var(--signal-soft)] p-3">
+        <div className="mt-3 rounded-xl border border-[color:color-mix(in_srgb,var(--signal)_20%,transparent)] bg-[var(--signal-soft)] p-3">
           <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--signal-strong)]">
             <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
             {locale === 'fa' ? 'بهترین اقدام بعدی' : 'Recommended next action'}

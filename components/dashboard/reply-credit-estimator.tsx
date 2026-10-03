@@ -26,7 +26,7 @@ export function ReplyCreditEstimator({
       {/* Header strip */}
       <div className="flex flex-col gap-4 border-b border-[var(--border-subtle)] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:color-mix(in_srgb,var(--text-primary)_10%,transparent)] text-[var(--text-primary)]">
             <Calculator className="h-5 w-5" />
           </span>
           <div>

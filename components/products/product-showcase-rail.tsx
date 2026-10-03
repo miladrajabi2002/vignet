@@ -367,7 +367,7 @@ export function ProductShowcaseRail({
                                                 aria-label={isFa ? 'اسکرول افقی محصولات' : 'Product list, scrolls horizontally'}
                                                 tabIndex={0}
                                                 className={cn(
-                                                        '-mx-1 flex gap-3 overflow-x-auto overscroll-x-contain px-1 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)]/40',
+                                                        '-mx-1 flex gap-3 overflow-x-auto overscroll-x-contain px-1 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--showcase-accent)_40%,transparent)]',
                                                         dragging
                                                                 ? 'cursor-grabbing select-none'
                                                                 : cn('snap-x snap-mandatory', scroll.overflowing && 'cursor-grab select-none'),

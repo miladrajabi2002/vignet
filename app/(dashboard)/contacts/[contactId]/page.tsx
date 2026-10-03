@@ -160,7 +160,7 @@ export default async function ContactDetailPage(
             alt={who}
             size="lg"
             loading="eager"
-            className="bg-[var(--text-primary)]/5 text-[var(--text-primary)]"
+            className="bg-[color:color-mix(in_srgb,var(--text-primary)_5%,transparent)] text-[var(--text-primary)]"
           />
           <div className="min-w-[10rem] flex-1">
             <h1 className="flex flex-wrap items-center gap-2 text-[22px] font-bold leading-9 tracking-tight text-[var(--text-primary)]">

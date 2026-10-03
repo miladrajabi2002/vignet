@@ -53,12 +53,12 @@ export function CommerceTabs({
             key={item.key}
             href={item.href}
             aria-current={selected ? 'page' : undefined}
-            className="ui-seg-tab px-2 text-xs sm:px-4 sm:text-sm"
+            className="ui-seg-tab gap-1.5 whitespace-nowrap px-1.5 text-xs sm:gap-2 sm:px-4 sm:text-sm"
           >
             <span className="ui-seg-icon h-7 w-7">
-              <Icon className="h-4 w-4" aria-hidden="true" />
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
             </span>
-            {item.label}
+            <span className="min-w-0 truncate">{item.label}</span>
           </Link>
         )
       })}

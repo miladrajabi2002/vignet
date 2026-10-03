@@ -147,7 +147,7 @@ export function ContactQuickAdd({
         description={t('quickAdd.description')}
         closeLabel={t('quickAdd.close')}
         mobileOnly={false}
-        contentClassName="bg-[var(--bg-base)]/60"
+        contentClassName="bg-[color:color-mix(in_srgb,var(--bg-base)_60%,transparent)]"
         footer={
           <div className="grid grid-cols-[auto_1fr] gap-2 md:flex md:justify-end">
             <button

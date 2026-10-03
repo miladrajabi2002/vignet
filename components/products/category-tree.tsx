@@ -173,7 +173,7 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[5.25rem] z-20 -mx-1 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-3 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+      <div className="sticky top-[5.25rem] z-20 -mx-1 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_95%,transparent)] p-3 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
         <p className="text-sm text-[var(--text-secondary)]">{t('total', { count: categories.length })}</p>
         <button
           ref={createTriggerRef}

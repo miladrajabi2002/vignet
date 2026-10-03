@@ -344,7 +344,7 @@ export function WooSetupCard({
                     aria-live="polite"
                     className={cn(
                     'mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm',
-                    notice.type === 'ok' ? 'border border-[var(--ok)]/25 bg-[var(--ok-soft)] text-[var(--ok)]' : 'border border-danger/30 bg-danger/5 text-danger',
+                    notice.type === 'ok' ? 'border border-[color:color-mix(in_srgb,var(--ok)_25%,transparent)] bg-[var(--ok-soft)] text-[var(--ok)]' : 'border border-danger/30 bg-danger/5 text-danger',
                 )}>
                     {notice.type === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                     {notice.msg}

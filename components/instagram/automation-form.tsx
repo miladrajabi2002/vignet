@@ -1121,7 +1121,7 @@ export function AutomationForm({
                                         </Section>
 
                                         {error && (
-                                                <p className="flex items-start gap-2 rounded-lg bg-[var(--danger)]/10 px-3 py-2 text-xs text-[var(--danger)]">
+                                                <p className="flex items-start gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2 text-xs text-[var(--danger)]">
                                                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                                         <span className="leading-relaxed">{error}</span>
                                                 </p>
@@ -1478,7 +1478,7 @@ function Section({
                         <section id={id} className="spatial-surface scroll-mt-28 space-y-4 rounded-card p-5 sm:p-6">
                                 <div className="flex items-center gap-2.5">
                                         {Icon && (
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color:color-mix(in_srgb,var(--text-primary)_10%,transparent)] text-[var(--text-primary)]">
                                                         <Icon className="h-4 w-4" />
                                                 </div>
                                         )}
@@ -1497,7 +1497,7 @@ function Section({
                         >
                                 <div className="flex items-center gap-2.5">
                                         {Icon && (
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color:color-mix(in_srgb,var(--text-primary)_10%,transparent)] text-[var(--text-primary)]">
                                                         <Icon className="h-4 w-4" />
                                                 </div>
                                         )}

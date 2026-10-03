@@ -620,7 +620,7 @@ function NowLine({ fa, minute }: { fa: boolean; minute: number }) {
       <span className="rounded-full bg-[var(--signal)] px-2 py-0.5 text-[12px] font-bold tabular-nums text-white" dir="ltr">
         {formatClock(minute, fa)}
       </span>
-      <span className="h-px flex-1 bg-[var(--signal)]/50" />
+      <span className="h-px flex-1 bg-[color:color-mix(in_srgb,var(--signal)_50%,transparent)]" />
     </div>
   )
 }

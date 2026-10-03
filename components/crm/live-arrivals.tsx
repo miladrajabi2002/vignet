@@ -300,7 +300,7 @@ export function LiveArrivalStatus({
       className={cn(
         'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold transition-[color,background-color,border-color] duration-200',
         count > 0
-          ? 'border-[var(--signal)]/20 bg-[var(--signal-soft)] text-[var(--signal-strong)]'
+          ? 'border-[color:color-mix(in_srgb,var(--signal)_20%,transparent)] bg-[var(--signal-soft)] text-[var(--signal-strong)]'
           : 'border-emerald-500/15 bg-emerald-500/[0.08] text-emerald-700',
       )}
     >

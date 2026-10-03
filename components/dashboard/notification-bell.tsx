@@ -56,7 +56,7 @@ const TYPE_META: Record<string, { icon: ComponentType<{ className?: string }>; t
 	HANDOFF: { icon: Headset, tone: 'bg-amber-50 text-amber-700 ring-amber-100', label: 'typeHandoff' },
 	APPOINTMENT: { icon: CalendarCheck2, tone: 'bg-black/[0.04] text-[var(--text-secondary)] ring-black/[0.06]', label: 'typeAppointment' },
 	CHANNEL_DOWN: { icon: Unplug, tone: 'bg-red-50 text-red-700 ring-red-100', label: 'typeChannel' },
-	LEARNING: { icon: Sparkles, tone: 'bg-[var(--signal-soft)] text-[var(--signal-strong)] ring-[var(--signal)]/15', label: 'typeLearning' },
+	LEARNING: { icon: Sparkles, tone: 'bg-[var(--signal-soft)] text-[var(--signal-strong)] ring-[color:color-mix(in_srgb,var(--signal)_15%,transparent)]', label: 'typeLearning' },
 	SYSTEM: { icon: Megaphone, tone: 'bg-zinc-100 text-zinc-700 ring-zinc-200/70', label: 'typeSystem' },
 }
 

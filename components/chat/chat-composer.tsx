@@ -178,7 +178,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 							// 16px is intentional: anything smaller makes iOS Safari zoom
 							// the page when the field takes focus.
 							'flex-1 resize-none bg-transparent px-2 py-2 text-[16px] leading-6',
-							'text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70',
+							'text-[var(--text-primary)] placeholder:text-[color:color-mix(in_srgb,var(--text-secondary)_70%,transparent)]',
 							'outline-none [scrollbar-width:thin]',
 							textareaClassName,
 						)}

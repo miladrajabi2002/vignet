@@ -139,7 +139,7 @@ function DetailDialog({
       motionPreset="detail"
       size="large"
       panelClassName={cn('max-md:h-dvh max-md:rounded-none max-md:border-0', wide ? 'md:max-w-4xl' : 'md:max-w-3xl', compact && 'md:max-h-[calc(100dvh-3rem)]')}
-      contentClassName={cn('space-y-5 bg-[var(--bg-base)]/70 sm:px-5 sm:py-5', compact && 'md:space-y-3 md:px-4 md:py-3')}
+      contentClassName={cn('space-y-5 bg-[color:color-mix(in_srgb,var(--bg-base)_70%,transparent)] sm:px-5 sm:py-5', compact && 'md:space-y-3 md:px-4 md:py-3')}
     >
       {children}
     </MobileBottomSheet>
@@ -743,7 +743,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
           <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{t('گزارش‌های تحلیل', 'Analysis reports')}</span><span className="mt-0.5 block text-xs leading-5 text-[var(--text-muted)]">{t(`${number(data.runTotal)} نوبت تحلیل؛ برای دیدن جزئیات باز کنید.`, `${number(data.runTotal)} analysis runs; open to view details.`)}</span></span>
           <ChevronLeft className="h-4 w-4 shrink-0 -rotate-90 text-[var(--text-muted)] transition-transform duration-200 group-open:rotate-90 motion-reduce:transition-none ltr:rotate-90 ltr:group-open:-rotate-90" aria-hidden="true" />
         </summary>
-        <div className="space-y-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/45 p-3 sm:p-4">
+        <div className="space-y-3 border-t border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_45%,transparent)] p-3 sm:p-4">
           {data.runs.map((run) => (
             <article key={run.id} className="rounded-2xl border border-[var(--border-default)] bg-white p-3.5 sm:p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">

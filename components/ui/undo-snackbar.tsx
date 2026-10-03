@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
  * The «بازگردانی» (undo) snackbar shown after EVERY delete — single or bulk.
  *
  * Design goals (user request: «قشنگ‌تر و حرفه‌ای‌تر»):
- *  • frosted-glass card with a soft layered shadow — premium, not flat
+ *  • solid elevated card with a soft layered shadow — it floats over list
+ *    rows, so it must be opaque or the row text bleeds through it
  *  • prominent inverted undo pill + thin countdown bar with rounded ends
  *  • countdown PAUSES while hovered/focused (Gmail behaviour) so nobody loses
  *    their undo to a slow hand
@@ -140,16 +141,11 @@ export function UndoSnackbar({
           <div
             className={cn(
               'relative w-full max-w-md overflow-hidden rounded-card border',
-              // Frosted glass + layered shadow — reads as a floating layer
-              // above the page, not a grey box.
-              'border-black/[0.08] bg-[var(--bg-surface)]/90 shadow-[var(--elev-2)] backdrop-blur-xl backdrop-saturate-150',
+              // Opaque on purpose: a translucent card over the conversation
+              // list let the row titles show through the message.
+              'border-[var(--border-subtle)] bg-[var(--bg-elevated)] shadow-[var(--elev-2)]',
             )}
           >
-            {/* Subtle top highlight — gives the card a glassy "edge". */}
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent"
-            />
             <div className="flex items-center gap-3 px-3.5 py-3">
               <span
                 className={cn(

@@ -234,7 +234,7 @@ export function UploadDropzone<T = unknown>({
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
           dragOver
             ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/[0.045]'
-            : 'border-[var(--border-hover)] bg-[var(--bg-muted)]/40 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)]/60',
+            : 'border-[var(--border-hover)] bg-[color:color-mix(in_srgb,var(--bg-muted)_40%,transparent)] hover:border-[var(--border-strong)] hover:bg-[color:color-mix(in_srgb,var(--bg-hover)_60%,transparent)]',
           (disabled || atCapacity) && 'cursor-not-allowed opacity-55',
         )}
       >

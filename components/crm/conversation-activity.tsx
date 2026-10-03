@@ -340,7 +340,7 @@ export function ConversationTimelineActivity({
   if (activity.kind === 'operator_note') {
     if (!activity.note) return null
     return (
-      <div className="mx-auto w-full max-w-[34rem] rounded-xl border border-dashed border-[var(--notif-strong)]/35 bg-[var(--notif-soft)] px-3.5 py-2.5" role="note">
+      <div className="mx-auto w-full max-w-[34rem] rounded-xl border border-dashed border-[color:color-mix(in_srgb,var(--notif-strong)_35%,transparent)] bg-[var(--notif-soft)] px-3.5 py-2.5" role="note">
         <p className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--notif-strong)]">
           <StickyNote className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {locale === 'fa' ? 'یادداشت داخلی' : 'Internal note'}

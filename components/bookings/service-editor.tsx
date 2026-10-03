@@ -505,7 +505,7 @@ export function ServiceEditor({
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-bold text-[var(--signal-strong)]">{fa ? 'رزرو آنلاین هم می‌خواهید؟' : 'Want online booking too?'}</span>
-              <span className="block text-[12px] leading-6 text-[var(--signal-strong)]/80">
+              <span className="block text-[12px] leading-6 text-[color:color-mix(in_srgb,var(--signal-strong)_80%,transparent)]">
                 {bookingEnabled
                   ? (fa ? 'ساعت کاری و ظرفیت همین خدمت را تنظیم کنید تا ایجنت نوبت هم بدهد.' : 'Set this service’s hours and capacity so the agent can book it.')
                   : (fa ? 'با یک کلیک بخش «رزرو و نوبت‌دهی» به منوی پنل اضافه می‌شود و ساعت کاری همین خدمت را تنظیم می‌کنید.' : 'One click adds Bookings to your menu and opens this service’s hours.')}
@@ -589,7 +589,7 @@ export function ServiceEditor({
             ) : (
               <p className="mt-2 text-xs text-[var(--signal-strong)]">{fa ? 'با این تنظیمات زمانی ساخته نمی‌شود.' : 'No times can be offered with these settings.'}</p>
             )}
-            <p className="mt-2.5 text-[13px] text-[var(--signal-strong)]/80">
+            <p className="mt-2.5 text-[13px] text-[color:color-mix(in_srgb,var(--signal-strong)_80%,transparent)]">
               {fa
                 ? `${num(preview.slots.length, true)} نوبت در روز · هر نوبت تا ${num(capacity, true)} نفر`
                 : `${preview.slots.length} slots a day · up to ${capacity} per slot`}

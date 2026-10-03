@@ -137,7 +137,7 @@ export function OrderEntry({
         motionPreset="detail"
         triggerRef={triggerRef}
         onClose={() => setOpen(false)}
-        contentClassName="bg-[var(--bg-base)]/70"
+        contentClassName="bg-[color:color-mix(in_srgb,var(--bg-base)_70%,transparent)]"
       >
         <div className="mb-4 grid grid-cols-2 gap-2 rounded-card border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]">
           <div className="min-w-0">

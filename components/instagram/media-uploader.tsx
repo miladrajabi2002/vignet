@@ -337,7 +337,7 @@ export function MediaUploader({
                 <div className="space-y-3">
                         {/* S3 unavailable banner */}
                         {s3Unavailable && (
-                                <div className="flex items-start gap-2 rounded-lg bg-[var(--amber)]/10 px-3 py-2 text-[12px] text-[var(--amber)]">
+                                <div className="flex items-start gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--amber)_10%,transparent)] px-3 py-2 text-[12px] text-[var(--amber)]">
                                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                         <span className="leading-relaxed">
                                                 سرویس آپلود به S3 در دسترس نیست. احتمالاً هنوز پیکربندی نشده. فایل‌ها فقط برای پیش‌نمایش محلی نگه داشته می‌شوند — قبل از ذخیره سناریو این مشکل را برطرف کنید.
@@ -427,7 +427,7 @@ export function MediaUploader({
 
                         {/* Inline error */}
                         {error && (
-                                <div className="flex items-start gap-2 rounded-lg bg-[var(--danger)]/10 px-3 py-2 text-[12px] text-[var(--danger)]">
+                                <div className="flex items-start gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2 text-[12px] text-[var(--danger)]">
                                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                         <span className="leading-relaxed">{error}</span>
                                 </div>

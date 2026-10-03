@@ -145,26 +145,36 @@ export function ChannelBadge({ type, label }: { type: ChannelType; label?: strin
  */
 export const WOO_SOURCE_TAG = 'افزونه ووکامرس'
 
+// Outline "Woo" speech bubble, drawn on the same 24px grid and stroke as the
+// channel glyphs above so it sits beside them at the same weight.
 function WooCommerceIcon({ className }: { className?: string }) {
-  // Simplified WooCommerce logo mark (the "W" bubble).
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M3.6 3h16.8c.99 0 1.8.81 1.8 1.8v9c0 .99-.81 1.8-1.8 1.8h-9.18l-3.06 3.06c-.36.36-.96.12-.96-.36V15.6H3.6c-.99 0-1.8-.81-1.8-1.8v-9C1.8 3.81 2.61 3 3.6 3zm.36 2.16c-.18 0-.36.18-.36.36v8.28c0 .18.18.36.36.36h1.44c.18 0 .36-.18.36-.36V9.6l3.06 4.32c.06.12.18.18.3.18h.78c.18 0 .36-.18.36-.36V5.52c0-.18-.18-.36-.36-.36H9.78c-.18 0-.36.18-.36.36v3.84L6.36 5.04c-.06-.12-.18-.18-.3-.18H3.96zm9.6 0c-.18 0-.36.18-.36.36v8.28c0 .18.18.36.36.36h1.44c.18 0 .36-.18.36-.36V9.6l3.06 4.32c.06.12.18.18.3.18h.78c.18 0 .36-.18.36-.36V5.52c0-.18-.18-.36-.36-.36h-1.44c-.18 0-.36.18-.36.36v3.84l-3.06-4.32c-.06-.12-.18-.18-.3-.18h-1.44z" />
-    </svg>
+    <OutlineGlyph className={className}>
+      <path d="M3.5 5.5h17a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1 -1.5 1.5h-5.5l-3.5 3l-.5 -3h-8a1.5 1.5 0 0 1 -1.5 -1.5v-8a1.5 1.5 0 0 1 1.5 -1.5z" />
+      <path d="M5 9l1.25 4.5l1.75 -3l1.75 3l1.25 -4.5" />
+      <path d="M13 11.25a1.25 1.5 0 1 0 2.5 0a1.25 1.5 0 1 0 -2.5 0" />
+      <path d="M17 11.25a1.25 1.5 0 1 0 2.5 0a1.25 1.5 0 1 0 -2.5 0" />
+    </OutlineGlyph>
   )
 }
 
+/** Same chip as ChannelBadge, so the source sits in line with the channels. */
 export function WooCommerceBadge() {
   const fa = useLocale() !== 'en'
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-md border border-black/10 bg-black/[0.04] px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-secondary)]"
+      className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-white px-1.5 text-[12px] font-medium leading-none text-[var(--text-secondary)]"
       title={fa ? 'مشتری از طریق افزونه ووکامرس وارد شده است' : 'This customer came in through the WooCommerce plugin'}
     >
-      <WooCommerceIcon className="h-3 w-3" />
-      {fa ? 'افزونه' : 'Plugin'}
+      <WooCommerceIcon className="h-3.5 w-3.5 shrink-0 text-[#7f54b3]" />
+      {fa ? WOO_SOURCE_TAG : 'WooCommerce'}
     </span>
   )
+}
+
+/** Tags a provenance badge already shows, so tag lists can skip them. */
+export function isSourceTag(tag: string): boolean {
+  return tag === WOO_SOURCE_TAG
 }
 
 /**

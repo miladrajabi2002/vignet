@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Trash2 } from 'lucide-react'
@@ -11,11 +12,14 @@ export function ContactDeleteAction({
   contactId,
   returnTo = '/contacts',
   compact = false,
+  variant,
 }: {
   contactId: string
   returnTo?: string
   /** Icon-only on phones, icon and label from `sm` up, for headers with a primary action. */
   compact?: boolean
+  /** `tile`: icon over a short label, matching the phone detail sheet's footer tiles. */
+  variant?: 'tile'
 }) {
   const t = useTranslations('contacts.detail')
   const locale = useLocale()
@@ -33,7 +37,9 @@ export function ContactDeleteAction({
         method: 'DELETE',
       })
       if (response.ok) {
-        setShowDialog(false)
+        // Close the dialog in its own commit: it restores the body overflow it
+        // found, so it must let go before a surrounding sheet restores its own.
+        flushSync(() => setShowDialog(false))
         // Queue the global «بازگردانی» toast BEFORE navigating — it lives in
         // the dashboard layout, so it is already waiting on the list page.
         queueUndo('contact', [contactId], locale === 'en' ? 'customer' : 'مشتری')
@@ -51,7 +57,21 @@ export function ContactDeleteAction({
 
   return (
     <>
-      {compact ? (
+      {variant === 'tile' ? (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null)
+            setShowDialog(true)
+          }}
+          aria-label={t('delete')}
+          title={t('delete')}
+          className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-red-200 bg-white text-[12px] font-medium text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          {locale === 'en' ? 'Delete' : 'حذف'}
+        </button>
+      ) : compact ? (
         <button
           type="button"
           onClick={() => {

@@ -313,9 +313,9 @@ export function InstagramConnectFlow({
             className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl"
           >
             {/* Header strip */}
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--amber)]/10 px-5 py-3">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--amber)_10%,transparent)] px-5 py-3">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--amber)]/20 text-[var(--amber)]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:color-mix(in_srgb,var(--amber)_20%,transparent)] text-[var(--amber)]">
                   <ShieldAlert className="h-4 w-4" />
                 </div>
                 <h3 id="instagram-vpn-title" className="text-sm font-medium text-[var(--text-primary)]">

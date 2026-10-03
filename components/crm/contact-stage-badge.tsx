@@ -5,7 +5,7 @@ export type ContactStage = (typeof CONTACT_STAGES)[number]
 
 const STAGE_TONE: Record<ContactStage, string> = {
   lead: 'border-black/10 bg-black/[0.04] text-[var(--text-secondary)]',
-  qualified: 'border-[var(--signal)]/20 bg-[var(--signal-soft)] text-[var(--signal-strong)]',
+  qualified: 'border-[color:color-mix(in_srgb,var(--signal)_20%,transparent)] bg-[var(--signal-soft)] text-[var(--signal-strong)]',
   customer: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   lost: 'border-black/10 bg-black/[0.04] text-[var(--text-muted)]',
 }

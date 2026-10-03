@@ -205,7 +205,7 @@ function PhonePreview({ variant, signedIn }: { variant: VariantId; signedIn: boo
 					</div>
 				</div>
 
-				<div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/95 to-transparent" />
+				<div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[var(--bg-base)] via-[color:color-mix(in_srgb,var(--bg-base)_95%,transparent)] to-transparent" />
 				<PreviewNav variant={variant} signedIn={signedIn} />
 			</div>
 		</div>

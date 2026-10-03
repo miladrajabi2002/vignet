@@ -278,7 +278,7 @@ export function OperatorReply({
         dir={fa ? 'rtl' : 'ltr'}
         sendLabel={noteMode ? (fa ? 'ثبت یادداشت' : 'Save note') : t('send')}
         maxLength={noteMode ? 1000 : 4000}
-        className={cn(noteMode && '[&>div:first-child]:border-[var(--notif-strong)]/35 [&>div:first-child]:bg-[var(--notif-soft)]')}
+        className={cn(noteMode && '[&>div:first-child]:border-[color:color-mix(in_srgb,var(--notif-strong)_35%,transparent)] [&>div:first-child]:bg-[var(--notif-soft)]')}
       />
 
       <div className="relative flex flex-wrap items-center gap-1.5">
@@ -308,7 +308,7 @@ export function OperatorReply({
             composerRef.current?.focus()
           }}
           aria-pressed={noteMode}
-          className={cn(CHIP, noteMode ? 'border-[var(--notif-strong)]/40 bg-[var(--notif-tint)] text-[var(--notif-strong)]' : CHIP_IDLE)}
+          className={cn(CHIP, noteMode ? 'border-[color:color-mix(in_srgb,var(--notif-strong)_40%,transparent)] bg-[var(--notif-tint)] text-[var(--notif-strong)]' : CHIP_IDLE)}
         >
           <StickyNote className="h-3.5 w-3.5" aria-hidden="true" />
           {fa ? 'یادداشت' : 'Note'}

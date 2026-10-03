@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
-import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
+import { ChannelBadge, SourceTagBadges, isSourceTag } from '@/components/crm/channel-badge'
 import {
   asContactStage,
   ContactStageBadge,
@@ -272,10 +272,10 @@ export function ContactDetailSheet({
       motionPreset="detail"
       triggerRef={triggerRef}
       onClose={onClose}
-      contentClassName="bg-[var(--bg-base)]/70"
+      contentClassName="bg-[color:color-mix(in_srgb,var(--bg-base)_70%,transparent)]"
       footer={
         detail ? (
-          <div className={cn('grid gap-2', phone ? 'grid-cols-4' : 'grid-cols-2')}>
+          <div className={cn('grid gap-2', phone ? 'grid-cols-5' : 'grid-cols-3')}>
             {phone && (
               <>
                 <a
@@ -310,11 +310,12 @@ export function ContactDetailSheet({
             </button>
             <Link
               href={`/contacts/${detail.id}`}
-              className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl bg-black text-[12px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+              className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl bg-black px-1 text-center text-[12px] font-medium leading-4 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
             >
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               {t('detail.openFullProfile')}
             </Link>
+            <ContactDeleteAction contactId={detail.id} returnTo={returnTo} variant="tile" />
           </div>
         ) : undefined
       }
@@ -439,7 +440,7 @@ export function ContactDetailSheet({
                 <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
                   <div className="flex flex-wrap gap-2">
                     <SourceTagBadges tags={detail.tags} />
-                    {detail.tags.map((tag) => (
+                    {detail.tags.filter((tag) => !isSourceTag(tag)).map((tag) => (
                       <span key={tag} className="rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
                         {tag}
                       </span>

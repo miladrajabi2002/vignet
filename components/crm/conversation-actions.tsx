@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -46,15 +47,11 @@ export function ConversationHeaderActions({
   /** Set inside the inbox pane, where the thread can also open on its own page. */
   fullPageHref?: string
 }) {
-  const t = useTranslations('conversations')
   const locale = useLocale()
   const fa = locale !== 'en'
   const router = useRouter()
   const [status, setStatus] = useState<Status>(initialStatus)
   const [busy, setBusy] = useState(false)
-  const [showDelete, setShowDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => setStatus(initialStatus), [initialStatus])
 
@@ -69,29 +66,6 @@ export function ConversationHeaderActions({
       }
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function remove() {
-    if (deleting) return
-    setDeleting(true)
-    setDeleteError(null)
-    try {
-      const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' })
-      if (response.ok) {
-        setShowDelete(false)
-        // Queue the global «بازگردانی» toast BEFORE navigating back to the
-        // inbox — the toast lives in the dashboard layout and survives it.
-        queueUndo('conversation', [conversationId], fa ? 'گفتگو' : 'conversation')
-        router.replace('/conversations')
-        router.refresh()
-        return
-      }
-      setDeleteError(t('deleteFailed'))
-    } catch {
-      setDeleteError(t('deleteFailed'))
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -130,18 +104,92 @@ export function ConversationHeaderActions({
           <Maximize2 className="h-4 w-4" aria-hidden="true" />
         </Link>
       )}
-      <button
-        type="button"
-        onClick={() => {
-          setDeleteError(null)
-          setShowDelete(true)
-        }}
-        aria-label={t('delete')}
-        title={t('delete')}
-        className="grid h-10 w-10 place-items-center rounded-control border border-[var(--border-default)] bg-white text-[var(--text-secondary)] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-      >
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-      </button>
+      <ConversationDeleteAction conversationId={conversationId} />
+    </div>
+  )
+}
+
+/**
+ * «حذف گفتگو» with its confirm dialog and the global «بازگردانی» offer.
+ * `icon` sits in the thread header; `sheet` is the labelled button in the
+ * phone inbox's summary sheet, which stays on the list via `onDeleted`.
+ */
+export function ConversationDeleteAction({
+  conversationId,
+  variant = 'icon',
+  onDeleted,
+}: {
+  conversationId: string
+  variant?: 'icon' | 'sheet'
+  /** Replaces the default «back to /conversations» navigation. */
+  onDeleted?: () => void
+}) {
+  const t = useTranslations('conversations')
+  const locale = useLocale()
+  const fa = locale !== 'en'
+  const router = useRouter()
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function remove() {
+    if (deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' })
+      if (response.ok) {
+        // Close the dialog in its own commit: it restores the body overflow it
+        // found, so it must let go before a surrounding sheet restores its own.
+        flushSync(() => setShowDelete(false))
+        // Queue the global «بازگردانی» toast BEFORE navigating back to the
+        // inbox — the toast lives in the dashboard layout and survives it.
+        queueUndo('conversation', [conversationId], fa ? 'گفتگو' : 'conversation')
+        if (onDeleted) {
+          onDeleted()
+        } else {
+          router.replace('/conversations')
+        }
+        router.refresh()
+        return
+      }
+      setDeleteError(t('deleteFailed'))
+    } catch {
+      setDeleteError(t('deleteFailed'))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function openDialog() {
+    setDeleteError(null)
+    setShowDelete(true)
+  }
+
+  return (
+    <>
+      {variant === 'sheet' ? (
+        <button
+          type="button"
+          onClick={openDialog}
+          aria-label={t('delete')}
+          title={t('delete')}
+          className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          {fa ? 'حذف' : 'Delete'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={openDialog}
+          aria-label={t('delete')}
+          title={t('delete')}
+          className="grid h-10 w-10 place-items-center rounded-control border border-[var(--border-default)] bg-white text-[var(--text-secondary)] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
       <ConfirmDialog
         open={showDelete}
@@ -158,7 +206,7 @@ export function ConversationHeaderActions({
           if (!deleting) setShowDelete(false)
         }}
       />
-    </div>
+    </>
   )
 }
 

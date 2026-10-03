@@ -262,7 +262,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
                   )}
                 </div>
 
-                <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/60 p-4 sm:flex-row sm:justify-end">
+                <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_60%,transparent)] p-4 sm:flex-row sm:justify-end">
                   <button
                     ref={cancelDeleteRef}
                     type="button"
