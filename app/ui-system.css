@@ -218,6 +218,10 @@
    product is two lines: name over price and stock, and edit/delete fold
    into a ⋮ menu (on wider tables they are two plain icon buttons). */
 .ui-ptable { container-type: inline-size; }
+/* Wide tables show edit/delete as icons; the phone rule further down swaps
+   them for the ⋮ menu, so these base rules must stay ABOVE it. */
+.ui-ptable-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.125rem; }
+.ui-ptable-more { display: none; }
 .ui-ptable-row {
 	display: grid;
 	grid-template-columns: 2.75rem minmax(9rem, 1.6fr) minmax(7.5rem, 1fr) minmax(6.5rem, 0.8fr) minmax(6rem, 0.8fr) 4rem 4.75rem;
@@ -248,5 +252,3 @@
 	.ui-ptable-actions { display: none; }
 	.ui-ptable-more { display: block; }
 }
-.ui-ptable-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.125rem; }
-.ui-ptable-more { display: none; }
