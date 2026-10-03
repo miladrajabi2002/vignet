@@ -96,9 +96,9 @@ export function MobileConversationCard({
                   {relativeTimeLabel}
                 </span>
               </div>
-              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
                 <ChannelBadge type={channel} label={sourceTag} />
-                <SatisfactionText satisfaction={satisfaction} locale={locale} />
+                <SatisfactionText satisfaction={satisfaction} locale={locale} variant="tag" />
               </div>
             </div>
             <ArrowLeft

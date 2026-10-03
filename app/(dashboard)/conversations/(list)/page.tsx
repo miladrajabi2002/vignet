@@ -535,6 +535,9 @@ export default async function ConversationsPage(props: {
                                                                                                         {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-32 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[12px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
                                                                                                         {/* The app, and for Instagram the entry the customer used: "Instagram Direct", "Instagram Comment"… */}
                                                                                                         <ChannelBadge type={c.channel} label={sourceTag} />
+                                                                                                        {/* How they feel and how likely they buy, as tags beside the app. */}
+                                                                                                        <SatisfactionText satisfaction={c.salesInsight?.satisfaction} locale={locale} variant="tag" />
+                                                                                                        {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightText insight={c.salesInsight} locale={locale} variant="tag" className="hidden lg:inline-flex" />}
                                                                                                         <InboxRowPending />
                                                                                                         <span
                                                                                                                 className={cn('ms-auto shrink-0 whitespace-nowrap ps-1 text-[12px] tabular-nums text-[var(--text-muted)]', attention && 'font-medium text-[var(--text-primary)]')}
@@ -548,8 +551,6 @@ export default async function ConversationsPage(props: {
                                                                                                                 <span dir="ltr" className="emoji-glyph shrink-0 text-[13px] leading-none" aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}>{reactionEmoji}</span>
                                                                                                         )}
                                                                                                         <p dir={isFa ? 'rtl' : 'ltr'} className={cn('min-w-0 flex-1 truncate text-start text-[13px] leading-5', attention ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')} title={preview}>{preview}</p>
-                                                                                                        <SatisfactionText satisfaction={c.salesInsight?.satisfaction} locale={locale} />
-                                                                                                        {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightText insight={c.salesInsight} locale={locale} className="hidden lg:inline" />}
                                                                                                 </div>
                                                                                         </div>
                                                                                 </Link>

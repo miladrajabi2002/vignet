@@ -218,15 +218,28 @@ export function SalesInsightBadge({
   )
 }
 
-/** Purchase likelihood as plain text: green only when the lead is hot. */
+/** Same geometry as the app badge, so a row's tags line up as one set. */
+const TAG_BASE = 'inline-flex h-5 items-center gap-1 rounded-md border px-1.5 leading-none'
+const TAG_TONES = {
+  good: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  bad: 'border-red-200 bg-red-50 text-red-700',
+  neutral: 'border-[var(--border-default)] bg-white text-[var(--text-secondary)]',
+} as const
+
+/**
+ * Purchase likelihood: green only when the lead is hot. `text` is a quiet
+ * inline word; `tag` is a chip beside the app badge in list rows.
+ */
 export function SalesInsightText({
   insight,
   locale,
   className,
+  variant = 'text',
 }: {
   insight: Pick<SalesInsightView, 'leadType' | 'buyerProbability'>
   locale: Locale
   className?: string
+  variant?: 'text' | 'tag'
 }) {
   const probability = clampPercent(insight.buyerProbability)
   const converted = insight.leadType === 'EXISTING_CUSTOMER'
@@ -235,7 +248,9 @@ export function SalesInsightText({
     <span
       className={cn(
         'shrink-0 whitespace-nowrap text-[12px] font-medium tabular-nums',
-        converted || probability >= 75 ? 'text-emerald-700' : 'text-[var(--text-muted)]',
+        variant === 'tag'
+          ? cn(TAG_BASE, converted || probability >= 75 ? TAG_TONES.good : TAG_TONES.neutral)
+          : converted || probability >= 75 ? 'text-emerald-700' : 'text-[var(--text-muted)]',
         className,
       )}
       title={locale === 'fa' ? 'برآورد هوشمند احتمال خرید' : 'Estimated purchase probability'}
@@ -256,11 +271,13 @@ export function SatisfactionText({
   locale,
   className,
   showScore = false,
+  variant = 'text',
 }: {
   satisfaction?: number | null
   locale: Locale
   className?: string
   showScore?: boolean
+  variant?: 'text' | 'tag'
 }) {
   if (typeof satisfaction !== 'number') return null
   const score = clampPercent(satisfaction)
@@ -272,7 +289,9 @@ export function SatisfactionText({
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium tabular-nums',
-        bucket === 'satisfied' ? 'text-emerald-700' : bucket === 'dissatisfied' ? 'text-red-700' : 'text-[var(--text-muted)]',
+        variant === 'tag'
+          ? cn(TAG_BASE, bucket === 'satisfied' ? TAG_TONES.good : bucket === 'dissatisfied' ? TAG_TONES.bad : TAG_TONES.neutral)
+          : bucket === 'satisfied' ? 'text-emerald-700' : bucket === 'dissatisfied' ? 'text-red-700' : 'text-[var(--text-muted)]',
         className,
       )}
       title={`${locale === 'fa' ? 'رضایت مشتری (خودکار)' : 'Customer satisfaction (automatic)'}: ${nf.format(score)}٪`}
