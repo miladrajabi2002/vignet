@@ -9,7 +9,7 @@ import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-co
 import { cn } from '@/lib/utils'
 import { deliveryReasonDetail } from '@/lib/channels/delivery-errors'
 import type { ThreadMessage } from './conversation-thread'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 type DeliveryFeedback = {
   status: 'sent' | 'stored' | 'unavailable' | 'failed'
@@ -343,7 +343,7 @@ function ProductThumb({ product }: { product: PickerProduct }) {
   const src = product.images?.find((image) => /^https?:\/\//.test(image))
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element -- catalog photos come from arbitrary shop hosts
-    <img src={productImageSrc(src)} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg bg-[var(--bg-muted)] object-cover" />
+    <ProductImage src={src} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg bg-[var(--bg-muted)] object-cover" />
   ) : (
     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-muted)]">
       <Package className="h-4 w-4" aria-hidden="true" />

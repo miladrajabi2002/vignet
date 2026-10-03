@@ -1,7 +1,8 @@
 /**
- * Product photos from shop domains are served through our origin:
- *   - dashboard/public <img> tags use productImageSrc() so viewers who cannot
- *     reach the shop (VPN exits, geo-blocks) still see the photo;
+ * Product photos from shop domains:
+ *   - <ProductImage> loads the shop URL first and falls back to
+ *     productImageSrc() → /media/products/remote, which keeps a small webp
+ *     thumbnail per workspace within a byte quota (oldest evicted first);
  *   - Meta template cards get webp re-encoded as JPEG (Meta drops webp).
  */
 import sharp from 'sharp'
@@ -11,18 +12,46 @@ const mocks = vi.hoisted(() => ({
   safeHttpGet: vi.fn(),
   uploadFile: vi.fn(),
   fileExists: vi.fn(),
+  listFiles: vi.fn(),
+  deleteFile: vi.fn(),
 }))
 
 vi.mock('@/lib/security/safe-http', () => ({ safeHttpGet: mocks.safeHttpGet }))
+vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/lib/storage', () => ({
   BUCKETS: { products: 'products' },
   isStorageConfigured: () => true,
   fileExists: mocks.fileExists,
   uploadFile: mocks.uploadFile,
+  listFiles: mocks.listFiles,
+  deleteFile: mocks.deleteFile,
 }))
 
 import { productImageSrc } from '@/lib/products/image-src'
-import { cacheRemoteImage } from '@/lib/products/remote-image'
+import {
+  cacheRemoteImage,
+  cacheWorkspaceThumbnail,
+  thumbnailKey,
+  warmWorkspaceThumbnails,
+} from '@/lib/products/remote-image'
+
+async function photo(format: 'webp' | 'jpeg', size = 1200) {
+  const img = sharp({ create: { width: size, height: size, channels: 3, background: '#c33' } })
+  return format === 'webp' ? img.webp().toBuffer() : img.jpeg().toBuffer()
+}
+
+function shopReturns(body: Buffer, type: string) {
+  mocks.safeHttpGet.mockResolvedValue({ status: 200, headers: { 'content-type': type }, body })
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.fileExists.mockResolvedValue(false)
+  mocks.uploadFile.mockResolvedValue(undefined)
+  mocks.deleteFile.mockResolvedValue(undefined)
+  mocks.listFiles.mockResolvedValue([])
+  delete process.env.PRODUCT_IMAGE_CACHE_QUOTA_BYTES
+})
 
 describe('productImageSrc', () => {
   it('routes shop-hosted photos through the remote media route', () => {
@@ -39,22 +68,9 @@ describe('productImageSrc', () => {
   })
 })
 
-describe('cacheRemoteImage', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.fileExists.mockResolvedValue(false)
-    mocks.uploadFile.mockResolvedValue(undefined)
-  })
-
-  it('re-encodes webp as JPEG for Meta template cards', async () => {
-    const webp = await sharp({
-      create: { width: 4, height: 4, channels: 3, background: '#c33' },
-    }).webp().toBuffer()
-    mocks.safeHttpGet.mockResolvedValue({
-      status: 200,
-      headers: { 'content-type': 'image/webp' },
-      body: webp,
-    })
+describe('cacheRemoteImage (Meta template cards)', () => {
+  it('re-encodes webp as JPEG', async () => {
+    shopReturns(await photo('webp', 4), 'image/webp')
 
     const cached = await cacheRemoteImage('https://shop.example/a-unique-test.webp', { templateSafe: true })
 
@@ -63,20 +79,58 @@ describe('cacheRemoteImage', () => {
     expect(upload.contentType).toBe('image/jpeg')
     expect((await sharp(upload.body).metadata()).format).toBe('jpeg')
   })
+})
 
-  it('keeps the original format for browser display', async () => {
-    const webp = await sharp({
-      create: { width: 4, height: 4, channels: 3, background: '#3c3' },
-    }).webp().toBuffer()
-    mocks.safeHttpGet.mockResolvedValue({
-      status: 200,
-      headers: { 'content-type': 'image/webp' },
-      body: webp,
-    })
+describe('workspace thumbnails', () => {
+  it('stores a shrunken webp under the workspace prefix', async () => {
+    shopReturns(await photo('jpeg'), 'image/jpeg')
 
-    const cached = await cacheRemoteImage('https://shop.example/another-unique-test.webp')
+    const key = await cacheWorkspaceThumbnail('https://shop.example/big.jpg', 'ws1')
 
-    expect(cached.filename).toMatch(/\.webp$/)
-    expect(mocks.uploadFile.mock.calls[0][0].contentType).toBe('image/webp')
+    expect(key).toBe(thumbnailKey('https://shop.example/big.jpg', 'ws1'))
+    expect(key).toMatch(/^thumbs\/ws1\/[0-9a-f]{40}\.webp$/)
+    const upload = mocks.uploadFile.mock.calls[0][0]
+    const meta = await sharp(upload.body).metadata()
+    expect(meta.format).toBe('webp')
+    expect(Math.max(meta.width ?? 0, meta.height ?? 0)).toBeLessThanOrEqual(480)
+  })
+
+  it('evicts the oldest thumbnails to stay within the quota', async () => {
+    process.env.PRODUCT_IMAGE_CACHE_QUOTA_BYTES = '1000'
+    shopReturns(await photo('jpeg', 10), 'image/jpeg')
+    mocks.listFiles.mockResolvedValue([
+      { key: 'thumbs/ws1/newer.webp', size: 400, lastModified: new Date(2026, 9, 2) },
+      { key: 'thumbs/ws1/oldest.webp', size: 590, lastModified: new Date(2026, 0, 1) },
+    ])
+
+    await cacheWorkspaceThumbnail('https://shop.example/x.jpg', 'ws1', { evict: true })
+
+    expect(mocks.deleteFile).toHaveBeenCalledWith('products', 'thumbs/ws1/oldest.webp')
+    expect(mocks.deleteFile).not.toHaveBeenCalledWith('products', 'thumbs/ws1/newer.webp')
+    expect(mocks.uploadFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('warm-up stops at the quota instead of evicting', async () => {
+    process.env.PRODUCT_IMAGE_CACHE_QUOTA_BYTES = '1'
+    shopReturns(await photo('jpeg', 10), 'image/jpeg')
+
+    const result = await warmWorkspaceThumbnails('ws1', ['https://shop.example/1.jpg', 'https://shop.example/2.jpg'])
+
+    expect(result.cached).toBe(0)
+    expect(mocks.deleteFile).not.toHaveBeenCalled()
+    expect(mocks.uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('warm-up skips covers that are already cached', async () => {
+    shopReturns(await photo('jpeg', 10), 'image/jpeg')
+    const cachedUrl = 'https://shop.example/cached.jpg'
+    mocks.listFiles.mockResolvedValue([
+      { key: thumbnailKey(cachedUrl, 'ws1'), size: 100, lastModified: new Date() },
+    ])
+
+    const result = await warmWorkspaceThumbnails('ws1', [cachedUrl, 'https://shop.example/new.jpg'])
+
+    expect(result).toEqual({ cached: 1, skipped: 1, failed: 0 })
+    expect(mocks.safeHttpGet).toHaveBeenCalledTimes(1)
   })
 })

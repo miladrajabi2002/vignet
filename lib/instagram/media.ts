@@ -3,6 +3,7 @@ import { readPageToken } from '@/lib/instagram/config'
 import { GRAPH_BASE } from '@/lib/instagram/oauth'
 import { captureError, captureWarning } from '@/lib/errors/capture'
 import { cacheRemoteImage } from '@/lib/products/remote-image'
+import { canonicalImageUrl } from '@/lib/products/image-src'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import { cleanDescriptionForChat } from '@/lib/products/description'
 import { igRecipient } from '@/lib/instagram/private-reply'
@@ -70,24 +71,10 @@ function isWebpUrl(url: string): boolean {
 }
 
 /**
- * Percent-encode a URL for Meta payloads: keeps the reserved ASCII structure
- * intact, encodes non-ASCII (Persian) path segments. `encodeURI` semantics are
- * exactly what a browser address bar does, and Meta's crawler accepts it.
- *
- * IDEMPOTENT (v3.3): callers upstream (`pickTemplateImageUrl`, `safeProductUrl`)
- * frequently pass an ALREADY percent-encoded URL. Naively re-encoding would
- * escape the percent signs themselves (%D8 → %25D8 — double encoding), which
- * made Meta's crawler 404 on Persian product-image URLs and drop the image.
- * We only encode when the URL contains no percent-escapes yet.
+ * Percent-encode a URL for Meta payloads (idempotent — see
+ * `canonicalImageUrl` in lib/products/image-src.ts).
  */
-export function metaSafeUrl(url: string): string {
-        try {
-                if (/%[0-9A-Fa-f]{2}/.test(url)) return url
-                return encodeURI(url)
-        } catch {
-                return url
-        }
-}
+export const metaSafeUrl = canonicalImageUrl
 
 /**
  * Pick the best image URL for a Meta Generic Template card from a product's

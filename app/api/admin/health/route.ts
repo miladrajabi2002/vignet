@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { QUEUE_NAMES, isQueueDisabled } from '@/lib/queue/connection'
 import { getBucket, getS3Client, isS3Configured } from '@/lib/storage/s3'
+import { iranRelayHealth } from '@/lib/security/iran-relay'
 
 export const dynamic = 'force-dynamic'
 
@@ -171,11 +172,12 @@ export async function GET() {
   const visibleErrorWhere = hiddenWorkspaceIds.length
     ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
     : {}
-  const [database, redisQueues, storage, openRouter, channels, errorCount, failedPayments] = await Promise.all([
+  const [database, redisQueues, storage, openRouter, iranRelay, channels, errorCount, failedPayments] = await Promise.all([
     databaseHealth(),
     redisAndQueuesHealth(),
     storageHealth(),
     openRouterHealth(),
+    iranRelayHealth(),
     prisma.agentChannel.groupBy({
       by: ['type', 'active'],
       where: { agent: ADMIN_VISIBLE_RELATED_WHERE },
@@ -193,6 +195,7 @@ export async function GET() {
     redisQueues.redis.state === 'down' && 'Redis یا Queue در دسترس نیست',
     storage.state === 'down' && 'MinIO / S3 پاسخ نمی‌دهد',
     openRouter.state === 'down' && 'OpenRouter پاسخ نمی‌دهد',
+    iranRelay.state === 'down' && 'رله ایران پاسخ نمی‌دهد',
     queueFailed > 0 && `${queueFailed.toLocaleString('fa-IR')} کار صف ناموفق`,
     errorCount > 0 && `${errorCount.toLocaleString('fa-IR')} خطا در ۲۴ ساعت`,
     failedPayments > 0 && `${failedPayments.toLocaleString('fa-IR')} پرداخت ناموفق در ۲۴ ساعت`,
@@ -200,7 +203,7 @@ export async function GET() {
 
   return NextResponse.json({
     sampledAt: Date.now(),
-    services: { database, redis: redisQueues.redis, storage, openRouter },
+    services: { database, redis: redisQueues.redis, storage, openRouter, iranRelay },
     queueMode: redisQueues.queueMode,
     queues: redisQueues.queues,
     queueSummary: { failed: queueFailed, backlog: queueBacklog },

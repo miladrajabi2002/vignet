@@ -22,7 +22,7 @@ import {
   stripListBlocks,
 } from '@/lib/products/description'
 import { CopyButton } from '@/components/ui/copy-button'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 export default async function ProductDetailPage(
   props: {
@@ -144,8 +144,8 @@ export default async function ProductDetailPage(
         <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[var(--bg-muted)] sm:w-56">
           {product.images[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
-            (<img
-              src={productImageSrc(product.images[0])}
+            (<ProductImage
+              src={product.images[0]}
               alt={product.name}
               width={640}
               height={640}
@@ -359,8 +359,8 @@ export default async function ProductDetailPage(
                   {/* Variant image (optional) */}
                   {v.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={productImageSrc(v.image)}
+                    <ProductImage
+                      src={v.image}
                       alt={Object.values(v.attributes).join('، ') || `#${v.id}`}
                       width={56}
                       height={56}

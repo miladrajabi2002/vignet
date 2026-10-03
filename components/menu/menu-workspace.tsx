@@ -33,7 +33,7 @@ import { normalizePersian } from '@/lib/search/persian'
 import { MenuDesign } from '@/components/menu/menu-design'
 import { BADGE_LABELS, badgeTag, badgesFromTags, withoutBadge, type MenuBadge, type MenuSettings } from '@/lib/menu/settings'
 import { buildMenuSections } from '@/lib/menu/public-data'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 export interface MenuItem {
   id: string
@@ -300,7 +300,7 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
   return (
     <li className={cn('flex items-center gap-3 p-2.5 sm:p-3', !item.active && 'bg-[var(--bg-base)]')}>
       {item.image ? (
-        <img src={productImageSrc(item.image)} alt="" loading="lazy" decoding="async" width={56} height={56} className={cn('h-14 w-14 shrink-0 rounded-xl object-cover', (!item.active || soldOut(item)) && 'opacity-50 grayscale')} />
+        <ProductImage src={item.image} alt="" loading="lazy" decoding="async" width={56} height={56} className={cn('h-14 w-14 shrink-0 rounded-xl object-cover', (!item.active || soldOut(item)) && 'opacity-50 grayscale')} />
       ) : (
         <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-muted)]" title="بدون عکس"><ImageOff className="h-4 w-4" /></span>
       )}

@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { metaSafeUrl } from '@/lib/instagram/media'
-import { cacheRemoteImage, findCachedRemoteImage } from '@/lib/products/remote-image'
+import { cacheWorkspaceThumbnail, findWorkspaceThumbnail } from '@/lib/products/remote-image'
 
 /**
  * GET /media/products/remote?u=<shop image URL>
  *
- * Serves a product photo hosted on a shop domain from our origin (see
- * `lib/products/image-src.ts`). The first request downloads the image into the
- * shared `products/proxy/` cache; every request then redirects to the
- * immutable cached file. Only URLs that belong to a catalog product are
- * fetched, so this is not an open proxy. If the shop cannot be reached from
- * the server either, the viewer is redirected to the original URL.
+ * Fallback for product photos the viewer's browser could not load from the
+ * shop itself (see components/products/product-image.tsx). The photo is
+ * downloaded once — through the Iran relay when the shop refuses our server —
+ * shrunk to a webp thumbnail inside the owning workspace's cache quota, and
+ * the viewer is redirected to that immutable file. Only URLs that belong to a
+ * catalog product are fetched, so this is not an open proxy. If the shop
+ * cannot be reached at all, the viewer is redirected to the original URL.
  */
 
 export const runtime = 'nodejs'
@@ -30,14 +31,15 @@ function redirect(location: string, maxAge: number) {
   })
 }
 
-async function isCatalogImage(raw: string, safe: string): Promise<boolean> {
-  const rows = await prisma.$queryRaw<Array<{ ok: number }>>`
-    SELECT 1 AS ok FROM "Product"
+/** Workspace that owns `raw` as a product (or variation) photo. */
+async function owningWorkspace(raw: string, safe: string): Promise<string | null> {
+  const rows = await prisma.$queryRaw<Array<{ workspaceId: string }>>`
+    SELECT "workspaceId" FROM "Product"
     WHERE "deletedAt" IS NULL
       AND ("images" && ${[raw, safe]}::text[]
         OR strpos(COALESCE("attributes"::text, ''), ${raw}) > 0)
     LIMIT 1`
-  return rows.length > 0
+  return rows[0]?.workspaceId ?? null
 }
 
 export async function GET(request: Request) {
@@ -47,19 +49,18 @@ export async function GET(request: Request) {
   }
   const safe = metaSafeUrl(raw)
 
-  const cached = await findCachedRemoteImage(safe).catch(() => null)
-  if (cached) return redirect(`/media/products/proxy/${cached.filename}`, 86_400)
-
-  if (!(await isCatalogImage(raw, safe))) {
-    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-  }
+  const workspaceId = await owningWorkspace(raw, safe)
+  if (!workspaceId) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
   try {
-    const stored = await cacheRemoteImage(safe)
-    return redirect(`/media/products/proxy/${stored.filename}`, 86_400)
+    const key =
+      (await findWorkspaceThumbnail(safe, workspaceId)) ??
+      (await cacheWorkspaceThumbnail(safe, workspaceId, { evict: true }))
+    // Short-lived: an evicted thumbnail is rebuilt on the next request.
+    return redirect(`/media/products/${key}`, 3_600)
   } catch (e) {
     console.warn(
-      `[product-image] remote fetch failed for ${safe.slice(0, 140)}: ${(e as Error).message}`,
+      `[product-image] thumbnail failed for ${safe.slice(0, 140)}: ${(e as Error).message}`,
     )
     // Short-lived so a temporary shop outage is retried soon.
     return redirect(safe, 300)

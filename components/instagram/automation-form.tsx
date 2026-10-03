@@ -68,7 +68,7 @@ import {
         newMessageId,
 } from '@/components/instagram/types'
 import { parseInstagramPostReferences } from '@/lib/instagram/post-reference'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 // These tools are only shown after the operator chooses a media/voice action.
 // Keep them out of the initial form chunk without removing any capability.
@@ -2634,7 +2634,7 @@ function ProductThumb({ product }: { product: ProductLite }) {
         const img = product.images?.[0]
         if (img) {
                 // eslint-disable-next-line @next/next/no-img-element
-                return <img src={productImageSrc(img)} alt={product.name} width={36} height={36} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                return <ProductImage src={img} alt={product.name} width={36} height={36} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
         }
         return (
                 <div

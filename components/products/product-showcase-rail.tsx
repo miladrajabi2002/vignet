@@ -37,7 +37,7 @@ import {
         safeHttpUrl,
         type ShowcaseProduct,
 } from './product-showcase'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 /** Matches the rail's `gap-3`; used to advance exactly one card per click. */
 const RAIL_GAP_PX = 12
@@ -467,8 +467,8 @@ function ShowcaseCard({
                                         // Remote product domains are tenant-defined and cannot be listed
                                         // statically in next/image configuration.
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                                src={productImageSrc(imageUrl)}
+                                        <ProductImage
+                                                src={imageUrl}
                                                 alt={product.name}
                                                 loading="lazy"
                                                 decoding="async"

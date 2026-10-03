@@ -12,6 +12,7 @@ import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { notifyOrderWatchers } from '@/lib/commerce/order-updates'
 import type { WooWebhookBatchJobData, WooWebhookEvent } from '@/lib/queue/jobs'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { warmCatalogCovers } from '@/lib/products/remote-image'
 import { productEmbeddingSourceHash } from '@/lib/products/embedding-source'
 import { decodeAttributeText } from '@/lib/products/description'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
@@ -798,6 +799,9 @@ export async function syncWooProducts(
     message: errors.length ? errors.join('\n').slice(0, 1000) : null,
   })
   await markSync(integration.id, outcome, errors[0] ?? null)
+  // Keep cover photos available from our origin for viewers (or cutoffs)
+  // that cannot reach the shop — bounded by the workspace image quota.
+  if (count > 0) warmCatalogCovers(integration.workspaceId)
   return { count, errors }
 }
 

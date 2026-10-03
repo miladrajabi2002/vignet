@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 
 // S3-compatible object storage (self-hosted MinIO, or any S3 provider).
@@ -76,6 +77,30 @@ export async function downloadFile(bucket: string, path: string): Promise<Buffer
 /** Delete an object. S3 delete is idempotent when the key is already absent. */
 export async function deleteFile(bucket: string, path: string): Promise<void> {
   await getClient().send(new DeleteObjectCommand({ Bucket: bucket, Key: path }))
+}
+
+export interface StoredObject {
+  key: string
+  size: number
+  lastModified: Date | null
+}
+
+/** List every object under `prefix` (paginated). */
+export async function listFiles(bucket: string, prefix: string): Promise<StoredObject[]> {
+  const objects: StoredObject[] = []
+  let token: string | undefined
+  do {
+    const res = await getClient().send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+    )
+    for (const item of res.Contents ?? []) {
+      if (item.Key) {
+        objects.push({ key: item.Key, size: item.Size ?? 0, lastModified: item.LastModified ?? null })
+      }
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined
+  } while (token)
+  return objects
 }
 
 export function isStorageConfigured(): boolean {

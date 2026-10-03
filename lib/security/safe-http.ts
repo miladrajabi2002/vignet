@@ -2,6 +2,13 @@ import dns from 'node:dns/promises'
 import http from 'node:http'
 import https from 'node:https'
 import net from 'node:net'
+import {
+  canRelayAfterFailure,
+  isRelayableNetworkError,
+  markRelayHost,
+  relayHttpRequest,
+  shouldRelayFirst,
+} from '@/lib/security/iran-relay'
 
 /**
  * Default browser-like User-Agent for every safeHttpGet/safeHttpPost request.
@@ -161,13 +168,115 @@ async function request(
   requestBody?: Buffer,
 ): Promise<SafeHttpResponse> {
   const url = parseHttpUrl(raw)
+  const response = await hop(url, options, method, requestBody)
+
+  if ([301, 302, 303, 307, 308].includes(response.status)) {
+    const location = response.headers.location
+    if (!location || redirectCount >= maxRedirects) throw new Error('HTTP_REDIRECT_LIMIT')
+    const redirectedMethod = response.status === 303 ? 'GET' : method
+    return request(
+      new URL(location, url).toString(),
+      options,
+      redirectCount + 1,
+      maxRedirects,
+      redirectedMethod,
+      redirectedMethod === 'POST' ? requestBody : undefined,
+    )
+  }
+
+  const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
+  if (
+    options.allowedContentTypes?.length &&
+    !options.allowedContentTypes.some((allowed) => contentType.startsWith(allowed.toLowerCase()))
+  ) {
+    throw new Error('HTTP_CONTENT_TYPE_NOT_ALLOWED')
+  }
+  return response
+}
+
+function requestHeaders(options: SafeHttpOptions, requestBody?: Buffer): Record<string, string> {
+  return {
+    Accept: '*/*',
+    ...(hasOwnUserAgent(options.headers) ? {} : { 'User-Agent': DEFAULT_USER_AGENT }),
+    ...(requestBody ? { 'Content-Length': String(requestBody.length) } : {}),
+    ...options.headers,
+  }
+}
+
+/**
+ * One request without redirect handling: direct, or through the Iran relay
+ * when the host is known to be reachable only from inside Iran (see
+ * lib/security/iran-relay.ts). A connection-level failure on the direct path
+ * is retried through the relay when one is configured.
+ */
+async function hop(
+  url: URL,
+  options: SafeHttpOptions,
+  method: 'GET' | 'POST',
+  requestBody?: Buffer,
+): Promise<SafeHttpResponse> {
+  const hostname = hostnameWithoutBrackets(url.hostname)
+  if (shouldRelayFirst(hostname)) {
+    // Our resolver may not see Iran-only DNS during a cutoff; when it does,
+    // still refuse private targets before asking the relay.
+    await resolvePublicAddress(hostname).catch((error) => {
+      if (error instanceof UnsafeHttpTargetError) throw error
+    })
+    return relayHop(url, options, method, requestBody)
+  }
+  try {
+    return await directHop(url, options, method, requestBody)
+  } catch (error) {
+    if (
+      error instanceof UnsafeHttpTargetError ||
+      !canRelayAfterFailure() ||
+      !isRelayableNetworkError(error)
+    ) {
+      throw error
+    }
+    try {
+      const relayed = await relayHop(url, options, method, requestBody)
+      markRelayHost(hostname)
+      console.warn(`[safe-http] ${hostname} unreachable directly (${(error as Error).message}) — served via Iran relay`)
+      return relayed
+    } catch (relayError) {
+      console.warn(`[safe-http] Iran relay also failed for ${hostname}: ${(relayError as Error).message}`)
+      throw error
+    }
+  }
+}
+
+async function relayHop(
+  url: URL,
+  options: SafeHttpOptions,
+  method: 'GET' | 'POST',
+  requestBody?: Buffer,
+): Promise<SafeHttpResponse> {
+  const headers = requestHeaders(options, requestBody)
+  delete headers['Content-Length']
+  return relayHttpRequest({
+    url: url.toString(),
+    method,
+    headers,
+    body: requestBody,
+    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    maxBytes: options.maxBytes ?? DEFAULT_MAX_BYTES,
+  })
+}
+
+async function directHop(
+  url: URL,
+  options: SafeHttpOptions,
+  method: 'GET' | 'POST',
+  requestBody?: Buffer,
+): Promise<SafeHttpResponse> {
   const originalHostname = hostnameWithoutBrackets(url.hostname)
   const target = await resolvePublicAddress(originalHostname)
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES
   const transport = url.protocol === 'https:' ? https : http
 
-  const response = await new Promise<SafeHttpResponse>((resolve, reject) => {
+  return new Promise<SafeHttpResponse>((resolve, reject) => {
     const req = transport.request(
       {
         protocol: url.protocol,
@@ -179,10 +288,7 @@ async function request(
         servername: net.isIP(originalHostname) ? undefined : originalHostname,
         headers: {
           Host: url.host,
-          Accept: '*/*',
-          ...(hasOwnUserAgent(options.headers) ? {} : { 'User-Agent': DEFAULT_USER_AGENT }),
-          ...(requestBody ? { 'Content-Length': String(requestBody.length) } : {}),
-          ...options.headers,
+          ...requestHeaders(options, requestBody),
         },
       },
       (res) => {
@@ -210,27 +316,4 @@ async function request(
     req.on('error', reject)
     req.end(requestBody)
   })
-
-  if ([301, 302, 303, 307, 308].includes(response.status)) {
-    const location = response.headers.location
-    if (!location || redirectCount >= maxRedirects) throw new Error('HTTP_REDIRECT_LIMIT')
-    const redirectedMethod = response.status === 303 ? 'GET' : method
-    return request(
-      new URL(location, url).toString(),
-      options,
-      redirectCount + 1,
-      maxRedirects,
-      redirectedMethod,
-      redirectedMethod === 'POST' ? requestBody : undefined,
-    )
-  }
-
-  const contentType = String(response.headers['content-type'] ?? '').toLowerCase()
-  if (
-    options.allowedContentTypes?.length &&
-    !options.allowedContentTypes.some((allowed) => contentType.startsWith(allowed.toLowerCase()))
-  ) {
-    throw new Error('HTTP_CONTENT_TYPE_NOT_ALLOWED')
-  }
-  return response
 }

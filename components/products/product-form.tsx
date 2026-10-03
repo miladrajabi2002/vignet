@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight, ImageOff, Layers, Loader2, Plus, Sparkles, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { UploadDropzone, uploadFileWithProgress } from '@/components/ui/upload-dropzone'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 export interface CategoryOption {
   id: string
@@ -298,7 +298,7 @@ export function ProductForm({
             {form.images.map((img, i) => (
               <div key={`${img}-${i}`} className="group relative aspect-square overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-muted)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={productImageSrc(img)} alt={`${form.name || t('images')} ${i + 1}`} className="h-full w-full object-cover" />
+                <ProductImage src={img} alt={`${form.name || t('images')} ${i + 1}`} className="h-full w-full object-cover" />
                 {i === 0 && (
                   <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[12px] font-bold text-white backdrop-blur">
                     <Star className="h-3 w-3" aria-hidden="true" />{t('primaryImage')}
@@ -514,7 +514,7 @@ export function ProductForm({
                       className={`h-11 w-11 overflow-hidden rounded-lg border-2 ${v.image === img ? 'border-[var(--text-primary)]' : 'border-transparent'}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={productImageSrc(img)} alt="" className="h-full w-full object-cover" />
+                      <ProductImage src={img} alt="" className="h-full w-full object-cover" />
                     </button>
                   ))}
                 </div>

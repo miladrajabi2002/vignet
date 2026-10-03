@@ -5,6 +5,7 @@ import {
   Bot,
   Cloud,
   Database,
+  Globe2,
   HardDrive,
   Loader2,
   Network,
@@ -19,7 +20,7 @@ type Service = { state: HealthState; latencyMs: number | null; detail: string; c
 type FailedJobLog = { id: string; name: string; failedReason: string; stacktrace: string[]; data: unknown; timestamp: number; processedOn: number | null; finishedOn: number | null; attemptsMade: number }
 type HealthPayload = {
   sampledAt: number
-  services: { database: Service; redis: Service; storage: Service; openRouter: Service }
+  services: { database: Service; redis: Service; storage: Service; openRouter: Service; iranRelay?: Service }
   queueMode: 'inline' | 'queue'
   queues: Array<{ name: string; waiting: number; active: number; delayed: number; failed: number; completed: number; failedJobs: FailedJobLog[] }>
   queueSummary: { failed: number; backlog: number }
@@ -94,6 +95,7 @@ export function ServiceHealthPanel() {
     { key: 'redis', label: 'ردیس و صف‌ها', icon: Network, value: data.services.redis },
     { key: 'storage', label: 'فضای ذخیره‌سازی', icon: HardDrive, value: data.services.storage },
     { key: 'openrouter', label: 'ارائه‌دهنده هوش مصنوعی', icon: Cloud, value: data.services.openRouter },
+    ...(data.services.iranRelay ? [{ key: 'iran-relay', label: 'رله ایران', icon: Globe2, value: data.services.iranRelay }] : []),
   ] : []
 
   return (
@@ -111,7 +113,7 @@ export function ServiceHealthPanel() {
 
       {offline && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">گزارش سلامت دریافت نشد. اتصال یا نشست ادمین را بررسی کنید.</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {services.map(({ key, label, icon: Icon, value }) => {
           const meta = STATE_META[value.state]
           return (

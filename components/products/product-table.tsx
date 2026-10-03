@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Switch } from '@/components/ui/switch'
 import { queueUndo } from '@/lib/undo-queue'
 import { cn } from '@/lib/utils'
-import { productImageSrc } from '@/lib/products/image-src'
+import { ProductImage } from '@/components/products/product-image'
 
 export interface ProductRow {
   id: string
@@ -132,7 +132,7 @@ export function ProductTable({
                 <span className={cn('grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bg-muted)] text-[var(--text-muted)]', !product.active && 'opacity-60')}>
                   {product.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={productImageSrc(product.images[0])} alt="" width={88} height={88} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    <ProductImage src={product.images[0]} alt="" width={88} height={88} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   ) : (
                     <Package className="h-5 w-5" aria-hidden="true" />
                   )}
