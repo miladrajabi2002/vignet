@@ -16,6 +16,11 @@ const FA_STATUS: Record<string, string> = {
   failed: 'ناموفق',
 }
 
+/** Legacy keyword reading: is this message about an existing order? (fallback + eval baseline) */
+export function detectsOrderTracking(message: string): boolean {
+  return ORDER_INTENT.test(message)
+}
+
 function extractOrderId(message: string): string | null {
   const normalized = toEnglishDigits(message)
   const patterns = [
@@ -108,16 +113,25 @@ export async function buildOrderContext(params: {
   language: string
   /** agent.orderUpdatesEnabled: the conversation follows the order it asked about. */
   follow?: { agentId: string; conversationId: string; channel: string } | null
+  /**
+   * The turn-understanding reading: tracking is asked only when it says so,
+   * with the order reference it verified in the message. Order creation is
+   * the order flow's job, never a refusal block here.
+   */
+  understood?: { tracking: { orderRef: string | null } | null } | null
 }): Promise<string> {
   const bareOrderId = extractBareOrderId(params.message)
   const isOrderContinuation = Boolean(
     bareOrderId && params.history?.slice(-4).some((turn) =>
       typeof turn.content === 'string' && ORDER_FOLLOWUP_CONTEXT.test(turn.content)),
   )
-  if (!ORDER_INTENT.test(params.message) && !isOrderContinuation) return ''
+  const understood = params.understood
+  if (understood) {
+    if (!understood.tracking && !isOrderContinuation) return ''
+  } else if (!ORDER_INTENT.test(params.message) && !isOrderContinuation) return ''
   const isFa = params.language !== 'en'
 
-  if (ORDER_MUTATION_INTENT.test(params.message)) {
+  if (!understood && ORDER_MUTATION_INTENT.test(params.message)) {
     return isFa
       ? '\n\nاین ایجنت اجازه ثبت، لغو، مرجوع یا ویرایش سفارش را ندارد. صریح و کوتاه بگو که فعلاً فقط مشاوره محصول و پیگیری خواندنی سفارش‌های موجود ممکن است؛ انجام عملیات سفارش را تأیید نکن.'
       : '\n\nThis agent cannot create, cancel, return, or change orders. Clearly say that only product consultation and read-only tracking of existing orders are currently available; never confirm an order mutation.'
@@ -129,7 +143,9 @@ export async function buildOrderContext(params: {
       : '\n\nOrder tracking access is disabled for this agent. Do not expose order data; direct the customer to human support.'
   }
 
-  const externalOrderId = extractOrderId(params.message) ?? (isOrderContinuation ? bareOrderId : null)
+  const externalOrderId = understood?.tracking?.orderRef
+    ? toEnglishDigits(understood.tracking.orderRef).replace(/^#/, '').trim()
+    : extractOrderId(params.message) ?? (isOrderContinuation ? bareOrderId : null)
   if (!externalOrderId) {
     return isFa
       ? '\n\nدرخواست پیگیری سفارش تشخیص داده شد. فقط شماره سفارش را از مشتری بخواه؛ شماره موبایل یا اطلاعات هویتی دیگری درخواست نکن. ثبت، لغو یا ویرایش سفارش مجاز نیست.'

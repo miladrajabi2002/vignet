@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import type { ConversationMemory, Prisma } from '@prisma/client'
-import { chatCompletion, getPlatformOpenRouterKey, type ChatMessage } from '@/lib/ai/openrouter'
+import { getPlatformOpenRouterKey, type ChatMessage } from '@/lib/ai/openrouter'
+import { auxCompletion } from '@/lib/ai/llm/aux'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { resolveModelId } from '@/lib/ai/models'
 import { stripProductTokens } from '@/lib/widget/config'
@@ -269,7 +270,13 @@ export async function loadConversationHistory(
         const model = resolveModelId(applyPlatformModelPolicy('fast', config), config.providerModels)
         let summary = memory?.summary ?? ''
         for (const transcript of transcriptParts(rows)) {
-          const result = await chatCompletion({
+          // auxCompletion records every paid request (purpose «memory»),
+          // including unusable output or a lost CAS below.
+          const result = await auxCompletion({
+            purpose: 'memory',
+            workspaceId: conversation.workspaceId,
+            agentId: conversation.agentId,
+            conversationId,
             model,
             temperature: 0.1,
             maxTokens: 600,
@@ -280,20 +287,6 @@ Use short labeled sections: customer facts/identifiers, current goal/constraints
               { role: 'user', content: JSON.stringify({ previousRecord: summary, nextTranscript: transcript }) },
             ],
           })
-          // Record every paid request, including unusable output or a lost CAS.
-          await prisma.usageLog.create({ data: {
-            workspaceId: conversation.workspaceId,
-            agentId: conversation.agentId,
-            conversationId,
-            type: 'SUMMARY',
-            model,
-            promptTokens: result.usage.promptTokens,
-            completionTokens: result.usage.completionTokens,
-            reasoningTokens: result.usage.reasoningTokens,
-            cachedTokens: result.usage.cachedTokens,
-            providerRequestId: result.usage.providerRequestId,
-            cost: result.usage.costUSD,
-          } })
           const nextSummary = result.content.trim()
           if (!nextSummary || nextSummary.length > SUMMARY_CHARS) throw new Error('INVALID_CONVERSATION_MEMORY')
           summary = nextSummary

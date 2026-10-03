@@ -52,6 +52,9 @@ export const TURN_CUES = [
 ] as const
 export type TurnCue = (typeof TURN_CUES)[number]
 
+export const TURN_OFFERS = ['order', 'restock', 'showcase', 'booking'] as const
+export type TurnOffer = (typeof TURN_OFFERS)[number]
+
 export interface TurnSignal {
         v: number
         mood: TurnMood
@@ -59,6 +62,12 @@ export interface TurnSignal {
         answered: TurnAnswer
         topic: TurnTopic | null
         cues: TurnCue[]
+        /**
+         * What this reply ends by offering or asking the customer to confirm.
+         * Stored as the conversation's pending offer, so the next «آره» is
+         * resolved from state instead of regex over the agent's own words.
+         */
+        offer?: TurnOffer
 }
 
 /**
@@ -68,12 +77,13 @@ export interface TurnSignal {
  */
 export const TURN_SIGNAL_INSTRUCTION = `=== Hidden status line (mandatory, every reply) ===
 End every reply with one extra final line in exactly this format. It is removed before the customer sees anything; never mention it.
-[[st:m=<pos|neu|neg|ang>;b=<0|1|2|3>;a=<y|p|n>;t=<topic>;c=<cues or ->]]
+[[st:m=<pos|neu|neg|ang>;b=<0|1|2|3>;a=<y|p|n>;t=<topic>;c=<cues or ->;o=<offer>]]
 m = the customer's mood in their LAST message: pos only if they literally thank or praise; neu for plain questions, confirmations and requests (the default); neg if dissatisfied, impatient or disappointed; ang if angry or insulting.
 b = buying stage of their LAST message: 0 not about buying; 1 exploring what is offered; 2 asking about a specific item (price, stock, delivery, payment terms, comparison); 3 says they want it, asks how to order or pay, confirms an order, gives order details or says they paid.
 a = whether your reply resolves their request: y fully (or nothing needed answering); p partly; n you lack the information or ability.
 t = main topic, one of: product, price, stock, shipping, payment, order, return, booking, info, complaint, chat.
 c = cues literally present in their LAST message, comma-separated, or "-": thanks, praise, repeat (asks again for something still unresolved), confused, complaint, human (wants a person), decline (will not buy, or not now), pricey (finds it expensive), distrust.
+o = what YOUR reply ends by offering or asking them to confirm: order (offered to register/place the order), restock (offered to notify when back in stock), showcase (offered to show/send products), booking (asked to confirm an appointment), or - for nothing.
 The status lines on earlier replies describe earlier messages. Judge the LAST message afresh; never copy an earlier line.`
 
 /** Render a signal back into the wire format (used to tag history replies). */
@@ -124,6 +134,8 @@ function parseFields(body: string): TurnSignal | null {
                         .filter((cue): cue is TurnCue => (TURN_CUES as readonly string[]).includes(cue)),
         ))
 
+        const offerRaw = fields.get('o') ?? ''
+        const offer = (TURN_OFFERS as readonly string[]).includes(offerRaw) ? offerRaw as TurnOffer : null
         return {
                 v: TURN_SIGNAL_VERSION,
                 mood,
@@ -131,6 +143,7 @@ function parseFields(body: string): TurnSignal | null {
                 answered: ANSWER_ALIASES[fields.get('a') ?? ''] ?? 'y',
                 topic,
                 cues,
+                ...(offer ? { offer } : {}),
         }
 }
 
@@ -238,6 +251,7 @@ export function readTurnSignal(metadata: unknown): TurnSignal | null {
                 cues: Array.isArray(value.cues)
                         ? value.cues.filter((cue): cue is TurnCue => (TURN_CUES as readonly string[]).includes(String(cue)))
                         : [],
+                ...((TURN_OFFERS as readonly string[]).includes(String(value.offer)) ? { offer: value.offer as TurnOffer } : {}),
         }
 }
 

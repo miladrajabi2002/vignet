@@ -115,8 +115,14 @@ export async function maybeRunBookingAgentTurn(params: {
   messages: ChatMessage[]
   temperature: number
   maxTokens: number
+  /** The turn-understanding layer already read a booking request on this turn. */
+  intentKnown?: boolean
+  /** What it understood («کوتاهی مو فردا ۱۷»), a hint for the tool loop. */
+  hint?: string
+  /** The understanding layer read «yes» to the agent's booking summary. */
+  confirmed?: boolean
 }): Promise<BookingChatResult | null> {
-  if (!hasBookingIntent(params.messages)) return null
+  if (!params.intentKnown && !hasBookingIntent(params.messages)) return null
 
   const hasActiveService = await prisma.service.count({
     where: { workspaceId: params.workspaceId, active: true },
@@ -139,17 +145,22 @@ export async function maybeRunBookingAgentTurn(params: {
     ?.content ?? ''
   // The customer just said "yes" to the summary the agent asked about. Cheap
   // models tend to re-ask; tell them the confirmation is already given.
-  const confirmationTurn = typeof latestUserText === 'string'
+  const confirmationTurn = params.confirmed ?? (typeof latestUserText === 'string'
     && CONFIRMATION.test(latestUserText)
     && typeof previousAssistant === 'string'
-    && ASKED_TO_CONFIRM.test(previousAssistant)
+    && ASKED_TO_CONFIRM.test(previousAssistant))
   const confirmationNote = !confirmationTurn
     ? ''
     : isFa
       ? '\nمشتری همین حالا خلاصهٔ پیام قبلی تو را صریحاً تأیید کرد. دوباره نپرس؛ همین حالا ابزار مربوط را اجرا کن (create_appointment، یا برای جابه‌جایی/لغو اول list_my_appointments و بعد reschedule_appointment یا cancel_appointment).'
       : '\nThe customer just explicitly confirmed your previous summary. Do not ask again; call the matching tool now (create_appointment, or list_my_appointments then reschedule_appointment / cancel_appointment).'
   const directory = await bookingServiceDirectory(params.workspaceId, isFa)
-  const bookingInstruction = `${bookingToolInstruction({ isFa, now })}\n${directory}${confirmationNote}`
+  const understoodNote = params.hint?.trim()
+    ? isFa
+      ? `\nبرداشت سیستم از درخواست این نوبت: «${params.hint.trim().slice(0, 160)}» (فقط راهنما؛ خدمت، تاریخ و ساعت را با ابزارها بررسی کن).`
+      : `\nThe system read this turn as: “${params.hint.trim().slice(0, 160)}” (a hint only; check the service, date and time with the tools).`
+    : ''
+  const bookingInstruction = `${bookingToolInstruction({ isFa, now })}\n${directory}${confirmationNote}${understoodNote}`
   const messages: ChatMessage[] = params.messages.map((message, index) => {
     if (index !== 0 || message.role !== 'system') return message
     return {

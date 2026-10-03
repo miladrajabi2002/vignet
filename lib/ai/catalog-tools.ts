@@ -12,7 +12,8 @@
  */
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { chatCompletion, type ChatMessage, type ChatTool, type ChatUsage } from '@/lib/ai/openrouter'
+import type { ChatMessage, ChatTool, ChatUsage } from '@/lib/ai/openrouter'
+import { auxCompletion, type TurnLedger } from '@/lib/ai/llm/aux'
 import type { CatalogProduct } from '@/lib/ai/rag'
 import { extractProductTerms, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
 import { extractTypedVariations } from '@/lib/products/description'
@@ -306,19 +307,26 @@ export async function planCatalogSearch(params: {
   /** When set, the planner call is recorded in the usage log (platform budget). */
   workspaceId?: string
   conversationId?: string
-  model: string
+  /** Ignored: the planner always runs on the economical tier (auxCompletion). */
+  model?: string
   message: string
   history: ChatMessage[]
   reason: CatalogToolReason
   isFa: boolean
+  ledger?: TurnLedger | null
 }): Promise<CatalogSearchPlan | null> {
-  const budget = parseBudget(params.message)
-  const sort = sortHint(params.message)
   let usage: ChatUsage | null = null
   let calls: Array<Record<string, unknown>> = []
   try {
-    const result = await chatCompletion({
-      model: params.model,
+    if (!params.workspaceId) throw new Error('NO_WORKSPACE')
+    // Turning a sentence into one to three structured searches is an
+    // extraction task: economical tier, recorded under its own purpose.
+    const result = await auxCompletion({
+      purpose: 'catalog_plan',
+      workspaceId: params.workspaceId,
+      agentId: params.agentId,
+      conversationId: params.conversationId,
+      ledger: params.ledger,
       messages: [
         { role: 'system', content: PLANNER_SYSTEM },
         { role: 'user', content: plannerTranscript(params.history, params.message) },
@@ -329,7 +337,6 @@ export async function planCatalogSearch(params: {
       toolChoice: 'auto',
     })
     usage = result.usage
-    if (params.workspaceId) recordPlannerUsage(params.workspaceId, params.agentId, params.conversationId, params.model, result.usage)
     calls = result.toolCalls
       .filter((call) => call.function.name === 'search_catalog')
       .slice(0, 3)
@@ -341,7 +348,41 @@ export async function planCatalogSearch(params: {
   }
   const modelPlanned = calls.length > 0
   if (!modelPlanned) calls = [{ query: extractProductTerms(params.message).join(' ') }]
+  return runCatalogSearches({
+    agentId: params.agentId,
+    message: params.message,
+    calls,
+    reason: params.reason,
+    isFa: params.isFa,
+    usage,
+    modelPlanned,
+  })
+}
 
+/**
+ * Execute structured catalog searches with the server-side guarantees: the
+ * budget stated in the message (or a verified budget from the understanding
+ * layer) caps every search, superlatives sort on the server, and rows must
+ * cover the subject keywords. Shared by the planner above and the turn
+ * understanding path, which already carries the structured query.
+ */
+export async function runCatalogSearches(params: {
+  agentId: string
+  message: string
+  calls: Array<Record<string, unknown>>
+  reason: CatalogToolReason
+  isFa: boolean
+  usage?: ChatUsage | null
+  modelPlanned?: boolean
+  /** A verified budget/sort from the understanding layer; default: parsed from the message. */
+  budget?: { maxPrice: number | null; minPrice: number | null }
+  sort?: 'price_asc' | 'price_desc' | 'popular' | null
+}): Promise<CatalogSearchPlan | null> {
+  const budget = params.budget ?? parseBudget(params.message)
+  const sort = params.sort !== undefined ? params.sort : sortHint(params.message)
+  const calls = params.calls
+  const usage = params.usage ?? null
+  const modelPlanned = params.modelPlanned ?? true
   const found = new Map<string, ProductRow>()
   for (const call of calls) {
     const args: Record<string, unknown> = { ...call, in_stock_only: call.in_stock_only !== false }
@@ -421,37 +462,6 @@ export async function planCatalogSearch(params: {
     return { products: [], instruction, usage, modelPlanned }
   }
   return null
-}
-
-/**
- * The planner is a platform-funded auxiliary call on the reply model (like the
- * turn analyzer): it is not a tenant charge, but its cost must reach the usage
- * log so the monthly platform budget guard sees it.
- */
-function recordPlannerUsage(
-  workspaceId: string,
-  agentId: string,
-  conversationId: string | undefined,
-  model: string,
-  usage: ChatUsage,
-): void {
-  void Promise.resolve()
-    .then(() => prisma.usageLog.create({
-      data: {
-        workspaceId,
-        agentId,
-        conversationId: conversationId ?? null,
-        type: 'SUMMARY',
-        model,
-        promptTokens: usage.promptTokens,
-        completionTokens: usage.completionTokens,
-        reasoningTokens: usage.reasoningTokens,
-        cachedTokens: usage.cachedTokens,
-        providerRequestId: usage.providerRequestId,
-        cost: usage.costUSD,
-      },
-    }))
-    .catch(() => {})
 }
 
 /** Per-turn blocks go before the turn marker so the stable prefix stays cached. */

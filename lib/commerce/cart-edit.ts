@@ -10,7 +10,8 @@
  * is unavailable a conservative deterministic fallback handles the common
  * phrasings.
  */
-import { chatCompletion, type ChatTool } from '@/lib/ai/openrouter'
+import type { ChatTool } from '@/lib/ai/openrouter'
+import { auxCompletion, type TurnLedger } from '@/lib/ai/llm/aux'
 import { normalizeOrderText, type OrderDraftItem } from '@/lib/commerce/order-capture'
 
 export type CartEditCue = 'add' | 'remove' | 'change'
@@ -33,7 +34,7 @@ export function detectCartEditCue(message: string): CartEditCue | null {
 }
 
 export type CartEditOp =
-  | { op: 'add'; productId: string; variant: string | null; quantity: number }
+  | { op: 'add'; productId: string; variant: string | null; quantity: number; variationId?: number | null }
   | { op: 'remove'; line: number }
   | { op: 'set_quantity'; line: number; quantity: number }
   | { op: 'set_variant'; line: number; variant: string }
@@ -120,17 +121,29 @@ function toInt(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? Math.round(parsed) : fallback
 }
 
-/** One function-calling round. Returns null when the model is unavailable. */
+/**
+ * One function-calling round on the economical tier (auxCompletion: budget
+ * check + usage row under purpose «cart_plan»). Returns null when the model
+ * is unavailable. Used only when the turn-understanding layer did not
+ * already return the cart operations.
+ */
 export async function planCartEditWithModel(params: {
-  model: string
+  workspaceId: string
+  agentId: string
+  conversationId?: string | null
+  ledger?: TurnLedger | null
   message: string
   cart: Array<OrderDraftItem & { variants?: string[] }>
   candidates: CartCandidate[]
 }): Promise<CartEditOp[] | null> {
   let calls: Array<{ name: string; args: Record<string, unknown> }> = []
   try {
-    const result = await chatCompletion({
-      model: params.model,
+    const result = await auxCompletion({
+      purpose: 'cart_plan',
+      workspaceId: params.workspaceId,
+      agentId: params.agentId,
+      conversationId: params.conversationId,
+      ledger: params.ledger,
       messages: [
         { role: 'system', content: PLANNER_SYSTEM },
         { role: 'user', content: cartTranscript(params.message, params.cart, params.candidates) },

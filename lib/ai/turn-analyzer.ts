@@ -1,11 +1,5 @@
-import { prisma } from '@/lib/prisma'
-import { chatCompletion, type ChatMessage } from '@/lib/ai/openrouter'
-import {
-        applyPlatformModelPolicy,
-        getPlatformAiConfig,
-        hasPlatformAiBudget,
-} from '@/lib/ai/platform-config'
-import { resolveModelId } from '@/lib/ai/models'
+import type { ChatMessage } from '@/lib/ai/openrouter'
+import { auxCompletion, AuxUnavailableError, type TurnLedger } from '@/lib/ai/llm/aux'
 import { normalizePersianText, extractProductTerms } from '@/lib/ai/conversation'
 import { captureError } from '@/lib/errors/capture'
 
@@ -245,6 +239,8 @@ export interface AnalyzeTurnParams {
         history?: ChatMessage[]
         corpusTokens?: ReadonlySet<string>
         phase: AnalyzerPhase
+        /** Per-turn cost ledger (chat engine). */
+        ledger?: TurnLedger | null
 }
 
 /**
@@ -256,10 +252,6 @@ export async function analyzeTurn(params: AnalyzeTurnParams): Promise<TurnAnalys
         if (circuitIsOpen()) return null
 
         try {
-                const config = await getPlatformAiConfig()
-                if (!(await hasPlatformAiBudget(config))) return null
-                const model = resolveModelId(applyPlatformModelPolicy('fast', config), config.providerModels)
-
                 const vocabulary = vocabularySample(params.corpusTokens)
                 const lastAssistant = [...(params.history ?? [])]
                         .reverse()
@@ -275,8 +267,14 @@ export async function analyzeTurn(params: AnalyzeTurnParams): Promise<TurnAnalys
                         catalogVocabularySample: vocabulary,
                 }
 
-                const result = await chatCompletion({
-                        model,
+                // Platform-funded auxiliary analysis: auxCompletion checks the
+                // budget, uses the economical tier and records the usage row.
+                const result = await auxCompletion({
+                        purpose: 'turn_analyzer',
+                        workspaceId: params.workspaceId,
+                        agentId: params.agentId,
+                        conversationId: params.conversationId,
+                        ledger: params.ledger,
                         temperature: 0,
                         maxTokens: 200,
                         messages: [
@@ -295,28 +293,9 @@ export async function analyzeTurn(params: AnalyzeTurnParams): Promise<TurnAnalys
                 }
                 consecutiveFailures = 0
 
-                // Observability: the analyzer is platform-funded auxiliary
-                // analysis (like conversation memory), not a tenant chat reply.
-                await prisma.usageLog
-                        .create({
-                                data: {
-                                        workspaceId: params.workspaceId,
-                                        agentId: params.agentId,
-                                        conversationId: params.conversationId,
-                                        type: 'SUMMARY',
-                                        model,
-                                        promptTokens: result.usage.promptTokens,
-                                        completionTokens: result.usage.completionTokens,
-                                        reasoningTokens: result.usage.reasoningTokens,
-                                        cachedTokens: result.usage.cachedTokens,
-                                        providerRequestId: result.usage.providerRequestId,
-                                        cost: result.usage.costUSD,
-                                },
-                        })
-                        .catch(() => {})
-
                 return analysis
         } catch (error) {
+                if (error instanceof AuxUnavailableError) return null
                 captureError('chat-engine:turn-analyzer', error, {
                         workspaceId: params.workspaceId,
                         metadata: { agentId: params.agentId, phase: params.phase },
