@@ -169,6 +169,14 @@
                 border-color: var(--border-default);
         }
 
+        /* Search fields draw their own clear button; hide the browser's native one. */
+        input[type='search']::-webkit-search-cancel-button,
+        input[type='search']::-webkit-search-decoration {
+                -webkit-appearance: none;
+                appearance: none;
+                display: none;
+        }
+
         html {
                 -webkit-font-smoothing: antialiased;
                 text-rendering: optimizeLegibility;

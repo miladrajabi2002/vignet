@@ -322,7 +322,7 @@ export function ImprovementCenter({ agentId }: { agentId: string }) {
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
           <input
             type="search"
-            className={cn(field, 'ps-10 [&::-webkit-search-cancel-button]:hidden', selection.search && 'pe-11')}
+            className={cn(field, 'ps-10', selection.search && 'pe-11')}
             value={selection.search}
             onChange={(event) => updateSelection({ search: event.target.value })}
             placeholder={t('جستجو در پیام، نام یا شماره…', 'Search messages, names or phone…')}
