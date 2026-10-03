@@ -53,3 +53,6 @@ next-env.d.ts
 tests-live/results/
 /.deploy-state/
 /.deploy-staging/
+
+# Rendered film output (regenerate with video/vigent-film/render.mjs)
+/video/*/out/

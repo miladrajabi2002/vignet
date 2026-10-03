@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<title>Vigent feature film</title>
+<link rel="stylesheet" href="film.css">
+</head>
+<body>
+<div id="stage">
+	<div id="bg"><div class="glow" id="g1"></div><div class="glow" id="g2"></div><div id="grid"></div></div>
+	<div id="bgDark"><div class="glow" id="gd1"></div><div id="gridD"></div></div>
+
+	<div id="cam">
+	<!-- A · wall of messages -->
+	<section class="sc" id="sA">
+		<div id="aWall"></div>
+		<div id="aHead"><div class="aL1">این‌همه پیام،</div><div class="aL2">کی جواب می‌دهد؟</div></div>
+	</section>
+
+	<!-- B · title -->
+	<section class="sc" id="sB">
+		<div id="bHead"><div class="bL1">همهٔ برنامه‌ها،</div><div class="bL2"><span class="grad">یک هوش مصنوعی</span></div></div>
+		<div id="bSub">فروش، پشتیبانی و CRM در یک پنل</div>
+	</section>
+
+	<!-- C · one inbox -->
+	<section class="sc" id="sC">
+		<div class="panel" id="cPanel" style="left:96px;top:110px;width:1090px;height:860px">
+			<div class="ph"><span>صندوق پیام</span><span class="badge">۶ گفتگو</span>
+				<span style="margin-right:auto;padding-left:74px;font-size:26px;font-weight:500;color:#15803d;display:flex;align-items:center;gap:10px"><i style="width:12px;height:12px;border-radius:50%;background:#22c55e;display:block"></i>ویجنت فعال است</span></div>
+			<div id="cRows"></div>
+		</div>
+		<div class="tb" id="cTitle" style="right:96px;top:120px">
+			<div class="pill">صندوق یکپارچه</div>
+			<div class="h"><div>همهٔ برنامه‌ها،</div><div><span class="grad">یک صندوق</span></div></div>
+			<div class="sub">یک ایجنت، یک اینباکس</div>
+		</div>
+	</section>
+
+	<!-- D · checkout inside the chat -->
+	<section class="sc" id="sD">
+		<div class="panel" id="dChat" style="left:96px;top:96px;width:820px;height:888px">
+			<div class="ph"><span class="av" style="width:64px;height:64px;font-size:30px;background:#fce7f3;color:#be185d">س</span><span>سارا</span>
+				<span style="margin-right:auto;font-size:24px;font-weight:500;color:var(--mut);display:flex;align-items:center;gap:10px">دایرکت اینستاگرام<img src="assets/instagram.svg" style="width:38px;height:38px"></span></div>
+			<div class="bub u" id="dU" style="right:36px;top:126px;font-size:34px">سلام! کت مشکی سایز M موجوده؟</div>
+			<div class="abs" id="dThink" style="left:112px;top:268px;font-size:29px;color:var(--pur);font-weight:500;display:flex;gap:14px;align-items:center;white-space:nowrap"><span>در حال پاسخ‌گویی از دانش شما</span><span class="dots"><i></i><i></i><i></i></span></div>
+			<div class="bub a" id="dA" style="left:112px;top:244px;font-size:34px"><div id="dA1">بله سارا جان، M و L موجوده؛</div><div id="dA2">۲٬۴۸۰٬۰۰۰ تومان.</div><div style="font-size:24px;color:#b9adff;margin-top:6px">منبع: کاتالوگ محصولات</div></div>
+			<div class="tag pur abs" id="dChip" style="left:112px;top:452px;height:48px;font-size:26px"><i class="ic" data-i="check"></i>از موجودی ووکامرس خواند</div>
+			<div class="prod" id="dProd" style="left:112px;top:514px;width:600px;padding:14px 16px">
+				<div class="thumb" style="width:160px;height:160px"><i class="ic" data-i="coat" style="font-size:108px;color:#fff"></i></div>
+				<div><div style="font-size:34px;font-weight:700;line-height:1.25">کت مشکی</div><div style="font-size:26px;color:var(--mut);line-height:1.35">سایز M</div><div style="font-size:30px;font-weight:700;line-height:1.35">۲٬۴۸۰٬۰۰۰ تومان</div>
+					<div class="btn k" id="dAdd" style="width:258px;height:56px;font-size:26px;margin-top:8px;border-radius:16px"><i class="ic" data-i="cart"></i>افزودن به سبد</div></div>
+			</div>
+			<div class="tag grn abs" id="dAdded" style="left:112px;top:740px;height:46px;font-size:25px"><i class="ic" data-i="check"></i>به سبد اضافه شد</div>
+			<div class="abs" style="left:36px;right:36px;top:808px;height:56px;border-radius:22px;background:#f4f4f7;display:flex;align-items:center;padding:0 28px;font-size:26px;color:#a2a2ad">پیام…</div>
+		</div>
+		<div class="tb" id="dTitle" style="right:96px;top:100px">
+			<div class="pill">فروش</div>
+			<div class="h" style="font-size:100px"><div>خرید کامل</div><div><span class="grad">داخل گفتگو</span></div></div>
+		</div>
+		<div class="panel" id="dCart" style="left:1004px;top:462px;width:820px;height:522px">
+			<div class="ph" style="height:92px"><i class="ic" data-i="cart" style="font-size:34px"></i><span>سبد شما</span>
+				<span class="tag" style="margin-right:auto;background:#f4f4f7;color:#3b3b44"><i class="ic" data-i="lock" style="font-size:22px"></i>سایت خودتان</span></div>
+			<div id="dSkel"><i style="right:36px;top:118px;width:76px;height:76px;border-radius:18px"></i><i style="right:132px;top:144px;width:300px;height:24px"></i><i style="left:36px;top:144px;width:130px;height:24px"></i><i style="right:36px;top:230px;width:250px;height:24px"></i><i style="left:36px;top:230px;width:90px;height:24px"></i><i style="left:36px;right:36px;top:312px;height:96px;border-radius:22px"></i></div>
+			<div class="crow" id="dItem" style="top:108px;height:96px;font-size:33px"><div class="thumb" style="width:76px;height:76px;border-radius:18px"><i class="ic" data-i="coat" style="font-size:50px;color:#fff"></i></div><span style="font-weight:500">کت مشکی · سایز M</span><span class="pr">۲٬۴۸۰٬۰۰۰</span></div>
+			<div class="crow" id="dShip" style="top:210px;height:64px;color:var(--mut);font-size:31px"><span>ارسال · از سایت شما</span><span class="pr" style="color:var(--ink)">۸۰٬۰۰۰</span></div>
+			<div class="abs" id="dDiv" style="left:36px;right:36px;top:290px;height:1.5px;background:var(--line)"></div>
+			<div class="btn k abs" id="dPay" style="left:36px;right:36px;top:312px;height:96px;font-size:36px">پرداخت ۲٬۵۶۰٬۰۰۰ تومان</div>
+			<div class="btn ok abs" id="dPaid" style="left:36px;right:36px;top:312px;height:96px;font-size:36px"><i class="ic" data-i="check" style="font-size:40px"></i>پرداخت شد · با درگاه خودتان</div>
+			<div class="abs" id="dOrder" style="left:36px;right:36px;top:426px;height:72px;border-radius:20px;background:var(--soft);color:var(--pur);font-size:29px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px"><i class="ic" data-i="package" style="font-size:34px"></i>ووکامرس · سفارش #۱۰۴۸ ثبت شد</div>
+		</div>
+	</section>
+
+	<!-- E · booking -->
+	<section class="sc" id="sE">
+		<div class="tb" id="eTitle" style="right:96px;top:92px">
+			<div class="pill">رزرو و نوبت‌دهی</div>
+			<div class="h" style="font-size:88px">نوبت‌دهی <span class="grad">بدون تداخل</span></div>
+		</div>
+		<div class="abs" id="eWho" style="right:1020px;top:52px;font-size:26px;color:var(--mut);font-weight:500;display:flex;gap:10px;align-items:center;white-space:nowrap"><img src="assets/site.svg" style="width:32px;height:32px">نگار · ویجت سایت</div>
+		<div class="bub u" id="eU" style="right:1020px;top:96px;font-size:34px">جمعه عصر وقت دارید؟</div>
+		<div class="bub a" id="eA" style="left:196px;top:198px;font-size:33px">جمعه ۱۶:۰۰، ۱۷:۰۰ و ۱۹:۰۰ خالی است.</div>
+		<div style="position:absolute;left:0;top:0;width:1920px;height:1080px;perspective:2200px;perspective-origin:50% 60%">
+			<div class="panel" id="eCal" style="left:96px;top:300px;width:1728px;height:604px"><div id="eScan"></div><div id="eGrid"></div><div id="eBooked"><i class="ic" data-i="check"></i>نگار · ۱۷:۰۰</div></div>
+		</div>
+		<div class="abs" id="eToast" style="left:0;top:0;height:84px;border-radius:42px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:18px;padding:0 40px 0 44px;font-size:34px;font-weight:700;white-space:nowrap;box-shadow:0 30px 60px -20px rgba(0,0,0,.55)">
+			<span class="av" style="width:52px;height:52px;background:#22c55e;font-size:30px"><i class="ic" data-i="check"></i></span>نوبت جمعه ساعت ۱۷:۰۰ ثبت شد
+			<span id="eTeam" style="display:flex;align-items:center;gap:10px;font-size:28px;font-weight:500;color:#b9adff;border-right:1.5px solid #3a3a42;padding-right:20px;margin-right:4px"><i class="ic" data-i="bell"></i>به تیم خبر داده شد</span>
+		</div>
+	</section>
+
+	<!-- F · learning -->
+	<section class="sc" id="sF">
+		<div class="abs" id="fTitle" style="left:0;right:0;top:80px;text-align:center">
+			<div class="pill" style="margin-bottom:14px">ایجنت یادگیرنده</div>
+			<div class="h" style="font-size:86px">از اطلاعات خودتان <span class="grad">یاد می‌گیرد</span></div>
+		</div>
+		<svg class="abs" id="fLines" style="left:0;top:0" width="1920" height="1080" fill="none"></svg>
+		<div id="fSrcs"></div>
+		<div class="panel" id="fCard" style="left:510px;top:330px;width:900px;height:580px">
+			<div class="ph" style="height:96px;padding-right:96px"><span>مرکز یادگیری</span>
+				<span style="margin-right:auto;position:relative;width:220px;height:44px"><span class="tag pur abs" id="fB1" style="left:0;top:0">سؤال جدید</span><span class="tag grn abs" id="fB2" style="left:0;top:0"><i class="ic" data-i="check"></i>یاد گرفته شد</span></span></div>
+			<div class="abs" id="fQ" style="right:40px;top:122px"><div class="lbl">مشتری پرسید:</div><div class="q" id="fQt">ارسال به شیراز چند روز طول می‌کشد؟</div></div>
+			<div class="abs" id="fA" style="right:40px;top:254px"><div class="lbl">پیشنهاد ایجنت:</div><div class="q" id="fAt" style="color:var(--pur)">با پست پیشتاز ۳ تا ۴ روز کاری.</div></div>
+			<div class="tag pur abs" id="fSrcTag" style="right:40px;top:372px"><i class="ic" data-i="globe"></i>از سیاست ارسال سایت</div>
+			<div class="btn k abs" id="fOk" style="right:40px;top:452px;width:540px;height:88px;font-size:34px"><i class="ic" data-i="check"></i>تأیید و یادگیری</div>
+			<div class="btn g abs" id="fEdit" style="left:40px;top:452px;width:260px;height:88px;font-size:32px">ویرایش</div>
+			<div class="btn abs" id="fDone" style="left:40px;right:40px;top:452px;height:88px;font-size:33px;background:var(--grnsoft);color:var(--grn)"><i class="ic" data-i="check"></i>از این به بعد ایجنت این را می‌داند</div>
+		</div>
+	</section>
+
+	<!-- G · Instagram automation (dark) -->
+	<section class="sc" id="sG" style="color:#fff">
+		<div class="abs" id="gTitle" style="left:0;right:0;top:76px;text-align:center">
+			<div class="pill" style="margin-bottom:12px;background:#131317;border-color:#2a2a2e;color:#d8d1ff"><img src="assets/instagram.svg">اتوماسیون اینستاگرام</div>
+			<div class="h" style="font-size:70px">دایرکت، کامنت و استوری؛ <span class="gradD">هم خودکار، هم هوشمند</span></div>
+		</div>
+		<div class="gcard" id="gc1" style="left:120px">
+			<div class="gch"><i class="ic" data-i="msg"></i>کامنت<span class="n">پاسخ خودکار</span></div>
+			<div class="abs" style="left:30px;right:30px;top:106px;height:236px;border-radius:24px;background:linear-gradient(135deg,#3b2a8c,#c837ab);display:flex;align-items:center;justify-content:center"><i class="ic" data-i="coat" style="font-size:130px;color:#fff"></i></div>
+			<div class="gb in" id="g1a" style="right:30px;top:362px"><b>مریم:</b> قیمتش چنده؟</div>
+			<div class="gb out" id="g1b" style="left:30px;top:446px">قیمت را برایتان دایرکت کردم</div>
+			<div class="gtag" id="g1t" style="left:30px;top:528px"><i class="ic" data-i="check"></i>پاسخ خودکار زیر کامنت</div>
+			<div class="gtag" id="g1d" style="right:30px;top:588px;height:54px;font-size:26px;background:#fff;color:#111;padding:0 20px"><i class="ic" data-i="send"></i>دایرکت خصوصی ارسال شد</div>
+		</div>
+		<div class="gcard" id="gc2" style="left:700px">
+			<div class="gch"><i class="ic" data-i="send"></i>دایرکت<span class="n">قیف فالو</span></div>
+			<div id="g2sk"><i style="left:30px;top:112px;width:300px;height:104px;border-radius:26px"></i><i style="right:30px;top:258px;width:250px;height:68px;border-radius:20px"></i><i style="left:30px;top:356px;width:340px;height:132px;border-radius:26px"></i></div>
+			<div class="gb out" id="g2a" style="left:30px;top:108px">برای دریافت قیمت،<br>اول صفحه را فالو کنید.</div>
+			<div class="btn abs" id="g2f" style="right:30px;top:258px;width:250px;height:68px;font-size:29px;background:#fff;color:#111;border-radius:20px"><i class="ic" data-i="userplus"></i>فالو کردم</div>
+			<div class="gtag" id="g2ok" style="right:30px;top:268px;height:48px;font-size:25px;background:rgba(34,197,94,.18);color:#86efac"><i class="ic" data-i="check"></i>فالو تأیید شد</div>
+			<div class="gb out" id="g2p" style="left:30px;top:354px;display:flex;gap:18px;align-items:center;padding:14px 16px 14px 26px"><div class="thumb" style="width:108px;height:108px;border-radius:20px"><i class="ic" data-i="coat" style="font-size:70px;color:#fff"></i></div><div><b>کت مشکی</b><br>۲٬۴۸۰٬۰۰۰ تومان</div></div>
+			<div class="gtag" id="g2t" style="left:30px;top:508px"><i class="ic" data-i="check"></i>پاسخ از دادهٔ واقعی فروشگاه</div>
+			<div class="abs" id="g2steps" style="left:30px;right:30px;top:584px;display:flex;align-items:center;justify-content:space-between;font-size:24px;font-weight:500;color:#8f8f9c"><span class="gst">شرط فالو</span><i class="ic" data-i="arrowl"></i><span class="gst">یادآوری</span><i class="ic" data-i="arrowl"></i><span class="gst">پاسخ</span></div>
+		</div>
+		<div class="gcard" id="gc3" style="left:1280px">
+			<div class="gch"><i class="ic" data-i="circle"></i>استوری<span class="n">منشن و ری‌اکشن</span></div>
+			<div class="abs" id="g3s" style="right:30px;top:106px;width:236px;height:384px;border-radius:26px;background:linear-gradient(160deg,#f9a8d4,#765ff2);overflow:hidden">
+				<i class="ic abs" data-i="coat" style="left:53px;top:196px;font-size:130px;color:rgba(255,255,255,.55)"></i>
+				<div class="abs" style="left:14px;top:30px;display:flex;align-items:center;gap:8px;font-size:20px;font-weight:700;color:#fff;direction:rtl"><span style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.85);display:block"></span>مشتری شما</div>
+				<div class="abs" style="left:14px;right:14px;top:14px;height:5px;border-radius:3px;background:rgba(255,255,255,.4)"><div id="g3bar" style="height:100%;width:100%;border-radius:3px;background:#fff;transform-origin:0 50%"></div></div>
+				<div class="abs ltr" id="g3m" style="left:22px;top:164px;height:52px;padding:0 16px;border-radius:14px;background:#fff;color:#be185d;font-size:26px;font-weight:700;display:flex;align-items:center">@yourshop</div>
+			</div>
+			<i class="ic abs" id="g3h" data-i="heart" style="left:84px;top:230px;font-size:120px;color:#fb7185"></i>
+			<div class="gb out" id="g3d" style="left:30px;top:514px">ممنون که ما را منشن کردید!</div>
+			<div class="gtag" id="g3t" style="left:30px;top:596px"><i class="ic" data-i="check"></i>پاسخ خودکار به منشن استوری</div>
+		</div>
+		<div class="abs" id="gStrip" style="left:0;top:948px;height:72px;border-radius:36px;background:#131317;border:1.5px solid #34343a;padding:0 36px;display:flex;align-items:center;gap:14px;font-size:31px;font-weight:500;white-space:nowrap"><i class="ic" data-i="check" style="color:#4ade80;font-size:34px"></i>اتوماسیون ثابت اینستاگرام، بدون کسر اعتبار</div>
+	</section>
+
+	<!-- H · voice and languages -->
+	<section class="sc" id="sH">
+		<div id="hVoice" style="left:96px;top:150px;width:1090px;height:150px">
+			<span class="av" style="width:90px;height:90px;background:#fff;color:#111;font-size:40px"><i class="ic" data-i="play"></i></span>
+			<div id="hWave" style="position:relative;flex:1;height:96px"></div>
+			<span style="font-size:36px;font-weight:700;direction:rtl">۰:۰۶</span>
+		</div>
+		<div class="panel" id="hTr" style="left:96px;top:326px;width:1090px;height:128px;display:flex;align-items:center;gap:22px;padding:0 32px;border-radius:30px">
+			<span class="av" style="width:68px;height:68px;border-radius:20px;background:var(--soft);color:var(--pur);font-size:38px"><i class="ic" data-i="mic"></i></span>
+			<span id="hTxt" style="font-size:38px;font-weight:700;white-space:nowrap">«سلام، برای فردا ساعت پنج وقت خالی دارید؟»</span>
+		</div>
+		<div class="tb" id="hT1" style="right:96px;top:140px">
+			<div class="pill">پیام صوتی</div>
+			<div class="h" style="font-size:78px"><div>پیام صوتی فارسی</div><div><span class="grad">را می‌فهمد</span></div></div>
+		</div>
+		<div class="tb" id="hT2" style="right:96px;top:590px">
+			<div class="pill">چندزبانه</div>
+			<div class="h" style="font-size:78px"><div>به زبان خود مشتری</div><div><span class="grad">جواب می‌دهد</span></div></div>
+		</div>
+		<div class="lrow" id="hl1" style="top:566px"><span class="lt">فارسی</span><div class="bub u">سلام، این مدل موجوده؟</div><i class="ic ar" data-i="arrowl"></i><div class="bub a">بله، موجود است.</div></div>
+		<div class="lrow" id="hl2" style="top:700px"><span class="lt">English</span><div class="bub u ltr">Hi, is this in stock?</div><i class="ic ar" data-i="arrowl"></i><div class="bub a ltr">Yes, it's in stock.</div></div>
+		<div class="lrow" id="hl3" style="top:834px"><span class="lt">العربية</span><div class="bub u">مرحباً، هل هذا متوفر؟</div><i class="ic ar" data-i="arrowl"></i><div class="bub a">نعم، متوفر الآن.</div></div>
+	</section>
+
+	<!-- I · CRM, hand-off, Telegram manager bot -->
+	<section class="sc" id="sI">
+		<div class="tb" id="iTitle" style="left:96px;width:944px;top:100px">
+			<div class="pill">CRM و تحویل به اپراتور</div>
+			<div class="h" style="font-size:90px"><div>موارد حساس،</div><div><span class="grad">در تلگرام خودتان</span></div></div>
+		</div>
+		<div class="panel" id="iCrm" style="left:96px;top:432px;width:944px;height:552px">
+			<div class="ph" style="height:110px"><span class="av" style="width:68px;height:68px;font-size:30px;background:#fce7f3;color:#be185d">س</span>
+				<span style="line-height:1.3">سارا<br><span style="font-size:24px;font-weight:500;color:var(--mut)">اینستاگرام · سایت</span></span>
+				<span class="tag pur" id="iTag" style="margin-right:auto;height:50px;font-size:26px"><i class="ic" data-i="target"></i>قصد خرید بالا</span></div>
+			<div class="abs" id="iSum" style="left:36px;right:36px;top:134px;height:104px;border-radius:22px;background:#f7f7f9;display:flex;align-items:center;padding:0 28px;font-size:32px;white-space:nowrap"><b>خلاصه:&nbsp;</b><span id="iSumT">کت مشکی سایز M، قد ۱۷۰، لینک پرداخت ارسال شد.</span></div>
+			<div class="bub u" id="iMsg" style="right:36px;top:262px;font-weight:500;font-size:33px">«سفارشم دیر شده»</div>
+			<div class="tag abs" id="iFlag" style="right:356px;top:284px;height:48px;font-size:26px;background:#fee2e2;color:#b91c1c"><i class="ic" data-i="alert"></i>شکایت · مورد حساس</div>
+			<div class="btn abs" id="iHand" style="left:36px;right:36px;top:420px;height:96px;font-size:32px;background:var(--soft);color:var(--pur)"><img src="assets/telegram.svg" style="width:44px;height:44px">ارجاع به همکار در تلگرام</div>
+			<div class="btn k abs" id="iHand2" style="left:36px;right:36px;top:420px;height:96px;font-size:32px"><i class="ic" data-i="check"></i>با خلاصهٔ گفتگو ارجاع شد</div>
+		</div>
+		<div class="panel" id="iTg" style="left:1124px;top:96px;width:700px;height:888px;background:#e7f0f8;overflow:hidden">
+			<div class="ph" style="background:#fff"><img src="assets/telegram.svg" style="width:58px;height:58px"><span>ربات مدیریت ویجنت</span></div>
+			<div class="tgm" id="iAlert" style="left:30px;right:30px;top:366px;height:254px">
+				<div class="abs" style="right:24px;top:22px;display:flex;align-items:center;gap:14px;font-size:30px;font-weight:700;white-space:nowrap"><span class="av" style="width:54px;height:54px;border-radius:16px;background:#fee2e2;color:#b91c1c;font-size:30px"><i class="ic" data-i="hand"></i></span>سارا به اپراتور سپرده شد</div>
+				<div class="abs" style="right:24px;top:92px;font-size:28px;color:var(--mut)">«سفارشم دیر شده»</div>
+				<div class="btn abs" id="iBtnR" style="right:24px;top:164px;width:288px;height:66px;font-size:28px;background:#e7f0f8;color:#0b6bb5;border-radius:18px"><i class="ic" data-i="pen"></i>پاسخ</div>
+				<div class="btn abs" style="left:24px;top:164px;width:288px;height:66px;font-size:28px;background:#e7f0f8;color:#0b6bb5;border-radius:18px"><i class="ic" data-i="check"></i>بستن</div>
+			</div>
+			<div class="abs" id="iReply" style="left:30px;top:644px;background:var(--pur);color:#fff;border-radius:26px;border-bottom-left-radius:8px;padding:16px 26px;font-size:29px;white-space:nowrap">الان پیگیری می‌کنم.<div id="iSent" style="font-size:22px;color:#d8d1ff;display:flex;align-items:center;gap:6px;margin-top:2px"><i class="ic" data-i="check"></i>برای سارا ارسال شد</div></div>
+			<div class="tgm" id="iRep" style="left:30px;right:30px;top:128px;height:214px">
+				<div class="abs" style="right:24px;top:18px;display:flex;align-items:center;gap:12px;font-size:28px;font-weight:700"><i class="ic" data-i="sun" style="color:#f59e0b;font-size:32px"></i>گزارش امروز</div>
+				<div class="stat" style="right:15px"><b id="iN1">۴۲</b><span>گفتگو</span></div>
+				<div class="stat" style="right:225px"><b id="iN2">۳</b><span>سفارش</span></div>
+				<div class="stat" style="right:435px"><b id="iN3">۵</b><span>نوبت</span></div>
+			</div>
+			<div class="abs" style="left:30px;right:30px;top:806px;height:56px;border-radius:28px;background:#fff;display:flex;align-items:center;padding:0 26px;font-size:24px;color:#a2a2ad">پیام…</div>
+		</div>
+	</section>
+
+	<!-- J · control and report -->
+	<section class="sc" id="sJ">
+		<div class="tb" id="jTitle" style="right:96px;top:92px">
+			<div class="pill">کنترل و گزارش</div>
+			<div class="h" style="font-size:88px">کنترل دست شما، <span class="grad">گزارش شفاف</span></div>
+		</div>
+		<div class="panel" id="jCtrl" style="left:1004px;top:310px;width:820px;height:674px">
+			<div class="ph" style="height:96px"><i class="ic" data-i="sliders" style="font-size:34px"></i><span>رفتار ایجنت</span><span class="tag pur" id="jLive" style="margin-right:auto"><i class="ic" data-i="check"></i>لحظه‌ای اعمال شد</span></div>
+			<div class="abs" style="right:36px;top:136px;font-size:30px;font-weight:500">لحن پاسخ</div>
+			<div class="abs" style="left:36px;top:118px;width:400px;height:76px;border-radius:22px;background:#efeff3">
+				<div class="abs" id="jThumb" style="right:8px;top:8px;width:192px;height:60px;border-radius:16px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.14)"></div>
+				<div class="abs" style="right:8px;top:8px;width:192px;height:60px;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:700">محاوره‌ای</div>
+				<div class="abs" id="jSeg2" style="left:8px;top:8px;width:192px;height:60px;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:700">رسمی</div>
+			</div>
+			<div class="abs" style="left:36px;right:36px;top:216px;height:104px;border-radius:22px;background:#f7f7f9">
+				<div class="abs" id="jP1" style="right:28px;top:28px;font-size:30px;white-space:nowrap">سلام سارا جان! آره، موجوده.</div>
+				<div class="abs" id="jP2" style="right:28px;top:28px;font-size:30px;white-space:nowrap">سلام؛ بله، این کالا موجود است.</div>
+			</div>
+			<div class="tog" style="top:352px">تحویل به انسان هنگام شکایت<span class="sw"><i></i></span></div>
+			<div class="tog" style="top:444px">پاسخ فقط از دانش تأییدشده<span class="sw"><i></i></span></div>
+			<div class="tog" style="top:536px">یادگیری فقط با تأیید شما<span class="sw"><i></i></span></div>
+		</div>
+		<div class="panel" id="jRep" style="left:96px;top:310px;width:860px;height:674px">
+			<div class="ph" style="height:96px"><i class="ic" data-i="chart" style="font-size:34px"></i><span>گزارش عملکرد</span><span class="tag pur" style="margin-right:auto;height:48px;font-size:26px;border:1.5px solid var(--pur4)">نمودار نمونه</span></div>
+			<div class="abs" id="jBars" style="left:44px;top:140px;width:500px;height:330px;border-bottom:2px solid var(--line)"></div>
+			<svg class="abs" id="jLine" style="left:44px;top:140px" width="500" height="330" fill="none"><path id="jL1" d="M12 120 C 70 150, 110 70, 170 96 S 270 150, 330 110 S 430 60, 490 104" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/><path id="jL2" d="M12 232 C 80 200, 130 250, 200 226 S 330 190, 390 236 S 450 250, 490 214" stroke="#ec4899" stroke-width="5" stroke-linecap="round"/></svg>
+			<svg class="abs" id="jDonut" style="left:592px;top:150px" width="230" height="230" viewBox="0 0 230 230" fill="none"></svg>
+			<div class="abs" style="left:592px;top:396px;width:230px;text-align:center;font-size:26px;font-weight:700">سهم برنامه‌ها</div>
+			<div class="abs" id="jLeg" style="left:44px;right:44px;top:520px;display:flex;gap:14px;flex-wrap:wrap">
+				<span class="tag" style="background:var(--soft);color:var(--pur)"><i style="width:14px;height:14px;border-radius:50%;background:var(--pur);display:block"></i>نرخ حل گفتگو</span>
+				<span class="tag" style="background:var(--grnsoft);color:var(--grn)"><i style="width:14px;height:14px;border-radius:50%;background:#16a34a;display:block"></i>رضایت</span>
+				<span class="tag" style="background:#fdf2f8;color:#be185d"><i style="width:14px;height:14px;border-radius:50%;background:#ec4899;display:block"></i>هزینهٔ هوش مصنوعی</span>
+			</div>
+		</div>
+	</section>
+
+	<!-- K · recap -->
+	<section class="sc" id="sK">
+		<div class="abs" id="kHead" style="left:0;right:0;top:92px;text-align:center;font-size:80px;font-weight:700;white-space:nowrap">یک سیستم، <span class="grad">نه چند ابزار پراکنده</span></div>
+		<div id="kChips"></div>
+	</section>
+
+	<!-- L · end card -->
+	<section class="sc" id="sL">
+		<img id="lLogo" class="abs" src="assets/logo.svg" style="left:530px;top:176px;width:860px">
+		<div class="abs" id="lTag" style="left:0;right:0;top:430px;text-align:center;font-size:98px;font-weight:700;white-space:nowrap">همهٔ برنامه‌ها، <span class="grad">یک هوش مصنوعی</span></div>
+		<div class="abs" id="lRing" style="left:925px;top:668px;width:440px;height:132px;border-radius:38px;border:4px solid var(--pur2);opacity:0"></div>
+		<div class="btn k abs" id="lCta" style="left:925px;top:668px;width:440px;height:132px;font-size:54px;border-radius:38px;box-shadow:0 30px 50px -20px rgba(17,17,17,.6)">شروع رایگان</div>
+		<div class="abs ltr" id="lUrl" style="left:525px;top:668px;width:360px;height:132px;display:flex;align-items:center;justify-content:center;font-size:76px;font-weight:700;color:var(--pur)">vigent.ir</div>
+		<div class="abs" id="lSub" style="left:0;right:0;top:872px;text-align:center;font-size:42px;color:#4a4a54;font-weight:500">راه‌اندازی در ۷ دقیقه · بدون کدنویسی</div>
+	</section>
+
+	<!-- T · typographic beat before the Instagram scene (authored after the end card; the edit list plays it mid-film) -->
+	<section class="sc" id="sT"><div class="tw">دایرکت</div><div class="tw">کامنت</div><div class="tw"><span class="gradD">استوری</span></div></section>
+
+	<div class="tw" id="tw3b"><span class="gradD">استوری</span></div>
+	<div id="chIcons"></div>
+	<div id="morph"><span class="av abs" id="mAv" style="right:22px;top:22px;width:68px;height:68px;font-size:30px;background:#fce7f3;color:#be185d">س</span><span class="abs" id="mNm" style="right:110px;top:18px;font-size:30px;font-weight:700;white-space:nowrap">سارا</span><div class="bub u" id="mMsg" style="right:110px;top:57px;padding:0;font-size:27px;line-height:1.4;color:#6b6b76;background:rgba(239,239,243,0)">سلام! کت مشکی سایز M موجوده؟</div></div>
+	<div class="prod" id="flyProd" style="left:0;top:0;width:330px;padding:12px;visibility:hidden;border-radius:22px"><div class="thumb" style="width:76px;height:76px;border-radius:16px"><i class="ic" data-i="coat" style="font-size:50px;color:#fff"></i></div><div style="font-size:28px;font-weight:700;white-space:nowrap">کت مشکی</div></div>
+	<div id="flyPkt" class="abs" style="left:0;top:0;width:34px;height:34px;border-radius:50%;background:var(--pur);box-shadow:0 0 0 10px rgba(118,95,242,.25),0 0 40px rgba(118,95,242,.9);visibility:hidden"></div>
+	<div id="spark"><div class="halo"></div><div class="ring"></div><div class="core"><img src="assets/spark-white.svg"></div></div>
+	<div id="ptr"><div class="pr"></div><svg viewBox="0 0 24 24"><path d="M4 2.5 20 11l-7 1.8L10.6 20z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+	</div>
+	<div id="foot">نام‌ها و ارقام داخل صحنه‌ها نمایشی‌اند</div>
+</div>
+<script src="vendor/gsap.min.js"></script>
+<script src="film.js"></script>
+</body>
+</html>
