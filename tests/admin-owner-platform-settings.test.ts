@@ -137,8 +137,12 @@ describe('admin control-center regressions', () => {
     // The rail keeps the dashboard's geometry (it lives in admin-nav now).
     expect(nav).toContain('sticky top-3 m-3 me-0')
     expect(layout).toContain('<AdminRail')
-    expect(layout).toContain('sticky top-0 z-30 px-3 [padding-top:max(0.75rem,env(safe-area-inset-top))] sm:px-6 lg:px-8 xl:px-10')
-    expect(layout).toContain('md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]')
+    // Same header frame and content inset as the user dashboard.
+    const header = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/admin-header.tsx'), 'utf8')
+    expect(layout).toContain('<AdminHeader')
+    expect(header).toContain('dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]')
+    expect(layout).toContain('dashboard-shell-content')
+    expect(layout).toContain('<div className="dashboard-main">')
     expect(nav).toContain('Vigento AI')
     expect(nav).toContain('admin-rail-link')
     // Admin and dashboard share one page header (title bar + inline back).

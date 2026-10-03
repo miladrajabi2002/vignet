@@ -703,9 +703,16 @@ export default async function AdminUserDetailPage(
                 {journeySteps.map((step, index) => {
                   const Icon = step.icon
                   return (
-                    <div key={step.label} className={cn('flex min-h-[5.5rem] gap-3 rounded-control border p-3', step.done ? 'border-transparent bg-[var(--bg-surface)]' : index === currentStepIndex ? 'border-amber-200 bg-amber-50' : 'border-dashed border-[var(--border-default)]')}>
-                      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-chip', step.done ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]' : index === currentStepIndex ? 'bg-amber-100 text-amber-700' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
-                      <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-[13px] font-bold text-[var(--text-primary)]">{fa(index + 1)}. {step.label}</p>{!step.done && index === currentStepIndex && <span className="ui-chip ui-chip-warn">اقدام بعدی</span>}</div><p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">{step.detail}</p><p className="mt-1 text-[12px] text-[var(--text-muted)]">{step.at ? fmtDate(step.at) : '—'}</p></div>
+                    <div key={step.label} className={cn('flex items-start gap-3 rounded-control border p-3', step.done ? 'border-transparent bg-[var(--bg-surface)]' : index === currentStepIndex ? 'border-amber-200 bg-amber-50' : 'border-dashed border-[var(--border-default)]')}>
+                      <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-chip', step.done ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]' : index === currentStepIndex ? 'bg-amber-100 text-amber-700' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p className="text-[13px] font-bold text-[var(--text-primary)]">{fa(index + 1)}. {step.label}</p>
+                          {!step.done && index === currentStepIndex && <span className="ui-chip ui-chip-warn">اقدام بعدی</span>}
+                          {step.at && <span className="ms-auto text-[12px] tabular-nums text-[var(--text-muted)]">{fmtDate(step.at)}</span>}
+                        </div>
+                        <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">{step.detail}</p>
+                      </div>
                     </div>
                   )
                 })}

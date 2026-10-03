@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Edit3, Trash2, Loader2, X, Image as ImageIcon, ExternalLink, GripVertical, Star, Power } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NumberField } from '@/components/admin/number-field'
+import { Switch } from '@/components/ui/switch'
 
 export interface ShowcaseRow {
 	id: string
@@ -58,9 +60,9 @@ const EMPTY_FORM: FormState = {
 	sortOrder: 0,
 }
 
-const inputClass =
-	'w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-strong)] focus:ring-2 focus:ring-black/5 placeholder:text-[var(--text-muted)]'
-const labelClass = 'mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]'
+// The shared field family (app/globals.css `.input` / `.ui-field-label`).
+const inputClass = 'input text-sm'
+const labelClass = 'ui-field-label'
 
 export function AdminShowcaseManager({ initialEntries }: { initialEntries: ShowcaseRow[] }) {
 	const [entries, setEntries] = useState<ShowcaseRow[]>(initialEntries)
@@ -188,7 +190,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 				<button
 					type="button"
 					onClick={startCreate}
-					className="inline-flex items-center gap-1.5 rounded-lg bg-[#111] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#2a2a2e]"
+					className="admin-primary-button min-h-10 px-4 text-xs"
 				>
 					<Plus className="h-3.5 w-3.5" />
 					افزودن مشتری
@@ -202,7 +204,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 			)}
 
 			{showForm && (
-				<div className="mb-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 sm:p-5">
+				<div className="mb-6 rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 sm:p-5">
 					<div className="mb-4 flex items-center justify-between">
 						<h3 className="text-sm font-bold text-[var(--text-primary)]">
 							{editingId ? 'ویرایش مشتری' : 'مشتری جدید'}
@@ -210,7 +212,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 						<button
 							type="button"
 							onClick={() => setShowForm(false)}
-							className="rounded-lg p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
+							className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
 							aria-label="بستن"
 						>
 							<X className="h-4 w-4" />
@@ -239,7 +241,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 								onChange={(e) => setForm((f) => ({ ...f, handle: e.target.value }))}
 								placeholder="aida.manto"
 							/>
-							<p className="mt-1 text-[11px] text-[var(--text-muted)]">بدون @ — لینک کارت به این پیج می‌رود مگر اینکه لینک جدا بدهید.</p>
+							<p className="mt-1 text-[12px] text-[var(--text-muted)]">بدون @ — لینک کارت به این پیج می‌رود مگر اینکه لینک جدا بدهید.</p>
 						</div>
 						<div>
 							<label className={labelClass} htmlFor="sc-url">لینک اختصاصی (اختیاری)</label>
@@ -285,7 +287,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									type="button"
 									onClick={() => fileRef.current?.click()}
 									disabled={uploading}
-									className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-hover)] bg-white px-3 py-1.5 text-xs text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] disabled:opacity-50"
+									className="admin-toolbar-button min-h-10 disabled:opacity-50"
 								>
 									{uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
 									{uploading ? 'در حال آپلود…' : form.imageUrl ? 'تغییر تصویر' : 'انتخاب تصویر'}
@@ -300,7 +302,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									</button>
 								)}
 							</div>
-							<p className="mt-1 text-[11px] text-[var(--text-muted)]">مربع، حداکثر ۴MB — png/jpg/webp</p>
+							<p className="mt-1 text-[12px] text-[var(--text-muted)]">مربع، حداکثر ۴MB — png/jpg/webp</p>
 						</div>
 						<div className="sm:col-span-2">
 							<span className={labelClass}>کانال‌هایی که این مشتری استفاده می‌کند</span>
@@ -320,7 +322,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 												}))
 											}
 											className={cn(
-												'rounded-full border px-2.5 py-1 text-[11px] transition',
+												'rounded-full border px-2.5 py-1 text-[12px] transition',
 												selected
 													? 'border-[#111] bg-[#111] text-white'
 													: 'border-[var(--border-hover)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
@@ -367,36 +369,23 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 						</div>
 						<div>
 							<label className={labelClass} htmlFor="sc-sort">ترتیب نمایش</label>
-							<input
+							<NumberField
 								id="sc-sort"
-								type="number"
-								min={0}
-								className={inputClass}
 								value={form.sortOrder}
-								onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
+								onChange={(raw) => setForm((f) => ({ ...f, sortOrder: Number(raw) || 0 }))}
 							/>
-							<p className="mt-1 text-[11px] text-[var(--text-muted)]">عدد کوچک‌تر اول نمایش داده می‌شود.</p>
+							<p className="mt-1 text-[12px] text-[var(--text-muted)]">عدد کوچک‌تر اول نمایش داده می‌شود.</p>
 						</div>
 						<div className="flex items-end gap-4">
-							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-[var(--text-secondary)]">
-								<input
-									type="checkbox"
-									checked={form.featured}
-									onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
-									className="h-4 w-4 accent-[#111]"
-								/>
-								<Star className="h-3.5 w-3.5 text-amber-500" />
+							<span className="inline-flex min-h-11 items-center gap-2.5 text-xs font-medium text-[var(--text-secondary)]">
+								<Switch checked={form.featured} onChange={(next) => setForm((f) => ({ ...f, featured: next }))} aria-label="ویژه" />
+								<Star className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
 								ویژه
-							</label>
-							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-[var(--text-secondary)]">
-								<input
-									type="checkbox"
-									checked={form.active}
-									onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-									className="h-4 w-4 accent-[#111]"
-								/>
+							</span>
+							<span className="inline-flex min-h-11 items-center gap-2.5 text-xs font-medium text-[var(--text-secondary)]">
+								<Switch checked={form.active} onChange={(next) => setForm((f) => ({ ...f, active: next }))} aria-label="فعال روی سایت" />
 								فعال روی سایت
-							</label>
+							</span>
 						</div>
 					</div>
 
@@ -405,7 +394,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 							type="button"
 							onClick={submit}
 							disabled={busy || uploading || form.name.trim().length < 2}
-							className="inline-flex items-center gap-1.5 rounded-lg bg-[#111] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2a2a2e] disabled:opacity-40"
+							className="admin-primary-button min-h-10 px-4 text-xs"
 						>
 							{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
 							{editingId ? 'ذخیره تغییرات' : 'افزودن به صفحه اصلی'}
@@ -413,7 +402,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 						<button
 							type="button"
 							onClick={() => setShowForm(false)}
-							className="rounded-lg border border-[var(--border-hover)] px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)]"
+							className="admin-toolbar-button min-h-10 px-4"
 						>
 							انصراف
 						</button>
@@ -453,7 +442,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 										<span className="text-sm font-semibold text-[var(--text-primary)]">{entry.name}</span>
 										{entry.featured && <Star className="h-3 w-3 text-amber-500" aria-label="ویژه" />}
 										{entry.handle && (
-											<span dir="ltr" className="text-[11px] text-[var(--text-muted)]">@{entry.handle}</span>
+											<span dir="ltr" className="text-[12px] text-[var(--text-muted)]">@{entry.handle}</span>
 										)}
 										{link && (
 											<a href={link} target="_blank" rel="noreferrer" className="text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
@@ -463,26 +452,26 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									</div>
 									<div className="mt-1 flex flex-wrap items-center gap-1.5">
 										{entry.channels.map((ch) => (
-											<span key={ch} className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+											<span key={ch} className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[12px] text-[var(--text-muted)]">
 												{CHANNEL_LABELS_FA[ch] ?? ch}
 											</span>
 										))}
 										{entry.metricValue && (
-											<span className="text-[11px] font-bold text-[var(--text-secondary)]">
+											<span className="text-[12px] font-bold text-[var(--text-secondary)]">
 												{entry.metricValue}{' '}
 												<span className="font-normal text-[var(--text-muted)]">{entry.metricLabel}</span>
 											</span>
 										)}
-										<span className="text-[11px] text-[var(--text-hint)]">ترتیب: {entry.sortOrder}</span>
+										<span className="text-[12px] text-[var(--text-hint)]">ترتیب: {entry.sortOrder}</span>
 									</div>
-									{entry.quote && <p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">{entry.quote}</p>}
+									{entry.quote && <p className="mt-1 truncate text-[12px] text-[var(--text-muted)]">{entry.quote}</p>}
 								</div>
 								<div className="flex shrink-0 items-center gap-1">
 									<button
 										type="button"
 										onClick={() => quickToggle(entry, { active: !entry.active })}
 										title={entry.active ? 'غیرفعال‌کردن از سایت' : 'نمایش دوباره روی سایت'}
-										className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
+										className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
 									>
 										<Power className={cn('h-3.5 w-3.5', entry.active && 'text-emerald-600')} />
 									</button>
@@ -490,7 +479,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 										type="button"
 										onClick={() => startEdit(entry)}
 										title="ویرایش"
-										className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
+										className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
 									>
 										<Edit3 className="h-3.5 w-3.5" />
 									</button>
@@ -498,7 +487,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 										type="button"
 										onClick={() => remove(entry)}
 										title="حذف"
-										className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600"
+										className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600"
 									>
 										<Trash2 className="h-3.5 w-3.5" />
 									</button>

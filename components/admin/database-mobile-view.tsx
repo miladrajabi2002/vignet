@@ -17,7 +17,7 @@ export function DatabaseModelPicker({
   const selected = models.find((model) => model.key === selectedKey) ?? models[0]
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className="admin-toolbar sticky top-[4.75rem] z-20 min-h-12 w-full gap-3 px-4 text-start lg:hidden">
+      <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className="admin-toolbar min-h-12 w-full gap-3 px-4 text-start lg:hidden">
         <Database className="h-4 w-4" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate text-sm font-bold text-black">{selected?.label}</span>
         <code dir="ltr" className="text-[12px] text-[var(--text-muted)]">{selected?.key}</code>

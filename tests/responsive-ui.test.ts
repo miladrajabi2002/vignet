@@ -20,7 +20,7 @@ describe('shared adaptive mobile UI contract', () => {
     expect(dashboardLayout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
     expect(adminLayout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
     expect(dashboardHeader).toContain('env(safe-area-inset-top)')
-    expect(adminLayout).toContain('env(safe-area-inset-top)')
+    expect(source('app/admin/(dash)/admin-header.tsx')).toContain('env(safe-area-inset-top)')
     expect(dashboardNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
     expect(adminNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
     expect(bottomSheet).toContain("!footer && '[padding-bottom:max(1rem,env(safe-area-inset-bottom))]'")

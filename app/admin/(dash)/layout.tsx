@@ -1,12 +1,11 @@
-import Link from 'next/link'
-import { ArrowRight, ExternalLink } from 'lucide-react'
 import { ADMIN_OWNER_NAME, requireAdmin } from '@/lib/admin/auth'
-import { AdminRail, AdminTag } from './admin-nav'
+import { AdminRail } from './admin-nav'
+import { AdminHeader } from './admin-header'
 import { AdminMobileNav } from './mobile-nav'
-import { Logo } from '@/components/ui/logo'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { ADMIN_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_USER_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 export const metadata = {
   title: 'پنل مالک | Vigent',
@@ -17,7 +16,21 @@ export const dynamic = 'force-dynamic'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Standalone admin guard — separate from the OTP/next-auth user session.
   await requireAdmin()
-  const mailUnreadCount = await prisma.adminMailboxMessage.count({ where: { readAt: null } })
+  const startToday = new Date()
+  startToday.setHours(0, 0, 0, 0)
+  const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
+  const [mailUnreadCount, errors24h, newUsersToday] = await Promise.all([
+    prisma.adminMailboxMessage.count({ where: { readAt: null } }),
+    prisma.errorLog.count({
+      where: {
+        level: 'error',
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        ...(hiddenWorkspaceIds.length ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] } : {}),
+      },
+    }),
+    prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startToday } } }),
+  ])
+  const pulse = { errors24h, newUsersToday }
 
   return (
     <ScopedIntlProvider messagePaths={ADMIN_CLIENT_MESSAGE_PATHS}>
@@ -32,45 +45,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminRail mailUnreadCount={mailUnreadCount} ownerName={ADMIN_OWNER_NAME} />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 px-3 [padding-top:max(0.75rem,env(safe-area-inset-top))] sm:px-6 lg:px-8 xl:px-10">
-            <div className="flex min-h-14 items-center justify-between gap-2 rounded-card border border-black/[0.07] bg-white/90 px-2.5 shadow-[var(--elev-1)] backdrop-blur-xl sm:px-3.5">
-              {/* Phones have no rail, so the bar itself says which panel this is. */}
-              <Link href="/admin" aria-label="داشبورد مدیریت" className="flex min-h-11 min-w-0 items-center gap-2 md:hidden">
-                <Logo className="h-6 w-24" />
-                <AdminTag />
-              </Link>
-              <div className="hidden min-w-0 md:block">
-                <p className="truncate text-sm font-bold leading-5 text-[var(--text-primary)]">مرکز کنترل ویجنت</p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-[12px] leading-4 text-[var(--text-muted)]">
-                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="truncate">سامانه زنده · {ADMIN_OWNER_NAME}</span>
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Link
-                  href="/"
-                  aria-label="مشاهده سایت"
-                  title="مشاهده سایت"
-                  className="spatial-press inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-control px-2.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]"
-                >
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">مشاهده سایت</span>
-                </Link>
-                {/* The owner reaches /admin from the user dashboard; this is the way back. */}
-                <Link
-                  href="/overview"
-                  className="spatial-press inline-flex h-10 items-center gap-1.5 rounded-control border border-[var(--border-default)] bg-white px-3 text-[12px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)]"
-                >
-                  <ArrowRight className="h-4 w-4 ltr:rotate-180" aria-hidden="true" />
-                  <span className="md:hidden">پنل کاربر</span>
-                  <span className="hidden md:inline">بازگشت به داشبورد</span>
-                </Link>
-              </div>
-            </div>
-          </header>
+          <AdminHeader ownerName={ADMIN_OWNER_NAME} mailUnreadCount={mailUnreadCount} pulse={pulse} />
 
-          <main id="admin-main" tabIndex={-1} className="flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10 focus:outline-none">
-            <div className="dashboard-main mx-auto w-full md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]">{children}</div>
+          <main id="admin-main" tabIndex={-1} className="dashboard-shell-content flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:pt-5 md:pb-10 focus:outline-none">
+            <div className="dashboard-main">{children}</div>
           </main>
         </div>
         <AdminMobileNav mailUnreadCount={mailUnreadCount} />

@@ -90,8 +90,10 @@ export function Panel({
 }) {
   return (
     <Card className={className}>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* Wraps instead of squeezing: a wide action drops under the title on a
+          phone rather than pushing the card past the screen edge. */}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-3">
+        <div className="min-w-0 flex-1 basis-[14rem]">
           <h2 className="ui-h3">{title}</h2>
           {subtitle && <p className="ui-caption mt-0.5">{subtitle}</p>}
         </div>
@@ -101,7 +103,7 @@ export function Panel({
             <ChevronLeft aria-hidden />
           </Link>
         ) : action ? (
-          <div className="shrink-0">{action}</div>
+          <div className="max-w-full">{action}</div>
         ) : null}
       </div>
       {children}
@@ -128,7 +130,7 @@ type StatTone = "default" | "success" | "warning" | "danger" | "info";
 // uses colour freely: a tinted tile and a matching sparkline, nothing more.
 const STAT_TONES: Record<StatTone, { tile: string; spark: string }> = {
   default: {
-    tile: "bg-[var(--bg-muted)] text-[var(--text-secondary)]",
+    tile: "bg-[#111] text-white",
     spark: "#111111",
   },
   success: {
@@ -180,25 +182,27 @@ export function StatCard({
     typeof value === "string" ? /^(.+?)\s*(تومان)\s*$/.exec(value) : null;
 
   return (
-    <Card pad={false} className="flex min-h-[7.25rem] flex-col p-3.5 sm:p-5">
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 pt-1 text-[12px] leading-5 text-[var(--text-secondary)] sm:text-[13px]">
-          {label}
-        </p>
+    // Compact tile: tinted icon beside the label, the value under it, and
+    // only as much height as the content needs.
+    <Card pad={false} className="flex flex-col p-3.5 sm:p-4">
+      <div className="flex items-center gap-2.5">
         {icon && (
           <span
             className={cn(
-              "grid h-8 w-8 shrink-0 place-items-center rounded-chip sm:h-9 sm:w-9 [&_svg]:h-[1.05rem] [&_svg]:w-[1.05rem]",
+              "grid h-8 w-8 shrink-0 place-items-center rounded-chip sm:h-9 sm:w-9 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-[1.05rem] sm:[&_svg]:w-[1.05rem]",
               palette.tile,
             )}
           >
             {icon}
           </span>
         )}
+        <p className="line-clamp-2 min-w-0 text-[12px] font-medium leading-5 text-[var(--text-secondary)] sm:text-[13px]">
+          {label}
+        </p>
       </div>
       <p
         className={cn(
-          "mt-1.5 flex flex-wrap items-baseline gap-x-1 text-[clamp(1.05rem,4.6vw,1.75rem)] font-bold leading-tight tabular-nums sm:gap-x-1.5",
+          "mt-3 flex flex-wrap items-baseline gap-x-1 text-[clamp(1.05rem,4.6vw,1.6rem)] font-bold leading-tight tabular-nums sm:gap-x-1.5",
           tone === "danger"
             ? "text-[var(--danger-ink)]"
             : "text-[var(--text-primary)]",
@@ -216,7 +220,7 @@ export function StatCard({
         )}
       </p>
       {sub && (
-        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">
+        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]" title={sub}>
           {sub}
         </p>
       )}
@@ -239,12 +243,12 @@ export function StatCard({
         </div>
       )}
       {series && series.length > 0 && (
-        <div className="mt-auto pt-3">
+        <div className="mt-auto pt-2.5">
           <Sparkline
             data={series}
             color={palette.spark}
             width={200}
-            height={32}
+            height={28}
             fluid
             labels={seriesLabels}
             valueLabel={label}
@@ -483,7 +487,7 @@ export function KV({
       <span className="shrink-0 text-xs text-[var(--text-muted)]">{label}</span>
       <span
         className={cn(
-          "min-w-0 break-words text-end text-sm font-medium text-[var(--text-primary)]",
+          "min-w-0 text-end text-sm font-medium text-[var(--text-primary)] [overflow-wrap:anywhere]",
           mono && "font-mono text-xs",
         )}
       >

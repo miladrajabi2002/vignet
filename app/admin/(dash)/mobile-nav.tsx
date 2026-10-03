@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Poin
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, LogOut, Menu, Sparkles, X } from 'lucide-react'
+import { ChevronLeft, ExternalLink, LogOut, Menu, Sparkles, X } from 'lucide-react'
 import { adminLogout } from '../login/actions'
 import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, ADMIN_PRIMARY_HREFS, isAdminNavActive } from './nav-items'
 import { cn } from '@/lib/utils'
@@ -20,10 +20,9 @@ const PRIMARY_ITEMS = ADMIN_PRIMARY_HREFS.flatMap((href) => {
   return item ? [item] : []
 })
 
-// The sheet lists only what the bar does not already show, group by group.
-const SHEET_GROUPS = ADMIN_NAV_GROUPS
-  .map((group) => ({ ...group, items: group.items.filter((item) => !ADMIN_PRIMARY_HREFS.includes(item.href)) }))
-  .filter((group) => group.items.length > 0)
+// The sheet lists only what the bar does not already show, in the rail's
+// group order, as one flat grid.
+const SHEET_ITEMS = ADMIN_NAV_GROUPS.flatMap((group) => group.items).filter((item) => !ADMIN_PRIMARY_HREFS.includes(item.href))
 
 /**
  * Phone navigation for the owner console — the user dashboard's pattern (a
@@ -45,7 +44,7 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
 
   const vigentoActive = pathname.startsWith('/admin/vigento')
   // "More" reads as the current tab when the open page lives inside the sheet.
-  const moreActive = vigentoActive || SHEET_GROUPS.some((group) => group.items.some((item) => isAdminNavActive(pathname, item)))
+  const moreActive = vigentoActive || SHEET_ITEMS.some((item) => isAdminNavActive(pathname, item))
 
   function showDrawer(trigger: HTMLElement) {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current)
@@ -225,7 +224,7 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
             aria-label="بستن منوی مدیریت"
             onClick={requestClose}
             style={backdropStyle}
-            className="dashboard-more-backdrop absolute inset-0 cursor-default bg-black/45"
+            className="dashboard-more-backdrop absolute inset-0 cursor-default bg-black/40 backdrop-blur-[3px]"
           />
 
           <aside
@@ -236,7 +235,7 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
             aria-labelledby="admin-more-title"
             tabIndex={-1}
             style={sheetStyle}
-            className="dashboard-more-sheet absolute inset-x-2 mx-auto flex max-h-[min(88dvh,44rem)] max-w-lg flex-col overflow-hidden rounded-sheet border border-white/80 bg-[var(--bg-base)] shadow-[0_-10px_40px_-12px_rgba(17,17,17,0.35)] outline-none [bottom:max(0.5rem,env(safe-area-inset-bottom))]"
+            className="dashboard-more-sheet absolute inset-x-2 mx-auto flex max-h-[min(88dvh,40rem)] max-w-lg flex-col overflow-hidden rounded-sheet border border-white/80 bg-[var(--bg-base)] shadow-[0_-10px_40px_-12px_rgba(17,17,17,0.35)] outline-none [bottom:max(0.5rem,env(safe-area-inset-bottom))]"
           >
             {/* Grab zone: handle + title row. Dragging it down dismisses. */}
             <div
@@ -248,7 +247,7 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
             >
               <span aria-hidden="true" className="mx-auto block h-[5px] w-9 rounded-full bg-black/[0.14]" />
               <div className="flex items-center justify-between gap-3 pb-1 pt-2">
-                <h2 id="admin-more-title" className="ps-1 text-[15px] font-bold text-[var(--text-primary)]">همه بخش‌های مدیریت</h2>
+                <h2 id="admin-more-title" className="ps-1 text-[15px] font-bold text-[var(--text-primary)]">بیشتر</h2>
                 <button
                   ref={closeRef}
                   type="button"
@@ -261,75 +260,85 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3 pt-1 [scrollbar-width:none]">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3 pt-2 [scrollbar-width:none]">
+              {/* Every remaining page as one compact launcher grid — the user
+                  panel's sheet — so it reads at a glance without scrolling. */}
+              <nav aria-label="بخش‌های مدیریت">
+                <ul className="grid grid-cols-4 gap-x-1 gap-y-3">
+                  {SHEET_ITEMS.map((item, index) => {
+                    const Icon = item.icon
+                    const active = isAdminNavActive(pathname, item)
+                    return (
+                      <li key={item.href} className="dashboard-more-row" style={{ '--row': index } as CSSProperties}>
+                        <Link
+                          href={item.mobileHref ?? item.href}
+                          onClick={requestClose}
+                          aria-current={active ? 'page' : undefined}
+                          className="spatial-press group flex flex-col items-center gap-1.5 rounded-control px-0.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                        >
+                          <span
+                            className={cn(
+                              'relative grid h-[3.25rem] w-[3.25rem] place-items-center rounded-[16px] transition-colors',
+                              active
+                                ? 'bg-[#111] text-white shadow-[var(--shadow-control)]'
+                                : 'border border-black/[0.05] bg-white text-[var(--text-primary)] shadow-[var(--elev-1)] group-active:bg-[var(--bg-surface)]',
+                            )}
+                          >
+                            <Icon className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" strokeWidth={active ? 2.1 : 1.8} />
+                            {item.href === '/admin/mail' && mailUnreadCount > 0 && (
+                              <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--notif)] px-1 text-[12px] font-bold leading-none tabular-nums text-[var(--notif-ink)] ring-2 ring-[var(--bg-base)]">
+                                <span className="sr-only">خوانده‌نشده: </span>
+                                {Math.min(mailUnreadCount, 99).toLocaleString('fa-IR')}
+                              </span>
+                            )}
+                          </span>
+                          <span className={cn('max-w-full truncate text-[12px] leading-4', active ? 'font-bold text-[var(--text-primary)]' : 'font-medium text-[var(--text-secondary)]')}>
+                            {item.short}
+                          </span>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </nav>
+
+              {/* The assistant: the sheet's one filled row, in the console's iris. */}
               <Link
                 href="/admin/vigento"
                 onClick={requestClose}
                 aria-current={vigentoActive ? 'page' : undefined}
-                className="spatial-press flex min-h-[3.25rem] items-center gap-3 rounded-control bg-[var(--signal)] px-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+                style={{ '--row': SHEET_ITEMS.length } as CSSProperties}
+                className="dashboard-more-row spatial-press mt-4 flex min-h-[3.25rem] items-center gap-3 rounded-control bg-[var(--signal)] px-3 text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
               >
                 <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate text-[13px]">
                   <span className="font-bold">Vigento AI</span>
-                  <span className="text-white/75"> · مدیریت هوشمند</span>
+                  <span className="text-white/70"> · مدیریت هوشمند</span>
                 </span>
                 <ChevronLeft className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
               </Link>
 
-              {/* Every remaining page as a launcher grid, under its group. */}
-              <nav aria-label="بخش‌های مدیریت" className="mt-3 space-y-3">
-                {SHEET_GROUPS.map((group) => (
-                  <section key={group.key} aria-labelledby={`admin-more-${group.key}`}>
-                    <h3 id={`admin-more-${group.key}`} className="px-1 pb-1.5 text-[12px] font-medium text-[var(--text-muted)]">{group.label}</h3>
-                    <ul className="grid grid-cols-4 gap-x-1 gap-y-2">
-                      {group.items.map((item) => {
-                        const Icon = item.icon
-                        const active = isAdminNavActive(pathname, item)
-                        return (
-                          <li key={item.href}>
-                            <Link
-                              href={item.mobileHref ?? item.href}
-                              onClick={requestClose}
-                              aria-current={active ? 'page' : undefined}
-                              className="spatial-press group flex flex-col items-center gap-1.5 rounded-control px-0.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                            >
-                              <span
-                                className={cn(
-                                  'relative grid h-[3.25rem] w-[3.25rem] place-items-center rounded-[16px] transition-colors',
-                                  active
-                                    ? 'bg-[#111] text-[var(--admin-accent-on-ink)] shadow-[var(--shadow-control)]'
-                                    : 'border border-black/[0.05] bg-white text-[var(--text-primary)] shadow-[var(--elev-1)] group-active:bg-[var(--bg-surface)]',
-                                )}
-                              >
-                                <Icon className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" strokeWidth={active ? 2.1 : 1.8} />
-                                {item.href === '/admin/mail' && mailUnreadCount > 0 && (
-                                  <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--notif)] px-1 text-[12px] font-bold leading-none tabular-nums text-[var(--notif-ink)] ring-2 ring-[var(--bg-base)]">
-                                    <span className="sr-only">خوانده‌نشده: </span>
-                                    {Math.min(mailUnreadCount, 99).toLocaleString('fa-IR')}
-                                  </span>
-                                )}
-                              </span>
-                              <span className={cn('max-w-full truncate text-[12px] leading-4', active ? 'font-bold text-[var(--text-primary)]' : 'font-medium text-[var(--text-secondary)]')}>
-                                {item.short}
-                              </span>
-                            </Link>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </section>
-                ))}
-              </nav>
-
-              <form action={adminLogout} className="mt-3 border-t border-[var(--border-default)] pt-1">
-                <button
-                  type="submit"
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-danger active:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              <div className="mt-1 grid grid-cols-2">
+                <Link
+                  href="/"
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={requestClose}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-control text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
-                  <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-                  خروج از پنل مدیریت
-                </button>
-              </form>
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                  مشاهده سایت
+                </Link>
+                <form action={adminLogout}>
+                  <button
+                    type="submit"
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-danger active:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                  >
+                    <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                    خروج
+                  </button>
+                </form>
+              </div>
             </div>
           </aside>
         </div>,

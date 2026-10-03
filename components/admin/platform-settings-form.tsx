@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { AGENT_MODELS, type ModelAlias } from '@/lib/ai/models'
+import { NumberField } from '@/components/admin/number-field'
+import { Switch } from '@/components/ui/switch'
 
 type NumberPath =
   | ['trialCreditIRR']
@@ -127,11 +129,10 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
           <Field label="اولویت انتخاب Provider" hint="در تمام درخواست‌های OpenRouter">
             <MaterialSelect value={value.providerSort} onValueChange={(next) => setField('providerSort', next as PlatformCommercialConfig['providerSort'])} ariaLabel="اولویت انتخاب Provider" buttonClassName="admin-input" options={[{ value: 'price', label: 'کمترین قیمت' }, { value: 'latency', label: 'کمترین تأخیر' }, { value: 'throughput', label: 'بیشترین توان پردازش' }]} />
           </Field>
-          <label className="flex min-h-[76px] cursor-pointer items-center justify-between gap-4 self-start rounded-control bg-[var(--bg-surface)] px-4 py-3">
+          <div className="flex min-h-[76px] items-center justify-between gap-4 self-start rounded-control bg-[var(--bg-surface)] px-4 py-3">
             <div><span className="text-[13px] font-bold text-[var(--text-primary)]">Zero Data Retention</span><span className="mt-1 block text-[12px] text-[var(--text-muted)]">عدم نگهداری داده توسط Provider</span></div>
-            <input type="checkbox" checked={value.zeroDataRetention} onChange={(event) => setField('zeroDataRetention', event.target.checked)} className="peer sr-only" />
-            <span className="relative h-7 w-12 shrink-0 rounded-full bg-black/15 transition-colors peer-checked:bg-[#111] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--focus-ring)] peer-focus-visible:ring-offset-2 after:absolute after:start-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-5 rtl:peer-checked:after:-translate-x-5" />
-          </label>
+            <Switch checked={value.zeroDataRetention} onChange={(next) => setField('zeroDataRetention', next)} aria-label="Zero Data Retention" />
+          </div>
         </div>
       </section>
 
@@ -166,16 +167,28 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             const meta = PLAN_META[plan]
             const item = value.plans[plan]
             return (
-              <article key={plan} className={cn('rounded-card border p-4 sm:p-5', plan === 'PRO' ? 'border-[#111] bg-[#111] text-white' : 'border-transparent bg-[var(--bg-surface)] text-[var(--text-primary)]')}>
-                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{meta.title}</p><p className={cn('mt-1 text-[12px]', plan === 'PRO' ? 'text-white/60' : 'text-[var(--text-muted)]')}>{meta.hint}</p></div><span className={cn('rounded-full px-2.5 py-1 text-[12px] font-bold', plan === 'PRO' ? 'bg-white text-black' : 'bg-white text-[var(--text-secondary)] ring-1 ring-black/[0.06]')}>{plan}</span></div>
-                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <PlanNumber label="قیمت ماهانه (تومان)" value={toTomanNum(item.priceIRR)} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw, TOMAN_SCALE)} />
-                  <PlanNumber label="قیمت دلاری" value={item.priceUSD} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
-                  <PlanNumber label="اعتبار هدیه (تومان)" value={toTomanNum(item.includedCreditIRR)} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw, TOMAN_SCALE)} />
-                  <PlanNumber label="حداکثر اتصال کانال" value={item.maxChannels} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxChannels'], raw)} />
-                  <PlanNumber label="حداکثر محصول" value={item.maxProducts} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxProducts'], raw)} />
-                  <PlanNumber label="حداکثر سفارش" value={item.maxOrders} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxOrders'], raw)} />
-                  <PlanNumber label="حداکثر مشتری" value={item.maxCustomers} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxCustomers'], raw)} />
+              <article key={plan} className={cn('relative rounded-card border p-4 sm:p-5', plan === 'PRO' ? 'border-[var(--signal-border)] bg-[var(--signal-soft)]' : 'border-transparent bg-[var(--bg-surface)]')}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
+                      {meta.title}
+                    </p>
+                    <p className="mt-1 text-[12px] text-[var(--text-muted)]">{meta.hint}{meta.locked ? ' · قیمت و اعتبار این پلن قفل است' : ''}</p>
+                  </div>
+                  <span dir="ltr" className="rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[var(--text-secondary)] ring-1 ring-black/[0.06]">{plan}</span>
+                </div>
+                <p className="mt-5 text-[12px] font-bold text-[var(--text-muted)]">قیمت و اعتبار</p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                  <PlanNumber label="قیمت ماهانه" unit="تومان" value={toTomanNum(item.priceIRR)} disabled={meta.locked} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw, TOMAN_SCALE)} />
+                  <PlanNumber label="قیمت دلاری" unit="$" value={item.priceUSD} disabled={meta.locked} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
+                  <PlanNumber label="اعتبار هدیه" unit="تومان" value={toTomanNum(item.includedCreditIRR)} disabled={meta.locked} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw, TOMAN_SCALE)} />
+                </div>
+                <p className="mt-5 text-[12px] font-bold text-[var(--text-muted)]">سقف ظرفیت</p>
+                <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <PlanNumber label="کانال" value={item.maxChannels} onChange={(raw) => setNumber(['plans', plan, 'maxChannels'], raw)} />
+                  <PlanNumber label="محصول" value={item.maxProducts} onChange={(raw) => setNumber(['plans', plan, 'maxProducts'], raw)} />
+                  <PlanNumber label="سفارش" value={item.maxOrders} onChange={(raw) => setNumber(['plans', plan, 'maxOrders'], raw)} />
+                  <PlanNumber label="مشتری" value={item.maxCustomers} onChange={(raw) => setNumber(['plans', plan, 'maxCustomers'], raw)} />
                 </div>
               </article>
             )
@@ -208,9 +221,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 function MoneyInput({ value, onChange, suffix, allowEmpty }: { value: number | ''; onChange: (value: string) => void; suffix: string; allowEmpty?: boolean }) {
-  return <div className="relative"><input dir="ltr" inputMode="numeric" min={allowEmpty ? undefined : 1} type="number" value={value} onChange={(event) => onChange(event.target.value)} className="admin-input pe-14 tabular-nums" /><span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[12px] text-[var(--text-muted)]">{suffix}</span></div>
+  return <NumberField value={value} onChange={onChange} unit={suffix} placeholder={allowEmpty ? 'خالی' : '0'} />
 }
 
-function PlanNumber({ label, value, onChange, disabled, dark }: { label: string; value: number; onChange: (value: string) => void; disabled?: boolean; dark?: boolean }) {
-  return <label className="block"><span className={cn('mb-1.5 block text-[12px] font-medium', dark ? 'text-white/60' : 'text-[var(--text-muted)]')}>{label}</span><input dir="ltr" type="number" min={0} inputMode="numeric" disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)} className={cn('h-11 w-full rounded-xl border px-3 text-xs tabular-nums outline-none transition-[border-color,box-shadow,background-color] duration-200 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40', dark ? 'border-white/10 bg-white/[0.07] text-white focus:border-white/30 focus:ring-white/10' : 'border-black/[0.08] bg-white text-black focus:border-black/25 focus:ring-black/[0.06]')} /></label>
+function PlanNumber({ label, value, unit, onChange, disabled, decimals }: { label: string; value: number; unit?: string; onChange: (value: string) => void; disabled?: boolean; decimals?: boolean }) {
+  return <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">{label}</span><NumberField value={value} onChange={onChange} unit={unit} disabled={disabled} decimals={decimals} /></label>
 }

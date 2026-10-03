@@ -199,7 +199,7 @@ export function AdminBlogManager({
         return (
                 <div className="space-y-4 p-4 sm:p-5">
                         {/* Action bar: search + buttons */}
-                        <div className="sticky top-[4.75rem] z-20 -mx-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border-default)] bg-white/95 p-2 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+                        <div className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+5rem)] z-20 -mx-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border-default)] bg-white/95 p-2 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                                 <div className="relative min-w-0 flex-1 basis-48">
                                         <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                                         <input
@@ -208,7 +208,7 @@ export function AdminBlogManager({
                                                 value={search}
                                                 onChange={(e) => setSearch(e.target.value)}
                                                 placeholder={isFa ? 'جستجو در عنوان یا slug…' : 'Search title or slug…'}
-                                                className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-white px-4 py-2.5 pr-10 text-base text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--border-strong)] focus:ring-2 focus:ring-black/5 sm:text-sm"
+                                                className="input min-h-11 pr-10 text-base sm:text-sm"
                                         />
                                 </div>
                                 <button
@@ -442,7 +442,7 @@ export function AdminBlogManager({
                                                                                         <button
                                                                                                 onClick={() => setEditing(p)}
                                                                                                 title={t('edit')}
-                                                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
+                                                                                                className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
                                                                                         >
                                                                                                 <Edit3 className="h-4 w-4" />
                                                                                         </button>
@@ -450,7 +450,7 @@ export function AdminBlogManager({
                                                                                                 onClick={() => handleDelete(p.id)}
                                                                                                 disabled={deleting === p.id}
                                                                                                 title={isFa ? 'حذف' : 'Delete'}
-                                                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                                                                                className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                                                                                         >
                                                                                                 {deleting === p.id ? (
                                                                                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -486,7 +486,7 @@ export function AdminBlogManager({
                                                         </h2>
                                                         <button
                                                                 onClick={handleClose}
-                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
+                                                                className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
                                                                 aria-label={t('close')}
                                                         >
                                                                 <X className="h-4 w-4" />

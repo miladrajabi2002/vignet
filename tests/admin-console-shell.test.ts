@@ -95,3 +95,24 @@ describe('owner console shell', () => {
     expect(shell).not.toContain('[scrollbar-width:thin]')
   })
 })
+
+describe('owner console fields', () => {
+  it('formats numbers with separators and accepts Persian digits', async () => {
+    const { groupDigits, normalizeNumberInput } = await import('@/components/admin/number-field')
+    expect(normalizeNumberInput('۲٬۴۹۰٬۰۰۰')).toBe('2490000')
+    expect(normalizeNumberInput('1,250')).toBe('1250')
+    expect(normalizeNumberInput('12.5.3', true)).toBe('12.53')
+    expect(normalizeNumberInput('۱۲٫۵', true)).toBe('12.5')
+    expect(groupDigits('2490000')).toBe('2,490,000')
+    expect(groupDigits('1000.')).toBe('1,000.')
+    expect(groupDigits('')).toBe('')
+  })
+
+  it('never overlays a unit on a value or shows browser spinners', () => {
+    for (const file of ADMIN_UI_FILES) {
+      const text = source(file)
+      expect(text, `${file} uses a native number input`).not.toMatch(/type="number"/)
+      expect(text, `${file} uses a native checkbox; use the shared Switch`).not.toMatch(/type="checkbox"/)
+    }
+  })
+})

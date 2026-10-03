@@ -28,7 +28,7 @@ export function AdminRail({ mailUnreadCount = 0, ownerName }: { mailUnreadCount?
 
   return (
     <aside className="admin-rail sticky top-3 m-3 me-0 hidden h-[calc(100dvh-1.5rem)] w-[4.25rem] shrink-0 flex-col rounded-sheet p-2 md:flex lg:w-[17rem] lg:p-3">
-      <Link href="/admin" aria-label="داشبورد مدیریت" className="mb-3 flex min-h-12 items-center justify-center gap-2 px-2">
+      <Link href="/admin" aria-label="داشبورد مدیریت" className="mb-2 flex min-h-12 items-center justify-center gap-2 px-2">
         <Logo priority variant="white" className="hidden h-7 w-28 lg:block" />
         <span aria-hidden className="relative block h-7 w-[26px] overflow-hidden lg:hidden" dir="ltr">
           <Logo variant="white" className="absolute left-0 top-0 h-7 w-28" />
@@ -43,7 +43,7 @@ export function AdminRail({ mailUnreadCount = 0, ownerName }: { mailUnreadCount?
         title="Vigento AI"
         aria-current={vigentoActive ? 'page' : undefined}
         className={cn(
-          'spatial-press mb-3 flex min-h-12 items-center justify-center gap-3 rounded-control bg-[var(--signal)] text-[13px] font-medium text-white lg:justify-start lg:px-3.5',
+          'spatial-press mb-3 flex min-h-11 items-center justify-center gap-3 rounded-control bg-[var(--signal)] text-[13px] font-medium text-white lg:justify-start lg:px-3.5',
           vigentoActive && 'ring-2 ring-white/70 ring-offset-2 ring-offset-[#111]',
         )}
       >
@@ -58,7 +58,7 @@ export function AdminRail({ mailUnreadCount = 0, ownerName }: { mailUnreadCount?
           a visible scrollbar and its bottom edge fades out. */}
       <nav
         aria-label="ناوبری مدیریت"
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6 [mask-image:linear-gradient(#000_calc(100%-1.75rem),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain pb-6 [mask-image:linear-gradient(#000_calc(100%-1.75rem),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {ADMIN_NAV_GROUPS.map((group, groupIndex) => (
           <div key={group.key} className="space-y-0.5">

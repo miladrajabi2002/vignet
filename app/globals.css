@@ -400,7 +400,7 @@
                 .admin-rail-link:not([aria-current='page']):hover svg { color: rgba(255, 255, 255, 0.72); }
         }
         @media (min-width: 1024px) {
-                .admin-rail-link { min-height: 2.25rem; justify-content: flex-start; padding: 0.25rem 0.75rem; }
+                .admin-rail-link { min-height: 2.125rem; justify-content: flex-start; padding: 0.125rem 0.75rem; }
         }
 
         /* Scroll areas inside the console: a slim ink thumb, never the OS bar.
@@ -422,7 +422,7 @@
                 box-shadow: var(--elev-1);
         }
         @media (max-width: 767px) {
-                .admin-toolbar { position: sticky; top: calc(max(0.75rem, env(safe-area-inset-top)) + 4rem); z-index: 20; }
+                .admin-toolbar { position: sticky; top: calc(max(0.75rem, env(safe-area-inset-top)) + 5rem); z-index: 20; }
         }
 
         /* One record as a card — the phone layout of every admin table. */
@@ -488,23 +488,115 @@
                 .admin-toolbar-button:hover { border-color: var(--border-hover); color: var(--text-primary); }
         }
 
+        /* Admin fields are the dashboard's `.input`: same border weight, white
+           surface, hover and ink-plus-iris focus — one control family. */
         .admin-input {
                 width: 100%;
-                min-height: 2.85rem;
-                border: 1px solid rgba(17, 17, 17, 0.1);
+                min-height: 2.75rem;
+                border: 1px solid rgba(17, 17, 17, 0.16);
                 border-radius: var(--radius-control);
-                background: white;
-                padding-inline: 0.85rem;
-                color: #111;
+                background: #ffffff;
+                padding-inline: 0.875rem;
+                color: var(--text-primary);
                 font-size: var(--type-label);
                 outline: none;
-                transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+                box-shadow: var(--shadow-xs);
+                transition: border-color 160ms ease, box-shadow 180ms var(--ease-spatial), background-color 160ms ease;
         }
-
-        .admin-input:focus {
+        .admin-input::placeholder { color: var(--text-hint); }
+        .admin-input:hover:not(:disabled) { border-color: rgba(17, 17, 17, 0.28); }
+        .admin-input:focus,
+        .admin-input:focus-within {
                 border-color: var(--focus-field, #111111);
                 box-shadow: 0 0 0 3px var(--focus-field-halo, rgba(91, 61, 232, 0.22));
         }
+        .admin-input:disabled {
+                background: var(--bg-muted);
+                border-color: transparent;
+                color: var(--text-hint);
+                box-shadow: none;
+                cursor: not-allowed;
+        }
+
+        /* Number field with its unit (components/admin/number-field.tsx): the
+           unit is a real flex cell at the field's end, never an overlay, so a
+           long value can't run under it. */
+        .ui-num {
+                display: flex;
+                align-items: center;
+                width: 100%;
+                min-height: 2.75rem;
+                border: 1px solid rgba(17, 17, 17, 0.16);
+                border-radius: var(--radius-control);
+                background: #ffffff;
+                box-shadow: var(--shadow-xs);
+                transition: border-color 160ms ease, box-shadow 180ms var(--ease-spatial), background-color 160ms ease;
+        }
+        .ui-num:hover:not([data-disabled='true']) { border-color: rgba(17, 17, 17, 0.28); }
+        .ui-num:focus-within {
+                border-color: var(--focus-field, #111111);
+                box-shadow: 0 0 0 3px var(--focus-field-halo, rgba(91, 61, 232, 0.22));
+        }
+        .ui-num input {
+                min-width: 0;
+                flex: 1 1 auto;
+                align-self: stretch;
+                border: 0;
+                background: transparent;
+                padding-inline: 0.875rem;
+                color: var(--text-primary);
+                font-size: 14px;
+                font-weight: 500;
+                font-variant-numeric: tabular-nums;
+                letter-spacing: 0.01em;
+                outline: none;
+        }
+        [dir='rtl'] .ui-num input { text-align: right; }
+        .ui-num input::placeholder { color: var(--text-hint); font-weight: 400; }
+        .ui-num input:focus-visible { outline: none; }
+        .ui-num-unit {
+                flex-shrink: 0;
+                align-self: stretch;
+                display: flex;
+                align-items: center;
+                border-inline-start: 1px solid var(--border-default);
+                padding-inline: 0.75rem;
+                color: var(--text-muted);
+                font-size: 12px;
+                white-space: nowrap;
+        }
+        .ui-num[data-disabled='true'] {
+                background: var(--bg-muted);
+                border-color: transparent;
+                box-shadow: none;
+                cursor: not-allowed;
+        }
+        .ui-num[data-disabled='true'] input { color: var(--text-hint); cursor: not-allowed; }
+
+        /* No browser spin buttons anywhere in the console: they sat on top of
+           values and units. Numbers are typed (or pasted). */
+        .admin-root input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+        .admin-root input[type='number']::-webkit-outer-spin-button,
+        .admin-root input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+        /* Phones: a header with two or more actions (status chips + a button)
+           gives them their own row under the subtitle, so the title keeps its
+           width instead of breaking inside a word and the last action is never
+           scrolled out of view. */
+        @media (max-width: 639px) {
+                .admin-root .dashboard-page-header > div > div:nth-child(2):has(> :nth-child(2)) {
+                        grid-column: 1 / -1;
+                        order: 3;
+                        flex-wrap: wrap;
+                        justify-content: flex-start;
+                        overflow: visible;
+                }
+                .admin-root .dashboard-page-header > div > div:nth-child(2):has(> :nth-child(2)) > :first-child { margin-inline-start: 0; }
+        }
+
+        /* Grid cells may shrink below their content (a long slug, id or URL),
+           otherwise one value widens the whole page on a phone. */
+        .admin-root #admin-main :where(.grid) > * { min-width: 0; }
 
         .admin-icon-well {
                 display: inline-flex;

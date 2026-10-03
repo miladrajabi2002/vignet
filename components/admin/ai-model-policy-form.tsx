@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { NumberField } from '@/components/admin/number-field'
 import { Switch } from '@/components/ui/switch'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import type { ModelAlias } from '@/lib/ai/models'
@@ -290,50 +291,35 @@ export function AiModelPolicyForm({
                 پس از رسیدن هزینه واقعی ماه جاری به سقف، درخواست جدید اجرا نمی‌شود.
               </p>
             </div>
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
-              <input
-                type="checkbox"
+            <span className="flex min-h-11 shrink-0 items-center gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+              {budgetEnabled ? 'فعال' : 'غیرفعال'}
+              <Switch
                 checked={budgetEnabled}
-                onChange={(event) => {
-                  setBudgetEnabled(event.target.checked)
-                  if (event.target.checked && !budget) {
+                aria-label="سقف هزینه ماهانه"
+                onChange={(next) => {
+                  setBudgetEnabled(next)
+                  if (next && !budget) {
                     setBudget(String(Math.max(10, Math.ceil(currentMonthSpendUSD * 1.25))))
                   }
                   setNotice(null)
                 }}
-                className="h-4 w-4 rounded border-[var(--border-hover)] accent-[#111]"
               />
-              فعال
-            </label>
+            </span>
           </div>
-          <label className="mt-3 block">
-            <span className="sr-only">سقف هزینه ماهانه به دلار</span>
-            <div
-              dir="ltr"
-              className={cn(
-                'flex min-h-11 items-center rounded-control border bg-white px-3 focus-within:border-[var(--focus-field)] focus-within:shadow-[0_0_0_3px_var(--focus-field-halo)]',
-                budgetEnabled ? 'border-[rgba(17,17,17,0.16)]' : 'border-transparent bg-[var(--bg-muted)]',
-              )}
-            >
-              <span className="text-sm font-semibold text-[var(--text-muted)]">$</span>
-              <input
-                type="number"
-                min="0.01"
-                max="1000000"
-                step="0.01"
-                inputMode="decimal"
-                value={budget}
-                disabled={!budgetEnabled}
-                onChange={(event) => {
-                  setBudget(event.target.value)
-                  setNotice(null)
-                }}
-                placeholder="100"
-                className="h-10 min-w-0 flex-1 bg-transparent px-2 text-left text-sm font-semibold text-[var(--text-primary)] outline-none disabled:text-[var(--text-muted)]"
-              />
-              <span className="text-[12px] text-[var(--text-muted)]">دلار در ماه</span>
-            </div>
-          </label>
+          <div className="mt-3">
+            <NumberField
+              value={budget}
+              decimals
+              disabled={!budgetEnabled}
+              unit="دلار در ماه"
+              placeholder="100"
+              ariaLabel="سقف هزینه ماهانه به دلار"
+              onChange={(raw) => {
+                setBudget(raw)
+                setNotice(null)
+              }}
+            />
+          </div>
         </div>
 
         <div className="rounded-control bg-[var(--bg-surface)] p-4">

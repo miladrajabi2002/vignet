@@ -115,10 +115,10 @@ export default async function AdminRevenuePage() {
           />
           <StatCard
             label="سود عملیاتی"
-            value={finance.operatingProfitIRR == null ? 'نرخ تنظیم نشده' : fmtIRR(finance.operatingProfitIRR)}
+            value={finance.operatingProfitIRR == null ? '—' : fmtIRR(finance.operatingProfitIRR)}
             icon={<Percent className="h-5 w-5" />}
-            tone={finance.operatingProfitIRR != null && finance.operatingProfitIRR >= 0 ? 'success' : 'danger'}
-            sub="قبل از کسر اعتبار هدیه"
+            tone={finance.operatingProfitIRR == null ? 'warning' : finance.operatingProfitIRR >= 0 ? 'success' : 'danger'}
+            sub={finance.operatingProfitIRR == null ? 'نرخ دلار تنظیم نشده · قبل از کسر اعتبار هدیه' : 'قبل از کسر اعتبار هدیه'}
           />
           <StatCard
             label="اعتبار هدیه صادرشده"
@@ -128,10 +128,10 @@ export default async function AdminRevenuePage() {
           />
           <StatCard
             label="سود تعدیل‌شده محافظه‌کارانه"
-            value={finance.adjustedProfitIRR == null ? 'نرخ تنظیم نشده' : fmtIRR(finance.adjustedProfitIRR)}
+            value={finance.adjustedProfitIRR == null ? '—' : fmtIRR(finance.adjustedProfitIRR)}
             icon={<TrendingUp className="h-5 w-5" />}
-            tone={finance.adjustedProfitIRR != null && finance.adjustedProfitIRR >= 0 ? 'success' : 'danger'}
-            sub="سود عملیاتی منهای کل اعتبار هدیه"
+            tone={finance.adjustedProfitIRR == null ? 'warning' : finance.adjustedProfitIRR >= 0 ? 'success' : 'danger'}
+            sub={finance.adjustedProfitIRR == null ? 'نرخ دلار تنظیم نشده · منهای کل اعتبار هدیه' : 'سود عملیاتی منهای کل اعتبار هدیه'}
           />
         </div>
       </Panel>

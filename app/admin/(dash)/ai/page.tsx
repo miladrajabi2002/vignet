@@ -607,7 +607,9 @@ export default async function AdminAiPage({
         />
       </div>
 
-      <table className="sr-only">
+      {/* A table can't shrink below its content, so the wrapper is what hides it. */}
+      <div className="sr-only">
+      <table>
         <caption>جدول جایگزین نمودارهای روزانه مصرف هوش مصنوعی</caption>
          <thead><tr><th>روز</th><th>درخواست</th><th>مبلغ تومان</th><th>هزینه دلار</th></tr></thead>
         <tbody>
@@ -618,6 +620,7 @@ export default async function AdminAiPage({
           ))}
         </tbody>
       </table>
+      </div>
 
       <ManagedModels config={config} />
 
