@@ -485,6 +485,7 @@
       "avoidRepeatedGreetings": "Avoid repeated greetings"
     },
     "playground": {
+      "title": "Test your agent",
       "placeholder": "Type a message…",
       "send": "Send",
       "sending": "Sending",

@@ -485,6 +485,7 @@
       "avoidRepeatedGreetings": "پرهیز از سلام و خوش‌آمد تکراری"
     },
     "playground": {
+      "title": "آزمایش ایجنت",
       "placeholder": "پیامی بنویسید…",
       "send": "ارسال",
       "sending": "در حال ارسال",

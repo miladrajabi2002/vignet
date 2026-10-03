@@ -400,35 +400,12 @@ export default async function AgentDetailPage(
 
   return (
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-      {/* ── LEFT: Test playground ─────────────────────────────────────── */}
-      <section className="spatial-surface flex flex-col overflow-hidden rounded-card">
-        {/* Header strip */}
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
-          <div className="min-w-0">
-            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
-              {fa ? 'آزمایش فوری پاسخ' : 'Instant response test'}
-            </p>
-            <h2 className="mt-0.5 text-base font-bold text-[var(--text-primary)]">
-              {t('test')}
-            </h2>
-            <p className="mt-0.5 text-[12px] text-[var(--text-secondary)]">
-              {fa ? 'تجربه واقعی مشتری را بدون خروج از صفحه بررسی کنید.' : 'Check the real customer experience without leaving.'}
-            </p>
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-bold text-success">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            {fa ? 'در دسترس' : 'Live'}
-          </span>
-        </div>
-        {/* Playground */}
-        <div className="flex-1 p-4 sm:p-5">
-          <TestPlayground
-            agentId={agent.id}
-            welcomeMessage={agent.welcomeMessage}
-            suggestedPrompts={suggestedPrompts}
-          />
-        </div>
-      </section>
+      {/* ── Test playground: one card, its own header ───────────────────── */}
+      <TestPlayground
+        agentId={agent.id}
+        welcomeMessage={agent.welcomeMessage}
+        suggestedPrompts={suggestedPrompts}
+      />
 
       {readiness.complete ? (
         <AgentGrowthPanel

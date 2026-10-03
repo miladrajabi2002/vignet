@@ -213,18 +213,19 @@
 [data-view='capabilities'] .settings-identity { display: none; }
 
 /* ── Products table ────────────────────────────────────────────────────
-   Photo, product, price, stock, customer questions, visibility, menu. The
+   Photo, product, price, stock, customer questions, visibility, actions. The
    questions column goes first when the table narrows; on a phone each
-   product is two lines: name over price and stock. */
+   product is two lines: name over price and stock, and edit/delete fold
+   into a ⋮ menu (on wider tables they are two plain icon buttons). */
 .ui-ptable { container-type: inline-size; }
 .ui-ptable-row {
 	display: grid;
-	grid-template-columns: 2.75rem minmax(9rem, 1.6fr) minmax(7.5rem, 1fr) minmax(6.5rem, 0.8fr) minmax(6rem, 0.8fr) 4rem 2.5rem;
+	grid-template-columns: 2.75rem minmax(9rem, 1.6fr) minmax(7.5rem, 1fr) minmax(6.5rem, 0.8fr) minmax(6rem, 0.8fr) 4rem 4.75rem;
 	align-items: center;
 	column-gap: 0.75rem;
 }
 @container (max-width: 46rem) {
-	.ui-ptable-row { grid-template-columns: 2.75rem minmax(8rem, 1.4fr) minmax(7rem, 1fr) minmax(6rem, 0.8fr) 4rem 2.5rem; }
+	.ui-ptable-row { grid-template-columns: 2.75rem minmax(8rem, 1.4fr) minmax(7rem, 1fr) minmax(6rem, 0.8fr) 4rem 4.75rem; }
 	.ui-ptable-ask,
 	.ui-ptable-compare { display: none; }
 }
@@ -244,4 +245,8 @@
 	.ui-ptable-stock { grid-area: stock; }
 	.ui-ptable-switch { grid-area: switch; }
 	.ui-ptable-menu { grid-area: menu; }
+	.ui-ptable-actions { display: none; }
+	.ui-ptable-more { display: block; }
 }
+.ui-ptable-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.125rem; }
+.ui-ptable-more { display: none; }

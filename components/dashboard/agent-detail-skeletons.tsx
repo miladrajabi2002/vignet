@@ -23,54 +23,33 @@ export function BackRowSkeleton({ delay = 0, className }: { delay?: number; clas
 
 /* ── Chat playground (agent overview) ── */
 
-/** Mirrors TestPlayground: h-[540px] window + header + bubbles + composer. */
-export function ChatPlaygroundSkeleton({ delay = 0 }: { delay?: number }) {
+/** Mirrors TestPlayground: one card — header, canvas with bubbles, composer. */
+export function PlaygroundCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="flex h-[540px] flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]">
-      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-base)] px-4 py-2.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <Skeleton delay={delay} className="absolute inset-0 rounded-full" />
-          </span>
-          <div className="min-w-0">
+    <section className="spatial-surface flex h-[640px] max-h-[calc(100dvh-7rem)] min-h-[480px] flex-col overflow-hidden rounded-card">
+      <div className="flex min-h-16 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-white px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control" />
+          <div className="min-w-0 space-y-1.5">
             <Skeleton delay={delay} className="h-3.5 w-24 max-w-full rounded-md" />
-            <Skeleton delay={delay} className="mt-1 h-3 w-36 max-w-full rounded-md" />
+            <Skeleton delay={delay} className="h-3 w-40 max-w-full rounded-md" />
           </div>
         </div>
-        <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-xl" />
+        <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-xl sm:w-28" />
       </div>
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+      <div dir="ltr" className="flex-1 space-y-3 bg-[var(--bg-base)] px-3 py-4 sm:px-5 sm:py-5">
         {[0, 1, 2, 3].map((index) => (
-          <div key={index} className={index % 2 === 0 ? 'flex justify-start' : 'flex justify-end'}>
+          <div key={index} className={index % 2 === 0 ? 'flex items-end justify-start gap-2' : 'flex justify-end'}>
+            {index % 2 === 0 && <Skeleton delay={delay - index * 110} className="h-7 w-7 shrink-0 rounded-full" />}
             <Skeleton
               delay={delay - index * 110}
-              className={index % 2 === 0 ? 'h-14 w-[70%] rounded-2xl rounded-bl-md' : 'h-10 w-[55%] rounded-2xl rounded-br-md'}
+              className={index % 2 === 0 ? 'h-14 w-[66%] rounded-2xl rounded-bl-md' : 'h-10 w-[50%] rounded-2xl rounded-br-md'}
             />
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
-        <Skeleton delay={delay} className="h-11 min-w-0 flex-1 rounded-xl" />
-        <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
-      </div>
-    </div>
-  )
-}
-
-/** Mirrors the "instant response test" card that wraps the playground. */
-export function PlaygroundCardSkeleton({ delay = 0 }: { delay?: number }) {
-  return (
-    <section className="spatial-surface flex flex-col overflow-hidden rounded-card">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
-        <div className="min-w-0 space-y-1.5">
-          <Skeleton delay={delay} className="h-3 w-24 max-w-full rounded-md" />
-          <Skeleton delay={delay} className="h-5 w-32 max-w-full rounded-md" />
-          <Skeleton delay={delay} className="h-3.5 w-52 max-w-full rounded-md" />
-        </div>
-        <Skeleton delay={delay} className="h-7 w-20 shrink-0 rounded-full" />
-      </div>
-      <div className="flex-1 p-4 sm:p-5">
-        <ChatPlaygroundSkeleton delay={delay - 60} />
+      <div className="border-t border-[var(--border-subtle)] bg-white p-3">
+        <Skeleton delay={delay} className="h-[54px] w-full rounded-3xl" />
       </div>
     </section>
   )

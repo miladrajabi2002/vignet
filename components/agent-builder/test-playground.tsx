@@ -293,49 +293,51 @@ export function TestPlayground({
         }
 
         return (
-                <div className="flex h-[540px] flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]">
-                        <div className="flex min-h-14 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-base)] px-4 py-2.5">
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                        <span className="relative flex h-2.5 w-2.5 shrink-0">
-                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
-                                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+                <section className="spatial-surface flex h-[640px] max-h-[calc(100dvh-7rem)] min-h-[480px] flex-col overflow-hidden rounded-card">
+                        {/* One header for the whole card: what this is, that it is live, and a fresh start. */}
+                        <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-white px-4 py-3">
+                                <div className="flex min-w-0 items-center gap-3">
+                                        <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-control border border-[var(--border-default)] bg-white text-[var(--text-primary)] shadow-[var(--shadow-xs)]">
+                                                <Bot className="h-[1.1rem] w-[1.1rem]" aria-hidden="true" />
+                                                <span className="absolute -end-0.5 -top-0.5 flex h-2.5 w-2.5" aria-hidden="true">
+                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
+                                                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full border-2 border-white bg-success" />
+                                                </span>
                                         </span>
                                         <div className="min-w-0">
-                                                <p className="truncate text-xs font-bold text-[var(--text-primary)]">
-                                                        {t('sessionLabel')}
-                                                </p>
-                                                <p className="truncate text-[12px] text-[var(--text-muted)]">
-                                                        {t('sessionHint')}
-                                                </p>
+                                                <h2 className="truncate text-sm font-bold text-[var(--text-primary)]">{t('title')}</h2>
+                                                <p className="truncate text-[12px] text-[var(--text-muted)]">{t('sessionHint')}</p>
                                         </div>
                                 </div>
                                 <button
                                         type="button"
                                         onClick={resetSession}
                                         disabled={streaming}
-                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label={t('newSession')}
+                                        title={t('newSession')}
+                                        className="spatial-press inline-flex min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-0 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-3"
                                 >
-                                        <RotateCcw className="h-3.5 w-3.5" />
-                                        {t('newSession')}
+                                        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                                        <span className="hidden sm:inline">{t('newSession')}</span>
                                 </button>
                         </div>
 
-                        {/* dir=ltr pins the tester's own bubbles to the visual RIGHT in every
-                            dashboard locale, which is what a visitor sees on the widget and
-                            the chat link. Message text keeps its own dir via ConversationText. */}
+                        {/* dir=ltr pins the layout the way a customer sees any chat: their own
+                            messages on the visual RIGHT, the agent on the LEFT, in every
+                            dashboard locale. Message text keeps its own dir via ConversationText. */}
                         <div
                                 ref={scrollRef}
                                 onScroll={handleScroll}
                                 dir="ltr"
-                                className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5"
+                                className="flex-1 space-y-3 overflow-y-auto bg-[var(--bg-base)] px-3 py-4 sm:px-5 sm:py-5"
                         >
                                 {messages.length === 0 ? (
-                                        <div className="flex h-full flex-col items-center justify-center text-center">
-                                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)] shadow-sm">
-                                                        <Bot className="h-6 w-6" />
+                                        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                                                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--border-default)] bg-white text-[var(--text-muted)] shadow-[var(--shadow-xs)]">
+                                                        <Bot className="h-5 w-5" aria-hidden="true" />
                                                 </div>
-                                                <p className="mt-3 text-sm font-semibold text-[var(--text-secondary)]">{t('empty')}</p>
-                                                <p className="mt-1 max-w-xs text-xs leading-5 text-[var(--text-muted)]">
+                                                <p dir="auto" className="mt-3 text-sm font-bold text-[var(--text-primary)]">{t('empty')}</p>
+                                                <p dir="auto" className="mt-1 max-w-xs text-xs leading-5 text-[var(--text-muted)]">
                                                         {t('emptyHint')}
                                                 </p>
                                         </div>
@@ -350,25 +352,38 @@ export function TestPlayground({
                                                         ? { text: m.content, products: [], checkout: null }
                                                         : parseProductShowcaseContent(m.content, !streaming || i !== messages.length - 1)
                                                 const hasShowcase = showcase.products.length > 0
+                                                // The agent's avatar marks the last bubble of each run of agent messages.
+                                                const lastOfRun = !isUser && messages[i + 1]?.role !== 'assistant'
                                                 return (
                                                         <div
                                                                 key={i}
                                                                 className={cn(
-                                                                        'flex items-end gap-1.5',
+                                                                        'flex items-end gap-2',
                                                                         isUser ? 'justify-end' : 'justify-start',
                                                                 )}
                                                         >
+                                                                {!isUser && (
+                                                                        <span
+                                                                                aria-hidden="true"
+                                                                                className={cn(
+                                                                                        'mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-white',
+                                                                                        !lastOfRun && 'invisible',
+                                                                                )}
+                                                                        >
+                                                                                <Bot className="h-3.5 w-3.5" />
+                                                                        </span>
+                                                                )}
                                                                 <div
                                                                         className={cn(
-                                                                                'flex flex-col gap-1',
+                                                                                'flex min-w-0 flex-col gap-1',
                                                                                 isUser ? 'items-end' : 'items-start',
-                                                                                hasShowcase ? 'w-full max-w-[46rem]' : 'max-w-[82%]',
+                                                                                hasShowcase ? 'w-full max-w-[46rem]' : 'max-w-[80%]',
                                                                         )}
                                                                 >
                                                                         {showcase.text ? (
                                                                                 <ConversationBubble
                                                                                         side={isUser ? 'end' : 'start'}
-                                                                                        tone={isUser ? 'inverse' : 'surface'}
+                                                                                        tone={isUser ? 'inverse' : 'light'}
                                                                                         className="max-w-full px-4"
                                                                                 >
                                                                                         <ConversationText
@@ -398,33 +413,23 @@ export function TestPlayground({
                                                                                 />
                                                                         )}
                                                                         {m.role === 'assistant' && m.id && m.content && (
-                                                                                <div className="flex items-center gap-1 ps-1">
-                                                                                        <button
-                                                                                                type="button"
+                                                                                <div className="-ms-1 flex items-center">
+                                                                                        <RateButton
+                                                                                                active={m.rating === 1}
+                                                                                                activeClass="text-success"
+                                                                                                label={t('rateGood')}
                                                                                                 onClick={() => rate(m.id!, 1, i)}
-                                                                                                className={cn(
-                                                                                                        'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
-                                                                                                        m.rating === 1
-                                                                                                                ? 'text-success'
-                                                                                                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
-                                                                                                )}
-                                                                                                title={t('rateGood')}
                                                                                         >
-                                                                                                <ThumbsUp className="h-3.5 w-3.5" />
-                                                                                        </button>
-                                                                                        <button
-                                                                                                type="button"
+                                                                                                <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                                        </RateButton>
+                                                                                        <RateButton
+                                                                                                active={m.rating === -1}
+                                                                                                activeClass="text-danger"
+                                                                                                label={t('rateBad')}
                                                                                                 onClick={() => rate(m.id!, -1, i)}
-                                                                                                className={cn(
-                                                                                                        'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
-                                                                                                        m.rating === -1
-                                                                                                                ? 'text-danger'
-                                                                                                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
-                                                                                                )}
-                                                                                                title={t('rateBad')}
                                                                                         >
-                                                                                                <ThumbsDown className="h-3.5 w-3.5" />
-                                                                                        </button>
+                                                                                                <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                                        </RateButton>
                                                                                 </div>
                                                                         )}
                                                                 </div>
@@ -435,54 +440,87 @@ export function TestPlayground({
                         </div>
 
                         {error && (
-                                <div role="alert" className="border-t border-danger/20 bg-danger/5 px-5 py-2 text-xs text-danger">
+                                <div role="alert" className="shrink-0 border-t border-danger/20 bg-danger/5 px-4 py-2 text-xs text-danger">
                                         {error}
                                 </div>
                         )}
 
-                        {suggestedPrompts.length > 0 && (
-                                <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 pt-3">
-                                        <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)]">
-                                                <Sparkles className="h-3.5 w-3.5" />
-                                                {t('suggestions')}
-                                        </div>
-                                        <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
+                        <div className="shrink-0 border-t border-[var(--border-subtle)] bg-white">
+                                {suggestedPrompts.length > 0 && (
+                                        <div
+                                                role="group"
+                                                aria-label={t('suggestions')}
+                                                className="flex items-center gap-2 overflow-x-auto px-3 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                        >
+                                                <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
                                                 {suggestedPrompts.map((prompt) => (
                                                         <button
                                                                 key={prompt}
                                                                 type="button"
                                                                 onClick={() => selectSuggestedPrompt(prompt)}
                                                                 disabled={streaming}
-                                                                className="min-h-11 shrink-0 rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                                                                className="spatial-press min-h-9 shrink-0 whitespace-nowrap rounded-full border border-[var(--border-default)] bg-white px-3 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"
                                                         >
                                                                 {prompt}
                                                         </button>
                                                 ))}
                                         </div>
-                                </div>
-                        )}
+                                )}
 
-                        <div className="bg-[var(--bg-base)] p-3">
-                                <ChatComposer
-                                        ref={inputRef}
-                                        value={input}
-                                        onChange={setInput}
-                                        onSend={() => void send()}
-                                        placeholder={t('placeholder')}
-                                        busy={streaming}
-                                        sendLabel={streaming ? t('sending') : t('send')}
-                                        leading={
-                                                <VoiceRecorder
-                                                        vad
-                                                        language={detectSttLanguageHint(messages)}
-                                                        disabled={streaming}
-                                                        label={t('record')}
-                                                        onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
-                                                        onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
-                                                />
-                                        }
-                                />
+                                <div className="p-3">
+                                        <ChatComposer
+                                                ref={inputRef}
+                                                value={input}
+                                                onChange={setInput}
+                                                onSend={() => void send()}
+                                                placeholder={t('placeholder')}
+                                                inputLabel={t('placeholder')}
+                                                busy={streaming}
+                                                sendLabel={streaming ? t('sending') : t('send')}
+                                                leading={
+                                                        <VoiceRecorder
+                                                                vad
+                                                                language={detectSttLanguageHint(messages)}
+                                                                disabled={streaming}
+                                                                label={t('record')}
+                                                                onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
+                                                                onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
+                                                        />
+                                                }
+                                        />
+                                </div>
                         </div>
-                </div>
+                </section>
+        )
+}
+
+/** Thumbs under an agent reply: quiet until chosen, a full touch target on phones. */
+function RateButton({
+        active,
+        activeClass,
+        label,
+        onClick,
+        children,
+}: {
+        active: boolean
+        activeClass: string
+        label: string
+        onClick: () => void
+        children: React.ReactNode
+}) {
+        return (
+                <button
+                        type="button"
+                        onClick={onClick}
+                        aria-label={label}
+                        aria-pressed={active}
+                        title={label}
+                        className={cn(
+                                'inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:h-8 sm:w-8',
+                                active ? activeClass : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                        )}
+                >
+                        {children}
+                </button>
         )
 }

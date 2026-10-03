@@ -929,8 +929,10 @@ function PipelineView({
                                                                                                 {rowDisplayName(c, t('anonymous'))}
                                                                                         </Link>
                                                                                         {c.channels.map((ch) => <ChannelGlyph key={ch} type={ch} />)}
-                                                                                        {/* Dragging needs a mouse; this is the same move for touch and keyboard. */}
-                                                                                        <label className="relative ms-auto grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg text-[var(--text-muted)] hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]">
+                                                                                        {/* Dragging needs a mouse; this is the same move for touch and keyboard.
+                                                                                            With a mouse the ⋮ is not drawn (drag does it), but it opens out
+                                                                                            when a keyboard user tabs onto it. */}
+                                                                                        <label className="relative ms-auto grid h-8 w-8 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-lg text-[var(--text-muted)] hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] [@media(pointer:fine)]:w-0 [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:focus-within:w-8 [@media(pointer:fine)]:focus-within:opacity-100">
                                                                                                 <MoreVertical className="h-4 w-4" aria-hidden="true" />
                                                                                                 <select
                                                                                                         value={stageOf(c)}

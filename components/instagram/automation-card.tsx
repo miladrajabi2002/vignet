@@ -12,7 +12,8 @@ import { type Automation, REPLY_MODE_SHORT_LABEL_KEY } from '@/components/instag
 /**
  * One scenario as a list row: name, then "keywords ← how it answers", then
  * its 30-day figures. The whole text block opens the edit form; the switch is
- * the only on/off signal and delete sits behind the ⋮ menu.
+ * the only on/off signal. Edit and delete are two plain icons on desktop and
+ * fold into a ⋮ menu on phones, where the row has no room for both.
  */
 export function AutomationCard({
         automation,
@@ -109,7 +110,26 @@ export function AutomationCard({
                                 aria-label={t('card.toggleAria')}
                                 className="m-0"
                         />
-                        <div ref={menuRef} className="relative">
+                        <div className="hidden items-center md:flex">
+                                <Link
+                                        href={editHref}
+                                        aria-label={t('card.editScenario')}
+                                        title={t('card.editScenario')}
+                                        className="grid h-10 w-10 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                >
+                                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                                </Link>
+                                <button
+                                        type="button"
+                                        onClick={onDelete}
+                                        aria-label={t('card.deleteAria')}
+                                        title={t('card.deleteAria')}
+                                        className="grid h-10 w-10 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                >
+                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                        </div>
+                        <div ref={menuRef} className="relative md:hidden">
                                 <button
                                         type="button"
                                         onClick={() => setMenuOpen((value) => !value)}

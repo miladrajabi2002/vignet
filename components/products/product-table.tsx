@@ -356,38 +356,51 @@ function RowMenu({
   onDelete: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const iconButton = 'grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]'
   return (
-    <div className="ui-ptable-menu relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false) }}>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={fa ? 'کارهای دیگر' : 'More actions'}
-        className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-      >
-        <MoreVertical className="h-4 w-4" aria-hidden="true" />
-      </button>
-      {open && (
-        <div role="menu" className="absolute end-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[var(--border-default)] bg-white py-1 shadow-[var(--elev-2)]">
-          <Link href={editHref} role="menuitem" className="flex min-h-11 w-full items-center gap-2 px-3 text-start text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-            <Pencil className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-            {editLabel}
-          </Link>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              onDelete()
-            }}
-            className="flex min-h-11 w-full items-center gap-2 px-3 text-start text-[13px] text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            {deleteLabel}
-          </button>
-        </div>
-      )}
+    <div className="ui-ptable-menu">
+      {/* Wide tables: the two actions as plain icons, no menu to open first. */}
+      <div className="ui-ptable-actions">
+        <Link href={editHref} aria-label={editLabel} title={editLabel} className={cn(iconButton, 'hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]')}>
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+        </Link>
+        <button type="button" onClick={onDelete} aria-label={deleteLabel} title={deleteLabel} className={cn(iconButton, 'hover:bg-red-50 hover:text-red-700')}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+      {/* Phones: the row is tight, so the same two actions sit behind ⋮. */}
+      <div className="ui-ptable-more relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false) }}>
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={fa ? 'کارهای دیگر' : 'More actions'}
+          className="grid h-10 w-10 place-items-center rounded-control text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        >
+          <MoreVertical className="h-4 w-4" aria-hidden="true" />
+        </button>
+        {open && (
+          <div role="menu" className="absolute end-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[var(--border-default)] bg-white py-1 shadow-[var(--elev-2)]">
+            <Link href={editHref} role="menuitem" className="flex min-h-11 w-full items-center gap-2 px-3 text-start text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+              <Pencil className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+              {editLabel}
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                onDelete()
+              }}
+              className="flex min-h-11 w-full items-center gap-2 px-3 text-start text-[13px] text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              {deleteLabel}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
