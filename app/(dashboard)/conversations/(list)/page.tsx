@@ -159,6 +159,7 @@ export default async function ConversationsPage(props: {
                         select: {
                                 id: true,
                                 channel: true,
+                                externalId: true,
                                 status: true,
                                 handedOff: true,
                                 messageCount: true,
@@ -301,7 +302,7 @@ export default async function ConversationsPage(props: {
                 const lastReactions = last ? presentation.reactionsByMessageId.get(last.id) ?? [] : []
                 const reactionEmoji = lastReactions.at(-1)?.emoji ?? null
                 const sourceTag = lastInbound
-                        ? inboundSourceTag(readInboundSource(lastInbound.metadata))
+                        ? inboundSourceTag(readInboundSource(lastInbound.metadata), conversation.externalId)
                         : null
                 const channelHandle = channelHandleFor({
                         channel: conversation.channel,

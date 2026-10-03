@@ -461,6 +461,32 @@ export async function willInstagramAutomationHandle(args: {
 }
 
 /**
+ * Read-only probe: the commenter's DM thread id when the matched COMMENT
+ * scenario delivers its whole reply in the commenter's Direct («ارسال در
+ * دایرکت»), else null. The channel handler files such a comment under the DM
+ * conversation, so the inbox shows the exchange where it really happened
+ * instead of a comment thread whose reply the customer never saw publicly.
+ * AI-mode and STOP_AI scenarios still act on the public comment, so they keep
+ * the comment thread.
+ */
+export async function instagramCommentDmThread(args: {
+  agentId: string
+  channelId: string
+  msg: InboundMessage
+}): Promise<string | null> {
+  const { msg } = args
+  // Without `from.id` the parser falls back to the comment id as sender.
+  if (msg.kind !== 'COMMENT' || !msg.senderId || msg.senderId === msg.commentId) return null
+  const row = await findMatchingScenario(args)
+  if (!row) return null
+  const action = readAction(row.action)
+  if (!action.dmOnComment || action.aiAgentEnabled) return null
+  return action.replyMode === 'STATIC' || action.replyMode === 'MULTI_MESSAGE'
+    ? msg.senderId
+    : null
+}
+
+/**
  * Read-only probe for a matched SILENT scenario. A brand-new thread handled by
  * SILENT has no customer-visible reply and no operator-visible history, so the
  * channel handler can settle the inbound ledger event without creating an

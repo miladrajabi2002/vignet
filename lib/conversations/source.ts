@@ -110,8 +110,16 @@ const INSTAGRAM_TAGS: Record<InboundSourceKind, string> = {
  * The app badge text for a conversation, in English like every app name:
  * Instagram says which entry the customer used (Direct, Comment, Story…);
  * other apps have one entry, so the plain channel badge says it all (null).
+ * A comment answered in Direct is filed under the DM thread, so a comment in
+ * a thread whose externalId is not `comment:<id>` reads as Direct.
  */
-export function inboundSourceTag(source: InboundSource | null): string | null {
+export function inboundSourceTag(
+  source: InboundSource | null,
+  threadExternalId?: string | null,
+): string | null {
   if (!source || source.channel !== 'INSTAGRAM') return null
+  if (source.kind === 'COMMENT' && threadExternalId && !threadExternalId.startsWith('comment:')) {
+    return INSTAGRAM_TAGS.DM
+  }
   return INSTAGRAM_TAGS[source.kind] ?? 'Instagram'
 }

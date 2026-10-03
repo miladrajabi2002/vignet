@@ -124,7 +124,7 @@ export async function loadConversationView(params: {
         const latestInbound = [...conversation.messages].reverse().find((message) => message.role === 'USER')
         // "Instagram Direct", "Instagram Comment"…; null for single-entry apps.
         const sourceTag = latestInbound
-                ? inboundSourceTag(readInboundSource(latestInbound.metadata))
+                ? inboundSourceTag(readInboundSource(latestInbound.metadata), conversation.externalId)
                 : null
 
         return {

@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   loadAutomationPolicy: vi.fn(),
   willAutomationHandle: vi.fn(),
   willAutomationSilentlyIgnore: vi.fn(),
+  commentDmThread: vi.fn(),
   runAutomation: vi.fn(),
   shouldAgentReply: vi.fn(),
   claimInboundEvent: vi.fn(),
@@ -103,6 +104,7 @@ vi.mock('@/lib/instagram/automation', () => ({
   loadAutomationPolicy: mocks.loadAutomationPolicy,
   willInstagramAutomationHandle: mocks.willAutomationHandle,
   willInstagramAutomationSilentlyIgnore: mocks.willAutomationSilentlyIgnore,
+  instagramCommentDmThread: mocks.commentDmThread,
   runInstagramAutomation: mocks.runAutomation,
   shouldAgentReply: mocks.shouldAgentReply,
 }))
@@ -224,6 +226,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     mocks.conversationFindFirst.mockResolvedValue(null)
     mocks.willAutomationHandle.mockResolvedValue(false)
     mocks.willAutomationSilentlyIgnore.mockResolvedValue(false)
+    mocks.commentDmThread.mockResolvedValue(null)
     mocks.runAutomation.mockResolvedValue({ handled: false, replied: false })
     mocks.shouldAgentReply.mockResolvedValue(false)
     mocks.markEffectsCommitted.mockResolvedValue(undefined)
@@ -559,6 +562,59 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.transaction).toHaveBeenCalled()
     expect(mocks.shouldAgentReply).toHaveBeenCalledOnce()
     expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  describe('comment answered in Direct', () => {
+    const comment = {
+      kind: 'COMMENT', platformMessageId: 'comment-1', senderId: 'ig-user-1', senderName: 'user',
+      text: 'الو', chatId: 'comment:comment-1', commentId: 'comment-1', postId: 'post-1',
+    }
+    let threadLookups: unknown[]
+
+    beforeEach(() => {
+      threadLookups = []
+      mocks.parseUpdate.mockReturnValue([comment])
+      mocks.willAutomationHandle.mockResolvedValue(true)
+      mocks.runAutomation.mockResolvedValue({ handled: true, replied: true })
+      const original = mocks.transaction.getMockImplementation()!
+      mocks.transaction.mockImplementation(async (fn: unknown) => original(
+        typeof fn === 'function'
+          ? (tx: { conversation: { findFirst: (args: unknown) => Promise<unknown> } }) => {
+              const findFirst = tx.conversation.findFirst
+              tx.conversation.findFirst = (args: unknown) => {
+                threadLookups.push(args)
+                return findFirst(args)
+              }
+              return fn(tx)
+            }
+          : fn,
+      ))
+    })
+
+    it('files the comment under the commenter\'s DM thread', async () => {
+      mocks.commentDmThread.mockResolvedValue('ig-user-1')
+      await handleInbound('INSTAGRAM', 'webhook-token', {})
+      expect(mocks.commentDmThread).toHaveBeenCalledWith(expect.objectContaining({
+        agentId: 'agent-1', channelId: 'channel-1',
+      }))
+      expect(threadLookups[0]).toMatchObject({ where: { externalId: 'ig-user-1' } })
+      expect(mocks.runAutomation).toHaveBeenCalledWith(expect.objectContaining({
+        conversationId: 'conversation-1',
+      }))
+      expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the comment thread when an operator owns the DM thread', async () => {
+      mocks.commentDmThread.mockResolvedValue('ig-user-1')
+      mocks.conversationFindFirst.mockResolvedValue({ handedOff: true, status: 'HANDED_OFF' })
+      await handleInbound('INSTAGRAM', 'webhook-token', {})
+      expect(threadLookups[0]).toMatchObject({ where: { externalId: 'comment:comment-1' } })
+    })
+
+    it('keeps the comment thread when no Direct scenario answers it', async () => {
+      await handleInbound('INSTAGRAM', 'webhook-token', {})
+      expect(threadLookups[0]).toMatchObject({ where: { externalId: 'comment:comment-1' } })
+    })
   })
 
   it('runs a matching media scenario without inserting a generic media reply', async () => {

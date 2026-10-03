@@ -56,6 +56,7 @@ import {
   runInstagramAutomation,
   willInstagramAutomationHandle,
   willInstagramAutomationSilentlyIgnore,
+  instagramCommentDmThread,
 } from '@/lib/instagram/automation'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 
@@ -237,6 +238,68 @@ describe('willInstagramAutomationSilentlyIgnore — no-thread probe', () => {
     await expect(willInstagramAutomationSilentlyIgnore({
       agentId: 'agent-1', channelId: 'ig-channel-1', msg: makeDmMessage('فالو کردم'),
     })).resolves.toBe(false)
+    expect(mocks.automationFindMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('instagramCommentDmThread', () => {
+  const comment: InboundMessage = {
+    kind: 'COMMENT',
+    platformMessageId: 'comment-1',
+    commentId: 'comment-1',
+    postId: 'post-1',
+    senderId: 'ig-user-1',
+    text: 'الو',
+    chatId: 'comment:comment-1',
+  }
+  const scenario = (action: Record<string, unknown>) => [{
+    id: 'auto-1',
+    agentId: 'agent-1',
+    channelId: 'ig-channel-1',
+    type: 'COMMENT',
+    name: 'الو',
+    active: true,
+    priority: 0,
+    trigger: { keywords: ['الو'], matchMode: 'CONTAINS', storyScope: 'KEYWORD', postIds: [] },
+    action,
+  }]
+  const probe = (msg: InboundMessage = comment) =>
+    instagramCommentDmThread({ agentId: 'agent-1', channelId: 'ig-channel-1', msg })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns the commenter DM thread for a «ارسال در دایرکت» scenario', async () => {
+    mocks.automationFindMany.mockResolvedValue(scenario({
+      replyMode: 'MULTI_MESSAGE', dmOnComment: true, messages: [{ type: 'TEXT', text: 'سلام' }],
+    }))
+    await expect(probe()).resolves.toBe('ig-user-1')
+  })
+
+  it('treats legacy SILENT + dmOnComment as a Direct reply', async () => {
+    mocks.automationFindMany.mockResolvedValue(scenario({
+      replyMode: 'SILENT', dmOnComment: true, contentText: 'سلام',
+    }))
+    await expect(probe()).resolves.toBe('ig-user-1')
+  })
+
+  it.each([
+    ['a public comment reply', { replyMode: 'STATIC', replyText: 'سلام' }],
+    ['an AI reply', { replyMode: 'AI', dmOnComment: true }],
+    ['a STOP_AI scenario', { replyMode: 'STOP_AI', dmOnComment: true }],
+  ])('keeps the comment thread for %s', async (_label, action) => {
+    mocks.automationFindMany.mockResolvedValue(scenario(action))
+    await expect(probe()).resolves.toBeNull()
+  })
+
+  it('keeps the comment thread when no scenario matches', async () => {
+    mocks.automationFindMany.mockResolvedValue([])
+    await expect(probe()).resolves.toBeNull()
+  })
+
+  it('keeps the comment thread when the commenter id is unknown', async () => {
+    await expect(probe({ ...comment, senderId: 'comment-1' })).resolves.toBeNull()
     expect(mocks.automationFindMany).not.toHaveBeenCalled()
   })
 })

@@ -51,6 +51,7 @@ import {
         loadAutomationPolicy,
         willInstagramAutomationHandle,
         willInstagramAutomationSilentlyIgnore,
+        instagramCommentDmThread,
 } from '@/lib/instagram/automation'
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
@@ -384,6 +385,35 @@ function toChatAgent(agent: ResolvedChannel['agent']): ChatAgent {
                 productAccessEnabled: agent.productAccessEnabled,
                 orderTrackingEnabled: agent.orderTrackingEnabled,
         }
+}
+
+/**
+ * Conversation externalId for an Instagram comment. A comment answered by a
+ * «ارسال در دایرکت» scenario belongs to the commenter's DM thread — that is
+ * where the customer reads the reply — so it is filed there instead of under
+ * its own `comment:<id>` thread. An operator-owned DM thread keeps the old
+ * comment thread (the operator gate must not swallow the funnel), and a retry
+ * reuses wherever the first attempt already filed the inbound.
+ */
+async function instagramCommentThreadId(args: {
+        agentId: string
+        channelId: string
+        msg: InboundMessage
+        inboundEventId: string
+}): Promise<string> {
+        const prior = await prisma.message.findUnique({
+                where: { inboundEventId: args.inboundEventId },
+                select: { conversation: { select: { externalId: true } } },
+        })
+        if (prior?.conversation.externalId) return prior.conversation.externalId
+        const dmThreadId = await instagramCommentDmThread(args)
+        if (!dmThreadId) return args.msg.chatId
+        const dmThread = await prisma.conversation.findFirst({
+                where: { agentId: args.agentId, channel: 'INSTAGRAM', externalId: dmThreadId },
+                select: { handedOff: true, status: true },
+        })
+        if (dmThread && (dmThread.handedOff || dmThread.status === 'HANDED_OFF')) return args.msg.chatId
+        return dmThreadId
 }
 
 /** Persist an inbound without invoking retrieval, handoff checks, or the AI. */
@@ -1068,7 +1098,20 @@ async function processChannelInbound(
                                         workspaceId: agent.workspaceId,
                                         agentId: agent.id,
                                         contactId,
-                                        externalId: msg.chatId,
+                                        externalId: type === 'INSTAGRAM'
+                                                && msg.kind === 'COMMENT'
+                                                && instagramPolicy
+                                                && !instagramSubscriptionBlocked
+                                                && instagramPolicy.commentReplyPolicy !== 'ALL_AGENT'
+                                                && !voiceInputDisabled
+                                                && !fixedInstagramReply
+                                                ? await instagramCommentThreadId({
+                                                        agentId: agent.id,
+                                                        channelId,
+                                                        msg,
+                                                        inboundEventId: eventLease.id,
+                                                })
+                                                : msg.chatId,
                                         text,
                                         channel: type,
                                         metadata: inboundMetadata,
