@@ -19,6 +19,7 @@ import {
   fa,
 } from '../ui'
 import { MonthlyBarChart } from '@/components/admin/trend-chart'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { Sparkline } from '@/components/admin/sparkline'
 import {
   getRevenueKPIs,
@@ -74,10 +75,7 @@ export default async function AdminRevenuePage() {
       <PageHeader
         title="درآمد و سود"
         subtitle="تحلیل مالی پلتفرم، MRR و رشد"
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'درآمد' },
-        ]}
+        icon={TrendingUp}
       />
 
       <Panel
@@ -85,16 +83,16 @@ export default async function AdminRevenuePage() {
         subtitle="درآمد پلن‌ها + شارژ اعتبارها − هزینه واقعی OpenRouter"
       >
         {!finance.usdToIRR && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
+          <div className="mb-4 rounded-control border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
             برای نمایش سود تلفیقی، «نرخ هر دلار آمریکا» را در <Link href="/admin/settings" className="font-semibold underline underline-offset-2">تنظیمات پلتفرم</Link> وارد کنید. تا آن زمان عدد سود نمایش داده نمی‌شود تا گزارش گمراه‌کننده نباشد.
           </div>
         )}
         {finance.usdToIRR && (
-          <p className="mb-4 text-xs text-zinc-500">
+          <p className="mb-4 text-xs text-[var(--text-muted)]">
             نرخ محاسبه: هر دلار = {fa(Math.round(finance.usdToIRR / 10))} تومان
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
           <StatCard
             label="درآمد پلن‌ها"
             value={fmtIRR(finance.planRevenueIRR)}
@@ -173,7 +171,6 @@ export default async function AdminRevenuePage() {
       <MonthlyBarChart
         title="درآمد ماهانه (تومان) — ۱۲ ماه اخیر"
         data={irrMonthly}
-        color="#18181b"
         format="compact-irr"
       />
 
@@ -185,24 +182,24 @@ export default async function AdminRevenuePage() {
             {topWorkspaces.map((workspace) => {
               const spark = paySparks.get(workspace.id)
               return (
-                <article key={workspace.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                <article key={workspace.id} className="rounded-control bg-[var(--bg-surface)] p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="min-w-0 truncate text-xs font-bold text-zinc-900">{workspace.name}</h3>
+                    <h3 className="min-w-0 truncate text-xs font-bold text-[var(--text-primary)]">{workspace.name}</h3>
                     <PlanBadge plan={workspace.plan} />
                   </div>
-                  <p className="mt-3 text-lg font-bold tabular-nums text-zinc-950">{fmtIRR(workspace.revenueIRR)}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-zinc-400">
+                  <p className="mt-3 text-lg font-bold tabular-nums text-[var(--text-primary)]">{fmtIRR(workspace.revenueIRR)}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-[var(--text-muted)]">
                     <span>روند ۷ روز</span>
-                    <span className="flex items-center gap-2"><Sparkline data={spark?.series ?? []} color="#18181b" width={82} height={24} />{spark ? fa(spark.total) : '۰'}</span>
+                    <span className="flex items-center gap-2"><Sparkline data={spark?.series ?? []} color={CHART_ACCENT} width={82} height={24} />{spark ? fa(spark.total) : '۰'}</span>
                   </div>
                 </article>
               )
             })}
-            {topWorkspaces.length === 0 && <p className="py-8 text-center text-xs text-zinc-400">پرداختی ثبت نشده است</p>}
+            {topWorkspaces.length === 0 && <p className="py-8 text-center text-xs text-[var(--text-muted)]">پرداختی ثبت نشده است</p>}
           </div>
           <div className="hidden md:block">
-          <TableShell minWidth={0}>
-            <thead className="border-b border-zinc-200 bg-zinc-50/50">
+          <TableShell minWidth={0} bare>
+            <thead>
               <tr>
                 <Th>کسب‌وکار</Th>
                 <Th>پلن</Th>
@@ -210,12 +207,12 @@ export default async function AdminRevenuePage() {
                 <Th>روند ۷ روز</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody>
               {topWorkspaces.map((w) => {
                 const spark = paySparks.get(w.id)
                 return (
-                  <tr key={w.id} className="hover:bg-zinc-50/60">
-                    <Td className="max-w-32 truncate font-medium text-zinc-900">{w.name}</Td>
+                  <tr key={w.id}>
+                    <Td className="max-w-32 truncate font-medium text-[var(--text-primary)]">{w.name}</Td>
                     <Td>
                       <PlanBadge plan={w.plan} />
                     </Td>
@@ -224,11 +221,11 @@ export default async function AdminRevenuePage() {
                       <div className="flex items-center gap-2">
                         <Sparkline
                           data={spark?.series ?? []}
-                          color="#18181b"
+                          color={CHART_ACCENT}
                           width={58}
                           height={24}
                         />
-                        <span className="text-[12px] tabular-nums text-zinc-500">
+                        <span className="text-[12px] tabular-nums text-[var(--text-muted)]">
                           {spark ? fa(spark.total) : '۰'}
                         </span>
                       </div>
@@ -238,7 +235,7 @@ export default async function AdminRevenuePage() {
               })}
               {topWorkspaces.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-xs text-zinc-400">
+                  <td colSpan={4} className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">
                     پرداختی ثبت نشده است
                   </td>
                 </tr>
@@ -251,19 +248,19 @@ export default async function AdminRevenuePage() {
         <Panel title="درآمد به تفکیک پلن">
           <div className="grid gap-2 md:hidden">
             {planRevenue.map((row) => (
-              <article key={row.plan} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                <div className="flex items-center justify-between gap-2"><PlanBadge plan={row.plan} /><strong className="text-sm tabular-nums text-zinc-950">{fmtIRR(row.revenueIRR)}</strong></div>
+              <article key={row.plan} className="rounded-control bg-[var(--bg-surface)] p-3">
+                <div className="flex items-center justify-between gap-2"><PlanBadge plan={row.plan} /><strong className="text-sm tabular-nums text-[var(--text-primary)]">{fmtIRR(row.revenueIRR)}</strong></div>
                 <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div><dt className="text-[12px] text-zinc-400">کسب‌وکار</dt><dd className="mt-1 text-xs font-bold">{fa(row.workspaceCount)}</dd></div>
-                  <div><dt className="text-[12px] text-zinc-400">پرداخت</dt><dd className="mt-1 text-xs font-bold">{fa(row.paymentCount)}</dd></div>
-                  <div><dt className="text-[12px] text-zinc-400">ماهانه</dt><dd className="mt-1 truncate text-[12px] font-bold">{fmtIRR(row.monthlyPriceIRR)}</dd></div>
+                  <div><dt className="text-[12px] text-[var(--text-muted)]">کسب‌وکار</dt><dd className="mt-1 text-xs font-bold">{fa(row.workspaceCount)}</dd></div>
+                  <div><dt className="text-[12px] text-[var(--text-muted)]">پرداخت</dt><dd className="mt-1 text-xs font-bold">{fa(row.paymentCount)}</dd></div>
+                  <div><dt className="text-[12px] text-[var(--text-muted)]">ماهانه</dt><dd className="mt-1 truncate text-[12px] font-bold">{fmtIRR(row.monthlyPriceIRR)}</dd></div>
                 </dl>
               </article>
             ))}
           </div>
           <div className="hidden md:block">
-          <TableShell minWidth={0}>
-            <thead className="border-b border-zinc-200 bg-zinc-50/50">
+          <TableShell minWidth={0} bare>
+            <thead>
               <tr>
                 <Th>پلن</Th>
                 <Th className="px-2 text-[12px]">کسب‌وکار</Th>
@@ -272,20 +269,20 @@ export default async function AdminRevenuePage() {
                 <Th>قیمت ماهانه</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody>
               {planRevenue.map((row) => (
-                <tr key={row.plan} className="hover:bg-zinc-50/60">
+                <tr key={row.plan}>
                   <Td>
                     <PlanBadge plan={row.plan} />
                   </Td>
-                  <Td className="px-2 text-center tabular-nums text-zinc-600">
+                  <Td className="px-2 text-center tabular-nums text-[var(--text-secondary)]">
                     {fa(row.workspaceCount)}
                   </Td>
-                  <Td className="px-2 text-center tabular-nums text-zinc-600">
+                  <Td className="px-2 text-center tabular-nums text-[var(--text-secondary)]">
                     {fa(row.paymentCount)}
                   </Td>
                   <Td className="font-medium tabular-nums">{fmtIRR(row.revenueIRR)}</Td>
-                  <Td className="tabular-nums text-zinc-500">{fmtIRR(row.monthlyPriceIRR)}</Td>
+                  <Td className="tabular-nums text-[var(--text-muted)]">{fmtIRR(row.monthlyPriceIRR)}</Td>
                 </tr>
               ))}
             </tbody>

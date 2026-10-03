@@ -15,6 +15,7 @@ import {
   FilterPills,
   fa,
   fmtDay,
+  Toolbar,
 } from '../ui'
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByWorkspace } from '@/lib/admin/charts'
@@ -250,12 +251,9 @@ export default async function AdminUsersPage(
   return (
     <div className="space-y-6">
       <PageHeader
-        title="کاربر ها"
+        title="کاربران"
         subtitle="مدیریت کاربران و پلن‌های آن‌ها در یک نمای واحد"
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'کاربران' },
-        ]}
+        icon={Users}
         action={
           <AdminBroadcastDialog
             users={messageUsers.map((user) => ({
@@ -269,7 +267,7 @@ export default async function AdminUsersPage(
         }
       />
 
-      <div className="sticky top-20 z-20 flex gap-2 rounded-card border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72 lg:items-center">
+      <Toolbar>
         <AdminUsersSearchForm
           defaultQuery={q}
           placeholder="جستجوی نام، تلفن یا کسب‌وکار…"
@@ -286,7 +284,7 @@ export default async function AdminUsersPage(
             clearHref={q ? `/admin/users?q=${encodeURIComponent(q)}` : '/admin/users'}
           />
         </div>
-      </div>
+      </Toolbar>
 
       {/* Stats — the workspace KPI was dropped: every user owns exactly one
           workspace (1:1), so it duplicated the user count. Customer count is
@@ -330,7 +328,7 @@ export default async function AdminUsersPage(
         <AdminUserMobileCards users={mobileUsers} />
         <div className="hidden md:block">
         <TableShell>
-          <thead className="border-b border-zinc-200 bg-zinc-50/60">
+          <thead>
             <tr>
               <Th>کاربر</Th>
               <Th>شماره تلفن</Th>
@@ -342,7 +340,7 @@ export default async function AdminUsersPage(
               <Th>تاریخ عضویت</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody>
             {items.map((u) => {
               const ws = u.workspace
               const plan = ws ? (PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }) : null
@@ -363,20 +361,20 @@ export default async function AdminUsersPage(
                 ws && !ws.onboardingCompleted && ws.onboardingStepUpdatedAt < stalledSince,
               )
               return (
-                <tr key={u.id} className="hover:bg-zinc-50">
+                <tr key={u.id}>
                   <Td>
                     <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-control border border-black/[0.06] bg-[radial-gradient(circle_at_35%_25%,#fff_0%,#f4f4f5_58%,#e4e4e7_100%)] text-zinc-600 shadow-[var(--shadow-xs)]">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)]">
                         <UserRound className="h-4 w-4 stroke-[1.8]" />
                       </span>
                       <div className="min-w-0">
-                        <div className="truncate font-semibold text-zinc-900 transition-opacity group-hover:opacity-65">
+                        <div className="truncate font-medium text-[var(--text-primary)] transition-colors group-hover:text-[var(--signal-strong)]">
                           {u.name ?? 'بدون نام'}
                         </div>
                       </div>
                     </Link>
                   </Td>
-                  <Td className="text-right text-zinc-700">
+                  <Td className="text-right text-[var(--text-secondary)]">
                     <span dir="ltr" className="inline-block">
                       {displayPhone(u.phone)}
                     </span>
@@ -391,20 +389,20 @@ export default async function AdminUsersPage(
                             : `${onboardingStalled ? 'احتمال توقف' : 'در حال راه‌اندازی'} · ${onboarding?.labelFa}`}
                       </Badge>
                     ) : (
-                      <span className="text-zinc-400">بدون فضای کاری</span>
+                      <span className="text-[var(--text-muted)]">بدون فضای کاری</span>
                     )}
                   </Td>
                   <Td>
                     {plan ? (
                       <Badge tone={plan.tone}>{plan.label}</Badge>
                     ) : (
-                      <span className="text-zinc-400">—</span>
+                      <span className="text-[var(--text-muted)]">—</span>
                     )}
                   </Td>
-                  <Td className="text-zinc-600 tabular-nums" title={ws ? 'کانال‌های فعال + لینک‌های چت منتشرشده' : undefined}>
+                  <Td className="text-[var(--text-secondary)] tabular-nums" title={ws ? 'کانال‌های فعال + لینک‌های چت منتشرشده' : undefined}>
                     {fa(ws ? connectionsByWorkspace.get(ws.id) ?? 0 : 0)}
                   </Td>
-                  <Td className="text-zinc-600 tabular-nums">
+                  <Td className="text-[var(--text-secondary)] tabular-nums">
                     {fa(ws?._count.conversations ?? 0)}
                   </Td>
                   <Td>
@@ -412,7 +410,7 @@ export default async function AdminUsersPage(
                       <Sparkline data={spark?.series ?? []} width={88} height={26} />
                     </div>
                   </Td>
-                  <Td className="text-xs text-zinc-500">{fmtDay(u.createdAt)}</Td>
+                  <Td className="text-xs text-[var(--text-muted)]">{fmtDay(u.createdAt)}</Td>
                 </tr>
               )
             })}

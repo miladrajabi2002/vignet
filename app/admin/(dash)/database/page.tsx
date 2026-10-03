@@ -27,9 +27,9 @@ export default async function AdminDatabasePage({
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
-        title="دیتابیس Prisma"
+        title="دیتابیس"
         subtitle="مرور مستقیم و فقط‌خواندنی داده‌های PostgreSQL از طریق Prisma؛ فیلدهای حساس به‌صورت خودکار مخفی می‌شوند."
         icon={Database}
         action={(
@@ -39,7 +39,7 @@ export default async function AdminDatabasePage({
               href="/admin/database/studio"
               target="_blank"
               rel="noreferrer"
-              className="admin-toolbar-button bg-black text-white hover:bg-zinc-800 hover:text-white"
+              className="admin-primary-button min-h-10 px-3.5 text-[12px]"
             >
               <ExternalLink className="h-3.5 w-3.5" /> بازکردن Prisma Studio
             </Link>
@@ -48,7 +48,7 @@ export default async function AdminDatabasePage({
       />
 
       {params.studio === 'unavailable' && (
-        <div className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
+        <div role="alert" className="rounded-control border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
           آدرس امن Prisma Studio تنظیم نشده است. روی سرور یک‌بار دستور <code dir="ltr">bash deploy/setup-db-studio.sh</code> را اجرا کنید.
         </div>
       )}
@@ -66,29 +66,29 @@ export default async function AdminDatabasePage({
                 key={model.key}
                 href={`/admin/database?model=${model.key}`}
                 className={cn(
-                  'flex min-h-9 items-center justify-between gap-2 rounded-xl px-2.5 text-[12px] transition-colors',
-                  selectedKey === model.key ? 'bg-black font-bold text-white' : 'text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-black',
+                  'flex min-h-9 items-center justify-between gap-2 rounded-control px-2.5 text-[12px] transition-colors',
+                  selectedKey === model.key ? 'bg-[var(--signal-soft)] font-bold text-[var(--signal-strong)]' : 'text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]',
                 )}
               >
                 <span className="truncate">{model.label}</span>
-                <code dir="ltr" className={cn('text-[12px]', selectedKey === model.key ? 'text-white/60' : 'text-[var(--text-muted)]')}>{model.key}</code>
+                <code dir="ltr" className={cn('text-[12px] font-normal', selectedKey === model.key ? 'text-[var(--signal)]' : 'text-[var(--text-muted)]')}>{model.key}</code>
               </Link>
             ))}
           </nav>
         </aside>
 
-        <section className="min-w-0 overflow-hidden rounded-card border border-black/[0.07] bg-white/85 shadow-[var(--shadow-card)]">
+        <section className="spatial-surface min-w-0 overflow-hidden rounded-card">
           {error ? (
             <div className="flex min-h-[36rem] flex-col items-center justify-center px-5 text-center">
               <Database className="h-9 w-9 text-red-400" />
-              <h2 className="mt-3 text-sm font-bold text-zinc-900">اتصال Prisma برقرار نشد</h2>
-              <p dir="ltr" className="mt-2 max-w-xl break-words text-xs leading-6 text-zinc-500">{error}</p>
+              <h2 className="ui-h3 mt-3">اتصال Prisma برقرار نشد</h2>
+              <p dir="ltr" className="mt-2 max-w-xl break-words text-xs leading-6 text-[var(--text-muted)]">{error}</p>
             </div>
           ) : result ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] px-4 py-3.5">
-                <div>
-                  <div className="flex items-center gap-2"><h2 className="text-sm font-bold text-black">{result.model.label}</h2><Badge tone="muted">{fa(result.total)} رکورد</Badge></div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2"><h2 className="ui-h3">{result.model.label}</h2><Badge tone="muted">{fa(result.total)} رکورد</Badge></div>
                   <p dir="ltr" className="mt-1 text-left text-[12px] text-[var(--text-muted)]">{result.version}</p>
                 </div>
                 <Link href={`/admin/database?model=${result.model.key}&page=${result.page}`} className="admin-toolbar-button" aria-label="تازه‌سازی داده‌ها"><RefreshCw className="h-3.5 w-3.5" /> تازه‌سازی</Link>
@@ -99,15 +99,15 @@ export default async function AdminDatabasePage({
               ) : (
                 <>
                 <DatabaseMobileRows modelLabel={result.model.label} columns={result.columns} rows={result.rows} />
-                <div className="hidden max-h-[34rem] overflow-auto [scrollbar-width:thin] md:block">
+                <div className="admin-scroll hidden max-h-[34rem] overflow-auto md:block">
                   <table dir="ltr" className="w-max min-w-full text-left">
-                    <thead className="sticky top-0 z-10 bg-zinc-50/95 backdrop-blur-xl">
-                      <tr>{result.columns.map((column) => <th key={column} className="whitespace-nowrap border-b border-black/[0.06] px-3 py-2.5 font-mono text-[12px] font-semibold text-zinc-500">{column}</th>)}</tr>
+                    <thead className="sticky top-0 z-10 bg-[var(--bg-surface)]">
+                      <tr>{result.columns.map((column) => <th key={column} className="whitespace-nowrap border-b border-black/[0.06] px-3 py-2.5 font-mono text-[12px] font-semibold text-[var(--text-muted)]">{column}</th>)}</tr>
                     </thead>
                     <tbody>
                       {result.rows.map((row, index) => (
-                        <tr key={`${result.model.key}-${result.page}-${index}`} className="border-b border-black/[0.045] align-top hover:bg-blue-50/35">
-                          {result.columns.map((column) => <td key={column} className="max-w-[22rem] whitespace-pre-wrap break-words px-3 py-2.5 font-mono text-[12px] leading-5 text-zinc-600">{row[column]}</td>)}
+                        <tr key={`${result.model.key}-${result.page}-${index}`} className="border-b border-[var(--border-subtle)] align-top hover:bg-[var(--signal-soft)]">
+                          {result.columns.map((column) => <td key={column} className="max-w-[22rem] whitespace-pre-wrap break-words px-3 py-2.5 font-mono text-[12px] leading-5 text-[var(--text-secondary)]">{row[column]}</td>)}
                         </tr>
                       ))}
                     </tbody>
@@ -116,7 +116,7 @@ export default async function AdminDatabasePage({
                 </>
               )}
 
-              <nav className="flex items-center justify-between border-t border-black/[0.06] px-4 py-3 text-xs">
+              <nav aria-label="صفحه‌بندی" className="flex items-center justify-between border-t border-[var(--border-subtle)] px-4 py-3 text-xs">
                 <Link aria-disabled={result.page <= 1} href={result.page > 1 ? `/admin/database?model=${result.model.key}&page=${result.page - 1}` : '#'} className={cn('admin-toolbar-button', result.page <= 1 && 'pointer-events-none opacity-35')}>قبلی</Link>
                 <span className="text-[var(--text-muted)]">صفحه {fa(result.page)} از {fa(totalPages)}</span>
                 <Link aria-disabled={result.page >= totalPages} href={result.page < totalPages ? `/admin/database?model=${result.model.key}&page=${result.page + 1}` : '#'} className={cn('admin-toolbar-button', result.page >= totalPages && 'pointer-events-none opacity-35')}>بعدی</Link>

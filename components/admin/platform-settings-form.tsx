@@ -98,23 +98,23 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
 
   return (
     <div className="space-y-5">
-      <section className="spatial-surface overflow-hidden p-0">
-        <div className="flex flex-col gap-4 border-b border-black/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div>
-            <div className="flex items-center gap-2 text-[12px] font-medium text-[var(--text-muted)]"><ShieldCheck className="h-4 w-4" /> سیاست runtime پلتفرم</div>
-            <h2 className="mt-2 text-lg font-bold text-black">مدل‌های صوتی و حریم خصوصی</h2>
-            <p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">کلیدها و secretها همچنان فقط در ENV می‌مانند؛ اینجا فقط سیاست‌های امن و قابل تغییر ذخیره می‌شوند.</p>
+      <section className="spatial-surface overflow-hidden rounded-card">
+        <div className="flex flex-col gap-4 border-b border-[var(--border-subtle)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[12px] font-medium text-[var(--signal-strong)]"><ShieldCheck className="h-4 w-4" /> سیاست runtime پلتفرم</div>
+            <h2 className="ui-h2 mt-1.5">مدل‌های صوتی و حریم خصوصی</h2>
+            <p className="ui-caption">کلیدها و secretها همچنان فقط در ENV می‌مانند؛ اینجا فقط سیاست‌های امن و قابل تغییر ذخیره می‌شوند.</p>
           </div>
           <SaveButton state={saveState.state} dirty={dirty} onClick={save} icon={<Save className="h-4 w-4" />} label="ذخیره تغییرات" />
         </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-          <div className="rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
-            <span className="text-sm font-bold text-black">مدل تبدیل صدا به متن</span>
+        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
+          <div className="rounded-control bg-[var(--bg-surface)] px-4 py-3">
+            <span className="text-[13px] font-bold text-[var(--text-primary)]">مدل تبدیل صدا به متن</span>
             <code dir="ltr" className="mt-2 block break-all text-left text-xs font-semibold text-[var(--text-secondary)]">{value.sttModel}</code>
             <span className="mt-1 block text-[12px] leading-5 text-[var(--text-muted)]">مدل ثابت و چندزبانه از طریق OpenRouter</span>
           </div>
-          <div className="rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
-            <span className="text-sm font-bold text-black">مدل توصیف عکس مشتری</span>
+          <div className="rounded-control bg-[var(--bg-surface)] px-4 py-3">
+            <span className="text-[13px] font-bold text-[var(--text-primary)]">مدل توصیف عکس مشتری</span>
             <code dir="ltr" className="mt-2 block break-all text-left text-xs font-semibold text-[var(--text-secondary)]">{value.visionModel}</code>
             <span className="mt-1 block text-[12px] leading-5 text-[var(--text-muted)]">مدل ثابت بینایی؛ فقط وقتی «توصیف عکس» برای ایجنت روشن باشد مصرف می‌شود</span>
           </div>
@@ -127,17 +127,17 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
           <Field label="اولویت انتخاب Provider" hint="در تمام درخواست‌های OpenRouter">
             <MaterialSelect value={value.providerSort} onValueChange={(next) => setField('providerSort', next as PlatformCommercialConfig['providerSort'])} ariaLabel="اولویت انتخاب Provider" buttonClassName="admin-input" options={[{ value: 'price', label: 'کمترین قیمت' }, { value: 'latency', label: 'کمترین تأخیر' }, { value: 'throughput', label: 'بیشترین توان پردازش' }]} />
           </Field>
-          <label className="flex min-h-[76px] cursor-pointer items-center justify-between gap-4 rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
-            <div><span className="text-sm font-bold text-black">Zero Data Retention</span><span className="mt-1 block text-[12px] text-[var(--text-muted)]">عدم نگهداری داده توسط Provider</span></div>
+          <label className="flex min-h-[76px] cursor-pointer items-center justify-between gap-4 self-start rounded-control bg-[var(--bg-surface)] px-4 py-3">
+            <div><span className="text-[13px] font-bold text-[var(--text-primary)]">Zero Data Retention</span><span className="mt-1 block text-[12px] text-[var(--text-muted)]">عدم نگهداری داده توسط Provider</span></div>
             <input type="checkbox" checked={value.zeroDataRetention} onChange={(event) => setField('zeroDataRetention', event.target.checked)} className="peer sr-only" />
-            <span className="relative h-7 w-12 shrink-0 rounded-full bg-black/15 transition-colors peer-checked:bg-black after:absolute after:start-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-5 rtl:peer-checked:after:-translate-x-5" />
+            <span className="relative h-7 w-12 shrink-0 rounded-full bg-black/15 transition-colors peer-checked:bg-[#111] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--focus-ring)] peer-focus-visible:ring-offset-2 after:absolute after:start-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-5 rtl:peer-checked:after:-translate-x-5" />
           </label>
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
-        <div className="spatial-surface rounded-card p-5 sm:p-6">
-          <div className="flex items-center gap-3"><span className="admin-icon-well"><Volume2 className="h-4 w-4" /></span><div><h2 className="text-base font-bold">تعرفه هر پاسخ موفق</h2><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">همه مبالغ به تومان وارد می‌شوند.</p></div></div>
+        <div className="spatial-surface rounded-card p-4 sm:p-6">
+          <div className="flex items-center gap-3"><span className="admin-icon-well"><Volume2 className="h-4 w-4" /></span><div><h2 className="ui-h3 !leading-6">تعرفه هر پاسخ موفق</h2><p className="text-[12px] text-[var(--text-muted)]">همه مبالغ به تومان وارد می‌شوند.</p></div></div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {(Object.keys(MODEL_META) as Array<keyof typeof MODEL_META>).map((model) => (
               <Field key={model} label={MODEL_META[model]} hint={model}>
@@ -146,8 +146,8 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             ))}
           </div>
         </div>
-        <div className="spatial-surface rounded-card p-5 sm:p-6">
-          <div className="flex items-center gap-3"><span className="admin-icon-well"><WalletCards className="h-4 w-4" /></span><div><h2 className="text-base font-bold">اعتبار و نرخ مالی</h2><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">برای ثبت‌نام جدید و محاسبه سود تلفیقی</p></div></div>
+        <div className="spatial-surface rounded-card p-4 sm:p-6">
+          <div className="flex items-center gap-3"><span className="admin-icon-well"><WalletCards className="h-4 w-4" /></span><div><h2 className="ui-h3 !leading-6">اعتبار و نرخ مالی</h2><p className="text-[12px] text-[var(--text-muted)]">برای ثبت‌نام جدید و محاسبه سود تلفیقی</p></div></div>
           <div className="mt-5 space-y-4">
             <Field label="اعتبار هدیه ماه آزمایشی" hint="به تومان">
               <MoneyInput value={toToman(value.trialCreditIRR)} onChange={(raw) => setNumber(['trialCreditIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
@@ -159,14 +159,14 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
         </div>
       </section>
 
-      <section className="spatial-surface rounded-card p-5 sm:p-6">
-        <div><h2 className="text-lg font-bold">پلن‌ها و ظرفیت سرویس</h2><p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">قیمت، اعتبار هدیه و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. قیمت‌ها به تومان هستند؛ تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
+      <section className="spatial-surface rounded-card p-4 sm:p-6">
+        <div><h2 className="ui-h2">پلن‌ها و ظرفیت سرویس</h2><p className="ui-caption">قیمت، اعتبار هدیه و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. قیمت‌ها به تومان هستند؛ تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((plan) => {
             const meta = PLAN_META[plan]
             const item = value.plans[plan]
             return (
-              <article key={plan} className={cn('rounded-card border p-4 sm:p-5', plan === 'PRO' ? 'border-black bg-black text-white shadow-[var(--elev-2)]' : 'border-black/[0.07] bg-[#f8f8f6] text-black')}>
+              <article key={plan} className={cn('rounded-card border p-4 sm:p-5', plan === 'PRO' ? 'border-[#111] bg-[#111] text-white' : 'border-transparent bg-[var(--bg-surface)] text-[var(--text-primary)]')}>
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{meta.title}</p><p className={cn('mt-1 text-[12px]', plan === 'PRO' ? 'text-white/60' : 'text-[var(--text-muted)]')}>{meta.hint}</p></div><span className={cn('rounded-full px-2.5 py-1 text-[12px] font-bold', plan === 'PRO' ? 'bg-white text-black' : 'bg-white text-[var(--text-secondary)] ring-1 ring-black/[0.06]')}>{plan}</span></div>
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <PlanNumber label="قیمت ماهانه (تومان)" value={toTomanNum(item.priceIRR)} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw, TOMAN_SCALE)} />
@@ -183,8 +183,8 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
         </div>
       </section>
 
-      <div className="flex flex-col-reverse gap-3 rounded-2xl border border-black/[0.07] bg-white/80 p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
-        <p role="status" className={cn('text-xs leading-6', message?.includes('نشد') ? 'text-red-600' : 'text-emerald-700')}>{message ?? (dirty ? 'تغییرات هنوز ذخیره نشده‌اند.' : 'تنظیمات با runtime همگام است.')}</p>
+      <div className="spatial-surface flex flex-col-reverse gap-3 rounded-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p role="status" className={cn('text-xs leading-6', message?.includes('نشد') ? 'text-[var(--danger-ink)]' : dirty ? 'text-[var(--warn-ink)]' : 'text-[var(--ok-ink)]')}>{message ?? (dirty ? 'تغییرات هنوز ذخیره نشده‌اند.' : 'تنظیمات با runtime همگام است.')}</p>
         <SaveButton state={saveState.state} dirty={dirty} onClick={save} icon={<Save className="h-4 w-4" />} label="ذخیره همه تنظیمات" />
       </div>
     </div>
@@ -203,7 +203,8 @@ function toTomanNum(irr: number): number {
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-[var(--text-secondary)]"><span>{label}</span>{hint && <span dir="ltr" className="truncate text-[12px] font-normal text-[var(--text-muted)]">{hint}</span>}</span>{children}</label>
+  // Shared field anatomy: label, control, then the hint on its own line.
+  return <label className="block"><span className="ui-field-label">{label}</span>{children}{hint && <span className="ui-field-hint block"><bdi>{hint}</bdi></span>}</label>
 }
 
 function MoneyInput({ value, onChange, suffix, allowEmpty }: { value: number | ''; onChange: (value: string) => void; suffix: string; allowEmpty?: boolean }) {

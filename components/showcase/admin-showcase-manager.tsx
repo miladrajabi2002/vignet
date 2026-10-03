@@ -59,8 +59,8 @@ const EMPTY_FORM: FormState = {
 }
 
 const inputClass =
-	'w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 placeholder:text-zinc-400'
-const labelClass = 'mb-1.5 block text-xs font-semibold text-zinc-600'
+	'w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-strong)] focus:ring-2 focus:ring-black/5 placeholder:text-[var(--text-muted)]'
+const labelClass = 'mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]'
 
 export function AdminShowcaseManager({ initialEntries }: { initialEntries: ShowcaseRow[] }) {
 	const [entries, setEntries] = useState<ShowcaseRow[]>(initialEntries)
@@ -177,10 +177,10 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 		<div className="p-4 sm:p-6">
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 className="text-sm font-bold text-zinc-800">
+					<h2 className="text-sm font-bold text-[var(--text-primary)]">
 						مشتریان ویجنت روی صفحه اصلی
 					</h2>
-					<p className="mt-1 text-xs leading-5 text-zinc-500">
+					<p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
 						هر مورد ثبت‌شده بلافاصله بعد از ذخیره روی صفحه اصلی نمایش داده می‌شود؛
 						غیرفعال‌کردن آن را از سایت حذف می‌کند بدون پاک‌شدن اطلاعات.
 					</p>
@@ -188,7 +188,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 				<button
 					type="button"
 					onClick={startCreate}
-					className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800"
+					className="inline-flex items-center gap-1.5 rounded-lg bg-[#111] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#2a2a2e]"
 				>
 					<Plus className="h-3.5 w-3.5" />
 					افزودن مشتری
@@ -202,15 +202,15 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 			)}
 
 			{showForm && (
-				<div className="mb-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
+				<div className="mb-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 sm:p-5">
 					<div className="mb-4 flex items-center justify-between">
-						<h3 className="text-sm font-bold text-zinc-800">
+						<h3 className="text-sm font-bold text-[var(--text-primary)]">
 							{editingId ? 'ویرایش مشتری' : 'مشتری جدید'}
 						</h3>
 						<button
 							type="button"
 							onClick={() => setShowForm(false)}
-							className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+							className="rounded-lg p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
 							aria-label="بستن"
 						>
 							<X className="h-4 w-4" />
@@ -239,7 +239,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 								onChange={(e) => setForm((f) => ({ ...f, handle: e.target.value }))}
 								placeholder="aida.manto"
 							/>
-							<p className="mt-1 text-[11px] text-zinc-400">بدون @ — لینک کارت به این پیج می‌رود مگر اینکه لینک جدا بدهید.</p>
+							<p className="mt-1 text-[11px] text-[var(--text-muted)]">بدون @ — لینک کارت به این پیج می‌رود مگر اینکه لینک جدا بدهید.</p>
 						</div>
 						<div>
 							<label className={labelClass} htmlFor="sc-url">لینک اختصاصی (اختیاری)</label>
@@ -263,10 +263,10 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 										alt=""
 										width={44}
 										height={44}
-										className="h-11 w-11 rounded-xl border border-zinc-200 object-cover"
+										className="h-11 w-11 rounded-xl border border-[var(--border-default)] object-cover"
 									/>
 								) : (
-									<span className="grid h-11 w-11 place-items-center rounded-xl border border-dashed border-zinc-300 bg-white text-zinc-300">
+									<span className="grid h-11 w-11 place-items-center rounded-xl border border-dashed border-[var(--border-hover)] bg-white text-[var(--text-hint)]">
 										<ImageIcon className="h-4 w-4" />
 									</span>
 								)}
@@ -285,7 +285,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									type="button"
 									onClick={() => fileRef.current?.click()}
 									disabled={uploading}
-									className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700 transition hover:border-zinc-400 disabled:opacity-50"
+									className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-hover)] bg-white px-3 py-1.5 text-xs text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] disabled:opacity-50"
 								>
 									{uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
 									{uploading ? 'در حال آپلود…' : form.imageUrl ? 'تغییر تصویر' : 'انتخاب تصویر'}
@@ -300,7 +300,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									</button>
 								)}
 							</div>
-							<p className="mt-1 text-[11px] text-zinc-400">مربع، حداکثر ۴MB — png/jpg/webp</p>
+							<p className="mt-1 text-[11px] text-[var(--text-muted)]">مربع، حداکثر ۴MB — png/jpg/webp</p>
 						</div>
 						<div className="sm:col-span-2">
 							<span className={labelClass}>کانال‌هایی که این مشتری استفاده می‌کند</span>
@@ -322,8 +322,8 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 											className={cn(
 												'rounded-full border px-2.5 py-1 text-[11px] transition',
 												selected
-													? 'border-zinc-900 bg-zinc-900 text-white'
-													: 'border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400',
+													? 'border-[#111] bg-[#111] text-white'
+													: 'border-[var(--border-hover)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
 											)}
 										>
 											{CHANNEL_LABELS_FA[key]}
@@ -375,25 +375,25 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 								value={form.sortOrder}
 								onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
 							/>
-							<p className="mt-1 text-[11px] text-zinc-400">عدد کوچک‌تر اول نمایش داده می‌شود.</p>
+							<p className="mt-1 text-[11px] text-[var(--text-muted)]">عدد کوچک‌تر اول نمایش داده می‌شود.</p>
 						</div>
 						<div className="flex items-end gap-4">
-							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
+							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-[var(--text-secondary)]">
 								<input
 									type="checkbox"
 									checked={form.featured}
 									onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
-									className="h-4 w-4 accent-zinc-900"
+									className="h-4 w-4 accent-[#111]"
 								/>
 								<Star className="h-3.5 w-3.5 text-amber-500" />
 								ویژه
 							</label>
-							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
+							<label className="inline-flex cursor-pointer items-center gap-2 text-xs text-[var(--text-secondary)]">
 								<input
 									type="checkbox"
 									checked={form.active}
 									onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-									className="h-4 w-4 accent-zinc-900"
+									className="h-4 w-4 accent-[#111]"
 								/>
 								فعال روی سایت
 							</label>
@@ -405,7 +405,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 							type="button"
 							onClick={submit}
 							disabled={busy || uploading || form.name.trim().length < 2}
-							className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-40"
+							className="inline-flex items-center gap-1.5 rounded-lg bg-[#111] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2a2a2e] disabled:opacity-40"
 						>
 							{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
 							{editingId ? 'ذخیره تغییرات' : 'افزودن به صفحه اصلی'}
@@ -413,7 +413,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 						<button
 							type="button"
 							onClick={() => setShowForm(false)}
-							className="rounded-lg border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:border-zinc-400"
+							className="rounded-lg border border-[var(--border-hover)] px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)]"
 						>
 							انصراف
 						</button>
@@ -422,7 +422,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 			)}
 
 			{entries.length === 0 ? (
-				<p className="py-10 text-center text-xs text-zinc-400">
+				<p className="py-10 text-center text-xs text-[var(--text-muted)]">
 					هنوز مشتری‌ای ثبت نشده است. اولین مشتری را با «افزودن مشتری» بسازید —
 					همین‌که فعال باشد روی صفحه اصلی نمایش داده می‌شود.
 				</p>
@@ -435,54 +435,54 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 								key={entry.id}
 								className={cn(
 									'flex flex-wrap items-center gap-3 rounded-xl border p-3 transition',
-									entry.active ? 'border-zinc-200 bg-white' : 'border-dashed border-zinc-200 bg-zinc-50 opacity-70',
+									entry.active ? 'border-[var(--border-default)] bg-white' : 'border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] opacity-70',
 								)}
 							>
-									<GripVertical className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
+									<GripVertical className="h-4 w-4 shrink-0 text-[var(--text-hint)]" aria-hidden />
 									{entry.imageUrl ? (
 										// Admin-provided preview URLs can use arbitrary hosts.
 										// eslint-disable-next-line @next/next/no-img-element
-										<img src={entry.imageUrl} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-lg border border-zinc-200 object-cover" />
+										<img src={entry.imageUrl} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-lg border border-[var(--border-default)] object-cover" />
 								) : (
-									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-500">
+									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-xs font-bold text-[var(--text-muted)]">
 										{entry.name.trim().charAt(0)}
 									</span>
 								)}
 								<div className="min-w-0 flex-1">
 									<div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-										<span className="text-sm font-semibold text-zinc-800">{entry.name}</span>
+										<span className="text-sm font-semibold text-[var(--text-primary)]">{entry.name}</span>
 										{entry.featured && <Star className="h-3 w-3 text-amber-500" aria-label="ویژه" />}
 										{entry.handle && (
-											<span dir="ltr" className="text-[11px] text-zinc-400">@{entry.handle}</span>
+											<span dir="ltr" className="text-[11px] text-[var(--text-muted)]">@{entry.handle}</span>
 										)}
 										{link && (
-											<a href={link} target="_blank" rel="noreferrer" className="text-zinc-400 transition hover:text-zinc-700">
+											<a href={link} target="_blank" rel="noreferrer" className="text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
 												<ExternalLink className="h-3 w-3" />
 											</a>
 										)}
 									</div>
 									<div className="mt-1 flex flex-wrap items-center gap-1.5">
 										{entry.channels.map((ch) => (
-											<span key={ch} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500">
+											<span key={ch} className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
 												{CHANNEL_LABELS_FA[ch] ?? ch}
 											</span>
 										))}
 										{entry.metricValue && (
-											<span className="text-[11px] font-bold text-zinc-700">
+											<span className="text-[11px] font-bold text-[var(--text-secondary)]">
 												{entry.metricValue}{' '}
-												<span className="font-normal text-zinc-400">{entry.metricLabel}</span>
+												<span className="font-normal text-[var(--text-muted)]">{entry.metricLabel}</span>
 											</span>
 										)}
-										<span className="text-[11px] text-zinc-300">ترتیب: {entry.sortOrder}</span>
+										<span className="text-[11px] text-[var(--text-hint)]">ترتیب: {entry.sortOrder}</span>
 									</div>
-									{entry.quote && <p className="mt-1 truncate text-[11px] text-zinc-400">{entry.quote}</p>}
+									{entry.quote && <p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">{entry.quote}</p>}
 								</div>
 								<div className="flex shrink-0 items-center gap-1">
 									<button
 										type="button"
 										onClick={() => quickToggle(entry, { active: !entry.active })}
 										title={entry.active ? 'غیرفعال‌کردن از سایت' : 'نمایش دوباره روی سایت'}
-										className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+										className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
 									>
 										<Power className={cn('h-3.5 w-3.5', entry.active && 'text-emerald-600')} />
 									</button>
@@ -490,7 +490,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 										type="button"
 										onClick={() => startEdit(entry)}
 										title="ویرایش"
-										className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+										className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
 									>
 										<Edit3 className="h-3.5 w-3.5" />
 									</button>
@@ -498,7 +498,7 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 										type="button"
 										onClick={() => remove(entry)}
 										title="حذف"
-										className="rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
+										className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600"
 									>
 										<Trash2 className="h-3.5 w-3.5" />
 									</button>

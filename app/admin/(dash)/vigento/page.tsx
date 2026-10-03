@@ -32,23 +32,24 @@ export default async function AdminVigentoPage() {
   const providerId = resolveModelId(policy.vigentoModel, policy.providerModels)
 
   return (
-    <div className="flex h-[calc(100dvh-8.25rem)] min-h-[38rem] gap-4 overflow-hidden lg:flex-row">
+    // Phones: the console ends above the floating bar; from md it fills the page.
+    <div className="flex h-[calc(100dvh-11rem-env(safe-area-inset-bottom))] min-h-[26rem] gap-4 md:h-[calc(100dvh-7.5rem)] md:min-h-[34rem] lg:flex-row">
       <VigentoAdminConsole className="min-w-0 flex-1" modelLabel={vigentoModel.name} providerId={providerId} />
 
       <aside className="spatial-surface hidden w-[17.5rem] shrink-0 overflow-hidden rounded-card lg:flex lg:flex-col">
-        <div className="border-b border-black/[0.06] px-4 py-3.5">
-          <div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-black text-white"><ShieldCheck className="h-3.5 w-3.5" /></span><div><h2 className="text-xs font-bold text-black">قابلیت‌های مدیریتی</h2><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">همه عملیات حساس نیازمند تأیید شماست</p></div></div>
+        <div className="border-b border-[var(--border-subtle)] px-4 py-3.5">
+          <div className="flex items-center gap-2.5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-chip bg-[var(--signal-tint)] text-[var(--signal-strong)]"><ShieldCheck className="h-4 w-4" /></span><div className="min-w-0"><h2 className="text-[13px] font-bold text-[var(--text-primary)]">قابلیت‌های مدیریتی</h2><p className="text-[12px] text-[var(--text-muted)]">همه عملیات حساس نیازمند تأیید شماست</p></div></div>
         </div>
-        <div className="flex flex-1 flex-col justify-center gap-1.5 p-2.5">
+        <ul className="admin-scroll flex min-h-0 flex-1 flex-col justify-center gap-0.5 overflow-y-auto p-2.5">
           {CAPABILITIES.map(({ icon: Icon, label, detail }) => (
-            <div key={label} className="flex items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 transition-colors hover:border-black/[0.06] hover:bg-white/75">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-600"><Icon className="h-3.5 w-3.5" /></span>
-              <div className="min-w-0"><p className="truncate text-[12px] font-bold text-zinc-900">{label}</p><p className="mt-0.5 truncate text-[12px] text-zinc-400">{detail}</p></div>
-            </div>
+            <li key={label} className="flex items-center gap-2.5 px-2 py-1.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)]"><Icon className="h-3.5 w-3.5" /></span>
+              <div className="min-w-0"><p className="truncate text-[13px] font-medium text-[var(--text-primary)]">{label}</p><p className="truncate text-[12px] text-[var(--text-muted)]">{detail}</p></div>
+            </li>
           ))}
-        </div>
-        <div className="border-t border-black/[0.06] px-4 py-3">
-          <p className="text-[12px] text-[var(--text-muted)]">مدل فعال</p><p className="mt-1 truncate text-[12px] font-semibold text-black" title={providerId}>{vigentoModel.name}</p><code dir="ltr" className="mt-0.5 block truncate text-left text-[12px] text-[var(--text-muted)]">{providerId}</code>
+        </ul>
+        <div className="border-t border-[var(--border-subtle)] px-4 py-3">
+          <p className="text-[12px] text-[var(--text-muted)]">مدل فعال</p><p className="mt-1 truncate text-[13px] font-medium text-[var(--text-primary)]" title={providerId}>{vigentoModel.name}</p><code dir="ltr" className="mt-0.5 block truncate text-left text-[12px] text-[var(--text-muted)]">{providerId}</code>
         </div>
       </aside>
     </div>

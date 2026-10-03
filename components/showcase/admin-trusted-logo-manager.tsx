@@ -31,8 +31,8 @@ const EMPTY_FORM: FormState = {
 }
 
 const inputClass =
-        'w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 placeholder:text-zinc-400'
-const labelClass = 'mb-1.5 block text-xs font-semibold text-zinc-600'
+        'w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-strong)] focus:ring-2 focus:ring-black/5 placeholder:text-[var(--text-muted)]'
+const labelClass = 'mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]'
 
 const ERROR_MESSAGES: Record<string, string> = {
         UNAUTHORIZED: 'دسترسی ندارید؛ دوباره وارد شوید.',
@@ -189,15 +189,15 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                 <div className="space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                        <h3 className="text-sm font-bold text-zinc-900">لوگوهای اعتماد</h3>
-                                        <p className="mt-1 text-xs leading-6 text-zinc-500">
+                                        <h3 className="text-sm font-bold text-[var(--text-primary)]">لوگوهای اعتماد</h3>
+                                        <p className="mt-1 text-xs leading-6 text-[var(--text-muted)]">
                                                 لوگوی برندها در بخش «اعتماد بهترین‌های صنعت» بالای صفحه اصلی نمایش داده می‌شود.
                                         </p>
                                 </div>
                                 <button
                                         type="button"
                                         onClick={startCreate}
-                                        className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-700"
+                                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#111] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2a2a2e]"
                                 >
                                         <Plus className="h-3.5 w-3.5" />
                                         افزودن لوگو
@@ -205,17 +205,17 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                         </div>
 
                         {error ? (
-                                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
+                                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
                         ) : null}
 
                         {showForm ? (
-                                <form onSubmit={submit} className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
+                                <form onSubmit={submit} className="space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
                                         <div className="flex items-center justify-between">
-                                                <h4 className="text-xs font-bold text-zinc-800">{editingId ? 'ویرایش لوگو' : 'لوگوی جدید'}</h4>
+                                                <h4 className="text-xs font-bold text-[var(--text-primary)]">{editingId ? 'ویرایش لوگو' : 'لوگوی جدید'}</h4>
                                                 <button
                                                         type="button"
                                                         onClick={() => { setShowForm(false); setEditingId(null); setError(null) }}
-                                                        className="rounded-md p-1 text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
+                                                        className="rounded-md p-1 text-[var(--text-muted)] transition hover:bg-black/10 hover:text-[var(--text-secondary)]"
                                                         aria-label="بستن"
                                                 >
                                                         <X className="h-4 w-4" />
@@ -268,7 +268,7 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                                         type="button"
                                                                         onClick={() => fileRef.current?.click()}
                                                                         disabled={uploading}
-                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
+                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-hover)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--bg-muted)] disabled:opacity-50"
                                                                 >
                                                                         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
                                                                         {uploading ? 'در حال آپلود…' : 'انتخاب فایل'}
@@ -286,20 +286,20 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                                 />
                                                                 {form.imageUrl ? (
                                                                         // eslint-disable-next-line @next/next/no-img-element
-                                                                        <img src={form.imageUrl} alt="پیش‌نمایش لوگو" className="h-8 w-auto max-w-24 rounded border border-zinc-200 bg-white object-contain px-1" />
+                                                                        <img src={form.imageUrl} alt="پیش‌نمایش لوگو" className="h-8 w-auto max-w-24 rounded border border-[var(--border-default)] bg-white object-contain px-1" />
                                                                 ) : (
-                                                                        <span className="text-[11px] text-zinc-400">بدون تصویر — نام برند به‌صورت متن نمایش داده می‌شود</span>
+                                                                        <span className="text-[11px] text-[var(--text-muted)]">بدون تصویر — نام برند به‌صورت متن نمایش داده می‌شود</span>
                                                                 )}
                                                         </div>
                                                 </div>
                                         </div>
 
-                                        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-zinc-700">
+                                        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
                                                 <input
                                                         type="checkbox"
                                                         checked={form.active}
                                                         onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-                                                        className="size-4 accent-zinc-900"
+                                                        className="size-4 accent-[#111]"
                                                 />
                                                 فعال روی صفحه اصلی
                                         </label>
@@ -308,14 +308,14 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                 <button
                                                         type="button"
                                                         onClick={() => { setShowForm(false); setEditingId(null); setError(null) }}
-                                                        className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-500 transition hover:bg-zinc-200"
+                                                        className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-black/10"
                                                 >
                                                         انصراف
                                                 </button>
                                                 <button
                                                         type="submit"
                                                         disabled={busy || uploading}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50"
+                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#111] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2a2a2e] disabled:opacity-50"
                                                 >
                                                         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                                                         {editingId ? 'ذخیره تغییرات' : 'افزودن'}
@@ -325,7 +325,7 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                         ) : null}
 
                         {logos.length === 0 ? (
-                                <p className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center text-xs text-zinc-500">
+                                <p className="rounded-xl border border-dashed border-[var(--border-hover)] bg-[var(--bg-surface)] px-4 py-8 text-center text-xs text-[var(--text-muted)]">
                                         هنوز لوگویی ثبت نشده است. با دکمه «افزودن لوگو» اولین برند را اضافه کنید؛ بخش «اعتماد بهترین‌های صنعت» بعد از اولین لوگوی فعال روی صفحه اصلی نمایش داده می‌شود.
                                 </p>
                         ) : (
@@ -335,18 +335,18 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                         key={logo.id}
                                                         className={cn(
                                                                 'flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 transition',
-                                                                logo.active ? 'border-zinc-200 bg-white' : 'border-zinc-200/70 bg-zinc-50 opacity-60',
+                                                                logo.active ? 'border-[var(--border-default)] bg-white' : 'border-[var(--border-default)] bg-[var(--bg-surface)] opacity-60',
                                                         )}
                                                 >
                                                         {logo.imageUrl ? (
                                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                                <img src={logo.imageUrl} alt={logo.name} className="h-8 w-auto max-w-24 rounded border border-zinc-100 bg-white object-contain px-1" />
+                                                                <img src={logo.imageUrl} alt={logo.name} className="h-8 w-auto max-w-24 rounded border border-[var(--border-subtle)] bg-white object-contain px-1" />
                                                         ) : (
-                                                                <span className="grid h-8 w-10 place-items-center rounded border border-zinc-100 bg-zinc-50 text-[11px] text-zinc-400">متن</span>
+                                                                <span className="grid h-8 w-10 place-items-center rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[11px] text-[var(--text-muted)]">متن</span>
                                                         )}
                                                         <div className="min-w-0 flex-1">
-                                                                <p className="truncate text-xs font-semibold text-zinc-800">{logo.name}</p>
-                                                                <p className="mt-0.5 text-[11px] text-zinc-400">
+                                                                <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{logo.name}</p>
+                                                                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
                                                                         ترتیب {logo.sortOrder}
                                                                         {logo.url ? (
                                                                                 <span className="ms-2 inline-flex items-center gap-0.5">
@@ -364,7 +364,7 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                                         title={logo.active ? 'غیرفعال کردن' : 'فعال کردن'}
                                                                         className={cn(
                                                                                 'rounded-md p-2 transition disabled:opacity-50',
-                                                                                logo.active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-zinc-400 hover:bg-zinc-200',
+                                                                                logo.active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-[var(--text-muted)] hover:bg-black/10',
                                                                         )}
                                                                 >
                                                                         <Power className="h-3.5 w-3.5" />
@@ -374,7 +374,7 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                                         onClick={() => startEdit(logo)}
                                                                         disabled={busy}
                                                                         title="ویرایش"
-                                                                        className="rounded-md p-2 text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 disabled:opacity-50"
+                                                                        className="rounded-md p-2 text-[var(--text-muted)] transition hover:bg-black/10 hover:text-[var(--text-primary)] disabled:opacity-50"
                                                                 >
                                                                         <Edit3 className="h-3.5 w-3.5" />
                                                                 </button>
@@ -383,7 +383,7 @@ export function AdminTrustedLogoManager({ initialLogos }: { initialLogos: Truste
                                                                         onClick={() => remove(logo.id)}
                                                                         disabled={busy}
                                                                         title="حذف"
-                                                                        className="rounded-md p-2 text-rose-500 transition hover:bg-rose-50 disabled:opacity-50"
+                                                                        className="rounded-md p-2 text-red-500 transition hover:bg-red-50 disabled:opacity-50"
                                                                 >
                                                                         <Trash2 className="h-3.5 w-3.5" />
                                                                 </button>

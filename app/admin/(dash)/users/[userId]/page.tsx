@@ -21,6 +21,7 @@ import {
   Smartphone,
   PlugZap,
   Webhook,
+  UserRound,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
@@ -32,6 +33,7 @@ import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
@@ -646,35 +648,26 @@ export default async function AdminUserDetailPage(
       <PageHeader
         title={`${userName} · ${businessProfile?.businessName ?? ws.name}`}
         subtitle={`نمای یکپارچه کاربر و کسب‌وکار · ${vertical.titleFa} · عضو از ${memberSince}`}
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'کاربران', href: '/admin/users' },
-          { label: userName },
-        ]}
         back={{ href: '/admin/users', label: 'کاربران' }}
+        icon={UserRound}
       />
 
       {/* ─── tab bar (works on mobile: horizontal scroll) ─── */}
       <nav
         aria-label="بخش‌های پرونده کاربر"
-        className="sticky top-20 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-card border border-black/[0.07] bg-white/90 p-1.5 shadow-[var(--shadow-soft)] backdrop-blur-xl [scrollbar-width:none] md:static md:bg-white/72 [&::-webkit-scrollbar]:hidden"
+        className="ui-seg ui-seg-solid sticky z-20 grid-flow-col auto-cols-max justify-start overflow-x-auto [scrollbar-width:none] [top:calc(max(0.75rem,env(safe-area-inset-top))+4rem)] md:static md:w-fit md:max-w-full md:shadow-none [&::-webkit-scrollbar]:hidden"
       >
         {TABS.map(({ key, label }) => (
           <Link
             key={key}
             href={tabHref(key)}
             aria-current={tab === key ? 'page' : undefined}
-            className={cn(
-              'inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition-colors',
-              tab === key
-                ? 'bg-black text-white shadow-[var(--shadow-control)]'
-                : 'text-zinc-500 hover:bg-black/[0.045] hover:text-zinc-900',
-            )}
+            className="ui-seg-tab min-h-10 gap-1.5 px-3.5 text-[13px]"
           >
             {label}
             <span className={cn(
-              'rounded-full px-1.5 py-0.5 text-[12px] font-bold tabular-nums',
-              tab === key ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500',
+              'rounded-full px-1.5 py-0.5 text-[12px] tabular-nums empty:hidden',
+              tab === key ? 'bg-[var(--signal-tint)] text-[var(--signal-strong)]' : 'bg-black/[0.06] text-[var(--text-muted)]',
             )}>
               {key === 'channels' && fa(activeChannelCount)}
               {key === 'knowledge' && (knowledgeTab ? fa(knowledgeTab.total) : '—')}
@@ -690,17 +683,17 @@ export default async function AdminUserDetailPage(
         <>
           <section className="admin-panel overflow-hidden rounded-card" aria-labelledby="user-journey-title">
             <div className="grid lg:grid-cols-[.34fr_.66fr]">
-              <div className="border-b border-black/[0.06] bg-[#111214] p-5 text-white lg:border-b-0 lg:border-l sm:p-6">
-                <p className="text-[12px] font-bold text-white/60">مسیر فعالیت کاربر</p>
-                <h2 id="user-journey-title" className="mt-2 text-xl font-bold">گزارش مسیر کاربر</h2>
+              <div className="bg-[#111] p-4 text-white sm:p-6">
+                <p className="text-[12px] text-white/60">مسیر فعالیت کاربر</p>
+                <h2 id="user-journey-title" className="mt-1.5 text-lg font-bold">گزارش مسیر کاربر</h2>
                 <p className="mt-2 text-xs leading-6 text-white/60">مرحله فعلی، نقاط توقف و رویدادهای مهم از داده واقعی همین کسب‌وکار استخراج شده‌اند.</p>
-                <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.055] p-4">
+                <div className="mt-5 rounded-control bg-white/[0.07] p-4">
                   <div className="flex items-end justify-between gap-3"><div><p className="text-[12px] text-white/60">اقدام بعدی پیشنهادی</p><p className="mt-1 text-sm font-bold">{currentStage}</p></div><span className="text-2xl font-bold tabular-nums">{fa(journeyProgress)}٪</span></div>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${journeyProgress}%` }} /></div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[var(--admin-accent-on-ink)]" style={{ width: `${journeyProgress}%` }} /></div>
                   <div className="mt-4 flex items-center justify-between text-[12px] text-white/60"><span>{fa(completedSteps)} از {fa(journeySteps.length)} مرحله</span><span>{latestActivityAt ? `آخرین فعالیت ${fmtDate(latestActivityAt)}` : 'بدون فعالیت'}</span></div>
                 </div>
                 {currentStepIndex !== -1 && (
-                  <div className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] p-3.5">
+                  <div className="mt-3 rounded-control bg-amber-300/[0.1] p-3.5">
                     <p className="text-[12px] font-bold text-amber-200">نیازمند پیگیری</p>
                     <p className="mt-1 text-xs leading-5 text-white/60">اولین مرحله ناقص «{journeySteps[currentStepIndex].label}» است: {journeySteps[currentStepIndex].detail}</p>
                   </div>
@@ -710,9 +703,9 @@ export default async function AdminUserDetailPage(
                 {journeySteps.map((step, index) => {
                   const Icon = step.icon
                   return (
-                    <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-card border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === currentStepIndex ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
-                      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', step.done ? 'bg-emerald-600 text-white' : index === currentStepIndex ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-400')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
-                      <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-bold text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === currentStepIndex && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[12px] font-bold text-zinc-700">اقدام بعدی</span>}</div><p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">{step.detail}</p><p className="mt-1 text-[12px] text-[var(--text-muted)]">{step.at ? fmtDate(step.at) : '—'}</p></div>
+                    <div key={step.label} className={cn('flex min-h-[5.5rem] gap-3 rounded-control border p-3', step.done ? 'border-transparent bg-[var(--bg-surface)]' : index === currentStepIndex ? 'border-amber-200 bg-amber-50' : 'border-dashed border-[var(--border-default)]')}>
+                      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-chip', step.done ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]' : index === currentStepIndex ? 'bg-amber-100 text-amber-700' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
+                      <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-[13px] font-bold text-[var(--text-primary)]">{fa(index + 1)}. {step.label}</p>{!step.done && index === currentStepIndex && <span className="ui-chip ui-chip-warn">اقدام بعدی</span>}</div><p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">{step.detail}</p><p className="mt-1 text-[12px] text-[var(--text-muted)]">{step.at ? fmtDate(step.at) : '—'}</p></div>
                     </div>
                   )
                 })}
@@ -726,7 +719,7 @@ export default async function AdminUserDetailPage(
               title="مکالمات ۷ روز اخیر"
               subtitle={`کل: ${fa(ws._count.conversations)} گفتگو`}
               data={convTrendData}
-              color="#3b82f6"
+              color={CHART_ACCENT}
               variant="area"
               format="number"
               height={200}
@@ -735,7 +728,7 @@ export default async function AdminUserDetailPage(
               title="پرداخت‌های ۷ روز اخیر"
               subtitle={`کل: ${fa(ws._count.payments)} پرداخت`}
               data={payTrendData}
-              color="#22c55e"
+              color="#15803d"
               variant="area"
               format="compact-irr"
               height={200}
@@ -749,7 +742,7 @@ export default async function AdminUserDetailPage(
                 <div className="grid gap-6 xl:grid-cols-2 xl:gap-8">
                   <div>
                     <SectionLabel>اطلاعات کاربر</SectionLabel>
-                    <div className="divide-y divide-zinc-100">
+                    <div className="divide-y divide-[var(--border-subtle)]">
                       <KV label="نام">{user.name ?? '—'}</KV>
                       <KV label="تلفن" mono><span dir="ltr">{displayPhone(user.phone)}</span></KV>
                       <KV label="آخرین ورود به پنل">{lastLoginDisplay}</KV>
@@ -766,12 +759,12 @@ export default async function AdminUserDetailPage(
 
                   <div>
                     <SectionLabel>اطلاعات کسب‌وکار</SectionLabel>
-                    <div className="divide-y divide-zinc-100">
+                    <div className="divide-y divide-[var(--border-subtle)]">
                       <KV label="نام کسب‌وکار">{businessProfile?.businessName ?? ws.name}</KV>
                       <KV label="نوع کسب‌وکار"><Badge tone="info">{vertical.titleFa}</Badge></KV>
                       <KV label="اسلاگ" mono><span dir="ltr">{ws.slug}</span></KV>
                       <KV label="پلن"><Badge tone={plan.tone}>{plan.label}</Badge></KV>
-                      <KV label="ایمیل گزارش">{ws.reportEmail ? <span dir="ltr">{ws.reportEmail}</span> : <span className="text-zinc-400">—</span>}</KV>
+                      <KV label="ایمیل گزارش">{ws.reportEmail ? <span dir="ltr">{ws.reportEmail}</span> : <span className="text-[var(--text-muted)]">—</span>}</KV>
                       <KV label="وضعیت راه‌اندازی">
                         {ws.onboardingCompleted
                           ? <Badge tone="success">فعال‌شده</Badge>
@@ -781,17 +774,17 @@ export default async function AdminUserDetailPage(
                   </div>
                 </div>
 
-                <div className="mt-6 border-t border-zinc-100 pt-5">
+                <div className="mt-6 border-t border-[var(--border-subtle)] pt-5">
                   <SectionLabel>خدمات کسب‌وکار</SectionLabel>
                   {serviceNames.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {serviceNames.map((serviceName) => {
                         const operationalService = ws.services.find((service) => service.name === serviceName)
                         return (
-                          <span key={serviceName} className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-black/[0.07] bg-zinc-50 px-3 text-xs font-semibold text-zinc-700">
+                          <span key={serviceName} className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-black/[0.07] bg-[var(--bg-surface)] px-3 text-xs font-semibold text-[var(--text-secondary)]">
                             {serviceName}
                             {operationalService && (
-                              <span className="text-[12px] font-normal text-zinc-400">
+                              <span className="text-[12px] font-normal text-[var(--text-muted)]">
                                 {fa(operationalService.durationMinutes)} دقیقه{operationalService.location ? ` · ${operationalService.location}` : ''}{!operationalService.active ? ' · غیرفعال' : ''}
                               </span>
                             )}
@@ -800,7 +793,7 @@ export default async function AdminUserDetailPage(
                       })}
                     </div>
                   ) : (
-                    <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-5 text-center text-xs text-zinc-400">هنوز خدمتی برای این کسب‌وکار ثبت نشده است</p>
+                    <p className="rounded-xl border border-dashed border-[var(--border-default)] px-4 py-5 text-center text-xs text-[var(--text-muted)]">هنوز خدمتی برای این کسب‌وکار ثبت نشده است</p>
                   )}
                 </div>
               </Panel>
@@ -845,11 +838,11 @@ export default async function AdminUserDetailPage(
                     icon={<Cable className="h-4 w-4" />}
                   />
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[12px] sm:grid-cols-4">
-                  <Link href={conversationsListHref} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">گفتگوهای این کاربر</Link>
-                  <Link href={tabHref('channels')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">کانال‌های فعال</Link>
-                  <Link href={tabHref('knowledge')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">دانش‌نامه‌ها</Link>
-                  <Link href={tabHref('orders')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black">سفارش‌های فروشگاه</Link>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-[12px] sm:grid-cols-4">
+                  <Link href={conversationsListHref} className="admin-toolbar-button min-h-11 px-2">گفتگوهای این کاربر</Link>
+                  <Link href={tabHref('channels')} className="admin-toolbar-button min-h-11 px-2">کانال‌های فعال</Link>
+                  <Link href={tabHref('knowledge')} className="admin-toolbar-button min-h-11 px-2">دانش‌نامه‌ها</Link>
+                  <Link href={tabHref('orders')} className="admin-toolbar-button min-h-11 px-2">سفارش‌های فروشگاه</Link>
                 </div>
               </Panel>
 
@@ -862,7 +855,7 @@ export default async function AdminUserDetailPage(
                 <div className="grid gap-6 xl:grid-cols-2 xl:gap-8">
                   <div>
                     <SectionLabel>وضعیت افزونه</SectionLabel>
-                    <div className="divide-y divide-zinc-100">
+                    <div className="divide-y divide-[var(--border-subtle)]">
                       <KV label="وضعیت اتصال">
                         <Badge tone={storeIntegration.active ? 'success' : 'muted'}>
                           {storeIntegration.active ? 'فعال' : 'غیرفعال'}
@@ -880,7 +873,7 @@ export default async function AdminUserDetailPage(
                           target="_blank"
                           rel="noopener noreferrer"
                           dir="ltr"
-                          className="block max-w-[260px] truncate text-blue-600 hover:underline"
+                          className="ui-link block max-w-[260px] truncate"
                           title={storeIntegration.storeUrl}
                         >
                           {storeIntegration.storeUrl}
@@ -893,17 +886,17 @@ export default async function AdminUserDetailPage(
                   </div>
                   <div>
                     <SectionLabel>آخرین فعالیت‌ها</SectionLabel>
-                    <div className="divide-y divide-zinc-100">
+                    <div className="divide-y divide-[var(--border-subtle)]">
                       <KV label="اتصال اولیه">{storeIntegration.connectedAt ? fmtDate(storeIntegration.connectedAt) : '—'}</KV>
-                      <KV label="آخرین webhook">{storeIntegration.lastWebhookAt ? fmtDate(storeIntegration.lastWebhookAt) : <span className="text-zinc-400">—</span>}</KV>
-                      <KV label="آخرین همگام‌سازی">{storeIntegration.lastSyncAt ? fmtDate(storeIntegration.lastSyncAt) : <span className="text-zinc-400">—</span>}</KV>
+                      <KV label="آخرین webhook">{storeIntegration.lastWebhookAt ? fmtDate(storeIntegration.lastWebhookAt) : <span className="text-[var(--text-muted)]">—</span>}</KV>
+                      <KV label="آخرین همگام‌سازی">{storeIntegration.lastSyncAt ? fmtDate(storeIntegration.lastSyncAt) : <span className="text-[var(--text-muted)]">—</span>}</KV>
                       <KV label="نتیجه همگام‌سازی">
                         {storeIntegration.lastSyncStatus === 'ok' ? (
                           <Badge tone="success">موفق</Badge>
                         ) : storeIntegration.lastSyncStatus === 'error' ? (
                           <Badge tone="danger">خطا</Badge>
                         ) : (
-                          <span className="text-zinc-400">—</span>
+                          <span className="text-[var(--text-muted)]">—</span>
                         )}
                       </KV>
                       <KV label="بازه همگام‌سازی">{storeIntegration.pollIntervalMinutes === 0 ? 'فقط webhook' : `${fa(storeIntegration.pollIntervalMinutes)} دقیقه`}</KV>
@@ -916,18 +909,18 @@ export default async function AdminUserDetailPage(
                     <p dir="ltr" className="mt-1 break-words text-left text-[12px] leading-5 text-red-700">{storeIntegration.lastSyncError}</p>
                   </div>
                 )}
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-black/[0.06] bg-black/[0.018] p-3 text-[12px] sm:grid-cols-3">
-                  <Link href={tabHref('products')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black"><Package className="h-3.5 w-3.5" /> محصولات فروشگاه</Link>
-                  <Link href={tabHref('orders')} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-700 transition-colors hover:text-black"><ShoppingCart className="h-3.5 w-3.5" /> سفارش‌های همگام‌شده</Link>
-                  <span className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-2 font-bold text-zinc-500"><Webhook className="h-3.5 w-3.5" /> آخرین push: {storeIntegration.lastWebhookAt ? relativeTime(storeIntegration.lastWebhookAt) : '—'}</span>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-[12px] sm:grid-cols-3">
+                  <Link href={tabHref('products')} className="admin-toolbar-button min-h-11 px-2"><Package className="h-3.5 w-3.5" /> محصولات فروشگاه</Link>
+                  <Link href={tabHref('orders')} className="admin-toolbar-button min-h-11 px-2"><ShoppingCart className="h-3.5 w-3.5" /> سفارش‌های همگام‌شده</Link>
+                  <span className="flex min-h-11 items-center justify-center gap-1.5 rounded-control bg-[var(--bg-surface)] px-2 text-[var(--text-muted)]"><Webhook className="h-3.5 w-3.5" /> آخرین push: {storeIntegration.lastWebhookAt ? relativeTime(storeIntegration.lastWebhookAt) : '—'}</span>
                 </div>
               </Panel>
               ) : (
               <Panel title="فروشگاه و افزونه وردپرس" subtitle="وضعیت اتصال افزونه نصب‌شده روی سایت کاربر">
-                <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-zinc-100 text-zinc-400"><PlugZap className="h-5 w-5" /></span>
-                  <p className="text-sm font-semibold text-zinc-600">افزونه‌ای نصب نشده است</p>
-                  <p className="text-[12px] text-zinc-400">این کاربر هنوز فروشگاه ووکامرسی به ویجنت متصل نکرده است.</p>
+                <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border-default)] py-8 text-center">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)]"><PlugZap className="h-5 w-5" /></span>
+                  <p className="text-sm font-semibold text-[var(--text-secondary)]">افزونه‌ای نصب نشده است</p>
+                  <p className="text-[12px] text-[var(--text-muted)]">این کاربر هنوز فروشگاه ووکامرسی به ویجنت متصل نکرده است.</p>
                 </div>
               </Panel>
               )}
@@ -970,20 +963,20 @@ export default async function AdminUserDetailPage(
                         <Link
                           key={item.id}
                           href={`/admin/conversations/${item.id}`}
-                          className={cn('rounded-2xl border p-3.5 transition-colors active:bg-zinc-50', item.attention ? 'border-amber-200 bg-amber-50/40' : 'border-black/[0.07] bg-white hover:border-black/15')}
+                          className={cn('rounded-2xl border p-3.5 transition-colors active:bg-[var(--bg-surface)]', item.attention ? 'border-amber-200 bg-amber-50/40' : 'border-black/[0.07] bg-white hover:border-black/15')}
                         >
                           <div className="flex items-start gap-3">
                             <ContactAvatar src={item.avatarSrc} alt={item.who} size="sm" />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-2">
-                                <span dir="auto" className="truncate text-sm font-bold text-zinc-950">{item.who}</span>
-                                <span className="shrink-0 text-[12px] text-zinc-400">{relativeTime(item.when, 'fa')}</span>
+                                <span dir="auto" className="truncate text-sm font-bold text-[var(--text-primary)]">{item.who}</span>
+                                <span className="shrink-0 text-[12px] text-[var(--text-muted)]">{relativeTime(item.when, 'fa')}</span>
                               </div>
-                              <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">{item.preview}</p>
+                              <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-[var(--text-muted)] [overflow-wrap:anywhere]">{item.preview}</p>
                               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                                 <ConversationStatusBadge status={item.displayStatus} label={item.statusLabel} attention={item.attention} />
                                 <ChannelBadge type={item.channel} />
-                                <span className="text-[12px] text-zinc-400">{fa(item.messageCount)} پیام · {item.agentName}</span>
+                                <span className="text-[12px] text-[var(--text-muted)]">{fa(item.messageCount)} پیام · {item.agentName}</span>
                               </div>
                             </div>
                           </div>
@@ -991,23 +984,23 @@ export default async function AdminUserDetailPage(
                       ))}
                     </div>
                     {/* desktop inbox rows */}
-                    <div className="hidden divide-y divide-zinc-100 md:block">
+                    <div className="hidden divide-y divide-[var(--border-subtle)] md:block">
                       {inboxItems.map((item) => (
                         <Link
                           key={item.id}
                           href={`/admin/conversations/${item.id}`}
-                          className={cn('grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-zinc-50', item.attention && 'bg-amber-50/50')}
+                          className={cn('grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-[var(--bg-surface)]', item.attention && 'bg-amber-50/50')}
                         >
                           <ContactAvatar src={item.avatarSrc} alt={item.who} size="sm" />
                           <div className="min-w-0">
                             <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                              <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-zinc-800">{item.who}</span>
-                              {item.handle && item.who !== item.handle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-zinc-100 px-1.5 py-0.5 text-[12px] text-zinc-500">@{item.handle}</span>}
-                              <span className="hidden shrink-0 text-[12px] text-zinc-400 lg:inline">ایجنت: {item.agentName}</span>
+                              <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">{item.who}</span>
+                              {item.handle && item.who !== item.handle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-muted)] px-1.5 py-0.5 text-[12px] text-[var(--text-muted)]">@{item.handle}</span>}
+                              <span className="hidden shrink-0 text-[12px] text-[var(--text-muted)] lg:inline">ایجنت: {item.agentName}</span>
                             </div>
-                            <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-zinc-500 [overflow-wrap:anywhere]">{item.preview}</p>
+                            <p dir="rtl" className="mt-1 truncate text-xs leading-5 text-[var(--text-muted)] [overflow-wrap:anywhere]">{item.preview}</p>
                           </div>
-                          <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[12px] leading-5 text-zinc-500">
+                          <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[12px] leading-5 text-[var(--text-muted)]">
                             <ConversationStatusBadge status={item.displayStatus} label={item.statusLabel} attention={item.attention} />
                             <ChannelBadge type={item.channel} />
                             <span className="tabular-nums">{fa(item.messageCount)} پیام</span>
@@ -1017,7 +1010,7 @@ export default async function AdminUserDetailPage(
                       ))}
                     </div>
                     {ws._count.conversations > inboxItems.length && (
-                      <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[12px] text-zinc-400">{fa(inboxItems.length)} گفتگوی آخر — <Link href={conversationsListHref} className="font-bold text-zinc-600 underline">مشاهده همه</Link></p>
+                      <p className="mt-3 border-t border-[var(--border-subtle)] pt-3 text-center text-[12px] text-[var(--text-muted)]">{fa(inboxItems.length)} گفتگوی آخر — <Link href={conversationsListHref} className="ui-link">مشاهده همه</Link></p>
                     )}
                   </>
                 )}
@@ -1033,19 +1026,19 @@ export default async function AdminUserDetailPage(
                     {journeySignals.lastLogin ? 'ورودهای قدیمی‌تر از زمان فعال‌شدن گزارش ثبت نشده' : 'ورودی برای این کاربر ثبت نشده'}
                   </EmptyState>
                 ) : (
-                  <ul className="divide-y divide-zinc-100">
+                  <ul className="divide-y divide-[var(--border-subtle)]">
                     {overviewLogins.map((e) => (
                       <li key={e.id} className="flex flex-wrap items-center gap-3 py-3">
-                        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', e.isNewUser ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-500')}>
+                        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', e.isNewUser ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]')}>
                           {e.isNewUser ? <UserRoundCheck className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
                         </span>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-zinc-800">{e.isNewUser ? 'ثبت‌نام و اولین ورود' : 'ورود موفق به پنل'}</p>
-                          <p className="mt-0.5 text-[12px] text-zinc-500">{describeDevice(e.userAgent)}</p>
+                          <p className="text-xs font-bold text-[var(--text-primary)]">{e.isNewUser ? 'ثبت‌نام و اولین ورود' : 'ورود موفق به پنل'}</p>
+                          <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{describeDevice(e.userAgent)}</p>
                         </div>
                         <div className="ms-auto text-end">
-                          <p className="text-[12px] font-medium text-zinc-600">{fmtDate(e.createdAt)}</p>
-                          <p className="mt-0.5 text-[12px] text-zinc-400">
+                          <p className="text-[12px] font-medium text-[var(--text-secondary)]">{fmtDate(e.createdAt)}</p>
+                          <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
                             {e.ip ? <span dir="ltr" className="font-mono">{e.ip}</span> : 'بدون IP'} · {relativeTime(e.createdAt, 'fa')}
                           </p>
                         </div>
@@ -1054,7 +1047,7 @@ export default async function AdminUserDetailPage(
                   </ul>
                 )}
                 {loginCount > overviewLogins.length && (
-                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[12px] text-zinc-400">{fa(overviewLogins.length)} ورود از {fa(loginCount)} — ۱۲ مورد آخر</p>
+                  <p className="mt-3 border-t border-[var(--border-subtle)] pt-3 text-center text-[12px] text-[var(--text-muted)]">{fa(overviewLogins.length)} ورود از {fa(loginCount)} — ۱۲ مورد آخر</p>
                 )}
               </Panel>
 
@@ -1069,7 +1062,7 @@ export default async function AdminUserDetailPage(
                     پرداختی ثبت نشده
                   </EmptyState>
                 ) : (
-                  <ul className="divide-y divide-zinc-100">
+                  <ul className="divide-y divide-[var(--border-subtle)]">
                     {overviewPayments.map((p) => {
                       const st = PAY_STATUS[p.status] ?? { label: p.status, tone: 'muted' as BadgeTone }
                       const pl = p.kind === 'AI_CREDIT' || !p.plan
@@ -1083,11 +1076,11 @@ export default async function AdminUserDetailPage(
                         >
                           <Badge tone="default">{GATEWAY_LABEL[p.gateway] ?? p.gateway}</Badge>
                           <Badge tone={pl.tone}>{pl.label}</Badge>
-                          <span dir="ltr" className="font-mono text-xs text-zinc-800">
+                          <span dir="ltr" className="font-mono text-xs text-[var(--text-primary)]">
                             {amount}
                           </span>
                           <Badge tone={st.tone}>{st.label}</Badge>
-                          <span className="ms-auto text-xs text-zinc-500">{fmtDate(p.createdAt)}</span>
+                          <span className="ms-auto text-xs text-[var(--text-muted)]">{fmtDate(p.createdAt)}</span>
                         </li>
                       )
                     })}
@@ -1105,7 +1098,7 @@ export default async function AdminUserDetailPage(
                     پیامکی برای این شماره ارسال نشده
                   </EmptyState>
                 ) : (
-                  <ul className="divide-y divide-zinc-100">
+                  <ul className="divide-y divide-[var(--border-subtle)]">
                     {overviewSms.map((s) => {
                       const kind = SMS_KIND_LABEL[s.kind] ?? { label: s.kind, tone: 'muted' as BadgeTone }
                       const sent = s.status === 'SENT'
@@ -1116,15 +1109,15 @@ export default async function AdminUserDetailPage(
                           </span>
                           <Badge tone={kind.tone}>{kind.label}</Badge>
                           <Badge tone={sent ? 'success' : 'danger'}>{sent ? 'ارسال‌شده' : 'ناموفق'}</Badge>
-                          {s.ip && <span dir="ltr" className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[12px] text-zinc-500">{s.ip}</span>}
-                          <span className="ms-auto text-xs text-zinc-500">{fmtDate(s.createdAt)} · {relativeTime(s.createdAt, 'fa')}</span>
+                          {s.ip && <span dir="ltr" className="rounded-md bg-[var(--bg-muted)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--text-muted)]">{s.ip}</span>}
+                          <span className="ms-auto text-xs text-[var(--text-muted)]">{fmtDate(s.createdAt)} · {relativeTime(s.createdAt, 'fa')}</span>
                         </li>
                       )
                     })}
                   </ul>
                 )}
                 {smsCount > overviewSms.length && (
-                  <p className="mt-3 border-t border-zinc-100 pt-3 text-center text-[12px] text-zinc-400">{fa(overviewSms.length)} پیامک از {fa(smsCount)} — ۱۲ مورد آخر</p>
+                  <p className="mt-3 border-t border-[var(--border-subtle)] pt-3 text-center text-[12px] text-[var(--text-muted)]">{fa(overviewSms.length)} پیامک از {fa(smsCount)} — ۱۲ مورد آخر</p>
                 )}
               </Panel>
             </div>
@@ -1133,7 +1126,7 @@ export default async function AdminUserDetailPage(
             <div className="space-y-5">
               {/* Activity summary */}
               <Panel title="خلاصه فعالیت">
-                <div className="divide-y divide-zinc-100">
+                <div className="divide-y divide-[var(--border-subtle)]">
                   <KV label="کل مکالمات">{fa(ws._count.conversations)}</KV>
                   <KV label="کل مشتریان">{fa(contactStats.total)}</KV>
                   <KV label="کل سفارش‌ها">{fa(orderStats.total)}</KV>
@@ -1153,7 +1146,7 @@ export default async function AdminUserDetailPage(
                 <div className="mb-4">
                   <Badge tone={plan.tone}>{plan.label}</Badge>
                 </div>
-                <div className="divide-y divide-zinc-100">
+                <div className="divide-y divide-[var(--border-subtle)]">
                   <KV label="قیمت ماهانه (تومان)">
                     {planDef.priceIRR > 0 ? fmtIRR(planDef.priceIRR) : 'رایگان'}
                   </KV>
@@ -1170,28 +1163,28 @@ export default async function AdminUserDetailPage(
                 <nav className="flex flex-col gap-1">
                   <Link
                     href={conversationsListHref}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
                   >
                     <MessageSquare className="h-4 w-4" />
                     گفتگوهای این کاربر
                   </Link>
                   <Link
                     href={tabHref('channels')}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
                   >
                     <Cable className="h-4 w-4" />
                     کانال‌های این کاربر
                   </Link>
                   <Link
                     href={tabHref('orders')}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
                   >
                     <ShoppingCart className="h-4 w-4" />
                     سفارش‌های این کاربر
                   </Link>
                   <Link
                     href="/admin/payments"
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
                   >
                     <CreditCard className="h-4 w-4" />
                     مشاهده پرداخت‌ها
@@ -1219,24 +1212,24 @@ export default async function AdminUserDetailPage(
             <>
               <div className="grid gap-3 md:hidden">
                 {channelsTab.rows.map((ch) => (
-                  <article key={ch.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+                  <article key={ch.id} className="admin-record">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-zinc-950">{CHANNEL_LABEL[ch.type] ?? ch.type}</p>
-                        <p className="mt-1 truncate text-xs text-zinc-500">ایجنت: {ch.agent.name}</p>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">{CHANNEL_LABEL[ch.type] ?? ch.type}</p>
+                        <p className="mt-1 truncate text-xs text-[var(--text-muted)]">ایجنت: {ch.agent.name}</p>
                       </div>
                       <Badge tone={ch.active ? 'success' : 'muted'}>{ch.active ? 'فعال' : 'غیرفعال'}</Badge>
                     </div>
-                    <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                      <div><dt className="text-zinc-400">آخرین پیام دریافتی</dt><dd className="mt-1 font-medium text-zinc-700">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</dd></div>
-                      <div><dt className="text-zinc-400">تاریخ اتصال</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDate(ch.createdAt)}</dd></div>
+                    <dl className="admin-record-facts">
+                      <div><dt className="text-[var(--text-muted)]">آخرین پیام دریافتی</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</dd></div>
+                      <div><dt className="text-[var(--text-muted)]">تاریخ اتصال</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{fmtDate(ch.createdAt)}</dd></div>
                     </dl>
                   </article>
                 ))}
               </div>
               <div className="hidden md:block">
                 <TableShell>
-                  <thead className="border-b border-zinc-200 bg-zinc-50/60">
+                  <thead>
                     <tr>
                       <Th>کانال</Th>
                       <Th>ایجنت</Th>
@@ -1245,14 +1238,14 @@ export default async function AdminUserDetailPage(
                       <Th>تاریخ اتصال</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody>
                     {channelsTab.rows.map((ch) => (
-                      <tr key={ch.id} className="transition-colors hover:bg-zinc-50/60">
+                      <tr key={ch.id}>
                         <Td><Badge tone="muted">{CHANNEL_LABEL[ch.type] ?? ch.type}</Badge></Td>
-                        <Td className="text-zinc-600">{ch.agent.name}</Td>
+                        <Td className="text-[var(--text-secondary)]">{ch.agent.name}</Td>
                         <Td><Badge tone={ch.active ? 'success' : 'muted'}>{ch.active ? 'فعال' : 'غیرفعال'}</Badge></Td>
-                        <Td className="text-zinc-500">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</Td>
-                        <Td className="text-zinc-500">{fmtDate(ch.createdAt)}</Td>
+                        <Td className="text-[var(--text-muted)]">{ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : '—'}</Td>
+                        <Td className="text-[var(--text-muted)]">{fmtDate(ch.createdAt)}</Td>
                       </tr>
                     ))}
                   </tbody>
@@ -1283,18 +1276,18 @@ export default async function AdminUserDetailPage(
                 {knowledgeTab.rows.map((kb) => {
                   const st = KB_STATUS[kb.status] ?? { label: kb.status, tone: 'muted' as BadgeTone }
                   return (
-                    <article key={kb.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+                    <article key={kb.id} className="admin-record">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-zinc-950">{kb.name}</p>
-                          <p className="mt-1 truncate text-xs text-zinc-500">ایجنت: {kb.agent.name}</p>
+                          <p className="truncate text-sm font-bold text-[var(--text-primary)]">{kb.name}</p>
+                          <p className="mt-1 truncate text-xs text-[var(--text-muted)]">ایجنت: {kb.agent.name}</p>
                         </div>
                         <Badge tone={st.tone}>{st.label}</Badge>
                       </div>
-                      <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                        <div><dt className="text-zinc-400">نوع</dt><dd className="mt-1 font-medium text-zinc-700">{KB_TYPE_LABEL[kb.type] ?? kb.type}</dd></div>
-                        <div><dt className="text-zinc-400">قطعه‌ها</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{fa(kb.chunkCount)}</dd></div>
-                        <div className="col-span-2"><dt className="text-zinc-400">آخرین به‌روزرسانی</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDate(kb.lastIngestedAt ?? kb.createdAt)}</dd></div>
+                      <dl className="admin-record-facts">
+                        <div><dt className="text-[var(--text-muted)]">نوع</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{KB_TYPE_LABEL[kb.type] ?? kb.type}</dd></div>
+                        <div><dt className="text-[var(--text-muted)]">قطعه‌ها</dt><dd className="mt-1 font-bold tabular-nums text-[var(--text-primary)]">{fa(kb.chunkCount)}</dd></div>
+                        <div className="col-span-2"><dt className="text-[var(--text-muted)]">آخرین به‌روزرسانی</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{fmtDate(kb.lastIngestedAt ?? kb.createdAt)}</dd></div>
                       </dl>
                     </article>
                   )
@@ -1302,7 +1295,7 @@ export default async function AdminUserDetailPage(
               </div>
               <div className="hidden md:block">
                 <TableShell>
-                  <thead className="border-b border-zinc-200 bg-zinc-50/60">
+                  <thead>
                     <tr>
                       <Th>منبع دانش</Th>
                       <Th>نوع</Th>
@@ -1312,17 +1305,17 @@ export default async function AdminUserDetailPage(
                       <Th>آخرین به‌روزرسانی</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody>
                     {knowledgeTab.rows.map((kb) => {
                       const st = KB_STATUS[kb.status] ?? { label: kb.status, tone: 'muted' as BadgeTone }
                       return (
-                        <tr key={kb.id} className="transition-colors hover:bg-zinc-50/60">
-                          <Td className="font-medium text-zinc-800">{kb.name}</Td>
+                        <tr key={kb.id}>
+                          <Td className="font-medium text-[var(--text-primary)]">{kb.name}</Td>
                           <Td><Badge tone="muted">{KB_TYPE_LABEL[kb.type] ?? kb.type}</Badge></Td>
-                          <Td className="text-zinc-600">{kb.agent.name}</Td>
+                          <Td className="text-[var(--text-secondary)]">{kb.agent.name}</Td>
                           <Td><Badge tone={st.tone}>{st.label}</Badge></Td>
-                          <Td className="tabular-nums text-zinc-600">{fa(kb.chunkCount)}</Td>
-                          <Td className="text-zinc-500">{fmtDate(kb.lastIngestedAt ?? kb.createdAt)}</Td>
+                          <Td className="tabular-nums text-[var(--text-secondary)]">{fa(kb.chunkCount)}</Td>
+                          <Td className="text-[var(--text-muted)]">{fmtDate(kb.lastIngestedAt ?? kb.createdAt)}</Td>
                         </tr>
                       )
                     })}
@@ -1350,25 +1343,25 @@ export default async function AdminUserDetailPage(
             <>
               <div className="grid gap-3 md:hidden">
                 {productsTab.rows.map((p) => (
-                  <article key={p.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+                  <article key={p.id} className="admin-record">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-zinc-950">{p.name}</p>
-                        {p.category && <p className="mt-1 truncate text-xs text-zinc-500">{p.category.name}</p>}
+                        <p className="truncate text-sm font-bold text-[var(--text-primary)]">{p.name}</p>
+                        {p.category && <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{p.category.name}</p>}
                       </div>
                       <Badge tone={p.active ? 'success' : 'muted'}>{p.active ? 'فعال' : 'غیرفعال'}</Badge>
                     </div>
-                    <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                      <div><dt className="text-zinc-400">قیمت</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{p.price != null ? fmtStoreMoney(p.price, 'IRT') : '—'}</dd></div>
-                      <div><dt className="text-zinc-400">موجودی</dt><dd className="mt-1 font-medium text-zinc-700">{p.stock == null ? 'نامحدود' : fa(p.stock)}</dd></div>
-                      <div className="col-span-2"><dt className="text-zinc-400">دفعات نمایش توسط AI</dt><dd className="mt-1 font-medium text-zinc-700">{fa(p.queryCount)}</dd></div>
+                    <dl className="admin-record-facts">
+                      <div><dt className="text-[var(--text-muted)]">قیمت</dt><dd className="mt-1 font-bold tabular-nums text-[var(--text-primary)]">{p.price != null ? fmtStoreMoney(p.price, 'IRT') : '—'}</dd></div>
+                      <div><dt className="text-[var(--text-muted)]">موجودی</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{p.stock == null ? 'نامحدود' : fa(p.stock)}</dd></div>
+                      <div className="col-span-2"><dt className="text-[var(--text-muted)]">دفعات نمایش توسط AI</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{fa(p.queryCount)}</dd></div>
                     </dl>
                   </article>
                 ))}
               </div>
               <div className="hidden md:block">
                 <TableShell>
-                  <thead className="border-b border-zinc-200 bg-zinc-50/60">
+                  <thead>
                     <tr>
                       <Th>محصول</Th>
                       <Th>دسته</Th>
@@ -1378,16 +1371,16 @@ export default async function AdminUserDetailPage(
                       <Th>وضعیت</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody>
                     {productsTab.rows.map((p) => (
-                      <tr key={p.id} className="transition-colors hover:bg-zinc-50/60">
-                        <Td className="max-w-[280px] truncate font-medium text-zinc-800">{p.name}</Td>
-                        <Td className="text-zinc-500">{p.category?.name ?? '—'}</Td>
-                        <Td className="tabular-nums text-zinc-700">{p.price != null ? fa(p.price) : '—'}</Td>
-                        <Td className="text-zinc-600">
-                          {p.stock == null ? <span className="text-zinc-400">نامحدود</span> : <span className={p.stock === 0 ? 'font-bold text-red-600' : ''}>{fa(p.stock)}</span>}
+                      <tr key={p.id}>
+                        <Td className="max-w-[280px] truncate font-medium text-[var(--text-primary)]">{p.name}</Td>
+                        <Td className="text-[var(--text-muted)]">{p.category?.name ?? '—'}</Td>
+                        <Td className="tabular-nums text-[var(--text-secondary)]">{p.price != null ? fa(p.price) : '—'}</Td>
+                        <Td className="text-[var(--text-secondary)]">
+                          {p.stock == null ? <span className="text-[var(--text-muted)]">نامحدود</span> : <span className={p.stock === 0 ? 'font-bold text-red-600' : ''}>{fa(p.stock)}</span>}
                         </Td>
-                        <Td className="tabular-nums text-zinc-600">{fa(p.queryCount)}</Td>
+                        <Td className="tabular-nums text-[var(--text-secondary)]">{fa(p.queryCount)}</Td>
                         <Td><Badge tone={p.active ? 'success' : 'muted'}>{p.active ? 'فعال' : 'غیرفعال'}</Badge></Td>
                       </tr>
                     ))}
@@ -1395,7 +1388,7 @@ export default async function AdminUserDetailPage(
                 </TableShell>
               </div>
               {productsTab.total > productsTab.rows.length && (
-                <p className="text-center text-[12px] text-zinc-400">{fa(productsTab.rows.length)} محصول از {fa(productsTab.total)} — ۳۰ مورد آخر</p>
+                <p className="text-center text-[12px] text-[var(--text-muted)]">{fa(productsTab.rows.length)} محصول از {fa(productsTab.total)} — ۳۰ مورد آخر</p>
               )}
             </>
           )}
@@ -1420,19 +1413,19 @@ export default async function AdminUserDetailPage(
                 {ordersTab.rows.map((o) => {
                   const st = ORDER_STATUS[o.status] ?? { label: o.status, tone: 'muted' as BadgeTone }
                   return (
-                    <article key={o.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+                    <article key={o.id} className="admin-record">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-zinc-950">سفارش #{o.externalOrderId}</p>
-                          <p className="mt-1 truncate text-xs text-zinc-500">{o.customerName || displayPhone(o.customerPhone) || 'مشتری ناشناس'}</p>
+                          <p className="truncate text-sm font-bold text-[var(--text-primary)]">سفارش #{o.externalOrderId}</p>
+                          <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{o.customerName || displayPhone(o.customerPhone) || 'مشتری ناشناس'}</p>
                         </div>
                         <Badge tone={st.tone}>{st.label}</Badge>
                       </div>
-                      {o.itemsSummary && <p className="mt-2 line-clamp-2 rounded-xl bg-zinc-50 p-3 text-[12px] leading-5 text-zinc-600">{o.itemsSummary}</p>}
-                      <dl className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                        <div><dt className="text-zinc-400">مبلغ</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{fmtStoreMoney(o.total, o.currency)}</dd></div>
-                        <div><dt className="text-zinc-400">اقلام</dt><dd className="mt-1 font-medium text-zinc-700">{fa(o.itemCount)}</dd></div>
-                        <div className="col-span-2"><dt className="text-zinc-400">تاریخ سفارش</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDate(o.orderDate ?? o.createdAt)}</dd></div>
+                      {o.itemsSummary && <p className="mt-2 line-clamp-2 rounded-xl bg-[var(--bg-surface)] p-3 text-[12px] leading-5 text-[var(--text-secondary)]">{o.itemsSummary}</p>}
+                      <dl className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-[var(--bg-surface)] p-3 text-xs">
+                        <div><dt className="text-[var(--text-muted)]">مبلغ</dt><dd className="mt-1 font-bold tabular-nums text-[var(--text-primary)]">{fmtStoreMoney(o.total, o.currency)}</dd></div>
+                        <div><dt className="text-[var(--text-muted)]">اقلام</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{fa(o.itemCount)}</dd></div>
+                        <div className="col-span-2"><dt className="text-[var(--text-muted)]">تاریخ سفارش</dt><dd className="mt-1 font-medium text-[var(--text-secondary)]">{fmtDate(o.orderDate ?? o.createdAt)}</dd></div>
                       </dl>
                     </article>
                   )
@@ -1440,7 +1433,7 @@ export default async function AdminUserDetailPage(
               </div>
               <div className="hidden md:block">
                 <TableShell>
-                  <thead className="border-b border-zinc-200 bg-zinc-50/60">
+                  <thead>
                     <tr>
                       <Th>سفارش</Th>
                       <Th>مشتری</Th>
@@ -1450,17 +1443,17 @@ export default async function AdminUserDetailPage(
                       <Th>تاریخ</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody>
                     {ordersTab.rows.map((o) => {
                       const st = ORDER_STATUS[o.status] ?? { label: o.status, tone: 'muted' as BadgeTone }
                       return (
-                        <tr key={o.id} className="transition-colors hover:bg-zinc-50/60">
-                          <Td className="font-mono text-zinc-800"><span dir="ltr">#{o.externalOrderId}</span></Td>
-                          <Td className="max-w-[200px] truncate text-zinc-600">{o.customerName || displayPhone(o.customerPhone) || 'مشتری ناشناس'}</Td>
-                          <Td className="max-w-[300px] truncate text-zinc-500">{o.itemsSummary ?? '—'}</Td>
-                          <Td className="tabular-nums font-semibold text-zinc-800">{fmtStoreMoney(o.total, o.currency)}</Td>
+                        <tr key={o.id}>
+                          <Td className="font-mono text-[var(--text-primary)]"><span dir="ltr">#{o.externalOrderId}</span></Td>
+                          <Td className="max-w-[200px] truncate text-[var(--text-secondary)]">{o.customerName || displayPhone(o.customerPhone) || 'مشتری ناشناس'}</Td>
+                          <Td className="max-w-[300px] truncate text-[var(--text-muted)]">{o.itemsSummary ?? '—'}</Td>
+                          <Td className="tabular-nums font-semibold text-[var(--text-primary)]">{fmtStoreMoney(o.total, o.currency)}</Td>
                           <Td><Badge tone={st.tone}>{st.label}</Badge></Td>
-                          <Td className="text-zinc-500">{fmtDate(o.orderDate ?? o.createdAt)}</Td>
+                          <Td className="text-[var(--text-muted)]">{fmtDate(o.orderDate ?? o.createdAt)}</Td>
                         </tr>
                       )
                     })}
@@ -1468,7 +1461,7 @@ export default async function AdminUserDetailPage(
                 </TableShell>
               </div>
               {orderStats.total > ordersTab.rows.length && (
-                <p className="text-center text-[12px] text-zinc-400">{fa(ordersTab.rows.length)} سفارش از {fa(orderStats.total)} — ۳۰ مورد آخر</p>
+                <p className="text-center text-[12px] text-[var(--text-muted)]">{fa(ordersTab.rows.length)} سفارش از {fa(orderStats.total)} — ۳۰ مورد آخر</p>
               )}
             </>
           )}

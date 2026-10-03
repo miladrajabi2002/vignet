@@ -32,15 +32,13 @@ export function PageHeaderSkeleton({ action = true }: { action?: boolean }) {
 /** Mirrors StatCard: label + big value + sub + tone icon + sparkline strip. */
 export function StatCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="admin-card spatial-surface min-h-[8.25rem] rounded-card p-4 sm:p-6">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0 flex-1">
-          <Skeleton delay={delay} className="h-3.5 w-24 rounded-md" />
-          <Skeleton delay={delay} className="mt-2.5 h-7 w-32 max-w-full rounded-lg" />
-          <Skeleton delay={delay} className="mt-2 h-3 w-28 max-w-full rounded-md" />
-        </div>
-        <Skeleton delay={delay} className="h-9 w-9 shrink-0 rounded-xl" />
+    <div className="admin-card spatial-surface min-h-[7.25rem] rounded-card p-3.5 sm:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <Skeleton delay={delay} className="mt-1 h-3.5 w-24 max-w-[60%] rounded-md" />
+        <Skeleton delay={delay} className="h-8 w-8 shrink-0 rounded-chip sm:h-9 sm:w-9" />
       </div>
+      <Skeleton delay={delay} className="mt-2 h-7 w-32 max-w-full rounded-lg" />
+      <Skeleton delay={delay} className="mt-2 h-3 w-28 max-w-full rounded-md" />
       <Skeleton delay={delay} className="mt-3 h-8 w-full rounded-lg" />
     </div>
   )
@@ -111,22 +109,22 @@ export function TableSkeleton({
   minWidth?: number
 }) {
   return (
-    <div className="admin-table-shell spatial-surface overflow-x-auto rounded-card [scrollbar-width:thin]">
+    <div className="admin-table-shell admin-scroll spatial-surface overflow-x-auto rounded-card">
       <table className="w-full" style={{ minWidth }}>
-        <thead className="border-b border-zinc-200 bg-zinc-50/70">
+        <thead>
           <tr>
             {Array.from({ length: cols }).map((_, index) => (
-              <th key={index} className="px-4 py-3.5">
+              <th key={index} className="px-4 py-3">
                 <Skeleton delay={delay} className="h-3 w-20 max-w-full rounded-md" />
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100">
+        <tbody>
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className="transition-colors hover:bg-zinc-50">
+            <tr key={rowIndex}>
               {Array.from({ length: cols }).map((_, colIndex) => (
-                <td key={colIndex} className="px-4 py-3.5">
+                <td key={colIndex} className="px-4 py-3">
                   <Skeleton
                     delay={delay - rowIndex * 60}
                     className={cn(
@@ -147,8 +145,8 @@ export function TableSkeleton({
 /** Mirrors the agent cards grid on /admin/agents. */
 export function AgentCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="admin-card spatial-surface group relative overflow-hidden rounded-card transition-[border-color,box-shadow]">
-      <div className="relative space-y-4 p-5">
+    <div className="admin-card spatial-surface rounded-card">
+      <div className="space-y-4 p-4 sm:p-6">
         <div className="flex items-center gap-3">
           <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
           <div className="min-w-0 flex-1 space-y-2">
@@ -159,7 +157,7 @@ export function AgentCardSkeleton({ delay = 0 }: { delay?: number }) {
             <Skeleton delay={delay} className="h-3 w-40 max-w-full rounded-md" />
           </div>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-x-reverse divide-zinc-100 rounded-2xl border border-zinc-100 bg-zinc-50/70 py-3 text-center">
+        <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[var(--border-subtle)] rounded-control bg-[var(--bg-surface)] py-3 text-center">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="space-y-2 px-2">
               <Skeleton delay={delay - index * 60} className="mx-auto h-3 w-10 rounded-md" />
@@ -175,7 +173,7 @@ export function AgentCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the managed-model cards on /admin/ai. */
 export function ModelCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+    <div className="flex min-w-0 flex-col rounded-control bg-[var(--bg-surface)] p-3.5">
       <div className="flex items-start gap-3">
         <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1 space-y-2">
@@ -185,7 +183,7 @@ export function ModelCardSkeleton({ delay = 0 }: { delay?: number }) {
       </div>
       <Skeleton delay={delay} className="mt-3 h-3 w-full rounded-md" />
       <Skeleton delay={delay} className="mt-1.5 h-3 w-2/3 rounded-md" />
-      <div className="mt-3 space-y-2 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
+      <div className="mt-3 space-y-2 rounded-control border border-[var(--border-subtle)] bg-white px-3 py-2.5">
         <Skeleton delay={delay} className="h-2.5 w-24 rounded-md" />
         <Skeleton delay={delay} className="h-3.5 w-full rounded-md" />
       </div>
@@ -196,7 +194,7 @@ export function ModelCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors the sticky search + filter bar on list pages (users, payments). */
 export function SearchBarSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="flex gap-2 rounded-card border border-black/[0.07] bg-white/72 p-2 shadow-[var(--shadow-soft)]">
+    <div className="admin-toolbar">
       <Skeleton delay={delay} className="h-11 min-w-0 flex-1 rounded-xl" />
       <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-xl md:w-64" />
     </div>
@@ -208,7 +206,7 @@ export function MobileCardsSkeleton({ delay = 0, count = 4 }: { delay?: number; 
   return (
     <div className="grid gap-3 md:hidden">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+        <div key={index} className="admin-record">
           <div className="flex items-start gap-3">
             <Skeleton delay={delay - index * 80} className="h-11 w-11 shrink-0 rounded-xl" />
             <div className="min-w-0 flex-1 space-y-2">

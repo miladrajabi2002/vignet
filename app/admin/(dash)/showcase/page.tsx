@@ -1,4 +1,4 @@
-import { Star, Eye, EyeOff, Users } from 'lucide-react'
+import { Star, Eye, EyeOff, Users, LayoutTemplate } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { AdminShowcaseManager, type ShowcaseRow } from '@/components/showcase/admin-showcase-manager'
 import { AdminTrustedLogoManager, type TrustedLogoRow } from '@/components/showcase/admin-trusted-logo-manager'
@@ -52,10 +52,7 @@ export default async function AdminShowcasePage() {
                         <PageHeader
                                 title="محتوای صفحه اصلی"
                                 subtitle="مدیریت ویترین مشتریان و لوگوی اعتماد روی صفحه اصلی سایت"
-                                breadcrumbs={[
-                                        { label: 'داشبورد', href: '/admin' },
-                                        { label: 'محتوای صفحه اصلی' },
-                                ]}
+                                icon={LayoutTemplate}
                         />
 
                         <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
@@ -89,7 +86,7 @@ export default async function AdminShowcasePage() {
                                 <AdminShowcaseManager initialEntries={rows} />
                         </Card>
 
-                        <p className="text-[12px] leading-6 text-zinc-400">
+                        <p className="text-[12px] leading-6 text-[var(--text-muted)]">
                                 {withInstagram > 0
                                         ? `${fa(withInstagram)} مشتری اینستاگرامی ثبت شده است.`
                                         : 'هنوز مشتری اینستاگرامی ثبت نشده است.'}{' '}
@@ -102,7 +99,7 @@ export default async function AdminShowcasePage() {
                                 </div>
                         </Card>
 
-                        <p className="text-[12px] leading-6 text-zinc-400">
+                        <p className="text-[12px] leading-6 text-[var(--text-muted)]">
                                 {activeLogos > 0
                                         ? `${fa(activeLogos)} لوگوی فعال در بخش «اعتماد بهترین‌های صنعت» بالای صفحه اصلی نمایش داده می‌شود.`
                                         : 'هنوز لوگوی فعالی ثبت نشده است؛ بخش اعتماد تا اولین لوگوی فعال روی صفحه اصلی مخفی است.'}{' '}

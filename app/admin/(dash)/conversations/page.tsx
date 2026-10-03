@@ -13,6 +13,7 @@ import {
   AdminPagination,
   fa,
   fmtDate,
+  Toolbar,
 } from '../ui'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { displayPhone } from '@/lib/phone'
@@ -142,15 +143,12 @@ export default async function AdminConversationsPage(
       <PageHeader
         title="گفتگوها"
         subtitle="تاریخچه تمام گفتگوهای پلتفرم"
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'گفتگوها' },
-        ]}
+        icon={MessagesSquare}
       />
 
       {/* Search + filters — same UX as the user dashboard conversations tab:
           desktop = inline selects, mobile = search + bottom-sheet. */}
-      <div className="spatial-surface rounded-card p-2 shadow-[var(--shadow-soft)] md:p-3">
+      <Toolbar className="block md:p-3">
         <AdminConversationFilters
           statusOptions={[
             { key: 'ALL', label: 'همه', count: totalCount },
@@ -171,10 +169,10 @@ export default async function AdminConversationsPage(
           query={q}
           resultCount={matchedCount}
         />
-      </div>
+      </Toolbar>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 max-lg:[&>*:first-child]:col-span-2">
         <StatCard
           label="کل گفتگوها"
           value={fa(totalCount)}
@@ -206,22 +204,22 @@ export default async function AdminConversationsPage(
             const user = conversation.workspace.owner
             const status = STATUS_META[conversation.status] ?? { label: conversation.status, tone: 'default' as const }
             return (
-              <article key={conversation.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+              <article key={conversation.id} className="admin-record">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-zinc-950">{conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'}</p>
-                    <p className="mt-1 truncate text-xs text-zinc-500">ایجنت: {conversation.agent.name}</p>
+                    <p className="truncate text-sm font-bold text-[var(--text-primary)]">{conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'}</p>
+                    <p className="mt-1 truncate text-xs text-[var(--text-muted)]">ایجنت: {conversation.agent.name}</p>
                   </div>
                   <Badge tone={status.tone}>{status.label}</Badge>
                 </div>
-                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
-                  <div><dt className="text-zinc-400">کانال</dt><dd className="mt-1"><Badge tone="muted">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel}</Badge></dd></div>
-                  <div><dt className="text-zinc-400">تعداد پیام</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{fa(conversation.messageCount)}</dd></div>
-                  <div className="col-span-2"><dt className="text-zinc-400">کاربر پنل</dt><dd className="mt-1 truncate font-medium text-zinc-700">{user ? (user.name || displayPhone(user.phone)) : conversation.workspace.name}</dd></div>
+                <dl className="admin-record-facts">
+                  <div><dt>کانال</dt><dd><Badge tone="muted">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel}</Badge></dd></div>
+                  <div><dt>تعداد پیام</dt><dd className="font-bold tabular-nums text-[var(--text-primary)]">{fa(conversation.messageCount)}</dd></div>
+                  <div className="col-span-2"><dt>کاربر پنل</dt><dd className="truncate font-medium text-[var(--text-secondary)]">{user ? (user.name || displayPhone(user.phone)) : conversation.workspace.name}</dd></div>
                 </dl>
-                <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
-                  <span className="text-[12px] text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span>
-                  <Link href={`/admin/conversations/${conversation.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-xs font-bold text-zinc-900"><Eye className="h-4 w-4" /> مشاهده گفتگو</Link>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-[12px] text-[var(--text-muted)]">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span>
+                  <Link href={`/admin/conversations/${conversation.id}`} className="admin-toolbar-button min-h-11 text-[var(--text-primary)]"><Eye className="h-4 w-4" /> مشاهده گفتگو</Link>
                 </div>
               </article>
             )
@@ -229,7 +227,7 @@ export default async function AdminConversationsPage(
         </div>
         <div className="hidden md:block">
         <TableShell>
-          <thead className="border-b border-zinc-200 bg-zinc-50/60">
+          <thead>
             <tr>
               <Th>کاربر</Th>
               <Th>ایجنت</Th>
@@ -241,7 +239,7 @@ export default async function AdminConversationsPage(
               <Th>مشاهده</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody>
             {items.map((c) => {
               const user = c.workspace.owner
               const status = STATUS_META[c.status] ?? {
@@ -249,18 +247,18 @@ export default async function AdminConversationsPage(
                 tone: 'default' as const,
               }
               return (
-                <tr key={c.id} className="transition-colors hover:bg-zinc-50/60">
+                <tr key={c.id}>
                   <Td>
                     {user ? (
-                      <Link href={`/admin/users/${user.id}`} className="font-medium text-zinc-900 hover:underline">
+                      <Link href={`/admin/users/${user.id}`} className="font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--signal-strong)]">
                         {user.name || displayPhone(user.phone)}
                       </Link>
                     ) : (
-                      <span className="text-zinc-400">{c.workspace.name}</span>
+                      <span className="text-[var(--text-muted)]">{c.workspace.name}</span>
                     )}
                   </Td>
                   <Td>{c.agent.name}</Td>
-                  <Td className="text-zinc-600">
+                  <Td className="text-[var(--text-secondary)]">
                     {c.contact?.name || displayPhone(c.contact?.phone) || '—'}
                   </Td>
                   <Td>
@@ -271,14 +269,14 @@ export default async function AdminConversationsPage(
                   <Td>
                     <Badge tone={status.tone}>{status.label}</Badge>
                   </Td>
-                  <Td className="tabular-nums text-zinc-600">
+                  <Td className="tabular-nums text-[var(--text-secondary)]">
                     {fa(c.messageCount)}
                   </Td>
-                  <Td className="text-zinc-500">
+                  <Td className="text-[var(--text-muted)]">
                     {fmtDate(c.lastMessageAt ?? c.createdAt)}
                   </Td>
                   <Td>
-                    <Link href={`/admin/conversations/${c.id}`} aria-label="مشاهده گفتگو" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-[background-color,transform] hover:bg-black/[0.04] active:scale-[.97]"><Eye className="h-4 w-4" /> گفتگو</Link>
+                    <Link href={`/admin/conversations/${c.id}`} aria-label="مشاهده گفتگو" className="admin-toolbar-button min-h-9 shadow-none"><Eye className="h-4 w-4" /> گفتگو</Link>
                   </Td>
                 </tr>
               )

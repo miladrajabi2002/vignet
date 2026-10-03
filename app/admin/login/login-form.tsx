@@ -25,73 +25,80 @@ export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
   const [state, formAction] = useFormState(adminLogin, initial)
 
   return (
-    <div dir="rtl" className="admin-root relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-6 font-fa">
-      {/* Decorative grid background */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-zinc-900/5 blur-3xl" />
-
-      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-sheet border border-black/[0.08] bg-white shadow-[var(--elev-2)] lg:grid-cols-2">
-        <div className="relative hidden min-h-[560px] overflow-hidden bg-black p-8 text-white lg:block">
+    <div dir="rtl" className="admin-root dashboard-canvas relative flex min-h-dvh items-center justify-center px-4 py-6 font-fa">
+      <div className="grid w-full max-w-4xl overflow-hidden rounded-sheet border border-[var(--border-default)] bg-white shadow-[var(--elev-2)] lg:grid-cols-2">
+        {/* The ink half is the console's rail, enlarged: same ink, same accent. */}
+        <div className="relative hidden min-h-[35rem] overflow-hidden bg-[#111] p-8 text-white lg:block">
           <div className="admin-vigento-grid absolute inset-0 opacity-60" />
-          <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white"><Logo className="h-4 w-auto max-w-7" /></span><div><p className="text-sm font-bold">Vigent</p><p className="mt-1 text-[12px] text-white/55">OWNER OPERATIONS</p></div></div>
-          <div className="relative mt-24"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08]"><Sparkles className="h-5 w-5" /></span><h2 className="mt-6 text-3xl font-bold leading-[1.45]">تمام پلتفرم،<br />در یک مرکز فرمان.</h2><p className="mt-4 max-w-sm text-xs leading-7 text-white/55">آمار زنده، هزینه‌ها، کاربران، فایل‌های امن و عملیات تأییدشونده فقط برای مالک ویجنت.</p></div>
-          <p className="absolute bottom-8 text-[12px] text-white/25">VIGENT · SECURE ADMIN SESSION</p>
+          <div className="relative flex items-center gap-2.5">
+            <Logo variant="white" className="h-7 w-28" />
+            <span className="rounded-full bg-[var(--signal)] px-2 py-0.5 text-[12px] font-bold leading-5 tracking-wide">ADMIN</span>
+          </div>
+          <div className="relative mt-24">
+            <span className="grid h-12 w-12 place-items-center rounded-control bg-[var(--signal)]"><Sparkles className="h-5 w-5" /></span>
+            <h2 className="mt-6 text-3xl font-bold leading-[1.45]">تمام پلتفرم،<br />در یک مرکز فرمان.</h2>
+            <p className="mt-4 max-w-sm text-[13px] leading-7 text-white/65">آمار زنده، هزینه‌ها، کاربران، فایل‌های امن و عملیات تأییدشونده فقط برای مالک ویجنت.</p>
+          </div>
+          <p className="absolute bottom-8 text-[12px] text-white/40">نشست امن مدیریت ویجنت</p>
         </div>
         <div className="p-6 sm:p-10">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
-              <ShieldCheck className="h-7 w-7" />
+            <div className="mb-5 flex items-center gap-2 lg:hidden">
+              <Logo className="h-6 w-24" />
+              <span className="rounded-full bg-[var(--signal)] px-2 py-0.5 text-[12px] font-bold leading-5 tracking-wide text-white">ADMIN</span>
             </div>
-            <h1 className="mt-5 text-xl font-bold text-black">ورود مالک پلتفرم</h1>
-            <p className="mt-1.5 text-xs text-[var(--text-muted)]">دسترسی امن مدیریت پلتفرم</p>
+            <div className="grid h-12 w-12 place-items-center rounded-control bg-[#111] text-white shadow-[var(--shadow-control)]">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <h1 className="ui-h2 mt-4">ورود مالک پلتفرم</h1>
+            <p className="ui-caption mt-1">دسترسی امن مدیریت پلتفرم</p>
           </div>
 
-          <form action={formAction} className="mt-7 space-y-3">
+          <form action={formAction} className="mt-7 space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-600">شماره موبایل مدیر</label>
+              <label htmlFor="admin-login-username" className="ui-field-label">شماره موبایل مدیر</label>
               <input
+                id="admin-login-username"
                 name="username"
                 inputMode="tel"
                 autoComplete="tel"
-                placeholder="شماره موبایل مدیر"
-                className="admin-input bg-[#f8f8f6] text-sm"
+                dir="ltr"
+                placeholder="09…"
+                className="input text-right"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-600">رمز عبور</label>
+              <label htmlFor="admin-login-password" className="ui-field-label">رمز عبور</label>
               <input
+                id="admin-login-password"
                 name="password"
                 type="password"
                 autoComplete="current-password"
+                dir="ltr"
                 placeholder="••••••••"
-                className="admin-input bg-[#f8f8f6] text-sm"
+                className="input text-right"
               />
             </div>
             {totpEnabled ? (
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-zinc-600">کد یک‌بارمصرف امنیتی</label>
+                <label htmlFor="admin-login-otp" className="ui-field-label">کد یک‌بارمصرف امنیتی</label>
                 <input
+                  id="admin-login-otp"
                   name="otp"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   pattern="[0-9]{6}"
                   maxLength={6}
+                  dir="ltr"
                   placeholder="••••••"
-                  className="admin-input bg-[#f8f8f6] text-sm"
+                  className="input text-right tabular-nums tracking-widest"
                 />
               </div>
             ) : null}
             {state.error ? (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
+              <p role="alert" className="rounded-control bg-[var(--danger-soft)] px-3 py-2.5 text-[13px] text-[var(--danger-ink)]">{state.error}</p>
             ) : null}
-            <div className="pt-2">
+            <div className="pt-1">
               <SubmitButton />
             </div>
           </form>

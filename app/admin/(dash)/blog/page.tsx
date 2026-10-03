@@ -2,6 +2,7 @@ import { FileText, CheckCircle2, PencilLine, Eye } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { AdminBlogManager } from '@/components/blog/admin-blog-manager'
 import { TrendChart } from '@/components/admin/trend-chart'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { getLocale } from 'next-intl/server'
 import { PageHeader, StatCard, Card, Panel, fa } from '../ui'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
@@ -84,10 +85,7 @@ export default async function AdminBlogPage() {
       <PageHeader
         title="مدیریت بلاگ"
         subtitle="مدیریت مقالات، دسته‌بندی‌ها و انتشار"
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'بلاگ' },
-        ]}
+        icon={FileText}
       />
 
       <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
@@ -123,27 +121,27 @@ export default async function AdminBlogPage() {
           title="بازدید ۷ روز اخیر"
           subtitle={viewsSubtitle}
           data={dayStrings.map((day, i) => ({ day, value: series[i] }))}
-          color="#2563eb"
+          color={CHART_ACCENT}
           variant="bar"
           height={200}
         />
         <Panel title="پربازدیدترین مقالات">
           {topPostsByViews.length === 0 ? (
-            <p className="py-6 text-center text-xs text-zinc-400">
+            <p className="py-6 text-center text-xs text-[var(--text-muted)]">
               پست منتشرشده‌ای وجود ندارد
             </p>
           ) : (
-            <ul className="space-y-2.5">
+            <ul className="divide-y divide-[var(--border-subtle)]">
               {topPostsByViews.map((p, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[12px] font-bold text-zinc-600">
+                <li key={i} className="flex min-h-10 items-center gap-2.5 py-1.5 text-[13px]">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-chip bg-[var(--bg-muted)] text-[12px] font-bold tabular-nums text-[var(--text-secondary)]">
                     {fa(i + 1)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-zinc-700">{p.title}</span>
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-900">
+                  <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{p.title}</span>
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--text-primary)]">
                     {fa(p.views)}
                   </span>
-                  <Eye className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  <Eye className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
                 </li>
               ))}
             </ul>

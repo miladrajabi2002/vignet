@@ -60,7 +60,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "admin-card spatial-surface rounded-card",
+        "admin-card spatial-surface min-w-0 rounded-card",
         pad && "p-4 sm:p-6",
         className,
       )}
@@ -91,23 +91,17 @@ export function Panel({
   return (
     <Card className={className}>
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-bold text-black">{title}</h2>
-          {subtitle && (
-            <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
-              {subtitle}
-            </p>
-          )}
+        <div className="min-w-0">
+          <h2 className="ui-h3">{title}</h2>
+          {subtitle && <p className="ui-caption mt-0.5">{subtitle}</p>}
         </div>
         {href && linkLabel ? (
-          <Link
-            href={href}
-            className="shrink-0 rounded-lg px-2 py-1.5 text-[12px] font-bold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.045] hover:text-black"
-          >
+          <Link href={href} className="ui-link shrink-0">
             {linkLabel}
+            <ChevronLeft aria-hidden />
           </Link>
         ) : action ? (
-          action
+          <div className="shrink-0">{action}</div>
         ) : null}
       </div>
       {children}
@@ -115,7 +109,45 @@ export function Panel({
   );
 }
 
+/** Search + filters above a list (sticks under the header on phones). */
+export function Toolbar({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={cn("admin-toolbar", className)}>{children}</div>;
+}
+
 // ─── STAT CARD ────────────────────────────────────────────────────
+
+type StatTone = "default" | "success" | "warning" | "danger" | "info";
+
+// Icon tile + mini-trend colour per tone. This is the one place the console
+// uses colour freely: a tinted tile and a matching sparkline, nothing more.
+const STAT_TONES: Record<StatTone, { tile: string; spark: string }> = {
+  default: {
+    tile: "bg-[var(--bg-muted)] text-[var(--text-secondary)]",
+    spark: "#111111",
+  },
+  success: {
+    tile: "bg-[var(--ok-soft)] text-[var(--ok-ink)]",
+    spark: "#15803d",
+  },
+  warning: {
+    tile: "bg-[var(--warn-soft)] text-[var(--warn-ink)]",
+    spark: "#d97706",
+  },
+  danger: {
+    tile: "bg-[var(--danger-soft)] text-[var(--danger-ink)]",
+    spark: "#dc2626",
+  },
+  info: {
+    tile: "bg-[var(--signal-tint)] text-[var(--signal-strong)]",
+    spark: "#5b3de8",
+  },
+};
 
 export function StatCard({
   label,
@@ -132,21 +164,13 @@ export function StatCard({
   value: string | number;
   sub?: string;
   icon?: React.ReactNode;
-  tone?: "default" | "success" | "warning" | "danger" | "info";
+  tone?: StatTone;
   trend?: { value: number; label?: string }; // percentage, +/-
   series?: number[]; // 7-day (or similar) daily values for an inline sparkline
   seriesLabels?: string[]; // optional per-point labels (e.g. Persian short dates) for the hover tooltip
   seriesValueFormat?: "number" | "irr" | "usd"; // value formatting inside the hover tooltip
 }) {
-  const toneRing = {
-    default: "bg-zinc-100 text-zinc-700",
-    success: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
-    warning: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
-    danger: "bg-red-50 text-red-700 ring-1 ring-red-100",
-    info: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
-  }[tone];
-
-  const valueColor = tone === "danger" ? "text-red-700" : "text-zinc-900";
+  const palette = STAT_TONES[tone];
 
   // Split a trailing currency unit («تومان») off the value string so it can
   // render much smaller than the number and stay on the same baseline —
@@ -155,80 +179,70 @@ export function StatCard({
   const unitMatch =
     typeof value === "string" ? /^(.+?)\s*(تومان)\s*$/.exec(value) : null;
 
-  // Sparkline stroke color follows the card tone.
-  const sparkColor =
-    tone === "danger"
-      ? "#dc2626"
-      : tone === "success"
-        ? "#16a34a"
-        : tone === "info"
-          ? "#0a84ff"
-          : tone === "warning"
-            ? "#d97706"
-            : "#18181b";
-
   return (
-    <Card className="group relative min-h-[8.25rem] overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-float)] active:scale-[.995]">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <p className="text-[12px] font-medium text-[var(--text-muted)]">{label}</p>
-          <p
-            className={cn(
-              "mt-2 flex flex-wrap items-baseline gap-x-1 text-[clamp(0.9rem,3.4vw,1.8rem)] font-bold leading-tight tracking-tight tabular-nums sm:gap-x-1.5",
-              valueColor,
-            )}
-          >
-            {unitMatch ? (
-              <>
-                <span className="whitespace-nowrap">{unitMatch[1]}</span>
-                <span className="whitespace-nowrap text-[clamp(0.6rem,1.6vw,0.85rem)] font-semibold tracking-normal text-[var(--text-muted)]">
-                  {unitMatch[2]}
-                </span>
-              </>
-            ) : (
-              valueText
-            )}
-          </p>
-          {sub && (
-            <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">
-              {sub}
-            </p>
-          )}
-        </div>
+    <Card pad={false} className="flex min-h-[7.25rem] flex-col p-3.5 sm:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 pt-1 text-[12px] leading-5 text-[var(--text-secondary)] sm:text-[13px]">
+          {label}
+        </p>
         {icon && (
           <span
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-[1.04]",
-              toneRing,
+              "grid h-8 w-8 shrink-0 place-items-center rounded-chip sm:h-9 sm:w-9 [&_svg]:h-[1.05rem] [&_svg]:w-[1.05rem]",
+              palette.tile,
             )}
           >
             {icon}
           </span>
         )}
       </div>
+      <p
+        className={cn(
+          "mt-1.5 flex flex-wrap items-baseline gap-x-1 text-[clamp(1.05rem,4.6vw,1.75rem)] font-bold leading-tight tabular-nums sm:gap-x-1.5",
+          tone === "danger"
+            ? "text-[var(--danger-ink)]"
+            : "text-[var(--text-primary)]",
+        )}
+      >
+        {unitMatch ? (
+          <>
+            <span className="whitespace-nowrap">{unitMatch[1]}</span>
+            <span className="whitespace-nowrap text-[12px] font-normal text-[var(--text-muted)] sm:text-[13px]">
+              {unitMatch[2]}
+            </span>
+          </>
+        ) : (
+          valueText
+        )}
+      </p>
+      {sub && (
+        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--text-muted)]">
+          {sub}
+        </p>
+      )}
       {trend && (
-        <div className="mt-3 flex items-center gap-1.5">
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[12px] font-semibold",
-              trend.value >= 0
-                ? "bg-zinc-100 text-zinc-800"
-                : "bg-zinc-900 text-white",
+              "ui-chip",
+              trend.value >= 0 ? "ui-chip-ok" : "ui-chip-danger",
             )}
           >
-            {trend.value >= 0 ? "▲" : "▼"}{" "}
+            <span aria-hidden>{trend.value >= 0 ? "▲" : "▼"}</span>
             {Math.abs(trend.value).toLocaleString("fa-IR")}٪
           </span>
           {trend.label && (
-            <span className="text-[12px] text-zinc-400">{trend.label}</span>
+            <span className="text-[12px] text-[var(--text-muted)]">
+              {trend.label}
+            </span>
           )}
         </div>
       )}
       {series && series.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-auto pt-3">
           <Sparkline
             data={series}
-            color={sparkColor}
+            color={palette.spark}
             width={200}
             height={32}
             fluid
@@ -266,17 +280,7 @@ export function Badge({
   tone?: BadgeTone;
   className?: string;
 }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-medium",
-        BADGE_TONES[tone],
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <span className={cn(BADGE_TONES[tone], className)}>{children}</span>;
 }
 
 /** Severity badge for an ErrorLog level. */
@@ -302,7 +306,7 @@ export function Th({
     <th
       title={title}
       className={cn(
-        "whitespace-nowrap px-4 py-3.5 text-start text-[12px] font-semibold text-zinc-500",
+        "whitespace-nowrap px-4 py-3 text-start text-[12px] font-medium text-[var(--text-muted)]",
         className,
       )}
     >
@@ -321,7 +325,13 @@ export function Td({
   title?: string;
 }) {
   return (
-    <td title={title} className={cn("px-4 py-3.5 text-[13px] text-zinc-700", className)}>
+    <td
+      title={title}
+      className={cn(
+        "px-4 py-3 text-[13px] text-[var(--text-secondary)]",
+        className,
+      )}
+    >
       {children}
     </td>
   );
@@ -330,17 +340,26 @@ export function Td({
 export function TableShell({
   children,
   minWidth = 640,
+  bare = false,
 }: {
   children: React.ReactNode;
   minWidth?: number;
+  /** Inside a Panel: no second card around the table. */
+  bare?: boolean;
 }) {
   return (
-    // The shell scrolls on both axes and caps its height, so the sticky
-    // thead (globals.css .admin-table-shell table thead) actually engages
-    // while long user/payment tables scroll — instead of being inert behind
-    // an overflow-x-only ancestor.
+    // The page is the only vertical scroller; the shell only scrolls sideways
+    // when a tablet column is narrower than the table.
     // Below md the rows stack into labelled cards (ط۱۵, app/ui-system.css).
-    <div className="admin-table-shell ui-rtable spatial-surface max-h-[min(70dvh,44rem)] overflow-auto overscroll-contain rounded-card [scrollbar-width:thin] max-md:max-h-none max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+    <div
+      className={cn(
+        "admin-table-shell admin-scroll ui-rtable overflow-x-auto overscroll-x-contain max-md:overflow-visible",
+        // A surface only from md up: on phones each row is its own card.
+        bare
+          ? "rounded-control md:border md:border-[var(--border-subtle)]"
+          : "rounded-card md:spatial-surface",
+      )}
+    >
       <TableLabels>
         <table className="w-full md:[min-width:var(--table-min)]" style={{ "--table-min": `${minWidth}px` } as React.CSSProperties}>
           {children}
@@ -364,12 +383,18 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 py-16 text-center",
+        "flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-[var(--border-hover)] px-4 py-14 text-center",
         className,
       )}
     >
-      {icon && <div className="text-zinc-300">{icon}</div>}
-      <p className="text-sm text-zinc-500">{children}</p>
+      {icon && (
+        <div className="grid h-12 w-12 place-items-center rounded-control bg-[var(--bg-muted)] text-[var(--text-muted)] [&_svg]:h-5 [&_svg]:w-5">
+          {icon}
+        </div>
+      )}
+      <p className="max-w-sm text-[13px] leading-6 text-[var(--text-muted)]">
+        {children}
+      </p>
     </div>
   );
 }
@@ -416,28 +441,26 @@ export function Progress({
 }: {
   value: number;
   max?: number;
-  tone?: "default" | "success" | "warning" | "danger";
+  tone?: "default" | "success" | "warning" | "danger" | "info";
   className?: string;
 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   const bar = {
-    default: "bg-zinc-900",
+    default: "bg-[#111]",
     success: "bg-emerald-500",
     warning: "bg-amber-500",
     danger: "bg-red-500",
+    info: "bg-[var(--signal)]",
   }[tone];
   return (
     <div
       className={cn(
-        "h-1.5 w-full overflow-hidden rounded-full bg-zinc-100",
+        "h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]",
         className,
       )}
     >
       <div
-        className={cn(
-          "h-full rounded-full transition-[width] duration-300",
-          bar,
-        )}
+        className={cn("h-full rounded-full", bar)}
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -457,10 +480,10 @@ export function KV({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
-      <span className="text-xs text-zinc-500">{label}</span>
+      <span className="shrink-0 text-xs text-[var(--text-muted)]">{label}</span>
       <span
         className={cn(
-          "min-w-0 break-words text-end text-sm font-medium text-zinc-900",
+          "min-w-0 break-words text-end text-sm font-medium text-[var(--text-primary)]",
           mono && "font-mono text-xs",
         )}
       >
@@ -475,17 +498,17 @@ export function KV({
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <span className="text-xs font-medium text-[var(--text-muted)]">
         {children}
       </span>
-      <div className="h-px flex-1 bg-zinc-200" />
+      <div className="h-px flex-1 bg-[var(--border-default)]" />
     </div>
   );
 }
 
 // ─── PAGINATION ───────────────────────────────────────────────────
 
-/** Light-themed prev/next pagination for the admin area (RTL). */
+/** Prev/next pagination for the admin area (RTL). */
 export function AdminPagination({
   page,
   hasNext,
@@ -497,13 +520,16 @@ export function AdminPagination({
 }) {
   if (page <= 1 && !hasNext) return null;
   return (
-    <nav className="flex items-center justify-between gap-3 pt-4">
+    <nav
+      aria-label="صفحه‌بندی"
+      className="flex items-center justify-between gap-3 pt-2"
+    >
       <PageBtn
         href={page > 1 ? makeHref(page - 1) : null}
         label="قبلی"
         icon={<ChevronRight className="h-4 w-4" />}
       />
-      <span className="text-xs text-zinc-500">
+      <span className="text-xs tabular-nums text-[var(--text-muted)]">
         صفحه {page.toLocaleString("fa-IR")}
       </span>
       <PageBtn
@@ -527,12 +553,11 @@ function PageBtn({
   icon: React.ReactNode;
   after?: boolean;
 }) {
-  const base =
-    "inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-colors";
   if (!href) {
     return (
       <span
-        className={`${base} cursor-not-allowed border-zinc-200 text-zinc-300`}
+        aria-disabled="true"
+        className="admin-toolbar-button min-h-11 cursor-not-allowed px-4 text-[13px] opacity-40 shadow-none md:min-h-10"
       >
         {!after && icon}
         {label}
@@ -543,7 +568,7 @@ function PageBtn({
   return (
     <Link
       href={href}
-      className={`${base} border-zinc-200 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50`}
+      className="admin-toolbar-button min-h-11 px-4 text-[13px] text-[var(--text-primary)] md:min-h-10"
     >
       {!after && icon}
       {label}
@@ -554,23 +579,20 @@ function PageBtn({
 
 // ─── FILTER PILLS ─────────────────────────────────────────────────
 
+/** Link filters as the shared segmented control (grey track, white pill). */
 export function FilterPills({
   options,
 }: {
   options: { label: string; href: string; active: boolean }[];
 }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-1 text-xs">
+    <div className="ui-seg inline-grid grid-flow-col text-[12px]">
       {options.map((o) => (
         <Link
           key={o.href}
           href={o.href}
-          className={cn(
-            "rounded-lg px-3 py-1.5 font-medium transition-colors",
-            o.active
-              ? "bg-zinc-900 text-white"
-              : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
-          )}
+          aria-current={o.active ? "page" : undefined}
+          className="ui-seg-tab min-h-9 whitespace-nowrap px-3"
         >
           {o.label}
         </Link>

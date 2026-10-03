@@ -54,7 +54,7 @@ function SparkTooltipBubble({
   return (
     <div
       dir="rtl"
-      className="pointer-events-none -translate-y-1 flex items-center gap-1.5 whitespace-nowrap rounded-md border border-white/10 bg-zinc-900/95 px-2 py-1 shadow-[var(--shadow-xs)]"
+      className="pointer-events-none flex -translate-y-1 items-center gap-1.5 whitespace-nowrap rounded-chip bg-[#111] px-2 py-1.5 shadow-[var(--elev-1)]"
     >
       <span className="text-[12px] font-medium leading-none text-white/55">
         {label}
@@ -126,10 +126,10 @@ export function Sparkline({
   if (color === "auto") {
     const dir = computeTrend(data);
     if (dir === "flat") {
-      stroke = "#71717a"; // zinc-500 — visible on both light and dark
+      stroke = "#8c8780"; // --text-hint: a quiet line when nothing moved
     } else {
       const isGood = invert ? dir === "down" : dir === "up";
-      stroke = isGood ? "#22c55e" : "#ef4444";
+      stroke = isGood ? "#15803d" : "#dc2626";
     }
   } else {
     stroke = color;
@@ -180,7 +180,7 @@ export function Sparkline({
             type="monotone"
             dataKey="value"
             stroke={stroke}
-            strokeWidth={1.25}
+            strokeWidth={1.5}
             fill={`url(#${gradId})`}
             dot={false}
             isAnimationActive={false}

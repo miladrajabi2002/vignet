@@ -198,6 +198,15 @@
 	[class*='backdrop-blur'][class*='bg-white/'] { background-color: rgba(255, 255, 255, 0.97) !important; }
 }
 
+/* ── Admin: a card inside a card is a tinted tile, not a second raised
+   surface (KPI tiles in a panel). Sits here so it also outranks the phone
+   rule above that forces `.spatial-surface` to white. */
+.admin-card .admin-card {
+	background: var(--bg-surface);
+	border-color: transparent;
+	box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.ui-save, .ui-save-icon, .ui-save-label > span { animation: none !important; transition: none !important; }
 	.ui-save-check { animation: none; stroke-dashoffset: 0; }

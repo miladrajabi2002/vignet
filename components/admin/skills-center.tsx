@@ -92,9 +92,9 @@ function EvidenceDetails({ evidence }: { evidence: Record<string, unknown> }) {
     const row = (sample ?? {}) as Record<string, unknown>
     if (typeof row.text === 'string' && row.text.trim()) {
       nodes.push(
-        <li key={`s${nodes.length}`} className="border-s-2 border-zinc-200 ps-3">
-          <span className="text-[12px] leading-6 text-zinc-600">«{row.text.slice(0, 180)}»</span>
-          {typeof row.at === 'string' ? <span className="ms-2 text-[12px] text-zinc-400">{fmtDate(new Date(row.at))}</span> : null}
+        <li key={`s${nodes.length}`} className="border-s-2 border-[var(--border-default)] ps-3">
+          <span className="text-[12px] leading-6 text-[var(--text-secondary)]">«{row.text.slice(0, 180)}»</span>
+          {typeof row.at === 'string' ? <span className="ms-2 text-[12px] text-[var(--text-muted)]">{fmtDate(new Date(row.at))}</span> : null}
         </li>,
       )
     }
@@ -103,46 +103,46 @@ function EvidenceDetails({ evidence }: { evidence: Record<string, unknown> }) {
     nodes.push(
       <div key="cmp" className="flex items-center gap-2 text-[12px]">
         <span className="rounded-lg bg-red-50 px-2 py-1 font-semibold text-red-700">وعدهٔ متن: {fa(evidence.claimed)}</span>
-        <span className="text-zinc-400">در برابر</span>
+        <span className="text-[var(--text-muted)]">در برابر</span>
         <span className="rounded-lg bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">کارت ارسالی: {fa(evidence.presented)}</span>
       </div>,
     )
   }
   if (typeof evidence.count === 'number') {
-    nodes.push(<div key="cnt" className="text-[12px] text-zinc-500">تعداد موارد ثبت‌شده: {fa(evidence.count)}</div>)
+    nodes.push(<div key="cnt" className="text-[12px] text-[var(--text-muted)]">تعداد موارد ثبت‌شده: {fa(evidence.count)}</div>)
   }
   const violations = Array.isArray(evidence.violations) ? evidence.violations : []
   for (const violation of violations.slice(0, 3)) {
     const row = (violation ?? {}) as Record<string, unknown>
     if (typeof row.detail === 'string') {
-      nodes.push(<li key={`v${nodes.length}`} className="text-[12px] leading-6 text-zinc-600">• {row.detail}</li>)
+      nodes.push(<li key={`v${nodes.length}`} className="text-[12px] leading-6 text-[var(--text-secondary)]">• {row.detail}</li>)
     }
   }
   if (typeof evidence.question === 'string' && evidence.question.trim()) {
-    nodes.push(<div key="q" className="text-[12px] leading-6 text-zinc-600">سوال ثبت‌نشده: «{evidence.question.slice(0, 200)}»</div>)
+    nodes.push(<div key="q" className="text-[12px] leading-6 text-[var(--text-secondary)]">سوال ثبت‌نشده: «{evidence.question.slice(0, 200)}»</div>)
   }
   if (typeof evidence.questionA === 'string' && typeof evidence.questionB === 'string') {
     nodes.push(
       <div key="qa" className="grid gap-2 text-[12px] sm:grid-cols-2">
-        <div className="rounded-xl bg-red-50/60 p-3 leading-6 text-zinc-700"><b>مدخل ۱:</b> {evidence.questionA.slice(0, 160)} — {String(evidence.answerA ?? '').slice(0, 160)}</div>
-        <div className="rounded-xl bg-red-50/60 p-3 leading-6 text-zinc-700"><b>مدخل ۲:</b> {evidence.questionB.slice(0, 160)} — {String(evidence.answerB ?? '').slice(0, 160)}</div>
+        <div className="rounded-xl bg-red-50/60 p-3 leading-6 text-[var(--text-secondary)]"><b>مدخل ۱:</b> {evidence.questionA.slice(0, 160)} — {String(evidence.answerA ?? '').slice(0, 160)}</div>
+        <div className="rounded-xl bg-red-50/60 p-3 leading-6 text-[var(--text-secondary)]"><b>مدخل ۲:</b> {evidence.questionB.slice(0, 160)} — {String(evidence.answerB ?? '').slice(0, 160)}</div>
       </div>,
     )
   }
   if (typeof evidence.before === 'number' && typeof evidence.after === 'number') {
     nodes.push(
       <div key="ba" className="flex items-center gap-2 text-[12px]">
-        <span className="rounded-lg bg-zinc-100 px-2 py-1 text-zinc-600">قبل: {percentFa(evidence.before)}</span>
-        <span className="rounded-lg bg-zinc-900 px-2 py-1 font-semibold text-white">بعد: {percentFa(evidence.after)}</span>
+        <span className="rounded-lg bg-[var(--bg-muted)] px-2 py-1 text-[var(--text-secondary)]">قبل: {percentFa(evidence.before)}</span>
+        <span className="rounded-lg bg-[var(--signal-tint)] px-2 py-1 font-medium text-[var(--signal-strong)]">بعد: {percentFa(evidence.after)}</span>
       </div>,
     )
   }
   const messageIds = Array.isArray(evidence.messageIds) ? evidence.messageIds : []
   if (messageIds.length && !nodes.length) {
-    nodes.push(<div key="ids" className="text-[12px] text-zinc-400">{fa(messageIds.length)} پیام شاهد در گفتگو ثبت شده است.</div>)
+    nodes.push(<div key="ids" className="text-[12px] text-[var(--text-muted)]">{fa(messageIds.length)} پیام شاهد در گفتگو ثبت شده است.</div>)
   }
   if (!nodes.length) return null
-  return <div className="mt-3 space-y-2 rounded-xl bg-zinc-50 p-3">{nodes}</div>
+  return <div className="mt-3 space-y-2 rounded-control bg-white p-3">{nodes}</div>
 }
 
 function SuggestedActionBox({ action }: { action: Record<string, unknown> }) {
@@ -167,9 +167,9 @@ function FindingCard({ finding, onStatus }: { finding: FindingView; onStatus: (i
     <Card className={closed ? 'opacity-75' : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-600"><Icon className="h-4 w-4" /></span>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-chip bg-white text-[var(--text-secondary)]"><Icon className="h-4 w-4" /></span>
           <div className="min-w-0">
-            <h3 className="text-[13px] font-bold leading-6 text-black">{finding.title}</h3>
+            <h3 className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{finding.title}</h3>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--text-muted)]">
               <span>{skillNameFa(finding.skillKey)}</span>
               {finding.agentName ? <span>· ایجنت «{finding.agentName}»</span> : null}
@@ -184,30 +184,30 @@ function FindingCard({ finding, onStatus }: { finding: FindingView; onStatus: (i
           <Badge tone={STATUS_TONE[finding.status]}>{STATUS_LABEL[finding.status]}</Badge>
         </div>
       </div>
-      <p className="mt-3 whitespace-pre-line text-[12.5px] leading-7 text-zinc-700">{finding.diagnosis}</p>
+      <p className="mt-3 whitespace-pre-line text-[12.5px] leading-7 text-[var(--text-secondary)]">{finding.diagnosis}</p>
       {finding.evidence ? <EvidenceDetails evidence={finding.evidence} /> : null}
       {finding.suggestedAction ? <SuggestedActionBox action={finding.suggestedAction} /> : null}
       {finding.resolvedNote && closed ? (
-        <p className="mt-3 rounded-xl bg-zinc-50 p-2.5 text-[12px] leading-5 text-zinc-500">✓ {finding.resolvedNote}</p>
+        <p className="mt-3 rounded-control bg-white p-2.5 text-[12px] leading-5 text-[var(--text-muted)]">✓ {finding.resolvedNote}</p>
       ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {finding.conversationId ? (
-          <Link href={`/admin/conversations/${finding.conversationId}`} className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-black">مشاهدهٔ گفتگو</Link>
+          <Link href={`/admin/conversations/${finding.conversationId}`} className="rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black">مشاهدهٔ گفتگو</Link>
         ) : null}
         {finding.agentId ? (
-          <Link href={`/admin/agents/${finding.agentId}`} className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-black">ایجنت</Link>
+          <Link href={`/admin/agents/${finding.agentId}`} className="rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black">ایجنت</Link>
         ) : null}
         <span className="flex-1" />
         {finding.status === 'OPEN' ? (
-          <button type="button" onClick={() => onStatus(finding.id, 'ACKNOWLEDGED')} className="rounded-lg bg-zinc-100 px-3 py-1.5 text-[12px] font-bold text-zinc-700 transition-colors hover:bg-zinc-200">در بررسی</button>
+          <button type="button" onClick={() => onStatus(finding.id, 'ACKNOWLEDGED')} className="rounded-lg bg-[var(--bg-muted)] px-3 py-1.5 text-[12px] font-bold text-[var(--text-secondary)] transition-colors hover:bg-black/10">در بررسی</button>
         ) : null}
         {!closed ? (
           <>
             <button type="button" onClick={() => onStatus(finding.id, 'RESOLVED')} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:bg-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />رفع شد</button>
-            <button type="button" onClick={() => onStatus(finding.id, 'DISMISSED')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"><EyeOff className="h-3.5 w-3.5" />نادیده</button>
+            <button type="button" onClick={() => onStatus(finding.id, 'DISMISSED')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"><EyeOff className="h-3.5 w-3.5" />نادیده</button>
           </>
         ) : (
-          <button type="button" onClick={() => onStatus(finding.id, 'OPEN')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-black"><RotateCcw className="h-3.5 w-3.5" />بازگشانی</button>
+          <button type="button" onClick={() => onStatus(finding.id, 'OPEN')} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-black"><RotateCcw className="h-3.5 w-3.5" />بازگشانی</button>
         )}
       </div>
     </Card>
@@ -288,18 +288,18 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
   return (
     <div className="space-y-6">
       {busyMode ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-[12px] font-semibold text-amber-800">
+        <div role="status" className="flex items-center gap-3 rounded-control border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-medium text-amber-900">
           <Loader2 className="h-4 w-4 animate-spin" />
           اسکیل‌ها در حال اجرای {busyMode === 'DEEP' ? 'تحلیل عمیق' : 'رایگان'} هستند — این صفحه خودش تازه می‌شود.
         </div>
       ) : null}
       {runError ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-[12px] font-semibold text-red-700">
+        <div role="alert" className="flex items-center gap-2 rounded-control border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-medium text-[var(--danger-ink)]">
           <AlertTriangle className="h-4 w-4" />{runError}
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard label="یافته‌های باز" value={fa(stats.open)} sub={`${fa(activeCount)} مورد در صف رسیدگی`} tone={stats.open > 0 ? 'warning' : 'success'} icon={<Radar className="h-4 w-4" />} />
         <StatCard label="بحرانی (HIGH)" value={fa(stats.high)} sub="نیازمند رسیدگی فوری" tone={stats.high > 0 ? 'danger' : 'default'} icon={<AlertTriangle className="h-4 w-4" />} />
         <StatCard label="رفع‌شده در ۷ روز" value={fa(stats.resolvedWeek)} sub="حل‌شده توسط شما یا خودکار" tone="success" icon={<CheckCircle2 className="h-4 w-4" />} />
@@ -321,7 +321,7 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
               type="button"
               onClick={() => startRun('FREE')}
               disabled={busyMode !== null}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-black px-3.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              className="admin-primary-button min-h-10 px-3.5 text-[12px]"
             >
               {busyMode === 'FREE' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               اجرای اسکیل‌های رایگان
@@ -330,7 +330,7 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
               type="button"
               onClick={() => startRun('DEEP')}
               disabled={busyMode !== null}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-white px-3.5 py-2 text-[12px] font-bold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+              className="admin-toolbar-button disabled:opacity-50"
               title="هزینه از بودجهٔ AI پلتفرم — نه کیف پول کاربران"
             >
               {busyMode === 'DEEP' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -348,15 +348,15 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
                 key={skill.key}
                 type="button"
                 onClick={() => setSkillFilter((current) => (current === skill.key ? 'ALL' : skill.key))}
-                className={`admin-card spatial-surface rounded-card p-4 text-start transition-[border-color,box-shadow,transform] duration-200 hover:shadow-[var(--shadow-float)] active:scale-[.99] ${skillFilter === skill.key ? 'ring-2 ring-black' : ''}`}
+                className={`admin-card spatial-surface rounded-card border p-4 text-start transition-[border-color] duration-200 hover:!border-[var(--border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${skillFilter === skill.key ? '!border-[var(--signal)] !bg-[var(--signal-soft)]' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-zinc-900 text-white"><Icon className="h-4 w-4" /></span>
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#111] text-white"><Icon className="h-4 w-4" /></span>
                   <Badge tone={skill.cost === 'FREE' ? 'success' : 'warning'}>{skill.cost === 'FREE' ? 'رایگان' : 'عمیق (هزینه AI)'}</Badge>
                 </div>
-                <h3 className="mt-3 text-[13px] font-bold text-black">{skill.nameFa}</h3>
+                <h3 className="mt-3 text-[13px] font-bold text-[var(--text-primary)]">{skill.nameFa}</h3>
                 <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">{skill.descFa}</p>
-                <p className="mt-3 text-[12px] font-semibold text-zinc-500">
+                <p className="mt-3 text-[12px] font-semibold text-[var(--text-muted)]">
                   {openCount > 0 ? `${fa(openCount)} یافتهٔ باز — کلیک برای فیلتر` : 'یافتهٔ بازی ندارد'}
                 </p>
               </button>
@@ -369,20 +369,24 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
         title="یافته‌ها"
         subtitle={`${fa(visible.length)} مورد نمایش داده می‌شود`}
         action={
-          <div className="flex items-center gap-1.5">
-            {(['ACTIVE', 'RESOLVED', 'ALL'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setStatusFilter(value)}
-                className={`rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition-colors ${statusFilter === value ? 'bg-black text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
-              >
-                {value === 'ACTIVE' ? 'در رسیدگی' : value === 'RESOLVED' ? 'بسته‌شده' : 'همه'}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {skillFilter !== 'ALL' ? (
-              <button type="button" onClick={() => setSkillFilter('ALL')} className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-[12px] font-bold text-zinc-600 hover:bg-zinc-200">حذف فیلتر اسکیل</button>
+              <button type="button" onClick={() => setSkillFilter('ALL')} className="ui-chip ui-chip-signal min-h-9">حذف فیلتر اسکیل</button>
             ) : null}
+            <div role="tablist" aria-label="وضعیت یافته‌ها" className="ui-seg inline-grid grid-flow-col text-[12px]">
+              {(['ACTIVE', 'RESOLVED', 'ALL'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={statusFilter === value}
+                  onClick={() => setStatusFilter(value)}
+                  className="ui-seg-tab min-h-9 whitespace-nowrap px-3"
+                >
+                  {value === 'ACTIVE' ? 'در رسیدگی' : value === 'RESOLVED' ? 'بسته‌شده' : 'همه'}
+                </button>
+              ))}
+            </div>
           </div>
         }
       >
@@ -401,18 +405,18 @@ export function SkillsCenter({ findings, runs, stats }: { findings: FindingView[
         {runs.length ? (
           <div className="space-y-2">
             {runs.map((run) => (
-              <div key={run.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[12px] text-zinc-600">
+              <div key={run.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-[var(--bg-surface)] px-3.5 py-2.5 text-[12px] text-[var(--text-secondary)]">
                 <Badge tone={run.status === 'DONE' ? 'success' : run.status === 'ERROR' ? 'danger' : 'info'}>
                   {run.status === 'DONE' ? 'کامل' : run.status === 'ERROR' ? `خطا${run.error ? ` (${run.error})` : ''}` : 'در جریان'}
                 </Badge>
-                <span className="font-bold text-black">{run.mode === 'DEEP' ? 'تحلیل عمیق' : 'رایگان'}</span>
+                <span className="font-bold text-[var(--text-primary)]">{run.mode === 'DEEP' ? 'تحلیل عمیق' : 'رایگان'}</span>
                 <span>{run.source === 'scheduled' ? 'خودکار' : 'دستی'}</span>
                 <span>{fmtDate(new Date(run.createdAt))}</span>
                 <span>· {fa(run.agentsScanned)} ایجنت، {fa(run.conversationsScanned)} گفتگو</span>
                 {run.findingsCreated ? <span className="text-emerald-700">· {fa(run.findingsCreated)} یافتهٔ جدید</span> : null}
                 {run.findingsResolved ? <span className="text-emerald-700">· {fa(run.findingsResolved)} بسته‌شده</span> : null}
                 {run.llmRequests ? <span className="text-amber-700">· {fa(run.llmRequests)} درخواست AI</span> : null}
-                {run.durationMs ? <span className="text-zinc-400">· {fa(Math.round(run.durationMs / 1000))} ثانیه</span> : null}
+                {run.durationMs ? <span className="text-[var(--text-muted)]">· {fa(Math.round(run.durationMs / 1000))} ثانیه</span> : null}
               </div>
             ))}
           </div>

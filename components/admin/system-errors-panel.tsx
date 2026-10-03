@@ -13,6 +13,7 @@ import {
 } from '@/app/admin/(dash)/ui'
 import { Sparkline } from '@/components/admin/sparkline'
 import { BarList, TrendChart } from '@/components/admin/trend-chart'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { errorsDaily, errorsDailyByLevel, errorsDailyBySource } from '@/lib/admin/charts'
 import { getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { ClearErrorLogsButton } from '@/components/admin/clear-error-logs-button'
@@ -94,30 +95,30 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
   return (
     <section id="errors" className="scroll-mt-24 space-y-4">
       <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-base font-bold text-zinc-950">لاگ‌ها و خطاهای سیستم</h2>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">بررسی رخدادها، منبع خطا و stack برای دیباگ مستقیم</p>
+        <div className="min-w-0">
+          <h2 className="ui-h3">لاگ‌ها و خطاهای سیستم</h2>
+          <p className="ui-caption">بررسی رخدادها، منبع خطا و stack برای دیباگ مستقیم</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <form action="/admin/system" method="get" className="flex min-w-0 flex-1 items-end gap-2 sm:flex-initial">
             <div className="min-w-0 flex-1 sm:w-72">
-              <label htmlFor="error-log-search" className="mb-1 block text-[12px] font-medium text-zinc-600">
+              <label htmlFor="error-log-search" className="ui-field-label">
                 جست‌وجو در پیام، منبع یا workspace
               </label>
               <div className="relative">
-                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
                 <input
                   id="error-log-search"
                   name="errorQuery"
                   defaultValue={activeQuery}
                   maxLength={200}
                   placeholder="مثلاً sms:activation یا attempt id"
-                  className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white pe-3 ps-9 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                  className="input pe-3 ps-9 text-[13px]"
                 />
               </div>
             </div>
             {activeLevel ? <input type="hidden" name="errorLevel" value={activeLevel} /> : null}
-            <button type="submit" className="min-h-11 shrink-0 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
+            <button type="submit" className="admin-primary-button shrink-0 text-[13px]">
               جست‌وجو
             </button>
           </form>
@@ -131,47 +132,47 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard label="کل رخدادها" value={fa(totalCount)} icon={<AlertOctagon className="h-5 w-5" />} series={errTrend30.map((point) => point.value)} />
-        <StatCard label="خطاهای ۲۴ ساعت" value={fa(errors24h)} icon={<AlertTriangle className="h-5 w-5" />} series={errorTrend7.map((point) => point.value)} />
-        <StatCard label="رخدادهای ۷ روز اخیر" value={fa(weekTotal)} icon={<Activity className="h-5 w-5" />} series={errTrend7.map((point) => point.value)} />
-        <StatCard label="منبع پرتکرار" value={topSource?.source ?? 'بدون خطا'} sub={topSource ? `${fa(topSource.total)} رخداد در ۷ روز` : 'رخدادی ثبت نشده است'} icon={<Radar className="h-5 w-5" />} series={topSource?.series ?? []} />
+        <StatCard label="خطاهای ۲۴ ساعت" value={fa(errors24h)} tone={errors24h > 0 ? 'danger' : 'success'} icon={<AlertTriangle className="h-5 w-5" />} series={errorTrend7.map((point) => point.value)} />
+        <StatCard label="رخدادهای ۷ روز اخیر" value={fa(weekTotal)} tone="info" icon={<Activity className="h-5 w-5" />} series={errTrend7.map((point) => point.value)} />
+        <StatCard label="منبع پرتکرار" value={topSource?.source ?? 'بدون خطا'} sub={topSource ? `${fa(topSource.total)} رخداد در ۷ روز` : 'رخدادی ثبت نشده است'} tone={topSource ? 'warning' : 'success'} icon={<Radar className="h-5 w-5" />} series={topSource?.series ?? []} />
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-2">
-        <TrendChart title="روند رخدادهای ۳۰ روز اخیر" subtitle={`${fa(weekTotal)} رخداد در ۷ روز اخیر`} data={errTrend30} color="#18181b" variant="area" height={230} />
-        <BarList title="منابع پرتکرار خطا" subtitle="رتبه‌بندی بر اساس رخدادهای ۷ روز اخیر" data={topSources.map((source) => ({ label: source.source, value: source.total }))} color="#3f3f46" />
+      <div className="grid gap-4 xl:grid-cols-2">
+        <TrendChart title="روند رخدادهای ۳۰ روز اخیر" subtitle={`${fa(weekTotal)} رخداد در ۷ روز اخیر`} data={errTrend30} variant="area" height={230} />
+        <BarList title="منابع پرتکرار خطا" subtitle="رتبه‌بندی بر اساس رخدادهای ۷ روز اخیر" data={topSources.map((source) => ({ label: source.source, value: source.total }))} color={CHART_ACCENT} />
       </div>
 
       {items.length === 0 ? (
         <EmptyState icon={<AlertTriangle className="h-8 w-8" />}>رخدادی ثبت نشده است</EmptyState>
       ) : (
-        <Card pad={false} className="divide-y divide-zinc-100 overflow-hidden">
+        <Card pad={false} className="divide-y divide-[var(--border-subtle)] overflow-hidden">
           {items.map((error) => {
             const spark = sourceSparks.get(error.source ?? 'unknown')
             return (
-              <details key={error.id} className="group px-4 py-3">
-                <summary className="flex cursor-pointer list-none items-center gap-2">
+              <details key={error.id} className="group px-4 py-3 open:bg-[var(--bg-surface)]">
+                <summary className="flex min-h-8 cursor-pointer list-none flex-wrap items-center gap-2">
                   <LevelBadge level={error.level} />
-                  <span className="text-xs text-zinc-500">{error.source ?? '—'}</span>
-                  {spark && <span className="hidden sm:inline-block"><Sparkline data={spark.series} color="#18181b" width={64} height={20} /></span>}
-                  <span className="ms-auto text-[12px] text-zinc-400">{fmtDate(error.createdAt)}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{error.source ?? '—'}</span>
+                  {spark && <span className="hidden sm:inline-block"><Sparkline data={spark.series} color="#111111" width={64} height={20} /></span>}
+                  <span className="ms-auto text-[12px] text-[var(--text-muted)]">{fmtDate(error.createdAt)}</span>
                 </summary>
-                <p className="mt-2 text-sm text-zinc-700">{error.message}</p>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[12px] text-zinc-500" dir="ltr">
+                <p className="mt-2 break-words text-[13px] leading-6 text-[var(--text-primary)]">{error.message}</p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[12px] text-[var(--text-muted)]" dir="ltr">
                   <span>event: {error.id}</span>
                   <time dateTime={error.createdAt.toISOString()}>{error.createdAt.toISOString()}</time>
                 </div>
-                {error.workspaceId && <p className="mt-1 text-xs text-zinc-400">workspace: {error.workspaceId}</p>}
+                {error.workspaceId && <p className="mt-1 text-xs text-[var(--text-muted)]">workspace: {error.workspaceId}</p>}
                 {error.metadata && (
                   <div className="mt-2">
-                    <p className="mb-1 text-[12px] font-semibold text-zinc-500">متادیتای رخداد</p>
-                    <pre dir="ltr" className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-700">
+                    <p className="mb-1 text-[12px] font-semibold text-[var(--text-muted)]">متادیتای رخداد</p>
+                    <pre dir="ltr" className="admin-scroll max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-control border border-[var(--border-subtle)] bg-white p-3 text-left text-xs leading-relaxed text-[var(--text-secondary)]">
                       {JSON.stringify(error.metadata, null, 2)}
                     </pre>
                   </div>
                 )}
-                {error.stack && <pre className="mt-2 max-h-60 overflow-auto rounded-xl bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-600">{error.stack}</pre>}
+                {error.stack && <pre dir="ltr" className="mt-2 max-h-60 overflow-auto rounded-control bg-[#111] p-3 text-left text-xs leading-relaxed text-white/75">{error.stack}</pre>}
               </details>
             )
           })}

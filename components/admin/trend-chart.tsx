@@ -17,6 +17,7 @@ import {
 	CartesianGrid,
 } from 'recharts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
+import { CHART_ACCENT_TINT, CHART_COLORS, CHART_INK } from './chart-palette'
 
 export interface DailyPoint {
   day: string
@@ -28,7 +29,12 @@ export interface NamedPoint {
   value: number
 }
 
-const AXIS = { fill: '#71717a', fontSize: 11, fontFamily: 'IRANSansWeb' }
+// Warm greys and the 12px floor of the shared type scale (app/ui-system.css).
+const AXIS = { fill: '#6f6a64', fontSize: 12, fontFamily: 'IRANSansWeb' }
+const GRID = 'rgba(17, 17, 17, 0.07)'
+const CURSOR = { fill: 'rgba(17, 17, 17, 0.04)' }
+const INK = CHART_INK
+const ACCENT_TINT = CHART_ACCENT_TINT
 
 // ── Date formatters for X-axis ticks + tooltip labels ──────────────────────
 // Converts ISO date strings ("2026-07-13") to Persian ("۲۱ تیر") so all
@@ -58,28 +64,16 @@ function formatMonthTick(value: unknown): string {
 const TOOLTIP = {
   contentStyle: {
     background: '#ffffff',
-    border: '1px solid #e4e4e7',
-    borderRadius: 12,
+    border: '1px solid rgba(17, 17, 17, 0.09)',
+    borderRadius: 10,
     fontSize: 12,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+    boxShadow: '0 4px 8px -2px rgba(17, 17, 17, 0.05), 0 16px 32px -8px rgba(17, 17, 17, 0.12)',
     fontFamily: 'IRANSansWeb',
     direction: 'rtl' as const,
   },
-  labelStyle: { color: '#71717a', fontWeight: 600 },
-  itemStyle: { color: '#18181b' },
+  labelStyle: { color: '#6f6a64', fontWeight: 500 },
+  itemStyle: { color: '#111111' },
 }
-
-/** A monochrome-friendly palette for donut/pie series. Black→gray→semantic. */
-export const CHART_COLORS = [
-  '#18181b', // zinc-900
-  '#3f3f46', // zinc-700
-  '#71717a', // zinc-500
-  '#a1a1aa', // zinc-400
-  '#d4d4d8', // zinc-300
-  '#52525b', // zinc-600
-  '#e4e4e7', // zinc-200
-  '#27272a', // zinc-800
-]
 
 /**
  * Value format kind. Using a string union (instead of a function) so the prop
@@ -121,6 +115,26 @@ function formatValue(v: number, kind: FormatKind = 'number'): string {
   }
 }
 
+/** Axis tick that never clips: millions collapse to «۴٫۳ م», the rest stay whole. */
+function formatAxisTick(v: number, kind: FormatKind = 'number'): string {
+  const money = kind === 'irr' || kind === 'toman' || kind === 'compact-irr'
+  const n = (Number(v) || 0) / (money ? 10 : 1)
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} م`
+  if (kind === 'usd') return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  return n.toLocaleString('fa-IR', { maximumFractionDigits: 2 })
+}
+
+function ChartHead({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="mb-4">
+      <h3 className="ui-h3">{title}</h3>
+      {subtitle && <p className="ui-caption mt-0.5">{subtitle}</p>}
+    </div>
+  )
+}
+
+const CHART_CARD = 'spatial-surface min-w-0 rounded-card p-4 sm:p-6'
+
 /**
  * Light-themed daily trend chart for the admin area.
  * - `variant="bar"`    suits counts (conversations/errors)
@@ -131,7 +145,7 @@ export function TrendChart({
   title,
   subtitle,
   data,
-  color = '#18181b',
+  color = INK,
   variant = 'bar',
   height = 240,
   format = 'number',
@@ -147,30 +161,27 @@ export function TrendChart({
   const gradId = `grad-${title.replace(/\s/g, '')}-${variant}`
 
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
-      <div className="mb-4">
-        <h3 className="text-[13px] font-bold text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
-      </div>
+    <div className={CHART_CARD}>
+      <ChartHead title={title} subtitle={subtitle} />
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           {variant === 'area' ? (
-            <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+            <AreaChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={color} stopOpacity={0.22} />
                   <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
+              <CartesianGrid vertical={false} stroke={GRID} strokeDasharray="3 5" />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={52} allowDecimals={format === 'usd'} tickFormatter={(v: number) => formatAxisTick(v, format)} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
               <Area
                 type="monotone"
                 dataKey="value"
                 stroke={color}
-                strokeWidth={2.5}
+                strokeWidth={2}
                 fill={`url(#${gradId})`}
                 isAnimationActive={false}
                 dot={false}
@@ -178,27 +189,27 @@ export function TrendChart({
               />
             </AreaChart>
           ) : variant === 'line' ? (
-            <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
+            <LineChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
+              <CartesianGrid vertical={false} stroke={GRID} strokeDasharray="3 5" />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={52} allowDecimals={format === 'usd'} tickFormatter={(v: number) => formatAxisTick(v, format)} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke={color}
-                strokeWidth={2.5}
+                strokeWidth={2}
                 isAnimationActive={false}
                 dot={{ r: 2.5, fill: color }}
                 activeDot={{ r: 5, fill: color }}
               />
             </LineChart>
           ) : (
-            <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
+            <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
+              <CartesianGrid vertical={false} stroke={GRID} strokeDasharray="3 5" />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={format === 'usd'} />
-              <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={52} allowDecimals={format === 'usd'} tickFormatter={(v: number) => formatAxisTick(v, format)} />
+              <Tooltip {...TOOLTIP} cursor={CURSOR} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
               <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
             </BarChart>
           )}
@@ -231,13 +242,11 @@ export function DonutChart({
   const fmt = (v: number) => formatValue(v, format === 'irr' ? 'irr' : 'number')
 
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
-      <div className="mb-4">
-        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="relative shrink-0" style={{ width: height, height }}>
+    <div className={CHART_CARD}>
+      <ChartHead title={title} subtitle={subtitle} />
+      {/* Phones stack the ring over its legend; from sm they sit side by side. */}
+      <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-6">
+        <div className="relative aspect-square w-40 shrink-0 sm:w-[var(--donut)]" style={{ '--donut': `${height}px` } as React.CSSProperties}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -265,30 +274,30 @@ export function DonutChart({
           </ResponsiveContainer>
           {centerValue !== undefined && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold text-zinc-900">
+              <span className="text-lg font-bold tabular-nums text-[var(--text-primary)] sm:text-xl">
                 {typeof centerValue === 'number' ? centerValue.toLocaleString('fa-IR') : centerValue}
               </span>
-              {centerLabel && <span className="text-[12px] text-zinc-500">{centerLabel}</span>}
+              {centerLabel && <span className="text-[12px] text-[var(--text-muted)]">{centerLabel}</span>}
             </div>
           )}
         </div>
-        <ul className="min-w-0 flex-1 space-y-2">
+        <ul className="w-full min-w-0 flex-1 space-y-2.5">
           {data.map((d, i) => (
             <li key={d.label} className="flex items-center gap-2 text-xs">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
               />
-              <span className="truncate text-zinc-600">{d.label}</span>
-              <span className="ms-auto font-semibold text-zinc-900">
+              <span className="truncate text-[var(--text-secondary)]">{d.label}</span>
+              <span className="ms-auto whitespace-nowrap font-medium tabular-nums text-[var(--text-primary)]">
                 {fmt(d.value)}
               </span>
-              <span className="w-10 text-end text-zinc-400">
+              <span className="w-10 text-end tabular-nums text-[var(--text-muted)]">
                 {total > 0 ? Math.round((d.value / total) * 100) : 0}٪
               </span>
             </li>
           ))}
-          {data.length === 0 && <li className="text-xs text-zinc-400">داده‌ای نیست</li>}
+          {data.length === 0 && <li className="text-xs text-[var(--text-muted)]">داده‌ای نیست</li>}
         </ul>
       </div>
     </div>
@@ -301,7 +310,7 @@ export function BarList({
   subtitle,
   data,
   format = 'number',
-  color = '#18181b',
+  color = INK,
 }: {
   title: string
   subtitle?: string
@@ -312,29 +321,26 @@ export function BarList({
   const max = Math.max(1, ...data.map((d) => d.value))
 
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
-      <div className="mb-4">
-        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
-      </div>
+    <div className={CHART_CARD}>
+      <ChartHead title={title} subtitle={subtitle} />
       <ul className="space-y-3">
         {data.map((d, i) => (
           <li key={i}>
-            <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-              <span className="truncate text-zinc-700">{d.label}</span>
-              <span className="shrink-0 font-semibold text-zinc-900">
+            <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+              <span className="truncate text-[var(--text-secondary)]">{d.label}</span>
+              <span className="shrink-0 font-medium tabular-nums text-[var(--text-primary)]">
                 {formatValue(d.value, format)}
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]">
               <div
-                className="h-full rounded-full transition-[width] duration-300"
+                className="h-full rounded-full"
                 style={{ width: `${(d.value / max) * 100}%`, background: color }}
               />
             </div>
           </li>
         ))}
-        {data.length === 0 && <li className="py-4 text-center text-xs text-zinc-400">داده‌ای نیست</li>}
+        {data.length === 0 && <li className="py-4 text-center text-xs text-[var(--text-muted)]">داده‌ای نیست</li>}
       </ul>
     </div>
   )
@@ -345,7 +351,7 @@ export function MonthlyBarChart({
   title,
   subtitle,
   data,
-  color = '#18181b',
+  color = INK,
   height = 220,
   format = 'number',
 }: {
@@ -357,26 +363,24 @@ export function MonthlyBarChart({
   format?: FormatKind
 }) {
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
-      <div className="mb-4">
-        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
-      </div>
+    <div className={CHART_CARD}>
+      <ChartHead title={title} subtitle={subtitle} />
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+          <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} stroke={GRID} strokeDasharray="3 5" />
             <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatMonthTick} />
             <YAxis
               tick={AXIS}
               axisLine={false}
               tickLine={false}
-              width={48}
+              width={56}
               allowDecimals={false}
-              tickFormatter={(v: number) => formatValue(v, format)}
+              tickFormatter={(v: number) => formatAxisTick(v, format)}
             />
             <Tooltip
               {...TOOLTIP}
-              cursor={{ fill: '#f4f4f5' }}
+              cursor={CURSOR}
               formatter={(v) => [formatValue(Number(v), format), title]}
               labelFormatter={formatMonthTick}
             />
@@ -426,30 +430,27 @@ export function NetRevenueChart({
   const grossTotal = data.reduce((total, day) => total + day.grossIRR, 0)
 
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
-      <div className="mb-4">
-        <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
-      </div>
+    <div className={CHART_CARD}>
+      <ChartHead title={title} subtitle={subtitle} />
 
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-zinc-600">
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-[var(--text-secondary)]">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-zinc-900" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-[#111]" />
           سود خالص (پس از کسر هزینه AI)
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-zinc-300" />
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: ACCENT_TINT }} />
           هزینه OpenRouter
         </span>
-        <span className="text-zinc-400">
+        <span className="text-[var(--text-muted)]">
           مجموع اعتبار کسر شده: {formatValue(grossTotal, 'irr')}
         </span>
       </div>
 
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 14, left: 4 }}>
-            <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
+          <BarChart data={chartData} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} stroke={GRID} strokeDasharray="3 5" />
             <XAxis
               dataKey="day"
               tick={AXIS}
@@ -462,14 +463,13 @@ export function NetRevenueChart({
               tick={AXIS}
               axisLine={false}
               tickLine={false}
-              width={72}
-              tickMargin={24}
+              width={56}
               allowDecimals={false}
-              tickFormatter={(v: number) => formatValue(v, 'toman')}
+              tickFormatter={(v: number) => formatAxisTick(v, 'irr')}
             />
             <Tooltip
               {...TOOLTIP}
-              cursor={{ fill: '#f4f4f5' }}
+              cursor={CURSOR}
               formatter={(value, name) => {
                 const labels: Record<string, string> = {
                   net: 'سود خالص',
@@ -484,7 +484,7 @@ export function NetRevenueChart({
             <Bar
               dataKey="net"
               stackId="rev"
-              fill="#18181b"
+              fill={INK}
               radius={[0, 0, 0, 0]}
               isAnimationActive={false}
               barSize={26}
@@ -492,7 +492,7 @@ export function NetRevenueChart({
             <Bar
               dataKey="cost"
               stackId="rev"
-              fill="#d4d4d8"
+              fill={ACCENT_TINT}
               radius={[5, 5, 0, 0]}
               isAnimationActive={false}
               barSize={26}

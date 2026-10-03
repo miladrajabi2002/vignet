@@ -314,26 +314,138 @@
 }
 
 @layer components {
-        .admin-root {
-                --admin-surface: rgba(255, 255, 255, 0.82);
-                --admin-accent: #0a84ff;
+        /* Owner console. Same tokens as the user dashboard — ink and white carry
+           the page — plus an ink rail and the iris signal as the one accent, so
+           the owner always knows which of the two panels is open. */
+        /* `.admin-portal` carries the same tokens to the pieces that render
+           outside `.admin-root` (the phone bar and its sheet live on <body>). */
+        .admin-root,
+        .admin-portal {
+                --admin-surface: #ffffff;
+                --admin-accent: var(--signal, #5b3de8);
+                --admin-accent-strong: var(--signal-strong, #4c2fd0);
+                --admin-accent-soft: var(--signal-soft, #f3f1ff);
+                /* Iris 300: the accent as it reads on the ink rail (8.4:1). */
+                --admin-accent-on-ink: #b9adff;
+                --admin-rail: #111111;
                 --admin-success: #15803d;
                 --admin-warning: #a16207;
                 --admin-danger: #dc2626;
-                --admin-info: #0369a1;
+                --admin-info: var(--signal-strong, #4c2fd0);
                 font-family: var(--font-fa), system-ui, sans-serif;
         }
 
         .admin-root :where(button, input, select, textarea) { font: inherit; }
         .admin-root :where(code, pre, .font-mono) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-        .admin-root ::selection { background: rgba(10, 132, 255, 0.2); color: #07111f; }
+        .admin-root ::selection { background: rgba(91, 61, 232, 0.2); color: #111111; }
+
+        /* Ink page-title tile: the admin counterpart of the dashboard's white one. */
+        .admin-root .page-header-icon {
+                background: #111111;
+                border-color: #111111;
+                color: #ffffff;
+                box-shadow: var(--shadow-control);
+        }
 
         .admin-panel {
                 border: 1px solid var(--border-default);
                 background: var(--admin-surface);
                 box-shadow: var(--shadow-soft);
         }
+
+        /* ── Rail ───────────────────────────────────────────────────────── */
+        .admin-rail {
+                background: var(--admin-rail, #111111);
+                color: #ffffff;
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                box-shadow: var(--elev-2);
+        }
+
+        .admin-rail-link {
+                position: relative;
+                display: flex;
+                min-height: 2.5rem;
+                align-items: center;
+                justify-content: center;
+                gap: 0.625rem;
+                border-radius: var(--radius-control);
+                color: rgba(255, 255, 255, 0.66);
+                font-size: 13px;
+                transition: background-color 150ms ease, color 150ms ease, transform 150ms var(--ease-spatial);
+        }
+        .admin-rail-link:active { transform: scale(0.98); }
+        .admin-rail-link svg { color: rgba(255, 255, 255, 0.42); transition: color 150ms ease; }
+        .admin-rail-link:focus-visible { outline: 2px solid var(--admin-accent-on-ink); outline-offset: 1px; }
+        .admin-rail-link[aria-current='page'] {
+                background: rgba(255, 255, 255, 0.1);
+                color: #ffffff;
+                font-weight: 700;
+        }
+        .admin-rail-link[aria-current='page'] svg { color: var(--admin-accent-on-ink); }
+        /* The current page carries the accent as a short bar on the leading edge. */
+        .admin-rail-link[aria-current='page']::before {
+                content: '';
+                position: absolute;
+                inset-inline-start: 0;
+                top: 50%;
+                width: 3px;
+                height: 1.125rem;
+                margin-top: -0.5625rem;
+                border-radius: 3px;
+                background: var(--admin-accent-on-ink);
+        }
+        @media (hover: hover) and (pointer: fine) {
+                .admin-rail-link:not([aria-current='page']):hover { background: rgba(255, 255, 255, 0.06); color: #ffffff; }
+                .admin-rail-link:not([aria-current='page']):hover svg { color: rgba(255, 255, 255, 0.72); }
+        }
+        @media (min-width: 1024px) {
+                .admin-rail-link { min-height: 2.25rem; justify-content: flex-start; padding: 0.25rem 0.75rem; }
+        }
+
+        /* Scroll areas inside the console: a slim ink thumb, never the OS bar.
+           (`scrollbar-width` alone makes Chrome drop the ::-webkit-scrollbar
+           styling and draw its classic arrowed bar.) */
+        @supports not selector(::-webkit-scrollbar) {
+                .admin-scroll { scrollbar-width: thin; scrollbar-color: rgba(17, 17, 17, 0.2) transparent; }
+        }
+
+        /* Search + filters above a list. Sticks under the header on phones. */
+        .admin-toolbar {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border: 1px solid var(--border-subtle);
+                border-radius: var(--radius-card);
+                background: #ffffff;
+                padding: 0.5rem;
+                box-shadow: var(--elev-1);
+        }
+        @media (max-width: 767px) {
+                .admin-toolbar { position: sticky; top: calc(max(0.75rem, env(safe-area-inset-top)) + 4rem); z-index: 20; }
+        }
+
+        /* One record as a card — the phone layout of every admin table. */
+        .admin-record {
+                display: block;
+                border: 1px solid var(--border-subtle);
+                border-radius: var(--radius-card);
+                background: #ffffff;
+                padding: 1rem;
+                box-shadow: var(--elev-1);
+        }
+        .admin-record-facts {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.75rem;
+                margin-top: 0.875rem;
+                border-radius: var(--radius-control);
+                background: var(--bg-surface);
+                padding: 0.75rem;
+                font-size: 12px;
+        }
+        .admin-record-facts dt { color: var(--text-muted); }
+        .admin-record-facts dd { margin-top: 0.25rem; }
 
         .admin-primary-button {
                 display: inline-flex;
@@ -360,18 +472,21 @@
                 align-items: center;
                 justify-content: center;
                 gap: 0.45rem;
-                border: 1px solid rgba(17, 17, 17, 0.075);
+                border: 1px solid var(--border-default);
                 border-radius: var(--radius-control);
-                background: rgba(255, 255, 255, 0.72);
-                backdrop-filter: blur(18px) saturate(150%);
+                background: #ffffff;
                 padding-inline: 0.8rem;
-                color: rgba(17, 17, 17, 0.58);
+                color: var(--text-secondary);
                 font-size: var(--type-caption);
                 font-weight: 500;
+                box-shadow: var(--shadow-xs);
                 transition: transform var(--motion-fast) var(--ease-spatial), border-color var(--motion-control) ease, color var(--motion-control) ease, background-color var(--motion-control) ease;
         }
 
         .admin-toolbar-button:active { transform: scale(0.97); }
+        @media (hover: hover) and (pointer: fine) {
+                .admin-toolbar-button:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        }
 
         .admin-input {
                 width: 100%;
@@ -399,11 +514,13 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: var(--radius-control);
-                background: #0b0b0b;
+                background: #111111;
                 color: white;
                 box-shadow: var(--shadow-control);
         }
 
+
+        /* Faint blueprint grid on the ink half of the admin sign-in. */
         .admin-vigento-grid {
                 background-image:
                         linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
@@ -411,12 +528,6 @@
                 background-size: 34px 34px;
                 mask-image: radial-gradient(circle at center, black 20%, transparent 78%);
         }
-
-        .admin-vigento-shell [class*='absolute flex items-center'][class*='backdrop-blur'] {
-                animation: admin-node-arrive 420ms var(--ease-spatial) both;
-        }
-
-        .admin-vigento-messages { scrollbar-width: thin; }
 
         .admin-vigento-composer {
                 background: rgba(250, 250, 250, 0.82);
@@ -437,39 +548,30 @@
                 to { opacity: 0.8; transform: translateY(-1px); }
         }
 
+        /* The page is the only vertical scroller, so the head is a plain
+           tinted row; rows answer the pointer with a breath of the accent. */
         .admin-table-shell table thead {
-                position: sticky;
-                top: 0;
-                z-index: 1;
-                background: rgba(250, 250, 250, 0.9);
-                backdrop-filter: blur(16px) saturate(160%);
+                background: var(--bg-surface);
+                border-bottom: 1px solid var(--border-default);
         }
 
         .admin-table-shell table tbody tr {
-                border-top: 1px solid rgba(17, 17, 17, 0.055);
+                border-top: 1px solid var(--border-subtle);
                 transition: background-color 160ms ease;
         }
+        .admin-table-shell table tbody tr:first-child { border-top: 0; }
 
         @media (hover: hover) and (pointer: fine) {
-                .admin-table-shell table tbody tr:hover { background: rgba(10, 132, 255, 0.035); }
-        }
-
-        @keyframes admin-node-arrive {
-                from { opacity: 0; transform: translateY(6px) scale(0.97); }
-                to { opacity: 1; transform: translateY(0) scale(1); }
+                .admin-table-shell table tbody tr:hover { background: rgba(91, 61, 232, 0.04); }
         }
 
         @media (prefers-reduced-motion: reduce) {
                 .admin-primary-button,
                 .admin-toolbar-button,
+                .admin-rail-link,
                 .admin-vigento-shell * {
                         animation: none !important;
                         transition-duration: 0.01ms !important;
-                }
-                .admin-vigento-shell svg animate,
-                .admin-vigento-shell svg animateMotion,
-                .admin-vigento-shell svg animateTransform {
-                        display: none;
                 }
         }
 
@@ -533,8 +635,7 @@
 
         @media (prefers-reduced-transparency: reduce) {
                 .admin-root .spatial-surface,
-                .admin-vigento-composer,
-                .admin-toolbar-button { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+                .admin-vigento-composer { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
         }
 
         @media (prefers-contrast: more) {

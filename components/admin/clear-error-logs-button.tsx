@@ -40,7 +40,7 @@ export function ClearErrorLogsButton({ disabled = false }: { disabled?: boolean 
         type="button"
         onClick={clearLogs}
         disabled={disabled || status === 'loading'}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-bold text-rose-700 transition-colors hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/70 disabled:cursor-not-allowed disabled:opacity-45"
+        className="inline-flex min-h-11 items-center gap-2 rounded-control border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/70 disabled:cursor-not-allowed disabled:opacity-45"
       >
         {status === 'loading' ? (
           <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -52,7 +52,7 @@ export function ClearErrorLogsButton({ disabled = false }: { disabled?: boolean 
       {message ? (
         <span
           role="status"
-          className={status === 'error' ? 'text-xs text-rose-700' : 'text-xs text-emerald-700'}
+          className={status === 'error' ? 'text-xs text-red-700' : 'text-xs text-emerald-700'}
         >
           {message}
         </span>

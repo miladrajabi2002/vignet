@@ -83,7 +83,7 @@ export function AdminFilterSheet({
                     aria-current={option.active ? 'true' : undefined}
                     className={cn(
                       'inline-flex min-h-11 items-center justify-center rounded-xl border px-3 text-center text-xs font-semibold',
-                      option.active ? 'border-black bg-black text-white' : 'border-zinc-200 bg-white text-zinc-700',
+                      option.active ? 'border-black bg-black text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)]',
                     )}
                   >
                     {option.label}

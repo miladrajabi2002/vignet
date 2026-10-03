@@ -4,7 +4,9 @@ import { Bot, BrainCircuit, Cable, MessageSquare, WalletCards } from 'lucide-rea
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { TrendChart } from '@/components/admin/trend-chart'
-import { PageHeader, StatCard, Card, Badge, fa, fmtDate, fmtIRR } from '../../ui'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
+import { StatusChip } from '@/components/ui/status-chip'
+import { PageHeader, StatCard, Panel, Badge, fa, fmtDate, fmtIRR } from '../../ui'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import { displayPhone } from '@/lib/phone'
 
@@ -13,6 +15,10 @@ export const dynamic = 'force-dynamic'
 const CHANNEL_LABEL: Record<string, string> = {
   TELEGRAM: 'تلگرام', WHATSAPP: 'واتساپ', INSTAGRAM: 'اینستاگرام',
   RUBIKA: 'روبیکا', BALE: 'بله', WEB_WIDGET: 'ویجت وب', API: 'API', CHAT_LINK: 'لینک چت',
+}
+
+const KNOWLEDGE_STATUS_LABEL: Record<string, string> = {
+  READY: 'آماده', PROCESSING: 'در حال پردازش', PENDING: 'در صف', ERROR: 'خطا',
 }
 
 export default async function AdminAgentDetailPage({ params }: { params: Promise<{ agentId: string }> }) {
@@ -52,35 +58,72 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
   const readyKnowledge = agent.knowledgeBases.filter((item) => item.status === 'READY').length
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title={agent.name}
         subtitle={`${agent.workspace.name} · جزئیات عملکرد و پیکربندی ایجنت`}
         back={{ href: '/admin/agents', label: 'ایجنت‌ها' }}
+        icon={Bot}
+        action={(
+          <>
+            <StatusChip tone={agent.active ? 'ok' : 'neutral'} dot>{agent.active ? 'فعال' : 'غیرفعال'}</StatusChip>
+            <Badge tone="muted">مدل: <bdi dir="ltr">{agent.model || 'پیش‌فرض'}</bdi></Badge>
+            <Badge tone="muted">زبان: {agent.language}</Badge>
+          </>
+        )}
       />
 
-      <div className="relative overflow-hidden rounded-sheet bg-black p-5 text-white sm:p-6">
-        <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-white/[0.08] blur-3xl" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="relative grid h-16 w-16 place-items-center rounded-3xl border border-white/15 bg-white/10"><Bot className="h-8 w-8" /><span className="absolute inset-0 rounded-3xl border border-white/10 motion-safe:animate-ping" /></div>
-          <div className="flex-1"><div className="flex items-center gap-2"><h2 className="text-xl font-bold">{agent.name}</h2><span className="rounded-full border border-white/20 px-2 py-1 text-[12px]">{agent.active ? 'فعال' : 'غیرفعال'}</span></div></div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-white/65"><span>مدل: {agent.model || 'پیش‌فرض'}</span><span>زبان: {agent.language}</span></div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
-        <StatCard label="کل گفتگو" value={fa(agent._count.conversations)} icon={<MessageSquare className="h-5 w-5" />} />
+        <StatCard label="کل گفتگو" value={fa(agent._count.conversations)} icon={<MessageSquare className="h-5 w-5" />} tone="info" />
         <StatCard label="دانش آماده" value={`${fa(readyKnowledge)} / ${fa(agent._count.knowledgeBases)}`} icon={<BrainCircuit className="h-5 w-5" />} />
         <StatCard label="اتصال‌ها" value={fa(agent._count.channels)} icon={<Cable className="h-5 w-5" />} />
-        <StatCard label="هزینه ۳۰ روز" value={fmtIRR(usage._sum.chargedIRR ?? 0)} sub={`${fa(usage._count._all)} درخواست AI`} icon={<WalletCards className="h-5 w-5" />} />
+        <StatCard label="هزینه ۳۰ روز" value={fmtIRR(usage._sum.chargedIRR ?? 0)} sub={`${fa(usage._count._all)} درخواست AI`} icon={<WalletCards className="h-5 w-5" />} tone="success" />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1.35fr_.65fr]">
-        <TrendChart title="گفتگوهای ۷ روز اخیر" data={trend} color="#18181b" height={220} />
-        <Card><h2 className="mb-4 text-sm font-bold text-zinc-900">اتصال‌ها و دانش</h2><div className="space-y-2">{agent.channels.map((channel) => <div key={channel.id} className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2 text-xs"><span>{CHANNEL_LABEL[channel.type] ?? channel.type}</span><Badge tone="muted">{channel.active ? 'فعال' : 'غیرفعال'}</Badge></div>)}{agent.knowledgeBases.map((item) => <div key={item.id} className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2 text-xs"><span className="truncate">{item.name}</span><Badge tone="muted">{item.status}</Badge></div>)}</div></Card>
+      <div className="grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
+        <TrendChart title="گفتگوهای ۷ روز اخیر" data={trend} color={CHART_ACCENT} height={220} />
+        <Panel title="اتصال‌ها و دانش">
+          {agent.channels.length === 0 && agent.knowledgeBases.length === 0 ? (
+            <p className="py-8 text-center text-xs text-[var(--text-muted)]">اتصال یا منبع دانشی ثبت نشده است</p>
+          ) : (
+            <ul className="divide-y divide-[var(--border-subtle)]">
+              {agent.channels.map((channel) => (
+                <li key={channel.id} className="flex min-h-11 items-center justify-between gap-3 text-[13px] text-[var(--text-secondary)]">
+                  <span className="flex min-w-0 items-center gap-2"><Cable className="h-4 w-4 shrink-0 text-[var(--text-hint)]" aria-hidden /><span className="truncate">{CHANNEL_LABEL[channel.type] ?? channel.type}</span></span>
+                  <Badge tone={channel.active ? 'success' : 'muted'}>{channel.active ? 'فعال' : 'غیرفعال'}</Badge>
+                </li>
+              ))}
+              {agent.knowledgeBases.map((item) => (
+                <li key={item.id} className="flex min-h-11 items-center justify-between gap-3 text-[13px] text-[var(--text-secondary)]">
+                  <span className="flex min-w-0 items-center gap-2"><BrainCircuit className="h-4 w-4 shrink-0 text-[var(--text-hint)]" aria-hidden /><span className="truncate">{item.name}</span></span>
+                  <Badge tone={item.status === 'READY' ? 'success' : 'muted'}>{KNOWLEDGE_STATUS_LABEL[item.status] ?? item.status}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
 
-      <Card><h2 className="mb-4 text-sm font-bold text-zinc-900">آخرین گفتگوهای این ایجنت</h2><div className="divide-y divide-zinc-100">{agent.conversations.length ? agent.conversations.map((conversation) => <Link key={conversation.id} href={`/admin/conversations/${conversation.id}`} className="flex min-h-14 items-center gap-3 rounded-xl px-2 text-xs transition-colors hover:bg-zinc-50"><MessageSquare className="h-4 w-4 text-zinc-400" /><div className="min-w-0 flex-1"><div className="truncate font-semibold text-zinc-800">{conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'}</div><div className="mt-1 text-zinc-400">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel} · {fa(conversation.messageCount)} پیام</div></div><span className="text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span></Link>) : <p className="py-8 text-center text-xs text-zinc-400">گفتگویی ثبت نشده است</p>}</div></Card>
+      <Panel title="آخرین گفتگوهای این ایجنت">
+        {agent.conversations.length ? (
+          <ul className="-mx-2 divide-y divide-[var(--border-subtle)]">
+            {agent.conversations.map((conversation) => (
+              <li key={conversation.id}>
+                <Link href={`/admin/conversations/${conversation.id}`} className="flex min-h-14 items-center gap-3 rounded-control px-2 text-xs transition-colors hover:bg-[var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                  <MessageSquare className="h-4 w-4 shrink-0 text-[var(--text-hint)]" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium text-[var(--text-primary)]">{conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'}</div>
+                    <div className="mt-0.5 text-[var(--text-muted)]">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel} · {fa(conversation.messageCount)} پیام</div>
+                  </div>
+                  <span className="shrink-0 text-[var(--text-muted)]">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="py-8 text-center text-xs text-[var(--text-muted)]">گفتگویی ثبت نشده است</p>
+        )}
+      </Panel>
     </div>
   )
 }

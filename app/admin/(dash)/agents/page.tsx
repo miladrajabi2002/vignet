@@ -3,7 +3,9 @@ import { ArrowUpLeft, Bot, BrainCircuit, MessageSquare, Sparkles } from 'lucide-
 import { prisma } from '@/lib/prisma'
 import { conversationsDailyByAgent } from '@/lib/admin/charts'
 import { Sparkline } from '@/components/admin/sparkline'
-import { PageHeader, StatCard, Card, Badge, EmptyState, fa, fmtDate } from '../ui'
+import { PageHeader, StatCard, Card, EmptyState, Toolbar, fa, fmtDate } from '../ui'
+import { StatusChip } from '@/components/ui/status-chip'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import {
   ADMIN_VISIBLE_KNOWLEDGE_WHERE,
   ADMIN_VISIBLE_RELATED_WHERE,
@@ -49,20 +51,21 @@ export default async function AdminAgentsPage({ searchParams }: { searchParams: 
     ])
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="ایجنت‌ها"
         subtitle="عملکرد، دانش و وضعیت هر ایجنت هوش مصنوعی در یک نگاه"
+        icon={Bot}
       />
 
-      <div className="sticky top-20 z-20 rounded-2xl border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72">
+      <Toolbar>
         <AdminUsersSearchForm defaultQuery={q} placeholder="جستجوی نام ایجنت یا کسب‌وکار…" ariaLabel="جستجوی ایجنت‌ها" basePath="/admin/agents" />
-      </div>
+      </Toolbar>
 
       <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
         <StatCard label="کل ایجنت‌ها" value={fa(totalAgents)} icon={<Bot className="h-5 w-5" />} />
-        <StatCard label="ایجنت فعال" value={fa(activeAgents)} icon={<Sparkles className="h-5 w-5" />} />
-        <StatCard label="گفتگو در ۷ روز" value={fa(conversations7d)} icon={<MessageSquare className="h-5 w-5" />} />
+        <StatCard label="ایجنت فعال" value={fa(activeAgents)} icon={<Sparkles className="h-5 w-5" />} tone="success" />
+        <StatCard label="گفتگو در ۷ روز" value={fa(conversations7d)} icon={<MessageSquare className="h-5 w-5" />} tone="info" />
         <StatCard label="منبع دانش آماده" value={fa(readyKnowledge)} icon={<BrainCircuit className="h-5 w-5" />} />
       </div>
 
@@ -73,40 +76,36 @@ export default async function AdminAgentsPage({ searchParams }: { searchParams: 
           {agents.map((agent) => {
             const trend = trends.get(agent.id)?.series ?? new Array(7).fill(0)
             return (
-              <Link key={agent.id} href={`/admin/agents/${agent.id}`} className="group outline-none">
-                <Card className="relative h-full overflow-hidden p-0 transition-[border-color,transform,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:border-black/20 group-hover:shadow-lg group-hover:shadow-black/[0.04] group-focus-visible:ring-2 group-focus-visible:ring-[var(--focus-ring)]">
-                  <div className="absolute left-0 top-0 h-24 w-24 rounded-full bg-black/[0.035] blur-2xl transition-transform duration-500 group-hover:scale-150" />
-                  <div className="relative space-y-4 p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white">
-                        <Bot className="h-5 w-5" />
-                        {agent.active && <span className="absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-zinc-500 motion-safe:animate-pulse" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h2 className="truncate text-sm font-bold text-zinc-950">{agent.name}</h2>
-                          <Badge tone="muted">{agent.active ? 'فعال' : 'غیرفعال'}</Badge>
-                        </div>
-                        <p className="mt-1 truncate text-xs text-zinc-500">{agent.workspace.name}</p>
-                      </div>
-                      <ArrowUpLeft className="h-4 w-4 text-zinc-400 transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
+              <Link key={agent.id} href={`/admin/agents/${agent.id}`} className="group rounded-card outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2">
+                <Card className="h-full space-y-4 transition-[border-color,box-shadow] duration-200 group-hover:border-[var(--border-hover)] group-hover:shadow-[var(--elev-2)]">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-[#111] text-white">
+                      <Bot className="h-5 w-5" />
                     </div>
-
-                    <div className="grid grid-cols-3 divide-x divide-x-reverse divide-zinc-100 rounded-2xl border border-zinc-100 bg-zinc-50/70 py-3 text-center">
-                      <div><div className="text-sm font-bold text-zinc-900">{fa(agent._count.conversations)}</div><div className="mt-1 text-[12px] text-zinc-500">کل گفتگو</div></div>
-                      <div><div className="text-sm font-bold text-zinc-900">{fa(agent._count.knowledgeBases)}</div><div className="mt-1 text-[12px] text-zinc-500">منبع دانش</div></div>
-                      <div><div className="text-sm font-bold text-zinc-900">{fa(agent._count.channels)}</div><div className="mt-1 text-[12px] text-zinc-500">اتصال</div></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="truncate text-sm font-bold text-[var(--text-primary)]">{agent.name}</h2>
+                        <StatusChip tone={agent.active ? 'ok' : 'neutral'} dot className="shrink-0">{agent.active ? 'فعال' : 'غیرفعال'}</StatusChip>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{agent.workspace.name}</p>
                     </div>
+                    <ArrowUpLeft className="h-4 w-4 shrink-0 text-[var(--text-hint)] transition-colors group-hover:text-[var(--signal)]" aria-hidden />
+                  </div>
 
-                    <div className="flex items-end justify-between gap-4">
-                      <div>
-                        <p className="text-[12px] font-semibold text-zinc-400">روند ۷ روز اخیر</p>
-                        <Sparkline data={trend} color="#18181b" width={126} height={30} />
-                      </div>
-                      <div className="text-left text-[12px] leading-5 text-zinc-400">
-                        <div>{agent.model || 'مدل پیش‌فرض'}</div>
-                        <div>به‌روزرسانی {fmtDate(agent.updatedAt)}</div>
-                      </div>
+                  <dl className="grid grid-cols-3 divide-x divide-x-reverse divide-[var(--border-subtle)] rounded-control bg-[var(--bg-surface)] py-3 text-center">
+                    <div><dd className="text-sm font-bold tabular-nums text-[var(--text-primary)]">{fa(agent._count.conversations)}</dd><dt className="mt-1 text-[12px] text-[var(--text-muted)]">کل گفتگو</dt></div>
+                    <div><dd className="text-sm font-bold tabular-nums text-[var(--text-primary)]">{fa(agent._count.knowledgeBases)}</dd><dt className="mt-1 text-[12px] text-[var(--text-muted)]">منبع دانش</dt></div>
+                    <div><dd className="text-sm font-bold tabular-nums text-[var(--text-primary)]">{fa(agent._count.channels)}</dd><dt className="mt-1 text-[12px] text-[var(--text-muted)]">اتصال</dt></div>
+                  </dl>
+
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-[12px] text-[var(--text-muted)]">روند ۷ روز اخیر</p>
+                      <Sparkline data={trend} color={CHART_ACCENT} width={126} height={30} />
+                    </div>
+                    <div className="min-w-0 text-end text-[12px] leading-5 text-[var(--text-muted)]">
+                      <div dir="auto" className="truncate">{agent.model || 'مدل پیش‌فرض'}</div>
+                      <div>به‌روزرسانی {fmtDate(agent.updatedAt)}</div>
                     </div>
                   </div>
                 </Card>

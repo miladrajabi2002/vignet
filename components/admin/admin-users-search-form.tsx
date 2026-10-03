@@ -56,14 +56,14 @@ export function AdminUsersSearchForm({
   return (
     <form
       method="GET"
-      className="relative min-w-0 flex-1"
+      className="relative min-w-[10rem] flex-1"
       autoComplete="off"
       onSubmit={(e) => e.preventDefault()}
     >
       {isSearching ? (
-        <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-400 motion-reduce:animate-none" />
+        <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" />
       ) : (
-        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
       )}
       <input
         type="search"

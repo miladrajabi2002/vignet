@@ -16,7 +16,6 @@ export default async function AdminSystemPage(props: {
         title="سلامت زیرساخت و خطاها"
         subtitle="کنترل زنده سرویس‌ها، صف‌ها، پردازشگرها، منابع سرور و لاگ‌های قابل دیباگ"
         icon={ServerCog}
-        breadcrumbs={[{ label: 'داشبورد', href: '/admin' }, { label: 'سلامت زیرساخت' }]}
       />
       <ServiceHealthPanel />
       <ServerStatsWidget />

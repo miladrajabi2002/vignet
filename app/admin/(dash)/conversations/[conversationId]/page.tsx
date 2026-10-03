@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import { Fragment } from 'react'
 import { notFound } from 'next/navigation'
-import { ArrowRight, Bot, MessageSquare, UserRound } from 'lucide-react'
+import { Bot, ChevronLeft, MessageSquare, UserRound } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
-import { PageHeader, Card, Badge, fa, fmtDate } from '../../ui'
+import { PageHeader, Card, Panel, Badge, fa, fmtDate } from '../../ui'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
@@ -40,28 +40,31 @@ export default async function AdminConversationDetailPage({ params }: { params: 
   const contactName = conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'
   const sessionBoundaries = conversationSessionBoundaries(conversation.messages)
 
+  const statusTone = conversation.status === 'RESOLVED' ? 'success' : conversation.status === 'HANDED_OFF' ? 'warning' : 'info'
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title={`گفتگو با ${contactName}`}
         subtitle={`${conversation.workspace.name} · ${conversation.agent.name}`}
         back={{ href: '/admin/conversations', label: 'گفتگوها' }}
+        icon={MessageSquare}
+        action={<Badge tone={statusTone}>{STATUS_LABEL[conversation.status] ?? conversation.status}</Badge>}
       />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <Card className="overflow-hidden p-0">
-          <div className="flex items-center gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3">
-            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-black text-white"><MessageSquare className="h-4 w-4" /></div>
-            <div className="min-w-0 flex-1"><div className="truncate text-sm font-bold text-zinc-900">متن کامل گفتگو</div><div className="mt-0.5 text-[12px] text-zinc-400">{fa(conversation.messages.length)} پیام ثبت‌شده</div></div>
-            <Badge tone="muted">{STATUS_LABEL[conversation.status] ?? conversation.status}</Badge>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <Card pad={false} className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3">
+            <h2 className="ui-h3">متن کامل گفتگو</h2>
+            <span className="text-[12px] text-[var(--text-muted)]">{fa(conversation.messages.length)} پیام ثبت‌شده</span>
           </div>
 
           {/* dir=ltr pins the customer to the visual RIGHT and the agent to the LEFT
               regardless of the RTL admin shell, matching every customer-facing
               surface. Each piece of Persian copy inside keeps its own dir=auto. */}
-          <div dir="ltr" className="max-h-[68vh] min-h-[460px] space-y-4 overflow-y-auto bg-white p-4 sm:p-6">
+          <div dir="ltr" className="admin-scroll max-h-[68vh] min-h-[18rem] space-y-4 overflow-y-auto bg-white p-4 sm:p-6 md:min-h-[26rem]">
             {conversation.messages.length ? conversation.messages.map((message) => {
-              if (message.role === 'SYSTEM') return <div key={message.id} dir="auto" className="mx-auto max-w-xl break-words rounded-xl bg-zinc-100 px-3 py-2 text-center text-[12px] leading-6 text-zinc-500">{message.content}</div>
+              if (message.role === 'SYSTEM') return <div key={message.id} dir="auto" className="mx-auto max-w-xl break-words rounded-xl bg-[var(--bg-muted)] px-3 py-2 text-center text-[12px] leading-6 text-[var(--text-muted)]">{message.content}</div>
               const isUser = message.role === 'USER'
               const showcase = isUser
                 ? { text: message.content, products: [] }
@@ -71,17 +74,17 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                 <Fragment key={message.id}>
                 {sessionBoundaries.has(message.id) && <ConversationSessionDivider />}
                 <div key={message.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  {!isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-black text-white"><Bot className="h-3.5 w-3.5" /></div>}
+                  {!isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-chip bg-[#111] text-white"><Bot className="h-3.5 w-3.5" /></div>}
                   <div className={hasShowcase && !isUser ? 'w-full max-w-[46rem]' : 'max-w-[82%]'}>
                     {(showcase.text || message.audioUrl) && (
                       <ConversationBubble
                         side={isUser ? 'end' : 'start'}
                         tone={isUser ? 'light' : 'accent'}
-                        className={`px-4 py-3 text-xs ${isUser ? 'text-zinc-800' : 'bg-black text-white'}`}
+                        className={`px-4 py-3 text-[13px] leading-6 ${isUser ? 'text-[var(--text-primary)]' : 'bg-black text-white'}`}
                       >
                         {showcase.text && <ConversationText text={showcase.text} className="block" />}
                         {message.audioUrl && <audio controls src={message.audioUrl} className="mt-2 max-w-full" />}
-                        <time dir="auto" className={`mt-2 block text-[12px] ${isUser ? 'text-zinc-400' : 'text-white/60'}`}>{fmtDate(message.createdAt)}</time>
+                        <time dir="auto" className={`mt-2 block text-[12px] ${isUser ? 'text-[var(--text-muted)]' : 'text-white/60'}`}>{fmtDate(message.createdAt)}</time>
                       </ConversationBubble>
                     )}
                     {!isUser && hasShowcase && (
@@ -93,26 +96,44 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                       />
                     )}
                     {!isUser && hasShowcase && !showcase.text && !message.audioUrl && (
-                      <time dir="auto" className="mt-0.5 block px-1 text-[12px] text-zinc-400">{fmtDate(message.createdAt)}</time>
+                      <time dir="auto" className="mt-0.5 block px-1 text-[12px] text-[var(--text-muted)]">{fmtDate(message.createdAt)}</time>
                     )}
                   </div>
-                  {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-zinc-100"><UserRound className="h-3.5 w-3.5" /></div>}
+                  {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)]"><UserRound className="h-3.5 w-3.5" /></div>}
                 </div>
                 </Fragment>
               )
-            }) : <div dir="auto" className="grid min-h-[420px] place-items-center text-xs text-zinc-400">متنی برای این گفتگو ثبت نشده است</div>}
+            }) : <div dir="auto" className="grid min-h-[16rem] place-items-center text-xs text-[var(--text-muted)]">متنی برای این گفتگو ثبت نشده است</div>}
           </div>
         </Card>
 
-        <div className="space-y-3">
-          <Card><h2 className="mb-4 text-sm font-bold text-zinc-900">مشخصات گفتگو</h2><dl className="space-y-3 text-xs">{[
-            ['کسب‌وکار', conversation.workspace.name], ['ایجنت', conversation.agent.name],
-            ['مخاطب', contactName], ['کانال', CHANNEL_LABEL[conversation.channel] ?? conversation.channel],
-            ['وضعیت', STATUS_LABEL[conversation.status] ?? conversation.status], ['تعداد پیام', fa(conversation.messageCount)],
-            ['شروع', fmtDate(conversation.createdAt)], ['آخرین فعالیت', fmtDate(conversation.lastMessageAt ?? conversation.createdAt)],
-          ].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-3"><dt className="text-zinc-400">{label}</dt><dd className="text-left font-semibold text-zinc-700">{value}</dd></div>)}</dl></Card>
-          {conversation.summary && <Card><h2 className="mb-3 text-sm font-bold text-zinc-900">خلاصه هوشمند</h2><p className="text-xs leading-6 text-zinc-600">{conversation.summary}</p></Card>}
-          <Card><h2 className="mb-3 text-sm font-bold text-zinc-900">دسترسی سریع</h2><div className="space-y-2"><Link href={`/admin/agents/${conversation.agent.id}`} className="flex min-h-10 items-center justify-between rounded-xl border border-zinc-100 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"><span>جزئیات ایجنت</span><ArrowRight className="h-3.5 w-3.5 rotate-180" /></Link><Link href={`/admin/workspaces/${conversation.workspace.id}`} className="flex min-h-10 items-center justify-between rounded-xl border border-zinc-100 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"><span>جزئیات کسب‌وکار</span><ArrowRight className="h-3.5 w-3.5 rotate-180" /></Link></div></Card>
+        <div className="space-y-4">
+          <Panel title="مشخصات گفتگو">
+            <dl className="divide-y divide-[var(--border-subtle)] text-[13px]">
+              {[
+                ['کسب‌وکار', conversation.workspace.name], ['ایجنت', conversation.agent.name],
+                ['مخاطب', contactName], ['کانال', CHANNEL_LABEL[conversation.channel] ?? conversation.channel],
+                ['وضعیت', STATUS_LABEL[conversation.status] ?? conversation.status], ['تعداد پیام', fa(conversation.messageCount)],
+                ['شروع', fmtDate(conversation.createdAt)], ['آخرین فعالیت', fmtDate(conversation.lastMessageAt ?? conversation.createdAt)],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-start justify-between gap-3 py-2">
+                  <dt className="shrink-0 text-[var(--text-muted)]">{label}</dt>
+                  <dd className="min-w-0 break-words text-end font-medium text-[var(--text-primary)]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Panel>
+          {conversation.summary && (
+            <Panel title="خلاصه هوشمند">
+              <p className="text-[13px] leading-7 text-[var(--text-secondary)]">{conversation.summary}</p>
+            </Panel>
+          )}
+          <Panel title="دسترسی سریع">
+            <div className="-mx-2 -mb-2 divide-y divide-[var(--border-subtle)]">
+              <Link href={`/admin/agents/${conversation.agent.id}`} className="flex min-h-11 items-center justify-between gap-3 rounded-control px-2 text-[13px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"><span>جزئیات ایجنت</span><ChevronLeft className="h-4 w-4 text-[var(--text-hint)]" aria-hidden /></Link>
+              <Link href={`/admin/workspaces/${conversation.workspace.id}`} className="flex min-h-11 items-center justify-between gap-3 rounded-control px-2 text-[13px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"><span>جزئیات کسب‌وکار</span><ChevronLeft className="h-4 w-4 text-[var(--text-hint)]" aria-hidden /></Link>
+            </div>
+          </Panel>
         </div>
       </div>
     </div>

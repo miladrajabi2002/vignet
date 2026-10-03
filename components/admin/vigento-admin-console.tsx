@@ -164,14 +164,14 @@ export function VigentoAdminConsole({
     <section
       aria-label="گفتگو با ویجنتو"
       className={cn(
-        'admin-vigento-shell spatial-surface relative flex h-full min-h-0 flex-col overflow-hidden rounded-sheet',
+        'admin-vigento-shell spatial-surface relative flex h-full min-h-0 flex-col overflow-hidden rounded-card',
         className,
       )}
     >
       <div ref={messagesRef} className="admin-vigento-messages min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 sm:px-5 sm:py-7" aria-live="polite">
-        <div className="sticky top-0 z-10 mx-auto mb-5 flex w-fit rounded-full bg-zinc-100/90 p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,.035)] backdrop-blur-xl">
-          <button type="button" onClick={() => setMode('chat')} className={cn('min-h-9 min-w-24 rounded-full px-5 text-[12px] font-semibold transition-[background-color,color,box-shadow] duration-150', mode === 'chat' ? 'bg-white text-black shadow-[var(--shadow-xs)]' : 'text-[var(--text-muted)]')}>گفتگو</button>
-          <button type="button" onClick={() => { setMode('work'); setShowPrompts(true) }} className={cn('min-h-9 min-w-24 rounded-full px-5 text-[12px] font-semibold transition-[background-color,color,box-shadow] duration-150', mode === 'work' ? 'bg-white text-black shadow-[var(--shadow-xs)]' : 'text-[var(--text-muted)]')}>عملیات</button>
+        <div role="tablist" aria-label="حالت ویجنتو" className="ui-seg ui-seg-solid sticky top-0 z-10 mx-auto mb-5 w-fit grid-flow-col text-[13px]">
+          <button type="button" role="tab" aria-selected={mode === 'chat'} onClick={() => setMode('chat')} className="ui-seg-tab min-h-9 min-w-24">گفتگو</button>
+          <button type="button" role="tab" aria-selected={mode === 'work'} onClick={() => { setMode('work'); setShowPrompts(true) }} className="ui-seg-tab min-h-9 min-w-24">عملیات</button>
         </div>
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           {loadingHistory ? (
@@ -181,14 +181,14 @@ export function VigentoAdminConsole({
             </div>
           ) : emptyConversation ? (
             <div className="flex min-h-[17rem] flex-1 flex-col items-center justify-center px-4 text-center">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Sparkles className="h-[1.125rem] w-[1.125rem]" /></span>
-              <h2 id="vigento-admin-title" className="mt-5 text-xl font-medium tracking-[-0.025em] text-black sm:text-2xl">امروز چه کاری را با هم جلو ببریم؟</h2>
+              <span className="grid h-11 w-11 place-items-center rounded-control bg-[var(--signal)] text-white"><Sparkles className="h-[1.125rem] w-[1.125rem]" /></span>
+              <h2 id="vigento-admin-title" className="mt-5 text-lg font-bold text-[var(--text-primary)] sm:text-xl">امروز چه کاری را با هم جلو ببریم؟</h2>
               <p className="mt-2 max-w-md text-xs leading-6 text-[var(--text-muted)]">از تحلیل وضعیت پلتفرم تا اجرای عملیات مدیریتی تأییدشونده، درخواستتان را طبیعی بنویسید.</p>
             </div>
           ) : messages.map((message) => (
             <article key={message.id} dir={message.role === 'assistant' ? 'ltr' : 'rtl'} className={cn('flex w-fit max-w-[88%] items-start gap-2.5', message.role === 'user' ? 'ml-auto' : 'mr-auto')}>
-              {message.role === 'assistant' && <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles className="h-3.5 w-3.5" /></span>}
-              <div dir="rtl" className={cn('rounded-card px-4 py-2.5 text-right text-[13px] leading-7', message.role === 'user' ? 'rounded-tr-md bg-black text-white shadow-[var(--shadow-control)]' : 'rounded-tl-md border border-black/[0.055] bg-zinc-100/80 text-zinc-700')}>
+              {message.role === 'assistant' && <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--signal-tint)] text-[var(--signal-strong)]"><Sparkles className="h-3.5 w-3.5" /></span>}
+              <div dir="rtl" className={cn('rounded-card px-4 py-2.5 text-right text-[13px] leading-7', message.role === 'user' ? 'rounded-tr-md bg-[#111] text-white' : 'rounded-tl-md bg-[var(--bg-surface)] text-[var(--text-primary)]')}>
                 <ConversationText
                   text={message.text}
                   markdown={message.role === 'assistant'}
@@ -199,8 +199,8 @@ export function VigentoAdminConsole({
 
           {loading && (
             <div dir="ltr" className="mr-auto flex items-start gap-3" role="status">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles className="h-3.5 w-3.5" /></span>
-              <div className="flex items-center gap-1.5 pt-2 text-[var(--text-muted)]">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--signal-tint)] text-[var(--signal-strong)]"><Sparkles className="h-3.5 w-3.5" /></span>
+              <div className="flex items-center gap-1.5 pt-2 text-[var(--signal)]">
                 <span className="admin-typing-dot" />
                 <span className="admin-typing-dot [animation-delay:120ms]" />
                 <span className="admin-typing-dot [animation-delay:240ms]" />
@@ -210,13 +210,13 @@ export function VigentoAdminConsole({
           )}
 
           {proposal && (
-            <div className={cn('ms-11 rounded-2xl border p-4', proposal.tone === 'danger' ? 'border-red-200 bg-red-50/80' : 'border-amber-200 bg-amber-50/80')}>
+            <div className={cn('rounded-control border p-4 sm:ms-11', proposal.tone === 'danger' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50')}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-zinc-950">{proposal.title}</p>
-                  <p className="mt-1 text-xs leading-6 text-zinc-600">{proposal.description}</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{proposal.title}</p>
+                  <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">{proposal.description}</p>
                 </div>
-                <ShieldCheck className="h-5 w-5 shrink-0 text-zinc-500" />
+                <ShieldCheck className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
               </div>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <button type="button" onClick={confirmAction} disabled={actionState !== 'idle'} className={cn('admin-primary-button flex-1', proposal.tone === 'danger' && 'bg-red-600')}>
@@ -237,7 +237,7 @@ export function VigentoAdminConsole({
           {(showPrompts || (!hasConversation && !loadingHistory)) && (
             <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto pb-1">
               {QUICK_PROMPTS.map((prompt) => (
-                <button key={prompt} type="button" onClick={() => void ask(prompt)} className="spatial-press min-h-10 shrink-0 rounded-full border border-black/[0.07] bg-white/80 px-3 text-[12px] font-medium text-[var(--text-secondary)] hover:border-black/[0.13] hover:text-black">
+                <button key={prompt} type="button" onClick={() => void ask(prompt)} className="min-h-10 shrink-0 rounded-full border border-[var(--border-default)] bg-white px-3 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--signal-border)] hover:text-[var(--signal-strong)]">
                   {prompt}
                 </button>
               ))}
@@ -256,9 +256,9 @@ export function VigentoAdminConsole({
             placeholder={mode === 'work' ? 'عملیات مدیریتی موردنظر را بنویسید…' : 'از ویجنتو بپرسید…'}
             leading={
               <>
-                <button type="button" onClick={() => setShowPrompts((value) => !value)} className="spatial-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-zinc-100" aria-label="نمایش عملیات پیشنهادی" aria-expanded={showPrompts}><Plus className={cn('h-5 w-5 transition-transform duration-150', showPrompts && 'rotate-45')} /></button>
-                <span dir="rtl" className="mb-0.5 hidden h-9 max-w-36 items-center truncate rounded-full bg-zinc-100 px-3 text-[12px] font-medium text-[var(--text-muted)] sm:inline-flex" title={providerId}>{modelLabel}</span>
-                <button type="button" onClick={() => void resetChat()} disabled={resetting || loading || (!hasConversation && messages.length === 1)} className="spatial-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-zinc-100 hover:text-black disabled:opacity-25" aria-label="گفتگوی جدید" title="گفتگوی جدید">{resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}</button>
+                <button type="button" onClick={() => setShowPrompts((value) => !value)} className="spatial-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]" aria-label="نمایش عملیات پیشنهادی" aria-expanded={showPrompts}><Plus className={cn('h-5 w-5 transition-transform duration-150', showPrompts && 'rotate-45')} /></button>
+                <span dir="rtl" className="mb-0.5 hidden h-9 max-w-36 items-center truncate rounded-full bg-[var(--bg-muted)] px-3 text-[12px] font-medium text-[var(--text-muted)] sm:inline-flex" title={providerId}>{modelLabel}</span>
+                <button type="button" onClick={() => void resetChat()} disabled={resetting || loading || (!hasConversation && messages.length === 1)} className="spatial-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-black disabled:opacity-25" aria-label="گفتگوی جدید" title="گفتگوی جدید">{resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}</button>
               </>
             }
             footer={<p className="mt-1.5 flex items-center justify-center gap-1.5 text-[12px] text-[var(--text-muted)]"><ShieldCheck className="h-3 w-3" /> تغییرات حساس فقط پس از تأیید شما اجرا می‌شوند</p>}

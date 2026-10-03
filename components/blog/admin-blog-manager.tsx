@@ -50,10 +50,10 @@ const STATUS_LABELS_EN: Record<string, string> = {
 }
 
 const STATUS_BADGE_CLS: Record<string, string> = {
-        DRAFT: 'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200',
+        DRAFT: 'bg-[var(--bg-muted)] text-[var(--text-secondary)] ring-1 ring-black/10',
         PUBLISHED: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
         SCHEDULED: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
-        ARCHIVED: 'bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200',
+        ARCHIVED: 'bg-[var(--bg-muted)] text-[var(--text-muted)] ring-1 ring-black/10',
 }
 
 export function AdminBlogManager({
@@ -197,18 +197,18 @@ export function AdminBlogManager({
         }
 
         return (
-                <div className="space-y-4 p-5">
+                <div className="space-y-4 p-4 sm:p-5">
                         {/* Action bar: search + buttons */}
-                        <div className="sticky top-20 z-20 -mx-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/95 p-2 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+                        <div className="sticky top-[4.75rem] z-20 -mx-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border-default)] bg-white/95 p-2 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
                                 <div className="relative min-w-0 flex-1 basis-48">
-                                        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                                         <input
                                                 type="search"
                                                 inputMode="search"
                                                 value={search}
                                                 onChange={(e) => setSearch(e.target.value)}
                                                 placeholder={isFa ? 'جستجو در عنوان یا slug…' : 'Search title or slug…'}
-                                                className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-base text-zinc-800 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 sm:text-sm"
+                                                className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-white px-4 py-2.5 pr-10 text-base text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--border-strong)] focus:ring-2 focus:ring-black/5 sm:text-sm"
                                         />
                                 </div>
                                 <button
@@ -221,7 +221,7 @@ export function AdminBlogManager({
                                                 'relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-bold md:hidden',
                                                 statusFilter
                                                         ? 'border-black bg-black text-white'
-                                                        : 'border-zinc-200 bg-white text-zinc-700',
+                                                        : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)]',
                                         )}
                                 >
                                         <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -232,7 +232,7 @@ export function AdminBlogManager({
                                         value={statusFilter}
                                         onChange={(event) => setStatusFilter(event.target.value)}
                                         aria-label={isFa ? 'فیلتر وضعیت نوشته' : 'Filter post status'}
-                                        className="hidden min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none focus:border-zinc-400 md:block"
+                                        className="hidden min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] outline-none focus:border-[var(--border-strong)] md:block"
                                 >
                                         <option value="">{isFa ? 'همه وضعیت‌ها' : 'All statuses'}</option>
                                         {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -240,7 +240,7 @@ export function AdminBlogManager({
                                 <div className="flex flex-wrap items-center gap-2">
                                         <button
                                                 onClick={() => setJsonImportOpen(true)}
-                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-surface)]"
                                                 title={isFa ? 'JSON خروجی Grok را بچسبانید تا فیلدها خودکار پر شوند' : 'Paste Grok JSON to auto-fill fields'}
                                         >
                                                 <Wand2 className="h-4 w-4 text-emerald-600" />
@@ -248,7 +248,7 @@ export function AdminBlogManager({
                                         </button>
                                         <button
                                                 onClick={() => setCreating(true)}
-                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#111] px-4 text-sm font-medium text-white transition-colors hover:bg-[#2a2a2e]"
                                         >
                                                 <Plus className="h-4 w-4" />
                                                 {t('newPost')}
@@ -269,7 +269,7 @@ export function AdminBlogManager({
                                                         type="button"
                                                         onClick={() => setStatusFilter('')}
                                                         disabled={!statusFilter}
-                                                        className="min-h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 disabled:opacity-40"
+                                                        className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] disabled:opacity-40"
                                                 >
                                                         {isFa ? 'پاک‌کردن' : 'Clear'}
                                                 </button>
@@ -284,7 +284,7 @@ export function AdminBlogManager({
                                 )}
                         >
                                 <fieldset>
-                                        <legend className="mb-2 text-sm font-bold text-zinc-900">
+                                        <legend className="mb-2 text-sm font-bold text-[var(--text-primary)]">
                                                 {isFa ? 'وضعیت انتشار' : 'Publishing status'}
                                         </legend>
                                         <div className="grid grid-cols-2 gap-2">
@@ -301,7 +301,7 @@ export function AdminBlogManager({
                                                                         'inline-flex min-h-11 items-center justify-center rounded-xl border px-3 text-center text-xs font-semibold',
                                                                         statusFilter === value
                                                                                 ? 'border-black bg-black text-white'
-                                                                                : 'border-zinc-200 bg-white text-zinc-700',
+                                                                                : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)]',
                                                                 )}
                                                         >
                                                                 {label}
@@ -313,9 +313,9 @@ export function AdminBlogManager({
 
                         {/* List */}
                         {filtered.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 py-16 text-center">
-                                        <FileText className="h-8 w-8 text-zinc-300" />
-                                        <p className="text-sm text-zinc-500">
+                                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--border-hover)] py-16 text-center">
+                                        <FileText className="h-8 w-8 text-[var(--text-hint)]" />
+                                        <p className="text-sm text-[var(--text-muted)]">
                                                 {isFa ? 'هیچ پستی یافت نشد' : 'No posts found'}
                                         </p>
                                 </div>
@@ -323,42 +323,42 @@ export function AdminBlogManager({
                                 <>
                                 <div className="grid gap-3 md:hidden">
                                         {filtered.map((post) => (
-                                                <article key={post.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                                                <article key={post.id} className="rounded-2xl border border-[var(--border-default)] bg-white p-4 shadow-sm">
                                                         <div className="flex items-start gap-3">
                                                                 {post.coverImage ? (
                                                                         // eslint-disable-next-line @next/next/no-img-element
-                                                                        <img src={post.coverImage} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-xl border border-zinc-200 object-cover" />
+                                                                        <img src={post.coverImage} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-xl border border-[var(--border-default)] object-cover" />
                                                                 ) : (
                                                                         <button
                                                                                 type="button"
                                                                                 onClick={() => setPosterPromptFor(post)}
                                                                                 title={isFa ? 'بدون پوستر — ساخت پرامپت عکس با ۳ رنگ' : 'No cover — build 3-color poster prompts'}
                                                                                 aria-label={isFa ? 'ساخت پرامپت پوستر' : 'Build poster prompts'}
-                                                                                className="group grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
+                                                                                className="group grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-[var(--border-hover)] bg-[var(--bg-surface)] transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
                                                                         >
-                                                                                <ImagePlus className="h-5 w-5 text-zinc-300 transition-colors group-hover:text-[var(--ok)]" />
-                                                                                <span className="text-[12px] font-medium text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
+                                                                                <ImagePlus className="h-5 w-5 text-[var(--text-hint)] transition-colors group-hover:text-[var(--ok)]" />
+                                                                                <span className="text-[12px] font-medium text-[var(--text-muted)] transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
                                                                         </button>
                                                                 )}
                                                                 <div className="min-w-0 flex-1">
                                                                         <div className="flex items-start justify-between gap-2">
-                                                                                <h3 className="line-clamp-2 text-sm font-bold text-zinc-900">{post.title || (isFa ? 'بدون عنوان' : 'Untitled')}</h3>
+                                                                                <h3 className="line-clamp-2 text-sm font-bold text-[var(--text-primary)]">{post.title || (isFa ? 'بدون عنوان' : 'Untitled')}</h3>
                                                                                 <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[12px] font-medium', STATUS_BADGE_CLS[post.status])}>{statusLabels[post.status]}</span>
                                                                         </div>
-                                                                        <p dir="ltr" className="mt-1 truncate text-start text-[12px] text-zinc-400">/blog/{post.slug}</p>
-                                                                        <p className="mt-2 truncate text-xs text-zinc-500">{post.workspace?.name ?? '—'} · {isFa ? toPersianDigits(post.views) : post.views.toLocaleString('en-US')} {isFa ? 'بازدید' : 'views'}</p>
+                                                                        <p dir="ltr" className="mt-1 truncate text-start text-[12px] text-[var(--text-muted)]">/blog/{post.slug}</p>
+                                                                        <p className="mt-2 truncate text-xs text-[var(--text-muted)]">{post.workspace?.name ?? '—'} · {isFa ? toPersianDigits(post.views) : post.views.toLocaleString('en-US')} {isFa ? 'بازدید' : 'views'}</p>
                                                                 </div>
                                                         </div>
-                                                        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-zinc-100 pt-3">
-                                                                <button type="button" onClick={() => setEditing(post)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-700"><Edit3 className="h-4 w-4" />{t('edit')}</button>
+                                                        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--border-subtle)] pt-3">
+                                                                <button type="button" onClick={() => setEditing(post)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)]"><Edit3 className="h-4 w-4" />{t('edit')}</button>
                                                                 <button type="button" onClick={() => handleDelete(post.id)} disabled={deleting === post.id} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-100 text-xs font-bold text-red-600 disabled:opacity-50">{deleting === post.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{isFa ? 'حذف' : 'Delete'}</button>
                                                         </div>
                                                 </article>
                                         ))}
                                 </div>
-                                <div className="hidden overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm md:block">
+                                <div className="hidden overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white shadow-sm md:block">
                                         <table className="w-full text-start text-sm">
-                                                <thead className="border-b border-zinc-200 bg-zinc-50/60 text-xs text-zinc-500">
+                                                <thead className="border-b border-[var(--border-default)] bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
                                                         <tr>
                                                                 <th className="px-4 py-3 text-start font-semibold">
                                                                         {isFa ? 'پوستر' : 'Cover'}
@@ -378,9 +378,9 @@ export function AdminBlogManager({
                                                                 <th className="px-4 py-3"></th>
                                                         </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-zinc-100">
+                                                <tbody className="divide-y divide-[var(--border-subtle)]">
                                                         {filtered.map((p) => (
-                                                                <tr key={p.id} className="transition-colors hover:bg-zinc-50">
+                                                                <tr key={p.id} className="transition-colors hover:bg-[var(--bg-surface)]">
                                                                         <td className="px-4 py-3">
                                                                                 {p.coverImage ? (
                                                                                         // eslint-disable-next-line @next/next/no-img-element
@@ -391,7 +391,7 @@ export function AdminBlogManager({
                                                                                                 height={48}
                                                                                                 loading="lazy"
                                                                                                 decoding="async"
-                                                                                                className="h-12 w-16 shrink-0 rounded-lg border border-zinc-200 object-cover"
+                                                                                                className="h-12 w-16 shrink-0 rounded-lg border border-[var(--border-default)] object-cover"
                                                                                         />
                                                                                 ) : (
                                                                                         <button
@@ -399,16 +399,16 @@ export function AdminBlogManager({
                                                                                                 onClick={() => setPosterPromptFor(p)}
                                                                                                 title={isFa ? 'بدون پوستر — ساخت پرامپت عکس با ۳ رنگ' : 'No cover — build 3-color poster prompts'}
                                                                                                 aria-label={isFa ? 'ساخت پرامپت پوستر' : 'Build poster prompts'}
-                                                                                                className="group flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
+                                                                                                className="group flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-[var(--border-hover)] bg-[var(--bg-surface)] transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
                                                                                         >
-                                                                                                <ImagePlus className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-[var(--ok)]" />
-                                                                                                <span className="text-[12px] font-medium leading-none text-zinc-400 transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
+                                                                                                <ImagePlus className="h-4 w-4 text-[var(--text-hint)] transition-colors group-hover:text-[var(--ok)]" />
+                                                                                                <span className="text-[12px] font-medium leading-none text-[var(--text-muted)] transition-colors group-hover:text-emerald-600">{isFa ? 'پوستر' : 'Poster'}</span>
                                                                                         </button>
                                                                                 )}
                                                                         </td>
                                                                         <td className="px-4 py-3">
                                                                                 <div className="flex items-center gap-2">
-                                                                                        <span className="max-w-[280px] truncate font-medium text-zinc-900">
+                                                                                        <span className="max-w-[280px] truncate font-medium text-[var(--text-primary)]">
                                                                                                 {p.title || (isFa ? 'بدون عنوان' : 'Untitled')}
                                                                                         </span>
                                                                                         {p.featured && (
@@ -417,11 +417,11 @@ export function AdminBlogManager({
                                                                                                 </span>
                                                                                         )}
                                                                                 </div>
-                                                                                <div className="mt-0.5 max-w-[280px] truncate text-xs text-zinc-400" dir="ltr">
+                                                                                <div className="mt-0.5 max-w-[280px] truncate text-xs text-[var(--text-muted)]" dir="ltr">
                                                                                         /blog/{p.slug}
                                                                                 </div>
                                                                         </td>
-                                                                        <td className="px-4 py-3 text-zinc-500">
+                                                                        <td className="px-4 py-3 text-[var(--text-muted)]">
                                                                                 {p.workspace?.name ?? '—'}
                                                                         </td>
                                                                         <td className="px-4 py-3">
@@ -434,7 +434,7 @@ export function AdminBlogManager({
                                                                                         {statusLabels[p.status]}
                                                                                 </span>
                                                                         </td>
-                                                                        <td className="px-4 py-3 text-zinc-500 tabular-nums">
+                                                                        <td className="px-4 py-3 text-[var(--text-muted)] tabular-nums">
                                                                                 {isFa ? toPersianDigits(p.views) : p.views.toLocaleString('en-US')}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-end">
@@ -442,7 +442,7 @@ export function AdminBlogManager({
                                                                                         <button
                                                                                                 onClick={() => setEditing(p)}
                                                                                                 title={t('edit')}
-                                                                                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+                                                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
                                                                                         >
                                                                                                 <Edit3 className="h-4 w-4" />
                                                                                         </button>
@@ -450,7 +450,7 @@ export function AdminBlogManager({
                                                                                                 onClick={() => handleDelete(p.id)}
                                                                                                 disabled={deleting === p.id}
                                                                                                 title={isFa ? 'حذف' : 'Delete'}
-                                                                                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                                                                                         >
                                                                                                 {deleting === p.id ? (
                                                                                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -471,22 +471,22 @@ export function AdminBlogManager({
                         {/* ─── Modal: create or edit ─── */}
                         {(creating || editing) && (
                                 <div
-                                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-900/40 p-0 backdrop-blur-sm sm:p-4"
+                                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-0 backdrop-blur-sm sm:p-4"
                                         onClick={(e) => {
                                                 if (e.target === e.currentTarget) handleClose()
                                         }}
                                 >
                                         <div
                                                 dir={isFa ? 'rtl' : 'ltr'}
-                                                className="min-h-dvh w-full max-w-5xl overflow-hidden rounded-none border border-zinc-200 bg-white shadow-2xl sm:my-8 sm:min-h-0 sm:rounded-2xl"
+                                                className="min-h-dvh w-full max-w-5xl overflow-hidden rounded-none border border-[var(--border-default)] bg-white shadow-2xl sm:my-8 sm:min-h-0 sm:rounded-2xl"
                                         >
-                                                <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
-                                                        <h2 className="text-sm font-bold text-zinc-900">
+                                                <div className="flex items-center justify-between border-b border-[var(--border-default)] px-5 py-3.5">
+                                                        <h2 className="text-sm font-bold text-[var(--text-primary)]">
                                                                 {editing ? t('editPost') : t('newPost')}
                                                         </h2>
                                                         <button
                                                                 onClick={handleClose}
-                                                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]"
                                                                 aria-label={t('close')}
                                                         >
                                                                 <X className="h-4 w-4" />

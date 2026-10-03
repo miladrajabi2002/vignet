@@ -1,7 +1,8 @@
-import { Gauge, Wallet, DollarSign } from 'lucide-react'
+import { BarChart3, Gauge, Wallet, DollarSign } from 'lucide-react'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { TrendChart, BarList } from '@/components/admin/trend-chart'
+import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { usageChargesDaily } from '@/lib/admin/charts'
 import { ADMIN_VISIBLE_RELATED_WHERE, adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
@@ -104,19 +105,16 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       <PageHeader
         title="مصرف و هزینه AI"
         subtitle={`تصویر مالی درخواست‌های هوش مصنوعی در ${rangeLabel} اخیر`}
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'مصرف' },
-        ]}
+        icon={BarChart3}
         action={<RangeSwitch current={range} basePath="/admin/usage" />}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 max-lg:[&>*:first-child]:col-span-2">
         <StatCard
           label="کل درخواست‌ها"
           value={fa(callCount)}
           icon={<Gauge className="h-5 w-5" />}
-          tone="default"
+          tone="info"
         />
          <StatCard
            label="مبلغ کسرشده"
@@ -137,7 +135,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
           title={`مبلغ مصرف‌شده ${rangeLabel} اخیر`}
           subtitle="مجموع مبلغ کسرشده از اعتبار روزانه"
           data={chargeTrend.map((point) => ({ ...point, value: Math.round(point.value / 10) }))}
-          color="#18181b"
+          color={CHART_ACCENT}
           variant="area"
           height={220}
         />
@@ -146,17 +144,17 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         {typeRows.length === 0 ? (
           <EmptyState>داده‌ای ثبت نشده است</EmptyState>
         ) : (
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-[var(--border-subtle)]">
             {typeRows.map((r) => (
               <div
                 key={r.type}
                 className="flex flex-wrap items-center gap-2 py-3"
               >
-                <span className="w-32 shrink-0 text-sm font-medium text-zinc-900">
+                <span className="min-w-0 shrink-0 text-[13px] font-medium text-[var(--text-primary)] sm:w-32">
                   {r.label}
                 </span>
                 <Badge tone="muted">{fa(r.count)} درخواست</Badge>
-                <span className="ms-auto w-24 shrink-0 text-end text-xs text-zinc-500">
+                <span className="ms-auto shrink-0 text-end text-xs tabular-nums text-[var(--text-secondary)]">
                    {fa(Math.round(r.chargeIRR / 10))} تومان
                 </span>
                 <div className="w-full">
@@ -172,14 +170,13 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
           title="به تفکیک مدل"
           subtitle="پرکاربردترین مدل‌ها بر اساس مبلغ مصرف‌شده"
           data={modelRows}
-          color="#18181b"
           format="number"
         />
         <BarList
           title="کسب‌وکارهای پرمصرف"
           subtitle="مبلغ کسرشده از اعتبار به تومان"
           data={workspaceRows}
-          color="#3f3f46"
+          color={CHART_ACCENT}
           format="number"
         />
       </div>
