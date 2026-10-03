@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, MoreVertical, Search, SlidersHorizontal, Users, X } from 'lucide-react'
+import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { ChannelBadge, ChannelGlyph, SourceTagBadges } from '@/components/crm/channel-badge'
 import { smartTime, formatDateTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
@@ -127,7 +128,7 @@ export function ContactsView({
         const router = useRouter()
         const [rows, setRows] = useState(initial)
         const [view, setView] = useState<'list' | 'pipeline'>('list')
-        const [query, setQuery] = useState(serverQuery)
+        const [query, setQuery, markQuerySent] = useUrlSearchInput(serverQuery)
         const [isSearching, startSearchTransition] = useTransition()
         const [stageFilter, setStageFilter] = useState<Stage | ''>(initialStageFilter)
         const [channelFilter, setChannelFilter] = useState<ChannelType | ''>(initialChannelFilter)
@@ -153,11 +154,10 @@ export function ContactsView({
         }, [])
 
         useEffect(() => {
-                setQuery(serverQuery)
                 setStageFilter(initialStageFilter)
                 setChannelFilter(initialChannelFilter)
                 setTagFilter(initialTagFilter)
-        }, [serverQuery, initialStageFilter, initialChannelFilter, initialTagFilter])
+        }, [initialStageFilter, initialChannelFilter, initialTagFilter])
 
         useEffect(() => {
                 if (!detailContactId) detailOpenedLocallyRef.current = false
@@ -179,6 +179,7 @@ export function ContactsView({
                                 if (channelFilter) params.set('channel', channelFilter)
                                 if (tagFilter) params.set('tag', tagFilter)
                                 const search = params.toString()
+                                if (nextQuery !== serverQuery) markQuerySent(nextQuery)
                                 router.replace(search ? `/contacts?${search}` : '/contacts', { scroll: false })
                         })
                 }, nextQuery === serverQuery ? 0 : 280)
@@ -193,6 +194,7 @@ export function ContactsView({
                 initialStageFilter,
                 initialChannelFilter,
                 initialTagFilter,
+                markQuerySent,
         ])
 
         const availableTags = useMemo(

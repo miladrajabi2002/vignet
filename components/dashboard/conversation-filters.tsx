@@ -9,6 +9,7 @@ import {
         SlidersHorizontal,
         X,
 } from 'lucide-react'
+import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
@@ -66,7 +67,7 @@ export function ConversationFilters({
         const params = useSearchParams()
         const paramsString = params.toString()
         const filterTriggerRef = useRef<HTMLButtonElement>(null)
-        const [searchValue, setSearchValue] = useState(query ?? '')
+        const [searchValue, setSearchValue, markSearchSent] = useUrlSearchInput(query ?? '')
         const [filterOpen, setFilterOpen] = useState(false)
         const [isSearching, startSearchTransition] = useTransition()
         const hasActiveFilter = Boolean(
@@ -109,10 +110,6 @@ export function ConversationFilters({
         }
 
         useEffect(() => {
-                setSearchValue(query ?? '')
-        }, [query])
-
-        useEffect(() => {
                 const nextQuery = searchValue.trim()
                 if (nextQuery === (query ?? '')) return
 
@@ -122,6 +119,7 @@ export function ConversationFilters({
                         if (nextQuery) sp.set('q', nextQuery)
                         sp.delete('page')
                         const qs = sp.toString()
+                        markSearchSent(nextQuery)
                         startSearchTransition(() => {
                                 router.replace(qs ? `${basePath}?${qs}` : basePath, {
                                         scroll: false,
@@ -130,7 +128,7 @@ export function ConversationFilters({
                 }, 280)
 
                 return () => window.clearTimeout(timer)
-        }, [basePath, paramsString, query, router, searchValue])
+        }, [basePath, paramsString, query, router, searchValue, markSearchSent])
 
         const totalResults =
                 statusOptions.find((option) => option.key === 'ALL')?.count ?? 0

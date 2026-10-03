@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react'
+import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
@@ -63,7 +64,7 @@ export function AdminConversationFilters({
   const params = useSearchParams()
   const paramsString = params.toString()
   const filterTriggerRef = useRef<HTMLButtonElement>(null)
-  const [searchValue, setSearchValue] = useState(query ?? '')
+  const [searchValue, setSearchValue, markSearchSent] = useUrlSearchInput(query ?? '')
   const [filterOpen, setFilterOpen] = useState(false)
   const [isSearching, startSearchTransition] = useTransition()
   const hasActiveFilter = Boolean(activeStatus || activeChannel || searchValue)
@@ -95,10 +96,6 @@ export function AdminConversationFilters({
     navigate({ q: searchValue.trim() || undefined })
   }
 
-  useEffect(() => {
-    setSearchValue(query ?? '')
-  }, [query])
-
   // Debounced live search — 280ms after the last keystroke (same as user dashboard).
   useEffect(() => {
     const nextQuery = searchValue.trim()
@@ -110,6 +107,7 @@ export function AdminConversationFilters({
       if (nextQuery) sp.set('q', nextQuery)
       sp.delete('page')
       const qs = sp.toString()
+      markSearchSent(nextQuery)
       startSearchTransition(() => {
         router.replace(qs ? `/admin/conversations?${qs}` : '/admin/conversations', {
           scroll: false,
@@ -118,7 +116,7 @@ export function AdminConversationFilters({
     }, 280)
 
     return () => window.clearTimeout(timer)
-  }, [paramsString, query, router, searchValue])
+  }, [paramsString, query, router, searchValue, markSearchSent])
 
   const totalResults =
     statusOptions.find((option) => option.key === 'ALL')?.count ?? 0

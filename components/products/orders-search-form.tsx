@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { Search, X, Loader2, SlidersHorizontal } from 'lucide-react'
+import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
@@ -49,7 +50,7 @@ export function OrdersSearchForm({
 }) {
   const router = useRouter()
   const locale = useLocale()
-  const [searchInput, setSearchInput] = useState(defaultQuery)
+  const [searchInput, setSearchInput, markSearchSent] = useUrlSearchInput(defaultQuery)
   const [statusInput, setStatusInput] = useState(defaultStatus)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [isSearching, startSearchTransition] = useTransition()
@@ -57,9 +58,6 @@ export function OrdersSearchForm({
 
   // Keep local state in sync when the URL changes externally (back/forward,
   // "clear filters" link, etc.).
-  useEffect(() => {
-    setSearchInput(defaultQuery)
-  }, [defaultQuery])
   useEffect(() => {
     setStatusInput(defaultStatus)
   }, [defaultStatus])
@@ -73,6 +71,7 @@ export function OrdersSearchForm({
       if (trimmed) sp.set('q', trimmed)
       if (statusInput) sp.set('status', statusInput)
       sp.delete('page')
+      if (trimmed !== defaultQuery.trim()) markSearchSent(trimmed)
       startSearchTransition(() => {
         const url = sp.toString()
         router.replace(url ? `/products/orders?${url}` : '/products/orders', {
@@ -81,7 +80,7 @@ export function OrdersSearchForm({
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, statusInput, defaultQuery, defaultStatus, router])
+  }, [searchInput, statusInput, defaultQuery, defaultStatus, router, markSearchSent])
 
   const hasFilters = !!searchInput.trim() || !!statusInput
   const selectedStatusLabel = statusOptions.find((option) => option.value === statusInput)?.label

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { LayoutGrid, Package, Pencil, Rows3, Store, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
@@ -323,7 +324,7 @@ export function ProductsToolbar({
   // Local state for the search input — we debounce URL updates so we don't
   // trigger a server round-trip on every keystroke. The dropdowns (category,
   // stock, sort) update immediately because each change is a discrete action.
-  const [searchInput, setSearchInput] = useState(defaultQuery)
+  const [searchInput, setSearchInput, markSearchSent] = useUrlSearchInput(defaultQuery)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
   const [isSearching, startSearchTransition] = useTransition()
@@ -335,11 +336,6 @@ export function ProductsToolbar({
   ].filter(Boolean).length
   const hasFilters = Boolean(searchInput.trim() || activeFacetCount)
   const number = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
-
-  // Keep local input in sync when the URL changes (e.g. user clicks "clear").
-  useEffect(() => {
-    setSearchInput(defaultQuery)
-  }, [defaultQuery])
 
   // Debounced live search: wait 280ms after the last keystroke, then update
   // the URL. Soft navigation (Next.js App Router) makes this feel instant.
@@ -359,13 +355,14 @@ export function ProductsToolbar({
         if (v && !(k === 'sort' && v === 'newest')) sp.set(k, v)
       }
       sp.delete('page') // back to page 1 on every search change
+      markSearchSent(trimmed)
       startSearchTransition(() => {
         const query = sp.toString()
         router.replace(query ? `/products?${query}` : '/products', { scroll: false })
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, defaultQuery, defaultSort, defaultCategory, defaultStock, view, router])
+  }, [searchInput, defaultQuery, defaultSort, defaultCategory, defaultStock, view, router, markSearchSent])
 
   function update(params: Record<string, string>) {
     const sp = new URLSearchParams()

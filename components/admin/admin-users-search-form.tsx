@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Loader2 } from 'lucide-react'
+import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 
 /**
  * Live AJAX search input for the admin users page.
@@ -29,13 +30,8 @@ export function AdminUsersSearchForm({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [searchInput, setSearchInput] = useState(defaultQuery)
+  const [searchInput, setSearchInput, markSearchSent] = useUrlSearchInput(defaultQuery)
   const [isSearching, startSearchTransition] = useTransition()
-
-  // Keep local state in sync when the URL changes externally.
-  useEffect(() => {
-    setSearchInput(defaultQuery)
-  }, [defaultQuery])
 
   // Debounced live search: 280ms after the last keystroke.
   useEffect(() => {
@@ -47,6 +43,7 @@ export function AdminUsersSearchForm({
       else sp.delete('q')
       sp.delete('page')
       const url = sp.toString()
+      markSearchSent(trimmed)
       startSearchTransition(() => {
         router.replace(url ? `${basePath}?${url}` : basePath, {
           scroll: false,
@@ -54,7 +51,7 @@ export function AdminUsersSearchForm({
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, defaultQuery, searchParams, router, basePath])
+  }, [searchInput, defaultQuery, searchParams, router, basePath, markSearchSent])
 
   return (
     <form
