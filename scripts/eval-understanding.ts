@@ -103,13 +103,19 @@ function routingCheck(c: EvalCase, predicted: ActType[]): boolean {
   return required.every((domain) => predictedDomains.has(domain)) && !forbidden.some((domain) => predictedDomains.has(domain))
 }
 
+/** A destructive act nobody asked for. Answering «لغو شود؟» with «آره لغو کن» is asked for. */
+function isDestructiveFalsePositive(c: EvalCase, set: Set<ActType>): boolean {
+  if (c.pending?.kind === 'confirm_cancel') return false
+  return DESTRUCTIVE.some((act) => set.has(act) && !c.expect.acts.includes(act))
+}
+
 function score(c: EvalCase, predicted: ActType[], verified: VerifiedUnderstanding | null): Omit<CaseResult, 'id' | 'tags' | 'message'> {
   const set = new Set(predicted)
   const checks: Record<string, boolean> = {}
   checks.routing = routingCheck(c, predicted)
   if (!verified) {
     // The legacy router is scored on routing only (no refs, ops or acts of its own).
-    return { predicted, refs: [], checks, pass: checks.routing, destructiveFalsePositive: DESTRUCTIVE.some((act) => set.has(act) && !c.expect.acts.includes(act)) }
+    return { predicted, refs: [], checks, pass: checks.routing, destructiveFalsePositive: isDestructiveFalsePositive(c, set) }
   }
   checks.requiredActs = c.expect.acts.every((act) => set.has(act))
   checks.forbiddenActs = !(c.expect.notActs ?? []).some((act) => set.has(act))
@@ -133,7 +139,7 @@ function score(c: EvalCase, predicted: ActType[], verified: VerifiedUnderstandin
       && (!c.expect.sort || search!.sort === c.expect.sort)
   }
   if (verified && c.expect.answersPending != null) checks.answersPending = verified.answersPending === c.expect.answersPending
-  const destructiveFalsePositive = DESTRUCTIVE.some((act) => set.has(act) && !c.expect.acts.includes(act))
+  const destructiveFalsePositive = isDestructiveFalsePositive(c, set)
   return {
     predicted,
     refs,

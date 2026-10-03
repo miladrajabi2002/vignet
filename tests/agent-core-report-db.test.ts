@@ -1,9 +1,13 @@
 import 'dotenv/config'
 import crypto from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
 vi.mock('server-only', () => ({}))
+vi.mock('next-intl', async (original) => ({ ...await original<typeof import('next-intl')>(), useLocale: () => 'fa' }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => '/admin/agent-core' }))
 import { prisma } from '@/lib/prisma'
 import { getAgentCoreReport } from '@/lib/admin/agent-core'
+import AgentCorePage from '@/app/admin/(dash)/agent-core/page'
 
 // Explicit opt-in: needs a disposable PostgreSQL with every migration applied.
 // The report is platform-wide, so the fixture workspace is report-visible and
@@ -105,5 +109,12 @@ describe.skipIf(process.env.RUN_AGENT_CORE_DB_TESTS !== '1')('agent-core admin r
     expect(row).toMatchObject({
       products: 3, inStockProducts: 2, orderCapture: true, payLink: true, handoff: true, channels: ['WEB_WIDGET'], conversations: 1,
     })
+  })
+
+  it('the admin page renders every section from the live report', async () => {
+    const html = renderToStaticMarkup(await AgentCorePage({ searchParams: Promise.resolve({ days: '30' }) }))
+    for (const text of ['هستهٔ ایجنت', 'حالت اجرای لایهٔ فهم', 'دقت و سلامت فهم', 'هزینه', 'کیفیت پاسخ و مشتری', 'دسترسی و قابلیت هر ایجنت', 'فردا میرسه دستم؟', 'Core']) {
+      expect(html).toContain(text)
+    }
   })
 })

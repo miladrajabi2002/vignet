@@ -8,8 +8,7 @@
     "passRate": 60.8,
     "destructiveFalsePositives": [
       "G02",
-      "G06",
-      "H09"
+      "G06"
     ],
     "regressionCasesPassed": 1,
     "regressionCases": 20,
@@ -2057,7 +2056,7 @@
         "routing": true
       },
       "pass": true,
-      "destructiveFalsePositive": true
+      "destructiveFalsePositive": false
     },
     {
       "id": "H10",
