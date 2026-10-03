@@ -39,6 +39,7 @@ import {
         type IgDmHeaderProps,
 } from '@/components/instagram/ios-kit'
 import { cn } from '@/lib/utils'
+import { productImageSrc } from '@/lib/products/image-src'
 
 /**
  * IphonePreview — the scenario builder's live phone preview.
@@ -528,7 +529,7 @@ function ProductCardBubble({ productId, small }: { productId: string; small?: bo
                                 {img ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
-                                                src={img}
+                                                src={productImageSrc(img)}
                                                 alt={product?.name ?? 'محصول'}
                                                 loading="lazy"
                                                 decoding="async"
@@ -896,7 +897,7 @@ function DmProductRow({ productId, count }: { productId: string; count: number }
                         <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/[0.04]">
                                 {img ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={img} alt={product?.name ?? ''} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                                        <img src={productImageSrc(img)} alt={product?.name ?? ''} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                 ) : (
                                         <ShoppingBag className="h-4 w-4 text-[var(--text-muted)]" />
                                 )}

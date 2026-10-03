@@ -37,6 +37,7 @@ import {
         safeHttpUrl,
         type ShowcaseProduct,
 } from './product-showcase'
+import { productImageSrc } from '@/lib/products/image-src'
 
 /** Matches the rail's `gap-3`; used to advance exactly one card per click. */
 const RAIL_GAP_PX = 12
@@ -467,7 +468,7 @@ function ShowcaseCard({
                                         // statically in next/image configuration.
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
-                                                src={imageUrl}
+                                                src={productImageSrc(imageUrl)}
                                                 alt={product.name}
                                                 loading="lazy"
                                                 decoding="async"

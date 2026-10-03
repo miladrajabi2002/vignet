@@ -13,6 +13,7 @@ import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { queueUndo } from '@/lib/undo-queue'
 import { rememberProductsView } from '@/lib/products/view-preference'
+import { productImageSrc } from '@/lib/products/image-src'
 
 export interface ProductCard {
   id: string
@@ -147,7 +148,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
               <div className="relative m-3 me-0 size-20 shrink-0 overflow-hidden rounded-2xl bg-[var(--bg-muted)] sm:m-0 sm:aspect-video sm:size-auto sm:rounded-none">
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.images[0]} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <img src={productImageSrc(p.images[0])} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-[var(--text-muted)]">
                     <Package className="h-8 w-8" />

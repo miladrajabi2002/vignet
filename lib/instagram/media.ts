@@ -1,13 +1,9 @@
 import type { Prisma } from '@prisma/client'
-import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { readPageToken } from '@/lib/instagram/config'
 import { GRAPH_BASE } from '@/lib/instagram/oauth'
 import { captureError, captureWarning } from '@/lib/errors/capture'
+import { cacheRemoteImage } from '@/lib/products/remote-image'
 import { safeHttpGet } from '@/lib/security/safe-http'
-import { BUCKETS, fileExists, isStorageConfigured, uploadFile } from '@/lib/storage'
 import { cleanDescriptionForChat } from '@/lib/products/description'
 import { igRecipient } from '@/lib/instagram/private-reply'
 
@@ -124,17 +120,8 @@ export function pickTemplateImageUrl(images: string[] | null | undefined): strin
 // crawler-facing path outside `/api` also avoids stale robots.txt denials.
 // URLs already on our own origin are passed through untouched.
 
-const IMAGE_PROXY_DIR = join(process.cwd(), 'public', 'uploads', 'products', 'proxy')
 const PUBLIC_PRODUCT_MEDIA_PATH = '/media/products/'
 const LEGACY_PRODUCT_MEDIA_PATHS = ['/api/uploads/products/', '/uploads/products/'] as const
-const PROXY_IMAGE_EXTS = ['jpg', 'png', 'webp', 'gif', 'avif'] as const
-const PROXY_MIME_EXT: Record<string, string> = {
-        'image/jpeg': 'jpg',
-        'image/png': 'png',
-        'image/webp': 'webp',
-        'image/gif': 'gif',
-        'image/avif': 'avif',
-}
 
 let warnedNoPublicBase = false
 
@@ -189,6 +176,7 @@ function publicOwnOriginImageUrl(url: string): string {
  * - external URLs → downloaded server-side, cached under
  *   products/proxy/{sha1}.{ext}, and served from OUR origin
  *   so Meta's crawler never talks to the (possibly blocking) source host
+ * - webp/avif sources are re-encoded as JPEG (the template renderer drops webp)
  * - on failure → falls back to the legacy disk cache, then the original URL
  *
  * Never throws.
@@ -212,75 +200,23 @@ export async function templateImageUrl(rawUrl: string): Promise<string> {
                 return safe
         }
 
-        let localCacheFallback: string | null = null
         try {
-                const hash = createHash('sha1').update(safe).digest('hex')
-                // Cache hit? (extension unknown until first download — probe all)
-                for (const ext of PROXY_IMAGE_EXTS) {
-                        const filename = `${hash}.${ext}`
-                        if (existsSync(join(IMAGE_PROXY_DIR, filename))) {
-                                localCacheFallback = `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${filename}`
-                                if (!isStorageConfigured()) return localCacheFallback
-                        }
-                        if (
-                                isStorageConfigured() &&
-                                (await fileExists(BUCKETS.products, `proxy/${filename}`))
-                        ) {
-                                return `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${hash}.${ext}`
-                        }
+                // templateSafe: webp/avif sources are re-encoded as JPEG — Meta's
+                // template renderer silently drops webp, which left webp-only shop
+                // catalogs with image-less cards.
+                const cached = await cacheRemoteImage(safe, { templateSafe: true })
+                if (cached.legacyLocal) {
+                        console.warn(
+                                `[ig-product] image proxy refresh failed for ${safe.slice(0, 140)} — using the legacy local cache`,
+                        )
                 }
-
-                const res = await safeHttpGet(safe, {
-                        timeoutMs: 15_000,
-                        maxBytes: 8 * 1024 * 1024,
-                        maxRedirects: 3,
-                        allowedContentTypes: ['image/'],
-                })
-                if (res.status < 200 || res.status >= 300) {
-                        throw new Error(`source returned HTTP ${res.status}`)
-                }
-                const ct = String(res.headers['content-type'] ?? '')
-                        .split(';')[0]
-                        .trim()
-                        .toLowerCase()
-                const ext = PROXY_MIME_EXT[ct]
-                if (!ext) throw new Error(`unsupported content-type "${ct}"`)
-
-                const filename = `${hash}.${ext}`
-                if (isStorageConfigured()) {
-                        // Deterministic keys make concurrent writes harmless and keep
-                        // the cache shared when the app runs on multiple instances.
-                        await uploadFile({
-                                bucket: BUCKETS.products,
-                                path: `proxy/${filename}`,
-                                body: res.body,
-                                contentType: ct,
-                                cacheControl: 'public, max-age=31536000, immutable',
-                        })
-                } else {
-                        await mkdir(IMAGE_PROXY_DIR, { recursive: true })
-                        try {
-                                await writeFile(join(IMAGE_PROXY_DIR, filename), res.body, {
-                                        flag: 'wx',
-                                })
-                        } catch (e) {
-                                // Two sends racing on the same image: the loser gets EEXIST —
-                                // the cache file is already there, which is success.
-                                if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
-                        }
-                }
-                console.log(
-                        `[ig-product] proxied image ${res.body.byteLength}B → ${filename} (src: ${safe.slice(0, 120)})`,
-                )
-                return `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${filename}`
+                return `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${cached.filename}`
         } catch (e) {
                 console.warn(
                         `[ig-product] image proxy failed for ${safe.slice(0, 140)}: ${(e as Error).message} ` +
-                                (localCacheFallback
-                                        ? '— using the legacy local cache'
-                                        : '— falling back to the direct URL (Meta may not be able to fetch it)'),
+                                '— falling back to the direct URL (Meta may not be able to fetch it)',
                 )
-                return localCacheFallback ?? safe
+                return safe
         }
 }
 

@@ -6,7 +6,7 @@ import { generateReply } from '@/lib/ai/chat-engine'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { captureError, captureWarning } from '@/lib/errors/capture'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
-import { instagramPrivateReplyTarget } from '@/lib/instagram/private-reply'
+import { instagramPrivateReplyTarget, parsePrivateReplyTarget } from '@/lib/instagram/private-reply'
 import {
         sendImage,
         sendAudio,
@@ -167,6 +167,55 @@ function commentDmTarget(msg: InboundMessage): string {
   return msg.commentId
     ? instagramPrivateReplyTarget(msg.commentId, msg.senderId)
     : msg.senderId
+}
+
+/** One typed part of a scenario reply (`messages[]`). */
+type RichEntry = NonNullable<AutomationAction['messages']>[number]
+
+const RICH_ENTRY_TYPES = new Set<RichEntry['type']>([
+  'TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT', 'PRODUCT_LIST',
+])
+
+/** Normalize a stored entry (gate payloads are untyped JSON). */
+function toRichEntry(raw: Record<string, unknown>): RichEntry {
+  const type = RICH_ENTRY_TYPES.has(raw.type as RichEntry['type'])
+    ? (raw.type as RichEntry['type'])
+    : 'TEXT'
+  return {
+    type,
+    text: typeof raw.text === 'string' ? raw.text : undefined,
+    mediaUrl: typeof raw.mediaUrl === 'string' ? raw.mediaUrl : undefined,
+    productId: typeof raw.productId === 'string' ? raw.productId : undefined,
+    productIds: Array.isArray(raw.productIds)
+      ? raw.productIds.filter((id): id is string => typeof id === 'string')
+      : undefined,
+    buttons: Array.isArray(raw.buttons)
+      ? (raw.buttons as Array<{ title: string; url?: string } | string>)
+      : undefined,
+    buttonType: raw.buttonType === 'quick_reply' ? 'quick_reply' : raw.buttonType === 'button' ? 'button' : undefined,
+  }
+}
+
+/**
+ * Gate mode for the rest of a comment→DM sequence. Instagram allows exactly
+ * ONE private reply per comment, and nothing else reaches a commenter who has
+ * not messaged the account — so every part after the first (typically the
+ * product card with its photo) failed with an empty Meta 500. The first reply
+ * now carries a button; tapping it opens the messaging window and releases
+ * the remaining parts to the commenter's IGSID via the follow-gate table.
+ */
+const CONTINUE_GATE_MODE = 'CONTINUE'
+const CONTINUE_PROMPT = 'سلام! 🌟 برای دیدن جزئیات، روی دکمه زیر بزنید 👇'
+const CONTINUE_BUTTON_PRODUCT = 'مشاهده محصول'
+const CONTINUE_BUTTON_DEFAULT = 'ادامه'
+
+function isPrivateReplyTarget(target: string): boolean {
+  return parsePrivateReplyTarget(target) !== null
+}
+
+/** True when the parts fit in the single message a private reply allows. */
+function fitsOnePrivateReply(entries: RichEntry[]): boolean {
+  return entries.length === 1 && (entries[0].type === 'TEXT' || entries[0].type === 'QUICK_REPLY')
 }
 
 interface AutomationRow {
@@ -619,7 +668,7 @@ async function justFulfilledGate(ctx: AutomationContext) {
       fulfilledAt: { gte: new Date(Date.now() - 60_000) },
     },
     orderBy: { fulfilledAt: 'desc' },
-    select: { automationId: true, automation: { select: { type: true } } },
+    select: { automationId: true, payload: true, automation: { select: { type: true } } },
   })).catch(() => null)
 }
 
@@ -726,7 +775,11 @@ export async function runInstagramAutomation(
     const fulfilled = await tryFulfillFollowGate(ctx)
     if (fulfilled) {
       const gate = await justFulfilledGate(ctx)
-      if (gate) await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
+      // A CONTINUE tap finishes a run already logged as SENT — not a follow.
+      const gateMode = (gate?.payload as { gateMode?: unknown } | null)?.gateMode
+      if (gate && gateMode !== CONTINUE_GATE_MODE) {
+        await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
+      }
       return { handled: true, replied: true }
     }
   }
@@ -817,6 +870,156 @@ async function postCommentAck(
 }
 
 /** Send the configured reply for a matched scenario. */
+/**
+ * Send `entries` in order to `target`, receipting product cards for the inbox.
+ * QUICK_REPLY entries honour their `buttonType`; every other type goes through
+ * `sendRichEntry` (text, media, product card, product carousel).
+ */
+async function deliverEntries(
+  ctx: AutomationContext,
+  target: string,
+  entries: RichEntry[],
+): Promise<void> {
+  const { adapter, agent, msg, quickReplies, channelConfig } = ctx
+  const isComment = msg.kind === 'COMMENT'
+  const capturedProducts: ProductShowcase[] = []
+  const captureResolveProduct = async (productId: string) => {
+    const p = await resolveProduct(agent.id, productId)
+    if (p) capturedProducts.push(p)
+    return p
+  }
+  const captureResolveProducts = async (productIds: string[]) => {
+    const list = await resolveProducts(agent.id, productIds)
+    capturedProducts.push(...list)
+    return list
+  }
+  for (const entry of entries) {
+    if (entry.mediaUrl && isUnfetchableMediaUrl(entry.mediaUrl)) {
+      captureWarning('instagram:automation:media-url-unfetchable', new Error(
+        `skipping ${entry.type} with session-local mediaUrl`,
+      ), { workspaceId: agent.workspaceId, metadata: { entryType: entry.type, mediaUrl: entry.mediaUrl } })
+      continue
+    }
+    // QUICK_REPLY entries carry `buttons`. The `buttonType` field controls
+    // how they're rendered:
+    //   'button' (default) → Button Template (inside the bubble)
+    //   'quick_reply'      → Quick Reply chips (above the input)
+    if (entry.type === 'QUICK_REPLY' && entry.buttons?.length && channelConfig) {
+      const buttonActions: ButtonAction[] = entry.buttons.slice(0, 3).map((b) =>
+        typeof b === 'string'
+          ? { title: b }
+          : { title: b.title, url: b.url },
+      )
+      await ctx.beforeDispatch?.()
+      try {
+        if (entry.buttonType === 'quick_reply') {
+          // Quick Reply chips — sent as quick_replies with the text message.
+          await adapter.sendText(target, entry.text || '', {
+            quickReplies: buttonActions.map((b) => b.title),
+          })
+        } else {
+          // Button Template — inside the bubble (default).
+          await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
+          if (ctx.receipt && entry.text) ctx.receipt.push(entry.text)
+        }
+      } catch (e) {
+        captureError('instagram:automation:quick-reply', e, {
+          workspaceId: agent.workspaceId,
+          metadata: { chatId: target },
+        })
+        // Fallback: send the text body so the user isn't left hanging.
+        if (entry.text) {
+          await adapter.sendText(target, entry.text).catch(() => undefined)
+        }
+      }
+      continue
+    }
+    await ctx.beforeDispatch?.()
+    await sendRichEntry(
+      channelConfig ?? null,
+      target,
+      entry,
+      async (cid, text) =>
+        adapter.sendText(cid, text, {
+          quickReplies: isComment ? undefined : quickReplies,
+        }),
+      captureResolveProduct,
+      captureResolveProducts,
+      agent.workspaceId,
+    )
+    if (ctx.receipt) pushMediaNote(ctx.receipt, entry)
+  }
+  if (ctx.receipt) {
+    for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
+  }
+}
+
+/**
+ * Deliver a comment→DM reply. A private reply is a single message, so a
+ * multi-part or media reply sends its opening text with a continue button and
+ * parks the remaining parts until the commenter taps it (see
+ * {@link CONTINUE_GATE_MODE}). Other targets get every part right away.
+ */
+async function deliverToCommenter(
+  ctx: AutomationContext,
+  row: AutomationRow,
+  target: string,
+  entries: RichEntry[],
+): Promise<void> {
+  if (!isPrivateReplyTarget(target) || fitsOnePrivateReply(entries)) {
+    await deliverEntries(ctx, target, entries)
+    return
+  }
+  const { adapter, agent, msg, contactId, channelConfig } = ctx
+  const [first, ...rest] = entries
+  const openerText = first?.type === 'TEXT' ? first.text?.trim() : ''
+  const opener = openerText || CONTINUE_PROMPT
+  const pending = openerText ? rest : entries
+  const button = pending.some((e) => e.type === 'PRODUCT' || e.type === 'PRODUCT_LIST')
+    ? CONTINUE_BUTTON_PRODUCT
+    : CONTINUE_BUTTON_DEFAULT
+
+  await ctx.beforeDispatch?.()
+  let sentAsButton = false
+  if (channelConfig) {
+    try {
+      await sendButtonMessage(channelConfig, target, opener, [{ title: button }])
+      sentAsButton = true
+    } catch (e) {
+      captureWarning('instagram:automation:continue-button', e, {
+        workspaceId: agent.workspaceId,
+        metadata: { chatId: target },
+      })
+    }
+  }
+  if (sentAsButton) {
+    if (ctx.receipt) ctx.receipt.push(opener)
+  } else {
+    await adapter.sendText(target, opener, { quickReplies: [button] })
+  }
+
+  if (pending.length === 0 || !msg.senderId) return
+  await prisma.instagramFollowGate.create({
+    data: {
+      automationId: row.id,
+      agentId: agent.id,
+      contactId: contactId ?? null,
+      igSenderId: msg.senderId,
+      chatId: msg.senderId,
+      status: 'PENDING',
+      expiresAt: new Date(Date.now() + GATE_TTL_MS),
+      payload: {
+        kind: msg.kind,
+        commentId: msg.commentId,
+        postId: msg.postId,
+        gateMode: CONTINUE_GATE_MODE,
+        gateConfirmKeyword: button,
+        contentMessages: pending,
+      } as Prisma.InputJsonValue,
+    },
+  })
+}
+
 async function executeAction(
   ctx: AutomationContext,
   row: AutomationRow,
@@ -880,50 +1083,13 @@ async function executeAction(
       if (alreadyFollows === true) {
         // User already follows → skip the gate, deliver content directly.
         console.log(`[ig-gate] user ${msg.senderId} ALREADY follows — skipping gate, delivering content`)
-        if (contentMessages.length > 0 && channelConfig) {
-          for (const entry of contentMessages) {
-            try {
-              const entryType = typeof entry.type === 'string' ? entry.type : 'TEXT'
-              const entryText = typeof entry.text === 'string' ? entry.text : ''
-              const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
-              const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
-              if (entryMediaUrl && isUnfetchableMediaUrl(entryMediaUrl)) {
-                captureWarning('instagram:automation:media-url-unfetchable', new Error(
-                  `skipping ${entryType} with session-local mediaUrl`,
-                ), { workspaceId: agent.workspaceId, metadata: { entryType, mediaUrl: entryMediaUrl } })
-              }
-              const entryMediaDeliverable = !!entryMediaUrl && !isUnfetchableMediaUrl(entryMediaUrl)
-
-              await ctx.beforeDispatch?.()
-              if (entryType === 'IMAGE' && entryMediaDeliverable) {
-                await sendImage(channelConfig, target, entryMediaUrl, entryText || undefined)
-              } else if (entryType === 'AUDIO' && entryMediaDeliverable) {
-                await sendAudio(channelConfig, target, entryMediaUrl)
-              } else if (entryType === 'VIDEO' && entryMediaDeliverable) {
-                await sendVideo(channelConfig, target, entryMediaUrl)
-              } else if (entryType === 'QUICK_REPLY' && entryButtons.length > 0) {
-                const buttonActions: ButtonAction[] = entryButtons.slice(0, 3).map((b) =>
-                  typeof b === 'string'
-                    ? { title: b }
-                    : { title: (b as { title?: string }).title ?? '', url: (b as { url?: string }).url },
-                )
-                if (entry.buttonType === 'quick_reply') {
-                  await adapter.sendText(target, entryText, {
-                    quickReplies: buttonActions.map((b) => b.title),
-                  })
-                } else {
-                  await sendButtonMessage(channelConfig, target, entryText, buttonActions)
-                }
-              } else if (entryText) {
-                await adapter.sendText(target, entryText, { quickReplies: undefined })
-              }
-            } catch (e) {
-              captureError('instagram:gate:direct-deliver', e, {
-                workspaceId: agent.workspaceId,
-                metadata: { entryType: entry.type },
-              })
-            }
-          }
+        if (contentMessages.length > 0) {
+          await deliverToCommenter(
+            ctx,
+            row,
+            target,
+            contentMessages.map((entry) => toRichEntry(entry as Record<string, unknown>)),
+          )
         }
         // The content went to the commenter's DM — acknowledge the public
         // comment too so it isn't left unanswered.
@@ -998,36 +1164,7 @@ async function executeAction(
       Math.floor(Math.random() * action.messages.length)
     ]
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
-    // v3.1 receipt: capture resolved products as [[product:…]] markers; text
-    // sends are already receipted by the tracking adapter.
-    const capturedProducts: ProductShowcase[] = []
-    const captureResolveProduct = async (productId: string) => {
-      const p = await resolveProduct(agent.id, productId)
-      if (p) capturedProducts.push(p)
-      return p
-    }
-    const captureResolveProducts = async (productIds: string[]) => {
-      const list = await resolveProducts(agent.id, productIds)
-      capturedProducts.push(...list)
-      return list
-    }
-    await ctx.beforeDispatch?.()
-    await sendRichEntry(
-      channelConfig ?? null,
-      target,
-      entry,
-      async (cid, text) =>
-        adapter.sendText(cid, text, {
-          quickReplies: isComment ? undefined : quickReplies,
-        }),
-      captureResolveProduct,
-      captureResolveProducts,
-      agent.workspaceId,
-    )
-    if (ctx.receipt) {
-      pushMediaNote(ctx.receipt, entry)
-      for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
-    }
+    await deliverToCommenter(ctx, row, target, [entry])
     // NOTE (v3.1): the comment→DM funnel no longer posts the DM body back as
     // a public comment reply — "ارسال در دایرکت" means INSTEAD of the public
     // reply, and posting it would leak DM content (links, prices) publicly.
@@ -1044,72 +1181,7 @@ async function executeAction(
   // was silently ignored.
   if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
-    // v3.1 receipt: capture resolved products as [[product:…]] markers; text
-    // sends are already receipted by the tracking adapter.
-    const capturedProducts: ProductShowcase[] = []
-    const captureResolveProduct = async (productId: string) => {
-      const p = await resolveProduct(agent.id, productId)
-      if (p) capturedProducts.push(p)
-      return p
-    }
-    const captureResolveProducts = async (productIds: string[]) => {
-      const list = await resolveProducts(agent.id, productIds)
-      capturedProducts.push(...list)
-      return list
-    }
-    for (const entry of action.messages) {
-      // QUICK_REPLY entries carry `buttons`. The `buttonType` field controls
-      // how they're rendered:
-      //   'button' (default) → Button Template (inside the bubble)
-      //   'quick_reply'      → Quick Reply chips (above the input)
-      if (entry.type === 'QUICK_REPLY' && entry.buttons?.length) {
-        const buttonActions: ButtonAction[] = entry.buttons.slice(0, 3).map((b) =>
-          typeof b === 'string'
-            ? { title: b }
-            : { title: b.title, url: b.url },
-        )
-        await ctx.beforeDispatch?.()
-        try {
-          if (entry.buttonType === 'quick_reply') {
-            // Quick Reply chips — sent as quick_replies with the text message.
-            await adapter.sendText(target, entry.text || '', {
-              quickReplies: buttonActions.map((b) => b.title),
-            })
-          } else {
-            // Button Template — inside the bubble (default).
-            await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
-            if (ctx.receipt && entry.text) ctx.receipt.push(entry.text)
-          }
-        } catch (e) {
-          captureError('instagram:automation:quick-reply', e, {
-            workspaceId: agent.workspaceId,
-            metadata: { chatId: target },
-          })
-          // Fallback: send the text body so the user isn't left hanging.
-          if (entry.text) {
-            await adapter.sendText(target, entry.text).catch(() => undefined)
-          }
-        }
-        continue
-      }
-      await ctx.beforeDispatch?.()
-      await sendRichEntry(
-        channelConfig ?? null,
-        target,
-        entry,
-        async (cid, text) =>
-          adapter.sendText(cid, text, {
-            quickReplies: isComment ? undefined : quickReplies,
-          }),
-        captureResolveProduct,
-        captureResolveProducts,
-        agent.workspaceId,
-      )
-      if (ctx.receipt) pushMediaNote(ctx.receipt, entry)
-    }
-    if (ctx.receipt) {
-      for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
-    }
+    await deliverToCommenter(ctx, row, target, action.messages)
     // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
     // MULTI_MESSAGE branch above.
     // v3.2: optional commentAck — post the short public ack on the comment.
@@ -1135,6 +1207,18 @@ async function executeAction(
     channelConfig
   ) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
+    if (isPrivateReplyTarget(target)) {
+      // A private reply is one message: lead with the text, park the media.
+      const media: RichEntry = action.mediaType === 'PRODUCT'
+        ? { type: 'PRODUCT', productId: action.productId }
+        : { type: action.mediaType as RichEntry['type'], mediaUrl: action.mediaUrl }
+      const entries: RichEntry[] = action.replyText
+        ? [{ type: 'TEXT', text: action.replyText }, media]
+        : [media]
+      await deliverToCommenter(ctx, row, target, entries)
+      await postCommentAck(ctx, action)
+      return
+    }
     if (action.mediaUrl && isUnfetchableMediaUrl(action.mediaUrl)) {
       captureWarning('instagram:automation:media-url-unfetchable', new Error(
         `skipping legacy ${action.mediaType} reply with session-local mediaUrl`,
@@ -1343,7 +1427,7 @@ async function checkUserFollows(
 async function tryFulfillFollowGate(
   ctx: AutomationContext,
 ): Promise<boolean> {
-  const { adapter, msg, agent, quickReplies, channelConfig } = ctx
+  const { adapter, msg, agent, channelConfig } = ctx
   const text = msg.text?.trim().toLowerCase()
   if (!text || !msg.senderId) return false
 
@@ -1370,9 +1454,10 @@ async function tryFulfillFollowGate(
   if (!confirmKw || text !== confirmKw.trim().toLowerCase()) return false
 
   // ── VERIFY the user actually follows the account ──
+  // (CONTINUE gates only park the rest of a comment→DM reply — no follow rule.)
   // Before fulfilling the gate, check if the user is really a follower.
   // If they're NOT following, re-send the gate prompt (don't deliver content).
-  if (channelConfig) {
+  if (channelConfig && gateMode !== CONTINUE_GATE_MODE) {
     const follows = await checkUserFollows(channelConfig, msg.senderId)
     if (follows === false) {
       console.log(`[ig-gate] user ${msg.senderId} clicked "${text}" but does NOT follow — re-sending gate prompt`)
@@ -1421,42 +1506,13 @@ async function tryFulfillFollowGate(
     : []
 
   if (contentMessages.length > 0 && channelConfig) {
-    for (const entry of contentMessages) {
-      try {
-        const entryType = typeof entry.type === 'string' ? entry.type : 'TEXT'
-        const entryText = typeof entry.text === 'string' ? entry.text : ''
-        const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
-        const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
-        if (entryMediaUrl && isUnfetchableMediaUrl(entryMediaUrl)) {
-          captureWarning('instagram:automation:media-url-unfetchable', new Error(
-            `skipping ${entryType} with session-local mediaUrl`,
-          ), { workspaceId: agent.workspaceId, metadata: { entryType, mediaUrl: entryMediaUrl } })
-        }
-        const entryMediaDeliverable = !!entryMediaUrl && !isUnfetchableMediaUrl(entryMediaUrl)
-
-        await ctx.beforeDispatch?.()
-        if (entryType === 'IMAGE' && entryMediaDeliverable) {
-          await sendImage(channelConfig, gate.chatId, entryMediaUrl, entryText || undefined)
-        } else if (entryType === 'AUDIO' && entryMediaDeliverable) {
-          await sendAudio(channelConfig, gate.chatId, entryMediaUrl)
-        } else if (entryType === 'VIDEO' && entryMediaDeliverable) {
-          await sendVideo(channelConfig, gate.chatId, entryMediaUrl)
-        } else if (entryType === 'QUICK_REPLY' && entryButtons.length > 0) {
-          const buttonActions: ButtonAction[] = entryButtons.slice(0, 3).map((b) =>
-            typeof b === 'string'
-              ? { title: b }
-              : { title: (b as { title?: string }).title ?? '', url: (b as { url?: string }).url },
-          )
-          await sendButtonMessage(channelConfig, gate.chatId, entryText, buttonActions)
-        } else if (entryText) {
-          await adapter.sendText(gate.chatId, entryText, { quickReplies })
-        }
-      } catch (e) {
-        captureError('instagram:gate:deliver', e, {
-          workspaceId: agent.workspaceId,
-          metadata: { gateId: gate.id, entryType: entry.type },
-        })
-      }
+    try {
+      await deliverEntries(ctx, gate.chatId, contentMessages.map(toRichEntry))
+    } catch (e) {
+      captureError('instagram:gate:deliver', e, {
+        workspaceId: agent.workspaceId,
+        metadata: { gateId: gate.id, gateMode },
+      })
     }
   }
   return true

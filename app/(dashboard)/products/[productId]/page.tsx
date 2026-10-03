@@ -22,6 +22,7 @@ import {
   stripListBlocks,
 } from '@/lib/products/description'
 import { CopyButton } from '@/components/ui/copy-button'
+import { productImageSrc } from '@/lib/products/image-src'
 
 export default async function ProductDetailPage(
   props: {
@@ -144,7 +145,7 @@ export default async function ProductDetailPage(
           {product.images[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
             (<img
-              src={product.images[0]}
+              src={productImageSrc(product.images[0])}
               alt={product.name}
               width={640}
               height={640}
@@ -359,7 +360,7 @@ export default async function ProductDetailPage(
                   {v.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={v.image}
+                      src={productImageSrc(v.image)}
                       alt={Object.values(v.attributes).join('، ') || `#${v.id}`}
                       width={56}
                       height={56}
