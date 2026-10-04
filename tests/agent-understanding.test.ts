@@ -273,16 +273,18 @@ describe('rollout mode', () => {
     resetUnderstandingConfigCache()
   })
 
-  it('parses and clamps the stored config, per-workspace overrides win, env wins over all', async () => {
+  it('parses and clamps the stored config; per-workspace overrides win; no env var can force a mode', async () => {
     const config = parseUnderstandingConfig({ mode: 'shadow', domains: { orders: false }, timeoutMs: 99_999, workspaces: { w1: 'on', w2: 'nonsense' } })
     expect(config.mode).toBe('shadow')
     expect(config.domains.orders).toBe(false)
     expect(config.domains.products).toBe(true)
     expect(config.timeoutMs).toBe(15_000)
     expect(config.workspaces).toEqual({ w1: 'on' })
+    // A stale «AGENT_UNDERSTANDING_MODE=off» left in a server .env is ignored:
+    // after a deploy the admin-panel setting (default «on») decides.
     process.env.AGENT_UNDERSTANDING_MODE = 'off'
     const resolved = await resolveUnderstandingMode('w1')
-    expect(resolved.mode).toBe('off')
+    expect(resolved.mode).toBe('on')
     expect(routesFromUnderstanding({ ...resolved, mode: 'on' }, 'products')).toBe(true)
     expect(routesFromUnderstanding({ ...resolved, mode: 'shadow' }, 'products')).toBe(false)
   })

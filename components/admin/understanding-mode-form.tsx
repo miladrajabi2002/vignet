@@ -33,11 +33,9 @@ type Notice = { tone: 'success' | 'error'; message: string } | null
 export function UnderstandingModeForm({
   initial,
   workspaces,
-  envMode,
 }: {
   initial: UnderstandingConfig
   workspaces: Array<{ id: string; name: string }>
-  envMode: UnderstandingMode | null
 }) {
   const router = useRouter()
   const saveState = useSaveState()
@@ -97,12 +95,6 @@ export function UnderstandingModeForm({
           <p className="ui-caption mt-2 max-w-2xl">
             هر حوزه جداگانه قابل خاموش شدن است؛ حوزهٔ خاموش همان مسیر قبلی را می‌رود. برای یک کسب‌وکار خاص هم می‌توانید حالت جدا بگذارید.
           </p>
-          {envMode && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-control bg-amber-50 px-2.5 py-1 text-[12px] text-amber-800">
-              <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              متغیر محیطی AGENT_UNDERSTANDING_MODE={envMode} روی سرور تنظیم است و بر این تنظیمات مقدم است.
-            </p>
-          )}
         </div>
         <SaveButton
           state={saveState.state}

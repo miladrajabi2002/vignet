@@ -7,9 +7,12 @@
  *   on     — routing comes from the verified model reading, domain by
  *            domain; any turn without a usable reading falls back to legacy.
  *
- * Precedence: env AGENT_UNDERSTANDING_MODE (ops kill switch) → per-workspace
- * override → platform setting (admin panel, PlatformAiSettings.understandingConfig)
- * → default.
+ * Precedence: per-workspace override → platform setting (admin panel,
+ * PlatformAiSettings.understandingConfig) → default («on»). The admin panel
+ * is the only switch: no environment variable can force a mode, so a stale
+ * line in a server .env can never silently turn the layer off after a deploy.
+ * (AGENT_UNDERSTANDING_DISABLED=1 stays as the emergency stop for the model
+ * call itself; every turn then answers through the legacy path.)
  */
 import { prisma } from '@/lib/prisma'
 
@@ -96,10 +99,7 @@ export interface ResolvedUnderstandingMode {
 
 export async function resolveUnderstandingMode(workspaceId: string): Promise<ResolvedUnderstandingMode> {
   const config = await getUnderstandingConfig()
-  const envMode = process.env.AGENT_UNDERSTANDING_MODE?.trim()
-  const mode = isMode(envMode)
-    ? envMode
-    : config.workspaces[workspaceId] ?? config.mode
+  const mode = config.workspaces[workspaceId] ?? config.mode
   return { mode, domains: config.domains, timeoutMs: config.timeoutMs }
 }
 

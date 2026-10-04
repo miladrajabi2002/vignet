@@ -314,7 +314,7 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
         />
       </div>
 
-      <UnderstandingModeForm initial={rollout.config} workspaces={workspaceOptions} envMode={rollout.envMode} />
+      <UnderstandingModeForm initial={rollout.config} workspaces={workspaceOptions} />
       {rollout.envDisabled && (
         <p className="rounded-control bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
           AGENT_UNDERSTANDING_DISABLED روی سرور فعال است؛ هیچ فراخوانی فهم انجام نمی‌شود و همهٔ نوبت‌ها با مسیر قدیمی جواب می‌گیرند.

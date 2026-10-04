@@ -121,7 +121,6 @@ export interface AgentCoreReport {
   since: Date
   rollout: {
     config: UnderstandingConfig
-    envMode: UnderstandingMode | null
     envDisabled: boolean
     workspaces: Array<{ id: string; name: string; mode: UnderstandingMode }>
   }
@@ -140,10 +139,6 @@ const num = (value: unknown): number => {
 }
 
 const nullableNum = (value: unknown): number | null => (value == null ? null : num(value))
-
-function isMode(value: unknown): value is UnderstandingMode {
-  return value === 'off' || value === 'shadow' || value === 'on'
-}
 
 const EMPTY_UNDERSTANDING: UnderstandingSection = {
   available: false,
@@ -430,7 +425,7 @@ async function qualitySection(since: Date): Promise<QualitySection | null> {
   }
 }
 
-async function agentRows(since: Date, config: UnderstandingConfig, envMode: UnderstandingMode | null): Promise<AgentCapabilityRow[]> {
+async function agentRows(since: Date, config: UnderstandingConfig): Promise<AgentCapabilityRow[]> {
   try {
     const agents = await prisma.agent.findMany({
       where: { ...ADMIN_VISIBLE_RELATED_WHERE },
@@ -496,7 +491,7 @@ async function agentRows(since: Date, config: UnderstandingConfig, envMode: Unde
         workspaceName: agent.workspace.name,
         active: agent.active,
         language: agent.language,
-        effectiveMode: envMode ?? config.workspaces[agent.workspaceId] ?? config.mode,
+        effectiveMode: config.workspaces[agent.workspaceId] ?? config.mode,
         modules: gates,
         productAccess,
         products: productMap.get(agent.workspaceId) ?? 0,
@@ -527,14 +522,12 @@ export async function getAgentCoreReport(days: number): Promise<AgentCoreReport>
   const since = new Date(Date.now() - span * 86_400_000)
   const previousSince = new Date(since.getTime() - span * 86_400_000)
   const config = await getUnderstandingConfig()
-  const envRaw = process.env.AGENT_UNDERSTANDING_MODE?.trim()
-  const envMode = isMode(envRaw) ? envRaw : null
   const overrideIds = Object.keys(config.workspaces)
   const [understanding, cost, quality, agents, overrideWorkspaces] = await Promise.all([
     understandingSection(since),
     costSection(since, previousSince),
     qualitySection(since),
-    agentRows(since, config, envMode),
+    agentRows(since, config),
     overrideIds.length
       ? prisma.workspace.findMany({ where: { id: { in: overrideIds } }, select: { id: true, name: true } }).catch(() => [])
       : Promise.resolve([]),
@@ -545,7 +538,6 @@ export async function getAgentCoreReport(days: number): Promise<AgentCoreReport>
     since,
     rollout: {
       config,
-      envMode,
       envDisabled: process.env.AGENT_UNDERSTANDING_DISABLED === '1' || process.env.AGENT_UNDERSTANDING_DISABLED === 'true',
       workspaces: overrideIds.map((id) => ({ id, name: names.get(id) ?? id, mode: config.workspaces[id] })),
     },
