@@ -1,6 +1,6 @@
 {
-  "note": "Persian regex literals per file. May only go down; see tests/regex-budget.test.ts.",
-  "total": 442,
+  "note": "Persian regex literals per file (lib/agent/parsers/ excluded). May only go down; see tests/regex-budget.test.ts.",
+  "total": 431,
   "files": {
     "app/admin/(dash)/ui.tsx": 1,
     "components/admin/number-field.tsx": 2,
@@ -20,7 +20,6 @@
     "lib/agent-kernel/skills/conversation-state.ts": 19,
     "lib/agent-kernel/skills/humanizer-polish.ts": 13,
     "lib/agent-kernel/skills/visual-reference.ts": 5,
-    "lib/agent/parsers/evidence.ts": 11,
     "lib/ai/catalog-tools.ts": 11,
     "lib/ai/chat-engine.ts": 1,
     "lib/ai/conversation-state.ts": 49,

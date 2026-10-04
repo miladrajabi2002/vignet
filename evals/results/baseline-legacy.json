@@ -1,11 +1,11 @@
 {
   "summary": {
     "system": "legacy",
-    "cases": 148,
-    "routingPassed": 90,
-    "routingRate": 60.8,
-    "passed": 90,
-    "passRate": 60.8,
+    "cases": 157,
+    "routingPassed": 99,
+    "routingRate": 63.1,
+    "passed": 99,
+    "passRate": 63.1,
     "destructiveFalsePositives": [
       "G02",
       "G06"
@@ -19,7 +19,7 @@
     "costUSD": 0,
     "avgPromptTokens": null,
     "byTag": {
-      "booking": "5/10",
+      "booking": "9/14",
       "budget": "5/6",
       "cart": "5/12",
       "cheaper": "2/2",
@@ -28,6 +28,9 @@
       "closing": "7/8",
       "compare": "0/4",
       "course": "5/8",
+      "date": "4/4",
+      "design": "2/2",
+      "detail": "1/1",
       "handoff": "4/6",
       "injection": "4/4",
       "knowledge": "0/2",
@@ -35,12 +38,13 @@
       "multi": "0/3",
       "order": "6/12",
       "policy": "5/10",
-      "product": "13/20",
-      "reference": "9/15",
+      "product": "15/22",
+      "reference": "10/16",
       "regression": "1/20",
       "restock": "3/5",
       "tracking": "4/4",
-      "variants": "7/8"
+      "typo": "2/2",
+      "variants": "9/10"
     },
     "failures": [
       {
@@ -957,6 +961,40 @@
       "destructiveFalsePositive": false
     },
     {
+      "id": "A21",
+      "tags": [
+        "product",
+        "typo"
+      ],
+      "message": "شومیذ حریر دارین؟",
+      "predicted": [
+        "product_search"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "A22",
+      "tags": [
+        "product",
+        "typo"
+      ],
+      "message": "کیف دوشی چرم مشگی میخوام",
+      "predicted": [
+        "product_search"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
       "id": "B01",
       "tags": [
         "reference"
@@ -1317,6 +1355,57 @@
         "variants"
       ],
       "message": "مشکیش سایز ۴۲ هست؟",
+      "predicted": [
+        "product_search"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "C09",
+      "tags": [
+        "variants",
+        "design"
+      ],
+      "message": "یه طرح دیگه‌ش رو نشونم بده",
+      "predicted": [
+        "product_search"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "C10",
+      "tags": [
+        "variants",
+        "design"
+      ],
+      "message": "رنگ دیگه‌ای هم داره؟",
+      "predicted": [
+        "product_search"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "B16",
+      "tags": [
+        "reference",
+        "detail"
+      ],
+      "message": "پایه‌هاش فلزیه یا چوبی؟ پارچه‌ش ضد لک هست؟",
       "predicted": [
         "product_search"
       ],
@@ -2269,6 +2358,75 @@
         "routing": false
       },
       "pass": false,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "I11",
+      "tags": [
+        "booking",
+        "date"
+      ],
+      "message": "پسفردا عصر برای کوتاهی مو وقت دارید؟",
+      "predicted": [
+        "product_search",
+        "booking"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "I12",
+      "tags": [
+        "booking",
+        "date"
+      ],
+      "message": "یکشنبه هفته بعد یه ربع به شش",
+      "predicted": [
+        "booking"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "I13",
+      "tags": [
+        "booking",
+        "date"
+      ],
+      "message": "نوبتمو بنداز سه روز دیگه همون ساعت",
+      "predicted": [
+        "booking"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
+      "destructiveFalsePositive": false
+    },
+    {
+      "id": "I14",
+      "tags": [
+        "booking",
+        "date"
+      ],
+      "message": "۱۵ مهر ساعت ۱۰ و نیم صبح کاشت ناخن",
+      "predicted": [
+        "booking"
+      ],
+      "refs": [],
+      "checks": {
+        "routing": true
+      },
+      "pass": true,
       "destructiveFalsePositive": false
     },
     {

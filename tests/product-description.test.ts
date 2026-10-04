@@ -70,9 +70,11 @@ describe('stripListBlocks', () => {
     expect(stripListBlocks(html)).toBe('intro text  tail')
   })
 
-  it('strips other HTML tags', () => {
+  it('strips other HTML tags; block boundaries stay word boundaries', () => {
     const html = '<p>hello</p><br/><b>world</b>'
-    expect(stripListBlocks(html)).toBe('helloworld')
+    expect(stripListBlocks(html)).toMatch(/^hello\s+world$/)
+    expect(stripListBlocks('<p>یک</p><p>دو</p><script>x()</script>')).toMatch(/^یک\s+دو$/)
+    expect(stripListBlocks('مبل<b>راحتی</b>')).toBe('مبلراحتی')
   })
 
   it('decodes HTML entities', () => {

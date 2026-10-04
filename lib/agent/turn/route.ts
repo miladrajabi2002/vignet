@@ -13,6 +13,7 @@ import type { ConversationIntent, ConversationTurnRelation, ConversationWorkingS
 import type { CatalogToolReason } from '@/lib/ai/catalog-tools'
 import type { CartEditCue, CartEditOp } from '@/lib/commerce/cart-edit'
 import { emptyOrderSignals, type OrderStartItem, type OrderTurnSignals } from '@/lib/commerce/order-signals'
+import { describeResolvedDateTime, resolvePersianDateTime } from '@/lib/agent/parsers/persian-datetime'
 import type {
   Act,
   ActType,
@@ -156,6 +157,8 @@ export interface RouteInput {
   state: ConversationWorkingState
   corpusTokens?: ReadonlySet<string> | null
   lang: 'fa' | 'en' | 'ar'
+  /** Clock for relative booking dates («پس‌فردا»); defaults to now. */
+  now?: Date
 }
 
 export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
@@ -360,10 +363,22 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
       }
       case 'booking': {
         const service = act.service ? refs[act.service] : undefined
-        const parts = [service?.name, act.date, act.time].filter(Boolean)
-        booking = { action: act.action, hint: parts.join(' ') }
-        if (act.date) slots.date = act.date
-        if (act.time) slots.time = act.time
+        // «پس‌فردا عصر» → a real calendar day and time window, resolved
+        // deterministically (the model wrote the day in normalized form; the
+        // customer's own message is the fallback).
+        const said = [act.date, act.time].filter(Boolean).join(' ')
+        const fromAct = said ? resolvePersianDateTime(said, { now: input.now }) : null
+        const resolved = fromAct && (fromAct.dateKey || fromAct.minute != null || fromAct.window)
+          ? fromAct
+          : resolvePersianDateTime(input.message, { now: input.now })
+        const when = describeResolvedDateTime(resolved, fa)
+        const parts = [service?.name, when || said].filter(Boolean) as string[]
+        booking = { action: act.action, hint: parts.join(' — ') }
+        if (resolved.dateKey) slots.date = resolved.dateKey
+        else if (act.date) slots.date = act.date
+        if (resolved.minute != null) slots.time = `${String(Math.floor(resolved.minute / 60)).padStart(2, '0')}:${String(resolved.minute % 60).padStart(2, '0')}`
+        else if (resolved.window) slots.time = resolved.window.label
+        else if (act.time) slots.time = act.time
         brief.push({ act: act.type, ask: fa ? `نوبت (${act.action})${parts.length ? `: ${parts.join('، ')}` : ''}` : `booking (${act.action})` })
         break
       }

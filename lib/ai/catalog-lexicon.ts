@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
 import { tokenizeCatalogText, PRODUCT_STOP_WORDS } from '@/lib/ai/conversation'
+import { attributeValueText } from '@/lib/products/description'
 
 /**
  * Corpus-derived catalog lexicon (per agent, workspace-scoped).
@@ -30,6 +31,12 @@ import { tokenizeCatalogText, PRODUCT_STOP_WORDS } from '@/lib/ai/conversation'
 export interface AgentCatalogLexicon {
   /** Normalized tokens (and their plural-stripped bases) from names/categories/tags/SKUs. */
   identityTokens: Set<string>
+  /**
+   * Words from attribute and variation values (رنگ، سایز، جنس، طرح…). Kept
+   * apart from identity tokens: a colour alone is not product intent, but
+   * it is a real catalog word a misspelled search term may mean.
+   */
+  attributeTokens: Set<string>
   /** When the lexicon snapshot was built (ms epoch). */
   builtAt: number
   /** Number of products the snapshot covered (diagnostics). */
@@ -63,6 +70,7 @@ async function buildLexicon(agentId: string): Promise<AgentCatalogLexicon> {
       name: true,
       sku: true,
       tags: true,
+      attributes: true,
       category: { select: { name: true } },
     },
     take: MAX_PRODUCTS,
@@ -70,14 +78,32 @@ async function buildLexicon(agentId: string): Promise<AgentCatalogLexicon> {
   })
 
   const identityTokens = new Set<string>()
+  const attributeTokens = new Set<string>()
   for (const row of rows) {
     for (const field of [row.name, row.sku ?? '', row.category?.name ?? '', row.tags.join(' ')]) {
       for (const token of tokenizeCatalogText(field)) {
         if (isCacheableValue(token)) identityTokens.add(token)
       }
     }
+    for (const token of tokenizeCatalogText(attributeValueText(row.attributes))) {
+      if (isCacheableValue(token) && !identityTokens.has(token)) attributeTokens.add(token)
+    }
   }
-  return { identityTokens, builtAt: Date.now(), productCount: rows.length }
+  return { identityTokens, attributeTokens, builtAt: Date.now(), productCount: rows.length }
+}
+
+/** Every real catalog word: identity tokens plus attribute/variation words. */
+const searchVocabularies = new WeakMap<AgentCatalogLexicon, Set<string>>()
+
+export function catalogSearchVocabulary(lexicon: AgentCatalogLexicon | null | undefined): Set<string> | null {
+  if (!lexicon) return null
+  // One set per cached lexicon, so the spelling index built on it is reused
+  // across turns instead of rebuilt every message.
+  const cached = searchVocabularies.get(lexicon)
+  if (cached) return cached
+  const vocabulary = new Set([...lexicon.identityTokens, ...(lexicon.attributeTokens ?? [])])
+  searchVocabularies.set(lexicon, vocabulary)
+  return vocabulary
 }
 
 /**
@@ -96,9 +122,10 @@ export async function getAgentCatalogLexicon(agentId: string): Promise<AgentCata
   try {
     const raw = await getRedis().get(REDIS_KEY(agentId))
     if (raw) {
-      const parsed = JSON.parse(raw) as { identityTokens: string[]; builtAt: number; productCount: number }
+      const parsed = JSON.parse(raw) as { identityTokens: string[]; attributeTokens?: string[]; builtAt: number; productCount: number }
       const lexicon: AgentCatalogLexicon = {
         identityTokens: new Set(parsed.identityTokens),
+        attributeTokens: new Set(parsed.attributeTokens ?? []),
         builtAt: parsed.builtAt,
         productCount: parsed.productCount,
       }
@@ -116,7 +143,7 @@ export async function getAgentCatalogLexicon(agentId: string): Promise<AgentCata
   try {
     void getRedis().set(
       REDIS_KEY(agentId),
-      JSON.stringify({ identityTokens: [...lexicon.identityTokens], builtAt: lexicon.builtAt, productCount: lexicon.productCount }),
+      JSON.stringify({ identityTokens: [...lexicon.identityTokens], attributeTokens: [...lexicon.attributeTokens], builtAt: lexicon.builtAt, productCount: lexicon.productCount }),
       'EX',
       REDIS_TTL_SEC,
     )

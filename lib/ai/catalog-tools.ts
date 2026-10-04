@@ -15,8 +15,10 @@ import { prisma } from '@/lib/prisma'
 import type { ChatMessage, ChatTool, ChatUsage } from '@/lib/ai/openrouter'
 import { auxCompletion, type TurnLedger } from '@/lib/ai/llm/aux'
 import type { CatalogProduct } from '@/lib/ai/rag'
-import { extractProductTerms, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
-import { extractTypedVariations } from '@/lib/products/description'
+import { extractProductTerms, GLOBAL_PRODUCT_WORDS, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
+import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
+import { attributeLaneIds } from '@/lib/search/attribute-lane'
+import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
 
 const MAX_RESULTS = 10
 
@@ -160,13 +162,20 @@ export async function searchCatalogTool(agentId: string, args: Record<string, un
   const sort = typeof args.sort === 'string' ? args.sort : 'relevance'
   const limit = Math.min(MAX_RESULTS, Math.max(1, Math.round(numberArg(args.limit) ?? 6)))
 
-  const tokenFilters: Prisma.ProductWhereInput[] = tokens.flatMap((token) => digitVariants(token).flatMap((variant) => [
-    { name: { contains: variant, mode: 'insensitive' as const } },
-    { description: { contains: variant, mode: 'insensitive' as const } },
-    { sku: { contains: variant, mode: 'insensitive' as const } },
-    { tags: { has: variant } },
-    { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
-  ]))
+  const attributeIds = tokens.length
+    ? await attributeLaneIds({ agentId, terms: tokens, mode: 'any', availableOnly: inStockOnly, limit: 60 })
+    : []
+  const tokenFilters: Prisma.ProductWhereInput[] = [
+    ...tokens.flatMap((token) => digitVariants(token).flatMap((variant) => [
+      { name: { contains: variant, mode: 'insensitive' as const } },
+      { description: { contains: variant, mode: 'insensitive' as const } },
+      { sku: { contains: variant, mode: 'insensitive' as const } },
+      { tags: { has: variant } },
+      { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+    ])),
+    // Colour/size/design that lives only in attribute or variation values.
+    ...(attributeIds.length ? [{ id: { in: attributeIds } }] : []),
+  ]
   const where: Prisma.ProductWhereInput = {
     active: true,
     catalogItems: { some: { agentId } },
@@ -185,11 +194,13 @@ export async function searchCatalogTool(agentId: string, args: Record<string, un
       const name = normalizePersianText(row.name).toLocaleLowerCase('fa')
       const meta = normalizePersianText(`${row.category?.name ?? ''} ${row.tags.join(' ')} ${row.sku ?? ''}`).toLocaleLowerCase('fa')
       const description = normalizePersianText(row.description ?? '').toLocaleLowerCase('fa')
+      const attributes = normalizePersianText(attributeValueText(row.attributes)).toLocaleLowerCase('fa')
       let score = 0
       let covered = 0
       for (const token of tokens) {
         if (hasWord(name, token)) { score += 3; covered += 1 }
         else if (hasWord(meta, token)) { score += 2; covered += 1 }
+        else if (!/^\d+$/.test(token) && hasWord(attributes, token)) { score += 2; covered += 1 }
         else if (hasWord(description, token)) { score += 1; covered += 1 }
       }
       // Rows covering every keyword always outrank partial matches.
@@ -314,6 +325,7 @@ export async function planCatalogSearch(params: {
   reason: CatalogToolReason
   isFa: boolean
   ledger?: TurnLedger | null
+  vocabulary?: ReadonlySet<string> | null
 }): Promise<CatalogSearchPlan | null> {
   let usage: ChatUsage | null = null
   let calls: Array<Record<string, unknown>> = []
@@ -349,6 +361,7 @@ export async function planCatalogSearch(params: {
   const modelPlanned = calls.length > 0
   if (!modelPlanned) calls = [{ query: extractProductTerms(params.message).join(' ') }]
   return runCatalogSearches({
+    vocabulary: params.vocabulary,
     agentId: params.agentId,
     message: params.message,
     calls,
@@ -377,10 +390,18 @@ export async function runCatalogSearches(params: {
   /** A verified budget/sort from the understanding layer; default: parsed from the message. */
   budget?: { maxPrice: number | null; minPrice: number | null }
   sort?: 'price_asc' | 'price_desc' | 'popular' | null
+  /** The store's own words (identity + attribute values) for spelling fixes. */
+  vocabulary?: ReadonlySet<string> | null
 }): Promise<CatalogSearchPlan | null> {
   const budget = params.budget ?? parseBudget(params.message)
   const sort = params.sort !== undefined ? params.sort : sortHint(params.message)
-  const calls = params.calls
+  // «شلوا زیر ۲ میلیون»: the misspelled word becomes the catalog word before
+  // the search and the subject check below both read it.
+  const calls = params.calls.map((call) => {
+    if (typeof call.query !== 'string' || !params.vocabulary?.size) return call
+    const fixed = correctSearchTerms(queryTokens(call.query), params.vocabulary, { protect: GLOBAL_PRODUCT_WORDS })
+    return fixed.corrections.length ? { ...call, query: fixed.terms.join(' ') } : call
+  })
   const usage = params.usage ?? null
   const modelPlanned = params.modelPlanned ?? true
   const found = new Map<string, ProductRow>()
@@ -401,7 +422,9 @@ export async function runCatalogSearches(params: {
   // subject keywords of the first planned search.
   // An empty-result rescue may use synonyms, so a row qualifies by covering
   // every word of ANY planned query — never by a substring of another word.
-  const rowText = (row: ProductRow) => normalizePersianText(`${row.name} ${row.category?.name ?? ''} ${row.tags.join(' ')}`).toLocaleLowerCase('fa')
+  // Attribute and variation values count: «مانتو کرم» is covered by a مانتو
+  // sold in cream even when «کرم» is not in its name.
+  const rowText = (row: ProductRow) => normalizePersianText(`${row.name} ${row.category?.name ?? ''} ${row.tags.join(' ')} ${attributeValueText(row.attributes)}`).toLocaleLowerCase('fa')
   const plannedQueries = calls.map((call) => queryTokens(typeof call.query === 'string' ? call.query : '')).filter((tokens) => tokens.length)
   const subject = plannedQueries[0] ?? []
   if (params.reason !== 'EMPTY_RESULT' && subject.length) {

@@ -233,6 +233,7 @@ export interface VerificationNote {
     | 'LOW_CONFIDENCE_ACTION'
     | 'NO_PENDING'
     | 'EMPTY_ACT'
+    | 'DATE_NOT_IN_EVIDENCE'
   act: ActType
   detail?: string
 }

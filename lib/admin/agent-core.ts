@@ -64,6 +64,8 @@ export interface CostSection {
   reply: { calls: number; costUSD: number; promptTokens: number; completionTokens: number }
   /** All conversation-linked AI cost ÷ assistant replies, this window vs the one before. */
   perReply: { current: number | null; previous: number | null; currentReplies: number; previousReplies: number }
+  /** Provider prompt cache: input tokens served from cache, per call kind. */
+  cache: Array<{ key: string; calls: number; promptTokens: number; cachedTokens: number }>
 }
 
 export interface QualitySection {
@@ -322,6 +324,20 @@ async function costSection(since: Date, previousSince: Date): Promise<CostSectio
     }
     const now = new Date()
     const [current, previous] = await Promise.all([perWindow(since, now), perWindow(previousSince, since)])
+    let cache: CostSection['cache'] = []
+    const cacheRows = (key: Prisma.Sql) => prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT ${key} AS key, COUNT(*) AS calls,
+        COALESCE(SUM(u."promptTokens"), 0) AS prompt, COALESCE(SUM(u."cachedTokens"), 0) AS cached
+      FROM "UsageLog" u
+      WHERE u.date >= ${since} AND u.type IN ('CHAT', 'SUMMARY') AND u.status <> 'RELEASED' AND ${usageScope}
+      GROUP BY 1 ORDER BY 3 DESC`
+    try {
+      const rows = await cacheRows(Prisma.sql`COALESCE(u.purpose, CASE WHEN u.type = 'CHAT' THEN 'reply' ELSE 'summary' END)`)
+        .catch(() => cacheRows(Prisma.sql`CASE WHEN u.type = 'CHAT' THEN 'reply' ELSE 'summary' END`))
+      cache = rows.map((row) => ({ key: String(row.key), calls: num(row.calls), promptTokens: num(row.prompt), cachedTokens: num(row.cached) }))
+    } catch {
+      cache = []
+    }
     return {
       turns: num(turnRow?.turns),
       avgTotalUSD: nullableNum(turnRow?.total),
@@ -337,6 +353,7 @@ async function costSection(since: Date, previousSince: Date): Promise<CostSectio
         completionTokens: num(replyRow?.completion),
       },
       perReply: { current: current.perReply, previous: previous.perReply, currentReplies: current.replies, previousReplies: previous.replies },
+      cache,
     }
   } catch (error) {
     console.error('[admin/agent-core] cost report failed:', error)

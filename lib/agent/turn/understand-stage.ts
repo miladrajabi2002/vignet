@@ -52,6 +52,8 @@ export interface UnderstandingStageInput {
   capabilityGates?: { products?: boolean; bookings?: boolean; courses?: boolean }
   serviceNames: string[]
   corpusTokens?: ReadonlySet<string> | null
+  /** Identity plus attribute/variation words: what a verified search term may be. */
+  searchVocabulary?: ReadonlySet<string> | null
   legacyPlan: ProductRequestPlan
   ledger?: TurnLedger | null
   turnLang: TurnLanguage
@@ -126,7 +128,7 @@ export async function runUnderstandingStage(input: UnderstandingStageInput): Pro
           message: input.message,
           recent,
           candidates,
-          vocabulary: input.corpusTokens ?? null,
+          vocabulary: input.searchVocabulary ?? input.corpusTokens ?? null,
           ledger: input.ledger,
           timeoutMs: mode.timeoutMs,
         })

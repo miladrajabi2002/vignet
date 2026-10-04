@@ -51,9 +51,11 @@ import {
         assistantCardIds,
         normalizePersianText,
         UNRESOLVED_ANAPHORA_RE,
+        GLOBAL_PRODUCT_WORDS,
         type ProductRequestPlan,
 } from '@/lib/ai/conversation'
-import { getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
+import { catalogSearchVocabulary, getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
+import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
 import { analyzerGate, analyzeTurn, analyzerSearchTerms } from '@/lib/ai/turn-analyzer'
 import { shouldHandoff, handoffReplyText } from '@/lib/ai/handoff'
 import { captureError } from '@/lib/errors/capture'
@@ -104,7 +106,7 @@ import { TurnLedger } from '@/lib/ai/llm/aux'
 import { UNDERSTANDING_DOMAINS, type UnderstandingDomain } from '@/lib/agent/understand/mode'
 import { runUnderstandingStage } from '@/lib/agent/turn/understand-stage'
 import { emptyProductPlan } from '@/lib/agent/turn/route'
-import { closingReplyFor, composeTurnBrief } from '@/lib/agent/turn/brief'
+import { closingReplyFor, composeSpellingNote, composeTurnBrief } from '@/lib/agent/turn/brief'
 import { recordCustomerReading } from '@/lib/agent/turn/customer-reading'
 import { buildSystemPrompt, defaultProviderFailureText, appendSalesGuidance } from '@/lib/agent/turn/prompt'
 import { buildDeterministicTurnReply, freshCardIds } from '@/lib/agent/turn/deterministic'
@@ -469,6 +471,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 ? await getAgentCatalogLexicon(agent.id).catch(() => null)
                 : null
         const corpusTokens = catalogLexicon?.identityTokens ?? undefined
+        // Identity plus attribute/variation words (رنگ، سایز، طرح…) for spelling
+        // fixes and for verifying the understanding layer's search terms.
+        const searchVocabulary = catalogSearchVocabulary(catalogLexicon)
         // The legacy regex plan stays computed: it is the fallback router, the
         // state replay source for older messages and the shadow baseline.
         const rawProductRequest = planProductRequest(message, planningHistory, corpusTokens)
@@ -497,6 +502,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         capabilityGates: params.capabilityGates,
                         serviceNames: catalogServices.map((service) => service.name),
                         corpusTokens: corpusTokens ?? null,
+                        searchVocabulary,
                         legacyPlan: rawProductRequest,
                         ledger,
                         turnLang,
@@ -746,6 +752,23 @@ async function prepareTurn(params: StartChatParams): Promise<
                 // cart) are loaded by id; only a description search goes to
                 // vector + lexical retrieval.
                 const referencedIds = productsRouted ? route.productIds : []
+                // Misspelled search words («شلوا», «آپادنا») become the catalog
+                // word they mean before vector and lexical search see them.
+                let spellingNote = ''
+                if (agent.productAccessEnabled && productRequest.isProductTurn && referencedIds.length === 0 && productRequest.searchTerms.length) {
+                        const spelled = correctSearchTerms(productRequest.searchTerms, searchVocabulary, { protect: GLOBAL_PRODUCT_WORDS })
+                        if (spelled.corrections.length) {
+                                productRequest = {
+                                        ...productRequest,
+                                        searchTerms: spelled.terms,
+                                        corpusSubjectTerms: [...new Set([
+                                                ...(productRequest.corpusSubjectTerms ?? []),
+                                                ...spelled.terms.filter((term) => corpusTokens?.has(term)),
+                                        ])],
+                                }
+                                spellingNote = composeSpellingNote(spelled.corrections, turnLang === 'en' ? 'en' : 'fa')
+                        }
+                }
                 const searchingCatalog = agent.productAccessEnabled && productRequest.isProductTurn && referencedIds.length === 0
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length && referencedIds.length === 0
                         ? productRequest.searchTerms.join(' ')
@@ -896,6 +919,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 // Budgets and superlatives: the verified numbers run
                                 // server-side, no separate planner call.
                                 const search = await runCatalogSearches({
+                                        vocabulary: searchVocabulary,
                                         agentId: agent.id,
                                         message,
                                         calls: route.catalogSearch.calls,
@@ -942,6 +966,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         && catalogProducts.length === 0 && productRequest.searchTerms.length > 0
                 ) {
                         const broader = await runCatalogSearches({
+                                vocabulary: searchVocabulary,
                                 agentId: agent.id,
                                 message,
                                 calls: [{ query: productRequest.searchTerms.join(' '), in_stock_only: false }],
@@ -1099,6 +1124,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         })
                         if (catalogToolReason) {
                                 const searchPlan = await planCatalogSearch({
+                                        vocabulary: searchVocabulary,
                                         agentId: agent.id,
                                         workspaceId,
                                         conversationId,
@@ -1217,6 +1243,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 }
                 if (catalogSearchInstruction && messages[0]?.role === 'system') {
                         messages[0].content = insertBeforeTurnMarker(messages[0].content ?? '', catalogSearchInstruction)
+                }
+                if (spellingNote && messages[0]?.role === 'system') {
+                        messages[0].content = insertBeforeTurnMarker(messages[0].content ?? '', spellingNote)
                 }
                 // ── Turn brief: what the customer asked and what is resolved ──
                 if (route && understanding.outcome?.ok && understanding.mode.mode === 'on' && messages[0]?.role === 'system') {

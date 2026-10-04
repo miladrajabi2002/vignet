@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { attributeLaneIds } from '@/lib/search/attribute-lane'
 import type { ChannelType } from '@prisma/client'
 import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { CatalogProduct } from '@/lib/ai/rag'
@@ -7,7 +8,7 @@ import type { StartChatParams } from '@/lib/ai/chat-types'
 import type { Prisma } from '@prisma/client'
 import { historyCardIds, isConversationMemory } from '@/lib/ai/conversation-memory'
 import { isFirstPersonCityToken } from '@/lib/ai/fact-capture'
-import { extractTypedVariations } from '@/lib/products/description'
+import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
 
 /**
  * Conversation resolution + per-turn data loading, extracted from the chat
@@ -199,6 +200,16 @@ const PRODUCT_NOUNS =
         '|شکلات|کیک|شیرینی|قهوه|چای|عسل|خرما|آجیل|زعفران|برنج|روغن|خشکبار' +
         '|اسباب\\s*بازی|کتاب|دفتر|مداد|خودکار' +
         '|دوچرخه|اسکوتر|گلدان|اکسسوری'
+
+/**
+ * The global retail nouns as plain words («ساعت مچی», «میز»): real words a
+ * catalog spelling fix must never rewrite into a different product.
+ */
+export const GLOBAL_PRODUCT_WORDS: ReadonlySet<string> = new Set(
+        PRODUCT_NOUNS.split('|')
+                .map((word) => word.replace(/\(\?![^)]*\)/g, '').replace(/\\s\*/g, ' ').trim())
+                .filter(Boolean),
+)
 
 const PRODUCT_INTENT_RE =
         new RegExp(`(?:${PRODUCT_NOUNS}|قیمت|موجود|خرید|product|catalog|price|buy|shop|in\\s*stock|available)`, 'i')
@@ -1468,14 +1479,9 @@ function searchableProductText(product: {
         // which once poisoned fullTermMatch and turned the exact single-code
         // variant vitrine into a consultation with irrelevant extra cards.
         // Public facet attributes (طرح/رنگ/سایز/…) stay searchable.
-        const facetAttributes = (() => {
-                if (!product.attributes || typeof product.attributes !== 'object' || Array.isArray(product.attributes)) {
-                        return ''
-                }
-                const publicEntries = Object.entries(product.attributes as Record<string, unknown>)
-                        .filter(([key]) => !key.startsWith('_'))
-                return publicEntries.length ? JSON.stringify(Object.fromEntries(publicEntries)) : ''
-        })()
+        // Variation OPTION values (رنگ: کرم، سایز: L، طرح: ۰۵) are searchable
+        // too — only their SKUs/ids/prices stay out (attributeValueText).
+        const facetAttributes = attributeValueText(product.attributes)
         return {
                 name: normalizePersianText(product.name).toLocaleLowerCase('fa'),
                 description: normalizePersianText(product.description ?? '').toLocaleLowerCase('fa'),
@@ -1773,7 +1779,24 @@ async function searchCatalogProducts(
                         ]),
                 }))
                 : []
-        const [strictRows, priorityRows, broadRows] = await Promise.all([
+        // Attribute lane: rows whose colour/size/design lives only in the
+        // attribute or variation values («مانتو کرم» → the cream مانتو).
+        const attributeRowsPromise = (async () => {
+                if (!terms.length) return []
+                const [allTerms, anyTerm] = await Promise.all([
+                        terms.length > 1 ? attributeLaneIds({ agentId, terms, mode: 'all', limit: 40 }) : Promise.resolve([] as string[]),
+                        identityTerms.length ? attributeLaneIds({ agentId, terms: identityTerms, mode: 'any', limit: 40 }) : Promise.resolve([] as string[]),
+                ])
+                const ids = [...new Set([...allTerms, ...anyTerm])]
+                if (!ids.length) return []
+                return prisma.product.findMany({
+                        where: { ...baseWhere, AND: [availabilityFilter, { id: { in: ids } }] },
+                        take: 80,
+                        orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
+                        select: rowSelect,
+                })
+        })().catch(() => [])
+        const [strictRows, priorityRows, broadRows, attributeRows] = await Promise.all([
                 strictFilters.length
                         ? prisma.product.findMany({
                                 where: { ...baseWhere, AND: [availabilityFilter, ...strictFilters] },
@@ -1805,9 +1828,10 @@ async function searchCatalogProducts(
                 orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
                 select: rowSelect,
         }),
+                attributeRowsPromise,
         ])
         const seenProductIds = new Set<string>()
-        const rows = [...strictRows, ...priorityRows, ...broadRows].filter((product) => {
+        const rows = [...strictRows, ...(attributeRows ?? []), ...priorityRows, ...broadRows].filter((product) => {
                 if (seenProductIds.has(product.id)) return false
                 seenProductIds.add(product.id)
                 if (plan.inventoryMode === 'AVAILABLE' && allVariationsSoldOut(product.attributes)) return false

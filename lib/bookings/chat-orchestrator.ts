@@ -14,6 +14,7 @@ import {
 } from '@/lib/bookings/agent-tools'
 import type { ConversationReceipt } from '@/lib/conversations/activity'
 import { hasBookingIntent } from '@/lib/bookings/intent'
+import { describeResolvedDateTime, resolvePersianDateTime } from '@/lib/agent/parsers/persian-datetime'
 
 // services → slots (+ nearest date) → confirm/book → final reply, with room
 // for one retry after a slot fills up between listing and booking.
@@ -157,10 +158,18 @@ export async function maybeRunBookingAgentTurn(params: {
   const directory = await bookingServiceDirectory(params.workspaceId, isFa)
   const understoodNote = params.hint?.trim()
     ? isFa
-      ? `\nبرداشت سیستم از درخواست این نوبت: «${params.hint.trim().slice(0, 160)}» (فقط راهنما؛ خدمت، تاریخ و ساعت را با ابزارها بررسی کن).`
-      : `\nThe system read this turn as: “${params.hint.trim().slice(0, 160)}” (a hint only; check the service, date and time with the tools).`
+      ? `\nبرداشت سیستم از درخواست این نوبت: «${params.hint.trim().slice(0, 240)}» (فقط راهنما؛ خدمت، تاریخ و ساعت را با ابزارها بررسی کن).`
+      : `\nThe system read this turn as: “${params.hint.trim().slice(0, 240)}” (a hint only; check the service, date and time with the tools).`
     : ''
-  const bookingInstruction = `${bookingToolInstruction({ isFa, now })}\n${directory}${confirmationNote}${understoodNote}`
+  // Without an understanding hint (legacy routing), the customer's own words
+  // are still resolved: «پس‌فردا عصر» → the exact day and a time window.
+  const when = params.hint?.trim() ? '' : describeResolvedDateTime(resolvePersianDateTime(latestUserText, { now }), isFa)
+  const resolvedNote = when
+    ? isFa
+      ? `\nتاریخ/ساعتی که سیستم از پیام مشتری خواند: ${when}. همین روز را با ابزارها بررسی کن؛ اگر بازهٔ روز گفته شده، فقط زمان‌های آزاد همان بازه را پیشنهاد بده و قبل از ثبت، روز و تاریخ را با مشتری تأیید کن.`
+      : `\nDate/time the system read from the customer's message: ${when}. Check that day with the tools; for a part of day offer only free times inside that window, and confirm the day and date before booking.`
+    : ''
+  const bookingInstruction = `${bookingToolInstruction({ isFa, now })}\n${directory}${confirmationNote}${understoodNote}${resolvedNote}`
   const messages: ChatMessage[] = params.messages.map((message, index) => {
     if (index !== 0 || message.role !== 'system') return message
     return {

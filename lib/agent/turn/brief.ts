@@ -72,6 +72,19 @@ export function composeTurnBrief(params: {
   return `\n\n=== ${fa ? 'خلاصهٔ نوبت (تأییدشده توسط سیستم)' : 'Turn brief (verified by the system)'} ===\n${lines.join('\n')}`
 }
 
+/**
+ * Search words the system corrected against the catalog («شلوا» → «شلوار»):
+ * the reply uses the catalog word and never answers about the misspelling.
+ */
+export function composeSpellingNote(corrections: Array<{ from: string; to: string }>, lang: 'fa' | 'en' | 'ar'): string {
+  if (!corrections.length) return ''
+  const pairs = corrections.slice(0, 4)
+  if (lang === 'en') {
+    return `\n\nSearch spelling fixed against the catalog: ${pairs.map((pair) => `“${pair.from}” → “${pair.to}”`).join(', ')}. Answer with the catalog word; do not say the misspelled word is unavailable and do not point out the typo.`
+  }
+  return `\n\nاصلاح املایی جستجو با کلمات کاتالوگ: ${pairs.map((pair) => `«${pair.from}» ← «${pair.to}»`).join('، ')}. با همان کلمهٔ درست کاتالوگ جواب بده؛ نگو کلمهٔ غلط‌نوشته را نداریم و غلط املایی را به رخ نکش.`
+}
+
 /** Deterministic closing replies when the understanding read a pure closing. */
 export function closingReplyFor(kind: 'thanks' | 'goodbye' | 'defer', lang: 'fa' | 'en' | 'ar'): string {
   if (lang === 'en') return kind === 'defer' ? 'Of course, take your time.' : kind === 'goodbye' ? 'Goodbye.' : 'You’re welcome.'

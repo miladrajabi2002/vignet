@@ -380,6 +380,24 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
                 <KV label="همان شاخص در بازهٔ قبل">{usd(cost.perReply.previous)} ({fa(cost.perReply.previousReplies)} پاسخ)</KV>
                 <KV label="پاسخ‌های اصلی">{fa(cost.reply.calls)} فراخوانی · {usd(cost.reply.costUSD, 4)}</KV>
               </div>
+              {cost.cache.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs text-[var(--text-muted)]">
+                    کش پرامپت: سهم توکن‌های ورودی که از کش سرویس‌دهنده خوانده شد (ارزان‌تر حساب می‌شود). عدد بالاتر یعنی بخش ثابت پرامپت درست اول آمده است.
+                  </p>
+                  <ul className="space-y-2.5">
+                    {cost.cache.map((row) => (
+                      <li key={row.key}>
+                        <div className="mb-1 flex items-center justify-between gap-3 text-[12px]">
+                          <span className="text-[var(--text-primary)]">{row.key === 'reply' ? 'پاسخ اصلی' : PURPOSE_LABELS[row.key] ?? row.key}</span>
+                          <span className="tabular-nums text-[var(--text-muted)]">{pct(row.cachedTokens, row.promptTokens)} از {fa(row.promptTokens)} توکن</span>
+                        </div>
+                        <Progress value={row.cachedTokens} max={row.promptTokens || 1} tone="success" />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="mt-4">
                 <TableShell minWidth={480} bare>
                   <thead>

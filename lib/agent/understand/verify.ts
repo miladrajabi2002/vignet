@@ -19,6 +19,7 @@ import {
   tokensMostlyIn,
   verifiedMobile,
 } from '@/lib/agent/parsers/evidence'
+import { resolvePersianDateTime } from '@/lib/agent/parsers/persian-datetime'
 import type {
   Act,
   ActType,
@@ -203,10 +204,20 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
       }
       case 'booking': {
         if (!has('bookings')) { unavailable.add('bookings'); notes.push({ code: 'CAPABILITY_OFF', act: act.type }); return null }
+        // A day the customer never mentioned is dropped: the words (or a date
+        // the parser reads in them, typos included) must be in the
+        // conversation, not only in the model's reading.
+        const dateBacked = !act.date
+          || phraseAppearsIn(act.date, message, input.recentText)
+          || resolvePersianDateTime(message).dateKey != null
+          || resolvePersianDateTime(input.recentText).dateKey != null
+        if (!dateBacked) notes.push({ code: 'DATE_NOT_IN_EVIDENCE', act: act.type, detail: act.date })
+        const kept = { ...act }
+        if (!dateBacked) delete kept.date
         if (act.service && !resolve(act.service, act.type, ['service'])) {
-          return { type: act.type, action: act.action, ...(act.date ? { date: act.date } : {}), ...(act.time ? { time: act.time } : {}) }
+          return { type: act.type, action: act.action, ...(kept.date ? { date: kept.date } : {}), ...(act.time ? { time: act.time } : {}) }
         }
-        return act
+        return kept
       }
       case 'course': {
         if (!has('courses')) { unavailable.add('courses'); notes.push({ code: 'CAPABILITY_OFF', act: act.type }); return null }

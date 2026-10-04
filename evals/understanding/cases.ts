@@ -47,6 +47,10 @@ export const EVAL_CASES: EvalCase[] = [
   { id: 'A19', tags: ['product'], capabilities: STORE, history: [{ role: 'assistant', text: 'اگه بخواید چندتا از پرفروش‌ترین مدل‌ها رو نشونتون بدم؟' }], pending: { kind: 'showcase_offer' }, message: 'آره نشون بده', expect: { acts: ['product_search'], answersPending: true } },
   { id: 'A20', tags: ['product', 'regression'], capabilities: STORE, message: 'لینک خرید میز تلویزیون آپادانا رو بفرست', expect: { acts: ['product_search'] } },
 
+  // Misspelled product words (corrected against the catalog server-side).
+  { id: 'A21', tags: ['product', 'typo'], capabilities: STORE, message: 'شومیذ حریر دارین؟', expect: { acts: ['product_search'] } },
+  { id: 'A22', tags: ['product', 'typo'], capabilities: STORE, message: 'کیف دوشی چرم مشگی میخوام', expect: { acts: ['product_search'] } },
+
   // ── B. Questions about a known product (references) ──────────────────────
   { id: 'B01', tags: ['reference'], capabilities: STORE, active: SOFA, task: 'product', message: 'قیمتش چنده؟', expect: { acts: ['product_question'], refs: ['active'] } },
   { id: 'B02', tags: ['reference'], capabilities: STORE, active: SHIRT1, task: 'product', message: 'پارچش چیه؟', expect: { acts: ['product_question'], refs: ['active'] } },
@@ -73,6 +77,11 @@ export const EVAL_CASES: EvalCase[] = [
   { id: 'C06', tags: ['variants'], capabilities: STORE, active: ARTA, message: 'کاتالوگ رنگ‌های دیگش رو میفرستی', expect: { acts: ['variants'], refs: ['active'] } },
   { id: 'C07', tags: ['variants'], capabilities: STORE, cards: VITRINE, message: 'نازلی رو کرم میخوام ببینم', expect: { acts: ['variants'], refs: ['card:2'] } },
   { id: 'C08', tags: ['variants'], capabilities: STORE, active: SHIRT1, message: 'مشکیش سایز ۴۲ هست؟', expect: { acts: ['variants'], refs: ['active'] } },
+
+  // Switching designs of the product under discussion.
+  { id: 'C09', tags: ['variants', 'design'], capabilities: STORE, active: APADANA, message: 'یه طرح دیگه‌ش رو نشونم بده', expect: { acts: ['variants'], refs: ['active'] } },
+  { id: 'C10', tags: ['variants', 'design'], capabilities: STORE, active: SHIRT2, message: 'رنگ دیگه‌ای هم داره؟', expect: { acts: ['variants'], refs: ['active'] } },
+  { id: 'B16', tags: ['reference', 'detail'], capabilities: STORE, active: SOFA, message: 'پایه‌هاش فلزیه یا چوبی؟ پارچه‌ش ضد لک هست؟', expect: { acts: ['product_question'], refs: ['active'] } },
 
   // ── D. Compare / cheaper ─────────────────────────────────────────────────
   { id: 'D01', tags: ['compare'], capabilities: STORE, cards: VITRINE, message: 'دومی رو با سومی مقایسه کن، کدوم برای مهمونی بهتره؟', expect: { acts: ['compare'], refs: ['card:2', 'card:3'] } },
@@ -143,6 +152,12 @@ export const EVAL_CASES: EvalCase[] = [
   { id: 'I08', tags: ['booking', 'regression'], capabilities: STORE_WITH_BOOKINGS, services: ['مشاوره چیدمان'], message: 'امروز ارسال میکنید؟', expect: { acts: ['policy_question'], notActs: ['booking'] } },
   { id: 'I09', tags: ['booking'], capabilities: STORE_WITH_BOOKINGS, services: ['مشاوره چیدمان'], message: 'برای مشاوره چیدمان وقت خالی دارید؟', expect: { acts: ['booking'] } },
   { id: 'I10', tags: ['booking'], capabilities: SALON, services: ['کوتاهی مو'], task: 'booking', pending: { kind: 'booking_confirm' }, message: 'بله تأیید میکنم', expect: { acts: ['booking'], answersPending: true } },
+
+  // Relative dates, spoken times and typos (resolved server-side by lib/agent/parsers/persian-datetime).
+  { id: 'I11', tags: ['booking', 'date'], capabilities: SALON, services: ['کوتاهی مو', 'رنگ مو'], message: 'پسفردا عصر برای کوتاهی مو وقت دارید؟', expect: { acts: ['booking'] } },
+  { id: 'I12', tags: ['booking', 'date'], capabilities: SALON, services: ['کوتاهی مو'], task: 'booking', history: [{ role: 'assistant', text: 'برای چه روزی و ساعتی؟' }], pending: { kind: 'ask_slot', slot: 'date' }, message: 'یکشنبه هفته بعد یه ربع به شش', expect: { acts: ['booking'], answersPending: true } },
+  { id: 'I13', tags: ['booking', 'date'], capabilities: SALON, services: ['کوتاهی مو'], message: 'نوبتمو بنداز سه روز دیگه همون ساعت', expect: { acts: ['booking'] } },
+  { id: 'I14', tags: ['booking', 'date'], capabilities: SALON, services: ['کاشت ناخن'], message: '۱۵ مهر ساعت ۱۰ و نیم صبح کاشت ناخن', expect: { acts: ['booking'] } },
 
   // ── J. Courses (and false triggers) ──────────────────────────────────────
   { id: 'J01', tags: ['course', 'regression'], capabilities: ACADEMY, courses: ['دوره کاشت ناخن مقدماتی', 'کارگاه میکاپ'], message: 'آموزش ناخن دارین؟ میخوام یاد بگیرم', expect: { acts: ['course'] } },
