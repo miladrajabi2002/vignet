@@ -76,7 +76,7 @@ function params(message: string, overrides: Partial<OrderCaptureTurnParams> = {}
   return {
     enabled: true, workspaceId: 'w', agentId: 'a', conversationId: 'c1', contactId: null, channel: 'CHAT_LINK', message, lang: 'fa',
     catalogProducts: [], recentCardIds: [], activeEntityId: null, variantHint: null, lastAssistantText: null,
-    prefill: { name: null, phone: null, city: null, address: null }, restockEnabled: true, checkout, cartModel: null,
+    prefill: { name: null, phone: null, city: null, address: null }, restockEnabled: true, checkout, cartPlanner: null,
     ...overrides,
   }
 }
@@ -176,7 +176,7 @@ describe('in-chat checkout conversation', () => {
     expect((await resolveOrderCaptureTurn(params('ساعت کاری فروشگاه چنده؟'))).kind).toBe('none')
   })
 
-  it('removes one named line in a multi-item cart but cancels a single-item cart', async () => {
+  it('removes one named line in a multi-item cart and cancels a single-item cart only after a yes', async () => {
     const lines = [
       { productId: 'lamp', variationId: null, name: 'آباژور چوبی', variant: null, quantity: 1, unitPrice: 890_000, url: null, maxQuantity: null },
       { productId: 'table', variationId: null, name: 'میز جلو مبلی سنگی', variant: null, quantity: 1, unitPrice: 3_200_000, url: null, maxQuantity: 1 },
@@ -186,8 +186,52 @@ describe('in-chat checkout conversation', () => {
     expect(removed.kind === 'reply' && removed.text).toContain('«آباژور چوبی» از سبد حذف شد')
     expect(drafts[0].status).toBe('COLLECTING')
 
-    const cancelled = await resolveOrderCaptureTurn(params('نمیخوام'))
+    const asked = await resolveOrderCaptureTurn(params('نمیخوام'))
+    expect(asked.kind === 'reply' && asked.text).toContain('کل سفارش')
+    expect(drafts[0].status).toBe('COLLECTING')
+    expect(drafts[0].expecting).toBe('confirm_cancel')
+
+    const cancelled = await resolveOrderCaptureTurn(params('بله'))
     expect(cancelled.kind === 'reply' && cancelled.text).toContain('لغو کردم')
+    expect(drafts[0].status).toBe('CANCELLED')
+  })
+
+  it('never cancels the whole order on a colour change, a casual «بی‌خیال» or «فعلا نه»', async () => {
+    const arta = { productId: 'arta', variationId: 13, name: 'میز تلویزیون آرتا', variant: 'رنگ: گردویی', quantity: 1, unitPrice: 6_900_000, url: null, maxQuantity: 5 }
+    const lamp = { productId: 'lamp', variationId: null, name: 'آباژور چوبی', variant: null, quantity: 1, unitPrice: 890_000, url: null, maxQuantity: null }
+    drafts.push({ id: 'd1', code: 'CART02', status: 'COLLECTING', conversationId: 'c1', updatedAt: new Date(), items: [arta, lamp], expecting: 'address', coupons: [] })
+
+    // A colour edit is an edit: the regex «نمی‌خوام» used to cancel everything.
+    const recolour = await resolveOrderCaptureTurn(params('رنگ گردویی نمیخوام مشکی باشه'))
+    expect(recolour.kind === 'reply' && recolour.text).not.toContain('لغو کردم')
+    expect(drafts[0].status).toBe('COLLECTING')
+
+    // «فعلا نه، اول آدرس رو درست کنم» asks once and keeps the order on «نه».
+    const later = await resolveOrderCaptureTurn(params('فعلا نه، اول آدرس رو درست کنم'))
+    expect(later.kind === 'reply' && later.text).toContain('کل سفارش')
+    const kept = await resolveOrderCaptureTurn(params('نه'))
+    expect(kept.kind === 'reply' && kept.text).toContain('سفارش سر جاشه')
+    expect(drafts[0].status).toBe('COLLECTING')
+    expect((drafts[0].items as unknown[]).length).toBe(2)
+  })
+
+  it('applies understanding-resolved cart operations without a planner call', async () => {
+    const lines = [
+      { productId: 'lamp', variationId: null, name: 'آباژور چوبی', variant: null, quantity: 1, unitPrice: 890_000, url: null, maxQuantity: null },
+      { productId: 'table', variationId: null, name: 'میز جلو مبلی سنگی', variant: null, quantity: 1, unitPrice: 3_200_000, url: null, maxQuantity: 1 },
+    ]
+    drafts.push({ id: 'd1', code: 'CART03', status: 'COLLECTING', conversationId: 'c1', updatedAt: new Date(), items: lines, expecting: 'name', coupons: [] })
+    const { emptyOrderSignals } = await import('@/lib/commerce/order-signals')
+    // «میزه رو بی‌خیال» understood as «remove cart line 2», «آباژور سه تاش کن» as quantity 3.
+    const removed = await resolveOrderCaptureTurn(params('میزه رو بی‌خیال', {
+      signals: { ...emptyOrderSignals(), cartCue: 'remove', cartOps: [{ op: 'remove', line: 2 }] },
+    }))
+    expect(removed.kind === 'reply' && removed.text).toContain('«میز جلو مبلی سنگی» از سبد حذف شد')
+    const tripled = await resolveOrderCaptureTurn(params('سه تاش کن', {
+      signals: { ...emptyOrderSignals(), cartCue: 'change', cartOps: [{ op: 'set_quantity', line: 1, quantity: 3 }] },
+    }))
+    expect(tripled.kind === 'reply' && tripled.text).toContain('«آباژور چوبی» × ۳ به‌روز شد')
+    expect(drafts[0].status).toBe('COLLECTING')
   })
 
   it('picks the product named in the message and keeps the intent sentence out of the address', async () => {

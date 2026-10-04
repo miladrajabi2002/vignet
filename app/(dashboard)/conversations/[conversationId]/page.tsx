@@ -34,7 +34,7 @@ export default async function ConversationThreadPage(props: {
                 anonymousLabel: t('anonymous'),
         })
         if (!view) notFound()
-        const { conversation, insight, handle, avatar, who, handoffAlert, sourceTag, attention } = view
+        const { conversation, insight, handle, avatar, who, handoffAlert, sourceTag, attention, liveSummary } = view
         const meta = [
                 conversation.agent.name,
                 handle ? `@${handle}` : null,
@@ -89,7 +89,7 @@ export default async function ConversationThreadPage(props: {
                                                         locale={locale}
                                                         conversationId={conversation.id}
                                                         status={conversation.status}
-                                                        summary={conversation.summary}
+                                                        summary={conversation.summary ?? liveSummary}
                                                         channel={conversation.channel}
                                                         agentName={conversation.agent.name}
                                                         sourceTag={sourceTag}

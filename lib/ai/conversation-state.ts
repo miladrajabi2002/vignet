@@ -55,6 +55,33 @@ export interface ConversationStateAnswer {
   sourceMessageId: string
 }
 
+/** A product the customer saw or discussed in this session. */
+export interface DiscussedEntity {
+  /** Catalog id; may carry a «#v<variationId>» suffix. */
+  id: string
+  name: string
+  via: 'card' | 'named' | 'order'
+  atMessageId: string
+}
+
+export type PendingStateKind =
+  | 'confirm_order_summary'
+  | 'confirm_cancel'
+  | 'order_offer'
+  | 'restock_offer'
+  | 'showcase_offer'
+  | 'booking_confirm'
+  | 'ask_slot'
+  | 'ask_choice'
+
+/** A structured question or offer the agent is waiting on (never regex on its own text). */
+export interface PendingState {
+  kind: PendingStateKind
+  slot?: string
+  text?: string
+  sourceMessageId: string
+}
+
 export interface ConversationWorkingState {
   version: typeof CONVERSATION_STATE_VERSION
   sessionStartId: string
@@ -86,6 +113,16 @@ export interface ConversationWorkingState {
     intent: ConversationIntent
     sourceMessageId: string
   } | null
+  /**
+   * Product memory for references across a wandering conversation: every
+   * product carded, named or ordered this session, most recent first
+   * («اون میزه که اول پرسیدم» after a detour still resolves).
+   */
+  discussedEntities?: DiscussedEntity[]
+  /** The agent's latest multi-card reply, in display order («دومی» = index 1). */
+  lastShowcase?: Array<{ id: string; name: string }>
+  /** What the agent asked or offered and is waiting on. */
+  pending?: PendingState | null
   throughId: string
   throughAt: string
 }
@@ -142,7 +179,12 @@ const MAX_QUESTION_CHARS = 240
 const MAX_CONSTRAINTS = 12
 const MAX_ANCHORS = 10
 const MAX_CANDIDATES = 10
+const MAX_DISCUSSED = 12
+const MAX_SHOWCASE = 10
 const REPLAY_BATCH = 240
+const PENDING_KINDS: readonly PendingStateKind[] = [
+  'confirm_order_summary', 'confirm_cancel', 'order_offer', 'restock_offer', 'showcase_offer', 'booking_confirm', 'ask_slot', 'ask_choice',
+]
 
 const GREETING_RE = /^(?:(?:سلام|درود|وقت(?:تون|تان)?\s*(?:بخیر|خوش)|صبح\s*بخیر|عصر\s*بخیر|شب\s*بخیر|hi|hello|hey|good\s+(?:morning|afternoon|evening))[\s!,.،؟?]*)+$/iu
 const CLOSING_RE = /^(?:ممنون|مرسی|سپاس|تشکر|خداحافظ|فعلا|فعلاً|دستت\s*درد\s*نکنه|نه\s*ممنون|thanks?|thank\s+you|bye|goodbye)[\s!,.،؟?]*$/iu
@@ -291,6 +333,9 @@ function cloneState(state: ConversationWorkingState): ConversationWorkingState {
     lastQuestion: state.lastQuestion ? { ...state.lastQuestion } : null,
     lastAnswer: state.lastAnswer ? { ...state.lastAnswer } : null,
     lastTurn: state.lastTurn ? { ...state.lastTurn } : null,
+    ...(state.discussedEntities ? { discussedEntities: state.discussedEntities.map((entity) => ({ ...entity })) } : {}),
+    ...(state.lastShowcase ? { lastShowcase: state.lastShowcase.map((item) => ({ ...item })) } : {}),
+    ...(state.pending !== undefined ? { pending: state.pending ? { ...state.pending } : null } : {}),
   }
 }
 
@@ -385,6 +430,37 @@ export function parseConversationWorkingState(value: unknown, sessionStartId = '
     && ['NEW_GOAL', 'REFINEMENT', 'ANSWER', 'REFERENCE', 'CORRECTION', 'RESET', 'GREETING', 'CLOSING', 'SIDE_QUESTION', 'OTHER'].includes(raw.lastTurn.relation)
     && ['PRODUCT', 'SERVICE', 'BOOKING', 'ORDER', 'BUSINESS_INFO', 'SUPPORT', 'GENERAL'].includes(raw.lastTurn.intent)) {
     state.lastTurn = { ...raw.lastTurn }
+  }
+  if (Array.isArray(raw.discussedEntities)) {
+    const entities = raw.discussedEntities.flatMap((item): DiscussedEntity[] => {
+      if (!item || typeof item !== 'object') return []
+      const entry = item as unknown as Record<string, unknown>
+      if (typeof entry.id !== 'string' || typeof entry.name !== 'string' || typeof entry.atMessageId !== 'string') return []
+      const via = entry.via === 'card' || entry.via === 'named' || entry.via === 'order' ? entry.via : 'named'
+      return [{ id: entry.id.slice(0, 120), name: bounded(entry.name, 160), via, atMessageId: entry.atMessageId }]
+    }).slice(0, MAX_DISCUSSED)
+    if (entities.length) state.discussedEntities = entities
+  }
+  if (Array.isArray(raw.lastShowcase)) {
+    const showcase = raw.lastShowcase.flatMap((item): Array<{ id: string; name: string }> => {
+      if (!item || typeof item !== 'object') return []
+      const entry = item as unknown as Record<string, unknown>
+      return typeof entry.id === 'string' && typeof entry.name === 'string'
+        ? [{ id: entry.id.slice(0, 120), name: bounded(entry.name, 160) }]
+        : []
+    }).slice(0, MAX_SHOWCASE)
+    if (showcase.length) state.lastShowcase = showcase
+  }
+  if (raw.pending && typeof raw.pending === 'object') {
+    const pending = raw.pending as unknown as Record<string, unknown>
+    if ((PENDING_KINDS as readonly string[]).includes(String(pending.kind)) && typeof pending.sourceMessageId === 'string') {
+      state.pending = {
+        kind: pending.kind as PendingStateKind,
+        sourceMessageId: pending.sourceMessageId,
+        ...(typeof pending.slot === 'string' ? { slot: pending.slot.slice(0, 40) } : {}),
+        ...(typeof pending.text === 'string' ? { text: bounded(pending.text, MAX_QUESTION_CHARS) } : {}),
+      }
+    }
   }
   state.sessionStartId = sessionStartId || (typeof raw.sessionStartId === 'string' ? raw.sessionStartId : '')
   state.throughId = typeof raw.throughId === 'string' ? raw.throughId : ''
@@ -541,8 +617,13 @@ export function advanceConversationWorkingState(params: {
   createdAt: Date | string
   productPlan?: ProductPlanLike
   knownServiceNames?: string[]
+  /** The understanding layer's reading; replaces the regex classifier when set. */
+  understood?: UnderstoodTurnState | null
 }): ConversationWorkingState {
+  if (params.understood) return advanceFromUnderstanding({ ...params, understood: params.understood })
   let next = cloneState(params.state)
+  // The agent's pending question/offer is consumed by this customer turn.
+  if (next.pending) next.pending = null
   next.sessionStartId = params.sessionStartId || params.messageId
   const message = bounded(params.message, MAX_GOAL_CHARS)
   const normalized = normalize(message)
@@ -555,15 +636,21 @@ export function advanceConversationWorkingState(params: {
     && textAfterReset.length >= 2
     && intent !== 'GENERAL'
     && !params.productPlan?.requestNewTopic
+  // Product memory survives a topic reset on this path too: «همون اولی» may come back.
+  const memory = next.discussedEntities
   if (resetRequested && !resetCarriesNewGoal) {
     const reset = createEmptyConversationWorkingState(next.sessionStartId)
     reset.status = 'RESET'
+    if (memory) reset.discussedEntities = memory
     reset.lastTurn = { relation: 'RESET', intent, sourceMessageId: params.messageId }
     reset.throughId = params.messageId
     reset.throughAt = new Date(params.createdAt).toISOString()
     return reset
   }
-  if (resetCarriesNewGoal) next = createEmptyConversationWorkingState(next.sessionStartId)
+  if (resetCarriesNewGoal) {
+    next = createEmptyConversationWorkingState(next.sessionStartId)
+    if (memory) next.discussedEntities = memory
+  }
   const correctionRequested = CORRECTION_RE.test(normalized)
   const correctionCarriesNewGoal = correctionRequested && Boolean(next.activeGoal) && (
     Boolean(params.productPlan?.resetProductContext && params.productPlan.isProductTurn)
@@ -664,6 +751,87 @@ export function advanceConversationWorkingState(params: {
   next.throughId = params.messageId
   next.throughAt = new Date(params.createdAt).toISOString()
   return next
+}
+
+function understoodFact(value: string, messageId: string, confidence: ConversationStateFact['confidence']): ConversationStateFact {
+  const bounded_ = bounded(normalize(value), MAX_GOAL_CHARS)
+  return { value: bounded_, normalizedValue: bounded_.toLocaleLowerCase('fa'), sourceMessageId: messageId, confidence }
+}
+
+/**
+ * The same state transitions as the regex path, driven by the verified
+ * understanding: relation and intent come from the model reading, slots from
+ * the values it reported (and verify.ts checked against the message).
+ */
+function advanceFromUnderstanding(params: {
+  state: ConversationWorkingState
+  sessionStartId: string
+  message: string
+  messageId: string
+  createdAt: Date | string
+  understood: UnderstoodTurnState
+}): ConversationWorkingState {
+  const next = cloneState(params.state)
+  if (next.pending) next.pending = null
+  next.sessionStartId = params.sessionStartId || params.messageId
+  const message = bounded(params.message, MAX_GOAL_CHARS)
+  const { relation, intent } = params.understood
+  const finish = (state: ConversationWorkingState) => {
+    state.lastTurn = { relation, intent, sourceMessageId: params.messageId }
+    state.throughId = params.messageId
+    state.throughAt = new Date(params.createdAt).toISOString()
+    return state
+  }
+  if (relation === 'RESET') {
+    const reset = createEmptyConversationWorkingState(next.sessionStartId)
+    reset.status = 'RESET'
+    // Product memory survives a topic reset: «همون اولی» may still come back.
+    if (next.discussedEntities) reset.discussedEntities = next.discussedEntities
+    return finish(reset)
+  }
+  const slotFacts = Object.fromEntries(Object.entries(params.understood.slots)
+    .filter(([key, value]) => /^[a-z][a-z0-9_]{0,39}$/.test(key) && value.trim())
+    .map(([key, value]) => [key, understoodFact(value, params.messageId, relation === 'ANSWER' ? 'ANSWER_TO_QUESTION' : 'EXPLICIT')]))
+  if (relation === 'NEW_GOAL') {
+    const label = bounded(params.understood.goalLabel || message, MAX_GOAL_CHARS)
+    next.status = 'ACTIVE'
+    next.activeGoal = { intent, label, sourceMessageId: params.messageId }
+    next.activeEntity = { type: entityType(intent), id: null, label, sourceMessageId: params.messageId, source: 'CUSTOMER' }
+    next.constraints = []
+    next.slots = slotFacts
+    next.candidateEntityIds = []
+    next.lastAnswer = null
+    next.searchAnchors = uniqueBounded(params.understood.searchTerms.length ? params.understood.searchTerms : genericAnchors(message), MAX_ANCHORS)
+    return finish(next)
+  }
+  if (relation === 'CLOSING') {
+    if (next.activeGoal) next.status = 'RESOLVED'
+    return finish(next)
+  }
+  if (relation === 'GREETING' || relation === 'OTHER') return finish(next)
+  if (next.activeGoal) next.status = 'ACTIVE'
+  if (relation === 'SIDE_QUESTION') {
+    Object.assign(next.slots, slotFacts)
+    return finish(next)
+  }
+  // REFINEMENT / ANSWER / REFERENCE / CORRECTION
+  const fact = understoodFact(message, params.messageId, relation === 'ANSWER' ? 'ANSWER_TO_QUESTION' : 'EXPLICIT')
+  next.constraints = [...next.constraints.filter((item) => item.normalizedValue !== fact.normalizedValue), fact].slice(-MAX_CONSTRAINTS)
+  if (relation === 'ANSWER' && next.lastQuestion) {
+    const key = next.lastQuestion.key
+    const value = slotFacts[key]?.value ?? message
+    next.slots[key] = understoodFact(value, params.messageId, 'ANSWER_TO_QUESTION')
+    next.lastAnswer = { key, question: next.lastQuestion.text, value: message, sourceMessageId: params.messageId }
+    next.lastQuestion = null
+  }
+  Object.assign(next.slots, slotFacts)
+  if (params.understood.searchTerms.length && (!next.activeGoal || next.activeGoal.intent === 'PRODUCT')) {
+    next.searchAnchors = uniqueBounded(
+      [...params.understood.searchTerms, ...resolveAnchorConflicts(params.understood.searchTerms, next.searchAnchors)],
+      MAX_ANCHORS,
+    )
+  }
+  return finish(next)
 }
 
 export function observeAssistantTurn(
@@ -918,6 +1086,57 @@ export function startCatalogProductGoal(
   next.lastAnswer = null
   next.lastTurn = { relation: 'NEW_GOAL', intent: 'PRODUCT', sourceMessageId: messageId }
   return next
+}
+
+/**
+ * Remember products for later references. Most recent first, deduplicated
+ * by parent product (a variant card replaces its parent's older entry).
+ */
+export function rememberDiscussedEntities(
+  state: ConversationWorkingState,
+  entities: Array<{ id: string; name: string }>,
+  via: DiscussedEntity['via'],
+  messageId: string,
+): ConversationWorkingState {
+  const fresh = entities.filter((entity) => entity.id && entity.name)
+  if (!fresh.length) return state
+  const next = cloneState(state)
+  const parent = (id: string) => id.split('#')[0]
+  const freshParents = new Set(fresh.map((entity) => parent(entity.id)))
+  next.discussedEntities = [
+    ...fresh.map((entity) => ({ id: entity.id, name: bounded(entity.name, 160), via, atMessageId: messageId })),
+    ...(next.discussedEntities ?? []).filter((entity) => !freshParents.has(parent(entity.id))),
+  ].slice(0, MAX_DISCUSSED)
+  return next
+}
+
+/** The agent's latest showcase, in the order the customer saw it. */
+export function recordShowcase(state: ConversationWorkingState, cards: Array<{ id: string; name: string }>): ConversationWorkingState {
+  if (!cards.length) return state
+  const next = cloneState(state)
+  next.lastShowcase = cards.slice(0, MAX_SHOWCASE).map((card) => ({ id: card.id, name: bounded(card.name, 160) }))
+  return next
+}
+
+export function setPending(state: ConversationWorkingState, pending: PendingState | null): ConversationWorkingState {
+  const next = cloneState(state)
+  next.pending = pending
+  return next
+}
+
+/**
+ * Relation/intent decided by the turn-understanding layer (instead of the
+ * regex classifier). Slots and terms are the verified values it reported.
+ */
+export interface UnderstoodTurnState {
+  relation: ConversationTurnRelation
+  intent: ConversationIntent
+  /** Product search terms of this turn (identity words). */
+  searchTerms: string[]
+  /** Explicit attributes/details the customer stated (color, size, budget, city…). */
+  slots: Record<string, string>
+  /** The turn's goal label (what the customer is after), when it starts a goal. */
+  goalLabel?: string
 }
 
 /** Small, delimited state block for the model; no second LLM call is required. */

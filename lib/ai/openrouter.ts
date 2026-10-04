@@ -32,11 +32,19 @@ function isRetryableProviderError(e: unknown): boolean {
 export async function fetchWithProviderRetry<T = Response>(
   url: string,
   init: RequestInit,
-  opts: { timeoutMs?: number; parse?: (res: Response) => Promise<T> } = {},
+  opts: {
+    timeoutMs?: number
+    parse?: (res: Response) => Promise<T>
+    /** Extra attempts after the first (default PROVIDER_RETRY_ATTEMPTS). */
+    retries?: number
+    /** Back-off between attempts (default PROVIDER_RETRY_DELAY_MS). */
+    retryDelayMs?: number
+  } = {},
 ): Promise<T> {
   let lastError: unknown
-  for (let attempt = 0; attempt <= PROVIDER_RETRY_ATTEMPTS; attempt++) {
-    if (attempt > 0) await sleepMs(PROVIDER_RETRY_DELAY_MS)
+  const retries = Math.max(0, opts.retries ?? PROVIDER_RETRY_ATTEMPTS)
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) await sleepMs(opts.retryDelayMs ?? PROVIDER_RETRY_DELAY_MS)
     let res: Response
     try {
       // A fresh AbortSignal per attempt: a signal shared across attempts
@@ -173,7 +181,15 @@ export interface ChatOptions {
   task?: 'learning-review'
   onUsage?: (usage: ChatUsage) => void
   tools?: ChatTool[]
-  toolChoice?: 'auto' | 'none'
+  /** 'auto' | 'none', or force one named function (structured extraction). */
+  toolChoice?: 'auto' | 'none' | { type: 'function'; function: { name: string } }
+  /**
+   * Per-attempt timeout and retry budget. Customer-path auxiliary calls
+   * (turn understanding) use a short timeout and no retry so a slow
+   * provider degrades to the deterministic fallback instead of stalling.
+   */
+  timeoutMs?: number
+  retries?: number
 }
 
 export interface ChatUsage {
@@ -227,7 +243,9 @@ export async function chatCompletion(
     // every attempt so a timed-out attempt is really retried. The body read
     // also happens inside the retry loop, so a 200 whose body stalls past the
     // timeout is retried instead of failing the customer's turn.
-    timeoutMs: opts.task === 'learning-review' ? 120_000 : 60_000,
+    timeoutMs: opts.timeoutMs ?? (opts.task === 'learning-review' ? 120_000 : 60_000),
+    retries: opts.retries,
+    retryDelayMs: opts.retries === 0 ? 0 : undefined,
     parse: async (res) => {
       if (!res.ok) {
         // Do not persist provider bodies: they may contain request fragments.

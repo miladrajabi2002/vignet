@@ -92,6 +92,7 @@ model Workspace {
   restockAlerts            RestockAlert[]
   courses                  Course[]
   courseEnrollments        CourseEnrollment[]
+  turnUnderstandingLogs    TurnUnderstandingLog[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -950,12 +951,20 @@ model UsageLog {
   status            UsageStatus @default(CAPTURED)
   idempotencyKey    String?     @unique
   type              LogType
+  // Auxiliary model calls (turn understanding, cart planner, summaries…)
+  // name their job here; NULL for reply rows and older auxiliary rows.
+  purpose           String?
+  // Groups every model call of one customer turn (the inbound event id or
+  // the inbound message id) so the cost of a whole turn can be summed.
+  turnKey           String?
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   walletEntries WalletLedger[]
 
   @@index([workspaceId, date])
   @@index([date, status])
+  @@index([purpose, date])
+  @@index([turnKey])
 }
 
 enum UsageStatus {
@@ -1177,6 +1186,9 @@ model PlatformAiSettings {
   trialCreditIRR         Int      @default(100000)
   planConfig             Json     @default("{}")
   financeUsdToIRR        Int?
+  // Turn-understanding rollout: { mode: off|shadow|on, domains: {…} }.
+  // Shape and defaults live in lib/agent/understand/mode.ts.
+  understandingConfig    Json     @default("{}")
   updatedAt              DateTime @updatedAt
 }
 
@@ -2340,3 +2352,41 @@ enum EnrollmentStatus {
   WAITLISTED
   CANCELLED
 }
+
+// One row per customer turn the understanding layer looked at (shadow or
+// live). Keeps both readings (the model's and the legacy regex router's) so
+// agreement, fallback rate, latency and cost are measurable before and after
+// a domain is switched over. Bounded JSON only; purged after 90 days.
+model TurnUnderstandingLog {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  agentId          String
+  conversationId   String
+  // The inbound USER message this turn answered.
+  messageId        String?
+  mode             String   // off | shadow | on
+  // ok | fallback (no usable reading; legacy routing used) | skipped (fast path)
+  status           String
+  errorCode        String?
+  model            String?
+  latencyMs        Int?
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  costUSD          Float?
+  confidence       Float?
+  acts             String[] @default([])
+  // Which domains routed from the model reading on this turn.
+  routedDomains    String[] @default([])
+  understanding    Json?
+  legacy           Json?
+  diffKinds        String[] @default([])
+  agreed           Boolean?
+  createdAt        DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([createdAt])
+  @@index([conversationId])
+}
+

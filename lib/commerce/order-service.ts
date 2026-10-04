@@ -24,7 +24,8 @@ import { fixedLabel, matchVariantInText, nextVariantQuestion, type VariantMatch 
 import type { CatalogProduct } from '@/lib/ai/rag'
 import {
   applyOrderSlots,
-  assistantOfferedOrder,
+  composeCancelConfirmQuestion,
+  composeCancelKept,
   composeCartChange,
   composeItemUnavailable,
   composeOrderAsk,
@@ -35,13 +36,8 @@ import {
   composeProductQuestion,
   composeShippingQuestion,
   composeVariantQuestion,
-  detectOrderIntent,
   extractOrderSlots,
   formatOrderForOperator,
-  isOrderCancellation,
-  isOrderConfirmation,
-  isOrderDecline,
-  isQuestion,
   matchShippingChoice,
   mentionsShippingMethod,
   missingOrderSlots,
@@ -60,8 +56,8 @@ import {
 import { isItemAvailable, restockMode, restockOfferLine } from '@/lib/commerce/restock'
 import { rememberRestockOffer } from '@/lib/commerce/restock-service'
 import { heldByOthers, startCartHold, withHeldStock } from '@/lib/commerce/cart-hold'
+import { legacyOrderSignals, type OrderTurnSignals } from '@/lib/commerce/order-signals'
 import {
-  detectCartEditCue,
   planCartEditDeterministic,
   planCartEditWithModel,
   type CartCandidate,
@@ -72,11 +68,10 @@ import {
   checkoutMarker,
   extractCouponCode,
   formatToman,
-  isLinkRequest,
-  isPaymentClaim,
   itemLine,
 } from '@/lib/commerce/checkout-link'
 import type { CheckoutContext, DraftQuoteView } from '@/lib/commerce/checkout-service'
+import type { TurnLedger } from '@/lib/ai/llm/aux'
 
 /** A draft untouched for this long is abandoned, never silently resumed. */
 export const ORDER_DRAFT_TTL_MS = 48 * 60 * 60 * 1000
@@ -113,10 +108,18 @@ export interface OrderCaptureTurnParams {
   restockEnabled: boolean
   /** In-chat checkout (payment link on the store). Null = operator pre-order. */
   checkout?: CheckoutContext | null
-  /** Model for understanding cart edits («یه پاف هم اضافه کن»). Null = deterministic only. */
-  cartModel?: string | null
+  /**
+   * Legacy cart-edit planner («یه پاف هم اضافه کن») on the economical tier.
+   * Null = deterministic only. Unused when `signals` carries cart ops.
+   */
+  cartPlanner?: { ledger?: TurnLedger | null } | null
   /** agent.cartHoldEnabled: one-hour hold on this cart; other chats' holds reduce stock. */
   cartHold?: boolean
+  /**
+   * What the message means for the order. From the turn-understanding layer
+   * when it read this turn; otherwise the legacy regex detectors.
+   */
+  signals?: OrderTurnSignals
 }
 
 type DraftRow = {
@@ -210,6 +213,26 @@ export async function loadActiveOrderDraft(conversationId: string): Promise<Draf
     await prisma.orderDraft.updateMany({ where: { id: { in: stale } }, data: { status: 'EXPIRED', expecting: null } }).catch(() => {})
   }
   return rows.find((row) => row.updatedAt.getTime() >= cutoff) ?? null
+}
+
+/**
+ * The cart the customer is working on, for the understanding candidates: the
+ * active draft, or the cart behind an unpaid payment link.
+ */
+export async function loadCartForUnderstanding(conversationId: string): Promise<{
+  status: string
+  expecting: string | null
+  items: OrderDraftItem[]
+  openCheckout: boolean
+} | null> {
+  const draft = await loadActiveOrderDraft(conversationId).catch(() => null)
+  if (draft) return { status: draft.status, expecting: draft.expecting, items: parseItems(draft.items), openCheckout: false }
+  const open = await prisma.orderDraft.findFirst({
+    where: { conversationId, status: { in: OPEN_CHECKOUT_STATUSES } },
+    orderBy: { updatedAt: 'desc' },
+    select: { status: true, expecting: true, items: true },
+  }).catch(() => null)
+  return open ? { status: open.status, expecting: open.expecting, items: parseItems(open.items), openCheckout: true } : null
 }
 
 /** Cheap pre-check so a closing/short message can be routed to the order flow. */
@@ -335,11 +358,18 @@ async function loadProducts(scope: LoadScope, ids: string[]): Promise<ProductRow
  * from the list just offered, the one product this turn's search identified,
  * the one card shown last, the conversation's grounded entity.
  */
-async function resolveProductChoice(params: OrderCaptureTurnParams): Promise<
-  | { kind: 'picked'; product: ProductRow; variationId: number | null }
+async function resolveProductChoice(params: OrderCaptureTurnParams, signals: OrderTurnSignals): Promise<
+  | { kind: 'picked'; product: ProductRow; variationId: number | null; variant?: string | null; quantity?: number | null }
   | { kind: 'ambiguous'; candidates: ProductRow[] }
   | { kind: 'unknown' }
 > {
+  // The understanding layer already resolved «همون آبیه» / «دومی» to a
+  // catalog id from the cards the customer saw: trust that pick first.
+  const [start] = signals.startItems
+  if (start) {
+    const [product] = await loadProducts(params, [start.productId])
+    if (product) return { kind: 'picked', product, variationId: start.variationId, variant: start.variant, quantity: start.quantity }
+  }
   const identified = params.catalogProducts.filter((product) => product.fullTermMatch)
   const offered = [...new Set(params.recentCardIds)]
   const offeredProducts = offered.length ? await loadProducts(params, offered) : []
@@ -381,7 +411,7 @@ async function resolveProductChoice(params: OrderCaptureTurnParams): Promise<
   if (named) return { kind: 'picked', product: named, variationId: null }
   // «یه پاف کرم میخوام بخرم»: this turn's search found exactly one product.
   const parents = [...new Set(params.catalogProducts.filter((row) => !row.unavailable).map((row) => parentId(row.id)))]
-  if (parents.length === 1 && detectOrderIntent(params.message)) {
+  if (parents.length === 1 && signals.orderIntent) {
     const [product] = await loadProducts(params, parents)
     if (product) return { kind: 'picked', product, variationId: null }
   }
@@ -508,11 +538,13 @@ function changed(change: CartChange): boolean {
  * validated against the agent's catalog and live stock; an item that cannot
  * be added is reported, never silently dropped.
  */
-async function applyCartEdits(params: OrderCaptureTurnParams, state: OrderDraftState, cue: CartEditCue): Promise<{ change: CartChange; notes: string[] }> {
+async function applyCartEdits(params: OrderCaptureTurnParams, state: OrderDraftState, cue: CartEditCue, signals: OrderTurnSignals): Promise<{ change: CartChange; notes: string[] }> {
   const change = emptyChange()
   const notes: string[] = []
   const candidateRows = params.catalogProducts.slice(0, 8)
+  const resolvedAddIds = (signals.cartOps ?? []).flatMap((op) => op.op === 'add' ? [op.productId] : [])
   const products = await loadProducts(params, [
+    ...resolvedAddIds,
     ...candidateRows.map((row) => row.id),
     ...params.recentCardIds.slice(0, 4),
     ...state.items.map((item) => item.productId),
@@ -528,8 +560,17 @@ async function applyCartEdits(params: OrderCaptureTurnParams, state: OrderDraftS
     variants: byId.get(item.productId) ? availableVariations(byId.get(item.productId)!).map(variationLabel).filter(Boolean).slice(0, 12) : [],
   }))
 
-  let ops: CartEditOp[] | null = params.cartModel
-    ? await planCartEditWithModel({ model: params.cartModel, message: params.message, cart: cartView, candidates }).catch(() => null)
+  // Understanding-resolved operations need no second model call.
+  let ops: CartEditOp[] | null = signals.cartOps ? signals.cartOps : params.cartPlanner
+    ? await planCartEditWithModel({
+      workspaceId: params.workspaceId,
+      agentId: params.agentId,
+      conversationId: params.conversationId,
+      ledger: params.cartPlanner.ledger,
+      message: params.message,
+      cart: cartView,
+      candidates,
+    }).catch(() => null)
     : null
   if (!ops) {
     const identifiedIds = new Set(candidateRows.filter((row) => row.fullTermMatch).map((row) => parentId(row.id)))
@@ -589,9 +630,18 @@ async function applyCartEdits(params: OrderCaptureTurnParams, state: OrderDraftS
     // add
     const product = byId.get(op.productId)
     if (!product || state.items.length >= MAX_CART_LINES) continue
-    const match = op.variant
-      ? variantFromMessage(product, op.variant, null)
-      : variantFromMessage(product, params.message, params.variantHint)
+    const byVariationId = op.variationId != null
+      ? extractTypedVariations(product.attributes).find((variation) => variation.id === op.variationId) ?? null
+      : null
+    const match: VariantMatch = byVariationId
+      ? { kind: 'full', variation: byVariationId }
+      : op.variant
+        ? variantFromMessage(product, op.variant, null)
+        : signals.source === 'understanding'
+          // A resolved add without a variant asks for it; the add sentence
+          // itself («یه پاف هم بذار») is not a variant answer.
+          ? variantFromMessage(product, '', null)
+          : variantFromMessage(product, params.message, params.variantHint)
     const variation = match.kind === 'full' ? match.variation : null
     if (!isItemAvailable(product, variation?.id ?? null)) {
       const unavailable = buildItem(product, variation)
@@ -756,18 +806,19 @@ type OpenCheckoutOutcome = OrderCaptureOutcome | { kind: 'reopen'; row: DraftRow
  * the link again, cancel, or change the cart (which re-opens it as a fresh
  * draft with a new code; the old unpaid store order is cancelled).
  */
-async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenCheckoutRow, ctx: CheckoutContext): Promise<OpenCheckoutOutcome | null> {
+async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenCheckoutRow, ctx: CheckoutContext, signals: OrderTurnSignals): Promise<OpenCheckoutOutcome | null> {
   const lang = params.lang
   const svc = await checkoutService()
   const closed = open.status === 'EXPIRED' || open.status === 'CANCELLED'
+  const cue = signals.cartCue ?? (signals.cartOps?.length ? 'change' : null)
   // A closed (expired / cancelled) link only answers «send the link again»
   // and new order intents by re-opening the cart; everything else is a
   // normal turn.
-  if (closed && !isLinkRequest(params.message) && !detectOrderIntent(params.message) && !detectCartEditCue(params.message)) return null
+  if (closed && !signals.linkRequest && !signals.orderIntent && !cue) return null
   const expired = closed || Boolean(open.linkExpiresAt && open.linkExpiresAt.getTime() <= Date.now())
   const card = () => svc.buildCheckoutCard(open, ctx.storeUrl, lang)
 
-  if (isPaymentClaim(params.message)) {
+  if (signals.paymentClaim) {
     const fresh = await svc.refreshCheckoutStatus(open.id, { notify: false })
     const status = fresh?.status ?? open.status
     if (status === 'PAID' || status === 'ON_HOLD') {
@@ -788,15 +839,24 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
     return { kind: 'reply', text: current && !expired ? `${text}\n${checkoutMarker(current)}` : text, draftId: open.id }
   }
 
-  const cue = detectCartEditCue(params.message)
-  const cancel = isOrderCancellation(params.message) && cue !== 'remove' && cue !== 'add'
-  if (cancel) {
+  // Cancelling an unpaid store order is confirmed once, like a cart.
+  const awaitingCancel = open.expecting === 'confirm_cancel'
+  if (!closed && awaitingCancel && (signals.confirm || signals.cancel) && !cue) {
     await prisma.orderDraft.update({ where: { id: open.id }, data: { status: 'CANCELLED', expecting: null, resolvedAt: new Date() } })
     await svc.cancelCheckoutOnStore(open.id)
     return { kind: 'reply', text: composeOrderCancelled(lang), draftId: open.id }
   }
+  if (!closed && awaitingCancel) {
+    await prisma.orderDraft.update({ where: { id: open.id }, data: { expecting: null } }).catch(() => {})
+    if (signals.decline) return { kind: 'reply', text: composeCancelKept(lang), draftId: open.id }
+  }
+  const cancel = signals.cancel && cue !== 'remove' && cue !== 'add'
+  if (cancel && !closed) {
+    await prisma.orderDraft.update({ where: { id: open.id }, data: { expecting: 'confirm_cancel' } })
+    return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: open.code }, lang), draftId: open.id }
+  }
 
-  if (isLinkRequest(params.message) && !expired) {
+  if (signals.linkRequest && !expired) {
     const current = card()
     if (current) {
       const text = lang === 'en' ? `Here is the payment link for order ${open.code} again:` : `اینم دوباره لینک پرداخت سفارش ${open.code}:`
@@ -804,7 +864,7 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
     }
   }
 
-  if (cue || detectOrderIntent(params.message) || (isLinkRequest(params.message) && expired)) {
+  if (cue || signals.orderIntent || (signals.linkRequest && expired)) {
     // Re-open the cart as a new draft: the old link must never pay for a
     // cart the customer has since changed.
     const created = await prisma.orderDraft.create({
@@ -844,21 +904,22 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
   const instruction = lang === 'en'
     ? `=== Payment link pending ===\nThe customer has a payment link for order ${open.code} (${items.map((item) => itemLine(item, 'en')).join(', ')}${total ? `, ${total}` : ''}); status: ${statusLabel}${expired ? ' (the link has expired)' : ''}. If they ask about paying, tell them payment happens through that link on the store's own website and the confirmation arrives here right after. Never say the order is paid. If they want to change the cart, tell them to just say what to add or remove.`
     : `=== لینک پرداخت در جریان است ===\nبرای مشتری لینک پرداخت سفارش ${open.code} (${items.map((item) => itemLine(item, 'fa')).join('، ')}${total ? `، ${total}` : ''}) فرستاده شده؛ وضعیت: ${statusLabel}${expired ? ' (مهلت لینک تمام شده)' : ''}. اگر درباره پرداخت پرسید، بگو پرداخت از همان لینک روی سایت خود فروشگاه انجام می‌شود و تأییدش همین‌جا می‌رسد. هرگز نگو سفارش پرداخت شده. اگر خواست سبد را تغییر دهد، بگو کافی است بگوید چه چیزی اضافه یا کم شود.`
-  if (isQuestion(params.message)) return { kind: 'instruct', instruction, draftId: open.id }
+  if (signals.question) return { kind: 'instruct', instruction, draftId: open.id }
   return null
 }
 
 // ─── Turn resolver ──────────────────────────────────────────────────────────
 
 export async function resolveOrderCaptureTurn(params: OrderCaptureTurnParams): Promise<OrderCaptureOutcome> {
-  const outcome = await resolveCartTurn(params)
+  const signals = params.signals ?? legacyOrderSignals(params.message, params.lastAssistantText)
+  const outcome = await resolveCartTurn(params, signals)
   // The first reply that shows a cart with items also says until when it is held.
   if (!params.cartHold || outcome.kind !== 'reply' || !outcome.draftId) return outcome
   const holdLine = await startCartHold(outcome.draftId, params.lang)
   return holdLine ? { ...outcome, text: `${outcome.text}\n${holdLine}` } : outcome
 }
 
-async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCaptureOutcome> {
+async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTurnSignals): Promise<OrderCaptureOutcome> {
   if (!params.enabled) return { kind: 'none' }
   const checkout = params.checkout ?? null
   const payLink = Boolean(checkout)
@@ -868,7 +929,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
   if (!row && checkout) {
     const open = await loadOpenCheckout(params.conversationId)
     if (open) {
-      const outcome = await openCheckoutTurn(params, open, checkout)
+      const outcome = await openCheckoutTurn(params, open, checkout, signals)
       if (outcome?.kind === 'reopen') row = outcome.row
       else if (outcome) return outcome
     }
@@ -877,11 +938,10 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
   let state: OrderDraftState
   let draftId: string | null = row?.id ?? null
   let opening = false
-  const cue = row ? detectCartEditCue(params.message) : null
+  const cue = row ? signals.cartCue ?? (signals.cartOps?.length ? 'change' : null) : null
 
   if (!row) {
-    const intent = detectOrderIntent(params.message)
-      || (assistantOfferedOrder(params.lastAssistantText) && isOrderConfirmation(params.message))
+    const intent = signals.orderIntent || signals.startItems.length > 0
     if (!intent) return { kind: 'none' }
     opening = true
     state = {
@@ -899,14 +959,32 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
     }
   } else {
     state = toState(row)
-    // «پاف رو نمی‌خوام» in a multi-line cart removes that line; the same words
-    // in a one-line cart (or a bare «نمی‌خوام») cancel the whole order.
-    const removesOneLine = cue === 'remove' && state.items.length > 1
-    if (!removesOneLine && cue !== 'add' && isOrderCancellation(params.message)) {
-      state.status = 'CANCELLED'
+    // The previous turn asked «کل سفارش لغو بشه؟»: only a yes cancels.
+    if (state.expecting === 'confirm_cancel') {
+      if ((signals.confirm || signals.cancel) && !signals.cartOps?.length && cue !== 'add' && cue !== 'change') {
+        state.status = 'CANCELLED'
+        state.expecting = null
+        await prisma.orderDraft.update({ where: { id: row.id }, data: { status: 'CANCELLED', expecting: null, resolvedAt: new Date() } })
+        return { kind: 'reply', text: composeOrderCancelled(lang), draftId: row.id }
+      }
       state.expecting = null
-      await prisma.orderDraft.update({ where: { id: row.id }, data: { status: 'CANCELLED', expecting: null, resolvedAt: new Date() } })
-      return { kind: 'reply', text: composeOrderCancelled(lang), draftId: row.id }
+      if (signals.decline && !cue && !signals.question) {
+        const missing = missingOrderSlots(state, false)
+        state.expecting = missing[0] ?? (state.status === 'AWAITING_CONFIRM' ? 'confirm' : null)
+        draftId = await saveDraft(params, row.id, state)
+        const next = missing.length
+          ? composeOrderAsk({ draft: state, missing, lang, opening: false, unparsed: true })
+          : composeOrderSummary(state, lang, false, null, Boolean(checkout) && !checkout?.storeDisabled)
+        return { kind: 'reply', text: `${composeCancelKept(lang)}\n${next}`, draftId }
+      }
+    }
+    // «پاف رو نمی‌خوام» in a multi-line cart removes that line. A whole-order
+    // cancellation is never applied on one reading: ask once, cancel on yes.
+    const removesOneLine = cue === 'remove' && state.items.length > 1
+    if (!removesOneLine && cue !== 'add' && cue !== 'change' && signals.cancel) {
+      state.expecting = 'confirm_cancel'
+      draftId = await saveDraft(params, row.id, state)
+      return { kind: 'reply', text: composeCancelConfirmQuestion(state, lang), draftId }
     }
   }
 
@@ -914,7 +992,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
   let change = emptyChange()
   const notes: string[] = []
   if (row && state.items.length && cue) {
-    const edit = await applyCartEdits(params, state, cue)
+    const edit = await applyCartEdits(params, state, cue, signals)
     change = edit.change
     notes.push(...edit.notes)
     if (!state.items.length && changed(change)) {
@@ -930,7 +1008,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
   // ── First product (and its variant) ────────────────────────────────────
   let productChanged = false
   if (!state.items.length) {
-    const choice = await resolveProductChoice(params)
+    const choice = await resolveProductChoice(params, signals)
     if (choice.kind === 'picked') {
       const { product } = choice
       const match: VariantMatch = choice.variationId != null
@@ -938,7 +1016,9 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
             const byId = extractTypedVariations(product.attributes).find((variation) => variation.id === choice.variationId)
             return byId ? { kind: 'full', variation: byId } as const : { kind: 'none' } as const
           })()
-        : variantFromMessage(product, params.message, params.variantHint)
+        : choice.variant
+          ? variantFromMessage(product, choice.variant, null)
+          : variantFromMessage(product, params.message, params.variantHint)
       const pinned = match.kind === 'full' ? match.variation : null
       if (!isItemAvailable(product, pinned?.id ?? null)) {
         const item = buildItem(product, pinned)
@@ -954,10 +1034,33 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
         }
         return { kind: 'reply', text: composeItemUnavailable(item, lang, offer), draftId: draftId ?? '' }
       }
-      state.items = [pinned ? buildItem(product, pinned) : partialItem(product, match)]
+      const firstQuantity = choice.quantity && choice.quantity > 0 ? Math.min(50, choice.quantity) : 1
+      state.items = [pinned ? buildItem(product, pinned, firstQuantity) : partialItem(product, match, firstQuantity)]
       productChanged = true
+      // Several products picked at once (understanding): each available one
+      // joins the cart with its own variant and quantity.
+      if (opening && signals.startItems.length > 1) {
+        const extras = await loadProducts(params, signals.startItems.slice(1).map((item) => item.productId))
+        for (const item of signals.startItems.slice(1)) {
+          const extra = extras.find((row) => row.id === parentId(item.productId))
+          if (!extra || extra.id === product.id || state.items.length >= MAX_CART_LINES) continue
+          const extraMatch: VariantMatch = item.variationId != null
+            ? (() => {
+                const byId = extractTypedVariations(extra.attributes).find((variation) => variation.id === item.variationId)
+                return byId ? { kind: 'full', variation: byId } as const : { kind: 'none' } as const
+              })()
+            : item.variant ? variantFromMessage(extra, item.variant, null) : { kind: 'none' }
+          const variation = extraMatch.kind === 'full' ? extraMatch.variation : null
+          const quantity = item.quantity && item.quantity > 0 ? Math.min(50, item.quantity) : 1
+          if (!isItemAvailable(extra, variation?.id ?? null)) {
+            notes.push(composeItemUnavailable(buildItem(extra, variation), lang, null))
+            continue
+          }
+          state.items.push(variation ? buildItem(extra, variation, quantity) : partialItem(extra, extraMatch, quantity))
+        }
+      }
       // Several products named at once: every available one joins the cart.
-      if (opening) {
+      if (opening && signals.source === 'legacy') {
         for (const extra of await productsNamedInMessage(params)) {
           if (extra.id === product.id || state.items.length >= MAX_CART_LINES) continue
           const extraMatch = variantFromMessage(extra, params.message, null)
@@ -1003,7 +1106,17 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
 
   // ── Customer fields (+ coupon) ─────────────────────────────────────────
   const missingBefore = missingOrderSlots(state, needsVariant)
-  const slots = extractOrderSlots(params.message, state.expecting, missingBefore)
+  // Shape-certain values (Iranian mobile, 10-digit postal code) are always
+  // parsed deterministically; names and addresses come from the verified
+  // understanding when it read this turn.
+  const parsedSlots = extractOrderSlots(params.message, state.expecting, missingBefore)
+  const slots = signals.slots
+    ? {
+        ...signals.slots,
+        ...(parsedSlots.phone ? { phone: parsedSlots.phone } : {}),
+        ...(parsedSlots.postalCode ? { postalCode: parsedSlots.postalCode } : {}),
+      }
+    : parsedSlots
   // The purchase-intent message itself («میخوام بخرمش») and a product /
   // variant pick («آبی»، «دومی») are never the customer's name.
   if ((opening || productChanged || edited) && slots.name && !slots.phone && !slots.address) delete slots.name
@@ -1025,7 +1138,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
   }
   let slotChanged = applyOrderSlots(state, slots)
   if (payLink) {
-    const coupon = extractCouponCode(params.message)
+    const coupon = signals.coupon !== undefined ? signals.coupon ?? extractCouponCode(params.message) : extractCouponCode(params.message)
     if (coupon && !(state.coupons ?? []).includes(coupon)) {
       state.coupons = [...(state.coupons ?? []), coupon].slice(-3)
       slotChanged = true
@@ -1039,13 +1152,15 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
   if (payLink && row && (listedShipping || (state.status === 'AWAITING_CONFIRM' && !slotChanged && !edited))) {
     const options = quotedShippingOptions(row.quote)
     const shortMessage = normalizeOrderText(params.message).split(/\s+/u).length <= 4
-    const pick = options.length > 1 && (listedShipping || shortMessage || mentionsShippingMethod(params.message))
-      ? matchShippingChoice(params.message, options, listedShipping)
+    const asksShipping = signals.source === 'understanding' ? signals.shippingChange || Boolean(signals.shippingText) : mentionsShippingMethod(params.message)
+    const shippingWords = signals.shippingText ?? params.message
+    const pick = options.length > 1 && (listedShipping || shortMessage || asksShipping)
+      ? matchShippingChoice(shippingWords, options, listedShipping)
       : null
     if (pick && pick.id !== state.shippingRateId) {
       state.shippingRateId = pick.id
       slotChanged = true
-    } else if (!pick && !listedShipping && options.length > 1 && mentionsShippingMethod(params.message)) {
+    } else if (!pick && !listedShipping && options.length > 1 && asksShipping) {
       state.shippingRateId = null
       slotChanged = true
     }
@@ -1054,7 +1169,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
 
   // ── Confirmation step ──────────────────────────────────────────────────
   if (row && state.status === 'AWAITING_CONFIRM' && !slotChanged && !edited) {
-    if (isOrderConfirmation(params.message) && missingOrderSlots(state, needsVariant).length === 0) {
+    if (signals.confirm && missingOrderSlots(state, needsVariant).length === 0) {
       if (checkout) {
         const svc = await checkoutService()
         let view: DraftQuoteView | null = null
@@ -1098,7 +1213,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
         operatorSummary: formatOrderForOperator(state),
       }
     }
-    if (isOrderDecline(params.message)) {
+    if (signals.decline) {
       return { kind: 'reply', text: composeOrderDeclined(lang), draftId: row.id }
     }
   }
@@ -1109,7 +1224,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams): Promise<OrderCap
 
   // A mid-order question («ارسالش چند روزه؟») is answered by the model,
   // which then reminds the one next step.
-  if (!opening && !anyChange && !notes.length && isQuestion(params.message)) {
+  if (!opening && !anyChange && !notes.length && signals.question) {
     draftId = await saveDraft(params, draftId, state)
     const pending: OrderSlot[] = listedShipping && !state.shippingRateId ? [...missing, 'shipping'] : missing
     return { kind: 'instruct', instruction: orderInProgressInstruction(state, pending, lang), draftId }

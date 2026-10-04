@@ -112,9 +112,12 @@ describe('pre-order conversation, end to end', () => {
     expect(question.kind === 'instruct' && question.instruction).toContain('هرگز نگو سفارش ثبت شد')
   })
 
-  it('cancel ends the draft', async () => {
+  it('cancel asks once, then ends the draft on yes', async () => {
     await resolveOrderCaptureTurn(params('میخوام همینو بخرم'))
-    const cancel = await resolveOrderCaptureTurn(params('بیخیال'))
+    const ask = await resolveOrderCaptureTurn(params('بیخیال'))
+    expect(ask.kind === 'reply' && ask.text).toContain('کل سفارش')
+    expect(drafts[0].status).toBe('COLLECTING')
+    const cancel = await resolveOrderCaptureTurn(params('آره'))
     expect(cancel.kind === 'reply' && cancel.text).toContain('لغو')
     expect(drafts[0].status).toBe('CANCELLED')
   })

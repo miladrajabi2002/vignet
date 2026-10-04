@@ -14,6 +14,7 @@ import {
 } from '@/lib/bookings/agent-tools'
 import type { ConversationReceipt } from '@/lib/conversations/activity'
 import { hasBookingIntent } from '@/lib/bookings/intent'
+import { describeResolvedDateTime, resolvePersianDateTime } from '@/lib/agent/parsers/persian-datetime'
 
 // services → slots (+ nearest date) → confirm/book → final reply, with room
 // for one retry after a slot fills up between listing and booking.
@@ -115,8 +116,14 @@ export async function maybeRunBookingAgentTurn(params: {
   messages: ChatMessage[]
   temperature: number
   maxTokens: number
+  /** The turn-understanding layer already read a booking request on this turn. */
+  intentKnown?: boolean
+  /** What it understood («کوتاهی مو فردا ۱۷»), a hint for the tool loop. */
+  hint?: string
+  /** The understanding layer read «yes» to the agent's booking summary. */
+  confirmed?: boolean
 }): Promise<BookingChatResult | null> {
-  if (!hasBookingIntent(params.messages)) return null
+  if (!params.intentKnown && !hasBookingIntent(params.messages)) return null
 
   const hasActiveService = await prisma.service.count({
     where: { workspaceId: params.workspaceId, active: true },
@@ -139,17 +146,30 @@ export async function maybeRunBookingAgentTurn(params: {
     ?.content ?? ''
   // The customer just said "yes" to the summary the agent asked about. Cheap
   // models tend to re-ask; tell them the confirmation is already given.
-  const confirmationTurn = typeof latestUserText === 'string'
+  const confirmationTurn = params.confirmed ?? (typeof latestUserText === 'string'
     && CONFIRMATION.test(latestUserText)
     && typeof previousAssistant === 'string'
-    && ASKED_TO_CONFIRM.test(previousAssistant)
+    && ASKED_TO_CONFIRM.test(previousAssistant))
   const confirmationNote = !confirmationTurn
     ? ''
     : isFa
       ? '\nمشتری همین حالا خلاصهٔ پیام قبلی تو را صریحاً تأیید کرد. دوباره نپرس؛ همین حالا ابزار مربوط را اجرا کن (create_appointment، یا برای جابه‌جایی/لغو اول list_my_appointments و بعد reschedule_appointment یا cancel_appointment).'
       : '\nThe customer just explicitly confirmed your previous summary. Do not ask again; call the matching tool now (create_appointment, or list_my_appointments then reschedule_appointment / cancel_appointment).'
   const directory = await bookingServiceDirectory(params.workspaceId, isFa)
-  const bookingInstruction = `${bookingToolInstruction({ isFa, now })}\n${directory}${confirmationNote}`
+  const understoodNote = params.hint?.trim()
+    ? isFa
+      ? `\nبرداشت سیستم از درخواست این نوبت: «${params.hint.trim().slice(0, 240)}» (فقط راهنما؛ خدمت، تاریخ و ساعت را با ابزارها بررسی کن).`
+      : `\nThe system read this turn as: “${params.hint.trim().slice(0, 240)}” (a hint only; check the service, date and time with the tools).`
+    : ''
+  // Without an understanding hint (legacy routing), the customer's own words
+  // are still resolved: «پس‌فردا عصر» → the exact day and a time window.
+  const when = params.hint?.trim() ? '' : describeResolvedDateTime(resolvePersianDateTime(latestUserText, { now }), isFa)
+  const resolvedNote = when
+    ? isFa
+      ? `\nتاریخ/ساعتی که سیستم از پیام مشتری خواند: ${when}. همین روز را با ابزارها بررسی کن؛ اگر بازهٔ روز گفته شده، فقط زمان‌های آزاد همان بازه را پیشنهاد بده و قبل از ثبت، روز و تاریخ را با مشتری تأیید کن.`
+      : `\nDate/time the system read from the customer's message: ${when}. Check that day with the tools; for a part of day offer only free times inside that window, and confirm the day and date before booking.`
+    : ''
+  const bookingInstruction = `${bookingToolInstruction({ isFa, now })}\n${directory}${confirmationNote}${understoodNote}${resolvedNote}`
   const messages: ChatMessage[] = params.messages.map((message, index) => {
     if (index !== 0 || message.role !== 'system') return message
     return {

@@ -1,4 +1,40 @@
 {
   "extends": ["next/core-web-vitals", "next/typescript"],
-  "ignorePatterns": ["mini-services/**", "node_modules/**"]
+  "ignorePatterns": ["mini-services/**", "node_modules/**"],
+  "overrides": [
+    {
+      "files": ["app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "worker/**/*.ts", "components/**/*.tsx"],
+      "excludedFiles": [
+        "lib/ai/llm/**",
+        "lib/ai/openrouter.ts",
+        "lib/ai/chat-engine.ts",
+        "lib/agent/turn/reply.ts",
+        "lib/bookings/chat-orchestrator.ts",
+        "lib/courses/chat-orchestrator.ts",
+        "lib/improvement/model.ts",
+        "lib/skills/engine.ts",
+        "lib/vigento/workspace-agent.ts",
+        "app/api/admin/vigento/route.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "paths": [{
+            "name": "@/lib/ai/openrouter",
+            "importNames": ["chatCompletion", "streamChat", "streamChatWithRetry"],
+            "message": "Auxiliary model calls go through auxCompletion (lib/ai/llm/aux.ts): budget check, economical tier and per-turn cost accounting."
+          }]
+        }]
+      }
+    },
+    {
+      "files": ["lib/agent/**/*.ts"],
+      "excludedFiles": ["lib/agent/parsers/**"],
+      "rules": {
+        "no-restricted-syntax": ["error", {
+          "selector": "Literal[regex.pattern=/[\\u0600-\\u06FF]/]",
+          "message": "No Persian intent regexes in the agent core. Meaning comes from the turn-understanding layer; shape-certain parsers (phone, postal code, digits) live in lib/agent/parsers/. The legacy regex budget is enforced by tests/regex-budget.test.ts."
+        }]
+      }
+    }
+  ]
 }

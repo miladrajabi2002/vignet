@@ -389,10 +389,11 @@ async function runCleanup(): Promise<void> {
                         result.errorLogs +
                         result.syncLogsByAge +
                         result.syncLogsOverCap +
-                        result.orphanWorkspaces
+                        result.orphanWorkspaces +
+                        result.understandingLogs
                 if (total > 0) {
                         console.log(
-                                `[scheduler] retention cleanup: ${result.otpLogs} OTP, ${result.errorLogs} error, ${result.syncLogsByAge + result.syncLogsOverCap} sync log, ${result.orphanWorkspaces} orphan workspace rows deleted`,
+                                `[scheduler] retention cleanup: ${result.otpLogs} OTP, ${result.errorLogs} error, ${result.syncLogsByAge + result.syncLogsOverCap} sync log, ${result.orphanWorkspaces} orphan workspace, ${result.understandingLogs} understanding log rows deleted`,
                         )
                 }
         } catch (e) {

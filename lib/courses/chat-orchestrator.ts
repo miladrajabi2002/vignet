@@ -40,6 +40,8 @@ export async function maybeRunCourseAgentTurn(params: {
   messages: ChatMessage[]
   temperature: number
   maxTokens: number
+  /** What the understanding layer read («ثبت‌نام دوره کاشت ناخن»), a hint for the tool loop. */
+  hint?: string
 }): Promise<CourseChatResult | null> {
   const published = await prisma.course.count({ where: { workspaceId: params.workspaceId, status: { in: ['PUBLISHED', 'CLOSED'] } } }).catch(() => 0)
   if (published === 0) return null
@@ -51,7 +53,7 @@ export async function maybeRunCourseAgentTurn(params: {
   )
   const messages: ChatMessage[] = params.messages.map((message, index) => (
     index === 0 && message.role === 'system'
-      ? { ...message, content: `${message.content ?? ''}\n\n${courseToolInstruction(isFa)}` }
+      ? { ...message, content: `${message.content ?? ''}\n\n${courseToolInstruction(isFa)}${params.hint?.trim() ? (isFa ? `\nبرداشت سیستم از درخواست این نوبت: «${params.hint.trim().slice(0, 160)}» (فقط راهنما).` : `\nThe system read this turn as: “${params.hint.trim().slice(0, 160)}” (a hint only).`) : ''}` }
       : message
   ))
   const tools = COURSE_AGENT_TOOLS.map((tool) => ({

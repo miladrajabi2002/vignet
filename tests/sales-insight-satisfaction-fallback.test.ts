@@ -6,7 +6,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: { conversationSalesInsight: { updateMany, create } },
 }))
 
-import { analyzeSalesConversation, persistConversationSalesInsight } from '@/lib/ai/sales-intelligence'
+import { analyzeSalesConversation, persistConversationSalesInsight, SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
 
 const context = {
   conversationId: 'c1',
@@ -42,7 +42,7 @@ describe('sales insight persistence before the satisfaction migration', () => {
     const retried = updateMany.mock.calls[1][0].data
     expect(retried).not.toHaveProperty('satisfaction')
     expect(retried).not.toHaveProperty('topics')
-    expect(retried).toMatchObject({ sentiment: 'POSITIVE', modelVersion: 'sales-hybrid-v3' })
+    expect(retried).toMatchObject({ sentiment: 'POSITIVE', modelVersion: SALES_INTELLIGENCE_VERSION })
   })
 
   it('does not swallow unrelated failures', async () => {

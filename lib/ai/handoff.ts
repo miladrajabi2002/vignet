@@ -275,6 +275,7 @@ export async function shouldHandoff(
                 businessType: context?.businessType ?? 'CUSTOM',
                 language: context?.language ?? agent.language,
                 roleTemplate: context?.roleTemplate ?? agent.roleTemplate,
+                facts: context?.facts,
         }
         // Policy runs on keywords alone: transferring a customer to a human
         // must never depend on what the reply model reported about itself.

@@ -250,6 +250,11 @@ export function stripListBlocks(html: string): string {
   if (!html) return ''
   return html
     .replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '')
+    // Scripts/styles carry no product text.
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    // Block boundaries are word boundaries: «<p>یک</p><p>دو</p>» must not
+    // become «یکدو» (it used to, in embeddings and in the reply's catalog).
+    .replace(/<\/?(?:p|div|br|h[1-6]|li|ol|tr|td|th|table|section|article|blockquote)\b[^>]*>/gi, ' ')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -285,11 +290,36 @@ export function cleanDescriptionForChat(
   const listText = items
     .map((it) => (it.value ? `${it.label}: ${it.value}` : it.label))
     .join('، ')
-  const stripped = stripListBlocks(html)
+  const stripped = stripListBlocks(html).replace(/\s+/g, ' ').trim()
   const merged = listText && stripped ? `${stripped} — ${listText}` : (listText || stripped)
   if (merged.length <= maxLen) return merged
   // Truncate at a word boundary when possible.
   const slice = merged.slice(0, maxLen - 1)
   const lastSpace = slice.lastIndexOf(' ')
   return `${slice.slice(0, lastSpace > 0 ? lastSpace : maxLen - 1)}…`
+}
+
+/**
+ * Attribute keys and values plus every variation's option values — never
+ * variation SKUs, ids, prices or stock (numbers there are noise).
+ */
+export function attributeValueText(attributes: unknown): string {
+  if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) return ''
+  const parts: string[] = []
+  for (const [key, value] of Object.entries(attributes as Record<string, unknown>)) {
+    if (key === '_variations') {
+      if (!Array.isArray(value)) continue
+      for (const variation of value.slice(0, 200)) {
+        const options = variation && typeof variation === 'object' ? (variation as Record<string, unknown>).attributes : null
+        if (!options || typeof options !== 'object' || Array.isArray(options)) continue
+        for (const option of Object.values(options as Record<string, unknown>)) if (option != null) parts.push(decodeAttributeText(String(option)))
+      }
+      continue
+    }
+    if (key.startsWith('_')) continue
+    parts.push(decodeAttributeText(key))
+    if (Array.isArray(value)) parts.push(...value.map((item) => decodeAttributeText(String(item))))
+    else if (value != null && typeof value !== 'object') parts.push(decodeAttributeText(String(value)))
+  }
+  return parts.join(' ').slice(0, 20_000)
 }

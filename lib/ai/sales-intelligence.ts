@@ -10,9 +10,11 @@ import type {
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { currentSessionMessages } from '@/lib/conversations/session'
+import { readStoredReading } from '@/lib/agent/turn/customer-reading'
 import {
         TURN_SIGNAL_VERSION,
         buySignalReading,
+        groundTurnSignal,
         conversationSatisfaction,
         readTurnSignal,
         saysPraise,
@@ -40,7 +42,8 @@ import {
  * keyword-driven, and handoff policy is evaluated on a heuristic-only pass.
  */
 
-export const SALES_INTELLIGENCE_VERSION = 'sales-hybrid-v3'
+// v4: customer-side readings from the understanding layer + conversation facts.
+export const SALES_INTELLIGENCE_VERSION = 'sales-hybrid-v4'
 export const SALES_INTELLIGENCE_MESSAGE_LIMIT = 24
 
 export interface SalesConversationMessage {
@@ -98,6 +101,38 @@ export interface SalesConversationAnalysis {
         aiTurnCount: number
 }
 
+/**
+ * What actually happened in this conversation, read from trusted rows (order
+ * drafts, store checkout, tool receipts, alerts). Facts outrank wording: a
+ * paid cart is a customer whatever the last message said.
+ */
+export interface SalesFacts {
+        /** A cart from this chat was paid (or confirmed by the store). */
+        paidOrder: boolean
+        /** A pre-order was filed for an operator. */
+        filedOrder: boolean
+        /** A payment link is out and unpaid. */
+        openCheckout: boolean
+        /** A cart with items is being filled right now. */
+        activeCart: boolean
+        /** An appointment was booked through the agent. */
+        booked: boolean
+        /** A course enrollment (or waitlist place) was made through the agent. */
+        enrolled: boolean
+        /** The customer asked to be told when a product is back. */
+        restockAlert: boolean
+}
+
+export const EMPTY_SALES_FACTS: SalesFacts = {
+        paidOrder: false,
+        filedOrder: false,
+        openCheckout: false,
+        activeCart: false,
+        booked: false,
+        enrolled: false,
+        restockAlert: false,
+}
+
 export interface SalesConversationContext {
         conversationId: string
         workspaceId: string
@@ -106,6 +141,7 @@ export interface SalesConversationContext {
         roleTemplate: string | null
         messageCount: number
         messages: SalesConversationMessage[]
+        facts?: SalesFacts
 }
 
 export interface PersistSalesInsightOptions {
@@ -318,6 +354,13 @@ const SIGNAL_LABELS: Record<string, { fa: string; en: string }> = {
         AUTHORITY_REQUIRED: { fa: 'نیاز احتمالی به اختیار انسانی', en: 'possible human authority required' },
         REPEATED_REQUEST: { fa: 'تکرار درخواست حل‌نشده', en: 'repeated unresolved request' },
         ORDER_ISSUE: { fa: 'مشکل سفارش، ارسال یا وجه', en: 'order, delivery or payment problem' },
+        FACT_ORDER_PAID: { fa: 'سبد این گفتگو پرداخت شده', en: 'a cart from this chat was paid' },
+        FACT_ORDER_FILED: { fa: 'پیش‌سفارش ثبت شده', en: 'a pre-order was filed' },
+        FACT_CHECKOUT_OPEN: { fa: 'لینک پرداخت ارسال شده و منتظر پرداخت است', en: 'payment link sent, awaiting payment' },
+        FACT_CART_ACTIVE: { fa: 'سبد خرید در حال تکمیل است', en: 'a cart is being filled' },
+        FACT_BOOKED: { fa: 'نوبت رزرو شده', en: 'an appointment was booked' },
+        FACT_ENROLLED: { fa: 'در دوره ثبت‌نام کرده', en: 'enrolled in a course' },
+        FACT_RESTOCK_ALERT: { fa: 'درخواست اطلاع از موجود شدن کالا', en: 'asked for a back-in-stock alert' },
 }
 
 const STOP_WORDS = new Set([
@@ -573,6 +616,62 @@ function recommendNextAction(params: {
         return localize(language, 'پاسخ اطلاعاتی کوتاه بدهید و با یک سؤال بدون فشار، هدف و زمان احتمالی تصمیم را روشن کنید.', 'Give a concise informational answer, then use one low-pressure question to clarify the goal and likely decision timing.')
 }
 
+const ACT_TOPICS: Record<string, TurnTopic> = {
+        product_search: 'product',
+        product_question: 'product',
+        variants: 'product',
+        compare: 'product',
+        cheaper_alternative: 'price',
+        order_start: 'order',
+        cart_edit: 'order',
+        order_details: 'order',
+        order_confirm: 'order',
+        order_status: 'order',
+        payment_claim: 'payment',
+        payment_link_request: 'payment',
+        restock_subscribe: 'stock',
+        booking: 'booking',
+        course: 'booking',
+        complaint: 'complaint',
+        greeting: 'chat',
+        thanks: 'chat',
+        goodbye: 'chat',
+        smalltalk: 'chat',
+}
+
+/**
+ * One signal per exchange, newest first. The customer side (mood, buying
+ * stage, cues) comes from the understanding layer's reading of the USER
+ * message when it exists — a neutral reader of the customer's own words,
+ * aligned to the right message — and falls back to the reply model's status
+ * line. Whether the reply resolved the request («answered») is only known to
+ * the reply side. A positive mood still needs the customer's own thanks or
+ * praise to stand (asymmetric trust).
+ */
+export function exchangeSignals(messages: SalesConversationMessage[]): TurnSignal[] {
+        const signals: TurnSignal[] = []
+        for (let index = 0; index < messages.length; index += 1) {
+                const message = messages[index]
+                if (message.role !== 'USER') continue
+                const reading = readStoredReading(message.metadata)
+                const reply = messages.slice(index + 1).find((next) => next.role !== 'SYSTEM')
+                const replySignal = reply?.role === 'ASSISTANT' ? reply.signal ?? readTurnSignal(reply.metadata) : null
+                if (!reading && !replySignal) continue
+                const signal: TurnSignal = reading
+                        ? {
+                                v: TURN_SIGNAL_VERSION,
+                                mood: reading.mood,
+                                buy: reading.buy,
+                                answered: replySignal?.answered ?? 'y',
+                                topic: replySignal?.topic ?? reading.acts.map((act) => ACT_TOPICS[act]).find(Boolean) ?? null,
+                                cues: [...new Set([...reading.cues, ...(replySignal?.cues ?? [])])],
+                        }
+                        : replySignal!
+                signals.push(reading ? groundTurnSignal(signal, message.content) : signal)
+        }
+        return signals.reverse()
+}
+
 /**
  * Score a bounded conversation using modern consultative-sales signals:
  * discovery, consideration, commitment, objections, urgency and trust friction.
@@ -587,6 +686,8 @@ export function analyzeSalesConversation(input: {
          * transferring a customer to a human never depends on model output.
          */
         heuristicOnly?: boolean
+        /** Trusted outcomes of this conversation (orders, bookings, alerts). */
+        facts?: SalesFacts
 }): SalesConversationAnalysis {
         const language = input.language || 'fa'
         const businessType = input.businessType ?? 'CUSTOM'
@@ -596,13 +697,7 @@ export function analyzeSalesConversation(input: {
                 .reverse()
                 .slice(0, 12)
         const latestUser = usersNewestFirst[0]
-        const signalsNewestFirst: TurnSignal[] = input.heuristicOnly
-                ? []
-                : messages
-                        .filter((message) => message.role === 'ASSISTANT')
-                        .map((message) => message.signal ?? readTurnSignal(message.metadata))
-                        .filter((signal): signal is TurnSignal => signal !== null)
-                        .reverse()
+        const signalsNewestFirst: TurnSignal[] = input.heuristicOnly ? [] : exchangeSignals(messages)
 
         let probability = 12
         let purchaseStrength = 0
@@ -827,6 +922,28 @@ export function analyzeSalesConversation(input: {
                 if (signal.cues.includes('pricey')) objections.add('PRICE')
                 if (signal.cues.includes('distrust')) objections.add('TRUST')
         }
+        // Facts outrank wording: what really happened in this chat sets the
+        // floor (or the verdict) for the stage and the probability.
+        const facts = input.facts ?? EMPTY_SALES_FACTS
+        const factMessage: SalesConversationMessage = latestUser ?? { role: 'USER', content: '' }
+        if (facts.paidOrder || facts.booked || facts.enrolled) {
+                if (facts.paidOrder) record('FACT_ORDER_PAID', 0, factMessage, 0)
+                if (facts.booked) record('FACT_BOOKED', 0, factMessage, 0)
+                if (facts.enrolled) record('FACT_ENROLLED', 0, factMessage, 0)
+                stage = 'POST_PURCHASE'
+                probability = 100
+        } else if (facts.filedOrder || facts.openCheckout || facts.activeCart) {
+                if (facts.filedOrder) record('FACT_ORDER_FILED', 0, factMessage, 0)
+                if (facts.openCheckout) record('FACT_CHECKOUT_OPEN', 0, factMessage, 0)
+                if (facts.activeCart) record('FACT_CART_ACTIVE', 0, factMessage, 0)
+                if (STAGE_RANK[stage] < STAGE_RANK.PURCHASE_INTENT) stage = 'PURCHASE_INTENT'
+                purchaseStrength = Math.max(purchaseStrength, 20)
+                probability = Math.max(probability, facts.filedOrder || facts.openCheckout ? 92 : 86)
+        } else if (facts.restockAlert) {
+                record('FACT_RESTOCK_ALERT', 0, factMessage, 0)
+                if (STAGE_RANK[stage] < STAGE_RANK.CONSIDERATION) stage = 'CONSIDERATION'
+                probability = Math.max(probability, 55)
+        }
         probability = Math.round(clamp(probability, 0, 100))
 
         let leadType: SalesLeadType = 'UNCLEAR'
@@ -992,6 +1109,7 @@ export async function loadSalesConversationContext(
                 },
         })
         if (!conversation) return null
+        const messages = currentSessionMessages(conversation.messages.reverse())
         return {
                 conversationId: conversation.id,
                 workspaceId: conversation.workspaceId,
@@ -999,7 +1117,45 @@ export async function loadSalesConversationContext(
                 language: conversation.agent.language || conversation.workspace.language,
                 roleTemplate: conversation.agent.roleTemplate,
                 messageCount: conversation._count.messages,
-                messages: currentSessionMessages(conversation.messages.reverse()),
+                messages,
+                facts: await loadSalesFacts(conversation.id, messages).catch(() => EMPTY_SALES_FACTS),
+        }
+}
+
+const PAID_STATUSES = ['PAID', 'CONFIRMED', 'ON_HOLD']
+const FILED_STATUSES = ['SUBMITTED']
+const OPEN_CHECKOUT_STATUSES = ['LINK_SENT', 'PAYMENT_PENDING', 'PAYMENT_FAILED']
+const ACTIVE_CART_STATUSES = ['COLLECTING', 'AWAITING_CONFIRM']
+
+function receiptKinds(metadata: unknown): string[] {
+        if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return []
+        const receipts = (metadata as Record<string, unknown>).vigentoReceipts
+        return Array.isArray(receipts)
+                ? receipts.flatMap((item) => item && typeof item === 'object' && typeof (item as { kind?: unknown }).kind === 'string' ? [(item as { kind: string }).kind] : [])
+                : []
+}
+
+/** Trusted outcomes of one conversation (orders, checkout, tool receipts, alerts). */
+export async function loadSalesFacts(conversationId: string, messages: SalesConversationMessage[] = []): Promise<SalesFacts> {
+        const [drafts, alerts] = await Promise.all([
+                prisma.orderDraft.findMany({
+                        where: { conversationId },
+                        select: { status: true, items: true },
+                        orderBy: { updatedAt: 'desc' },
+                        take: 10,
+                }).catch(() => []),
+                prisma.restockAlert.count({ where: { conversationId } }).catch(() => 0),
+        ])
+        const statuses = drafts.map((draft) => draft.status)
+        const kinds = new Set(messages.filter((message) => message.role === 'ASSISTANT').flatMap((message) => receiptKinds(message.metadata)))
+        return {
+                paidOrder: statuses.some((status) => PAID_STATUSES.includes(status)),
+                filedOrder: statuses.some((status) => FILED_STATUSES.includes(status)),
+                openCheckout: statuses.some((status) => OPEN_CHECKOUT_STATUSES.includes(status)),
+                activeCart: drafts.some((draft) => ACTIVE_CART_STATUSES.includes(draft.status) && Array.isArray(draft.items) && draft.items.length > 0),
+                booked: kinds.has('appointment_booked'),
+                enrolled: kinds.has('course_enrolled') || kinds.has('course_waitlisted'),
+                restockAlert: alerts > 0,
         }
 }
 
@@ -1117,6 +1273,7 @@ export async function refreshConversationSalesInsight(
                 businessType: context.businessType,
                 language: context.language,
                 roleTemplate: context.roleTemplate,
+                facts: context.facts,
         })
         await persistConversationSalesInsight(context, analysis, options)
         return analysis

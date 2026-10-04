@@ -17,6 +17,8 @@ import { findIranianCity } from '@/lib/ai/fact-capture'
 import { looksLikePersonName } from '@/lib/ai/customer-identification'
 
 export type OrderSlot = 'product' | 'variant' | 'name' | 'phone' | 'address' | 'shipping' | 'confirm'
+  // Waiting for a yes/no before the WHOLE order is cancelled.
+  | 'confirm_cancel'
 export type OrderDraftStatus =
   | 'COLLECTING' | 'AWAITING_CONFIRM' | 'SUBMITTED' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
   // In-chat checkout (payment link) lifecycle.
@@ -618,6 +620,23 @@ export function composeOrderDeclined(lang: OrderLang): string {
   return lang === 'en'
     ? 'No problem. Which part should I change? Just send the correct value.'
     : 'باشه؛ کدوم مورد رو اصلاح کنم؟ همون رو با مقدار درست بفرستید'
+}
+
+/**
+ * Cancelling a whole cart is never done on one reading of one message
+ * («رنگ قرمز نمی‌خوام، آبی باشه» is an edit, not a cancellation): the
+ * customer confirms once, or says what to change instead.
+ */
+export function composeCancelConfirmQuestion(draft: Pick<OrderDraftState, 'items' | 'code'>, lang: OrderLang): string {
+  const names = draft.items.map((item) => itemLabel(item))
+  if (lang === 'en') {
+    return `Just to be sure: should I cancel the whole order (${names.map((name) => `“${name}”`).join(', ')})? If you only want to change or remove one item, tell me which.`
+  }
+  return `فقط برای اطمینان: کل سفارش (${names.map((name) => `«${name}»`).join('، ')}) لغو بشه؟ اگه فقط می‌خواید یه مورد عوض یا حذف بشه، بگید کدوم`
+}
+
+export function composeCancelKept(lang: OrderLang): string {
+  return lang === 'en' ? 'Okay, the order stays as it is.' : 'باشه، سفارش سر جاشه 👌'
 }
 
 export function composeOrderCancelled(lang: OrderLang): string {

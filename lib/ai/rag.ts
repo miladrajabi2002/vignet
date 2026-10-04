@@ -11,6 +11,8 @@ import {
   type ConversationWorkingState,
 } from '@/lib/ai/conversation-state'
 import { PRODUCT_SUBJECT_RE } from '@/lib/ai/conversation'
+import { cleanDescriptionForChat, extractTypedVariations, type VariationRow } from '@/lib/products/description'
+import { matchVariantInText } from '@/lib/products/variant-match'
 
 export interface RagContext {
   contextText: string
@@ -116,6 +118,44 @@ function formatPrice(price: number): string {
   return price.toLocaleString('en-US').replace(/,/g, '،') + ' تومان'
 }
 
+function variationStock(variation: VariationRow): string {
+  if (variation.manageStock) return (variation.stockQuantity ?? 0) > 0 ? `${variation.stockQuantity} عدد` : 'ناموجود'
+  return variation.inStock === false ? 'ناموجود' : 'موجود'
+}
+
+/**
+ * The variation the customer's own words name («کرم سایز L» → that exact
+ * row), or the options still open when they named only part of it — so the
+ * reply quotes that variation's price and stock instead of the parent's.
+ */
+export function matchedVariationLine(attributes: unknown, userMessage: string): string {
+  const variations = extractTypedVariations(attributes)
+  if (!variations.length || !userMessage.trim()) return ''
+  const match = matchVariantInText(variations, userMessage)
+  const label = (values: Record<string, string>) => Object.entries(values).map(([key, value]) => `${key}: ${value}`).join('، ')
+  if (match.kind === 'full') {
+    const variation = match.variation
+    const price = variation.price != null && variation.price > 0 ? ` | قیمت: ${formatPrice(variation.price)}` : ''
+    return `→ تنوعی که مشتری گفت: ${label(variation.attributes)}${price} | موجودی: ${variationStock(variation)}`
+  }
+  if (match.kind === 'partial') {
+    const available = match.candidates.filter((variation) => variationStock(variation) !== 'ناموجود')
+    const open = new Map<string, Set<string>>()
+    for (const variation of available) {
+      for (const [key, value] of Object.entries(variation.attributes)) {
+        if (key in match.fixed) continue
+        if (!open.has(key)) open.set(key, new Set())
+        open.get(key)!.add(value)
+      }
+    }
+    const openText = [...open].map(([key, values]) => `${key}: ${[...values].slice(0, 8).join('، ')}`).join(' | ')
+    return available.length
+      ? `→ تنوع‌های منطبق با «${label(match.fixed)}»: ${available.length} مورد موجود${openText ? ` (${openText})` : ''}؛ اگر لازم است فقط همین گزینه‌ها را بپرس.`
+      : `→ «${label(match.fixed)}» در این محصول الان موجود نیست.`
+  }
+  return ''
+}
+
 function buildCatalogBlock(
   products: CatalogProduct[],
   isFa: boolean,
@@ -149,12 +189,16 @@ function buildCatalogBlock(
       : '\n\nNo trusted matching product was found for this request. Do not invent a product, price, stock level, or specifications; briefly say no matching catalog item was found.'
   }
 
+  // A question about one or two products («جنسش چیه؟ پایه‌هاش فلزیه؟») needs
+  // the full description; a ten-card showcase only needs a short one.
+  const descriptionBudget = products.length === 1 ? 1_600 : products.length === 2 ? 800 : products.length <= 4 ? 450 : 260
+  const attributeBudget = products.length <= 2 ? 900 : 220
   const lines = products.map((p, i) => {
     const parts: string[] = [`نام: ${p.name}`]
     if (p.price != null) parts.push(`قیمت: ${formatPrice(p.price)}`)
     if (p.category) parts.push(`دسته‌بندی: ${p.category}`)
     if (p.description) {
-      const description = sanitizeUntrusted(p.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), 260)
+      const description = sanitizeUntrusted(cleanDescriptionForChat(p.description, descriptionBudget), descriptionBudget)
       if (description) parts.push(`توضیحات: ${description}`)
     }
     // Pull per-variation data out of attributes before rendering the
@@ -167,7 +211,7 @@ function buildCatalogBlock(
     if (p.attributes && typeof p.attributes === 'object') {
       const attrObj = p.attributes as Record<string, unknown>
       const { _variations, ...restAttrs } = attrObj
-      const restStr = sanitizeUntrusted(JSON.stringify(restAttrs), 220)
+      const restStr = sanitizeUntrusted(JSON.stringify(restAttrs), attributeBudget)
       if (restStr && restStr !== '{}') parts.push(`مشخصات: ${restStr}`)
       if (Array.isArray(_variations) && _variations.length > 0) {
         variationLines = _variations
@@ -224,8 +268,9 @@ function buildCatalogBlock(
     // Append the variation block as a separate multi-line section so the
     // agent can read it as "this product has these specific combinations".
     const header = `${i + 1}. ${parts.join(' | ')}`
+    const matched = variationLines.length > 0 ? matchedVariationLine(p.attributes, userMessage) : ''
     return variationLines.length > 0
-      ? `${header}\nتنوع‌ها (${variationLines.length}):\n${variationLines.join('\n')}`
+      ? `${header}\nتنوع‌ها (${variationLines.length}):\n${variationLines.join('\n')}${matched ? `\n${matched}` : ''}`
       : header
   })
 

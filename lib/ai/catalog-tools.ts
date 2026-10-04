@@ -12,10 +12,13 @@
  */
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { chatCompletion, type ChatMessage, type ChatTool, type ChatUsage } from '@/lib/ai/openrouter'
+import type { ChatMessage, ChatTool, ChatUsage } from '@/lib/ai/openrouter'
+import { auxCompletion, type TurnLedger } from '@/lib/ai/llm/aux'
 import type { CatalogProduct } from '@/lib/ai/rag'
-import { extractProductTerms, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
-import { extractTypedVariations } from '@/lib/products/description'
+import { extractProductTerms, GLOBAL_PRODUCT_WORDS, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
+import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
+import { attributeLaneIds } from '@/lib/search/attribute-lane'
+import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
 
 const MAX_RESULTS = 10
 
@@ -159,13 +162,20 @@ export async function searchCatalogTool(agentId: string, args: Record<string, un
   const sort = typeof args.sort === 'string' ? args.sort : 'relevance'
   const limit = Math.min(MAX_RESULTS, Math.max(1, Math.round(numberArg(args.limit) ?? 6)))
 
-  const tokenFilters: Prisma.ProductWhereInput[] = tokens.flatMap((token) => digitVariants(token).flatMap((variant) => [
-    { name: { contains: variant, mode: 'insensitive' as const } },
-    { description: { contains: variant, mode: 'insensitive' as const } },
-    { sku: { contains: variant, mode: 'insensitive' as const } },
-    { tags: { has: variant } },
-    { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
-  ]))
+  const attributeIds = tokens.length
+    ? await attributeLaneIds({ agentId, terms: tokens, mode: 'any', availableOnly: inStockOnly, limit: 60 })
+    : []
+  const tokenFilters: Prisma.ProductWhereInput[] = [
+    ...tokens.flatMap((token) => digitVariants(token).flatMap((variant) => [
+      { name: { contains: variant, mode: 'insensitive' as const } },
+      { description: { contains: variant, mode: 'insensitive' as const } },
+      { sku: { contains: variant, mode: 'insensitive' as const } },
+      { tags: { has: variant } },
+      { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+    ])),
+    // Colour/size/design that lives only in attribute or variation values.
+    ...(attributeIds.length ? [{ id: { in: attributeIds } }] : []),
+  ]
   const where: Prisma.ProductWhereInput = {
     active: true,
     catalogItems: { some: { agentId } },
@@ -184,11 +194,13 @@ export async function searchCatalogTool(agentId: string, args: Record<string, un
       const name = normalizePersianText(row.name).toLocaleLowerCase('fa')
       const meta = normalizePersianText(`${row.category?.name ?? ''} ${row.tags.join(' ')} ${row.sku ?? ''}`).toLocaleLowerCase('fa')
       const description = normalizePersianText(row.description ?? '').toLocaleLowerCase('fa')
+      const attributes = normalizePersianText(attributeValueText(row.attributes)).toLocaleLowerCase('fa')
       let score = 0
       let covered = 0
       for (const token of tokens) {
         if (hasWord(name, token)) { score += 3; covered += 1 }
         else if (hasWord(meta, token)) { score += 2; covered += 1 }
+        else if (!/^\d+$/.test(token) && hasWord(attributes, token)) { score += 2; covered += 1 }
         else if (hasWord(description, token)) { score += 1; covered += 1 }
       }
       // Rows covering every keyword always outrank partial matches.
@@ -306,19 +318,27 @@ export async function planCatalogSearch(params: {
   /** When set, the planner call is recorded in the usage log (platform budget). */
   workspaceId?: string
   conversationId?: string
-  model: string
+  /** Ignored: the planner always runs on the economical tier (auxCompletion). */
+  model?: string
   message: string
   history: ChatMessage[]
   reason: CatalogToolReason
   isFa: boolean
+  ledger?: TurnLedger | null
+  vocabulary?: ReadonlySet<string> | null
 }): Promise<CatalogSearchPlan | null> {
-  const budget = parseBudget(params.message)
-  const sort = sortHint(params.message)
   let usage: ChatUsage | null = null
   let calls: Array<Record<string, unknown>> = []
   try {
-    const result = await chatCompletion({
-      model: params.model,
+    if (!params.workspaceId) throw new Error('NO_WORKSPACE')
+    // Turning a sentence into one to three structured searches is an
+    // extraction task: economical tier, recorded under its own purpose.
+    const result = await auxCompletion({
+      purpose: 'catalog_plan',
+      workspaceId: params.workspaceId,
+      agentId: params.agentId,
+      conversationId: params.conversationId,
+      ledger: params.ledger,
       messages: [
         { role: 'system', content: PLANNER_SYSTEM },
         { role: 'user', content: plannerTranscript(params.history, params.message) },
@@ -329,7 +349,6 @@ export async function planCatalogSearch(params: {
       toolChoice: 'auto',
     })
     usage = result.usage
-    if (params.workspaceId) recordPlannerUsage(params.workspaceId, params.agentId, params.conversationId, params.model, result.usage)
     calls = result.toolCalls
       .filter((call) => call.function.name === 'search_catalog')
       .slice(0, 3)
@@ -341,7 +360,50 @@ export async function planCatalogSearch(params: {
   }
   const modelPlanned = calls.length > 0
   if (!modelPlanned) calls = [{ query: extractProductTerms(params.message).join(' ') }]
+  return runCatalogSearches({
+    vocabulary: params.vocabulary,
+    agentId: params.agentId,
+    message: params.message,
+    calls,
+    reason: params.reason,
+    isFa: params.isFa,
+    usage,
+    modelPlanned,
+  })
+}
 
+/**
+ * Execute structured catalog searches with the server-side guarantees: the
+ * budget stated in the message (or a verified budget from the understanding
+ * layer) caps every search, superlatives sort on the server, and rows must
+ * cover the subject keywords. Shared by the planner above and the turn
+ * understanding path, which already carries the structured query.
+ */
+export async function runCatalogSearches(params: {
+  agentId: string
+  message: string
+  calls: Array<Record<string, unknown>>
+  reason: CatalogToolReason
+  isFa: boolean
+  usage?: ChatUsage | null
+  modelPlanned?: boolean
+  /** A verified budget/sort from the understanding layer; default: parsed from the message. */
+  budget?: { maxPrice: number | null; minPrice: number | null }
+  sort?: 'price_asc' | 'price_desc' | 'popular' | null
+  /** The store's own words (identity + attribute values) for spelling fixes. */
+  vocabulary?: ReadonlySet<string> | null
+}): Promise<CatalogSearchPlan | null> {
+  const budget = params.budget ?? parseBudget(params.message)
+  const sort = params.sort !== undefined ? params.sort : sortHint(params.message)
+  // «شلوا زیر ۲ میلیون»: the misspelled word becomes the catalog word before
+  // the search and the subject check below both read it.
+  const calls = params.calls.map((call) => {
+    if (typeof call.query !== 'string' || !params.vocabulary?.size) return call
+    const fixed = correctSearchTerms(queryTokens(call.query), params.vocabulary, { protect: GLOBAL_PRODUCT_WORDS })
+    return fixed.corrections.length ? { ...call, query: fixed.terms.join(' ') } : call
+  })
+  const usage = params.usage ?? null
+  const modelPlanned = params.modelPlanned ?? true
   const found = new Map<string, ProductRow>()
   for (const call of calls) {
     const args: Record<string, unknown> = { ...call, in_stock_only: call.in_stock_only !== false }
@@ -360,7 +422,9 @@ export async function planCatalogSearch(params: {
   // subject keywords of the first planned search.
   // An empty-result rescue may use synonyms, so a row qualifies by covering
   // every word of ANY planned query — never by a substring of another word.
-  const rowText = (row: ProductRow) => normalizePersianText(`${row.name} ${row.category?.name ?? ''} ${row.tags.join(' ')}`).toLocaleLowerCase('fa')
+  // Attribute and variation values count: «مانتو کرم» is covered by a مانتو
+  // sold in cream even when «کرم» is not in its name.
+  const rowText = (row: ProductRow) => normalizePersianText(`${row.name} ${row.category?.name ?? ''} ${row.tags.join(' ')} ${attributeValueText(row.attributes)}`).toLocaleLowerCase('fa')
   const plannedQueries = calls.map((call) => queryTokens(typeof call.query === 'string' ? call.query : '')).filter((tokens) => tokens.length)
   const subject = plannedQueries[0] ?? []
   if (params.reason !== 'EMPTY_RESULT' && subject.length) {
@@ -421,37 +485,6 @@ export async function planCatalogSearch(params: {
     return { products: [], instruction, usage, modelPlanned }
   }
   return null
-}
-
-/**
- * The planner is a platform-funded auxiliary call on the reply model (like the
- * turn analyzer): it is not a tenant charge, but its cost must reach the usage
- * log so the monthly platform budget guard sees it.
- */
-function recordPlannerUsage(
-  workspaceId: string,
-  agentId: string,
-  conversationId: string | undefined,
-  model: string,
-  usage: ChatUsage,
-): void {
-  void Promise.resolve()
-    .then(() => prisma.usageLog.create({
-      data: {
-        workspaceId,
-        agentId,
-        conversationId: conversationId ?? null,
-        type: 'SUMMARY',
-        model,
-        promptTokens: usage.promptTokens,
-        completionTokens: usage.completionTokens,
-        reasoningTokens: usage.reasoningTokens,
-        cachedTokens: usage.cachedTokens,
-        providerRequestId: usage.providerRequestId,
-        cost: usage.costUSD,
-      },
-    }))
-    .catch(() => {})
 }
 
 /** Per-turn blocks go before the turn marker so the stable prefix stays cached. */

@@ -116,6 +116,11 @@ export async function resolveRestockTurn(params: {
   activeEntityId: string | null
   /** agent.cartHoldEnabled: units other chats hold count as taken. */
   cartHold?: boolean
+  /**
+   * The turn-understanding reading (explicit request / yes to the offer /
+   * nothing). Undefined = the legacy regex detector decides.
+   */
+  requestOverride?: 'explicit' | 'accept' | null
 }): Promise<RestockTurnOutcome> {
   if (!params.enabled) return { kind: 'none' }
   const conversation = await prisma.conversation.findUnique({
@@ -123,7 +128,9 @@ export async function resolveRestockTurn(params: {
     select: { metadata: true },
   })
   const offer = readOffer(conversation?.metadata)
-  const request = detectRestockRequest(params.message, params.lastAssistantText)
+  const request = params.requestOverride !== undefined
+    ? params.requestOverride
+    : detectRestockRequest(params.message, params.lastAssistantText)
   const phoneJustGiven = Boolean(offer?.awaitingPhone && params.contactPhone)
   if (!request && !phoneJustGiven) return { kind: 'none' }
   const mode = restockMode(params.channel, Boolean(params.contactPhone))
