@@ -8,11 +8,33 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ agentId: string }> }
 
+const mediaSnapshotSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['POST', 'STORY']),
+  mediaType: z.string(),
+  mediaUrl: z.string().optional(),
+  permalink: z.string().optional(),
+  caption: z.string().optional(),
+  timestamp: z.string(),
+  expiresAt: z.string().optional(),
+})
+
 const triggerSchema = z.object({
   keywords: z.array(z.string()).default([]),
   matchMode: z.enum(['EXACT', 'CONTAINS', 'STARTS_WITH']).default('CONTAINS'),
-  storyScope: z.enum(['ALL', 'KEYWORD']).default('KEYWORD'),
+  storyScope: z.enum(['ALL', 'KEYWORD', 'SPECIFIC_STORY']).default('KEYWORD'),
+  // SPECIFIC_STORY: the picked stories' media ids (webhook story ids).
+  storyIds: z.array(z.string()).default([]),
+  // SPECIFIC_STORY: when the story disappears (story timestamp + 24h).
+  // The scheduler sweep deactivates the scenario after this moment.
+  storyExpiresAt: z
+    .string()
+    .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'storyExpiresAt must be an ISO datetime' })
+    .optional(),
   postIds: z.array(z.string()).default([]),
+  // Visual picker thumbnails (edit-view preview; IG CDN urls may expire —
+  // the UI degrades to a gradient placeholder when they do).
+  mediaSnapshots: z.array(mediaSnapshotSchema).max(12).optional(),
 })
 
 // A quick-reply button can be a plain string (postback — title is sent back as

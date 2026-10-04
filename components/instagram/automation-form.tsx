@@ -42,6 +42,7 @@ import {
         Mic,
         Film,
         Link2,
+        Clock,
         Eye,
         ChevronLeft,
         type LucideIcon,
@@ -70,6 +71,10 @@ import {
 } from '@/components/instagram/types'
 import { parseInstagramPostReferences } from '@/lib/instagram/post-reference'
 import { ProductImage } from '@/components/products/product-image'
+import {
+        InstagramMediaPicker,
+        type InstagramMediaItem,
+} from '@/components/instagram/media-picker'
 
 // These tools are only shown after the operator chooses a media/voice action.
 // Keep them out of the initial form chunk without removing any capability.
@@ -86,6 +91,18 @@ const VoiceRecorder = dynamic(
 type PostFilter = 'ANY' | 'SPECIFIC'
 type KeywordFilter = 'ANY' | 'SPECIFIC'
 
+/** Preview snapshot of a media picked from the page (thumbnail + meta). */
+interface MediaSnapshot {
+        id: string
+        kind: 'POST' | 'STORY'
+        mediaType: string
+        mediaUrl?: string
+        permalink?: string
+        caption?: string
+        timestamp: string
+        expiresAt?: string
+}
+
 interface FormState {
         name: string
         active: boolean
@@ -97,6 +114,9 @@ interface FormState {
         postFilter: PostFilter
         postIdsText: string
         keywordFilter: KeywordFilter
+        // Visual picker selections (thumbnails + ids kept in sync with postIdsText)
+        postSnapshots: MediaSnapshot[]
+        storySnapshots: MediaSnapshot[]
         // Action
         replyMode: ReplyMode
         messages: AutomationMessage[]
@@ -156,6 +176,10 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                 storyScope: a?.trigger.storyScope ?? 'KEYWORD',
                 postFilter: (a?.trigger.postIds?.length ?? 0) > 0 ? 'SPECIFIC' : 'ANY',
                 postIdsText: (a?.trigger.postIds ?? []).join(', '),
+                // Visual picker selections — snapshots round-trip through the
+                // saved trigger JSON so the edit view shows the same thumbnails.
+                postSnapshots: (a?.trigger.mediaSnapshots ?? []).filter((s) => s.kind === 'POST'),
+                storySnapshots: (a?.trigger.mediaSnapshots ?? []).filter((s) => s.kind === 'STORY'),
                 keywordFilter,
                 replyMode: effectiveReplyMode,
                 messages: seededMessages,
@@ -270,6 +294,16 @@ export function AutomationForm({
         const [error, setError] = useState<string | null>(null)
         const [postReferencesTouched, setPostReferencesTouched] = useState(false)
         const [resolvingPostReferences, setResolvingPostReferences] = useState(false)
+        const [postPickerOpen, setPostPickerOpen] = useState(false)
+        const [storyPickerOpen, setStoryPickerOpen] = useState(false)
+        const [manualPostInputOpen, setManualPostInputOpen] = useState(false)
+        const [, setStoryClock] = useState(0)
+        // Tick every minute so the story countdown under the picked story stays live.
+        useEffect(() => {
+                if (type !== 'STORY' || form.storyScope !== 'SPECIFIC_STORY') return
+                const id = window.setInterval(() => setStoryClock((n) => n + 1), 60_000)
+                return () => window.clearInterval(id)
+        }, [type, form.storyScope])
         const [postReferenceFeedback, setPostReferenceFeedback] = useState<{
                 kind: 'ok' | 'error'
                 text: string
@@ -279,6 +313,10 @@ export function AutomationForm({
                 () => parseInstagramPostReferences(form.postIdsText),
                 [form.postIdsText],
         )
+        // Latest parsed ids readable from inside setForm updaters (they must
+        // not close over a stale `form.postIdsText`).
+        const parsedPostReferencesRef = useRef(parsedPostReferences)
+        parsedPostReferencesRef.current = parsedPostReferences
 
         // Auto-focus name on mount.
         useEffect(() => {
@@ -355,6 +393,59 @@ export function AutomationForm({
                 } finally {
                         setResolvingPostReferences(false)
                 }
+        }
+
+        // ── Visual picker: convert picker items into form snapshots ────────────
+        function toSnapshot(item: InstagramMediaItem): MediaSnapshot {
+                return {
+                        id: item.id,
+                        kind: item.kind,
+                        mediaType: item.mediaType,
+                        mediaUrl: item.mediaUrl,
+                        permalink: item.permalink,
+                        caption: item.caption,
+                        timestamp: item.timestamp,
+                        expiresAt: item.expiresAt,
+                }
+        }
+
+        /** Picker confirmed for COMMENT → merge picked posts into the id list. */
+        function applyPickedPosts(items: InstagramMediaItem[]) {
+                if (items.length === 0) return
+                setForm((f) => {
+                        const current = parsedPostReferencesRef.current.ids
+                        const merged = [...new Set([...current, ...items.map((i) => i.id)])]
+                        const byId = new Map(f.postSnapshots.map((s) => [s.id, s]))
+                        for (const item of items) byId.set(item.id, toSnapshot(item))
+                        return {
+                                ...f,
+                                postIdsText: merged.join(', '),
+                                postSnapshots: merged
+                                        .map((id) => byId.get(id))
+                                        .filter((s): s is MediaSnapshot => Boolean(s)),
+                        }
+                })
+                setPostReferencesTouched(true)
+                setPostReferenceFeedback({
+                        kind: 'ok',
+                        text: `${items.length.toLocaleString('fa-IR')} پست از پیج انتخاب شد.`,
+                })
+        }
+
+        /** Picker confirmed for STORY → only these stories trigger the scenario. */
+        function applyPickedStories(items: InstagramMediaItem[]) {
+                setForm((f) => ({ ...f, storySnapshots: items.map(toSnapshot) }))
+        }
+
+        function removePickedPost(id: string) {
+                setForm((f) => {
+                        const ids = parsedPostReferencesRef.current.ids.filter((x) => x !== id)
+                        return {
+                                ...f,
+                                postIdsText: ids.join(', '),
+                                postSnapshots: f.postSnapshots.filter((s) => s.id !== id),
+                        }
+                })
         }
 
         // ── Keyword tag input ─────────────────────────────────────────────────
@@ -446,11 +537,29 @@ export function AutomationForm({
                                 ? resolvedPostIds ?? parsedPostReferences.ids
                                 : []
 
+                // SPECIFIC_STORY: keep only ids that still have a live snapshot.
+                const isSpecificStory = type === 'STORY' && form.storyScope === 'SPECIFIC_STORY'
+                const effectiveStoryIds = isSpecificStory
+                        ? form.storySnapshots.map((s) => s.id)
+                        : []
+                // Expiry = the LATEST expiry among picked stories — until that
+                // moment at least one picked story can still match.
+                const storyExpiries = form.storySnapshots
+                        .map((s) => (s.expiresAt ? new Date(s.expiresAt).getTime() : NaN))
+                        .filter((t) => !Number.isNaN(t))
+                const effectiveStoryExpiresAt = isSpecificStory && storyExpiries.length > 0
+                        ? new Date(Math.max(...storyExpiries)).toISOString()
+                        : undefined
+
                 const trigger: AutomationTrigger = {
                         keywords: effectiveKeywords,
                         matchMode: form.matchMode,
                         storyScope: type === 'STORY' ? form.storyScope : 'KEYWORD',
+                        storyIds: isSpecificStory ? effectiveStoryIds : undefined,
+                        storyExpiresAt: effectiveStoryExpiresAt,
                         postIds: effectivePostIds,
+                        // Round-trip thumbnails for the edit view + the manager card.
+                        mediaSnapshots: [...form.postSnapshots, ...form.storySnapshots].slice(0, 12),
                 }
 
                 // Build messages based on type + replyMode.
@@ -550,6 +659,24 @@ export function AutomationForm({
                 if (form.keywordFilter === 'SPECIFIC' && keywords.length === 0) {
                         setError('حداقل یک کلمه‌کلیدی اضافه کنید یا حالت «هر کلمه‌ای» را انتخاب کنید.')
                         return
+                }
+                if (type === 'STORY' && form.storyScope === 'SPECIFIC_STORY' && form.storySnapshots.length === 0) {
+                        setError('برای محدودکردن سناریو به یک استوری، ابتدا استوری موردنظر را از پیج انتخاب کنید.')
+                        setStoryPickerOpen(true)
+                        return
+                }
+                if (type === 'STORY' && form.storyScope === 'SPECIFIC_STORY') {
+                        // Every picked story must still be live — stale picks (kept
+                        // from an old edit session) must not silently save as a
+                        // scenario that can never fire.
+                        const now = Date.now()
+                        const expiredPicks = form.storySnapshots.filter(
+                                (s) => !s.expiresAt || new Date(s.expiresAt).getTime() <= now,
+                        )
+                        if (expiredPicks.length === form.storySnapshots.length) {
+                                setError('استوری انتخاب‌شده منقضی شده است؛ یک استوری فعال دیگر از پیج انتخاب کنید.')
+                                return
+                        }
                 }
                 if (type === 'COMMENT' && form.postFilter === 'SPECIFIC') {
                         setPostReferencesTouched(true)
@@ -796,51 +923,120 @@ export function AutomationForm({
                                                         />
                                                 )}
                                                 {isComment && form.postFilter === 'SPECIFIC' && (
-                                                        <div className="space-y-1.5">
-                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                        لینک یا شناسه پست‌ها
-                                                                </label>
-                                                                <input
-                                                                        dir="ltr"
-                                                                        value={form.postIdsText}
-                                                                        onChange={(e) => {
-                                                                                set('postIdsText', e.target.value)
-                                                                                if (postReferencesTouched) setPostReferencesTouched(false)
-                                                                                setPostReferenceFeedback(null)
-                                                                        }}
-                                                                        onBlur={() => void resolvePostReferences()}
-                                                                        aria-invalid={postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error')}
-                                                                        aria-describedby="instagram-post-reference-help"
-                                                                        placeholder="https://www.instagram.com/p/DdMvc4dDhai/"
-                                                                        autoCapitalize="none"
-                                                                        autoCorrect="off"
-                                                                        spellCheck={false}
-                                                                        className={`input ${postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? 'border-red-400 focus:border-red-500' : ''}`}
-                                                                />
-                                                                {resolvingPostReferences ? (
-                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-                                                                                <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                                                در حال دریافت شناسه دقیق پست از Meta…
-                                                                        </p>
-                                                                ) : postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? (
-                                                                        <p id="instagram-post-reference-help" role="alert" className="flex items-start gap-1.5 text-[12px] leading-5 text-red-700">
-                                                                                <AlertCircle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                                                                {postReferenceFeedback?.text ?? `لینک یا شناسه «${parsedPostReferences.invalid[0]}» شناخته نشد.`}
-                                                                        </p>
-                                                                ) : postReferenceFeedback?.kind === 'ok' ? (
-                                                                        <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[12px] leading-5 text-emerald-700">
-                                                                                <Check aria-hidden="true" className="h-3.5 w-3.5" />
-                                                                                {postReferenceFeedback.text}
-                                                                        </p>
-                                                                ) : (
-                                                                        <p id="instagram-post-reference-help" className="text-[12px] leading-5 text-[var(--text-muted)]">
-                                                                                لینک پست یا ریلز را با یا بدون <bdi dir="ltr">www / https</bdi> وارد کنید؛ شناسه عددی خودکار استخراج می‌شود. کد کوتاه و شناسه عددی هم پذیرفته می‌شوند و چند مورد را می‌توانید با کاما جدا کنید.
-                                                                        </p>
+                                                        <div className="space-y-2.5">
+                                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                انتخاب پست‌ها
+                                                                        </label>
+                                                                        <button
+                                                                                type="button"
+                                                                                onClick={() => setPostPickerOpen(true)}
+                                                                                className="spatial-press inline-flex min-h-9 items-center gap-2 rounded-xl px-3.5 text-xs font-bold text-white shadow-[0_8px_18px_-8px_rgba(221,42,123,0.7)]"
+                                                                                style={{ background: IG_GRADIENT }}
+                                                                        >
+                                                                                <ImagePlus aria-hidden="true" className="h-3.5 w-3.5" />
+                                                                                انتخاب از پیج
+                                                                        </button>
+                                                                </div>
+
+                                                                {/* Picked posts — visual chips with thumbnails */}
+                                                                {form.postSnapshots.length > 0 && (
+                                                                        <ul className="flex flex-wrap gap-2">
+                                                                                {form.postSnapshots.map((snap) => (
+                                                                                        <li
+                                                                                                key={snap.id}
+                                                                                                className="group relative overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]"
+                                                                                                style={{ width: 76, height: 76 }}
+                                                                                        >
+                                                                                                {snap.mediaUrl ? (
+                                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                                        <img
+                                                                                                                src={snap.mediaUrl}
+                                                                                                                alt={(snap.caption ?? 'پست').slice(0, 60)}
+                                                                                                                loading="lazy"
+                                                                                                                decoding="async"
+                                                                                                                referrerPolicy="no-referrer"
+                                                                                                                className="h-full w-full object-cover"
+                                                                                                        />
+                                                                                                ) : (
+                                                                                                        <span className="grid h-full w-full place-items-center text-[var(--text-hint)]">
+                                                                                                                <Link2 aria-hidden="true" className="h-5 w-5" />
+                                                                                                        </span>
+                                                                                                )}
+                                                                                                <span className="absolute start-1 top-1">
+                                                                                                        <PostTypeBadge mediaType={snap.mediaType} />
+                                                                                                </span>
+                                                                                                <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => removePickedPost(snap.id)}
+                                                                                                        aria-label={`حذف پست ${snap.id.slice(0, 8)}…`}
+                                                                                                        className="absolute end-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white opacity-0 backdrop-blur-sm transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                                                                                                >
+                                                                                                        <X aria-hidden="true" className="h-3.5 w-3.5" />
+                                                                                                </button>
+                                                                                        </li>
+                                                                                ))}
+                                                                        </ul>
                                                                 )}
+
+                                                                {/* Manual entry — kept as a fallback for pages that
+                                                                        have not granted media listing or old links. */}
+                                                                <div>
+                                                                        {manualPostInputOpen ? (
+                                                                                <div className="space-y-1.5">
+                                                                                        <input
+                                                                                                dir="ltr"
+                                                                                                value={form.postIdsText}
+                                                                                                onChange={(e) => {
+                                                                                                        set('postIdsText', e.target.value)
+                                                                                                        if (postReferencesTouched) setPostReferencesTouched(false)
+                                                                                                        setPostReferenceFeedback(null)
+                                                                                                }}
+                                                                                                onBlur={() => void resolvePostReferences()}
+                                                                                                aria-invalid={postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error')}
+                                                                                                aria-describedby="instagram-post-reference-help"
+                                                                                                placeholder="https://www.instagram.com/p/DdMvc4dDhai/"
+                                                                                                autoCapitalize="none"
+                                                                                                autoCorrect="off"
+                                                                                                spellCheck={false}
+                                                                                                className={`input ${postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? 'border-red-400 focus:border-red-500' : ''}`}
+                                                                                        />
+                                                                                        {resolvingPostReferences ? (
+                                                                                                <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                                                                                                        <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                                                                        در حال دریافت شناسه دقیق پست از Meta…
+                                                                                                </p>
+                                                                                        ) : postReferencesTouched && (parsedPostReferences.invalid.length > 0 || postReferenceFeedback?.kind === 'error') ? (
+                                                                                                <p id="instagram-post-reference-help" role="alert" className="flex items-start gap-1.5 text-[12px] leading-5 text-red-700">
+                                                                                                        <AlertCircle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                                                                                        {postReferenceFeedback?.text ?? `لینک یا شناسه «${parsedPostReferences.invalid[0]}» شناخته نشد.`}
+                                                                                                </p>
+                                                                                        ) : postReferenceFeedback?.kind === 'ok' ? (
+                                                                                                <p id="instagram-post-reference-help" role="status" className="flex items-center gap-1.5 text-[12px] leading-5 text-emerald-700">
+                                                                                                        <Check aria-hidden="true" className="h-3.5 w-3.5" />
+                                                                                                        {postReferenceFeedback.text}
+                                                                                                </p>
+                                                                                        ) : (
+                                                                                                <p id="instagram-post-reference-help" className="text-[12px] leading-5 text-[var(--text-muted)]">
+                                                                                                        لینک پست یا ریلز را با یا بدون <bdi dir="ltr">www / https</bdi> وارد کنید؛ شناسه عددی خودکار استخراج می‌شود.
+                                                                                                </p>
+                                                                                        )}
+                                                                                </div>
+                                                                        ) : (
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => setManualPostInputOpen(true)}
+                                                                                        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)] underline decoration-dotted underline-offset-4 hover:text-[var(--text-primary)]"
+                                                                                >
+                                                                                        <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+                                                                                        افزودن دستی با لینک
+                                                                                </button>
+                                                                        )}
+                                                                </div>
                                                         </div>
                                                 )}
 
-                                                {/* STORY: scope (all / specific) */}
+                                                {/* STORY: scope (all / specific-story / keyword) */}
                                                 {isStory && (
                                                         <div className="space-y-1.5">
                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
@@ -851,6 +1047,7 @@ export function AutomationForm({
                                                                         onChange={(v) => set('storyScope', v as StoryScope)}
                                                                         options={[
                                                                                 { value: 'ALL', label: 'همه استوری‌ها' },
+                                                                                { value: 'SPECIFIC_STORY', label: 'استوری مشخص' },
                                                                                 { value: 'KEYWORD', label: 'کلمات خاص' },
                                                                         ]}
                                                                 />
@@ -858,6 +1055,36 @@ export function AutomationForm({
                                                                         <p className="text-[12px] text-[var(--text-muted)]">
                                                                                 به هر ریپلای یا منشن استوری پاسخ داده می‌شود.
                                                                         </p>
+                                                                )}
+                                                                {form.storyScope === 'SPECIFIC_STORY' && (
+                                                                        <div className="space-y-2.5">
+                                                                                {/* Picker CTA / picked stories */}
+                                                                                {form.storySnapshots.length === 0 ? (
+                                                                                        <button
+                                                                                                type="button"
+                                                                                                onClick={() => setStoryPickerOpen(true)}
+                                                                                                className="spatial-press flex w-full items-center gap-3 rounded-2xl border-[1.5px] border-dashed border-[var(--border-hover)] bg-[var(--bg-muted)]/40 p-4 text-start transition-colors hover:border-[#dd2a7b]/50 hover:bg-[color:color-mix(in_srgb,#dd2a7b_4%,transparent)]"
+                                                                                        >
+                                                                                                <span
+                                                                                                        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white shadow-[0_8px_18px_-8px_rgba(221,42,123,0.7)]"
+                                                                                                        style={{ background: IG_GRADIENT }}
+                                                                                                >
+                                                                                                        <Film aria-hidden="true" className="h-5 w-5" />
+                                                                                                </span>
+                                                                                                <span className="min-w-0">
+                                                                                                        <span className="block text-sm font-bold text-[var(--text-primary)]">انتخاب استوری از پیج</span>
+                                                                                                        <span className="mt-0.5 block text-[12px] leading-5 text-[var(--text-secondary)]">
+                                                                                                                استوری‌های فعال ۲۴ ساعت اخیر نمایش داده می‌شود؛ متن فقط برای همان استوری ارسال می‌شود.
+                                                                                                        </span>
+                                                                                                </span>
+                                                                                        </button>
+                                                                                ) : (
+                                                                                        <StoryPickPreview
+                                                                                                snapshots={form.storySnapshots}
+                                                                                                onChange={() => setStoryPickerOpen(true)}
+                                                                                        />
+                                                                                )}
+                                                                        </div>
                                                                 )}
                                                         </div>
                                                 )}
@@ -1197,12 +1424,149 @@ export function AutomationForm({
                                 />
 
                         </form>
+
+                        {/* Visual pickers — posts (COMMENT) and active stories (STORY). */}
+                        {isComment && (
+                                <InstagramMediaPicker
+                                        open={postPickerOpen}
+                                        onClose={() => setPostPickerOpen(false)}
+                                        agentId={agentId}
+                                        kind="posts"
+                                        accountUsername={accountUsername}
+                                        selectedIds={parsedPostReferences.ids}
+                                        onConfirm={(items) => {
+                                                applyPickedPosts(items)
+                                                setPostPickerOpen(false)
+                                        }}
+                                />
+                        )}
+                        {isStory && (
+                                <InstagramMediaPicker
+                                        open={storyPickerOpen}
+                                        onClose={() => setStoryPickerOpen(false)}
+                                        agentId={agentId}
+                                        kind="stories"
+                                        accountUsername={accountUsername}
+                                        selectedIds={form.storySnapshots.map((s) => s.id)}
+                                        onConfirm={(items) => {
+                                                applyPickedStories(items)
+                                                setStoryPickerOpen(false)
+                                        }}
+                                />
+                        )}
                 </div>
         )
 }
 
 // ── Desktop preview stage ─────────────────────────────────────────────────
 const IG_GRADIENT = 'linear-gradient(45deg, #f58529 0%, #dd2a7b 50%, #8134af 100%)'
+
+/** Small type badge used on the picked-post chips. */
+function PostTypeBadge({ mediaType }: { mediaType: string }) {
+        const Icon = mediaType === 'VIDEO' ? Film : mediaType === 'CAROUSEL_ALBUM' ? Layers : ImagePlus
+        const label = mediaType === 'VIDEO' ? 'ویدیو' : mediaType === 'CAROUSEL_ALBUM' ? 'چندتایی' : 'عکس'
+        return (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
+                        <Icon aria-hidden="true" className="h-2.5 w-2.5" />
+                        {label}
+                </span>
+        )
+}
+
+/** Persian countdown «۳ ساعت و ۲۲ دقیقه» — null once expired. */
+function storyCountdownLabel(expiresAt: string | undefined, nowMs: number): string | null {
+        if (!expiresAt) return null
+        const diff = new Date(expiresAt).getTime() - nowMs
+        if (Number.isNaN(diff) || diff <= 0) return null
+        const hours = Math.floor(diff / 3_600_000)
+        const minutes = Math.floor((diff % 3_600_000) / 60_000)
+        const fa = (n: number) => n.toLocaleString('fa-IR')
+        if (hours >= 1) return minutes > 0 ? `${fa(hours)} ساعت و ${fa(minutes)} دقیقه` : `${fa(hours)} ساعت`
+        if (minutes >= 1) return `${fa(minutes)} دقیقه`
+        return 'کمتر از یک دقیقه'
+}
+
+/** Preview of the picked story/stories inside the trigger section. */
+function StoryPickPreview({
+        snapshots,
+        onChange,
+}: {
+        snapshots: MediaSnapshot[]
+        onChange: () => void
+}) {
+        const [now, setNow] = useState(() => Date.now())
+        useEffect(() => {
+                const id = window.setInterval(() => setNow(Date.now()), 60_000)
+                return () => window.clearInterval(id)
+        }, [])
+        const nextExpiry = snapshots
+                .map((s) => (s.expiresAt ? new Date(s.expiresAt).getTime() : NaN))
+                .filter((t) => !Number.isNaN(t))
+                .reduce<number | null>((max, t) => (max === null || t > max ? t : max), null)
+        const remaining = storyCountdownLabel(
+                nextExpiry !== null ? new Date(nextExpiry).toISOString() : undefined,
+                now,
+        )
+        return (
+                <div className="space-y-2">
+                        <div className="flex items-center gap-2.5">
+                                {snapshots.slice(0, 4).map((snap) => {
+                                        const live = storyCountdownLabel(snap.expiresAt, now) !== null
+                                        return (
+                                                <div
+                                                        key={snap.id}
+                                                        className="relative rounded-[0.9rem] p-[2.5px]"
+                                                        style={live ? { background: IG_GRADIENT } : { background: 'var(--border-default)' }}
+                                                >
+                                                        <div className="h-[88px] w-[52px] overflow-hidden rounded-[0.75rem] bg-[var(--bg-muted)]">
+                                                                {snap.mediaUrl ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img
+                                                                                src={snap.mediaUrl}
+                                                                                alt={`استوری ${snap.id.slice(0, 8)}…`}
+                                                                                loading="lazy"
+                                                                                decoding="async"
+                                                                                referrerPolicy="no-referrer"
+                                                                                className={`h-full w-full object-cover ${live ? '' : 'opacity-55 saturate-50'}`}
+                                                                        />
+                                                                ) : (
+                                                                        <span className="grid h-full w-full place-items-center text-[var(--text-hint)]">
+                                                                                <Film aria-hidden="true" className="h-5 w-5" />
+                                                                        </span>
+                                                                )}
+                                                        </div>
+                                                </div>
+                                        )
+                                })}
+                                {snapshots.length > 4 && (
+                                        <span className="text-xs font-bold text-[var(--text-secondary)]">
+                                                +{(snapshots.length - 4).toLocaleString('fa-IR')}
+                                        </span>
+                                )}
+                                <button
+                                        type="button"
+                                        onClick={onChange}
+                                        className="spatial-press ms-auto inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                                >
+                                        <ImagePlus aria-hidden="true" className="h-3.5 w-3.5" />
+                                        تغییر استوری
+                                </button>
+                        </div>
+                        <p
+                                className={`flex items-start gap-1.5 rounded-xl px-3 py-2 text-[12px] leading-5 ${
+                                        remaining
+                                                ? 'bg-[color:color-mix(in_srgb,#dd2a7b_7%,transparent)] text-[var(--text-secondary)]'
+                                                : 'bg-red-50 text-red-700'
+                                }`}
+                        >
+                                <Clock aria-hidden="true" className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${remaining ? 'text-[#dd2a7b]' : 'text-red-500'}`} />
+                                {remaining
+                                        ? `متن‌های این سناریو فقط برای همین استوری ارسال می‌شوند و ${remaining} دیگر فعال است؛ پس از پایان استوری، سناریو خودکار غیرفعال می‌شود.`
+                                        : 'این استوری منقضی شده است؛ برای ادامه، یک استوری فعال از پیج انتخاب کنید.'}
+                        </p>
+                </div>
+        )
+}
 
 interface FlowStep {
         Icon: LucideIcon
@@ -1230,9 +1594,17 @@ function buildFlowSteps(form: FormState, type: AutomationType): FlowStep[] {
                         label: form.postFilter === 'SPECIFIC' ? 'کامنت روی پست‌های مشخص' : 'کامنت روی هر پست',
                 })
         } else {
-                steps.push({ Icon: Circle, label: form.storyScope === 'ALL' ? 'هر پاسخ به استوری' : 'پاسخ به استوری' })
+                steps.push({
+                        Icon: Circle,
+                        label:
+                                form.storyScope === 'ALL'
+                                        ? 'هر پاسخ به استوری'
+                                        : form.storyScope === 'SPECIFIC_STORY'
+                                                ? `پاسخ به ${faNum(form.storySnapshots.length || 1)} استوری انتخابی`
+                                                : 'پاسخ به استوری با کلمه',
+                })
         }
-        if (specific && !(type === 'STORY' && form.storyScope === 'ALL')) {
+        if (specific && !(type === 'STORY' && (form.storyScope === 'ALL' || form.storyScope === 'SPECIFIC_STORY'))) {
                 steps.push({ Icon: Tag, label: keywordLabel ?? 'کلمه کلیدی؟', pending: !keywordLabel })
         }
         if (form.followGate) steps.push({ Icon: Shield, label: 'بررسی فالو' })

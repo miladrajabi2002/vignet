@@ -62,10 +62,22 @@ export function AutomationCard({
 
         const messages = ac.messages ?? []
         const editHref = `/instagram/${automation.id}/edit?agentId=${agentId}`
+        // SPECIFIC_STORY stories age out after 24h — surface a live/expired
+        // badge so operators immediately see which story scenarios ended.
+        const storyExpired =
+                automation.type === 'STORY' &&
+                tr.storyScope === 'SPECIFIC_STORY' &&
+                Boolean(tr.storyExpiresAt && Date.now() >= new Date(tr.storyExpiresAt).getTime())
         const trigger = tr.keywords.length
                 ? `${tr.keywords.slice(0, 4).join(fa ? '، ' : ', ')}${tr.keywords.length > 4 ? ` +${(tr.keywords.length - 4).toLocaleString(numLocale)}` : ''}`
                 : automation.type === 'STORY'
-                        ? (tr.storyScope === 'ALL' ? t('card.storyScopeAll') : t('card.storyScopeKeyword'))
+                        ? (tr.storyScope === 'ALL'
+                                ? t('card.storyScopeAll')
+                                : tr.storyScope === 'SPECIFIC_STORY'
+                                        ? storyExpired
+                                                ? t('card.storyScopeSpecificExpired')
+                                                : t('card.storyScopeSpecific')
+                                        : t('card.storyScopeKeyword'))
                         : t('card.noKeyword')
         const answer = [
                 t(REPLY_MODE_SHORT_LABEL_KEY[ac.replyMode]),

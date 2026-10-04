@@ -22,7 +22,9 @@ export type AutomationType = 'DIRECT_MESSAGE' | 'COMMENT' | 'STORY'
 
 export type MatchMode = 'EXACT' | 'CONTAINS' | 'STARTS_WITH'
 
-export type StoryScope = 'ALL' | 'KEYWORD'
+//   'SPECIFIC_STORY' — only replies to the story picked in the picker popup.
+//   The scenario auto-deactivates once the story expires (24h).
+export type StoryScope = 'ALL' | 'KEYWORD' | 'SPECIFIC_STORY'
 
 // ── Expanded reply modes (BACKEND-AUTO-V2) ───────────────────────────────
 //   STATIC        → fixed text/media reply (uses messages[])
@@ -86,11 +88,29 @@ export interface AutomationMessage {
         quickReplies?: string[]
 }
 
+export interface MediaSnapshot {
+        id: string
+        kind: 'POST' | 'STORY'
+        mediaType: string
+        mediaUrl?: string
+        permalink?: string
+        caption?: string
+        timestamp: string
+        expiresAt?: string
+}
+
 export interface AutomationTrigger {
         keywords: string[]
         matchMode: MatchMode
         storyScope: StoryScope
+        /** SPECIFIC_STORY: the picked stories' media ids. */
+        storyIds?: string[]
+        /** SPECIFIC_STORY: ISO moment the story disappears (timestamp + 24h). */
+        storyExpiresAt?: string
         postIds: string[]
+        /** Thumbnails of picked posts/stories (for the form + card previews).
+        *  IG CDN urls expire — the UI always degrades to a gradient fallback. */
+        mediaSnapshots?: MediaSnapshot[]
 }
 
 export interface AutomationAction {

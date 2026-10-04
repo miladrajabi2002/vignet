@@ -775,6 +775,47 @@ async function runOauthTokenRefresh(): Promise<void> {
         }
 }
 
+// ─── Instagram story-scoped automation expiry ──────────────────────────
+// Stories disappear 24h after publishing. When a SPECIFIC_STORY scenario's
+// story is gone it can never fire again — deactivate it and tell the
+// workspace so the operator can re-arm it on the next story.
+const STORY_EXPIRY_SWEEP_INTERVAL_MS = 5 * 60_000
+
+async function sweepExpiredStoryAutomations(): Promise<void> {
+        const rows = await prisma.$queryRaw<
+                Array<{ id: string; workspaceId: string; name: string }>
+        >`
+                SELECT a.id, ag."workspaceId", a.name
+                FROM "InstagramAutomation" a
+                JOIN "Agent" ag ON ag.id = a."agentId"
+                WHERE a.type = 'STORY'
+                  AND a.active = true
+                  AND a.trigger->>'storyScope' = 'SPECIFIC_STORY'
+                  AND a.trigger->>'storyExpiresAt' IS NOT NULL
+                  AND (a.trigger->>'storyExpiresAt')::timestamptz < now()
+                LIMIT 200`
+        for (const row of rows) {
+                await prisma.instagramAutomation.update({
+                        where: { id: row.id },
+                        data: { active: false },
+                })
+                try {
+                        await notifyWorkspace({
+                                workspaceId: row.workspaceId,
+                                type: 'SYSTEM',
+                                title: 'استوری سناریو پایان یافت',
+                                body: `استوری مربوط به سناریو «${row.name}» منقضی شد و این سناریو خودکار غیرفعال شد. برای ادامه، در ویرایش سناریو یک استوری جدید انتخاب کنید.`,
+                                link: '/instagram',
+                        })
+                } catch (notifyError) {
+                        console.error('[scheduler] story-expiry notify failed:', notifyError)
+                }
+        }
+        if (rows.length > 0) {
+                console.log(`[scheduler] story automations expired: ${rows.length} deactivated`)
+        }
+}
+
 // ─── scheduler entry point ──────────────────────────────────────────────────
 
 /** Start periodic tasks. Returns a function that stops them. */
@@ -833,6 +874,13 @@ export function startScheduler(): () => void {
                 runOauthTokenRefresh,
                 TOKEN_REFRESH_INTERVAL_MS,
         )
+
+        // Instagram SPECIFIC_STORY scenarios: stories vanish after 24h, so
+        // check every 5 minutes and deactivate scenarios whose story ended.
+        const runStoryExpirySweep = () => sweepExpiredStoryAutomations()
+                .catch((e) => console.error('[scheduler] story-expiry sweep failed:', e))
+        const initialStoryExpiry = setTimeout(runStoryExpirySweep, 70_000)
+        const storyExpiryInterval = setInterval(runStoryExpirySweep, STORY_EXPIRY_SWEEP_INTERVAL_MS)
 
         // ─ A20: real periodic channel health checks (getMe / token validity / SMS
         // proxy). Every 5 minutes; first run shortly after boot so the dashboard
@@ -1002,6 +1050,8 @@ export function startScheduler(): () => void {
                 clearInterval(commercialSmsInterval)
                 clearTimeout(initialTokenRefresh)
                 clearInterval(tokenRefreshInterval)
+                clearTimeout(initialStoryExpiry)
+                clearInterval(storyExpiryInterval)
                 clearTimeout(initialChannelHealth)
                 clearInterval(channelHealthInterval)
                 clearTimeout(initialSkills)

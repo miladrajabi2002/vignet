@@ -40,8 +40,28 @@ const updateSchema = z.object({
     .object({
       keywords: z.array(z.string()).optional(),
       matchMode: z.enum(['EXACT', 'CONTAINS', 'STARTS_WITH']).optional(),
-      storyScope: z.enum(['ALL', 'KEYWORD']).optional(),
+      storyScope: z.enum(['ALL', 'KEYWORD', 'SPECIFIC_STORY']).optional(),
+      storyIds: z.array(z.string()).optional(),
+      storyExpiresAt: z
+        .string()
+        .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'storyExpiresAt must be an ISO datetime' })
+        .optional(),
       postIds: z.array(z.string()).optional(),
+      mediaSnapshots: z
+        .array(
+          z.object({
+            id: z.string(),
+            kind: z.enum(['POST', 'STORY']),
+            mediaType: z.string(),
+            mediaUrl: z.string().optional(),
+            permalink: z.string().optional(),
+            caption: z.string().optional(),
+            timestamp: z.string(),
+            expiresAt: z.string().optional(),
+          }),
+        )
+        .max(12)
+        .optional(),
     })
     .optional(),
   action: z

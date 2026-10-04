@@ -1874,7 +1874,9 @@
       "allPosts": "All posts",
       "editScenario": "Edit scenario",
       "toggleAria": "Active/Inactive",
-      "deleteAria": "Delete"
+      "deleteAria": "Delete",
+      "storyScopeSpecific": "Picked story",
+      "storyScopeSpecificExpired": "Picked story (expired)"
     },
     "manager": {
       "tabDm": "Direct",

@@ -1874,7 +1874,9 @@
       "allPosts": "همه پست‌ها",
       "editScenario": "ویرایش سناریو",
       "toggleAria": "فعال/غیرفعال",
-      "deleteAria": "حذف"
+      "deleteAria": "حذف",
+      "storyScopeSpecific": "استوری انتخابی",
+      "storyScopeSpecificExpired": "استوری انتخابی (منقضی)"
     },
     "manager": {
       "tabDm": "دایرکت",

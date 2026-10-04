@@ -58,8 +58,14 @@ import {
 export interface AutomationTrigger {
   keywords?: string[]
   matchMode?: 'EXACT' | 'CONTAINS' | 'STARTS_WITH'
-  /** STORY only: 'ALL' (every story reply/mention) | 'KEYWORD' (match text). */
-  storyScope?: 'ALL' | 'KEYWORD'
+  /** STORY only: 'ALL' (every story reply/mention) | 'KEYWORD' (match text)
+   *  | 'SPECIFIC_STORY' (only replies to the picked stories). */
+  storyScope?: 'ALL' | 'KEYWORD' | 'SPECIFIC_STORY'
+  /** STORY + SPECIFIC_STORY: the picked stories' media ids. */
+  storyIds?: string[]
+  /** STORY + SPECIFIC_STORY: when the story disappears (timestamp + 24h).
+   *  The scheduler sweep deactivates the scenario after this moment. */
+  storyExpiresAt?: string
   /** COMMENT only: restrict to specific post/reel ids. */
   postIds?: string[]
 }
@@ -241,7 +247,16 @@ function readTrigger(t: Prisma.JsonValue): AutomationTrigger {
       o.matchMode === 'EXACT' || o.matchMode === 'STARTS_WITH'
         ? o.matchMode
         : 'CONTAINS',
-    storyScope: o.storyScope === 'ALL' ? 'ALL' : 'KEYWORD',
+    storyScope:
+      o.storyScope === 'ALL'
+        ? 'ALL'
+        : o.storyScope === 'SPECIFIC_STORY'
+          ? 'SPECIFIC_STORY'
+          : 'KEYWORD',
+    storyIds: Array.isArray(o.storyIds)
+      ? o.storyIds.filter((k): k is string => typeof k === 'string')
+      : [],
+    storyExpiresAt: typeof o.storyExpiresAt === 'string' ? o.storyExpiresAt : undefined,
     postIds: Array.isArray(o.postIds)
       ? o.postIds.filter((k): k is string => typeof k === 'string')
       : [],
@@ -425,7 +440,22 @@ async function findMatchingScenario(args: {
     let matched = false
 
     if (type === 'STORY') {
-      matched = trigger.storyScope === 'ALL' || matchKeywords(args.msg.text, trigger)
+      if (trigger.storyScope === 'SPECIFIC_STORY') {
+        // Only replies/reactions to the operator-picked story fire this
+        // scenario. Stories vanish after 24h — a stale row whose story is
+        // already gone must never match again (defense in depth on top of
+        // the scheduler sweep that flips active=false at storyExpiresAt).
+        const storyIds = trigger.storyIds ?? []
+        const expired =
+          trigger.storyExpiresAt !== undefined &&
+          Date.now() >= new Date(trigger.storyExpiresAt).getTime()
+        matched =
+          !expired &&
+          storyIds.length > 0 &&
+          Boolean(args.msg.storyId && storyIds.includes(args.msg.storyId))
+      } else {
+        matched = trigger.storyScope === 'ALL' || matchKeywords(args.msg.text, trigger)
+      }
     } else if (type === 'COMMENT') {
       if (
         trigger.postIds?.length &&
