@@ -4,10 +4,11 @@ import { AutomationReportStrip } from '@/components/instagram/automation-report'
 import type { AutomationReport } from '@/lib/instagram/automation-report'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Clock, Film, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { Switch } from '@/components/ui/switch'
 import { type Automation, REPLY_MODE_SHORT_LABEL_KEY } from '@/components/instagram/types'
+import { igProxySrc } from '@/lib/instagram/media-proxy'
 
 /**
  * One scenario as a list row: name, then "keywords ← how it answers", then
@@ -68,6 +69,17 @@ export function AutomationCard({
                 automation.type === 'STORY' &&
                 tr.storyScope === 'SPECIFIC_STORY' &&
                 Boolean(tr.storyExpiresAt && Date.now() >= new Date(tr.storyExpiresAt).getTime())
+        // Picked media thumbnails (posts + stories). Expired stories stay
+        // visible here so the operator can re-activate the scenario on a
+        // fresh story later via the edit form.
+        const nowMs = Date.now()
+        const pickedStories = (tr.mediaSnapshots ?? []).filter((s) => s.kind === 'STORY')
+        const pickedPosts = (tr.mediaSnapshots ?? []).filter((s) => s.kind === 'POST')
+        const storyAllExpired =
+                pickedStories.length > 0 &&
+                pickedStories.every(
+                        (s) => !s.expiresAt || new Date(s.expiresAt).getTime() <= nowMs,
+                )
         const trigger = tr.keywords.length
                 ? `${tr.keywords.slice(0, 4).join(fa ? '، ' : ', ')}${tr.keywords.length > 4 ? ` +${(tr.keywords.length - 4).toLocaleString(numLocale)}` : ''}`
                 : automation.type === 'STORY'
@@ -109,6 +121,80 @@ export function AutomationCard({
                                         <span aria-hidden="true"> ← </span>
                                         {answer}
                                 </p>
+                                {(pickedStories.length > 0 || pickedPosts.length > 0) && (
+                                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                {pickedStories.slice(0, 4).map((snap) => {
+                                                        const live = snap.expiresAt
+                                                                ? new Date(snap.expiresAt).getTime() > nowMs
+                                                                : false
+                                                        return (
+                                                                <span
+                                                                        key={snap.id}
+                                                                        title={live ? 'استوری فعال' : 'استوری منقضی شده'}
+                                                                        className="relative inline-block rounded-[0.55rem] p-[2px]"
+                                                                        style={live ? { background: 'linear-gradient(45deg,#f58529,#dd2a7b,#8134af)' } : { background: 'var(--border-default)' }}
+                                                                >
+                                                                        <span className="block h-[34px] w-[20px] overflow-hidden rounded-[0.45rem] bg-[var(--bg-muted)]">
+                                                                                {snap.mediaUrl ? (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img
+                                                                                                src={igProxySrc(snap.mediaUrl)}
+                                                                                                alt=""
+                                                                                                loading="lazy"
+                                                                                                decoding="async"
+                                                                                                referrerPolicy="no-referrer"
+                                                                                                className={`h-full w-full object-cover ${live ? '' : 'opacity-50 saturate-50'}`}
+                                                                                        />
+                                                                                ) : (
+                                                                                        <span className="grid h-full w-full place-items-center text-[var(--text-hint)]">
+                                                                                                <Film aria-hidden="true" className="h-3 w-3" />
+                                                                                        </span>
+                                                                                )}
+                                                                        </span>
+                                                                        {!live && (
+                                                                                <span className="absolute inset-x-0 bottom-0 rounded-b-[0.45rem] bg-black/65 px-0.5 py-px text-center text-[7px] font-bold leading-3 text-white">
+                                                                                        منقضی
+                                                                                </span>
+                                                                        )}
+                                                                </span>
+                                                        )
+                                                })}
+                                                {pickedPosts.slice(0, 4).map((snap) => (
+                                                        <span
+                                                                key={snap.id}
+                                                                title="پست انتخاب‌شده"
+                                                                className="relative inline-block h-[34px] w-[34px] overflow-hidden rounded-[0.45rem] border border-[var(--border-subtle)] bg-[var(--bg-muted)]"
+                                                        >
+                                                                {snap.mediaUrl ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img
+                                                                                src={igProxySrc(snap.mediaUrl)}
+                                                                                alt=""
+                                                                                loading="lazy"
+                                                                                decoding="async"
+                                                                                referrerPolicy="no-referrer"
+                                                                                className="h-full w-full object-cover"
+                                                                        />
+                                                                ) : (
+                                                                        <span className="grid h-full w-full place-items-center text-[var(--text-hint)]">
+                                                                                <Film aria-hidden="true" className="h-3 w-3" />
+                                                                        </span>
+                                                                )}
+                                                        </span>
+                                                ))}
+                                                {(pickedStories.length + pickedPosts.length) > 4 && (
+                                                        <span className="text-[10px] font-bold text-[var(--text-muted)]">
+                                                                                                +{(pickedStories.length + pickedPosts.length - 4).toLocaleString(numLocale)}
+                                                                                        </span>
+                                                )}
+                                                {automation.type === 'STORY' && storyAllExpired && (
+                                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                                                                                                <Clock aria-hidden="true" className="h-3 w-3" />
+                                                                                                استوری منقضی — با ویرایش، استوری تازه انتخاب کنید
+                                                                                        </span>
+                                                )}
+                                        </div>
+                                )}
                                 <div className="mt-0.5">
                                         <AutomationReportStrip fa={fa} report={report} />
                                 </div>

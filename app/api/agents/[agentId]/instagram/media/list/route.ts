@@ -11,7 +11,8 @@ type Params = { params: Promise<{ agentId: string }> }
 
 /**
  * Normalized media item returned to the dashboard picker.
- * - POST items carry a permalink + caption (published, permanent).
+ * - POST items carry a permalink + caption (published, permanent) plus their
+ *   live stats (likeCount / commentsCount) for the per-post آمار badges.
  * - STORY items carry expiresAt (timestamp + 24h) — Instagram stories vanish
  *   after 24 hours, so the UI shows a live countdown and the scheduler
  *   deactivates story-scoped automations once they expire.
@@ -27,6 +28,10 @@ export interface InstagramMediaListItem {
   timestamp: string
   /** STORY only — when the story disappears from the page. */
   expiresAt?: string
+  /** POST only — likes at fetch time. */
+  likeCount?: number
+  /** POST only — comments at fetch time. */
+  commentsCount?: number
 }
 
 interface GraphMediaItem {
@@ -38,6 +43,8 @@ interface GraphMediaItem {
   thumbnail_url?: string
   permalink?: string
   timestamp?: string
+  like_count?: number
+  comments_count?: number
 }
 
 interface GraphMediaPage {
@@ -54,7 +61,7 @@ const STORY_LIFETIME_MS = 24 * 60 * 60 * 1000
  * Lists the connected page's own media so operators can visually pick
  * posts/reels/stories in a popup instead of pasting permalinks by hand.
  * - kind=posts   → GET /{ig-user-id}/media   (published photos, videos,
- *                  reels, carousels — paginated)
+ *                  reels, carousels — paginated, with like/comment stats)
  * - kind=stories → GET /{ig-user-id}/stories  (only the ACTIVE stories,
  *                  i.e. published within the last 24h)
  */
@@ -89,7 +96,7 @@ export async function GET(req: Request, props: Params) {
   const fields =
     kind === 'stories'
       ? 'id,media_type,media_url,thumbnail_url,timestamp'
-      : 'id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp'
+      : 'id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count'
 
   const first = new URL(`${graph.base}/${igUserId}/${kind === 'stories' ? 'stories' : 'media'}`)
   first.searchParams.set('fields', fields)
@@ -131,6 +138,10 @@ export async function GET(req: Request, props: Params) {
         base.permalink = media.permalink
         base.caption = media.caption ?? undefined
         base.productType = media.media_product_type
+        // Per-post stats for the picker badges (آمار هر پست). Missing fields
+        // (older API versions / restricted connections) simply stay hidden.
+        if (typeof media.like_count === 'number') base.likeCount = media.like_count
+        if (typeof media.comments_count === 'number') base.commentsCount = media.comments_count
       }
       items.push(base)
     }

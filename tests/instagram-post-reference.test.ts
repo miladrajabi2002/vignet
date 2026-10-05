@@ -39,7 +39,12 @@ describe('Instagram post references', () => {
     const manager = readFileSync('components/instagram/automation-manager.tsx', 'utf8')
 
     expect(form).toContain('/instagram/media/resolve')
-    expect(form).toContain('در حال دریافت شناسه دقیق پست از Meta')
+    // The manual permalink input is gone — the visual picker is the only way
+    // to scope a scenario now (operator request), and its thumbnails load
+    // through the same-origin CDN relay so they render without a VPN.
+    expect(form).toContain('igProxySrc')
+    expect(form).toContain('انتخاب پست از پیج')
+    expect(form).not.toContain('افزودن دستی با لینک')
     expect(form).toContain('فعال‌کردن شرط فالو')
     expect(form).toContain('id="automation-follow-gate"')
     // The "new scenario" action lives in the page header now.
