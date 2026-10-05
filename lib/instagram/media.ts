@@ -797,6 +797,33 @@ export async function sendProductCarousel(
 }
 
 /**
+ * Send a plain text DM without an adapter — used by the follow-gate sweep,
+ * which runs in the worker scheduler with no MessengerAdapter instance.
+ * Same wire format as the adapter's sendText (single chunk, no quick replies).
+ */
+export async function sendInstagramText(
+        channelConfig: Prisma.JsonValue,
+        chatId: string,
+        text: string,
+): Promise<void> {
+        const token = resolveToken(channelConfig)
+        if (!token) throw new Error('INSTAGRAM sendInstagramText: missing access token')
+        const res = await fetch(messagesUrl(), {
+                method: 'POST',
+                headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                        recipient: igRecipient(chatId),
+                        message: { text: text.slice(0, 1000) },
+                        messaging_type: MESSAGING_TYPE_RESPONSE,
+                }),
+        })
+        await throwIfError(res, 'sendInstagramText')
+}
+
+/**
  * Send a button-template message — a text body with up to 3 tappable buttons
  * below it. Buttons can be `web_url` (open a URL) or `postback` (send a
  * payload back as a message). Instagram limits button templates to 3 buttons.

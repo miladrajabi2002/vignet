@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isInstagramMediaHost } from '@/lib/instagram/media-proxy'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,14 +35,9 @@ export const dynamic = 'force-dynamic'
 
 const MAX_BYTES = 20 * 1024 * 1024
 
-/** Hostnames we are willing to relay. Everything else → 400. */
-function isInstagramCdnHost(hostname: string): boolean {
-  const host = hostname.toLowerCase()
-  if (host === 'cdninstagram.com' || host.endsWith('.cdninstagram.com')) return true
-  if (host === 'fbcdn.net' || host.endsWith('.fbcdn.net')) return true
-  if (host === 'instagram.com' || host.endsWith('.instagram.com')) return true
-  return false
-}
+/** Hostnames we are willing to relay — the ONE shared allow-list from
+ * lib/instagram/media-proxy.ts (same list as the avatar proxies). */
+const isInstagramCdnHost = isInstagramMediaHost
 
 /** Minimal inline SVG shown when the upstream image is gone/unreachable. */
 const PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">

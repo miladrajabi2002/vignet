@@ -14,6 +14,7 @@ import {
         sendProductCard,
         sendRichEntry,
         sendButtonMessage,
+        sendInstagramText,
         pickTemplateImageUrl,
         type ProductShowcase,
         type ButtonAction,
@@ -1415,8 +1416,10 @@ function scheduleFollowUp(
  * - `is_user_follow_business` → boolean: does the user follow our business?
  * - `is_business_follow_user` → boolean: does our business follow the user?
  *
- * The request must go to graph.facebook.com (NOT graph.instagram.com) and
+ * The request goes to graph.instagram.com (Instagram-Login user tokens) and
  * queries the SENDER's node directly, NOT the business account's /accounts edge.
+ * Legacy FB-Login page tokens would need graph.facebook.com instead —
+ * resolveToken() picks the host that matches the stored token type.
  *
  * Returns true if following, false if not, null if the check failed
  * (treat as following — best-effort, don't block the user).
@@ -1490,33 +1493,36 @@ async function tryFulfillFollowGate(
   if (channelConfig && gateMode !== CONTINUE_GATE_MODE) {
     const follows = await checkUserFollows(channelConfig, msg.senderId)
     if (follows === false) {
-      console.log(`[ig-gate] user ${msg.senderId} clicked "${text}" but does NOT follow — re-sending gate prompt`)
-      const gatePrompt = typeof payload.gatePrompt === 'string'
-        ? payload.gatePrompt
-        : 'لطفاً ابتدا صفحه ما را دنبال کنید و سپس دوباره روی دکمه کلیک کنید.'
+      console.log(`[ig-gate] user ${msg.senderId} clicked "${text}" but does NOT follow — re-sending gate prompt, sweep will auto-verify`)
+      // The user tapped before following (or Meta's follow state had not
+      // propagated yet). Tell them the content arrives AUTOMATICALLY once the
+      // follow is visible — the scheduler sweep re-checks pending gates every
+      // few minutes and delivers the parked content without another tap.
       const gateQuickReply = typeof payload.gateQuickReply === 'string'
         ? payload.gateQuickReply
         : 'دنبال کردم'
       const gateButtonType = typeof payload.gateButtonType === 'string'
         ? payload.gateButtonType
         : 'button'
+      const retryPrompt =
+        'هنوز فالو ثبت نشده 🙂\n\nاگر تازه فالو کردی، چند لحظه صبر کن — محتوای پیام به‌صورت خودکار ارسال می‌شود. اگر نیامد، دوباره روی دکمه بزن.'
       await ctx.beforeDispatch?.()
       try {
         if (gateButtonType === 'quick_reply') {
-          await adapter.sendText(gate.chatId, gatePrompt, {
+          await adapter.sendText(gate.chatId, retryPrompt, {
             quickReplies: [gateQuickReply],
           })
         } else if (channelConfig) {
-          await sendButtonMessage(channelConfig, gate.chatId, gatePrompt, [
+          await sendButtonMessage(channelConfig, gate.chatId, retryPrompt, [
             { title: gateQuickReply },
           ])
         } else {
-          await adapter.sendText(gate.chatId, gatePrompt, {
+          await adapter.sendText(gate.chatId, retryPrompt, {
             quickReplies: [gateQuickReply],
           })
         }
       } catch {
-        await adapter.sendText(gate.chatId, gatePrompt, {
+        await adapter.sendText(gate.chatId, retryPrompt, {
           quickReplies: [gateQuickReply],
         })
       }
@@ -1592,6 +1598,141 @@ async function tryFulfillGateByMention(
     }
   }
   return true
+}
+
+// ─── FOLLOW-GATE AUTO-RECHECK SWEEP ─────────────────────────────────────
+//
+// WHY: Instagram sends NO webhook when a user starts following the account,
+// and Meta's `is_user_follow_business` state lags a few seconds behind the
+// actual tap. So a customer who taps «دنبال کردم» BEFORE following (very
+// common — they react to the button instantly) gets "هنوز فالو ثبت نشده"
+// and then… nothing, because the flow only re-checked on the NEXT tap.
+//
+// This sweep closes that hole: every few minutes, re-check recent PENDING
+// follow-gates against the Graph API and, as soon as the follow is visible,
+// deliver the parked content automatically — no second tap required.
+//
+// Bounds (operator request: «بدون فشار»):
+//   - only gates created in the last 6 h — older ones rely on manual taps
+//   - one API check per gate per sweep cycle (payload.lastAutoCheckAt)
+//   - at most 25 gates per cycle
+//   - CONTINUE / STORY_MENTION gates are skipped (no follow rule to verify)
+
+/** How long after creation a gate stays eligible for auto-rechecks. */
+const GATE_AUTO_CHECK_WINDOW_MS = 6 * 60 * 60 * 1000
+/** Minimum spacing between two auto-checks of the same gate. */
+const GATE_AUTO_CHECK_MIN_GAP_MS = 3 * 60 * 1000
+
+/** Re-verify pending follow-gates; deliver content when the follow landed. */
+export async function sweepInstagramFollowGates(): Promise<number> {
+  const candidates = await prisma.instagramFollowGate.findMany({
+    where: {
+      status: 'PENDING',
+      expiresAt: { gt: new Date() },
+      createdAt: { gte: new Date(Date.now() - GATE_AUTO_CHECK_WINDOW_MS) },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 25,
+    select: {
+      id: true,
+      agentId: true,
+      automationId: true,
+      igSenderId: true,
+      chatId: true,
+      createdAt: true,
+      payload: true,
+      automation: { select: { type: true } },
+    },
+  })
+
+  let fulfilledCount = 0
+  for (const gate of candidates) {
+    const payload = (gate.payload && typeof gate.payload === 'object'
+      ? gate.payload
+      : {}) as Record<string, unknown>
+    const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
+    if (gateMode === CONTINUE_GATE_MODE || gateMode === 'STORY_MENTION') continue
+    if (!Array.isArray(payload.contentMessages) || payload.contentMessages.length === 0) continue
+
+    // Throttle: one Graph API check per gate per sweep cycle.
+    const lastCheck = typeof payload.lastAutoCheckAt === 'number' ? payload.lastAutoCheckAt : 0
+    if (Date.now() - lastCheck < GATE_AUTO_CHECK_MIN_GAP_MS) continue
+
+    const agent = await prisma.agent.findUnique({
+      where: { id: gate.agentId },
+      select: { workspaceId: true },
+    })
+    const channel = agent
+      ? await prisma.agentChannel.findFirst({
+          where: { agentId: gate.agentId, type: 'INSTAGRAM', active: true },
+          select: { config: true },
+        })
+      : null
+    if (!agent || !channel) continue
+
+    const follows = await checkUserFollows(channel.config, gate.igSenderId)
+
+    // Not following yet (or the check itself failed) — stamp the throttle
+    // marker and wait for the next cycle. Never deliver on a failed check.
+    if (follows !== true) {
+      await prisma.instagramFollowGate.update({
+        where: { id: gate.id },
+        data: { payload: { ...payload, lastAutoCheckAt: Date.now() } },
+      }).catch(() => undefined)
+      continue
+    }
+
+    // The follow is visible → fulfill the gate and deliver the parked content.
+    await prisma.instagramFollowGate.update({
+      where: { id: gate.id },
+      data: { status: 'FULFILLED', fulfilledAt: new Date() },
+    })
+    console.log(`[ig-gate] sweep: user ${gate.igSenderId} now follows — delivering gated content (gate ${gate.id})`)
+
+    const contentMessages = (payload.contentMessages as Array<Record<string, unknown>>)
+      .map(toRichEntry)
+    let delivered = true
+    for (const entry of contentMessages) {
+      try {
+        await sendRichEntry(
+          channel.config,
+          gate.chatId,
+          entry,
+          async (chatId, text) => {
+            await sendInstagramText(channel.config, chatId, text)
+          },
+          async (productId) => resolveProduct(gate.agentId, productId),
+          async (productIds) => resolveProducts(gate.agentId, productIds),
+          agent.workspaceId,
+        )
+      } catch (e) {
+        delivered = false
+        captureError('instagram:gate:sweep:deliver', e, {
+          workspaceId: agent.workspaceId,
+          metadata: { gateId: gate.id },
+        })
+      }
+    }
+    if (delivered) fulfilledCount += 1
+
+    // The run report stays consistent with a manual confirm: same outcome tag.
+    try {
+      await prisma.instagramAutomationRun.create({
+        data: {
+          automationId: gate.automationId,
+          agentId: gate.agentId,
+          workspaceId: agent.workspaceId,
+          igUserId: gate.igSenderId,
+          trigger: (gate.automation as { type?: 'DIRECT_MESSAGE' | 'COMMENT' | 'STORY' } | null)?.type
+            ?? 'COMMENT',
+          outcome: 'FOLLOW_CONFIRMED',
+        },
+      })
+    } catch {
+      // Reporting only — the content already went out.
+    }
+  }
+  return fulfilledCount
 }
 
 // ─── CHANNEL REPLY POLICY + STOP-WORD / STOP_AI EVALUATION ────────────

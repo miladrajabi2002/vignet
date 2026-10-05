@@ -272,11 +272,19 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
 }
 
 // ── Public component ────────────────────────────────────────────────────
+// The three scenario families the top switcher jumps between (create mode).
+// Same order/labels as the manager tabs so the mental model stays uniform.
+const TYPE_TABS: Array<{ key: AutomationType; label: string; Icon: LucideIcon }> = [
+        { key: 'DIRECT_MESSAGE', label: 'دایرکت', Icon: MessageCircle },
+        { key: 'COMMENT', label: 'کامنت', Icon: MessageSquare },
+        { key: 'STORY', label: 'استوری', Icon: Circle },
+]
+
 export function AutomationForm({
         agentId,
         accountUsername,
         accountAvatarUrl,
-        type,
+        type: propType,
         initial,
         mode,
 }: {
@@ -289,6 +297,12 @@ export function AutomationForm({
         mode: 'create' | 'edit'
 }) {
         const router = useRouter()
+        // Create mode: a segmented control at the top switches between the
+        // three scenario families without returning to the list (mobile-first:
+        // one tap instead of back → switch tab → new scenario). Edit mode keeps
+        // the stored type fixed — switching would mix incompatible fields.
+        const [activeType, setActiveType] = useState<AutomationType>(propType)
+        const type = mode === 'create' ? activeType : propType
         const [form, setForm] = useState<FormState>(() => toFormState(initial, type))
         const [initialForm] = useState<FormState>(() => toFormState(initial, type))
         const formDirty = useMemo(
@@ -911,6 +925,19 @@ export function AutomationForm({
                 setPreviewOpen(true)
         }
 
+        // Switch the scenario family (create mode). The form resets to that
+        // type's defaults — fields are family-specific, so carrying them over
+        // would silently produce an invalid trigger/action payload.
+        const switchType = (next: AutomationType) => {
+                if (next === activeType) return
+                setActiveType(next)
+                setForm(toFormState(initial, next))
+                setKeywordInput('')
+                setError(null)
+                setMediaPickerOpen(false)
+                setPreviewOpen(false)
+        }
+
         return (
                 <div className="mx-auto max-w-7xl space-y-5">
                         {/* Page header — unified with the rest of the dashboard.
@@ -925,6 +952,28 @@ export function AutomationForm({
                                 }
                                 back={{ href: '/instagram', label: 'اینستاگرام' }}
                         />
+
+                        {/* Scenario family switcher — create mode only. One tap
+                            switches between دایرکت / کامنت / استوری and resets the
+                            form to that family's defaults (mobile-first: no need
+                            to go back, pick another tab, and tap "new" again). */}
+                        {mode === 'create' && (
+                                <div className="ui-seg grid-cols-3" role="tablist" aria-label="نوع سناریو">
+                                        {TYPE_TABS.map(({ key, label, Icon }) => (
+                                                <button
+                                                        key={key}
+                                                        type="button"
+                                                        role="tab"
+                                                        aria-selected={key === type}
+                                                        onClick={() => switchType(key)}
+                                                        className="ui-seg-tab min-h-12 gap-2 px-2 text-[13px]"
+                                                >
+                                                        <Icon className="h-4 w-4 shrink-0" />
+                                                        <span className="truncate">{label}</span>
+                                                </button>
+                                        ))}
+                                </div>
+                        )}
 
                         <form onSubmit={submit} className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                                 {/* ── LEFT: form fields ────────────────────────────────────── */}

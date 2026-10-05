@@ -35,6 +35,7 @@ import { sweepLowStockAlerts } from '@/lib/commerce/low-stock'
 import { sweepPlanExpiryAlerts } from '@/lib/billing/plan-expiry-alerts'
 import { sweepCustomerBookingReminders } from '@/lib/bookings/customer-reminders'
 import { sweepCourseReminders } from '@/lib/courses/reminders'
+import { sweepInstagramFollowGates } from '@/lib/instagram/automation'
 
 /**
  * Lightweight in-process scheduler for the background worker. Uses plain
@@ -883,6 +884,21 @@ export function startScheduler(): () => void {
         const initialStoryExpiry = setTimeout(runStoryExpirySweep, 70_000)
         const storyExpiryInterval = setInterval(runStoryExpirySweep, STORY_EXPIRY_SWEEP_INTERVAL_MS)
 
+        // Instagram follow-gates: Instagram sends no webhook when a user
+        // starts following, and Meta's follow state lags a few seconds behind
+        // the tap. Re-check recent PENDING gates every 5 minutes and deliver
+        // the parked content as soon as the follow becomes visible — so "فالو
+        // کردم ولی چیزی نیامد" stops happening.
+        const runFollowGateSweep = () => sweepInstagramFollowGates()
+                .then((fulfilled) => {
+                        if (fulfilled > 0) {
+                                console.log(`[scheduler] follow-gate sweep: ${fulfilled} gate(s) auto-fulfilled`)
+                        }
+                })
+                .catch((e) => console.error('[scheduler] follow-gate sweep failed:', e))
+        const initialFollowGate = setTimeout(runFollowGateSweep, 2 * 60_000)
+        const followGateInterval = setInterval(runFollowGateSweep, 5 * 60_000)
+
         // ─ A20: real periodic channel health checks (getMe / token validity / SMS
         // proxy). Every 5 minutes; first run shortly after boot so the dashboard
         // has a true status quickly.
@@ -1053,6 +1069,8 @@ export function startScheduler(): () => void {
                 clearInterval(tokenRefreshInterval)
                 clearTimeout(initialStoryExpiry)
                 clearInterval(storyExpiryInterval)
+                clearTimeout(initialFollowGate)
+                clearInterval(followGateInterval)
                 clearTimeout(initialChannelHealth)
                 clearInterval(channelHealthInterval)
                 clearTimeout(initialSkills)

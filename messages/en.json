@@ -1866,7 +1866,7 @@
       "messagesCount": "({count} messages)",
       "dmToCommenter": "DM to commenter",
       "commentAck": "Comment reply",
-      "followGate": "Follow gate",
+      "followGate": "Required follow",
       "followUp": "Follow-up",
       "storyScopeAll": "All stories",
       "storyScopeKeyword": "Specific keywords",

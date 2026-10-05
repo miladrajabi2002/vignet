@@ -1,13 +1,8 @@
+import { isInstagramMediaHost } from '@/lib/instagram/media-proxy'
+
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const MAX_REDIRECTS = 3
 const FETCH_TIMEOUT_MS = 7_000
-
-const TRUSTED_HOST_SUFFIXES = [
-  'cdninstagram.com',
-  'fbcdn.net',
-  'fbsbx.com',
-  'akamaihd.net',
-] as const
 
 const ALLOWED_IMAGE_TYPES = new Set([
   'image/avif',
@@ -25,7 +20,8 @@ export interface ProxiedAvatar {
 /**
  * Instagram profile pictures are short-lived signed CDN URLs. They must never
  * become a general-purpose server-side fetch primitive, so every initial URL
- * and redirect is restricted to Meta-controlled HTTPS hosts.
+ * and redirect is restricted to Meta-controlled HTTPS hosts — the SAME shared
+ * allow-list the media-image streaming proxy uses (lib/instagram/media-proxy).
  */
 export function isTrustedInstagramAvatarUrl(value: string): boolean {
   try {
@@ -33,10 +29,7 @@ export function isTrustedInstagramAvatarUrl(value: string): boolean {
     if (url.protocol !== 'https:' || url.username || url.password) return false
     if (url.port && url.port !== '443') return false
 
-    const hostname = url.hostname.toLowerCase().replace(/\.$/, '')
-    return TRUSTED_HOST_SUFFIXES.some(
-      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
-    )
+    return isInstagramMediaHost(url.hostname)
   } catch {
     return false
   }
