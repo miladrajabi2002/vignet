@@ -123,10 +123,11 @@ interface FormState {
         messages: AutomationMessage[]
         // Comment funnel
         dmOnComment: boolean
-        // COMMENT + dmOnComment: short public reply on the comment itself
+        // COMMENT + dmOnComment: short public replies on the comment itself
         // (e.g. «تو دایرکت فرستادم 🌟») so the comment isn't left unanswered.
+        // Up to 3 variants — the engine posts ONE at random per comment.
         commentAckEnabled: boolean
-        commentAckText: string
+        commentAckTexts: string[]
         // Follow gate (collapsed by default)
         followGate: boolean
         gateMode: GateMode
@@ -198,7 +199,12 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                 // stored value (absent field → OFF) so nothing changes until the
                 // operator opts in.
                 commentAckEnabled: a ? a.action.commentAckEnabled === true : true,
-                commentAckText: a?.action.commentAckText ?? (a === undefined ? DEFAULT_COMMENT_ACK_TEXT : ''),
+                commentAckTexts: a
+                        ? normalizeAckTexts(
+                                  a.action.commentAckTexts ??
+                                          (a.action.commentAckText ? [a.action.commentAckText] : []),
+                          )
+                        : [...DEFAULT_COMMENT_ACK_TEXTS],
                 followGate: a?.action.followGate ?? false,
                 gateMode: a?.action.gateMode ?? 'SOFT',
                 gateButtonType: a?.action.gateButtonType ?? 'button',
@@ -240,8 +246,24 @@ function hasMessageContent(m: AutomationMessage): boolean {
         )
 }
 
-/** Default public ack posted on the comment when the reply goes to DM. */
-const DEFAULT_COMMENT_ACK_TEXT = 'تو دایرکت فرستادم 🌟'
+/** Default public acks posted on the comment when the reply goes to DM —
+ *  the engine posts ONE of them at random per comment (colloquial variants,
+ *  e.g. «برات فرستادم دایرکت» / «فرستادم برات»). */
+const DEFAULT_COMMENT_ACK_TEXTS = [
+        'تو دایرکت فرستادم 🌟',
+        'برات فرستادم دایرکت',
+        'فرستادم برات',
+] as const
+
+/** Trim, drop empties and cap at 3 ack variants (engine contract). */
+function normalizeAckTexts(raw: unknown): string[] {
+        if (!Array.isArray(raw)) return []
+        return raw
+                .filter((t): t is string => typeof t === 'string')
+                .map((t) => t.trim())
+                .filter(Boolean)
+                .slice(0, 3)
+}
 
 function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
         // Buttons may be in the new object form ({title, url?}) or the legacy
@@ -689,7 +711,18 @@ export function AutomationForm({
                         // funnel; the text is always persisted so toggling it back
                         // on later keeps the operator's draft (same as gate fields).
                         commentAckEnabled: type === 'COMMENT' && form.dmOnComment && form.commentAckEnabled,
-                        commentAckText: type === 'COMMENT' && form.dmOnComment ? form.commentAckText.trim() : '',
+                        // Up to 3 operator-written variants; the engine posts ONE at
+                        // random per comment (looks human instead of a copy-paste).
+                        commentAckTexts:
+                                type === 'COMMENT' && form.dmOnComment
+                                        ? normalizeAckTexts(form.commentAckTexts)
+                                        : [],
+                        // Legacy single-text field stays in sync (first variant) so
+                        // older readers keep rendering the ack.
+                        commentAckText:
+                                type === 'COMMENT' && form.dmOnComment
+                                        ? (normalizeAckTexts(form.commentAckTexts)[0] ?? '')
+                                        : '',
                         // Follow gate — save all fields so the engine can build the gate row
                         // and verify fulfillment on the user's reply. When the gate is OFF,
                         // send the fields anyway so re-enabling later keeps the user's draft.
@@ -906,7 +939,7 @@ export function AutomationForm({
                         .map((s) => ({ url: s.mediaUrl, kind: s.kind, expiresAt: s.expiresAt })),
                 dmOnComment: form.dmOnComment,
                 commentAckEnabled: form.commentAckEnabled,
-                commentAckText: form.commentAckText,
+                commentAckText: form.commentAckTexts.find((t) => t.trim()) ?? '',
                 followGate: form.followGate,
                 gatePrompt: form.gatePrompt,
                 gateButton: form.gateQuickReply,
@@ -1234,26 +1267,59 @@ export function AutomationForm({
                                                                         checked={form.commentAckEnabled}
                                                                         onChange={(v) => {
                                                                                 set('commentAckEnabled', v)
-                                                                                if (v && !form.commentAckText.trim()) {
-                                                                                        set('commentAckText', DEFAULT_COMMENT_ACK_TEXT)
+                                                                                // Turning the ack on with nothing written yet:
+                                                                                // seed the three colloquial defaults.
+                                                                                if (v && form.commentAckTexts.every((t) => !t.trim())) {
+                                                                                        set('commentAckTexts', [...DEFAULT_COMMENT_ACK_TEXTS])
                                                                                 }
                                                                         }}
                                                                         aria-label="ریپلای عمومی روی کامنت"
                                                                 />
                                                         </div>
                                                         {form.commentAckEnabled && (
-                                                                <div className="space-y-1.5">
+                                                                <div className="space-y-2.5">
                                                                         <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                متن ریپلای
+                                                                                پاسخ‌های ریپلای (حداقل یکی — یکی به‌صورت تصادفی زیر کامنت ثبت می‌شود)
                                                                         </label>
-                                                                        <textarea
-                                                                                value={form.commentAckText}
-                                                                                onChange={(e) => set('commentAckText', e.target.value)}
-                                                                                placeholder="مثلاً: تو دایرکت فرستادم 🌟"
-                                                                                rows={2}
-                                                                                maxLength={200}
-                                                                                className="input resize-none"
-                                                                        />
+                                                                        {form.commentAckTexts.map((text, idx) => (
+                                                                                <div key={idx} className="flex items-start gap-2">
+                                                                                        <div className="mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[12px] font-medium text-[var(--text-secondary)]">
+                                                                                                {(idx + 1).toLocaleString('fa-IR')}
+                                                                                        </div>
+                                                                                        <textarea
+                                                                                                value={text}
+                                                                                                onChange={(e) => {
+                                                                                                        const next = form.commentAckTexts.slice()
+                                                                                                        next[idx] = e.target.value
+                                                                                                        set('commentAckTexts', next)
+                                                                                                }}
+                                                                                                placeholder={DEFAULT_COMMENT_ACK_TEXTS[idx]}
+                                                                                                rows={2}
+                                                                                                maxLength={200}
+                                                                                                className="input resize-none"
+                                                                                        />
+                                                                                </div>
+                                                                        ))}
+                                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                                                <span className="text-[11px] text-[var(--text-muted)]">پیشنهاد:</span>
+                                                                                {DEFAULT_COMMENT_ACK_TEXTS.map((s) => (
+                                                                                        <button
+                                                                                                key={s}
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                        const next = form.commentAckTexts.slice()
+                                                                                                        const firstEmpty = next.findIndex((t) => !t.trim())
+                                                                                                        if (firstEmpty !== -1) {
+                                                                                                                next[firstEmpty] = s
+                                                                                                                set('commentAckTexts', next)
+                                                                                                        }
+                                                                                                }}
+                                                                                                className="spatial-press rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                                                        >
+                                                                                                {s}
+                                                                                        </button>
+                                                                                ))}
+                                                                        </div>
                                                                         <p className="text-[12px] text-[var(--text-muted)]">
                                                                                 این متن فقط زیر کامنت نمایش داده می‌شود و محتوای دایرکت را فاش نمی‌کند.
                                                                         </p>
@@ -1686,7 +1752,7 @@ function buildFlowSteps(form: FormState, type: AutomationType): FlowStep[] {
         if (type === 'COMMENT') {
                 if (form.dmOnComment) {
                         steps.push({ Icon: Send, label: count ? `${faNum(count)} پیام در دایرکت` : 'پیام دایرکت؟', pending: !count })
-                        if (form.commentAckEnabled && form.commentAckText.trim()) {
+                        if (form.commentAckEnabled && form.commentAckTexts.some((t) => t.trim())) {
                                 steps.push({ Icon: MessageSquare, label: 'ریپلای زیر کامنت' })
                         }
                 } else if (form.replyMode === 'MULTI_MESSAGE') {

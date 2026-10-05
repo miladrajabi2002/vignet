@@ -261,15 +261,25 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 // inbound text so the automation engine + AI can match it against
                                                 // scenarios/keywords — previously postbacks were silently dropped,
                                                 // which made button taps look like they "didn't work".
-                                                const postback = (m as { postback?: { title?: string; payload?: string } }).postback
+                                                // Idempotency (follow-gate killer): postbacks carry no `message.mid`,
+                                                // so the event id fell back to a CONTENT hash — every repeat tap of
+                                                // the same button by the same user collapsed into the FIRST tap's
+                                                // completed InboundEvent and was silently swallowed. The follow gate
+                                                // then looked dead: no message on follow, none without follow.
+                                                // Derive the id from the per-event messaging timestamp (Meta
+                                                // redeliveries keep the same timestamp → deduped; a NEW tap gets a
+                                                // new timestamp → processed). Use postback.mid when Meta provides it.
+                                                const postback = (m as { postback?: { title?: string; payload?: string; mid?: string } }).postback
                                                 if (postback?.title) {
+                                                        const postbackMessageId =
+                                                                postback.mid ?? (m.timestamp ? `pb:${m.timestamp}:${senderId}` : undefined)
                                                         out.push({
                                                                 chatId: senderId,
                                                                 senderId,
                                                                 senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                                 text: postback.title,
                                                                 kind: 'DM',
-                                                                platformMessageId,
+                                                                platformMessageId: postbackMessageId,
                                                         })
                                                 }
                                                 // ─── Media-only DM (A13) ───
@@ -1088,6 +1098,9 @@ interface IgWebhook {
                 messaging?: {
                         sender?: { id?: string; username?: string }
                         recipient?: { id?: string }
+                        // Per-event epoch-ms — unique per inbound event (Meta redeliveries
+                        // reuse it); the postback idempotency id derives from it.
+                        timestamp?: number
                                 reaction?: {
                                         mid?: string
                                         action?: 'react' | 'unreact' | string

@@ -131,6 +131,8 @@ export interface AutomationAction {
          *  The DM body itself is never posted publicly — only this ack line. */
         commentAckEnabled?: boolean
         commentAckText?: string
+        /** Up to 3 alternative ack texts; the engine posts ONE at random. */
+        commentAckTexts?: string[]
         // ── Follow gate (kept for v1 compatibility) ───────────────────────────
         followGate?: boolean
         gateMode?: GateMode

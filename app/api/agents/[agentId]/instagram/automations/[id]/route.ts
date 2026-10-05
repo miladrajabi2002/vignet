@@ -94,6 +94,7 @@ const updateSchema = z.object({
       // COMMENT + dmOnComment: short public reply posted on the comment.
       commentAckEnabled: z.boolean().optional(),
       commentAckText: z.string().optional(),
+      commentAckTexts: z.array(z.string()).max(3).optional(),
       followGate: z.boolean().optional(),
       gateMode: z.enum(['SOFT', 'STORY_MENTION']).optional(),
       gateButtonType: z.enum(['button', 'quick_reply']).optional(),

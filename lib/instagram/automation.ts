@@ -122,6 +122,9 @@ export interface AutomationAction {
   commentAckEnabled?: boolean
   /** The public ack text posted on the comment when `commentAckEnabled`. */
   commentAckText?: string
+  /** Up to 3 alternative ack texts; ONE is picked at random per comment
+   *  (falls back to `commentAckText` when absent). */
+  commentAckTexts?: string[]
   /** Require a follow before sending the content. */
   followGate?: boolean
   gateMode?: 'SOFT' | 'STORY_MENTION'
@@ -203,26 +206,8 @@ function toRichEntry(raw: Record<string, unknown>): RichEntry {
   }
 }
 
-/**
- * Gate mode for the rest of a comment→DM sequence. Instagram allows exactly
- * ONE private reply per comment, and nothing else reaches a commenter who has
- * not messaged the account — so every part after the first (typically the
- * product card with its photo) failed with an empty Meta 500. The first reply
- * now carries a button; tapping it opens the messaging window and releases
- * the remaining parts to the commenter's IGSID via the follow-gate table.
- */
-const CONTINUE_GATE_MODE = 'CONTINUE'
-const CONTINUE_PROMPT = 'سلام! 🌟 برای دیدن جزئیات، روی دکمه زیر بزنید 👇'
-const CONTINUE_BUTTON_PRODUCT = 'مشاهده محصول'
-const CONTINUE_BUTTON_DEFAULT = 'ادامه'
-
 function isPrivateReplyTarget(target: string): boolean {
   return parsePrivateReplyTarget(target) !== null
-}
-
-/** True when the parts fit in the single message a private reply allows. */
-function fitsOnePrivateReply(entries: RichEntry[]): boolean {
-  return entries.length === 1 && (entries[0].type === 'TEXT' || entries[0].type === 'QUICK_REPLY')
 }
 
 interface AutomationRow {
@@ -366,6 +351,13 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
     contentText,
     commentAckEnabled: o.commentAckEnabled === true,
     commentAckText: typeof o.commentAckText === 'string' ? o.commentAckText : '',
+    commentAckTexts: Array.isArray(o.commentAckTexts)
+      ? (o.commentAckTexts as unknown[])
+          .filter((t): t is string => typeof t === 'string')
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 3)
+      : [],
     aiAgentEnabled: o.aiAgentEnabled === true,
     followUpEnabled: o.followUpEnabled === true,
     followUpDelayMin:
@@ -511,7 +503,7 @@ export async function willInstagramAutomationHandle(args: {
       if (
         gateMode !== 'STORY_MENTION' &&
         confirmKeyword &&
-        args.msg.text.trim().toLowerCase() === confirmKeyword
+        isGateConfirmText(confirmKeyword, args.msg.text)
       ) {
         return true
       }
@@ -603,7 +595,7 @@ export async function willInstagramAutomationSilentlyIgnore(args: {
       if (
         gateMode !== 'STORY_MENTION' &&
         confirmKeyword &&
-        args.msg.text.trim().toLowerCase() === confirmKeyword
+        isGateConfirmText(confirmKeyword, args.msg.text)
       ) {
         return false
       }
@@ -634,6 +626,50 @@ export async function willInstagramAutomationSilentlyIgnore(args: {
 }
 
 const GATE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+/**
+ * Normalize Persian/Arabic free text for follow-gate confirm matching.
+ * The confirm tap comes back as a postback title (exact echo of the button),
+ * but customers often TYPE the confirm phrase instead — with Arabic ي/ك vs
+ * Persian ی/ک, ZWNJ, diacritics, punctuation, emoji and sloppy spacing.
+ * Exact string equality silently dropped all of those variants: the customer
+ * tapped/typed, we matched nothing, and the gate looked completely dead.
+ */
+function normalizeGateText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[\u064A\u0649]/g, '\u06CC') // Arabic yeh/alef maksura → Persian yeh
+    .replace(/\u0643/g, '\u06A9') // Arabic kaf → Persian kaf
+    .replace(/[\u200c-\u200f\u202a-\u202e]/g, ' ') // ZWNJ/marks → space
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '') // harakat/tanwin
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ') // punctuation + emoji → space
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Casual Persian phrasings that all mean «I followed» — matched as contains. */
+const GATE_CONFIRM_SYNONYMS = [
+  'فالو کردم',
+  'دنبال کردم',
+  'فالو شدم',
+  'فالو کردیم',
+  'دنبال کردیم',
+]
+
+/**
+ * Does this inbound text confirm a follow-gate? Fuzzy on purpose:
+ * exact-normalized equality OR a contained keyword/synonym (length-guarded so
+ * long unrelated DMs can never hijack the gate).
+ */
+function isGateConfirmText(confirmKeyword: string, text: string): boolean {
+  const kw = normalizeGateText(confirmKeyword)
+  const msg = normalizeGateText(text)
+  if (!kw || !msg) return false
+  if (msg === kw) return true
+  if (msg.length > 60) return false
+  if (msg.includes(kw)) return true
+  return GATE_CONFIRM_SYNONYMS.some((syn) => msg.includes(normalizeGateText(syn)))
+}
 
 export interface AutomationContext {
   agent: ChatAgent & { workspaceId: string }
@@ -806,11 +842,7 @@ export async function runInstagramAutomation(
     const fulfilled = await tryFulfillFollowGate(ctx)
     if (fulfilled) {
       const gate = await justFulfilledGate(ctx)
-      // A CONTINUE tap finishes a run already logged as SENT — not a follow.
-      const gateMode = (gate?.payload as { gateMode?: unknown } | null)?.gateMode
-      if (gate && gateMode !== CONTINUE_GATE_MODE) {
-        await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
-      }
+      if (gate) await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
       return { handled: true, replied: true }
     }
   }
@@ -875,7 +907,7 @@ export async function runInstagramAutomation(
  * COMMENT scenarios with `dmOnComment` deliver their content in the
  * commenter's DM — which leaves the public comment itself unanswered (the
  * operator's #1 complaint: "این کامنت بدون جواب می‌مونه"). When the operator
- * enables `commentAckEnabled`, we additionally post `commentAckText` as a
+ * enables `commentAckEnabled`, we additionally post one of `commentAckTexts` as a
  * public reply ON the comment: for comments `msg.chatId` is
  * `comment:<commentId>`, which the adapter routes to `/{comment-id}/replies`.
  *
@@ -888,7 +920,16 @@ async function postCommentAck(
 ): Promise<void> {
   if (ctx.msg.kind !== 'COMMENT' || !action.dmOnComment) return
   if (!action.commentAckEnabled) return
-  const ackText = (action.commentAckText ?? '').trim()
+  // Up to 3 operator-written variants; ONE is picked at random per comment so
+  // the public replies look human (e.g. «تو دایرکت فرستادم 🌟» / «فرستادم برات»).
+  const variants = action.commentAckTexts?.length
+    ? action.commentAckTexts
+    : action.commentAckText
+      ? [action.commentAckText]
+      : []
+  const ackText = variants.length
+    ? variants[Math.floor(Math.random() * variants.length)].trim()
+    : ''
   if (!ackText) return
   try {
     await ctx.adapter.sendText(ctx.msg.chatId, ackText)
@@ -986,69 +1027,38 @@ async function deliverEntries(
 }
 
 /**
- * Deliver a comment→DM reply. A private reply is a single message, so a
- * multi-part or media reply sends its opening text with a continue button and
- * parks the remaining parts until the commenter taps it (see
- * {@link CONTINUE_GATE_MODE}). Other targets get every part right away.
+ * Deliver a comment→DM reply.
+ *
+ * The former «ادامه» continue-button gate is gone: every part of the reply
+ * is delivered immediately, in order. The first part claims the ONE private
+ * reply each comment allows; the remaining parts go straight to the
+ * commenter's IGSID as best-effort DMs — each part is sent independently so
+ * one failed send never blocks the rest (errors are captured in the ErrorLog).
+ * Other targets get every part right away.
  */
 async function deliverToCommenter(
   ctx: AutomationContext,
-  row: AutomationRow,
   target: string,
   entries: RichEntry[],
 ): Promise<void> {
-  if (!isPrivateReplyTarget(target) || fitsOnePrivateReply(entries)) {
+  if (!isPrivateReplyTarget(target) || !ctx.msg.senderId || entries.length <= 1) {
     await deliverEntries(ctx, target, entries)
     return
   }
-  const { adapter, agent, msg, contactId, channelConfig } = ctx
   const [first, ...rest] = entries
-  const openerText = first?.type === 'TEXT' ? first.text?.trim() : ''
-  const opener = openerText || CONTINUE_PROMPT
-  const pending = openerText ? rest : entries
-  const button = pending.some((e) => e.type === 'PRODUCT' || e.type === 'PRODUCT_LIST')
-    ? CONTINUE_BUTTON_PRODUCT
-    : CONTINUE_BUTTON_DEFAULT
-
-  await ctx.beforeDispatch?.()
-  let sentAsButton = false
-  if (channelConfig) {
+  await deliverEntries(ctx, target, [first])
+  for (const entry of rest) {
     try {
-      await sendButtonMessage(channelConfig, target, opener, [{ title: button }])
-      sentAsButton = true
+      await deliverEntries(ctx, ctx.msg.senderId, [entry])
     } catch (e) {
-      captureWarning('instagram:automation:continue-button', e, {
-        workspaceId: agent.workspaceId,
-        metadata: { chatId: target },
+      // Best-effort: Meta rejects DMs to commenters with no open thread.
+      // Capture and move on so later parts (and the receipt) still go out.
+      captureWarning('instagram:automation:multipart-rest', e as Error, {
+        workspaceId: ctx.agent.workspaceId,
+        metadata: { chatId: ctx.msg.senderId, entryType: entry.type },
       })
     }
   }
-  if (sentAsButton) {
-    if (ctx.receipt) ctx.receipt.push(opener)
-  } else {
-    await adapter.sendText(target, opener, { quickReplies: [button] })
-  }
-
-  if (pending.length === 0 || !msg.senderId) return
-  await prisma.instagramFollowGate.create({
-    data: {
-      automationId: row.id,
-      agentId: agent.id,
-      contactId: contactId ?? null,
-      igSenderId: msg.senderId,
-      chatId: msg.senderId,
-      status: 'PENDING',
-      expiresAt: new Date(Date.now() + GATE_TTL_MS),
-      payload: {
-        kind: msg.kind,
-        commentId: msg.commentId,
-        postId: msg.postId,
-        gateMode: CONTINUE_GATE_MODE,
-        gateConfirmKeyword: button,
-        contentMessages: pending,
-      } as Prisma.InputJsonValue,
-    },
-  })
 }
 
 async function executeAction(
@@ -1117,7 +1127,6 @@ async function executeAction(
         if (contentMessages.length > 0) {
           await deliverToCommenter(
             ctx,
-            row,
             target,
             contentMessages.map((entry) => toRichEntry(entry as Record<string, unknown>)),
           )
@@ -1160,29 +1169,51 @@ async function executeAction(
     }
 
     if (ctx.outcome) ctx.outcome.gated = true
-    await prisma.instagramFollowGate.create({
-      data: {
+    // Dedupe: the customer commenting again while a gate is already pending
+    // used to stack a NEW gate row per comment (one user hit 7 rows). Refresh
+    // the existing PENDING gate for this automation+sender instead — the
+    // parked content and TTL stay current, the table stays clean.
+    const gatePayload = {
+      kind: msg.kind,
+      commentId: msg.commentId,
+      postId: msg.postId,
+      storyId: msg.storyId,
+      gateMode: action.gateMode,
+      gateButtonType,
+      gateConfirmKeyword,
+      gatePrompt,
+      gateQuickReply,
+      contentMessages,
+    } as Prisma.InputJsonValue
+    const existingGate = await prisma.instagramFollowGate.findFirst({
+      where: {
         automationId: row.id,
-        agentId: agent.id,
-        contactId: contactId ?? null,
         igSenderId: msg.senderId,
-        chatId: msg.senderId,
         status: 'PENDING',
-        expiresAt: new Date(Date.now() + GATE_TTL_MS),
-        payload: {
-          kind: msg.kind,
-          commentId: msg.commentId,
-          postId: msg.postId,
-          storyId: msg.storyId,
-          gateMode: action.gateMode,
-          gateButtonType,
-          gateConfirmKeyword,
-          gatePrompt,
-          gateQuickReply,
-          contentMessages,
-        } as Prisma.InputJsonValue,
+        expiresAt: { gt: new Date() },
       },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
     })
+    if (existingGate) {
+      await prisma.instagramFollowGate.update({
+        where: { id: existingGate.id },
+        data: { payload: gatePayload, expiresAt: new Date(Date.now() + GATE_TTL_MS) },
+      })
+    } else {
+      await prisma.instagramFollowGate.create({
+        data: {
+          automationId: row.id,
+          agentId: agent.id,
+          contactId: contactId ?? null,
+          igSenderId: msg.senderId,
+          chatId: msg.senderId,
+          status: 'PENDING',
+          expiresAt: new Date(Date.now() + GATE_TTL_MS),
+          payload: gatePayload,
+        },
+      })
+    }
     // The gate prompt went to the commenter's DM — acknowledge the public
     // comment as well so it isn't left unanswered.
     await postCommentAck(ctx, action)
@@ -1195,7 +1226,7 @@ async function executeAction(
       Math.floor(Math.random() * action.messages.length)
     ]
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
-    await deliverToCommenter(ctx, row, target, [entry])
+    await deliverToCommenter(ctx, target, [entry])
     // NOTE (v3.1): the comment→DM funnel no longer posts the DM body back as
     // a public comment reply — "ارسال در دایرکت" means INSTEAD of the public
     // reply, and posting it would leak DM content (links, prices) publicly.
@@ -1212,7 +1243,7 @@ async function executeAction(
   // was silently ignored.
   if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
-    await deliverToCommenter(ctx, row, target, action.messages)
+    await deliverToCommenter(ctx, target, action.messages)
     // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
     // MULTI_MESSAGE branch above.
     // v3.2: optional commentAck — post the short public ack on the comment.
@@ -1246,7 +1277,7 @@ async function executeAction(
       const entries: RichEntry[] = action.replyText
         ? [{ type: 'TEXT', text: action.replyText }, media]
         : [media]
-      await deliverToCommenter(ctx, row, target, entries)
+      await deliverToCommenter(ctx, target, entries)
       await postCommentAck(ctx, action)
       return
     }
@@ -1484,13 +1515,12 @@ async function tryFulfillFollowGate(
   const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
   if (gateMode === 'STORY_MENTION') return false
 
-  if (!confirmKw || text !== confirmKw.trim().toLowerCase()) return false
+  if (!confirmKw || !isGateConfirmText(confirmKw, text)) return false
 
   // ── VERIFY the user actually follows the account ──
-  // (CONTINUE gates only park the rest of a comment→DM reply — no follow rule.)
   // Before fulfilling the gate, check if the user is really a follower.
   // If they're NOT following, re-send the gate prompt (don't deliver content).
-  if (channelConfig && gateMode !== CONTINUE_GATE_MODE) {
+  if (channelConfig) {
     const follows = await checkUserFollows(channelConfig, msg.senderId)
     if (follows === false) {
       console.log(`[ig-gate] user ${msg.senderId} clicked "${text}" but does NOT follow — re-sending gate prompt, sweep will auto-verify`)
@@ -1536,10 +1566,14 @@ async function tryFulfillFollowGate(
     data: { status: 'FULFILLED', fulfilledAt: new Date() },
   })
 
-  // Deliver the gated content — the FULL messages[] array.
+  // Deliver the gated content — the FULL messages[] array. Gates created by
+  // older builds stored only `contentText` — honor that too so a pending gate
+  // never fulfills into silence.
   const contentMessages = Array.isArray(payload.contentMessages)
     ? (payload.contentMessages as Array<Record<string, unknown>>)
-    : []
+    : typeof payload.contentText === 'string' && payload.contentText.trim()
+      ? [{ type: 'TEXT', text: payload.contentText }]
+      : []
 
   if (contentMessages.length > 0 && channelConfig) {
     try {
@@ -1613,13 +1647,15 @@ async function tryFulfillGateByMention(
 // deliver the parked content automatically — no second tap required.
 //
 // Bounds (operator request: «بدون فشار»):
-//   - only gates created in the last 6 h — older ones rely on manual taps
+//   - only gates created in the last 48 h — the customer may follow hours
+//     after commenting (tap delivery is not guaranteed by Meta), so a short
+//     window silently abandoned recoverable gates
 //   - one API check per gate per sweep cycle (payload.lastAutoCheckAt)
 //   - at most 25 gates per cycle
-//   - CONTINUE / STORY_MENTION gates are skipped (no follow rule to verify)
+//   - STORY_MENTION gates are skipped (no follow rule to verify)
 
 /** How long after creation a gate stays eligible for auto-rechecks. */
-const GATE_AUTO_CHECK_WINDOW_MS = 6 * 60 * 60 * 1000
+const GATE_AUTO_CHECK_WINDOW_MS = 48 * 60 * 60 * 1000
 /** Minimum spacing between two auto-checks of the same gate. */
 const GATE_AUTO_CHECK_MIN_GAP_MS = 3 * 60 * 1000
 
@@ -1651,8 +1687,11 @@ export async function sweepInstagramFollowGates(): Promise<number> {
       ? gate.payload
       : {}) as Record<string, unknown>
     const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
-    if (gateMode === CONTINUE_GATE_MODE || gateMode === 'STORY_MENTION') continue
-    if (!Array.isArray(payload.contentMessages) || payload.contentMessages.length === 0) continue
+    if (gateMode === 'STORY_MENTION') continue
+    const hasRichContent = Array.isArray(payload.contentMessages) && payload.contentMessages.length > 0
+    const hasLegacyContent =
+      typeof payload.contentText === 'string' && payload.contentText.trim().length > 0
+    if (!hasRichContent && !hasLegacyContent) continue
 
     // Throttle: one Graph API check per gate per sweep cycle.
     const lastCheck = typeof payload.lastAutoCheckAt === 'number' ? payload.lastAutoCheckAt : 0
@@ -1689,8 +1728,9 @@ export async function sweepInstagramFollowGates(): Promise<number> {
     })
     console.log(`[ig-gate] sweep: user ${gate.igSenderId} now follows — delivering gated content (gate ${gate.id})`)
 
-    const contentMessages = (payload.contentMessages as Array<Record<string, unknown>>)
-      .map(toRichEntry)
+    const contentMessages = hasRichContent
+      ? (payload.contentMessages as Array<Record<string, unknown>>).map(toRichEntry)
+      : [{ type: 'TEXT' as const, text: payload.contentText as string }]
     let delivered = true
     for (const entry of contentMessages) {
       try {

@@ -506,7 +506,7 @@ export function InstagramMediaPicker({
                         }
                         onClose={onClose}
                 >
-                        <div className="flex min-h-0 flex-col">
+                        <div className="flex h-[min(58dvh,540px)] min-h-0 flex-col">
                                 {/* Caption search — the single filter, per operator request */}
                                 {showPosts && (
                                         <div className="relative">
@@ -525,7 +525,10 @@ export function InstagramMediaPicker({
                                         </div>
                                 )}
 
-                                {/* Body states */}
+                                {/* Body states — ONE fixed-height scroll area so the panel
+                                    keeps its exact size between the skeleton and the loaded
+                                    grid (the desktop dialog used to jump when data landed). */}
+                                <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
                                 {loading ? (
                                         /* Layout-matched skeleton (operator request): mirrors the
                                            REAL layout — story strip + post grid with caption lines —
@@ -534,17 +537,20 @@ export function InstagramMediaPicker({
                                         <div className="space-y-4" aria-hidden="true">
                                                 {showStories && (
                                                         <section className="space-y-2">
-                                                                <div className="skeleton-shimmer h-3.5 w-28 rounded-full" />
-                                                                <div className="-mx-1 flex gap-2.5 overflow-hidden px-1">
-                                                                        {Array.from({ length: 6 }).map((_, i) => (
-                                                                                <div key={i} className="w-[84px] shrink-0 space-y-1.5 sm:w-[100px]">
+                                                                {/* Banner + header + strip — every block mirrors the
+                                                                    LOADED layout's exact height so nothing shifts. */}
+                                                                <div className="skeleton-shimmer h-9 rounded-xl" />
+                                                                <div className="skeleton-shimmer h-4 w-28 rounded-full" />
+                                                                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                                                        {Array.from({ length: 8 }).map((_, i) => (
+                                                                                <div key={i} className="w-[84px] shrink-0 sm:w-[100px]">
                                                                                         <div
                                                                                                 className="rounded-[1.25rem] p-[2.5px]"
                                                                                                 style={{ background: i < 3 ? IG_GRADIENT_SOFT : 'var(--border-default)' }}
                                                                                         >
                                                                                                 <div className="skeleton-shimmer aspect-[9/16] w-full rounded-[1.1rem]" />
                                                                                         </div>
-                                                                                        <div className="skeleton-shimmer mx-auto h-3 w-14 rounded-full" />
+                                                                                        <div className="skeleton-shimmer mx-auto mt-1.5 h-5 w-16 rounded-full" />
                                                                                 </div>
                                                                         ))}
                                                                 </div>
@@ -552,19 +558,19 @@ export function InstagramMediaPicker({
                                                 )}
                                                 {showPosts && (
                                                         <section className="space-y-2">
-                                                                <div className="skeleton-shimmer h-3.5 w-32 rounded-full" />
+                                                                <div className="skeleton-shimmer h-4 w-36 rounded-full" />
                                                                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                                                        {Array.from({ length: 8 }).map((_, i) => (
-                                                                                <div key={i} className="space-y-1.5">
+                                                                        {Array.from({ length: 16 }).map((_, i) => (
+                                                                                <div key={i}>
                                                                                         <div
                                                                                                 className={cn(
                                                                                                         'skeleton-shimmer aspect-square rounded-xl',
                                                                                                         i === 0 && 'shadow-[0_0_0_2.5px_var(--bg-base),0_0_0_5px_#dd2a7b]',
                                                                                                 )}
                                                                                         />
-                                                                                        <div className="space-y-1 px-0.5">
-                                                                                                <div className="skeleton-shimmer h-3 w-4/5 rounded-full" />
-                                                                                                <div className="skeleton-shimmer h-2.5 w-2/5 rounded-full" />
+                                                                                        <div className="mt-1.5 space-y-0.5 px-0.5">
+                                                                                                <div className="skeleton-shimmer h-5 w-4/5 rounded-full" />
+                                                                                                <div className="skeleton-shimmer h-4 w-2/5 rounded-full" />
                                                                                         </div>
                                                                                 </div>
                                                                         ))}
@@ -573,7 +579,7 @@ export function InstagramMediaPicker({
                                                 )}
                                         </div>
                                 ) : error ? (
-                                        <div className="flex flex-col items-center gap-3 py-10 text-center">
+                                        <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
                                                 <span className="grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-red-500">
                                                         <AlertCircle className="h-6 w-6" aria-hidden="true" />
                                                 </span>
@@ -588,7 +594,7 @@ export function InstagramMediaPicker({
                                                 </button>
                                         </div>
                                 ) : nothingAtAll ? (
-                                        <div className="flex flex-col items-center gap-3 py-10 text-center">
+                                        <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
                                                 <span
                                                         className="grid h-12 w-12 place-items-center rounded-2xl text-white"
                                                         style={{ background: IG_GRADIENT }}
@@ -622,7 +628,7 @@ export function InstagramMediaPicker({
                                                                                 )}
                                                                         </h3>
                                                                 </div>
-                                                                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]">
+                                                                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                                                         {stories.map((item) => (
                                                                                 <StoryTile
                                                                                         key={item.id}
@@ -678,7 +684,7 @@ export function InstagramMediaPicker({
 
                                                 {/* Stories-only picker with zero stories (posts hidden) */}
                                                 {showStories && !showPosts && stories.length === 0 && (
-                                                        <div className="flex flex-col items-center gap-3 py-10 text-center">
+                                                        <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
                                                                 <span
                                                                         className="grid h-12 w-12 place-items-center rounded-2xl text-white"
                                                                         style={{ background: IG_GRADIENT }}
@@ -692,6 +698,7 @@ export function InstagramMediaPicker({
                                                 )}
                                         </div>
                                 )}
+                                </div>
                         </div>
 
                         {/* Footer — selection summary + confirm (sticky at the sheet bottom) */}

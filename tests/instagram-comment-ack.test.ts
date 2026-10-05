@@ -201,4 +201,20 @@ describe('Instagram comment→DM ack (commentAck*)', () => {
                         expect.anything(),
                 )
         })
+
+        it('posts ONE of the configured ack variants at random', async () => {
+                const variants = ['برات فرستادم دایرکت', 'فرستادم برات']
+                mocks.automationFindMany.mockResolvedValue([
+                        commentScenario({ commentAckEnabled: true, commentAckTexts: variants }),
+                ])
+                const adapter = { sendText: vi.fn().mockResolvedValue(undefined) }
+
+                await runEngine(adapter)
+
+                const ackCall = adapter.sendText.mock.calls.find(
+                        (c: unknown[]) => c[0] === 'comment:cmt-1',
+                )
+                expect(ackCall).toBeDefined()
+                expect(variants).toContain(ackCall![1])
+        })
 })
