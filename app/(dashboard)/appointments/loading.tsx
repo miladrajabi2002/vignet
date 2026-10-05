@@ -15,9 +15,24 @@ export default function AppointmentsLoading() {
     <div className="mx-auto max-w-6xl space-y-5">
       <DashboardHeaderSkeleton actions={2} />
 
+      {/* Section tabs + 4-cell KPI strip */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <Skeleton className="h-[3.25rem] w-full rounded-2xl lg:w-[22rem]" />
-        <Skeleton delay={-120} className="h-[3.6rem] w-full rounded-2xl lg:w-[30rem]" />
+        <div className="ui-seg w-full grid-cols-2 lg:w-[22rem]" role="tablist">
+          <span className="ui-seg-tab text-sm" data-active="true">
+            <Skeleton className="h-3.5 w-16 rounded-full" />
+          </span>
+          <span className="ui-seg-tab text-sm">
+            <Skeleton delay={-90} className="h-3.5 w-16 rounded-full" />
+          </span>
+        </div>
+        <dl className="grid grid-cols-4 divide-x divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white/80 rtl:divide-x-reverse lg:min-w-[30rem]">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="flex flex-col items-center gap-1.5 py-3">
+              <Skeleton delay={-120 - index * 80} className="h-6 w-10 max-w-full rounded-lg" />
+              <Skeleton delay={-150 - index * 80} className="h-3 w-14 max-w-full rounded-full" />
+            </div>
+          ))}
+        </dl>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">

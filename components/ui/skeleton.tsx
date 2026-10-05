@@ -63,25 +63,49 @@ export function ConversationCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
     <div className="spatial-surface overflow-hidden rounded-card">
       <div className="flex min-w-0 items-start gap-3 p-3.5 sm:p-4">
-        <Skeleton delay={delay} className="h-5 w-5 shrink-0 rounded" />
-        <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-full" />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center">
+          <Skeleton delay={delay} className="h-5 w-5 rounded" />
+        </span>
+        <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-start justify-between gap-2">
             <Skeleton delay={delay} className="h-4 w-28 rounded-md" />
-            <Skeleton delay={delay} className="h-3 w-20 rounded-full" />
+            <Skeleton delay={delay - 90} className="h-3 w-16 shrink-0 rounded-full" />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Skeleton delay={delay} className="h-5 w-14 rounded-full" />
-            <Skeleton delay={delay} className="h-5 w-12 rounded-full" />
-            <Skeleton delay={delay} className="h-4 w-16 rounded-full" />
+            <Skeleton delay={delay - 130} className="h-5 w-16 rounded-full" />
+            <Skeleton delay={delay - 160} className="h-5 w-14 rounded-md" />
+            <Skeleton delay={delay - 190} className="h-3 w-12 rounded-full" />
           </div>
-          <Skeleton delay={delay} className="mt-2 h-4 w-5/6 rounded-md" />
-          <Skeleton delay={delay} className="mt-1.5 h-4 w-2/3 rounded-md" />
+          <Skeleton delay={delay - 220} className="mt-2 h-4 w-5/6 max-w-full rounded-md" />
+          <Skeleton delay={delay - 250} className="mt-1 h-4 w-2/3 max-w-full rounded-md" />
         </div>
       </div>
-      <div className="flex items-center gap-1 border-t border-[var(--border-subtle)] px-3 py-2">
-        <Skeleton delay={delay} className="h-10 w-28 rounded-xl" />
-        <Skeleton delay={delay} className="h-10 w-36 rounded-xl" />
+      <div className="flex flex-wrap items-center gap-1 border-t border-[var(--border-subtle)] px-3 py-2">
+        <Skeleton delay={delay - 280} className="h-11 w-28 rounded-xl" />
+        <Skeleton delay={delay - 310} className="h-11 w-36 rounded-xl" />
+      </div>
+    </div>
+  )
+}
+
+/** Mirrors a conversation card in the mobile inbox feed (/conversations). */
+export function InboxCardSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <div className="spatial-surface overflow-hidden rounded-card">
+      <div className="flex min-w-0 items-center gap-3 p-4">
+        <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <Skeleton delay={delay} className="h-[15px] w-28 max-w-full rounded-md" />
+            <Skeleton delay={delay - 90} className="ms-auto h-3 w-16 shrink-0 rounded-full" />
+          </div>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+            <Skeleton delay={delay - 130} className="h-5 w-16 rounded-md" />
+            <Skeleton delay={delay - 170} className="h-5 w-12 rounded-full" />
+          </div>
+        </div>
+        <Skeleton delay={delay - 210} className="h-4 w-4 shrink-0 rounded-full" />
       </div>
     </div>
   )

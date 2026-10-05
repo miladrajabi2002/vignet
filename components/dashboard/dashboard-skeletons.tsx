@@ -19,30 +19,45 @@ import { Skeleton } from '@/components/ui/skeleton'
 export function DashboardHeaderSkeleton({
   delay = 0,
   actions = 2,
+  compactOnMobile = false,
   className,
 }: {
   delay?: number
-  /** Number of action buttons the real header renders (0-3). */
-  actions?: 0 | 1 | 2 | 3
+  /** Number of action buttons the real header renders (0-4). */
+  actions?: 0 | 1 | 2 | 3 | 4
+  /**
+   * The real headers pair icon-only squares on phones with labelled pills on
+   * `sm+` (the `compactOnMobile` button pattern) — mirror that shrink.
+   */
+  compactOnMobile?: boolean
   className?: string
 }) {
   return (
     <header className={cn('dashboard-page-header', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="grid grid-cols-[minmax(8rem,1fr)_auto] items-center gap-x-3 gap-y-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 items-center gap-3 sm:min-w-[min(100%,17rem)] sm:flex-1 sm:gap-3.5">
           <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
-          <div className="min-w-0 space-y-2">
+          <div className="min-w-0">
             <Skeleton delay={delay} className="h-7 w-44 max-w-full rounded-lg" />
-            <Skeleton delay={delay} className="h-4 w-56 max-w-full rounded-md" />
+            <Skeleton delay={delay} className="mt-2 hidden h-4 w-56 max-w-full rounded-md sm:block" />
           </div>
         </div>
         {actions > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto py-0.5 [scrollbar-width:none] sm:flex-wrap sm:justify-end sm:overflow-visible sm:py-0">
             {Array.from({ length: actions }).map((_, index) => (
-              <Skeleton key={index} delay={delay - index * 80} className="h-11 w-32 rounded-xl" />
+              <Skeleton
+                key={index}
+                delay={delay - index * 80}
+                className={cn(
+                  'h-11 shrink-0 rounded-xl',
+                  compactOnMobile ? 'w-11 sm:w-32' : 'w-32',
+                )}
+              />
             ))}
           </div>
         )}
+        {/* Phones: the subtitle runs under the title and the actions at full width. */}
+        <Skeleton delay={delay} className="col-span-2 h-4 w-56 max-w-full rounded-md sm:hidden" />
       </div>
     </header>
   )
@@ -148,29 +163,116 @@ export function IntelligenceCoreSkeleton({ delay = 0 }: { delay?: number }) {
   )
 }
 
-/** Mirrors the Vigento AI copilot card (icon + title + badge + desc + button + prompt pills). */
+/**
+ * Mirrors the Vigento card on /overview: the dark `rounded-sheet` panel with
+ * the ink icon tile, title + subtitle, question pills and the white CTA — and
+ * the live demo chat on the second column from `sm` up.
+ */
 export function VigentoCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface block overflow-hidden rounded-card p-5 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-control sm:h-11 sm:w-11" />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Skeleton delay={delay} className="h-5 w-28 rounded-md" />
-              <Skeleton delay={delay - 90} className="h-6 w-16 rounded-full" />
+    <section className="relative overflow-hidden rounded-sheet bg-[#111] p-5 sm:p-7">
+      <div className="relative grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-2xl" />
+            <div className="min-w-0">
+              <Skeleton delay={delay} className="h-7 w-20 max-w-full rounded-md" />
+              <Skeleton delay={delay - 90} className="mt-1 h-3.5 w-28 max-w-full rounded-md" />
             </div>
-            <Skeleton delay={delay - 180} className="mt-1.5 h-3.5 w-full max-w-2xl rounded-md" />
+          </div>
+          <Skeleton delay={delay - 180} className="mt-4 hidden h-4 w-full max-w-md rounded-md sm:block" />
+          <ul className="mt-4 flex flex-wrap gap-2">
+            <li>
+              <Skeleton delay={delay} className="h-11 w-52 rounded-full" />
+            </li>
+            <li>
+              <Skeleton delay={delay - 90} className="h-11 w-44 rounded-full" />
+            </li>
+            <li>
+              <Skeleton delay={delay - 180} className="h-11 w-40 rounded-full" />
+            </li>
+          </ul>
+          <Skeleton delay={delay - 240} className="mt-5 h-11 w-40 rounded-xl" />
+        </div>
+        {/* Live demo exchange (sm+) */}
+        <div className="hidden rounded-card border border-white/10 bg-white/[0.04] p-4 sm:block">
+          <div className="flex items-center gap-2">
+            <Skeleton delay={delay} className="h-1.5 w-1.5 rounded-full" />
+            <Skeleton delay={delay - 90} className="h-3 w-28 rounded-full" />
+          </div>
+          <div className="mt-3 flex flex-col gap-2.5">
+            <Skeleton delay={delay - 120} className="h-10 w-[88%] self-end rounded-2xl rounded-br-md" />
+            <Skeleton delay={delay - 210} className="h-16 w-[70%] self-start rounded-2xl rounded-bl-md" />
+            <Skeleton delay={delay - 300} className="h-6 w-36 self-start rounded-full" />
           </div>
         </div>
-        <Skeleton delay={delay - 240} className="h-11 w-40 shrink-0 rounded-xl" />
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Skeleton delay={delay} className="h-8 w-52 rounded-full" />
-        <Skeleton delay={delay - 90} className="h-8 w-44 rounded-full" />
-        <Skeleton delay={delay - 180} className="h-8 w-40 rounded-full" />
+    </section>
+  )
+}
+
+/**
+ * Mirrors the Telegram manager bot card on /overview: the white
+ * `rounded-sheet` panel split into a pitch column (avatar, title + status
+ * chip, copy, two-up capability grid, buttons) and the Telegram phone mock
+ * that joins at `md`.
+ */
+export function OperatorBotCardSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <section className="spatial-surface overflow-hidden rounded-sheet">
+      <div className="grid gap-0 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Skeleton delay={delay} className="h-7 w-40 max-w-full rounded-md" />
+                <Skeleton delay={delay - 90} className="h-6 w-20 rounded-full" />
+              </div>
+              <Skeleton delay={delay - 180} className="mt-2 h-4 w-full max-w-md rounded-full" />
+            </div>
+          </div>
+          {/* Capability grid joins from md, like the real card. */}
+          <div className="mt-4 hidden border-t border-[var(--border-subtle)] pt-4 sm:mt-5 sm:pt-5 md:block">
+            <ul className="grid grid-cols-2 gap-1.5">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <li key={index} className="flex min-w-0 items-center gap-2 rounded-xl bg-[var(--bg-surface)] px-2.5 py-2">
+                  <Skeleton delay={delay - index * 80} className="h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton delay={delay - index * 80} className="h-3.5 w-4/5 max-w-full rounded-full" />
+                    <Skeleton delay={delay - index * 80} className="hidden h-3 w-3/5 rounded-full sm:block" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 sm:mt-5">
+            <Skeleton delay={delay} className="h-11 w-36 rounded-xl" />
+            <Skeleton delay={delay - 90} className="h-11 w-40 rounded-xl" />
+          </div>
+        </div>
+        {/* Telegram mock joins at md. */}
+        <div className="hidden md:block">
+          <div className="flex h-full flex-col">
+            <div className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] bg-white/95 px-4 py-2.5">
+              <Skeleton delay={delay - 60} className="h-9 w-9 shrink-0 rounded-full" />
+              <div className="min-w-0 space-y-1">
+                <Skeleton delay={delay - 90} className="h-3.5 w-28 max-w-full rounded-full" />
+                <Skeleton delay={delay - 120} className="h-3 w-10 rounded-full" />
+              </div>
+            </div>
+            <div className="flex flex-1 flex-col gap-2.5 p-4">
+              <Skeleton delay={delay - 150} className="h-10 w-[62%] self-start rounded-2xl rounded-bl-md" />
+              <Skeleton delay={delay - 240} className="h-9 w-[48%] self-end rounded-2xl rounded-br-md" />
+              <div className="mt-auto grid grid-cols-2 gap-1.5">
+                <Skeleton delay={delay - 300} className="h-9 w-full rounded-lg" />
+                <Skeleton delay={delay - 330} className="h-9 w-full rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -256,19 +358,26 @@ export function PlanCreditSkeleton({ delay = 0 }: { delay?: number }) {
 
 /* ─────────────────────────── conversations blocks ─────────────────────────── */
 
-/** Mirrors the sticky filter card: mobile search + filter button, desktop search + selects. */
-export function ConversationFiltersSkeleton({ delay = 0, selects = 3 }: { delay?: number; selects?: number }) {
+/**
+ * Mirrors the /conversations filter bar: the same sticky wrapper + `ui-fbar`
+ * container-query bar the real page uses, so the compact row (search +
+ * filters button) and the full row (search + selects) swap at the exact same
+ * column width — not at a viewport guess.
+ */
+export function ConversationFiltersSkeleton({ delay = 0, selects = 4 }: { delay?: number; selects?: number }) {
   return (
-    <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
-      <div className="flex items-center gap-2 md:hidden">
-        <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
-        <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
-      </div>
-      <div className="hidden flex-wrap items-center gap-2 md:flex">
-        <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
-        {Array.from({ length: selects }).map((_, index) => (
-          <Skeleton key={index} delay={delay - (index + 1) * 90} className="h-11 min-w-40 rounded-xl" />
-        ))}
+    <div className="sticky top-[5.35rem] z-20 rounded-card border border-[var(--border-subtle)] bg-white p-2.5 shadow-[var(--elev-1)] md:static md:z-auto md:shrink-0 md:rounded-none md:border-0 md:border-b md:p-3 md:shadow-none">
+      <div className="ui-fbar">
+        <div className="ui-fbar-compact flex items-center gap-2">
+          <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
+          <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
+        </div>
+        <div className="ui-fbar-full flex-wrap items-center gap-2">
+          <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-control" />
+          {Array.from({ length: selects }).map((_, index) => (
+            <Skeleton key={index} delay={delay - (index + 1) * 90} className="h-11 min-w-40 rounded-control" />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -380,21 +489,25 @@ export function TipCardSkeleton({ delay = 0 }: { delay?: number }) {
 
 /* ─────────────────────────── contacts blocks ─────────────────────────── */
 
-/** Mirrors the contacts toolbar: mobile search + filter button; desktop search + selects + view toggle. */
+/**
+ * Mirrors the /contacts filter bar: the real page's sticky wrapper around the
+ * `ui-fbar` container-query bar, so the compact row (search + filters button)
+ * and the full row (search + the three stage/channel/tag selects) swap at the
+ * exact same column width the loaded page swaps at.
+ */
 export function ContactsToolbarSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
-      <div className="flex items-center gap-2 md:hidden">
-        <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
-        <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
-      </div>
-      <div className="hidden flex-wrap items-center gap-2 md:flex">
-        <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
-        <Skeleton delay={delay - 90} className="h-11 min-w-40 rounded-xl" />
-        <Skeleton delay={delay - 180} className="h-11 min-w-40 rounded-xl" />
-        <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
-          <Skeleton delay={delay - 270} className="h-9 w-16 rounded-lg" />
-          <Skeleton delay={delay - 360} className="h-9 w-16 rounded-lg" />
+    <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
+      <div className="ui-fbar spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:p-4 md:shadow-[var(--shadow-card)]">
+        <div className="ui-fbar-compact flex items-center gap-2">
+          <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-xl" />
+          <Skeleton delay={delay - 90} className="h-11 w-11 shrink-0 rounded-xl" />
+        </div>
+        <div className="ui-fbar-full flex-wrap items-center gap-2">
+          <Skeleton delay={delay} className="h-11 min-w-[12rem] flex-1 rounded-control" />
+          <Skeleton delay={delay - 90} className="h-11 min-w-40 rounded-control" />
+          <Skeleton delay={delay - 180} className="h-11 min-w-40 rounded-control" />
+          <Skeleton delay={delay - 270} className="h-11 min-w-40 rounded-control" />
         </div>
       </div>
     </div>
@@ -427,22 +540,74 @@ export function ContactsListSkeleton({
   )
 }
 
-/** Mirrors a contacts list row: checkbox + avatar + name/badges + meta + stage. */
+/** Mirrors a desktop contacts row: checkbox + avatar + name/badges + meta + stage select. */
 export function ContactRowSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
-      <Skeleton delay={delay} className="h-11 w-11 shrink-0 rounded-xl" />
-      <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-full" />
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className="grid h-11 w-11 shrink-0 place-items-center">
+        <Skeleton delay={delay} className="h-4 w-4 rounded" />
+      </span>
+      <Skeleton delay={delay} className="h-9 w-9 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Skeleton delay={delay} className="h-4 w-28 max-w-full rounded-md" />
-          <Skeleton delay={delay} className="h-4 w-12 rounded-full" />
-          <Skeleton delay={delay - 90} className="h-4 w-14 rounded-full" />
+          <Skeleton delay={delay} className="h-5 w-14 shrink-0 rounded-md" />
+          <Skeleton delay={delay - 90} className="h-5 w-16 shrink-0 rounded-md" />
         </div>
         <Skeleton delay={delay} className="mt-1 h-3 w-48 max-w-full rounded-full" />
       </div>
-      <Skeleton delay={delay} className="h-6 w-20 shrink-0 rounded-full" />
+      <Skeleton delay={delay} className="h-11 w-20 shrink-0 rounded-xl" />
     </div>
+  )
+}
+
+/**
+ * Mirrors a mobile contacts card: avatar + name + stage pill + phone line,
+ * the channel/tag badges, the two-stat footer, then the select + stage
+ * toolbar row that carries the card's own height at the bottom.
+ */
+export function ContactCardSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <article className="spatial-surface overflow-hidden rounded-card">
+      <div className="p-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <Skeleton delay={delay} className="h-[15px] w-28 max-w-full rounded-md" />
+              <Skeleton delay={delay - 90} className="h-7 w-16 shrink-0 rounded-full" />
+            </div>
+            <Skeleton delay={delay - 130} className="mt-1 h-3 w-24 max-w-full rounded-full" />
+          </div>
+          <Skeleton delay={delay - 170} className="mt-1 h-4 w-4 shrink-0 rounded-full" />
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <Skeleton delay={delay} className="h-5 w-16 rounded-md" />
+          <Skeleton delay={delay - 90} className="h-5 w-14 rounded-md" />
+          <Skeleton delay={delay - 180} className="h-5 w-12 rounded-full" />
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-black/[0.025] p-3">
+          <div className="space-y-1.5">
+            <Skeleton delay={delay} className="h-3 w-14 rounded-full" />
+            <Skeleton delay={delay - 90} className="h-3.5 w-16 rounded-md" />
+          </div>
+          <div className="space-y-1.5">
+            <Skeleton delay={delay - 180} className="h-3 w-14 rounded-full" />
+            <Skeleton delay={delay - 270} className="h-3.5 w-20 rounded-md" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-black/[0.012] p-2.5">
+        <div className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-2">
+          <Skeleton delay={delay} className="h-4 w-4 rounded" />
+          <Skeleton delay={delay - 90} className="h-3 w-20 rounded-full" />
+        </div>
+        <Skeleton delay={delay - 180} className="h-11 min-w-0 flex-1 rounded-xl" />
+      </div>
+    </article>
   )
 }
 
@@ -649,10 +814,14 @@ export function PlanTileSkeleton({ delay = 0, featured = false }: { delay?: numb
 /** Mirrors the commerce tabs bar (products / orders). */
 export function CommerceTabsSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex items-center gap-1 rounded-card p-1.5">
-      <Skeleton delay={delay} className="h-10 w-28 rounded-xl" />
-      <Skeleton delay={delay - 90} className="h-10 w-24 rounded-xl" />
-    </div>
+    <nav className="ui-seg grid-cols-3 sm:inline-grid sm:min-w-[30rem]" aria-label="commerce tabs">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <span key={index} className="ui-seg-tab gap-1.5 px-1.5 sm:gap-2 sm:px-4" data-active={index === 0 ? 'true' : undefined}>
+          <Skeleton delay={delay - index * 90} className="h-7 w-7 shrink-0 rounded-lg" />
+          <Skeleton delay={delay - index * 90} className="h-3.5 w-14 max-w-full rounded-full" />
+        </span>
+      ))}
+    </nav>
   )
 }
 
@@ -675,17 +844,24 @@ export function SetupCardSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors a product card: image area + title + price + footer actions. */
 export function ProductCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex flex-col overflow-hidden rounded-card">
-      <Skeleton delay={delay} className="aspect-video w-full rounded-none" />
-      <div className="flex flex-1 flex-col p-4">
-        <Skeleton delay={delay} className="h-4 w-3/4 max-w-full rounded-md" />
-        <Skeleton delay={delay - 90} className="mt-2 h-3 w-1/2 max-w-full rounded-md" />
-        <Skeleton delay={delay - 180} className="mt-3 h-5 w-1/3 max-w-full rounded-md" />
-        <div className="mt-auto flex items-center justify-between pt-4">
-          <Skeleton delay={delay - 240} className="h-3 w-16 rounded-full" />
+    <div className="spatial-surface group relative flex flex-row overflow-hidden rounded-card sm:flex-col">
+      {/* Phones: square thumb at the start; sm+: full-bleed video banner. */}
+      <Skeleton
+        delay={delay}
+        className="m-3 me-0 size-20 shrink-0 rounded-2xl sm:m-0 sm:aspect-video sm:size-auto sm:rounded-none"
+      />
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
+        <Skeleton delay={delay - 60} className="h-4 w-3/4 max-w-full rounded-md" />
+        <Skeleton delay={delay - 120} className="mt-1.5 h-4 w-1/2 max-w-full rounded-md" />
+        <Skeleton delay={delay - 180} className="mt-2 h-3 w-2/5 max-w-full rounded-full" />
+        <div className="mt-auto flex items-baseline gap-2 pt-2 sm:pt-4">
+          <Skeleton delay={delay - 240} className="h-5 w-16 max-w-full rounded-md" />
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <Skeleton delay={delay - 300} className="h-3 w-14 rounded-full" />
           <div className="flex items-center gap-2">
-            <Skeleton delay={delay - 300} className="h-8 w-16 rounded-xl" />
-            <Skeleton delay={delay - 360} className="h-8 w-8 rounded-xl" />
+            <Skeleton delay={delay - 360} className="h-11 w-16 rounded-xl sm:h-9" />
+            <Skeleton delay={delay - 420} className="h-11 w-11 rounded-xl sm:h-9 sm:w-9" />
           </div>
         </div>
       </div>

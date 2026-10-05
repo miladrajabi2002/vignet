@@ -1,84 +1,91 @@
 import {
+  ContactCardSkeleton,
   ContactsListSkeleton,
   ContactsToolbarSkeleton,
   DashboardHeaderSkeleton,
-  DashboardPanelSkeleton,
 } from '@/components/dashboard/dashboard-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 
 /**
  * Route-level skeleton for /contacts — an exact mirror of the page:
- * PageHeader (3 actions), sales-pipeline + channel insights panels,
- * the search/filter toolbar, then the mobile card feed / desktop
- * divide-y customer list.
+ * PageHeader (4 compact actions), the right-aligned list/pipeline toggle,
+ * the ui-fbar search bar, the result-count strip, then the mobile card feed
+ * or the desktop divide-y list, pagination, the collapsed charts disclosure
+ * and the collapsed metrics explainer.
  */
 export default function ContactsLoading() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <DashboardHeaderSkeleton actions={3} />
+      <DashboardHeaderSkeleton actions={4} compactOnMobile />
 
-      {/* Insights: sales pipeline donut + second panel */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <DashboardPanelSkeleton action={false}>
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-[11.25rem] w-[11.25rem] shrink-0 rounded-full" />
-            <div className="min-w-0 flex-1 space-y-2.5">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Skeleton delay={-index * 90} className="h-2.5 w-2.5 shrink-0 rounded" />
-                  <Skeleton delay={-index * 90} className="h-3.5 w-24 max-w-full rounded-full" />
-                  <Skeleton delay={-index * 90} className="ms-auto h-3.5 w-10 rounded-full" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </DashboardPanelSkeleton>
-        <DashboardPanelSkeleton delay={-130} rows={4} />
+      {/* List / pipeline view toggle — right-aligned segmented control */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="ui-seg grid-flow-col" role="group">
+          <span className="ui-seg-tab gap-1.5 px-3" data-active="true">
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton delay={-90} className="h-3.5 w-12 rounded-full" />
+          </span>
+          <span className="ui-seg-tab gap-1.5 px-3">
+            <Skeleton delay={-180} className="h-4 w-4 rounded" />
+            <Skeleton delay={-270} className="h-3.5 w-16 rounded-full" />
+          </span>
+        </div>
       </div>
 
-      {/* Search + filter + view-toggle toolbar */}
-      <ContactsToolbarSkeleton />
+      {/* Search + filters bar */}
+      <ContactsToolbarSkeleton delay={-60} />
 
-      {/* Mobile customer list feed */}
+      {/* Result count + live status + select-all */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+        <span className="inline-flex items-center gap-1.5">
+          <Skeleton className="h-3.5 w-3.5 rounded-full" />
+          <Skeleton delay={-90} className="h-3 w-16 rounded-full" />
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton delay={-130} className="h-7 w-24 rounded-full" />
+          <Skeleton delay={-190} className="h-11 w-44 rounded-xl" />
+        </div>
+      </div>
+
+      {/* Mobile: section header + customer card feed */}
       <div className="space-y-3 md:hidden">
         <div className="flex items-end justify-between gap-3 px-1">
           <div className="min-w-0 space-y-2">
             <Skeleton className="h-5 w-32 rounded-md" />
             <Skeleton delay={-90} className="h-3 w-24 rounded-md" />
           </div>
+          <Skeleton delay={-90} className="h-3 w-20 shrink-0 rounded-full" />
         </div>
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="spatial-surface overflow-hidden rounded-card">
-            <div className="flex items-start gap-3 p-4">
-              <Skeleton delay={-index * 110} className="h-11 w-11 shrink-0 rounded-full" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <Skeleton delay={-index * 110} className="h-4 w-28 max-w-full rounded-md" />
-                  <Skeleton delay={-index * 110} className="h-6 w-20 shrink-0 rounded-full" />
-                </div>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <Skeleton delay={-index * 110} className="h-4 w-12 rounded-full" />
-                  <Skeleton delay={-index * 110} className="h-4 w-14 rounded-full" />
-                </div>
-                <Skeleton delay={-index * 110} className="mt-1.5 h-3 w-36 max-w-full rounded-full" />
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--border-subtle)] bg-black/[0.025] p-3">
-              <div className="space-y-1.5">
-                <Skeleton delay={-index * 110} className="h-2.5 w-14 rounded-full" />
-                <Skeleton delay={-index * 110} className="h-3.5 w-16 rounded-md" />
-              </div>
-              <div className="space-y-1.5">
-                <Skeleton delay={-index * 110} className="h-2.5 w-14 rounded-full" />
-                <Skeleton delay={-index * 110} className="h-3.5 w-20 rounded-md" />
-              </div>
-            </div>
-          </div>
+          <ContactCardSkeleton key={index} delay={-120 - index * 110} />
         ))}
       </div>
 
-      {/* Desktop customer list */}
-      <ContactsListSkeleton className="hidden md:block" rows={6} />
+      {/* Desktop: customer list panel */}
+      <ContactsListSkeleton className="hidden md:block" rows={6} delay={-160} />
+
+      {/* Pagination (list view) */}
+      <div className="flex items-center justify-center gap-1.5 pt-2 sm:gap-2">
+        <Skeleton className="h-9 w-9 rounded-control" />
+        <Skeleton delay={-90} className="h-9 min-w-9 rounded-control" />
+        <Skeleton delay={-180} className="h-9 min-w-9 rounded-control" />
+        <Skeleton delay={-270} className="h-9 min-w-9 rounded-control" />
+        <Skeleton delay={-360} className="h-9 w-9 rounded-control" />
+      </div>
+
+      {/* Collapsed charts disclosure («نمودار قیف فروش و مشتریان جدید») */}
+      <div className="flex min-h-11 items-center gap-1.5 px-2">
+        <Skeleton className="h-4 w-4 shrink-0 rounded" />
+        <Skeleton delay={-90} className="h-3.5 w-72 max-w-full rounded-full" />
+      </div>
+
+      {/* Collapsed metrics explainer («این مشتریان از کجا می‌آیند؟») */}
+      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-5">
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <Skeleton className="h-3.5 w-52 max-w-full rounded-full" />
+          <Skeleton delay={-90} className="h-4 w-4 shrink-0 rounded" />
+        </div>
+      </div>
     </div>
   )
 }
