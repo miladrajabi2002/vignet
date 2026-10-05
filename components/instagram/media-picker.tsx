@@ -48,6 +48,8 @@ import { igProxySrc } from '@/lib/instagram/media-proxy'
 import { cn } from '@/lib/utils'
 
 const IG_GRADIENT = 'linear-gradient(45deg, #f58529 0%, #dd2a7b 50%, #8134af 100%)'
+/** Faded variant for decorative, non-interactive surfaces (skeleton rings). */
+const IG_GRADIENT_SOFT = 'linear-gradient(45deg, rgba(245,133,41,0.18) 0%, rgba(221,42,123,0.18) 50%, rgba(129,52,175,0.18) 100%)'
 
 /** One media entry returned by /api/agents/{id}/instagram/media/list. */
 export interface InstagramMediaItem {
@@ -77,20 +79,6 @@ function faCompact(n: number | undefined): string | null {
         if (n >= 1_000_000) return `${fa((n / 1_000_000).toFixed(1).replace(/\.0$/, ''))} میلیون`
         if (n >= 1_000) return `${fa((n / 1_000).toFixed(1).replace(/\.0$/, ''))} هزار`
         return fa(n)
-}
-
-/** Remaining-time label in Persian: «۳ ساعت و ۱۲ دقیقه». */
-function faRemaining(targetMs: number, nowMs: number): string | null {
-        const diff = targetMs - nowMs
-        if (diff <= 0) return null
-        const hours = Math.floor(diff / 3_600_000)
-        const minutes = Math.floor((diff % 3_600_000) / 60_000)
-        const fa = (n: number) => n.toLocaleString('fa-IR')
-        if (hours >= 1) {
-                return minutes > 0 ? `${fa(hours)} ساعت و ${fa(minutes)} دقیقه` : `${fa(hours)} ساعت`
-        }
-        if (minutes >= 1) return `${fa(minutes)} دقیقه`
-        return 'کمتر از یک دقیقه'
 }
 
 /** Persian relative date for a post's timestamp: «۳ روز پیش». */
@@ -246,6 +234,19 @@ function PostTile({
         )
 }
 
+/** Compact remaining-time for the line UNDER a story tile: «۳ ساعت» / «۴۵ دقیقه».
+ * Rounded to the biggest unit so the label never overflows a narrow tile. */
+function faRemainingCompact(targetMs: number, nowMs: number): string | null {
+        const diff = targetMs - nowMs
+        if (diff <= 0) return null
+        const hours = Math.floor(diff / 3_600_000)
+        const minutes = Math.floor((diff % 3_600_000) / 60_000)
+        const fa = (n: number) => n.toLocaleString('fa-IR')
+        if (hours >= 1) return `${fa(hours)} ساعت مانده`
+        if (minutes >= 1) return `${fa(minutes)} دقیقه مانده`
+        return 'چند لحظه مانده'
+}
+
 /** A selectable 9:16 story tile (strip). */
 function StoryTile({
         item,
@@ -258,13 +259,13 @@ function StoryTile({
         onToggle: () => void
         now: number
 }) {
-        const remaining = item.expiresAt ? faRemaining(new Date(item.expiresAt).getTime(), now) : null
+        const remaining = item.expiresAt ? faRemainingCompact(new Date(item.expiresAt).getTime(), now) : null
         return (
                 <button
                         type="button"
                         onClick={onToggle}
                         aria-pressed={isSelected}
-                        className="group w-[108px] shrink-0 text-start sm:w-[120px]"
+                        className="group w-[84px] shrink-0 text-start sm:w-[100px]"
                 >
                         <StoryRing live={Boolean(remaining)}>
                                 <div
@@ -288,13 +289,6 @@ function StoryTile({
                                                         <Clock className="h-7 w-7" aria-hidden="true" />
                                                 </div>
                                         )}
-                                        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-2">
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white/95">
-                                                        <Clock aria-hidden="true" className="h-3 w-3" />
-                                                        {remaining ?? 'منقضی'}
-                                                </span>
-                                                <MediaBadge item={item} />
-                                        </div>
                                         {isSelected && (
                                                 <span
                                                         className="absolute inset-0 z-10 grid place-items-center bg-black/35"
@@ -310,8 +304,20 @@ function StoryTile({
                                         )}
                                 </div>
                         </StoryRing>
-                        <p className="mt-1.5 truncate px-0.5 text-[12px] leading-5 text-[var(--text-primary)]">
-                                {remaining ? `مانده: ${remaining}` : 'منقضی شده'}
+                        {/* Countdown lives UNDER the tile (operator request: no overlay
+                            on the image) — a clock glyph + compact time so a phone-width
+                            tile never overflows its label. */}
+                        <p
+                                className={cn(
+                                        'mt-1.5 flex items-center justify-center gap-1 truncate px-0.5 text-[11px] leading-5',
+                                        remaining ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]',
+                                )}
+                        >
+                                <Clock
+                                        aria-hidden="true"
+                                        className={cn('h-3 w-3 shrink-0', remaining ? 'text-[#dd2a7b]' : 'text-[var(--text-hint)]')}
+                                />
+                                {remaining ? remaining : 'منقضی'}
                         </p>
                 </button>
         )
@@ -521,13 +527,50 @@ export function InstagramMediaPicker({
 
                                 {/* Body states */}
                                 {loading ? (
-                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                                {Array.from({ length: 8 }).map((_, i) => (
-                                                        <div
-                                                                key={i}
-                                                                className="aspect-square animate-pulse rounded-xl bg-[var(--bg-muted)]"
-                                                        />
-                                                ))}
+                                        /* Layout-matched skeleton (operator request): mirrors the
+                                           REAL layout — story strip + post grid with caption lines —
+                                           so the jump when data lands is minimal. Uses the shared
+                                           .skeleton-shimmer primitive, not a flat pulse box. */
+                                        <div className="space-y-4" aria-hidden="true">
+                                                {showStories && (
+                                                        <section className="space-y-2">
+                                                                <div className="skeleton-shimmer h-3.5 w-28 rounded-full" />
+                                                                <div className="-mx-1 flex gap-2.5 overflow-hidden px-1">
+                                                                        {Array.from({ length: 6 }).map((_, i) => (
+                                                                                <div key={i} className="w-[84px] shrink-0 space-y-1.5 sm:w-[100px]">
+                                                                                        <div
+                                                                                                className="rounded-[1.25rem] p-[2.5px]"
+                                                                                                style={{ background: i < 3 ? IG_GRADIENT_SOFT : 'var(--border-default)' }}
+                                                                                        >
+                                                                                                <div className="skeleton-shimmer aspect-[9/16] w-full rounded-[1.1rem]" />
+                                                                                        </div>
+                                                                                        <div className="skeleton-shimmer mx-auto h-3 w-14 rounded-full" />
+                                                                                </div>
+                                                                        ))}
+                                                                </div>
+                                                        </section>
+                                                )}
+                                                {showPosts && (
+                                                        <section className="space-y-2">
+                                                                <div className="skeleton-shimmer h-3.5 w-32 rounded-full" />
+                                                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                                                        {Array.from({ length: 8 }).map((_, i) => (
+                                                                                <div key={i} className="space-y-1.5">
+                                                                                        <div
+                                                                                                className={cn(
+                                                                                                        'skeleton-shimmer aspect-square rounded-xl',
+                                                                                                        i === 0 && 'shadow-[0_0_0_2.5px_var(--bg-base),0_0_0_5px_#dd2a7b]',
+                                                                                                )}
+                                                                                        />
+                                                                                        <div className="space-y-1 px-0.5">
+                                                                                                <div className="skeleton-shimmer h-3 w-4/5 rounded-full" />
+                                                                                                <div className="skeleton-shimmer h-2.5 w-2/5 rounded-full" />
+                                                                                        </div>
+                                                                                </div>
+                                                                        ))}
+                                                                </div>
+                                                        </section>
+                                                )}
                                         </div>
                                 ) : error ? (
                                         <div className="flex flex-col items-center gap-3 py-10 text-center">

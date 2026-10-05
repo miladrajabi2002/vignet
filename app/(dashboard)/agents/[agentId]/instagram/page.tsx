@@ -29,6 +29,13 @@ function readIgError(sp: IgSearchParams | undefined): string | null {
         return typeof v === 'string' && v ? v : null
 }
 
+/** The family tab to open the manager on (?tab=STORY…), validated. */
+function readTab(sp: IgSearchParams | undefined): 'DIRECT_MESSAGE' | 'COMMENT' | 'STORY' | undefined {
+        const v = sp?.tab
+        const raw = (Array.isArray(v) ? v[0] : v)?.toUpperCase()
+        return raw === 'COMMENT' || raw === 'STORY' ? raw : raw === 'DIRECT_MESSAGE' ? raw : undefined
+}
+
 export default async function InstagramAutomationPage(
         props: {
                 params: Promise<{ agentId: string }>
@@ -38,6 +45,8 @@ export default async function InstagramAutomationPage(
                 /** Pre-read redirect flags — used when embedded by the workspace /instagram page. */
                 igConnected?: boolean
                 igError?: string | null
+                /** Pre-read ?tab= — the workspace /instagram page forwards it. */
+                initialTab?: 'DIRECT_MESSAGE' | 'COMMENT' | 'STORY'
         },
 ) {
         const params = await props.params
@@ -48,6 +57,7 @@ export default async function InstagramAutomationPage(
                         returnTo={props.returnTo ?? `/agents/${params.agentId}/instagram`}
                         igConnected={props.igConnected ?? readIgFlag(sp, 'ig_connected')}
                         igError={props.igError ?? readIgError(sp)}
+                        initialTab={props.initialTab ?? readTab(sp)}
                 />
         )
 }
@@ -70,11 +80,13 @@ async function InstagramAutomationContent({
         returnTo,
         igConnected,
         igError,
+        initialTab,
 }: {
         agentId: string
         returnTo: string
         igConnected: boolean
         igError: string | null
+        initialTab?: 'DIRECT_MESSAGE' | 'COMMENT' | 'STORY'
 }) {
         const user = await requireUser()
         const tc = await getTranslations('channels')
@@ -202,6 +214,7 @@ async function InstagramAutomationContent({
                                 accountUsername={accountUsername}
                                 initialAutomations={automations}
                                 initialSettings={settings}
+                                initialTab={initialTab}
                                 reports={reports}
                         />
                 </div>

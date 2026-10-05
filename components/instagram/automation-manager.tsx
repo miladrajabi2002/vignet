@@ -65,12 +65,16 @@ export function InstagramAutomationManager({
         accountUsername,
         initialAutomations,
         initialSettings,
+        initialTab,
         reports = {},
 }: {
         agentId: string
         accountUsername: string
         initialAutomations: Automation[]
         initialSettings?: InstagramAutomationSettings
+        /** Which family tab to open on mount (e.g. ?tab=STORY after saving
+         *  a story scenario). Defaults to دایرکت. */
+        initialTab?: AutomationType
         /** 30-day results per automation (people reached, chats, orders…). */
         reports?: AutomationReportMap
 }) {
@@ -85,7 +89,11 @@ export function InstagramAutomationManager({
         const [settings, setSettings] = useState<InstagramAutomationSettings>(
                 initialSettings ?? DEFAULT_SETTINGS,
         )
-        const [activeTab, setActiveTab] = useState<AutomationType>('DIRECT_MESSAGE')
+        // Deep-linkable tab (?tab=STORY) so the form can return the operator
+        // to the family they were working in; falls back to دایرکت.
+        const [activeTab, setActiveTab] = useState<AutomationType>(
+                TABS.some((tab) => tab.key === initialTab) ? (initialTab as AutomationType) : 'DIRECT_MESSAGE',
+        )
         const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
         const [deleting, setDeleting] = useState(false)
         const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)

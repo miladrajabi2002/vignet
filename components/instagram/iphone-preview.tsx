@@ -40,6 +40,7 @@ import {
 } from '@/components/instagram/ios-kit'
 import { cn } from '@/lib/utils'
 import { ProductImage } from '@/components/products/product-image'
+import { igProxySrc } from '@/lib/instagram/media-proxy'
 
 /**
  * IphonePreview — the scenario builder's live phone preview.
@@ -129,6 +130,14 @@ export interface IphonePreviewProps {
         replyMode: ReplyMode
         /** The list of messages the bot will send (STATIC / MULTI_MESSAGE). */
         messages: AutomationMessage[]
+        /** Operator-picked media (شرط اجرا): the post the comments happen on /
+         *  the story the replies come from. Rendered photo-real inside the
+         *  preview; when empty the screens keep their placeholder art. */
+        selectedMedia?: Array<{
+                url?: string
+                kind: 'POST' | 'STORY'
+                expiresAt?: string
+        }>
         /** DM funnel: also send this content as a DM to the commenter. */
         dmOnComment?: boolean
         /** DM funnel: post a short public ack on the comment itself. */
@@ -572,11 +581,17 @@ function StoryScreen(props: ScreenProps) {
                 userText,
                 replyMode,
                 messages,
+                selectedMedia,
                 followGate,
                 gatePrompt,
                 gateButton,
         } = props
         const time = useIgClock()
+        // The story the customer replied to — the operator's pick (شرط اجرا),
+        // falling back to the neutral gradient placeholder when nothing is
+        // picked (the scenario then runs on EVERY story).
+        const story = selectedMedia?.find((m) => m.kind === 'STORY')
+        const storyThumb = story?.url ? igProxySrc(story.url) : undefined
 
         return (
                 <IgDmScreen header={dmHeader(accountUsername, accountAvatarUrl)} composer={COMPOSER}>
@@ -591,7 +606,19 @@ function StoryScreen(props: ScreenProps) {
                                         className="relative grid place-items-center overflow-hidden shadow-sm"
                                         style={{ width: pt(72), height: pt(124), borderRadius: pt(12), background: IG_GRADIENT }}
                                 >
-                                        <span className="font-medium text-white/90" style={{ fontSize: pt(11) }}>Story</span>
+                                        {storyThumb ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                        src={storyThumb}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        referrerPolicy="no-referrer"
+                                                        className="absolute inset-0 h-full w-full object-cover"
+                                                />
+                                        ) : (
+                                                <span className="font-medium text-white/90" style={{ fontSize: pt(11) }}>Story</span>
+                                        )}
                                 </div>
                                 <IgBubble side="out" muted={!userText.trim()}>
                                         {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
@@ -621,6 +648,7 @@ function CommentScreen(props: ScreenProps) {
                 userText,
                 replyMode,
                 messages,
+                selectedMedia,
                 dmOnComment,
                 commentAckEnabled,
                 commentAckText,
@@ -629,6 +657,19 @@ function CommentScreen(props: ScreenProps) {
                 gateButton,
         } = props
         const gate = followGate && replyMode !== 'SILENT' && replyMode !== 'STOP_AI' ? gateCopy(gatePrompt, gateButton) : null
+
+        // The posts the scenario is scoped to (شرط اجرا). Empty → the scenario
+        // runs on every post; the preview keeps its generic placeholder art.
+        const pickedPosts = (selectedMedia ?? []).filter((m) => m.kind === 'POST' && m.url)
+        const [coverIdx, setCoverIdx] = useState(0)
+        // Keep the carousel index valid when the operator changes the pick.
+        useEffect(() => {
+                if (coverIdx > Math.max(0, pickedPosts.length - 1)) setCoverIdx(0)
+        }, [pickedPosts.length, coverIdx])
+        const shownIdx = Math.min(coverIdx, Math.max(0, pickedPosts.length - 1))
+        const shownThumb = pickedPosts[shownIdx]?.url
+                ? igProxySrc(pickedPosts[shownIdx]!.url!)
+                : undefined
 
         // v3.1: comment→DM funnels no longer post a public reply — the DM
         // sequence IS the reply. The public bubble only renders for public
@@ -660,16 +701,89 @@ function CommentScreen(props: ScreenProps) {
                                 <MoreHorizontal className="ms-auto h-3.5 w-3.5 text-[var(--text-secondary)]" />
                         </div>
 
-                        {/* Square post image area */}
-                        <div
-                                className="relative flex aspect-square items-center justify-center text-white"
-                                style={{ background: IG_GRADIENT }}
+                        {/* Square post image area — the operator's picked post
+                            (شرط اجرا); multiple picks become a tappable carousel,
+                            exactly like a multi-slide IG post. No type badge —
+                            the image speaks for itself (operator request). */}
+                        <button
+                                type="button"
+                                disabled={pickedPosts.length < 2}
+                                onClick={() => setCoverIdx((i) => (i + 1) % pickedPosts.length)}
+                                aria-label="پست بعدی"
+                                className="relative block w-full"
                         >
-                                <ImageIcon className="h-8 w-8 opacity-80" />
-                                <div className="absolute top-1.5 end-1.5 rounded-full bg-black/30 px-1.5 py-0.5 text-[8px] text-white backdrop-blur">
-                                        1/1
+                                <div
+                                        className="relative flex aspect-square items-center justify-center text-white"
+                                        style={{ background: IG_GRADIENT }}
+                                >
+                                        {shownThumb ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                        src={shownThumb}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        referrerPolicy="no-referrer"
+                                                        className="absolute inset-0 h-full w-full object-cover"
+                                                />
+                                        ) : (
+                                                <ImageIcon className="h-8 w-8 opacity-80" />
+                                        )}
+                                        {pickedPosts.length > 1 ? (
+                                                <>
+                                                        {/* Instagram-style carousel dots */}
+                                                        <span className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 gap-1">
+                                                                {pickedPosts.map((_, i) => (
+                                                                        <span
+                                                                                key={i}
+                                                                                className="h-1 w-1 rounded-full"
+                                                                                style={{
+                                                                                        background: i === shownIdx ? '#3897f0' : 'rgba(255,255,255,0.55)',
+                                                                                        boxShadow: '0 0 2px rgba(0,0,0,0.35)',
+                                                                                }}
+                                                                        />
+                                                                ))}
+                                                        </span>
+                                                        <div className="absolute top-1.5 end-1.5 rounded-full bg-black/30 px-1.5 py-0.5 text-[8px] text-white backdrop-blur">
+                                                                {`${shownIdx + 1}/${pickedPosts.length}`}
+                                                        </div>
+                                                </>
+                                        ) : (
+                                                <div className="absolute top-1.5 end-1.5 rounded-full bg-black/30 px-1.5 py-0.5 text-[8px] text-white backdrop-blur">
+                                                        1/1
+                                                </div>
+                                        )}
                                 </div>
-                        </div>
+                        </button>
+                        {pickedPosts.length > 1 && (
+                                /* Mini rail of every picked post — mirrors Instagram's
+                                   multi-post indicator, keeping the scope visible. */
+                                <div dir="ltr" className="flex items-center gap-1.5 overflow-x-auto border-b border-black/[0.06] px-2.5 py-1.5 no-scrollbar">
+                                        {pickedPosts.map((m, i) => (
+                                                <button
+                                                        key={i}
+                                                        type="button"
+                                                        onClick={() => setCoverIdx(i)}
+                                                        aria-label={`پست انتخاب‌شده ${i + 1}`}
+                                                        className="h-9 w-9 shrink-0 overflow-hidden rounded-md transition-transform"
+                                                        style={{
+                                                                outline: i === shownIdx ? '2px solid #3897f0' : 'none',
+                                                                outlineOffset: '1px',
+                                                        }}
+                                                >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                                src={igProxySrc(m.url)}
+                                                                alt=""
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                                referrerPolicy="no-referrer"
+                                                                className="h-full w-full object-cover"
+                                                        />
+                                                </button>
+                                        ))}
+                                </div>
+                        )}
 
                         {/* Action row — like, comment, share, save */}
                         <div className="flex items-center gap-3 px-2.5 py-1.5 text-black">

@@ -21,6 +21,13 @@ export default async function InstagramWorkspacePage({
   const user = await requireUser()
   const locale = await getLocale()
   const sp = searchParams ? await searchParams : {}
+  // ?tab=STORY|COMMENT|… — the scenario form returns here after a save; the
+  // tab is forwarded so the operator lands on the family they worked in.
+  const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab
+  const initialTab =
+    rawTab === 'STORY' || rawTab === 'COMMENT' || rawTab === 'DIRECT_MESSAGE'
+      ? (rawTab as 'STORY' | 'COMMENT' | 'DIRECT_MESSAGE')
+      : undefined
   const agent = await prisma.agent.findFirst({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ active: 'desc' }, { createdAt: 'asc' }],
@@ -35,6 +42,7 @@ export default async function InstagramWorkspacePage({
           returnTo="/instagram"
           igConnected={sp.ig_connected === '1' || sp.ig_connected === 'true'}
           igError={typeof sp.ig_error === 'string' && sp.ig_error ? sp.ig_error : null}
+          initialTab={initialTab}
         />
       ) : (
         <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center text-sm text-[var(--text-secondary)]">

@@ -842,8 +842,14 @@ export function AutomationForm({
                 } finally {
                         if (saved) {
                                 // Let the button confirm the save before the page moves on.
+                                // Return to the SAME family tab the scenario was created
+                                // under (operator request: saving a story scenario used to
+                                // drop the operator on the دایرکت tab).
                                 saveState.done()
-                                window.setTimeout(() => router.push('/instagram'), SAVED_BEAT_MS)
+                                window.setTimeout(
+                                        () => router.push(`/instagram?tab=${type}`),
+                                        SAVED_BEAT_MS,
+                                )
                         } else {
                                 saveState.fail()
                         }
@@ -893,6 +899,11 @@ export function AutomationForm({
                 userText: previewUserText,
                 replyMode: form.replyMode,
                 messages: previewMessages,
+                // The picked post/story (شرط اجرا) rendered inside the phone —
+                // the comment screen shows the post, the story screen the story.
+                selectedMedia: [...form.postSnapshots, ...form.storySnapshots]
+                        .slice(0, 10)
+                        .map((s) => ({ url: s.mediaUrl, kind: s.kind, expiresAt: s.expiresAt })),
                 dmOnComment: form.dmOnComment,
                 commentAckEnabled: form.commentAckEnabled,
                 commentAckText: form.commentAckText,
@@ -950,7 +961,7 @@ export function AutomationForm({
                                         : type === 'COMMENT' ? 'پاسخ خودکار به کامنت پست‌ها'
                                         : 'پاسخ خودکار به استوری‌ها'
                                 }
-                                back={{ href: '/instagram', label: 'اینستاگرام' }}
+                                back={{ href: `/instagram?tab=${type}`, label: 'اینستاگرام' }}
                         />
 
                         {/* Scenario family switcher — create mode only. One tap
@@ -1379,7 +1390,7 @@ export function AutomationForm({
                                                                         <span aria-hidden className="hidden flex-1 lg:block" />
                                                                 )}
                                                                 <Link
-                                                                        href="/instagram"
+                                                                        href={`/instagram?tab=${type}`}
                                                                         className="hidden min-h-11 shrink-0 items-center rounded-2xl px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] sm:inline-flex"
                                                                 >
                                                                         انصراف
