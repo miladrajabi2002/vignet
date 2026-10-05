@@ -15,7 +15,13 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function ProductsLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری محصولات"
+      className="mx-auto max-w-6xl space-y-6"
+    >
+      <span className="sr-only">در حال بارگذاری محصولات...</span>
       <DashboardHeaderSkeleton actions={3} compactOnMobile />
 
       {/* Products / orders / requests tabs */}

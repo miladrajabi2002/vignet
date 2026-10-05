@@ -19,7 +19,13 @@ import {
  */
 export default function OverviewLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری داشبورد"
+      className="mx-auto max-w-6xl space-y-5 sm:space-y-6"
+    >
+      <span className="sr-only">در حال بارگذاری داشبورد...</span>
       {/* ── Operations center: summary + live flow in one card ── */}
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <ArrivalIntroSkeleton />

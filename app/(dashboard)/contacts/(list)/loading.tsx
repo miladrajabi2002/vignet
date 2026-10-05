@@ -15,7 +15,13 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function ContactsLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری مخاطبان"
+      className="mx-auto max-w-6xl space-y-6"
+    >
+      <span className="sr-only">در حال بارگذاری مخاطبان...</span>
       <DashboardHeaderSkeleton actions={4} compactOnMobile />
 
       {/* List / pipeline view toggle — right-aligned segmented control */}

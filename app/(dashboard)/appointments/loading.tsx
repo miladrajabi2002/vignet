@@ -12,7 +12,13 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function AppointmentsLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری نوبت‌ها"
+      className="mx-auto max-w-6xl space-y-5"
+    >
+      <span className="sr-only">در حال بارگذاری نوبت‌ها...</span>
       <DashboardHeaderSkeleton actions={2} />
 
       {/* Section tabs + 4-cell KPI strip */}

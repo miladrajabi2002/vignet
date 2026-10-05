@@ -8,7 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function ServicesLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری خدمات"
+      className="mx-auto max-w-6xl space-y-5"
+    >
+      <span className="sr-only">در حال بارگذاری خدمات...</span>
       <DashboardHeaderSkeleton actions={1} />
 
       {/* KPI strip beside search + status tabs */}

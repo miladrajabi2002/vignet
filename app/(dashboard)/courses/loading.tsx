@@ -8,7 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function CoursesLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری دوره‌ها"
+      className="mx-auto max-w-6xl space-y-5"
+    >
+      <span className="sr-only">در حال بارگذاری دوره‌ها...</span>
       <DashboardHeaderSkeleton actions={1} />
 
       {/* Status tabs + 4-cell KPI strip */}

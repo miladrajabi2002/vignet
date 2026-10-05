@@ -44,6 +44,7 @@ import {
         type LucideIcon,
 } from 'lucide-react'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { Skeleton } from '@/components/ui/skeleton'
 import { igProxySrc } from '@/lib/instagram/media-proxy'
 import { cn } from '@/lib/utils'
 
@@ -531,55 +532,56 @@ export function InstagramMediaPicker({
                                 <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
                                 {loading ? (
                                         /* Layout-matched skeleton (operator request): mirrors the
-                                           REAL layout — story strip + post grid with caption lines —
-                                           so the jump when data lands is minimal. Uses the shared
-                                           .skeleton-shimmer primitive, not a flat pulse box. */
-                                        <div className="space-y-4" aria-hidden="true">
-                                                {showStories && (
-                                                        <section className="space-y-2">
-                                                                {/* Banner + header + strip — every block mirrors the
-                                                                    LOADED layout's exact height so nothing shifts. */}
-                                                                <div className="skeleton-shimmer h-9 rounded-xl" />
-                                                                <div className="skeleton-shimmer h-4 w-28 rounded-full" />
-                                                                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                                                        {Array.from({ length: 8 }).map((_, i) => (
-                                                                                <div key={i} className="w-[84px] shrink-0 sm:w-[100px]">
-                                                                                        <div
-                                                                                                className="rounded-[1.25rem] p-[2.5px]"
-                                                                                                style={{ background: i < 3 ? IG_GRADIENT_SOFT : 'var(--border-default)' }}
-                                                                                        >
-                                                                                                <div className="skeleton-shimmer aspect-[9/16] w-full rounded-[1.1rem]" />
-                                                                                        </div>
-                                                                                        <div className="skeleton-shimmer mx-auto mt-1.5 h-5 w-16 rounded-full" />
-                                                                                </div>
-                                                                        ))}
-                                                                </div>
-                                                        </section>
-                                                )}
-                                                {showPosts && (
-                                                        <section className="space-y-2">
-                                                                <div className="skeleton-shimmer h-4 w-36 rounded-full" />
-                                                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                                                        {Array.from({ length: 16 }).map((_, i) => (
-                                                                                <div key={i}>
-                                                                                        <div
-                                                                                                className={cn(
-                                                                                                        'skeleton-shimmer aspect-square rounded-xl',
-                                                                                                        i === 0 && 'shadow-[0_0_0_2.5px_var(--bg-base),0_0_0_5px_#dd2a7b]',
-                                                                                                )}
-                                                                                        />
-                                                                                        <div className="mt-1.5 space-y-0.5 px-0.5">
-                                                                                                <div className="skeleton-shimmer h-5 w-4/5 rounded-full" />
-                                                                                                <div className="skeleton-shimmer h-4 w-2/5 rounded-full" />
-                                                                                        </div>
-                                                                                </div>
-                                                                        ))}
-                                                                </div>
-                                                        </section>
-                                                )}
-                                        </div>
-                                ) : error ? (
-                                        <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
+REAL layout — story strip + post grid with caption lines —
+					   so the jump when data lands is minimal. Uses the shared
+					   Skeleton primitive with staggered shimmer delays. */
+					<div className="space-y-4">
+						{showStories && (
+							<section className="space-y-2">
+								{/* Banner + header + strip — every block mirrors the
+								    LOADED layout's exact height so nothing shifts. */}
+								<Skeleton className="h-9 rounded-xl" />
+								<Skeleton delay={-40} className="h-4 w-28 rounded-full" />
+								<div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									{Array.from({ length: 8 }).map((_, i) => (
+										<div key={i} className="w-[84px] shrink-0 sm:w-[100px]">
+											<div
+												className="rounded-[1.25rem] p-[2.5px]"
+												style={{ background: i < 3 ? IG_GRADIENT_SOFT : 'var(--border-default)' }}
+											>
+												<Skeleton delay={-80 - i * 50} className="aspect-[9/16] w-full rounded-[1.1rem]" />
+											</div>
+											<Skeleton delay={-80 - i * 50 - 30} className="mx-auto mt-1.5 h-5 w-16 rounded-full" />
+										</div>
+									))}
+								</div>
+							</section>
+						)}
+						{showPosts && (
+							<section className="space-y-2">
+								<Skeleton delay={-120} className="h-4 w-36 rounded-full" />
+								<div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+									{Array.from({ length: 16 }).map((_, i) => (
+										<div key={i}>
+											<Skeleton
+												delay={-150 - i * 40}
+												className={cn(
+													'aspect-square rounded-xl',
+													i === 0 && 'shadow-[0_0_0_2.5px_var(--bg-base),0_0_0_5px_#dd2a7b]',
+												)}
+											/>
+											<div className="mt-1.5 space-y-0.5 px-0.5">
+												<Skeleton delay={-150 - i * 40 - 20} className="h-5 w-4/5 rounded-full" />
+												<Skeleton delay={-150 - i * 40 - 40} className="h-4 w-2/5 rounded-full" />
+											</div>
+										</div>
+									))}
+								</div>
+							</section>
+						)}
+					</div>
+				) : error ? (
+					<div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
                                                 <span className="grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-red-500">
                                                         <AlertCircle className="h-6 w-6" aria-hidden="true" />
                                                 </span>

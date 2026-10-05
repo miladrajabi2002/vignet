@@ -12,7 +12,13 @@ import {
  */
 export default function ConversationsLoading() {
   return (
-    <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری مکالمات"
+      className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3"
+    >
+      <span className="sr-only">در حال بارگذاری مکالمات...</span>
       <DashboardHeaderSkeleton actions={2} compactOnMobile />
 
       <div className="min-w-0 md:overflow-hidden md:rounded-card md:border md:border-[var(--border-subtle)] md:bg-white md:shadow-[var(--elev-1)]">
