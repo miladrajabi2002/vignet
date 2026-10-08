@@ -18,7 +18,6 @@ export default function ContactsLoading() {
     <div
       role="status"
       aria-busy="true"
-      aria-label="در حال بارگذاری مخاطبان"
       className="mx-auto max-w-6xl space-y-6"
     >
       <span className="sr-only">در حال بارگذاری مخاطبان...</span>

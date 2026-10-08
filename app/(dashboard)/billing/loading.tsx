@@ -14,7 +14,6 @@ export default function BillingLoading() {
     <div
       role="status"
       aria-busy="true"
-      aria-label="در حال بارگذاری صورتحساب و اشتراک"
       className="mx-auto max-w-6xl space-y-6"
     >
       <span className="sr-only">در حال بارگذاری صورتحساب و اشتراک...</span>

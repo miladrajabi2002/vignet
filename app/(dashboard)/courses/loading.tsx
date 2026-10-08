@@ -11,7 +11,6 @@ export default function CoursesLoading() {
     <div
       role="status"
       aria-busy="true"
-      aria-label="در حال بارگذاری دوره‌ها"
       className="mx-auto max-w-6xl space-y-5"
     >
       <span className="sr-only">در حال بارگذاری دوره‌ها...</span>

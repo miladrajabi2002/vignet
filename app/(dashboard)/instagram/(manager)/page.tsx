@@ -23,7 +23,7 @@ export default async function InstagramWorkspacePage({
   const sp = searchParams ? await searchParams : {}
   // ?tab=STORY|COMMENT|… — the scenario form returns here after a save; the
   // tab is forwarded so the operator lands on the family they worked in.
-  const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab
+  const rawTab = (Array.isArray(sp.tab) ? sp.tab[0] : sp.tab)?.toUpperCase()
   const initialTab =
     rawTab === 'STORY' || rawTab === 'COMMENT' || rawTab === 'DIRECT_MESSAGE'
       ? (rawTab as 'STORY' | 'COMMENT' | 'DIRECT_MESSAGE')

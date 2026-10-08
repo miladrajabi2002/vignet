@@ -93,7 +93,7 @@ const actionSchema = z.object({
         // itself (e.g. «تو دایرکت فرستادم») so it isn't left unanswered.
         commentAckEnabled: z.boolean().default(false),
         commentAckText: z.string().default(''),
-        commentAckTexts: z.array(z.string()).max(3).default([]),
+        commentAckTexts: z.array(z.string().max(300)).max(3).default([]),
         followGate: z.boolean().default(false),
         gateMode: z.enum(['SOFT', 'STORY_MENTION']).default('SOFT'),
         gateButtonType: z.enum(['button', 'quick_reply']).default('button'),

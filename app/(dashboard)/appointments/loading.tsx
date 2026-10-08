@@ -15,7 +15,6 @@ export default function AppointmentsLoading() {
     <div
       role="status"
       aria-busy="true"
-      aria-label="در حال بارگذاری نوبت‌ها"
       className="mx-auto max-w-6xl space-y-5"
     >
       <span className="sr-only">در حال بارگذاری نوبت‌ها...</span>

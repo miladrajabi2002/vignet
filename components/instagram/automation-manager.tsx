@@ -94,6 +94,14 @@ export function InstagramAutomationManager({
         const [activeTab, setActiveTab] = useState<AutomationType>(
                 TABS.some((tab) => tab.key === initialTab) ? (initialTab as AutomationType) : 'DIRECT_MESSAGE',
         )
+        // Mirror the tab into the URL so a refresh (or returning with the
+        // browser's back button) reopens the family the operator was on.
+        const selectTab = (key: AutomationType) => {
+                setActiveTab(key)
+                const url = new URL(window.location.href)
+                url.searchParams.set('tab', key)
+                window.history.replaceState(null, '', url)
+        }
         const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
         const [deleting, setDeleting] = useState(false)
         const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
@@ -244,7 +252,7 @@ export function InstagramAutomationManager({
                                                         role="tab"
                                                         aria-selected={active}
                                                         aria-controls={`scenario-panel-${key}`}
-                                                        onClick={() => setActiveTab(key)}
+                                                        onClick={() => selectTab(key)}
                                                         className="ui-seg-tab min-h-12 gap-2 px-2 text-[13px]"
                                                 >
                                                         <Icon className="hidden h-4 w-4 shrink-0 sm:block" />

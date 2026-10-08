@@ -22,7 +22,6 @@ export default function OverviewLoading() {
     <div
       role="status"
       aria-busy="true"
-      aria-label="در حال بارگذاری داشبورد"
       className="mx-auto max-w-6xl space-y-5 sm:space-y-6"
     >
       <span className="sr-only">در حال بارگذاری داشبورد...</span>

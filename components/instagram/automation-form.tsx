@@ -255,6 +255,9 @@ const DEFAULT_COMMENT_ACK_TEXTS = [
         'فرستادم برات',
 ] as const
 
+/** The engine picks one of at most this many ack variants. */
+const MAX_COMMENT_ACK_TEXTS = 3
+
 /** Trim, drop empties and cap at 3 ack variants (engine contract). */
 function normalizeAckTexts(raw: unknown): string[] {
         if (!Array.isArray(raw)) return []
@@ -262,7 +265,7 @@ function normalizeAckTexts(raw: unknown): string[] {
                 .filter((t): t is string => typeof t === 'string')
                 .map((t) => t.trim())
                 .filter(Boolean)
-                .slice(0, 3)
+                .slice(0, MAX_COMMENT_ACK_TEXTS)
 }
 
 function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
@@ -792,6 +795,17 @@ export function AutomationForm({
                         setError('متن حداقل یک گزینهٔ ریپلای را بنویسید.')
                         return
                 }
+                // The ack switch promises «حداقل یکی»: saving it ON with every
+                // variant empty used to store an ack the engine silently skips.
+                if (
+                        type === 'COMMENT' &&
+                        form.dmOnComment &&
+                        form.commentAckEnabled &&
+                        !form.commentAckTexts.some((t) => t.trim())
+                ) {
+                        setError('حداقل یک پاسخ ریپلای بنویسید یا «ریپلای عمومی روی کامنت» را خاموش کنید.')
+                        return
+                }
                 // ── MEDIA UPLOAD GATE ──────────────────────────────────────────────
                 // A `blob:` mediaUrl means the media upload is still in-flight (or
                 // failed). blob: URLs are session-local to the operator's browser —
@@ -1296,23 +1310,53 @@ export function AutomationForm({
                                                                                                 placeholder={DEFAULT_COMMENT_ACK_TEXTS[idx]}
                                                                                                 rows={2}
                                                                                                 maxLength={200}
+                                                                                                aria-label={`پاسخ ریپلای ${(idx + 1).toLocaleString('fa-IR')}`}
                                                                                                 className="input resize-none"
                                                                                         />
+                                                                                        {form.commentAckTexts.length > 1 && (
+                                                                                                <button
+                                                                                                        type="button"
+                                                                                                        onClick={() =>
+                                                                                                                set(
+                                                                                                                        'commentAckTexts',
+                                                                                                                        form.commentAckTexts.filter((_, i) => i !== idx),
+                                                                                                                )
+                                                                                                        }
+                                                                                                        aria-label={`حذف پاسخ ${(idx + 1).toLocaleString('fa-IR')}`}
+                                                                                                        className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                                                                >
+                                                                                                        <X className="h-4 w-4" aria-hidden="true" />
+                                                                                                </button>
+                                                                                        )}
                                                                                 </div>
                                                                         ))}
+                                                                        {/* A scenario saved with fewer than 3 variants (or a
+                                                                            legacy single text) must still be able to grow. */}
+                                                                        {form.commentAckTexts.length < MAX_COMMENT_ACK_TEXTS && (
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => set('commentAckTexts', [...form.commentAckTexts, ''])}
+                                                                                        className="spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-dashed border-[var(--border-default)] px-3 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                                                >
+                                                                                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                                        افزودن پاسخ دیگر
+                                                                                </button>
+                                                                        )}
                                                                         <div className="flex flex-wrap items-center gap-1.5">
                                                                                 <span className="text-[11px] text-[var(--text-muted)]">پیشنهاد:</span>
-                                                                                {DEFAULT_COMMENT_ACK_TEXTS.map((s) => (
+                                                                                {DEFAULT_COMMENT_ACK_TEXTS.filter(
+                                                                                        (s) => !form.commentAckTexts.some((t) => t.trim() === s),
+                                                                                ).map((s) => (
                                                                                         <button
                                                                                                 key={s}
                                                                                                 type="button"
                                                                                                 onClick={() => {
                                                                                                         const next = form.commentAckTexts.slice()
                                                                                                         const firstEmpty = next.findIndex((t) => !t.trim())
-                                                                                                        if (firstEmpty !== -1) {
-                                                                                                                next[firstEmpty] = s
-                                                                                                                set('commentAckTexts', next)
-                                                                                                        }
+                                                                                                        if (firstEmpty !== -1) next[firstEmpty] = s
+                                                                                                        else if (next.length < MAX_COMMENT_ACK_TEXTS) next.push(s)
+                                                                                                        else return
+                                                                                                        set('commentAckTexts', next)
                                                                                                 }}
                                                                                                 className="spatial-press rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                                                                                         >
