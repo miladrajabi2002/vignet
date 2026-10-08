@@ -889,13 +889,23 @@ export function startScheduler(): () => void {
         // the tap. Re-check recent PENDING gates every 5 minutes and deliver
         // the parked content as soon as the follow becomes visible — so "فالو
         // کردم ولی چیزی نیامد" stops happening.
-        const runFollowGateSweep = () => sweepInstagramFollowGates()
-                .then((fulfilled) => {
-                        if (fulfilled > 0) {
-                                console.log(`[scheduler] follow-gate sweep: ${fulfilled} gate(s) auto-fulfilled`)
-                        }
-                })
-                .catch((e) => console.error('[scheduler] follow-gate sweep failed:', e))
+        // One cycle at a time: a slow Graph API must not let the next tick
+        // start a second sweep over the same gates.
+        let followGateSweepRunning = false
+        const runFollowGateSweep = () => {
+                if (followGateSweepRunning) return
+                followGateSweepRunning = true
+                sweepInstagramFollowGates()
+                        .then((fulfilled) => {
+                                if (fulfilled > 0) {
+                                        console.log(`[scheduler] follow-gate sweep: ${fulfilled} gate(s) auto-fulfilled`)
+                                }
+                        })
+                        .catch((e) => console.error('[scheduler] follow-gate sweep failed:', e))
+                        .finally(() => {
+                                followGateSweepRunning = false
+                        })
+        }
         const initialFollowGate = setTimeout(runFollowGateSweep, 2 * 60_000)
         const followGateInterval = setInterval(runFollowGateSweep, 5 * 60_000)
 

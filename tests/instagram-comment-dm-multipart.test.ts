@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   automationFindMany: vi.fn(),
   sendText: vi.fn(),
   sendRichEntry: vi.fn(),
+  captureError: vi.fn(),
+  captureWarning: vi.fn(),
+  messageCreateMany: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -23,11 +26,19 @@ vi.mock('@/lib/prisma', () => ({
       create: mocks.followGateCreate,
     },
     instagramAutomation: { findMany: mocks.automationFindMany },
+    $transaction: async (run: (tx: unknown) => Promise<void>) =>
+      run({
+        message: { createMany: mocks.messageCreateMany },
+        conversation: { update: vi.fn() },
+      }),
   },
 }))
 
 vi.mock('@/lib/ai/chat-engine', () => ({ generateReply: vi.fn() }))
-vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn(), captureWarning: vi.fn() }))
+vi.mock('@/lib/errors/capture', () => ({
+  captureError: mocks.captureError,
+  captureWarning: mocks.captureWarning,
+}))
 vi.mock('@/lib/instagram/media', () => ({
   sendImage: vi.fn(),
   sendAudio: vi.fn(),
@@ -141,5 +152,77 @@ describe('comment→DM sequence over a private reply', () => {
     expect(mocks.sendRichEntry).toHaveBeenCalledTimes(3)
     expect(mocks.sendRichEntry.mock.calls[2][1]).toBe('igsid-1')
     expect(mocks.sendRichEntry.mock.calls[2][2]).toMatchObject(productEntry)
+  })
+
+  it('receipts only the parts Meta accepted', async () => {
+    mocks.automationFindMany.mockResolvedValue([
+      scenario([
+        { type: 'TEXT', text: priceText },
+        { type: 'IMAGE', mediaUrl: 'https://example.com/rejected.jpg' },
+        { type: 'VIDEO', mediaUrl: 'https://example.com/ok.mp4' },
+      ]),
+    ])
+    // sendRichEntry captures a rejected part and reports it instead of throwing.
+    mocks.sendRichEntry
+      .mockResolvedValueOnce('sent')
+      .mockResolvedValueOnce('failed')
+      .mockResolvedValueOnce('sent')
+    mocks.messageCreateMany.mockResolvedValue({ count: 1 })
+
+    await runInstagramAutomation({ ...ctx(comment), conversationId: 'conv-1', inboundEventId: 'evt-1' })
+
+    // The rejected image must not show up in the CRM inbox as «[تصویر]».
+    const [{ data }] = mocks.messageCreateMany.mock.calls[0]
+    expect(data[0].content).toBe('[ویدیو]')
+    expect(data[0].metadata).toEqual({
+      vigentoOutbound: { media: [{ kind: 'video', mediaUrl: 'https://example.com/ok.mp4' }] },
+    })
+  })
+
+  it('still receipts the parts sent before a closed 24-hour window stopped the run', async () => {
+    mocks.automationFindMany.mockResolvedValue([
+      scenario([
+        { type: 'IMAGE', mediaUrl: 'https://example.com/first.jpg' },
+        { type: 'TEXT', text: 'part-2' },
+      ]),
+    ])
+    const windowClosed = new Error('{"error":{"code":10,"error_subcode":2534022}}')
+    windowClosed.name = 'Instagram24hWindowError'
+    mocks.sendRichEntry.mockResolvedValueOnce('sent').mockRejectedValueOnce(windowClosed)
+    mocks.messageCreateMany.mockResolvedValue({ count: 1 })
+
+    await runInstagramAutomation({ ...ctx(comment), conversationId: 'conv-1', inboundEventId: 'evt-1' })
+
+    // The private reply DID reach the customer — the inbox must show it.
+    expect(mocks.messageCreateMany).toHaveBeenCalledTimes(1)
+    expect(mocks.messageCreateMany.mock.calls[0][0].data[0].content).toBe('[تصویر]')
+  })
+
+  it('only logs a closed 24-hour window — no notify, no escalation', async () => {
+    mocks.automationFindMany.mockResolvedValue([
+      scenario([
+        { type: 'TEXT', text: priceText },
+        { type: 'TEXT', text: 'part-2' },
+      ]),
+    ])
+    const windowClosed = new Error(
+      'INSTAGRAM_24H_WINDOW_CLOSED: {"error":{"code":10,"error_subcode":2534022}}',
+    )
+    windowClosed.name = 'Instagram24hWindowError'
+    mocks.sendRichEntry
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(windowClosed)
+
+    const result = await runInstagramAutomation(ctx(comment))
+
+    // The run resolves — no throw, so the thread is never handed to an
+    // operator and nothing is notified. The failure is only captured to the
+    // ErrorLog for /admin/errors.
+    expect(result.handled).toBe(true)
+    expect(mocks.captureError).toHaveBeenCalledWith(
+      'instagram:automation:auto-1',
+      windowClosed,
+      expect.anything(),
+    )
   })
 })

@@ -46,6 +46,7 @@ import {
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { InboundMedia } from './inbound-media'
+import { OutboundMediaView, type OutboundMediaItem } from './outbound-media'
 import { conversationSessionBoundaries } from '@/lib/conversations/session'
 import { ConversationSessionDivider } from './conversation-session-divider'
 
@@ -83,6 +84,48 @@ function isMediaPlaceholderText(content: string): boolean {
         return [
                 '[عکس]', '[ویدیو]', '[استیکر]', '[فایل]', '[پیام صوتی]', '[فایل صوتی]', '[پیام رسانه‌ای]',
         ].includes(t)
+}
+
+/** Receipt placeholder notes the Instagram automation writes for scenario
+ *  media. Removed from the displayed text because the actual media (when its
+ *  durable URL was persisted — v3.2 receipts) renders above the bubble.
+ *  Line-based filter on purpose: the receipts join their entries with blank
+ *  lines, and this keeps the file's Persian-regex budget at zero. */
+const OUTBOUND_MEDIA_NOTES = new Set(['[تصویر]', '[ویدیو]', '[وویس]'])
+
+function stripOutboundMediaNotes(text: string): string {
+        return text
+                .split('\n')
+                .filter((line) => !OUTBOUND_MEDIA_NOTES.has(line.trim()))
+                .join('\n')
+                .trim()
+}
+
+/** Outbound scenario media the automation actually delivered, persisted by
+ *  the Instagram receipt pipeline as metadata.vigentoOutbound.media. Only
+ *  https URLs are ever rendered; anything else falls back to the text note. */
+function readOutboundMedia(metadata: Record<string, unknown> | null): OutboundMediaItem[] | null {
+        const outbound = metadata && typeof metadata === 'object'
+                ? (metadata as Record<string, unknown>).vigentoOutbound
+                : null
+        if (!outbound || typeof outbound !== 'object' || Array.isArray(outbound)) return null
+        const media = (outbound as Record<string, unknown>).media
+        if (!Array.isArray(media)) return null
+        const items = media
+                .map((raw): OutboundMediaItem | null => {
+                        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+                        const item = raw as Record<string, unknown>
+                        const url = typeof item.mediaUrl === 'string' && item.mediaUrl.startsWith('https://')
+                                ? item.mediaUrl
+                                : ''
+                        if (!url) return null
+                        if (item.kind === 'photo' || item.kind === 'video' || item.kind === 'audio') {
+                                return { kind: item.kind, mediaUrl: url }
+                        }
+                        return null
+                })
+                .filter((item): item is OutboundMediaItem => item !== null)
+        return items.length ? items : null
 }
 
 export function ConversationThread({
@@ -344,6 +387,12 @@ export function ConversationThread({
                                         // missing or has expired.
                                         const inboundMediaKind = isUser ? readInboundMediaKind(m.metadata) : null
                                         const mediaOnlyLabel = Boolean(inboundMediaKind) && isMediaPlaceholderText(m.content)
+                                        // v3.2: scenario media receipts — render the real photo/video/audio
+                                        // the automation sent and drop the bare «[تصویر]» notes from the text.
+                                        const outboundMedia = isUser ? null : readOutboundMedia(m.metadata)
+                                        const displayText = outboundMedia
+                                                ? stripOutboundMediaNotes(showcase.text)
+                                                : showcase.text
                                         return (
                                                 <Fragment key={m.id}>
                                                 {sessionBoundaries.has(m.id) && <ConversationSessionDivider locale={locale} />}
@@ -379,7 +428,18 @@ export function ConversationThread({
                                                                                 )}
                                                                         </div>
                                                                 )}
-                                                                {showcase.text && !mediaOnlyLabel && (
+                                                                {outboundMedia && (
+                                                                        <div className="mb-1.5 flex max-w-full flex-col items-start gap-1.5">
+                                                                                {outboundMedia.map((media, index) => (
+                                                                                        <OutboundMediaView
+                                                                                                key={`${m.id}-outbound-${index}`}
+                                                                                                media={media}
+                                                                                                locale={locale}
+                                                                                        />
+                                                                                ))}
+                                                                        </div>
+                                                                )}
+                                                                {displayText && !mediaOnlyLabel && (
                                                                 <div className="relative max-w-full">
                                                                 {isLiveMessage && (
                                                                         <motion.span
@@ -409,7 +469,7 @@ export function ConversationThread({
                                                                                 </span>
                                                                         )}
                                                                         <ConversationText
-                                                                                text={showcase.text}
+                                                                                text={displayText}
                                                                                 markdown={!isUser}
                                                                         />
                                                                         {/* text-end resolves against the LTR-pinned list, so the

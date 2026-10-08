@@ -5,6 +5,7 @@ import type { ChatAgent } from '@/lib/ai/chat-engine'
 import { generateReply } from '@/lib/ai/chat-engine'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { captureError, captureWarning } from '@/lib/errors/capture'
+import { isInstagram24hWindowError } from '@/lib/channels/delivery-errors'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { instagramPrivateReplyTarget, parsePrivateReplyTarget } from '@/lib/instagram/private-reply'
 import {
@@ -662,12 +663,17 @@ const GATE_CONFIRM_SYNONYMS = [
  * long unrelated DMs can never hijack the gate).
  */
 function isGateConfirmText(confirmKeyword: string, text: string): boolean {
+  // A button tap echoes the title verbatim. Compare the raw strings first so
+  // an emoji-only keyword («✅») still matches — normalization strips it to ''.
+  const rawKw = confirmKeyword.trim().toLowerCase()
+  if (rawKw && rawKw === text.trim().toLowerCase()) return true
   const kw = normalizeGateText(confirmKeyword)
   const msg = normalizeGateText(text)
   if (!kw || !msg) return false
   if (msg === kw) return true
   if (msg.length > 60) return false
-  if (msg.includes(kw)) return true
+  // Whole-word containment: a short keyword like «ok» must not match «book».
+  if (` ${msg} `.includes(` ${kw} `)) return true
   return GATE_CONFIRM_SYNONYMS.some((syn) => msg.includes(normalizeGateText(syn)))
 }
 
@@ -687,9 +693,14 @@ export interface AutomationContext {
   /** Write-ahead provider-delivery marker; called immediately before a send. */
   beforeDispatch?: () => Promise<void>
   /** v3.1: receipt collector — every outbound piece the engine actually sent
-   * (text bodies + `[[product:{…}]]` markers + media notes) so the operator
-   * sees the scenario reply in the CRM inbox, including the showcase rail. */
+   *  (text bodies + `[[product:{…}]]` markers + media notes) so the operator
+   *  sees the scenario reply in the CRM inbox, including the showcase rail. */
   receipt?: string[]
+  /** v3.2: structured media the scenario actually delivered (IMAGE/AUDIO/VIDEO
+   *  entries with a durable HTTPS URL). Persisted on the receipt message as
+   *  metadata.vigentoOutbound.media so the CRM inbox renders the REAL media
+   *  above the bubble instead of the bare «[تصویر]» text note. */
+  receiptMedia?: Array<{ kind: 'photo' | 'video' | 'audio'; mediaUrl: string }>
   /** Filled while an action runs: the person was asked to follow first. */
   outcome?: { gated: boolean }
 }
@@ -739,6 +750,45 @@ async function justFulfilledGate(ctx: AutomationContext) {
   })).catch(() => null)
 }
 
+/**
+ * Atomically move a gate PENDING → FULFILLED. False when another event (a
+ * second tap, the sweep) already claimed it — the caller must not deliver.
+ */
+async function claimPendingGate(gateId: string): Promise<boolean> {
+  const claimed = await prisma.instagramFollowGate.updateMany({
+    where: { id: gateId, status: 'PENDING' },
+    data: { status: 'FULFILLED', fulfilledAt: new Date() },
+  })
+  return claimed.count === 1
+}
+
+/**
+ * Merge bookkeeping keys into a gate's payload. Re-reads the row so a payload
+ * refreshed in the meantime (the customer commented again) is not overwritten
+ * with a stale snapshot. Best-effort — never fails the caller.
+ */
+async function patchGatePayload(
+  gateId: string,
+  patch: Record<string, unknown>,
+  extra: { status?: 'PENDING'; fulfilledAt?: null } = {},
+): Promise<void> {
+  try {
+    const fresh = await prisma.instagramFollowGate.findUnique({
+      where: { id: gateId },
+      select: { payload: true },
+    })
+    const current = (fresh?.payload && typeof fresh.payload === 'object' && !Array.isArray(fresh.payload)
+      ? fresh.payload
+      : {}) as Record<string, unknown>
+    await prisma.instagramFollowGate.update({
+      where: { id: gateId },
+      data: { ...extra, payload: { ...current, ...patch } as Prisma.InputJsonValue },
+    })
+  } catch {
+    // Bookkeeping only.
+  }
+}
+
 /** Build the inbox-visible `[[product:{…}]]` marker from a showcase snapshot
  * (same shape `parseProductShowcaseContent` in the CRM thread parses). */
 function productMarker(p: ProductShowcase): string {
@@ -782,6 +832,21 @@ function pushMediaNote(
   else if (entry.type === 'VIDEO') receipt.push('[ویدیو]')
 }
 
+/** v3.2: structured record for the receipt message metadata — the durable
+ *  HTTPS URL the scenario actually delivered, so the inbox can render the
+ *  real media instead of the «[تصویر]» placeholder. Returns null for text /
+ *  product entries and for session-local (blob:/data:) URLs that were skipped
+ *  at send time. */
+function structuredMediaEntry(
+  entry: { type?: string; mediaUrl?: string },
+): { kind: 'photo' | 'video' | 'audio'; mediaUrl: string } | null {
+  if (!entry.mediaUrl || !/^https:\/\//i.test(entry.mediaUrl)) return null
+  if (entry.type === 'IMAGE') return { kind: 'photo', mediaUrl: entry.mediaUrl }
+  if (entry.type === 'VIDEO') return { kind: 'video', mediaUrl: entry.mediaUrl }
+  if (entry.type === 'AUDIO') return { kind: 'audio', mediaUrl: entry.mediaUrl }
+  return null
+}
+
 /**
  * v3.1: persist what a scenario actually sent as the conversation's assistant
  * message (idempotent via resultForInboundEventId, same pattern the fixed-reply
@@ -792,9 +857,13 @@ function pushMediaNote(
 async function persistScenarioReceipt(
   ctx: AutomationContext,
   receipt: string[],
+  receiptMedia: Array<{ kind: 'photo' | 'video' | 'audio'; mediaUrl: string }> = [],
 ): Promise<void> {
   const text = receipt.filter(Boolean).join('\n\n').trim()
   if (!text || !ctx.conversationId || !ctx.inboundEventId) return
+  // v3.2: cap the persisted media list so a pathological scenario can't
+  // bloat the message row.
+  const media = receiptMedia.slice(0, 10)
   try {
     await prisma.$transaction(async (tx) => {
       const inserted = await tx.message.createMany({
@@ -803,6 +872,7 @@ async function persistScenarioReceipt(
           role: 'ASSISTANT',
           content: text,
           resultForInboundEventId: ctx.inboundEventId!,
+          ...(media.length ? { metadata: { vigentoOutbound: { media } } as Prisma.InputJsonValue } : {}),
         }],
         skipDuplicates: true,
       })
@@ -824,6 +894,37 @@ async function persistScenarioReceipt(
 }
 
 /**
+ * Run `deliver` with a receipt collector and persist what really went out as
+ * the conversation's assistant message — gate content released by a confirm
+ * tap is a scenario reply too, and used to be invisible in the CRM inbox.
+ */
+async function deliverWithReceipt(
+  ctx: AutomationContext,
+  deliver: (tracked: AutomationContext) => Promise<void>,
+): Promise<void> {
+  const receipt: string[] = []
+  const receiptMedia: NonNullable<AutomationContext['receiptMedia']> = []
+  const tracked: AutomationContext = {
+    ...ctx,
+    receipt,
+    receiptMedia,
+    adapter: {
+      ...ctx.adapter,
+      async sendText(chatId, text, opts) {
+        await ctx.adapter.sendText(chatId, text, opts)
+        receipt.push(text)
+      },
+    },
+  }
+  try {
+    await deliver(tracked)
+  } finally {
+    // Persist even when a later part threw — the earlier parts did go out.
+    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt, receiptMedia)
+  }
+}
+
+/**
  * Try to handle an inbound Instagram message via an automation scenario.
  * Returns `handled: true` when the engine sent a reply itself (so the caller
  * must NOT run the default AI turn). Returns `handled: false` when no scenario
@@ -839,10 +940,12 @@ export async function runInstagramAutomation(
   // gate and deliver the gated content. This runs BEFORE keyword matching so a
   // confirm keyword like "done" can't be hijacked by another scenario.
   if (msg.kind === 'DM' || msg.kind === undefined) {
-    const fulfilled = await tryFulfillFollowGate(ctx)
-    if (fulfilled) {
-      const gate = await justFulfilledGate(ctx)
-      if (gate) await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
+    const gateResult = await tryFulfillFollowGate(ctx)
+    if (gateResult) {
+      if (gateResult === 'fulfilled') {
+        const gate = await justFulfilledGate(ctx)
+        if (gate) await logAutomationRun(ctx, gate.automationId, gate.automation.type, 'FOLLOW_CONFIRMED')
+      }
       return { handled: true, replied: true }
     }
   }
@@ -866,9 +969,10 @@ export async function runInstagramAutomation(
 
   // ─── Matched. Execute the action. ───
   const outcome = { gated: false }
+  const receipt: string[] = []
+  const receiptMedia: NonNullable<AutomationContext['receiptMedia']> = []
   try {
     let sent = false
-    const receipt: string[] = []
     const beforeDispatch = async () => {
       await ctx.beforeDispatch?.()
       sent = true
@@ -883,11 +987,11 @@ export async function runInstagramAutomation(
       },
     }
     await executeAction(
-      { ...ctx, adapter: trackingAdapter, beforeDispatch, receipt, outcome },
+      { ...ctx, adapter: trackingAdapter, beforeDispatch, receipt, receiptMedia, outcome },
       row,
       action,
     )
-    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt)
+    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt, receiptMedia)
     if (outcome.gated) await logAutomationRun(ctx, row.id, row.type, 'GATED')
     else if (sent) await logAutomationRun(ctx, row.id, row.type, 'SENT')
     return { handled: true, replied: sent }
@@ -897,6 +1001,14 @@ export async function runInstagramAutomation(
       workspaceId: agent.workspaceId,
       metadata: { agentId: agent.id, automationId: row.id },
     })
+    // A closed 24-hour window is terminal and non-retryable, but by product
+    // decision it is LOGGED ONLY — no operator handoff, no notification. The
+    // conversation stays with the automation and the delivery succeeds again
+    // on the customer's next DM.
+    // The parts sent BEFORE the failure did reach the customer (typically the
+    // private reply that opens a comment→DM sequence) — receipt them, or the
+    // inbox shows nothing for a message the customer is looking at.
+    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt, receiptMedia)
   }
   return { handled: true, replied: false }
 }
@@ -995,6 +1107,9 @@ async function deliverEntries(
           if (ctx.receipt && entry.text) ctx.receipt.push(entry.text)
         }
       } catch (e) {
+        // A closed 24-hour window is terminal — the plain-text fallback would fail
+        // the same way. Re-throw so the run stops here and is logged as FAILED.
+        if (isInstagram24hWindowError(e)) throw e
         captureError('instagram:automation:quick-reply', e, {
           workspaceId: agent.workspaceId,
           metadata: { chatId: target },
@@ -1007,7 +1122,8 @@ async function deliverEntries(
       continue
     }
     await ctx.beforeDispatch?.()
-    await sendRichEntry(
+    const resolvedBefore = capturedProducts.length
+    const result = await sendRichEntry(
       channelConfig ?? null,
       target,
       entry,
@@ -1019,7 +1135,15 @@ async function deliverEntries(
       captureResolveProducts,
       agent.workspaceId,
     )
+    // sendRichEntry captures a rejected part instead of throwing. Receipt only
+    // what Meta accepted — the inbox must not show a card that never arrived.
+    if (result === 'failed' || result === 'skipped') {
+      capturedProducts.length = resolvedBefore
+      continue
+    }
     if (ctx.receipt) pushMediaNote(ctx.receipt, entry)
+    const structured = structuredMediaEntry(entry)
+    if (structured) (ctx.receiptMedia ??= []).push(structured)
   }
   if (ctx.receipt) {
     for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
@@ -1051,6 +1175,9 @@ async function deliverToCommenter(
     try {
       await deliverEntries(ctx, ctx.msg.senderId, [entry])
     } catch (e) {
+      // A closed 24-hour window is different: every remaining part fails the same
+      // way, so stop instead of burning one rejected call per part.
+      if (isInstagram24hWindowError(e)) throw e
       // Best-effort: Meta rejects DMs to commenters with no open thread.
       // Capture and move on so later parts (and the receipt) still go out.
       captureWarning('instagram:automation:multipart-rest', e as Error, {
@@ -1292,12 +1419,18 @@ async function executeAction(
     if (action.mediaType === 'IMAGE' && legacyMediaDeliverable) {
       await sendImage(channelConfig, target, legacyMediaDeliverable, action.replyText || undefined)
       if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'IMAGE' })
+      const structured = structuredMediaEntry({ type: 'IMAGE', mediaUrl: legacyMediaDeliverable })
+      if (structured && ctx.receiptMedia) ctx.receiptMedia.push(structured)
     } else if (action.mediaType === 'AUDIO' && legacyMediaDeliverable) {
       await sendAudio(channelConfig, target, legacyMediaDeliverable)
       if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'AUDIO' })
+      const structured = structuredMediaEntry({ type: 'AUDIO', mediaUrl: legacyMediaDeliverable })
+      if (structured && ctx.receiptMedia) ctx.receiptMedia.push(structured)
     } else if (action.mediaType === 'VIDEO' && legacyMediaDeliverable) {
       await sendVideo(channelConfig, target, legacyMediaDeliverable)
       if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'VIDEO' })
+      const structured = structuredMediaEntry({ type: 'VIDEO', mediaUrl: legacyMediaDeliverable })
+      if (structured && ctx.receiptMedia) ctx.receiptMedia.push(structured)
     } else if (action.mediaType === 'PRODUCT' && action.productId) {
       const product = await resolveProduct(agent.id, action.productId)
       if (product) {
@@ -1464,7 +1597,7 @@ async function checkUserFollows(
   try {
     const url = `https://graph.instagram.com/v22.0/${senderId}?fields=is_user_follow_business,is_business_follow_user&access_token=${token}`
     console.log(`[ig-gate] checking follow status for sender=${senderId}`)
-    const res = await fetch(url)
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     const text = await res.text().catch(() => '')
     if (!res.ok) {
       console.warn(`[ig-gate] follow check failed (${res.status}): ${text.slice(0, 300)}`)
@@ -1476,7 +1609,14 @@ async function checkUserFollows(
       is_user_follow_business?: boolean
       is_business_follow_user?: boolean
     }
-    const follows = json.is_user_follow_business === true
+    // Meta omits the field when it cannot tell (permissions, private state).
+    // That is a failed check, not «does not follow» — reading it as false
+    // locked the gate forever for those users.
+    if (typeof json.is_user_follow_business !== 'boolean') {
+      console.warn(`[ig-gate] follow check returned no is_user_follow_business for sender=${senderId}`)
+      return null
+    }
+    const follows = json.is_user_follow_business
     console.log(
       `[ig-gate] follow check result: is_user_follow_business=${json.is_user_follow_business} → follows=${follows}`,
     )
@@ -1487,10 +1627,14 @@ async function checkUserFollows(
   }
 }
 
-/** Try to fulfill a pending SOFT follow-gate when the user sends the confirm keyword. */
+/**
+ * Try to fulfill a pending SOFT follow-gate when the user sends the confirm keyword.
+ * `'fulfilled'` — this event released the content; `'handled'` — the tap was
+ * answered (retry prompt, or another event already claimed the gate).
+ */
 async function tryFulfillFollowGate(
   ctx: AutomationContext,
-): Promise<boolean> {
+): Promise<false | 'handled' | 'fulfilled'> {
   const { adapter, msg, agent, channelConfig } = ctx
   const text = msg.text?.trim().toLowerCase()
   if (!text || !msg.senderId) return false
@@ -1536,6 +1680,9 @@ async function tryFulfillFollowGate(
         : 'button'
       const retryPrompt =
         'هنوز فالو ثبت نشده 🙂\n\nاگر تازه فالو کردی، چند لحظه صبر کن — محتوای پیام به‌صورت خودکار ارسال می‌شود. اگر نیامد، دوباره روی دکمه بزن.'
+      // The tap just (re)opened the messaging window and tells the sweep this
+      // customer is actively trying — restart its fast re-check cadence.
+      await patchGatePayload(gate.id, { lastTapAt: Date.now(), lastAutoCheckAt: 0 })
       await ctx.beforeDispatch?.()
       try {
         if (gateButtonType === 'quick_reply') {
@@ -1556,15 +1703,14 @@ async function tryFulfillFollowGate(
           quickReplies: [gateQuickReply],
         })
       }
-      return true // gate handled (but not fulfilled) — don't fall through to AI
+      return 'handled' // gate handled (but not fulfilled) — don't fall through to AI
     }
   }
 
   // User follows (or check failed = treat as following) → fulfill the gate.
-  await prisma.instagramFollowGate.update({
-    where: { id: gate.id },
-    data: { status: 'FULFILLED', fulfilledAt: new Date() },
-  })
+  // Claim it atomically: a double tap, or a tap racing the sweep, must not
+  // deliver the parked content twice.
+  if (!(await claimPendingGate(gate.id))) return 'handled'
 
   // Deliver the gated content — the FULL messages[] array. Gates created by
   // older builds stored only `contentText` — honor that too so a pending gate
@@ -1577,7 +1723,9 @@ async function tryFulfillFollowGate(
 
   if (contentMessages.length > 0 && channelConfig) {
     try {
-      await deliverEntries(ctx, gate.chatId, contentMessages.map(toRichEntry))
+      await deliverWithReceipt(ctx, (tracked) =>
+        deliverEntries(tracked, gate.chatId, contentMessages.map(toRichEntry)),
+      )
     } catch (e) {
       captureError('instagram:gate:deliver', e, {
         workspaceId: agent.workspaceId,
@@ -1585,7 +1733,7 @@ async function tryFulfillFollowGate(
       })
     }
   }
-  return true
+  return 'fulfilled'
 }
 
 /** Fulfill a pending STORY_MENTION gate when the mention webhook arrives. */
@@ -1615,10 +1763,7 @@ async function tryFulfillGateByMention(
     ? payload.contentText
     : ''
 
-  await prisma.instagramFollowGate.update({
-    where: { id: gate.id },
-    data: { status: 'FULFILLED', fulfilledAt: new Date() },
-  })
+  if (!(await claimPendingGate(gate.id))) return true
 
   if (contentText) {
     try {
@@ -1650,25 +1795,54 @@ async function tryFulfillGateByMention(
 //   - only gates created in the last 48 h — the customer may follow hours
 //     after commenting (tap delivery is not guaranteed by Meta), so a short
 //     window silently abandoned recoverable gates
-//   - one API check per gate per sweep cycle (payload.lastAutoCheckAt)
-//   - at most 25 gates per cycle
-//   - STORY_MENTION gates are skipped (no follow rule to verify)
+//   - backoff: a gate is re-checked every cycle right after it was created or
+//     tapped, then ever more rarely (up to once per 2 h) — ~50 Graph calls
+//     over the whole window instead of one every cycle
+//   - at most 25 checks per cycle, least-recently-checked first, so a busy
+//     account can never starve everyone else's gates
+//   - STORY_MENTION gates are skipped (no follow rule to verify), and so are
+//     gates of a paused scenario or an expired workspace
+//   - a gate is consumed only when content really went out: if Meta rejects
+//     the first part (typically a closed 24-hour window) the gate goes back to
+//     PENDING for the customer's next tap; after 3 such rejections the sweep
+//     stops retrying it
 
 /** How long after creation a gate stays eligible for auto-rechecks. */
 const GATE_AUTO_CHECK_WINDOW_MS = 48 * 60 * 60 * 1000
-/** Minimum spacing between two auto-checks of the same gate. */
-const GATE_AUTO_CHECK_MIN_GAP_MS = 3 * 60 * 1000
+/** Shortest spacing between two auto-checks — just under the 5-min cycle. */
+const GATE_AUTO_CHECK_MIN_GAP_MS = 4 * 60 * 1000
+/** Longest spacing once a gate has been quiet for many hours. */
+const GATE_AUTO_CHECK_MAX_GAP_MS = 2 * 60 * 60 * 1000
+/** Rows scanned per cycle; the due ones are then ranked and capped. */
+const GATE_SWEEP_SCAN_LIMIT = 300
+/** Graph follow-checks per cycle. */
+const GATE_SWEEP_CHECKS_PER_CYCLE = 25
+/** Rejected deliveries after which the sweep leaves a gate to manual taps. */
+const GATE_AUTO_DELIVER_MAX_FAILURES = 3
+
+/**
+ * Spacing between auto-checks for a gate whose last activity (creation or
+ * confirm tap) was `sinceActivityMs` ago: every cycle for the first ~25 min,
+ * then one sixth of the gate's quiet time, capped at 2 h.
+ */
+export function gateAutoCheckGapMs(sinceActivityMs: number): number {
+  return Math.min(
+    GATE_AUTO_CHECK_MAX_GAP_MS,
+    Math.max(GATE_AUTO_CHECK_MIN_GAP_MS, Math.floor(sinceActivityMs / 6)),
+  )
+}
 
 /** Re-verify pending follow-gates; deliver content when the follow landed. */
 export async function sweepInstagramFollowGates(): Promise<number> {
+  const now = Date.now()
   const candidates = await prisma.instagramFollowGate.findMany({
     where: {
       status: 'PENDING',
-      expiresAt: { gt: new Date() },
-      createdAt: { gte: new Date(Date.now() - GATE_AUTO_CHECK_WINDOW_MS) },
+      expiresAt: { gt: new Date(now) },
+      createdAt: { gte: new Date(now - GATE_AUTO_CHECK_WINDOW_MS) },
     },
     orderBy: { createdAt: 'desc' },
-    take: 25,
+    take: GATE_SWEEP_SCAN_LIMIT,
     select: {
       id: true,
       agentId: true,
@@ -1677,83 +1851,148 @@ export async function sweepInstagramFollowGates(): Promise<number> {
       chatId: true,
       createdAt: true,
       payload: true,
-      automation: { select: { type: true } },
+      automation: { select: { type: true, active: true } },
     },
   })
 
-  let fulfilledCount = 0
-  for (const gate of candidates) {
-    const payload = (gate.payload && typeof gate.payload === 'object'
-      ? gate.payload
-      : {}) as Record<string, unknown>
-    const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
-    if (gateMode === 'STORY_MENTION') continue
-    const hasRichContent = Array.isArray(payload.contentMessages) && payload.contentMessages.length > 0
-    const hasLegacyContent =
-      typeof payload.contentText === 'string' && payload.contentText.trim().length > 0
-    if (!hasRichContent && !hasLegacyContent) continue
+  const due = candidates
+    .map((gate) => {
+      const payload = (gate.payload && typeof gate.payload === 'object' && !Array.isArray(gate.payload)
+        ? gate.payload
+        : {}) as Record<string, unknown>
+      const lastCheck = typeof payload.lastAutoCheckAt === 'number' ? payload.lastAutoCheckAt : 0
+      const lastTap = typeof payload.lastTapAt === 'number' ? payload.lastTapAt : 0
+      const failures = typeof payload.autoDeliverFailures === 'number' ? payload.autoDeliverFailures : 0
+      return { gate, payload, lastCheck, failures, lastActivity: Math.max(gate.createdAt.getTime(), lastTap) }
+    })
+    .filter(({ gate, payload, lastCheck, failures, lastActivity }) => {
+      if (gate.automation?.active === false) return false
+      const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
+      if (gateMode === 'STORY_MENTION') return false
+      if (failures >= GATE_AUTO_DELIVER_MAX_FAILURES) return false
+      const hasRichContent = Array.isArray(payload.contentMessages) && payload.contentMessages.length > 0
+      const hasLegacyContent =
+        typeof payload.contentText === 'string' && payload.contentText.trim().length > 0
+      if (!hasRichContent && !hasLegacyContent) return false
+      return now - lastCheck >= gateAutoCheckGapMs(now - lastActivity)
+    })
+    .sort((x, y) => x.lastCheck - y.lastCheck)
+    .slice(0, GATE_SWEEP_CHECKS_PER_CYCLE)
 
-    // Throttle: one Graph API check per gate per sweep cycle.
-    const lastCheck = typeof payload.lastAutoCheckAt === 'number' ? payload.lastAutoCheckAt : 0
-    if (Date.now() - lastCheck < GATE_AUTO_CHECK_MIN_GAP_MS) continue
-
+  // One agent/channel/entitlement lookup per agent, not per gate.
+  const routes = new Map<string, { workspaceId: string; config: Prisma.JsonValue } | null>()
+  const routeFor = async (agentId: string) => {
+    if (routes.has(agentId)) return routes.get(agentId) ?? null
     const agent = await prisma.agent.findUnique({
-      where: { id: gate.agentId },
+      where: { id: agentId },
       select: { workspaceId: true },
     })
     const channel = agent
       ? await prisma.agentChannel.findFirst({
-          where: { agentId: gate.agentId, type: 'INSTAGRAM', active: true },
+          where: { agentId, type: 'INSTAGRAM', active: true },
           select: { config: true },
         })
       : null
-    if (!agent || !channel) continue
+    const access = agent && channel ? await checkWorkspaceActive(agent.workspaceId) : null
+    const route = agent && channel && access?.allowed
+      ? { workspaceId: agent.workspaceId, config: channel.config }
+      : null
+    routes.set(agentId, route)
+    return route
+  }
 
-    const follows = await checkUserFollows(channel.config, gate.igSenderId)
+  let fulfilledCount = 0
+  for (const { gate, payload, failures } of due) {
+    const route = await routeFor(gate.agentId)
+    if (!route) continue
 
-    // Not following yet (or the check itself failed) — stamp the throttle
-    // marker and wait for the next cycle. Never deliver on a failed check.
+    const follows = await checkUserFollows(route.config, gate.igSenderId)
+
+    // Not following yet (or the check itself failed) — stamp the backoff
+    // marker and wait for a later cycle. Never deliver on a failed check.
     if (follows !== true) {
-      await prisma.instagramFollowGate.update({
-        where: { id: gate.id },
-        data: { payload: { ...payload, lastAutoCheckAt: Date.now() } },
-      }).catch(() => undefined)
+      await patchGatePayload(gate.id, { lastAutoCheckAt: Date.now() })
       continue
     }
 
-    // The follow is visible → fulfill the gate and deliver the parked content.
-    await prisma.instagramFollowGate.update({
-      where: { id: gate.id },
-      data: { status: 'FULFILLED', fulfilledAt: new Date() },
-    })
+    // The follow is visible. Claim the gate first — a confirm tap landing at
+    // this very moment must not deliver the same content a second time.
+    if (!(await claimPendingGate(gate.id))) continue
     console.log(`[ig-gate] sweep: user ${gate.igSenderId} now follows — delivering gated content (gate ${gate.id})`)
 
-    const contentMessages = hasRichContent
-      ? (payload.contentMessages as Array<Record<string, unknown>>).map(toRichEntry)
-      : [{ type: 'TEXT' as const, text: payload.contentText as string }]
-    let delivered = true
+    const contentMessages: RichEntry[] =
+      Array.isArray(payload.contentMessages) && payload.contentMessages.length > 0
+        ? (payload.contentMessages as Array<Record<string, unknown>>).map(toRichEntry)
+        : [{ type: 'TEXT', text: payload.contentText as string }]
+    const receipt: string[] = []
+    const receiptMedia: NonNullable<AutomationContext['receiptMedia']> = []
+    const products: ProductShowcase[] = []
+    let sentParts = 0
+    let rejected: unknown = null
     for (const entry of contentMessages) {
+      const resolvedBefore = products.length
+      let result: Awaited<ReturnType<typeof sendRichEntry>>
       try {
-        await sendRichEntry(
-          channel.config,
+        result = await sendRichEntry(
+          route.config,
           gate.chatId,
           entry,
           async (chatId, text) => {
-            await sendInstagramText(channel.config, chatId, text)
+            await sendInstagramText(route.config, chatId, text)
           },
-          async (productId) => resolveProduct(gate.agentId, productId),
-          async (productIds) => resolveProducts(gate.agentId, productIds),
-          agent.workspaceId,
+          async (productId) => {
+            const p = await resolveProduct(gate.agentId, productId)
+            if (p) products.push(p)
+            return p
+          },
+          async (productIds) => {
+            const list = await resolveProducts(gate.agentId, productIds)
+            products.push(...list)
+            return list
+          },
+          route.workspaceId,
         )
       } catch (e) {
-        delivered = false
-        captureError('instagram:gate:sweep:deliver', e, {
-          workspaceId: agent.workspaceId,
-          metadata: { gateId: gate.id },
-        })
+        // A closed 24-hour window is the one failure sendRichEntry re-throws.
+        result = 'failed'
+        rejected = e
+      }
+      if (result === 'sent') {
+        sentParts += 1
+        if ((entry.type === 'TEXT' || entry.type === 'QUICK_REPLY') && entry.text) receipt.push(entry.text)
+        pushMediaNote(receipt, entry)
+        const structured = structuredMediaEntry(entry)
+        if (structured) receiptMedia.push(structured)
+        continue
+      }
+      products.length = resolvedBefore
+      if (result === 'failed') {
+        rejected ??= new Error(`gate part ${entry.type} rejected`)
+        // Nothing reached the customer yet → stop and hand the gate back.
+        // After a partial delivery keep going: the rest may still land.
+        if (sentParts === 0 || isInstagram24hWindowError(rejected)) break
       }
     }
-    if (delivered) fulfilledCount += 1
+
+    if (sentParts === 0 && rejected) {
+      // Meta refused the very first part — the customer got nothing. Keep the
+      // content parked so their next tap (which reopens the window) delivers it.
+      await patchGatePayload(
+        gate.id,
+        { lastAutoCheckAt: Date.now(), autoDeliverFailures: failures + 1 },
+        { status: 'PENDING', fulfilledAt: null },
+      )
+      captureWarning('instagram:gate:sweep:deliver', rejected, {
+        workspaceId: route.workspaceId,
+        metadata: { gateId: gate.id, attempt: failures + 1 },
+      })
+      continue
+    }
+    if (sentParts === 0) continue // nothing deliverable (e.g. products deleted)
+    fulfilledCount += 1
+    for (const p of products) receipt.push(productMarker(p))
+
+    const conversationId = await persistSweepReceipt(gate.agentId, gate.chatId, receipt, receiptMedia)
 
     // The run report stays consistent with a manual confirm: same outcome tag.
     try {
@@ -1761,11 +2000,12 @@ export async function sweepInstagramFollowGates(): Promise<number> {
         data: {
           automationId: gate.automationId,
           agentId: gate.agentId,
-          workspaceId: agent.workspaceId,
+          workspaceId: route.workspaceId,
           igUserId: gate.igSenderId,
           trigger: (gate.automation as { type?: 'DIRECT_MESSAGE' | 'COMMENT' | 'STORY' } | null)?.type
             ?? 'COMMENT',
           outcome: 'FOLLOW_CONFIRMED',
+          conversationId,
         },
       })
     } catch {
@@ -1773,6 +2013,48 @@ export async function sweepInstagramFollowGates(): Promise<number> {
     }
   }
   return fulfilledCount
+}
+
+/**
+ * Record what the sweep delivered as the conversation's assistant message, so
+ * the operator sees the released content in the CRM inbox like any other
+ * scenario reply. Returns the conversation id (null when the customer has no
+ * thread yet — e.g. a commenter who never opened the DM).
+ */
+async function persistSweepReceipt(
+  agentId: string,
+  chatId: string,
+  receipt: string[],
+  receiptMedia: NonNullable<AutomationContext['receiptMedia']>,
+): Promise<string | null> {
+  try {
+    const conversation = await prisma.conversation.findFirst({
+      where: { agentId, channel: 'INSTAGRAM', externalId: chatId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!conversation) return null
+    const text = receipt.filter(Boolean).join('\n\n').trim()
+    if (!text) return conversation.id
+    const media = receiptMedia.slice(0, 10)
+    await prisma.$transaction([
+      prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: 'ASSISTANT',
+          content: text,
+          ...(media.length ? { metadata: { vigentoOutbound: { media } } as Prisma.InputJsonValue } : {}),
+        },
+      }),
+      prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+      }),
+    ])
+    return conversation.id
+  } catch (e) {
+    captureError('instagram:gate:sweep:receipt', e, { metadata: { agentId, chatId } })
+    return null
+  }
 }
 
 // ─── CHANNEL REPLY POLICY + STOP-WORD / STOP_AI EVALUATION ────────────

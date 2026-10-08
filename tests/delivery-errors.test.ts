@@ -4,6 +4,7 @@ import {
   deliveryReasonDetail,
   deliveryReasonLabel,
   isInstagramCommentThread,
+  isInstagram24hWindowError,
 } from '@/lib/channels/delivery-errors'
 
 describe('classifyProviderFailure', () => {
@@ -51,5 +52,18 @@ describe('delivery reason copy', () => {
     expect(isInstagramCommentThread('comment:18469174690118109')).toBe(true)
     expect(isInstagramCommentThread('1784')).toBe(false)
     expect(isInstagramCommentThread(null)).toBe(false)
+  })
+})
+
+describe('isInstagram24hWindowError', () => {
+  it('matches the typed error, the raw subcode and the API message', () => {
+    const typed = new Error('INSTAGRAM_24H_WINDOW_CLOSED: {"error":{"code":10,"error_subcode":2534022}}')
+    typed.name = 'Instagram24hWindowError'
+    expect(isInstagram24hWindowError(typed)).toBe(true)
+    expect(isInstagram24hWindowError(new Error('{"error":{"message":"This message is sent outside of allowed window.","code":10,"error_subcode":2534022,"type":"IGApiException"}}'))).toBe(true)
+    expect(isInstagram24hWindowError(new Error('This message is sent outside of allowed window.'))).toBe(true)
+    expect(isInstagram24hWindowError(new Error('no open thread'))).toBe(false)
+    expect(isInstagram24hWindowError(null)).toBe(false)
+    expect(isInstagram24hWindowError(undefined)).toBe(false)
   })
 })

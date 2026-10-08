@@ -7,6 +7,7 @@ import { canonicalImageUrl } from '@/lib/products/image-src'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import { cleanDescriptionForChat } from '@/lib/products/description'
 import { igRecipient } from '@/lib/instagram/private-reply'
+import { isInstagram24hWindowError } from '@/lib/channels/delivery-errors'
 
 /**
  * Rich-media send helpers for the Instagram Messaging API.
@@ -819,6 +820,9 @@ export async function sendInstagramText(
                         message: { text: text.slice(0, 1000) },
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
+                // The sweep has no request lifecycle to bound it — a hung Graph
+                // call must not stall the whole cycle.
+                signal: AbortSignal.timeout(15_000),
         })
         await throwIfError(res, 'sendInstagramText')
 }
@@ -887,8 +891,11 @@ export async function sendButtonMessage(
  *   PRODUCT     — look up the product (via `productId`) and send a showcase card
  *
  * Failures on individual entries are captured (not thrown) so a multi-part
- * reply partially delivers when one attachment is bad.
+ * reply partially delivers when one attachment is bad. The result tells the
+ * caller what really happened, so a rejected part is never receipted as sent.
  */
+export type RichEntryResult = 'sent' | 'skipped' | 'failed'
+
 export async function sendRichEntry(
         channelConfig: Prisma.JsonValue,
         chatId: string,
@@ -918,11 +925,15 @@ export async function sendRichEntry(
          *  it for efficiency, and callers that don't don't have to. */
         resolveProducts?: (productIds: string[]) => Promise<ProductShowcase[]>,
         workspaceId?: string,
-): Promise<void> {
+): Promise<RichEntryResult> {
+        let sent = false
         try {
                 switch (entry.type) {
                         case 'TEXT':
-                                if (entry.text) await sendText(chatId, entry.text)
+                                if (entry.text) {
+                                        await sendText(chatId, entry.text)
+                                        sent = true
+                                }
                                 break
                         case 'IMAGE':
                                 if (entry.mediaUrl) {
@@ -934,18 +945,21 @@ export async function sendRichEntry(
                                                 entry.text,
                                                 workspaceId,
                                         )
+                                        sent = true
                                 }
                                 break
                         case 'AUDIO':
                                 if (entry.mediaUrl) {
                                         assertPublicHttps(entry.mediaUrl, 'AUDIO')
                                         await sendAudio(channelConfig, chatId, entry.mediaUrl, workspaceId)
+                                        sent = true
                                 }
                                 break
                         case 'VIDEO':
                                 if (entry.mediaUrl) {
                                         assertPublicHttps(entry.mediaUrl, 'VIDEO')
                                         await sendVideo(channelConfig, chatId, entry.mediaUrl, workspaceId)
+                                        sent = true
                                 }
                                 break
                         case 'QUICK_REPLY': {
@@ -969,20 +983,25 @@ export async function sendRichEntry(
                                                         buttons,
                                                 )
                                         }
+                                        sent = true
                                 } else if (entry.text) {
                                         await sendText(chatId, entry.text)
+                                        sent = true
                                 }
                                 break
                         }
                         case 'PRODUCT': {
-                                if (!entry.productId || !resolveProduct) return
+                                if (!entry.productId || !resolveProduct) return 'skipped'
                                 const product = await resolveProduct(entry.productId)
-                                if (product) await sendProductCard(channelConfig, chatId, product)
+                                if (product) {
+                                        await sendProductCard(channelConfig, chatId, product)
+                                        sent = true
+                                }
                                 break
                         }
                         case 'PRODUCT_LIST': {
                                 const ids = (entry.productIds ?? []).filter(Boolean)
-                                if (ids.length === 0) return
+                                if (ids.length === 0) return 'skipped'
                                 // Prefer the batched resolver when available — the automation
                                 // engine passes `resolveProducts` to skip N+1 agent lookups.
                                 const products = resolveProducts
@@ -1005,7 +1024,7 @@ export async function sendRichEntry(
                                                                   ),
                                                   )
                                           ).filter((p): p is ProductShowcase => p != null)
-                                if (products.length === 0) return
+                                if (products.length === 0) return 'skipped'
                                 if (products.length === 1) {
                                         // One product — send as a single card (smaller payload,
                                         // avoids the carousel chrome for the trivial case).
@@ -1013,6 +1032,7 @@ export async function sendRichEntry(
                                 } else {
                                         await sendProductCarousel(channelConfig, chatId, products)
                                 }
+                                sent = true
                                 break
                         }
                 }
@@ -1021,11 +1041,18 @@ export async function sendRichEntry(
                 // the offending URL so "media not sent to user" is debuggable.
                 // We capture (not re-throw) so a multi-part reply still partially
                 // delivers when one attachment is bad.
+                // A closed 24-hour messaging window is terminal, not a bad-attachment problem:
+                // every later part would fail the same way. Re-throw so the caller stops
+                // the sequence and logs the run as failed, instead of the failure being
+                // recorded as just another skipped attachment.
+                if (isInstagram24hWindowError(e)) throw e
                 captureError('instagram:media:sendRichEntry', e, {
                         workspaceId,
                         metadata: { chatId, entryType: entry.type, mediaUrl: entry.mediaUrl },
                 })
+                return 'failed'
         }
+        return sent ? 'sent' : 'skipped'
 }
 
 /**

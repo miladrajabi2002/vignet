@@ -32,12 +32,26 @@ function metaErrorCodes(detail: string): { code: number | null; subcode: number 
   return { code: code ? Number(code[1]) : null, subcode: subcode ? Number(subcode[1]) : null }
 }
 
+/**
+ * True when the thrown error is Instagram's closed 24-hour messaging window —
+ * IGApiException code 10, error_subcode 2534022 ("This message is sent outside
+ * of allowed window"). The adapter throws it typed (Instagram24hWindowError),
+ * but raw API bodies and wrapped errors also carry the subcode or the message,
+ * so both shapes are matched. Pure and import-free so any layer can gate
+ * escalation on it without pulling in the adapter.
+ */
+export function isInstagram24hWindowError(cause: unknown): boolean {
+  const name = cause instanceof Error ? cause.name : ''
+  const detail = cause instanceof Error ? cause.message : String(cause ?? '')
+  return name === 'Instagram24hWindowError' || /2534022|outside of allowed window/i.test(detail)
+}
+
 /** Map a thrown adapter error to the reason the operator should see. */
 export function classifyProviderFailure(cause: unknown): ProviderFailureReason {
   const name = cause instanceof Error ? cause.name : ''
   const detail = cause instanceof Error ? cause.message : String(cause ?? '')
 
-  if (name === 'Instagram24hWindowError' || /2534022|outside of allowed window/i.test(detail)) {
+  if (isInstagram24hWindowError(cause)) {
     return 'reply_window_closed'
   }
   if (name === 'AbortError' || name === 'TimeoutError' || /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|timed? ?out/i.test(detail)) {
