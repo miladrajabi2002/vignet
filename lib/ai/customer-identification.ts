@@ -1,23 +1,43 @@
 /**
- * CUSTOMER IDENTIFICATION (F3)
+ * CUSTOMER IDENTIFICATION (F3) — v2
  * =============================
  *
  * Collects the customer's name + phone at the START of a conversation (per the
  * user's decision: "همون اولش بگیری کاربر"). The agent — guided by an injected
  * instruction — asks for these details before proceeding to substantive answers.
  *
- * Strategy:
+ * Strategy (v2, post production-audit):
  *   1. When a new conversation opens AND the agent has requireCustomerInfo=true,
  *      the conversation is marked customerInfoState='pending'.
  *   2. While 'pending', an extra system instruction is injected telling the LLM
  *      to first politely ask for name + phone, and to not answer substantive
  *      questions until both required fields are available.
- *   3. A lightweight extractor scans each incoming user message for an Iranian
- *      phone pattern + a likely-name; when found, the contact row is updated
- *      and the conversation is marked 'collected'.
+ *   3. TWO extraction layers run on each inbound user message while the
+ *      identification flow is active:
+ *        a) A high-precision REGEX extractor (below) that only trusts
+ *           unambiguous self-introduction formulas.
+ *        b) An LLM extractor (lib/ai/ai-identity-extractor.ts) as the rescue
+ *           layer for prose the regex can never parse safely.
  *   4. Messenger channels (Telegram/Bale/Rubika/WhatsApp/Instagram) already
  *      carry a trusted platform identity, so for those channels we default to
  *      customerInfoState='skipped' unless the agent explicitly opts in.
+ *
+ * v1 → v2 (why the rewrite): the v1 regex mined names out of ordinary prose on
+ * EVERY inbound message — even when identification was disabled — and produced
+ * real junk CRM contacts on production:
+ *      «من دیروز درخواست دادم…»      → contact «دیروز درخو»   (verb «است» matched INSIDE «درخواست»)
+ *      «من تازه استریم رو شروع کردم» → contact «تازه»        (same mid-word «است» in «استریم»)
+ *      «چطور به نام والدینم بزنم»    → contact «والدینم بزنم» (cue «نام» inside «به نام …»)
+ *      «هزینه ثبت نام چقدره؟»        → contact «چقدره»       (cue «نام» inside «ثبت نام»)
+ *      «اینجا ریال بگیریم؟»          → contact «ریال بگیریم»  (cue «اینجا»)
+ * Two structural fixes:
+ *      A) Persian word boundaries — JS \b is ASCII-only, so «است» happily
+ *         matched mid-word inside «درخواست»/«استریم». Every cue/verb token is
+ *         now wrapped in a letter-class lookaround (standalone()).
+ *      B) Strong cues only — the bare «من X هستم» / «اسم X» / «نام X» /
+ *         «اینجا X» patterns are GONE. «من X هستم» describes a state («من در
+ *         کشوری هستم») far more often than it introduces a name. Prose names
+ *         like «من علی هستم» are the LLM extractor's job now.
  */
 
 import { prisma } from '@/lib/prisma'
@@ -45,14 +65,15 @@ const PHONE_CANDIDATE_RE = /(\+?98|0098|0)?9\d{9}/g
 /**
  * Best-effort extraction of a name and phone from a free-form user message.
  * The phone is normalized to E.164 (+98XXXXXXXXXX). The name is detected via
- * lightweight Persian + English cues.
+ * high-precision Persian + English self-introduction cues ONLY — see the
+ * module header for why looser v1 patterns were removed.
  *
  * Handles:
  *  - Persian/Arabic digits in the phone ("۰۹۱۲۳۴۵۶۷۸۹")
  *  - Multiple phone candidates (picks the first valid Iranian mobile)
  *  - Inputs with no separator ("میلاد رجبی 09123456789")
- *  - Bare names after common Persian cues ("اسم علی", "من سارا")
- *  - English intros ("my name is John", "I'm Jane")
+ *  - «اسمم X هستم» / «نام من X است» / «بنده X می‌باشم» / «اسمم X، …»
+ *  - English intros ("my name is John", "I'm Jane", "name: Bob")
  */
 export function extractIdentity(text: string): ExtractedIdentity {
 	if (!text || typeof text !== 'string') return { name: null, phone: null }
@@ -102,7 +123,8 @@ export function extractIdentity(text: string): ExtractedIdentity {
 			remainder.length <= 40
 		) {
 			// Only accept if it looks like a name (starts with a letter, no
-			// digits, no purchase-intent words).
+			// digits, no purchase-intent words, no telecom/function words —
+			// v1 turned «شماره تلفن من 0916…» into contact «شماره تلفن من»).
 			if (/^[\p{L}]/u.test(remainder) && looksLikePersonName(remainder)) {
 				name = remainder
 			}
@@ -117,84 +139,144 @@ export function extractIdentity(text: string): ExtractedIdentity {
 // «من دنبال یه گوشی هستم» became CRM contacts named «دنبال یه گوشی» — junk
 // contacts, a corrupted {customer_name} greeting, and a prematurely
 // 'collected' identification state.
+//
+// v2 additions (each one observed in, or one edit away from, the production
+// audit): pronouns & verbs («هستم», «من», «رو»…), telecom nouns («شماره»,
+// «تلفن», «موبایل» — «شماره تلفن من 0916…»), and marginal-participle fillers
+// («شده», «فراموش»). A real person's name never contains any of these.
 const NAME_STOPWORDS = new Set(
 	[
+		// purchase/intent (v1)
 		'دنبال', 'لازم', 'میخوام', 'میخواهم', 'میخام', 'خواهم', 'بخوام',
 		'قیمت', 'محصول', 'سفارش', 'خرید', 'بخرم', 'فروش', 'موجود', 'موجودی',
 		'سوال', 'سؤال', 'مشکل', 'کمک', 'راهنمایی', 'اطلاعات', 'درباره',
 		'لطفا', 'لطفاً', 'هزینه', 'تخفیف', 'ارسال', 'میشه', 'چطور', 'چطوری',
 		'چنده', 'چقدر', 'کدوم', 'کدام', 'یه', 'یک', 'این', 'اون', 'چند',
+		// pronouns / function words
+		'من', 'منم', 'ما', 'شما', 'اون', 'اونا', 'ایشون', 'خودم', 'خودتون',
+		'رو', 'را', 'رام', 'هم', 'همه', 'دیگه', 'فقط', 'خیلی', 'البته',
+		'از', 'با', 'برای', 'که', 'تا', 'همین', 'اینجا', 'انجام',
+		// verbs / copulas
+		'هستم', 'هستی', 'هست', 'هستیم', 'هستید', 'است', 'استم', 'ام',
+		'بودم', 'بودی', 'بود', 'بودیم', 'باشه', 'باشم', 'شدم', 'شدیم',
+		'شده', 'دارم', 'داریم', 'ندارم', 'نداریم', 'میگم', 'بگم', 'بگیر',
+		'بدید', 'بدیم', 'بفرست', 'فراموش',
+		// telecom / identity nouns
+		'شماره', 'تلفن', 'موبایل', 'همراه', 'ایمیل', 'کد', 'مدارک',
+		// question words
+		'چیه', 'کی', 'کجا', 'چرا', 'چه', 'کجای', 'چی',
+		// English (v1 + additions)
 		'want', 'looking', 'need', 'price', 'buy', 'order', 'help', 'question',
-		'interested', 'searching',
+		'interested', 'searching', 'from', 'the', 'your', 'my', 'this', 'that',
+		'is', 'am', 'are', 'name', 'number', 'phone', 'email',
 	].map((w) => w.replace(/‌/g, '')),
 )
 
-/** A candidate looks like a real person's name: 1–3 words, none of them intent words. */
-export function looksLikePersonName(candidate: string): boolean {
-	const words = candidate.split(/\s+/).filter(Boolean)
-	if (!words.length || words.length > 3) return false
-	return !words.some((w) =>
-		NAME_STOPWORDS.has(w.toLowerCase().replace(/‌/g, '')),
-	)
-}
+/**
+ * Stopwords that are ALSO common given names: «هستی» is "you are" and a
+ * girl's name. The regex layer cannot tell the two apart, so it keeps
+ * rejecting them («هستی؟» must not become a contact). The LLM layer reads
+ * the sentence and may accept them — otherwise a customer called هستی could
+ * never be identified and the agent would ask for her name forever.
+ */
+const AMBIGUOUS_GIVEN_NAMES = new Set(['هستی'])
 
 /**
- * Persian name extraction — covers a wide range of real-world phrasings.
+ * A candidate looks like a real person's name: 1–3 words, none of them intent
+ * words. `contextual` is for callers that understood the sentence (the LLM
+ * extractor): words that double as given names are then allowed.
+ */
+export function looksLikePersonName(
+	candidate: string,
+	options: { contextual?: boolean } = {},
+): boolean {
+	const words = candidate.split(/\s+/).filter(Boolean)
+	if (!words.length || words.length > 3) return false
+	return !words.some((w) => {
+		const word = w.toLowerCase().replace(/‌/g, '')
+		if (options.contextual && AMBIGUOUS_GIVEN_NAMES.has(word)) return false
+		return NAME_STOPWORDS.has(word)
+	})
+}
+
+// ── Persian-aware word boundaries ─────────────────────────────────
+//
+// JS `\b` is ASCII-only and NEVER matches between two Persian letters, so a
+// bare «است» in a pattern happily matched inside «درخواست», «استریم»,
+// «دریاست»… — the #1 source of junk CRM names in the v1 audit. `standalone()`
+// wraps a token so no letter/digit may touch it on either side. ZWNJ/ZWJ
+// count as joiners: they block the boundary exactly like a letter, so «است»
+// can't hide inside «درخواست‌ام» either.
+function standalone(token: string): string {
+	return `(?<![\\p{L}\\p{N}\\u200c\\u200d])${token}(?![\\p{L}\\p{N}\\u200c\\u200d])`
+}
+
+/** Self-introduction cues strong enough to trust without a verb.
+ *  Possessive forms ONLY («اسمم/اسمی/نامم», «اسم من/نام من») — the bare
+ *  «اسم X»/«نام X» cues were removed because they live inside everyday
+ *  phrases («به نام والدینم بزنم», «هزینه ثبت نام چقدره؟», «نام کاربری…»). */
+const PERSIAN_POSSESSIVE_CUES = [
+	`(?:${['اسمم', 'اسمی', 'نامم'].map(standalone).join('|')})`,
+	`${standalone('اسم')}\\s+من`,
+	`${standalone('نام')}\\s+من`,
+].join('|')
+
+/** All trusted cues (possessive forms + the formal «بنده»). The bare «من»
+ *  cue is deliberately absent: «من X هستم» describes a state («من در کشوری
+ *  هستم») far more often than it introduces a name. Prose names are the LLM
+ *  extractor's job (lib/ai/ai-identity-extractor.ts). */
+const PERSIAN_CUES = [
+	PERSIAN_POSSESSIVE_CUES,
+	standalone('بنده'),
+].join('|')
+
+/** Copula/verb tokens, word-bounded. Longest first so «هستم» wins over «هست»
+ *  and the dangerous short «است» is tried last. */
+const PERSIAN_VERBS = [
+	'هستیم', 'هستید', 'هستم', 'هستی', 'هست', 'می‌باشم', 'میباشم', 'است',
+].map(standalone).join('|')
+
+/**
+ * Persian name extraction — v2: explicit self-introductions only.
  * Returns the first match that yields a 2–30 char name that also passes the
- * intent-stopword filter (so purchase requests never become names).
+ * intent-stopword filter.
  */
 function extractPersianName(text: string): string | null {
-	// Common Persian cue words that precede a name.
-	const cues = [
-		/(?:اسمم|اسمی|اسم|من\s+اسمم|نامم|نام\s+من|بنده|من)\s+(?:من\s+)?/u,
-		/(?:من\s+هستم\s+|این\s+|من\s+،\s*)/u,
-	]
-
-	// Verb suffixes that follow a SELF-INTRODUCTION. Want-verbs (می‌خوام،
-	// می‌خواهم) deliberately excluded: «من X می‌خوام» is a purchase request.
-	const verbs = [
-		/(?:هستم|است|می‌باشم|هست|صحبت\s+می‌کنم)/u,
-	]
-
-	// Pattern 1: "اسمم X هستم" / "نام من X است" / "من X می‌باشم"
-	for (const cue of cues) {
-		for (const verb of verbs) {
-			const re = new RegExp(
-				cue.source + '\\s*([\\p{L}\\s]{2,30}?)\\s*(?:' + verb.source + ')',
-				'u',
-			)
-			const m = text.match(re)
-			if (m && m[1]) {
-				const candidate = m[1].trim().replace(/\s+/g, ' ')
-				if (
-					candidate.length >= 2 &&
-					candidate.length <= 30 &&
-					looksLikePersonName(candidate)
-				)
-					return candidate
-			}
-		}
+	// Pattern 1: «اسمم X هستم» / «نام من X است» / «بنده X می‌باشم» — a cue
+	// followed by a copula. The word-bounded verb is what makes this safe:
+	// «من دیروز درخواست دادم» can't match because «است» inside «درخواست» is
+	// no longer a standalone token.
+	const re1 = new RegExp(
+		`(?:${PERSIAN_CUES})\\s+(?:من\\s+)?([\\p{L}\\s]{2,30}?)\\s*(?:${PERSIAN_VERBS})`,
+		'u',
+	)
+	const m1 = text.match(re1)
+	if (m1 && m1[1]) {
+		const candidate = m1[1].trim().replace(/\s+/g, ' ')
+		if (
+			candidate.length >= 2 &&
+			candidate.length <= 30 &&
+			looksLikePersonName(candidate)
+		)
+			return candidate
 	}
 
-	// Pattern 2: "اسم X" / "نام X" followed by end, comma, period, or newline.
-	// The bare «من X» / «بنده X» forms are intentionally NOT matched — they
-	// capture arbitrary sentence remainders far more often than names (the
-	// self-introduction case is already covered by pattern 1's verb forms).
-	const barePatterns = [
-		/(?:اسمم|اسمی|اسم|نامم|نام)\s+(?:من\s+)?([\p{L}][\p{L}\s]{1,29}?)(?=$|[،.,\n؛!؟])/u,
-		/(?:من\s+هستم\s+|اینجا\s+)([\p{L}][\p{L}\s]{1,29}?)(?=$|[،.,\n؛!؟])/u,
-	]
-	for (const re of barePatterns) {
-		const m = text.match(re)
-		if (m && m[1]) {
-			const candidate = m[1].trim().replace(/\s+/g, ' ')
-			if (
-				candidate.length >= 2 &&
-				candidate.length <= 30 &&
-				looksLikePersonName(candidate)
-			)
-				return candidate
-		}
+	// Pattern 2: «اسمم X» / «نامم X» / «اسم من X» followed by end-of-string,
+	// a comma, a period, a semicolon or a newline («اسمم علی، شماره‌ام…»).
+	// Possessive cues only — see PERSIAN_POSSESSIVE_CUES.
+	const re2 = new RegExp(
+		`(?:${PERSIAN_POSSESSIVE_CUES})\\s+([\\p{L}][\\p{L}\\s]{1,29}?)(?=$|[،.,؛:!؟\\n])`,
+		'u',
+	)
+	const m2 = text.match(re2)
+	if (m2 && m2[1]) {
+		const candidate = m2[1].trim().replace(/\s+/g, ' ')
+		if (
+			candidate.length >= 2 &&
+			candidate.length <= 30 &&
+			looksLikePersonName(candidate)
+		)
+			return candidate
 	}
 
 	return null
@@ -202,10 +284,12 @@ function extractPersianName(text: string): string | null {
 
 /**
  * English name extraction — "my name is John", "I'm Jane", "name: Bob".
+ * Word-bounded so the cues can't match inside other words.
  */
 function extractEnglishName(text: string): string | null {
 	const patterns = [
-		/(?:my\s+name\s+is|i\s*am|i'm|name:?)\s+([A-Za-z][A-Za-z\s]{1,30}?)(?=$|[.,!\n])/i,
+		/\b(?:my\s+name\s+is|i\s+am|i'm)\s+([A-Za-z][A-Za-z\s]{1,30}?)(?=$|[.,!\n])/i,
+		/\bname\s*:\s*([A-Za-z][A-Za-z\s]{1,30}?)(?=$|[.,!\n])/i,
 		/\bthis\s+is\s+([A-Za-z][A-Za-z\s]{1,30}?)(?=$|[.,!\n])/i,
 	]
 	for (const re of patterns) {

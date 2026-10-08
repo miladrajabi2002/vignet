@@ -33,6 +33,7 @@ import { previousSessionPlanningRows } from '@/lib/ai/conversation-memory'
 import { closingReplyText } from '@/lib/ai/response-policy'
 import { extractTurnSignal, visibleWhileStreaming, type TurnSignal } from '@/lib/ai/turn-signal'
 import { extractIdentity, applyExtractedIdentity } from '@/lib/ai/customer-identification'
+import { extractIdentityWithAi } from '@/lib/ai/ai-identity-extractor'
 import {
         resolveConversation,
         loadHistory,
@@ -298,10 +299,25 @@ async function prepareTurn(params: StartChatParams): Promise<
                 return { error: 'AI_UNAVAILABLE' }
         }
 
-        // F3: best-effort identity extraction from the inbound user message,
-        // merged with structured identity from the widget's pre-chat lead form.
+        // F3 v2: identity extraction from the inbound user message, merged with
+        // structured identity from the widget's pre-chat lead form.
+        //
+        // Gating (production audit): v1 mined names out of ordinary prose on
+        // EVERY turn («من دیروز درخواست دادم» → contact «دیروز درخو») even when
+        // customer identification was disabled for the agent. Free-text NAME
+        // extraction now only runs while the conversation is actually in the
+        // identification flow — customerInfoState 'pending' (the agent is
+        // actively asking) or the lead form supplied structured identity. Phone
+        // extraction stays always-on: the digit pattern is precise and a
+        // volunteered number is valuable in every configuration.
+        const identificationActive =
+                conversation.customerInfoState === 'pending' ||
+                Boolean(params.contactName?.trim() || params.contactPhone?.trim())
         const extracted = extractIdentity(message)
-        if (!extracted.name && params.contactName?.trim()) {
+        if (!identificationActive) extracted.name = null
+        // The structured lead-form name is trusted input; it outranks the
+        // heuristic (v1 let junk override the real form name).
+        if (params.contactName?.trim()) {
                 extracted.name = params.contactName.trim().slice(0, 60)
         }
         if (!extracted.phone && params.contactPhone?.trim()) {
@@ -323,6 +339,22 @@ async function prepareTurn(params: StartChatParams): Promise<
                         console.error('[chat-engine] lead contact attach failed:', error)
                         return contactId
                 })
+        }
+
+        // F3 v2 — LLM rescue layer: the conservative regex only trusts
+        // unambiguous self-introductions; prose like «من علی هستم» or
+        // «مینا هستم، شماره‌ام ۰۹۱۲…» falls through to a cheap extraction call
+        // while the identification flow is active. Fire-and-forget — the
+        // customer's reply never waits on it, and the extractor applies what it
+        // finds through the same locked find-or-create path, so concurrent
+        // regex/AI outcomes converge on one merged contact row.
+        if (identificationActive && !extracted.name && message.trim().length >= 3) {
+                void extractIdentityWithAi({
+                        workspaceId,
+                        conversationId,
+                        agentId: agent.id,
+                        message,
+                }).catch(() => {})
         }
 
         // Hydrate {customer_name} placeholder if the contact name is known.

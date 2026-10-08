@@ -36,6 +36,7 @@ export type AuxPurpose =
   | 'summary'
   | 'memory'
   | 'eval'
+  | 'identity'
 
 export interface AuxCallRecord {
   purpose: AuxPurpose
