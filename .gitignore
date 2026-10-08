@@ -37,6 +37,10 @@ yarn-error.log*
 .env
 .env*.local
 .env.bak*
+.env.backup*
+
+# editor/agent backup copies of source files (e.g. automation.ts.bak-20261006-150553)
+*.bak-*
 
 # Retired WhatsApp bridge artifacts (may contain live session credentials)
 /mini-services/whatsapp-bridge/

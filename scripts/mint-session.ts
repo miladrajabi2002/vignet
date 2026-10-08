@@ -1,7 +1,10 @@
 /**
  * Mint a short-lived NextAuth v5 session cookie for localhost smoke tests.
  * The token mirrors what the phone-OTP Credentials authorize() returns.
- * Usage: npx tsx --tsconfig scripts/tsconfig.skeleton-check.json scripts/mint-session.ts [phone]
+ * Usage: npx tsx --tsconfig scripts/tsconfig.skeleton-check.json scripts/mint-session.ts <phone>
+ *
+ * The phone is REQUIRED: without it the script used to pick the oldest user —
+ * on this server that is the platform owner — and print a live admin session.
  */
 import { encode } from 'next-auth/jwt'
 import * as dotenv from 'dotenv'
@@ -11,9 +14,17 @@ dotenv.config()
 
 async function main() {
   const phone = process.argv[2]
+  if (!phone) {
+    console.error('usage: mint-session.ts <phone>')
+    process.exit(1)
+  }
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    console.error('AUTH_SECRET is not set — refusing to sign a token with an empty secret')
+    process.exit(1)
+  }
   const user = await prisma.user.findFirst({
-    where: phone ? { phone } : undefined,
-    orderBy: { createdAt: 'asc' },
+    where: { phone },
     select: { id: true, name: true, phone: true, workspaceId: true, platformRole: true },
   })
   if (!user) {
@@ -33,7 +44,7 @@ async function main() {
       platformRole: user.platformRole,
       sub: user.id,
     },
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? '',
+    secret,
     salt,
     maxAge: 5 * 60,
   })

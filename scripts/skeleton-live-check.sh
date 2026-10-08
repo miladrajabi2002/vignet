@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # Smoke-test the streamed skeleton of a dashboard route with a minted session.
-# Usage: bash scripts/skeleton-live-check.sh <path>   e.g. /contacts
+# Usage: bash scripts/skeleton-live-check.sh <path> <phone>   e.g. /contacts 0912…
+# The phone picks WHICH account the 5-minute session is minted for — it is
+# required so the check never silently signs in as the oldest (owner) account.
 set -euo pipefail
-cd /var/www/vigent.ir/public/vignet
+cd "$(dirname "$0")/.."
 
 ROUTE="${1:-/contacts}"
-DBURL=$(grep '^DATABASE_URL=' .env | cut -d'"' -f2 | sed 's/?.*//')
-ROW=$(psql "$DBURL" -t -A -F' ' -c 'SELECT id, phone FROM "User" ORDER BY "createdAt" LIMIT 1')
-USER_ID=$(echo "$ROW" | cut -d' ' -f1)
-USER_PHONE=$(echo "$ROW" | cut -d' ' -f2)
-echo "user phone: $USER_PHONE"
+USER_PHONE="${2:-${SKELETON_CHECK_PHONE:-}}"
+if [ -z "$USER_PHONE" ]; then
+  echo "usage: bash scripts/skeleton-live-check.sh <path> <phone>" >&2
+  exit 1
+fi
 
 TOKEN=$(NODE_ENV=production npx tsx --tsconfig scripts/tsconfig.skeleton-check.json scripts/mint-session.ts "$USER_PHONE" | tail -n 1)
 
