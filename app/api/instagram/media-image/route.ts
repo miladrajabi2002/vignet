@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { isInstagramMediaHost } from '@/lib/instagram/media-proxy'
+import { auth } from '@/auth'
+import { isTrustedInstagramAvatarUrl } from '@/lib/crm/avatar-proxy'
+import { PROXY_IMAGE_TYPES } from '@/lib/instagram/media-proxy'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,11 +23,16 @@ export const dynamic = 'force-dynamic'
  * ──────────────────────────────────────────────────────────────
  *   - NO disk storage, NO shared memory cache: the body is streamed through
  *     as it arrives (constant memory, nothing persisted anywhere).
- *   - The BROWSER caches each URL for 1h (Cache-Control: public, max-age=3600,
+ *   - The BROWSER caches each URL for 1h (Cache-Control: private, max-age=3600,
  *     stale-while-revalidate) — toggling a VPN on/off never re-downloads an
  *     image the tab already showed, and re-opening the picker is instant.
+ *   - Signed-in operators only: every caller is a dashboard <img>, so an
+ *     anonymous request has no business here (no free bandwidth relay).
  *   - Strict allow-list: only Instagram/Meta CDN hostnames are relayed, so
- *     this can never be abused as a generic open proxy.
+ *     this can never be abused as a generic open proxy. Redirects are followed
+ *     by hand and EVERY hop is re-checked against the same list.
+ *   - Raster images only (jpeg/png/webp/gif/avif). SVG is refused — relayed
+ *     from our origin it would run its scripts as vigent.ir.
  *   - Hard bounds: 10s upstream timeout + 20MB size cap (covers full-res
  *     posts/stories with room to spare, stops anything pathological).
  *   - When the upstream URL has expired (Instagram signatures live only a
@@ -35,9 +42,50 @@ export const dynamic = 'force-dynamic'
 
 const MAX_BYTES = 20 * 1024 * 1024
 
-/** Hostnames we are willing to relay — the ONE shared allow-list from
- * lib/instagram/media-proxy.ts (same list as the avatar proxies). */
-const isInstagramCdnHost = isInstagramMediaHost
+const MAX_REDIRECTS = 3
+
+/** HTTPS + no credentials + default port + the ONE shared Meta host
+ * allow-list (lib/instagram/media-proxy.ts) — same gate as the avatar proxies. */
+const isRelayableUrl = isTrustedInstagramAvatarUrl
+
+/**
+ * Fetch `target`, following redirects by hand so a hop can never leave the
+ * allow-list (an open redirect on a Meta host must not turn this route into a
+ * fetch-anything primitive). Null on any failure.
+ */
+async function fetchUpstream(target: URL): Promise<Response | null> {
+  // One deadline for the whole chain, not per hop.
+  const signal = AbortSignal.timeout(10_000)
+  let current = target
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const response = await fetch(current, {
+      redirect: 'manual',
+      cache: 'no-store',
+      headers: {
+        Accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif',
+        // A browser-ish UA keeps some CDN edges from rejecting datacenter requests.
+        'User-Agent':
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      },
+      signal,
+    }).catch(() => null)
+    if (!response) return null
+    if (response.status < 300 || response.status >= 400) return response
+
+    const location = response.headers.get('location')
+    void response.body?.cancel().catch(() => undefined)
+    if (!location) return null
+    let next: URL
+    try {
+      next = new URL(location, current)
+    } catch {
+      return null
+    }
+    if (!isRelayableUrl(next.toString())) return null
+    current = next
+  }
+  return null
+}
 
 /** Minimal inline SVG shown when the upstream image is gone/unreachable. */
 const PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
@@ -59,7 +107,7 @@ function placeholderResponse(): NextResponse {
       'Content-Type': 'image/svg+xml; charset=utf-8',
       // Expired CDN URLs stay expired — cache the placeholder a while so a
       // grid of dead thumbnails doesn't hammer the upstream on every render.
-      'Cache-Control': 'public, max-age=600',
+      'Cache-Control': 'private, max-age=600',
       'X-Content-Type-Options': 'nosniff',
     },
   })
@@ -95,6 +143,10 @@ function boundedStream(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Ar
 }
 
 export async function GET(req: Request) {
+  // JWT-only session check (no DB round-trip) — a picker fires dozens of these.
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
   const raw = new URL(req.url).searchParams.get('u')
   if (!raw) return NextResponse.json({ error: 'MISSING_URL' }, { status: 400 })
 
@@ -104,38 +156,31 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ error: 'INVALID_URL' }, { status: 400 })
   }
-  if (target.protocol !== 'https:' || !isInstagramCdnHost(target.hostname)) {
+  if (!isRelayableUrl(target.toString())) {
     return NextResponse.json({ error: 'HOST_NOT_ALLOWED' }, { status: 400 })
   }
 
-  // A browser-ish UA keeps some CDN edges from rejecting datacenter requests.
-  const upstream = await fetch(target.toString(), {
-    redirect: 'follow',
-    cache: 'no-store',
-    headers: {
-      Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-      'User-Agent':
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-    },
-    signal: AbortSignal.timeout(10_000),
-  }).catch(() => null)
-
+  const upstream = await fetchUpstream(target)
   if (!upstream?.ok || !upstream.body) return placeholderResponse()
 
-  const contentType = upstream.headers.get('content-type') ?? ''
+  const contentType = (upstream.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase()
   const length = Number(upstream.headers.get('content-length') ?? '0')
-  if (!contentType.startsWith('image/')) return placeholderResponse()
-  if (length > MAX_BYTES) return placeholderResponse()
+  if (!PROXY_IMAGE_TYPES.has(contentType) || length > MAX_BYTES) {
+    void upstream.body.cancel().catch(() => undefined)
+    return placeholderResponse()
+  }
 
   return new NextResponse(boundedStream(upstream.body), {
     status: 200,
     headers: {
       'Content-Type': contentType,
-      // 1h browser/CDN cache + 24h stale-while-revalidate: the same image
-      // never hits the upstream twice inside a session, so VPN toggling is
-      // completely invisible to the operator.
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      // 1h browser cache + 24h stale-while-revalidate: the same image never
+      // hits the upstream twice inside a session, so VPN toggling is
+      // completely invisible to the operator. `private` — the response is
+      // session-gated, so no shared cache may hand it to an anonymous caller.
+      'Cache-Control': 'private, max-age=3600, stale-while-revalidate=86400',
       'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
     },
   })
 }

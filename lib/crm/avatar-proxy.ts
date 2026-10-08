@@ -1,16 +1,8 @@
-import { isInstagramMediaHost } from '@/lib/instagram/media-proxy'
+import { isInstagramMediaHost, PROXY_IMAGE_TYPES } from '@/lib/instagram/media-proxy'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const MAX_REDIRECTS = 3
 const FETCH_TIMEOUT_MS = 7_000
-
-const ALLOWED_IMAGE_TYPES = new Set([
-  'image/avif',
-  'image/gif',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-])
 
 export interface ProxiedAvatar {
   bytes: Uint8Array
@@ -107,7 +99,7 @@ export async function fetchTrustedInstagramAvatar(
       ?.split(';', 1)[0]
       ?.trim()
       .toLowerCase()
-    if (!contentType || !ALLOWED_IMAGE_TYPES.has(contentType)) return null
+    if (!contentType || !PROXY_IMAGE_TYPES.has(contentType)) return null
 
     const bytes = await readLimitedBody(response)
     return bytes ? { bytes, contentType } : null

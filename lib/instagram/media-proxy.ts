@@ -2,7 +2,7 @@
  * SINGLE source of truth for "which hosts may be relayed as Instagram media".
  *
  * Used by BOTH server-side proxies — no more duplicated allow-lists:
- *   - /api/instagram/media-image  (public, streaming — post/story thumbnails)
+ *   - /api/instagram/media-image  (signed-in, streaming — post/story thumbnails)
  *   - /api/agents/[id]/channels/[id]/avatar + /api/contacts/[id]/avatar
  *     (authenticated, buffered — channel bot + contact profile pictures)
  * and by this client-side helper that rewrites CDN urls onto the proxy route.
@@ -32,6 +32,18 @@ const META_MEDIA_HOST_SUFFIXES = [
   'akamaihd.net',
   'instagram.com',
 ] as const
+
+/**
+ * Content types the proxies will relay — raster images only. SVG is excluded
+ * on purpose: served from our own origin it would execute as our origin.
+ */
+export const PROXY_IMAGE_TYPES: ReadonlySet<string> = new Set([
+  'image/avif',
+  'image/gif',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
 
 /** True when the hostname belongs to an Instagram/Meta media CDN. */
 export function isInstagramMediaHost(hostname: string): boolean {
