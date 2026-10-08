@@ -13,6 +13,7 @@ export function DialogShell({
   children,
   wide = false,
   compact = false,
+  stableWidth = false,
 }: {
   title: string
   subtitle?: string
@@ -21,6 +22,10 @@ export function DialogShell({
   wide?: boolean
   /** Narrow panel for confirmations. */
   compact?: boolean
+  /** Always take the full max width on desktop. By default the panel hugs its
+   *  content there, so a dialog whose body loads asynchronously changes width
+   *  when the data lands — set this to keep it still. */
+  stableWidth?: boolean
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -87,7 +92,12 @@ export function DialogShell({
 
   return createPortal(
     <motion.div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:grid sm:place-items-center sm:p-3"
+      className={cn(
+        'fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:p-3',
+        // A centred GRID item is sized by its content; a FLEX item resolves
+        // `w-full` against the overlay, so the panel is exactly its max width.
+        stableWidth ? 'sm:items-center' : 'sm:grid sm:place-items-center',
+      )}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

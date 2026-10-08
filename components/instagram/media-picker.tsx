@@ -132,7 +132,7 @@ function PostStats({ item }: { item: InstagramMediaItem }) {
         const comments = faCompact(item.commentsCount)
         if (!likes && !comments) return null
         return (
-                <div className="flex items-center gap-2 text-[10px] font-bold text-white/95">
+                <div className="flex shrink-0 items-center gap-2 text-[10px] font-bold leading-4 text-[var(--text-secondary)]">
                         {likes && (
                                 <span className="inline-flex items-center gap-0.5">
                                         <Heart aria-hidden="true" className="h-3 w-3 fill-current" />
@@ -145,6 +145,76 @@ function PostStats({ item }: { item: InstagramMediaItem }) {
                                         {comments}
                                 </span>
                         )}
+                </div>
+        )
+}
+
+/**
+ * Thumbnail that keeps the skeleton shimmer running on its box until the
+ * image has actually loaded, then fades in — so «data arrived» and «picture
+ * arrived» are one continuous state instead of shimmer → flat grey → pop.
+ */
+function TileImage({ src, alt, className }: { src: string | undefined; alt: string; className?: string }) {
+        const [loaded, setLoaded] = useState(false)
+        return (
+                <>
+                        {!loaded && <span aria-hidden="true" className="skeleton-shimmer absolute inset-0" />}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                                // A cached image is already complete before onLoad can attach.
+                                ref={(el) => {
+                                        if (el?.complete && el.naturalWidth > 0) setLoaded(true)
+                                }}
+                                src={src}
+                                alt={alt}
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
+                                onLoad={() => setLoaded(true)}
+                                onError={() => setLoaded(true)}
+                                className={cn(
+                                        'relative h-full w-full object-cover transition-opacity duration-300',
+                                        loaded ? 'opacity-100' : 'opacity-0',
+                                        className,
+                                )}
+                        />
+                </>
+        )
+}
+
+/**
+ * Placeholder with PostTile's exact box model (same shell classes, same
+ * 20px + 16px meta lines) — the grid does not move when real tiles replace it.
+ */
+function PostTileSkeleton({ index }: { index: number }) {
+        const delay = -150 - (index % 12) * 40
+        return (
+                <div aria-hidden="true">
+                        <Skeleton delay={delay} className="aspect-square rounded-xl" />
+                        <div className="mt-1.5 min-w-0 px-0.5">
+                                <div className="flex h-5 items-center">
+                                        <Skeleton delay={delay - 20} className="h-2.5 w-4/5 rounded-full" />
+                                </div>
+                                <div className="flex h-4 items-center justify-between gap-1">
+                                        <Skeleton delay={delay - 40} className="h-2 w-2/5 rounded-full" />
+                                        <Skeleton delay={delay - 40} className="h-2 w-9 rounded-full" />
+                                </div>
+                        </div>
+                </div>
+        )
+}
+
+/** Placeholder with StoryTile's exact box model: ring + 9:16 body + 20px label. */
+function StoryTileSkeleton({ index }: { index: number }) {
+        const delay = -80 - (index % 8) * 50
+        return (
+                <div aria-hidden="true" className="w-[84px] shrink-0 sm:w-[100px]">
+                        <div className="rounded-[1.25rem] p-[2.5px]" style={{ background: IG_GRADIENT_SOFT }}>
+                                <Skeleton delay={delay} className="aspect-[9/16] w-full rounded-[1.1rem]" />
+                        </div>
+                        <div className="mt-1.5 flex h-5 items-center justify-center px-0.5">
+                                <Skeleton delay={delay - 30} className="h-2.5 w-14 rounded-full" />
+                        </div>
                 </div>
         )
 }
@@ -192,14 +262,10 @@ function PostTile({
                                 )}
                         >
                                 {item.mediaUrl ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
+                                        <TileImage
                                                 src={igProxySrc(item.mediaUrl)}
                                                 alt={(item.caption ?? 'پست اینستاگرام').slice(0, 80)}
-                                                loading="lazy"
-                                                decoding="async"
-                                                referrerPolicy="no-referrer"
-                                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                                className="transition-[opacity,scale,transform] group-hover:scale-[1.03]"
                                         />
                                 ) : (
                                         <div className="grid h-full w-full place-items-center text-[var(--text-hint)]">
@@ -221,11 +287,11 @@ function PostTile({
                         </div>
                         {/* Meta under the tile */}
                         <div className="mt-1.5 min-w-0 px-0.5">
-                                <p className="truncate text-[12px] leading-5 text-[var(--text-primary)]">
+                                <p className="h-5 truncate text-[12px] leading-5 text-[var(--text-primary)]">
                                         {(item.caption ?? '').split('\n')[0] || `پست ${item.id.slice(0, 10)}…`}
                                 </p>
-                                <div className="flex items-center justify-between gap-1">
-                                        <p className="text-[11px] leading-4 text-[var(--text-muted)]">
+                                <div className="flex h-4 items-center justify-between gap-1">
+                                        <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">
                                                 {faAgo(item.timestamp, now)}
                                         </p>
                                         <PostStats item={item} />
@@ -276,15 +342,7 @@ function StoryTile({
                                         )}
                                 >
                                         {item.mediaUrl ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img
-                                                        src={igProxySrc(item.mediaUrl)}
-                                                        alt={`استوری ${item.id}`}
-                                                        loading="lazy"
-                                                        decoding="async"
-                                                        referrerPolicy="no-referrer"
-                                                        className="h-full w-full object-cover"
-                                                />
+                                                <TileImage src={igProxySrc(item.mediaUrl)} alt={`استوری ${item.id}`} />
                                         ) : (
                                                 <div className="grid h-full w-full place-items-center text-[var(--text-hint)]">
                                                         <Clock className="h-7 w-7" aria-hidden="true" />
@@ -310,7 +368,7 @@ function StoryTile({
                             tile never overflows its label. */}
                         <p
                                 className={cn(
-                                        'mt-1.5 flex items-center justify-center gap-1 truncate px-0.5 text-[11px] leading-5',
+                                        'mt-1.5 flex h-5 items-center justify-center gap-1 truncate px-0.5 text-[11px] leading-5',
                                         remaining ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]',
                                 )}
                         >
@@ -486,6 +544,10 @@ export function InstagramMediaPicker({
         const anyLiveStory = stories.some((i) => (i.expiresAt ? new Date(i.expiresAt).getTime() > now : false))
         const nothingAtAll =
                 !loading && !error && visiblePosts.length === 0 && (!showStories || stories.length === 0)
+        // Placeholder counts: on a re-open the previous result is still in state,
+        // so the skeleton shows exactly as many tiles as are about to come back.
+        const storyPlaceholders = Math.min(stories.length || 4, 12)
+        const postPlaceholders = Math.min(posts.length || 12, 30)
 
         // ── THE fix for "the popup never closes / no media loads" ─────────────
         // The component used to render <DialogShell> unconditionally, so the
@@ -499,6 +561,7 @@ export function InstagramMediaPicker({
         return (
                 <DialogShell
                         wide
+                        stableWidth
                         title={showPosts && showStories ? 'انتخاب پست یا استوری از پیج' : showStories ? 'انتخاب استوری از پیج' : 'انتخاب پست از پیج'}
                         subtitle={
                                 accountUsername
@@ -507,7 +570,7 @@ export function InstagramMediaPicker({
                         }
                         onClose={onClose}
                 >
-                        <div className="flex h-[min(58dvh,540px)] min-h-0 flex-col">
+                        <div className="flex h-[min(58dvh,540px)] min-h-0 flex-col gap-3">
                                 {/* Caption search — the single filter, per operator request */}
                                 {showPosts && (
                                         <div className="relative">
@@ -526,180 +589,142 @@ export function InstagramMediaPicker({
                                         </div>
                                 )}
 
-                                {/* Body states — ONE fixed-height scroll area so the panel
-                                    keeps its exact size between the skeleton and the loaded
-                                    grid (the desktop dialog used to jump when data landed). */}
-                                <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-                                {loading ? (
-                                        /* Layout-matched skeleton (operator request): mirrors the
-REAL layout — story strip + post grid with caption lines —
-					   so the jump when data lands is minimal. Uses the shared
-					   Skeleton primitive with staggered shimmer delays. */
-					<div className="space-y-4">
-						{showStories && (
-							<section className="space-y-2">
-								{/* Banner + header + strip — every block mirrors the
-								    LOADED layout's exact height so nothing shifts. */}
-								<Skeleton className="h-9 rounded-xl" />
-								<Skeleton delay={-40} className="h-4 w-28 rounded-full" />
-								<div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-									{Array.from({ length: 8 }).map((_, i) => (
-										<div key={i} className="w-[84px] shrink-0 sm:w-[100px]">
-											<div
-												className="rounded-[1.25rem] p-[2.5px]"
-												style={{ background: i < 3 ? IG_GRADIENT_SOFT : 'var(--border-default)' }}
-											>
-												<Skeleton delay={-80 - i * 50} className="aspect-[9/16] w-full rounded-[1.1rem]" />
-											</div>
-											<Skeleton delay={-80 - i * 50 - 30} className="mx-auto mt-1.5 h-5 w-16 rounded-full" />
-										</div>
-									))}
-								</div>
-							</section>
-						)}
-						{showPosts && (
-							<section className="space-y-2">
-								<Skeleton delay={-120} className="h-4 w-36 rounded-full" />
-								<div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-									{Array.from({ length: 16 }).map((_, i) => (
-										<div key={i}>
-											<Skeleton
-												delay={-150 - i * 40}
-												className={cn(
-													'aspect-square rounded-xl',
-													i === 0 && 'shadow-[0_0_0_2.5px_var(--bg-base),0_0_0_5px_#dd2a7b]',
-												)}
-											/>
-											<div className="mt-1.5 space-y-0.5 px-0.5">
-												<Skeleton delay={-150 - i * 40 - 20} className="h-5 w-4/5 rounded-full" />
-												<Skeleton delay={-150 - i * 40 - 40} className="h-4 w-2/5 rounded-full" />
-											</div>
-										</div>
-									))}
-								</div>
-							</section>
-						)}
-					</div>
-				) : error ? (
-					<div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
-                                                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-red-500">
-                                                        <AlertCircle className="h-6 w-6" aria-hidden="true" />
-                                                </span>
-                                                <p className="max-w-sm text-sm leading-6 text-[var(--text-secondary)]">{error}</p>
-                                                <button
-                                                        type="button"
-                                                        onClick={() => void fetchItems(1)}
-                                                        className="spatial-press inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-                                                >
-                                                        <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                                                        تلاش مجدد
-                                                </button>
-                                        </div>
-                                ) : nothingAtAll ? (
-                                        <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
-                                                <span
-                                                        className="grid h-12 w-12 place-items-center rounded-2xl text-white"
-                                                        style={{ background: IG_GRADIENT }}
-                                                >
-                                                        <Camera className="h-6 w-6" aria-hidden="true" />
-                                                </span>
-                                                <p className="max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
-                                                        {showStories
-                                                                ? 'در ۲۴ ساعت گذشته استوری‌ای منتشر نشده است. ابتدا در اینستاگرام استوری بگذارید، سپس این پنجره را دوباره باز کنید.'
-                                                                : 'هیچ پست یا ریلزی یافت نشد.'}
+                                {/* Body — ONE fixed-height scroll area and ONE layout for both
+                                    states: the banner, section titles, strip and grid are the
+                                    same elements while loading and once loaded; only the tiles
+                                    swap from placeholders (identical box model) to real media.
+                                    Nothing is re-flowed when the data lands. */}
+                                <div
+                                        aria-busy={loading}
+                                        // The 6px inline padding (pulled back by the negative margin)
+                                        // is room for the 5px selection ring — a scroll container
+                                        // clips anything that crosses its padding edge.
+                                        className="-mx-1.5 min-h-0 flex-1 overflow-y-auto px-1.5 [scrollbar-gutter:stable]"
+                                >
+                                        {loading && (
+                                                <p role="status" className="sr-only">
+                                                        در حال بارگذاری رسانه‌های پیج…
                                                 </p>
-                                        </div>
-                                ) : (
-                                        <div className="space-y-4">
-                                                {/* ── Stories strip ── */}
-                                                {showStories && stories.length > 0 && (
-                                                        <section className="space-y-2">
-                                                                {anyLiveStory && (
-                                                                        <p className="flex items-center gap-1.5 rounded-xl bg-[color:color-mix(in_srgb,#dd2a7b_7%,transparent)] px-3 py-2 text-[12px] leading-5 text-[var(--text-secondary)]">
-                                                                                <Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#dd2a7b]" />
-                                                                                استوری‌ها بعد از ۲۴ ساعت حذف می‌شوند؛ سناریو در پایان عمر استوری خودکار غیرفعال می‌شود.
-                                                                        </p>
-                                                                )}
-                                                                <div className="flex items-center justify-between gap-2">
+                                        )}
+                                        {!loading && error ? (
+                                                <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
+                                                        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-red-500">
+                                                                <AlertCircle className="h-6 w-6" aria-hidden="true" />
+                                                        </span>
+                                                        <p className="max-w-sm text-sm leading-6 text-[var(--text-secondary)]">{error}</p>
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => void fetchItems(1)}
+                                                                className="spatial-press inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                                                        >
+                                                                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                                                                تلاش مجدد
+                                                        </button>
+                                                </div>
+                                        ) : nothingAtAll ? (
+                                                <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
+                                                        <span
+                                                                className="grid h-12 w-12 place-items-center rounded-2xl text-white"
+                                                                style={{ background: IG_GRADIENT }}
+                                                        >
+                                                                <Camera className="h-6 w-6" aria-hidden="true" />
+                                                        </span>
+                                                        <p className="max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
+                                                                {query.trim()
+                                                                        ? 'پستی با این کپشن پیدا نشد.'
+                                                                        : showStories
+                                                                                ? 'در ۲۴ ساعت گذشته استوری‌ای منتشر نشده است. ابتدا در اینستاگرام استوری بگذارید، سپس این پنجره را دوباره باز کنید.'
+                                                                                : 'هیچ پست یا ریلزی یافت نشد.'}
+                                                        </p>
+                                                </div>
+                                        ) : (
+                                                <div className="space-y-4">
+                                                        {/* ── Stories strip ── */}
+                                                        {showStories && (loading || stories.length > 0) && (
+                                                                <section className="space-y-2">
+                                                                        {(loading || anyLiveStory) && (
+                                                                                <p className="flex items-center gap-1.5 rounded-xl bg-[color:color-mix(in_srgb,#dd2a7b_7%,transparent)] px-3 py-2 text-[12px] leading-5 text-[var(--text-secondary)]">
+                                                                                        <Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#dd2a7b]" />
+                                                                                        استوری‌ها بعد از ۲۴ ساعت حذف می‌شوند؛ سناریو در پایان عمر استوری خودکار غیرفعال می‌شود.
+                                                                                </p>
+                                                                        )}
                                                                         <h3 className="text-xs font-bold text-[var(--text-secondary)]">
                                                                                 استوری‌های فعال
-                                                                                {stories.length > 0 && (
+                                                                                {!loading && (
                                                                                         <span className="ms-1 text-[var(--text-muted)]">
                                                                                                 ({stories.length.toLocaleString('fa-IR')})
                                                                                         </span>
                                                                                 )}
                                                                         </h3>
-                                                                </div>
-                                                                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                                                        {stories.map((item) => (
-                                                                                <StoryTile
-                                                                                        key={item.id}
-                                                                                        item={item}
-                                                                                        isSelected={selected.has(item.id)}
-                                                                                        onToggle={() => toggle(item)}
-                                                                                        now={now}
-                                                                                />
-                                                                        ))}
-                                                                </div>
-                                                        </section>
-                                                )}
+                                                                        <div className="-mx-1.5 flex gap-2.5 overflow-x-auto px-1.5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                                                                {loading
+                                                                                        ? Array.from({ length: storyPlaceholders }).map((_, i) => (
+                                                                                                        <StoryTileSkeleton key={i} index={i} />
+                                                                                                ))
+                                                                                        : stories.map((item) => (
+                                                                                                        <StoryTile
+                                                                                                                key={item.id}
+                                                                                                                item={item}
+                                                                                                                isSelected={selected.has(item.id)}
+                                                                                                                onToggle={() => toggle(item)}
+                                                                                                                now={now}
+                                                                                                        />
+                                                                                                ))}
+                                                                        </div>
+                                                                </section>
+                                                        )}
 
-                                                {/* ── Posts grid ── */}
-                                                {showPosts && visiblePosts.length > 0 && (
-                                                        <section className="space-y-2">
-                                                                <div className="flex items-center justify-between gap-2">
+                                                        {/* ── Posts grid ── */}
+                                                        {showPosts && (loading || visiblePosts.length > 0) && (
+                                                                <section className="space-y-2">
                                                                         <h3 className="text-xs font-bold text-[var(--text-secondary)]">
                                                                                 پست‌ها و ریلزها
-                                                                                <span className="ms-1 text-[var(--text-muted)]">
-                                                                                        ({visiblePosts.length.toLocaleString('fa-IR')})
-                                                                                </span>
-                                                                        </h3>
-                                                                </div>
-                                                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                                                        {visiblePosts.map((item) => (
-                                                                                <PostTile
-                                                                                        key={item.id}
-                                                                                        item={item}
-                                                                                        isSelected={selected.has(item.id)}
-                                                                                        onToggle={() => toggle(item)}
-                                                                                        now={now}
-                                                                                />
-                                                                        ))}
-                                                                </div>
-                                                                {hasMore && (
-                                                                        <button
-                                                                                type="button"
-                                                                                onClick={() => void fetchItems(pagesLoaded + 1)}
-                                                                                disabled={loadingMore}
-                                                                                className="spatial-press mx-auto flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
-                                                                        >
-                                                                                {loadingMore ? (
-                                                                                        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                                                                ) : (
-                                                                                        <ChevronDown aria-hidden="true" className="h-4 w-4" />
+                                                                                {!loading && (
+                                                                                        <span className="ms-1 text-[var(--text-muted)]">
+                                                                                                ({visiblePosts.length.toLocaleString('fa-IR')})
+                                                                                        </span>
                                                                                 )}
-                                                                                نمایش پست‌های بیشتر
-                                                                        </button>
-                                                                )}
-                                                        </section>
-                                                )}
-
-                                                {/* Stories-only picker with zero stories (posts hidden) */}
-                                                {showStories && !showPosts && stories.length === 0 && (
-                                                        <div className="flex min-h-full flex-col items-center justify-center gap-3 py-10 text-center">
-                                                                <span
-                                                                        className="grid h-12 w-12 place-items-center rounded-2xl text-white"
-                                                                        style={{ background: IG_GRADIENT }}
-                                                                >
-                                                                        <Camera className="h-6 w-6" aria-hidden="true" />
-                                                                </span>
-                                                                <p className="max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
-                                                                        در ۲۴ ساعت گذشته استوری‌ای منتشر نشده است. ابتدا در اینستاگرام استوری بگذارید، سپس این پنجره را دوباره باز کنید.
-                                                                </p>
-                                                        </div>
-                                                )}
-                                        </div>
-                                )}
+                                                                        </h3>
+                                                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                                                                {loading
+                                                                                        ? Array.from({ length: postPlaceholders }).map((_, i) => (
+                                                                                                        <PostTileSkeleton key={i} index={i} />
+                                                                                                ))
+                                                                                        : visiblePosts.map((item) => (
+                                                                                                        <PostTile
+                                                                                                                key={item.id}
+                                                                                                                item={item}
+                                                                                                                isSelected={selected.has(item.id)}
+                                                                                                                onToggle={() => toggle(item)}
+                                                                                                                now={now}
+                                                                                                        />
+                                                                                                ))}
+                                                                                {/* The next page grows the SAME grid — placeholders
+                                                                                    hold its rows until the posts arrive. */}
+                                                                                {!loading && loadingMore && !query.trim() &&
+                                                                                        Array.from({ length: 8 }).map((_, i) => (
+                                                                                                <PostTileSkeleton key={`more-${i}`} index={i} />
+                                                                                        ))}
+                                                                        </div>
+                                                                        {!loading && hasMore && (
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => void fetchItems(pagesLoaded + 1)}
+                                                                                        disabled={loadingMore}
+                                                                                        className="spatial-press mx-auto flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
+                                                                                >
+                                                                                        {loadingMore ? (
+                                                                                                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                                                                        ) : (
+                                                                                                <ChevronDown aria-hidden="true" className="h-4 w-4" />
+                                                                                        )}
+                                                                                        نمایش پست‌های بیشتر
+                                                                                </button>
+                                                                        )}
+                                                                </section>
+                                                        )}
+                                                </div>
+                                        )}
                                 </div>
                         </div>
 
