@@ -15,7 +15,7 @@ export default async function OnboardingPage() {
   const user = await requireUser()
 
   const state = await syncOnboarding(user.workspaceId)
-  const [workspace, firstAgent] = await Promise.all([
+  const [workspace, firstAgent, instagramChannel] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
       where: { id: user.workspaceId },
       select: { businessType: true, businessProfile: true },
@@ -23,6 +23,11 @@ export default async function OnboardingPage() {
     prisma.agent.findFirst({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    }),
+    // Same test the Instagram page uses to send a connected account back here.
+    prisma.agentChannel.findFirst({
+      where: { type: 'INSTAGRAM', agent: { workspaceId: user.workspaceId } },
       select: { id: true },
     }),
   ])
@@ -37,6 +42,7 @@ export default async function OnboardingPage() {
       hasAgent={state.checks.hasAgent}
       hasKnowledge={state.checks.hasKnowledge}
       hasChannel={state.checks.hasChannel}
+      instagramConnected={Boolean(instagramChannel)}
       agentId={firstAgent?.id ?? null}
       businessType={workspace.businessType}
       businessProfile={businessProfile}

@@ -73,6 +73,19 @@ describe('simplified onboarding flow', () => {
     expect(shell).toContain("label: 'اتصال برنامه'")
   })
 
+  it('keeps Instagram scenarios out of setup and brings the tab in on connect', () => {
+    const flow = read('components/onboarding/onboarding-flow.tsx')
+    const manager = read('app/(dashboard)/agents/[agentId]/instagram/page.tsx')
+    const callback = read('app/api/instagram/oauth/callback/route.ts')
+
+    // A connected account returns to the setup steps, never to the scenario builder.
+    expect(manager).toContain("if (igChannel && !agent.workspace.onboardingCompleted) redirect('/onboarding')")
+    expect(flow).toContain("finish('/instagram')")
+    expect(flow).toContain('بعد از ورود به داشبورد، سناریوها را از تب «اینستاگرام» بسازید.')
+    // Connecting switches the capability on, so the tab is in the menu afterwards.
+    expect(callback).toContain("enableWorkspaceCapability(state.workspaceId, 'instagram')")
+  })
+
   it('orders remaining dashboard work before completed onboarding tasks', () => {
     const checklist = read('components/dashboard/completion-checklist.tsx')
 

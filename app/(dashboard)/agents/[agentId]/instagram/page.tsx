@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Camera, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
@@ -96,6 +96,7 @@ async function InstagramAutomationContent({
                 select: {
                         id: true,
                         name: true,
+                        workspace: { select: { onboardingCompleted: true } },
                         channels: {
                                 where: { type: 'INSTAGRAM' },
                                 select: { id: true, config: true },
@@ -105,6 +106,11 @@ async function InstagramAutomationContent({
         if (!agent) notFound()
 
         const igChannel = agent.channels[0]
+
+        // Setup only connects the account. Scenarios are built from the
+        // Instagram tab once the dashboard is open, so a connected account
+        // goes straight back to the setup steps instead of the manager.
+        if (igChannel && !agent.workspace.onboardingCompleted) redirect('/onboarding')
 
         // Status banners shown right after the OAuth round-trip lands back
         // here (?ig_connected=1 / ?ig_error=...). Mirrors the channels page.

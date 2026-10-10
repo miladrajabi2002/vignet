@@ -102,6 +102,8 @@ interface Props {
   hasAgent: boolean
   hasKnowledge: boolean
   hasChannel: boolean
+  /** An Instagram account is connected; its scenarios are built after setup. */
+  instagramConnected: boolean
   agentId: string | null
   businessType: string | null
   businessProfile: BusinessProfile | null
@@ -115,6 +117,7 @@ export function OnboardingFlow({
   hasAgent,
   hasKnowledge,
   hasChannel,
+  instagramConnected,
   agentId,
   businessType,
   businessProfile,
@@ -266,6 +269,7 @@ export function OnboardingFlow({
               <ChannelStep
                 agentId={resolvedAgentId}
                 instagramFirst={businessType === 'SOCIAL'}
+                instagramConnected={instagramConnected}
                 done={hasChannel}
                 successBanner={wooJustConnected ? (fa ? 'با موفقیت سایت شما به ویجنت وصل شد' : 'Your site is now connected to Vigent') : undefined}
                 onLinkCreated={() => { router.refresh() }}
@@ -279,7 +283,7 @@ export function OnboardingFlow({
               />
             )}
 
-            {currentPhase === 'done' && <DoneStep agentId={resolvedAgentId} />}
+            {currentPhase === 'done' && <DoneStep agentId={resolvedAgentId} instagramConnected={instagramConnected} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -1107,6 +1111,7 @@ function randomSlug() {
 function ChannelStep({
   agentId,
   instagramFirst,
+  instagramConnected,
   done,
   successBanner,
   onLinkCreated,
@@ -1117,6 +1122,7 @@ function ChannelStep({
   agentId: string | null
   /** Instagram-first businesses see Instagram as the highlighted tile. */
   instagramFirst: boolean
+  instagramConnected: boolean
   done: boolean
   successBanner?: string
   onLinkCreated: () => void
@@ -1224,14 +1230,27 @@ function ChannelStep({
 
         {CHANNEL_TILES.map((tile) => {
           const primary = instagramFirst && tile.key === 'INSTAGRAM'
+          // Connected already: nothing left to do here, scenarios come after setup.
+          const connected = tile.key === 'INSTAGRAM' && instagramConnected
           return (
             <div key={tile.key} className={cn(tileBase, primary && 'ring-[1.5px] ring-[var(--text-primary)]')}>
               <ChannelMark channel={tile.key} size="sm" className="!h-9 !w-9 !rounded-xl" />
               <span className="mt-1 text-[13px] font-bold text-[var(--text-primary)]">{fa ? tile.fa : tile.en}</span>
-              <span className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? tile.hintFa : tile.hintEn}</span>
-              <a href={tile.key === 'INSTAGRAM' ? '/instagram' : channelsHref} className={cn(primary ? ROW_BTN_DARK : ROW_BTN_LIGHT, 'mt-2 w-full')}>
-                {tile.key === 'WEB_WIDGET' ? (fa ? 'دریافت کد' : 'Get the code') : (fa ? 'اتصال' : 'Connect')}
-              </a>
+              <span className="text-[12px] leading-5 text-[var(--text-muted)]">
+                {connected
+                  ? (fa ? 'سناریوها بعد از راه‌اندازی، در تب اینستاگرام' : 'Scenarios come after setup, in the Instagram tab')
+                  : (fa ? tile.hintFa : tile.hintEn)}
+              </span>
+              {connected ? (
+                <span className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 text-[12px] font-semibold text-emerald-700">
+                  <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  {fa ? 'وصل شد' : 'Connected'}
+                </span>
+              ) : (
+                <a href={tile.key === 'INSTAGRAM' ? '/instagram' : channelsHref} className={cn(primary ? ROW_BTN_DARK : ROW_BTN_LIGHT, 'mt-2 w-full')}>
+                  {tile.key === 'WEB_WIDGET' ? (fa ? 'دریافت کد' : 'Get the code') : (fa ? 'اتصال' : 'Connect')}
+                </a>
+              )}
             </div>
           )
         })}
@@ -1261,7 +1280,7 @@ function ChannelStep({
 }
 
 // ─── Final step ─────────────────────────────────────────────────
-function DoneStep({ agentId }: { agentId: string | null }) {
+function DoneStep({ agentId, instagramConnected }: { agentId: string | null; instagramConnected: boolean }) {
   const fa = useLocale() !== 'en'
   const router = useRouter()
   const reduce = useReducedMotion()
@@ -1323,8 +1342,21 @@ function DoneStep({ agentId }: { agentId: string | null }) {
         </button>
       ),
     },
-    linkUrl
-      ? {
+    // Instagram is connected during setup, but its scenarios are built in
+    // the Instagram tab, which only exists once the dashboard is open.
+    ...(instagramConnected
+      ? [{
+          title: fa ? 'سناریوهای اینستاگرام را بسازید' : 'Build your Instagram scenarios',
+          body: fa ? 'پاسخ خودکار دایرکت، کامنت و استوری؛ در تب «اینستاگرام» داشبورد' : 'Auto-replies for DMs, comments and stories, in the dashboard’s Instagram tab',
+          action: (
+            <button type="button" onClick={() => void finish('/instagram')} disabled={leaving} className={ROW_BTN_LIGHT}>
+              {fa ? 'تب اینستاگرام' : 'Instagram tab'}
+            </button>
+          ),
+        }]
+      : []),
+    ...(linkUrl
+      ? [{
           title: fa ? 'لینک چت را برای اولین مشتری بفرستید' : 'Send the chat link to your first customer',
           body: <span dir="ltr" className="select-all">{linkUrl.replace(/^https?:\/\//, '')}</span>,
           action: (
@@ -1333,16 +1365,18 @@ function DoneStep({ agentId }: { agentId: string | null }) {
               {copied ? (fa ? 'کپی شد' : 'Copied') : (fa ? 'کپی لینک' : 'Copy link')}
             </button>
           ),
-        }
-      : {
-          title: fa ? 'یک راه تماس برای مشتری باز کنید' : 'Open a way for customers to reach you',
-          body: fa ? 'لینک چت، ویجت سایت، اینستاگرام یا تلگرام' : 'Chat link, website widget, Instagram or Telegram',
-          action: (
-            <button type="button" onClick={() => void finish(agentId ? `/agents/${agentId}/channels` : '/agents')} disabled={leaving} className={ROW_BTN_LIGHT}>
-              {fa ? 'اتصال برنامه' : 'Connect an app'}
-            </button>
-          ),
-        },
+        }]
+      : instagramConnected
+        ? []
+        : [{
+            title: fa ? 'یک راه تماس برای مشتری باز کنید' : 'Open a way for customers to reach you',
+            body: fa ? 'لینک چت، ویجت سایت، اینستاگرام یا تلگرام' : 'Chat link, website widget, Instagram or Telegram',
+            action: (
+              <button type="button" onClick={() => void finish(agentId ? `/agents/${agentId}/channels` : '/agents')} disabled={leaving} className={ROW_BTN_LIGHT}>
+                {fa ? 'اتصال برنامه' : 'Connect an app'}
+              </button>
+            ),
+          }]),
     {
       title: fa ? 'دانش کسب‌وکار را کامل کنید' : 'Complete the business knowledge',
       body: fa ? 'شرایط ارسال، مرجوعی و پرسش‌های پرتکرار' : 'Shipping, returns and frequent questions',
@@ -1363,8 +1397,26 @@ function DoneStep({ agentId }: { agentId: string | null }) {
     >
       <StepHeading
         title={fa ? 'ایجنت شما روشن است' : 'Your agent is live'}
-        subtitle={fa ? 'سه کار کوتاه تا اولین گفتگوی واقعی:' : 'Three short steps to your first real conversation:'}
+        subtitle={fa
+          ? `${steps.length === 4 ? 'چهار' : 'سه'} کار کوتاه تا اولین گفتگوی واقعی:`
+          : `${steps.length === 4 ? 'Four' : 'Three'} short steps to your first real conversation:`}
       />
+
+      {instagramConnected && (
+        <motion.div
+          variants={staggerChild}
+          className="mx-auto mt-5 flex max-w-md items-center justify-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800"
+        >
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+            <Check className="h-3.5 w-3.5" strokeWidth={3} />
+          </span>
+          <p className="text-start text-[13px] font-semibold leading-5">
+            {fa
+              ? 'اینستاگرام وصل شد. بعد از ورود به داشبورد، سناریوها را از تب «اینستاگرام» بسازید.'
+              : 'Instagram is connected. Once you are in the dashboard, build scenarios from the Instagram tab.'}
+          </p>
+        </motion.div>
+      )}
 
       <motion.ol variants={staggerChild} className="spatial-surface mt-6 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-card text-start">
         {steps.map((step, index) => (

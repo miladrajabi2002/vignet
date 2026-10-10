@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 import { invalidateWidgetConfig } from '@/lib/widget/cache'
 import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
+import { enableWorkspaceCapability } from '@/lib/verticals/workspace-capabilities'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -75,6 +76,11 @@ export async function POST(req: Request, props: Params) {
 	})
 
     await syncOnboarding(user.workspaceId)
+
+    // A connected Instagram account brings its section into the menu.
+    if (parsed.data.type === 'INSTAGRAM') {
+		await enableWorkspaceCapability(user.workspaceId, 'instagram').catch(() => {})
+	}
 
     // Bust the cached public widget config so new visitors see the change.
     if (parsed.data.type === 'WEB_WIDGET') {

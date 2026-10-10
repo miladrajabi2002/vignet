@@ -18,6 +18,7 @@ import {
 import { getCurrentUser } from '@/lib/session'
 import { consumeOAuthState } from '@/lib/security/oauth-state'
 import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
+import { enableWorkspaceCapability } from '@/lib/verticals/workspace-capabilities'
 
 export const dynamic = 'force-dynamic'
 
@@ -230,6 +231,14 @@ export async function GET(req: Request) {
     }
 
     await syncOnboarding(state.workspaceId)
+
+    // A connected account belongs in the menu: without the capability the
+    // «اینستاگرام» section stays hidden and the owner cannot find it again.
+    // Best-effort — the account is connected either way.
+    await enableWorkspaceCapability(state.workspaceId, 'instagram').catch(
+      (e) =>
+        console.error('[instagram:oauth] enabling the capability failed:', e),
+    )
 
     return NextResponse.redirect(
       new URL(`${returnPath(state.agentId)}?ig_connected=1`, base),
