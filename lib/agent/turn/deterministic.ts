@@ -85,15 +85,12 @@ export async function buildDeterministicTurnReply(params: {
                         ? 'Okay, I set the previous topic aside.'
                         : 'باشه؛ موضوع قبلی را کنار گذاشتم.'
         }
-        if (!params.agent.productAccessEnabled) {
-                if (params.productRequest.variantBrowse || params.productRequest.variantPick || params.productRequest.explicitShowcase) {
-                        if (lang === 'ar') return 'وصول هذا المساعد إلى كتالوج المنتجات معطّل حاليًا.'
-                        return lang === 'en'
-                                ? 'This agent does not currently have access to the product catalog.'
-                                : 'دسترسی این ایجنت به کاتالوگ محصولات در حال حاضر غیرفعال است.'
-                }
-                return null
-        }
+        // No catalog access: the regex plan's «show me products» guess is the
+        // only evidence here, and it fires on «عکس ازین طریق ارسال نمیشه» or
+        // «لینک واتساپ رو بفرست» in a business that sells no products at all.
+        // The reply model answers these turns; its capability boundaries
+        // already say what the agent cannot do.
+        if (!params.agent.productAccessEnabled) return null
         // «طرح 07 رو میخوام» / «رنگ شکلاتی دارین؟» — the customer picked ONE
         // variant of the discussed product WITHOUT a code. Resolve it against
         // that product's variations (own photo/price/stock) instead of letting
