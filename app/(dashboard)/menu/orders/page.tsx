@@ -5,7 +5,7 @@ import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { menuOwnsCatalog } from '@/lib/verticals/registry'
 import { OrdersView, type OrdersSearchParams } from '@/components/products/orders-view'
 
-export default async function OrdersPage({
+export default async function MenuOrdersPage({
   searchParams,
 }: {
   searchParams: Promise<OrdersSearchParams>
@@ -16,11 +16,11 @@ export default async function OrdersPage({
     where: { id: user.workspaceId },
     select: { businessType: true, businessProfile: true },
   })
-  // A menu-only business reads its orders inside the menu.
-  if (menuOwnsCatalog(workspaceCapabilities(workspace))) {
+  // With a «محصولات» section in the menu, orders live there.
+  if (!menuOwnsCatalog(workspaceCapabilities(workspace))) {
     const query = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()
-    redirect(query ? `/menu/orders?${query}` : '/menu/orders')
+    redirect(query ? `/products/orders?${query}` : '/products/orders')
   }
 
-  return <OrdersView scope="products" workspaceId={user.workspaceId} searchParams={params} />
+  return <OrdersView scope="menu" workspaceId={user.workspaceId} searchParams={params} />
 }

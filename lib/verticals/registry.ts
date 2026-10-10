@@ -361,16 +361,29 @@ export function capabilitiesBringingModule(
  */
 export function collapseDashboardNavigationModules(
   modules: readonly DashboardModuleKey[],
+  capabilities: readonly CapabilityKey[] = [],
 ): DashboardModuleKey[] {
-  return modules.includes('appointments')
-    ? modules.filter((module) => module !== 'services')
-    : [...modules]
+  const folded = new Set<DashboardModuleKey>()
+  if (modules.includes('appointments')) folded.add('services')
+  if (menuOwnsCatalog(capabilities)) folded.add('products')
+  return modules.filter((module) => !folded.has(module))
+}
+
+/**
+ * A business whose catalog exists only for its digital menu. The menu
+ * workspace adds, edits and removes its items and lists their orders, so a
+ * separate «محصولات» link would show the same rows twice. The products module
+ * itself stays on (the agent sells from it); only the link is folded away.
+ */
+export function menuOwnsCatalog(capabilities: readonly CapabilityKey[]): boolean {
+  return capabilities.includes('digital-menu')
+    && capabilitiesBringingModule('products', capabilities, 'digital-menu').length === 0
 }
 
 export function getDashboardNavigationModules(
   capabilities: readonly CapabilityKey[] = [],
 ): DashboardModuleKey[] {
-  return collapseDashboardNavigationModules(getDashboardModules(capabilities))
+  return collapseDashboardNavigationModules(getDashboardModules(capabilities), capabilities)
 }
 
 /** All useful cross-business capabilities, with the relevant ones shown first. */

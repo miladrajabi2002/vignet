@@ -3,13 +3,20 @@ import { prisma } from '@/lib/prisma'
 import { MENU_ITEM_LIMIT, menuChatSlug, publicSiteUrl } from '@/lib/menu/public-menu'
 import { MenuWorkspace, type MenuCategory, type MenuItem } from '@/components/menu/menu-workspace'
 import { readMenuSettings } from '@/lib/menu/settings'
+import { workspaceCapabilities } from '@/lib/verticals/profile'
+import { menuOwnsCatalog } from '@/lib/verticals/registry'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DigitalMenuDashboardPage() {
+export default async function DigitalMenuDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
   const user = await requireUser()
+  const { tab } = await searchParams
   const [workspace, categories, products, total, chatSlug] = await Promise.all([
-    prisma.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { name: true, slug: true, menuSettings: true } }),
+    prisma.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { name: true, slug: true, menuSettings: true, businessType: true, businessProfile: true } }),
     prisma.productCategory.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -37,6 +44,7 @@ export default async function DigitalMenuDashboardPage() {
     comparePrice: product.comparePrice,
     stock: product.stock,
     image: product.images[0] ?? null,
+    images: product.images,
     categoryId: product.categoryId,
     active: product.active,
     synced: Boolean(product.sourceIntegrationId),
@@ -54,6 +62,8 @@ export default async function DigitalMenuDashboardPage() {
       categories={menuCategories}
       initialItems={items}
       truncated={total > items.length}
+      showOrders={menuOwnsCatalog(workspaceCapabilities(workspace))}
+      initialTab={tab === 'design' ? 'design' : 'items'}
     />
   )
 }

@@ -54,7 +54,7 @@ describe('shared adaptive mobile UI contract', () => {
   })
 
   it('aligns orders with the shared commerce and customer mobile patterns', () => {
-    const orders = source('app/(dashboard)/products/orders/page.tsx')
+    const orders = source('components/products/orders-view.tsx')
     const mobileOrder = source('components/products/order-entry.tsx')
     const search = source('components/products/orders-search-form.tsx')
     const tabs = source('components/products/commerce-tabs.tsx')
@@ -93,7 +93,7 @@ describe('shared adaptive mobile UI contract', () => {
 
   it('pairs every data-dense desktop table with a dedicated mobile card view', () => {
     const pairedViews = [
-      'app/(dashboard)/products/orders/page.tsx',
+      'components/products/orders-view.tsx',
       'app/admin/(dash)/users/page.tsx',
       'app/admin/(dash)/payments/page.tsx',
       'app/admin/(dash)/conversations/page.tsx',
@@ -166,7 +166,7 @@ describe('shared adaptive mobile UI contract', () => {
 
   it('keeps Excel export exclusive to contacts', () => {
     const contacts = source('components/crm/contacts-view.tsx')
-    const orders = source('app/(dashboard)/products/orders/page.tsx')
+    const orders = source('components/products/orders-view.tsx')
     const analytics = source('app/(dashboard)/analytics/page.tsx')
     const agentAnalytics = source('app/(dashboard)/agents/[agentId]/analytics/page.tsx')
 

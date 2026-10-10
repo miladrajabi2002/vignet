@@ -29,7 +29,7 @@ import { LiveFlow, OperatorBotCard, OpsCenter, VigentoCard, type FlowInput, type
 import type { ChannelKey } from '@/components/ui/channel-mark'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
-import { getDashboardNavigationModules, getVerticalPack } from '@/lib/verticals/registry'
+import { getDashboardNavigationModules, getVerticalPack, menuOwnsCatalog } from '@/lib/verticals/registry'
 import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { getCapabilityReadiness } from '@/lib/verticals/readiness'
 import { CapabilityStatusPanel } from '@/components/dashboard/capability-status-panel'
@@ -235,6 +235,8 @@ export default async function OverviewPage() {
   const deltaHint = fa ? 'نسبت به ۷ روز قبل' : 'vs the previous 7 days'
   const deltaText = (delta: number) => `${nf.format(Math.abs(delta))}${fa ? '٪' : '%'}`
   const hasBookingModule = modules.includes('appointments')
+  // A menu-only business manages its items and orders inside the menu.
+  const catalogHref = menuOwnsCatalog(capabilities) ? '/menu' : '/products'
 
   const verticalOutcome = hasBookingModule
     ? {
@@ -250,7 +252,7 @@ export default async function OverviewPage() {
           value: activeProducts,
           hint: fa ? 'آماده پاسخ‌گویی ایجنت' : 'ready for agent answers',
           icon: Package,
-          href: '/products',
+          href: catalogHref,
         }
       : {
           label: fa ? 'ایجنت فعال' : 'Active agents',
@@ -310,7 +312,7 @@ export default async function OverviewPage() {
     hasBookingModule
       ? { key: 'bookings', label: fa ? 'نوبت پیش رو' : 'Upcoming bookings', value: upcomingAppointments, href: '/appointments', icon: CalendarCheck2, tone: 'ink' }
       : isCommerce
-        ? { key: 'orders', label: fa ? 'سفارش فروشگاه' : 'Store orders', value: orders7d, href: '/products/orders', icon: Package, tone: 'ink' }
+        ? { key: 'orders', label: fa ? 'سفارش فروشگاه' : 'Store orders', value: orders7d, href: `${catalogHref}/orders`, icon: Package, tone: 'ink' }
         : { key: 'open', label: fa ? 'گفتگوی باز' : 'Open chats', value: openConversations, href: '/conversations?status=OPEN', icon: MessagesSquare, tone: 'ink' },
   ]
   const vigentoAnswer = fa

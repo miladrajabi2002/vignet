@@ -20,6 +20,7 @@ import {
   capabilitiesBringingModule,
   capabilityLabel,
   collapseDashboardNavigationModules,
+  menuOwnsCatalog,
   getDashboardModuleLabel,
   getDefaultCapabilities,
   type BusinessServiceOption,
@@ -89,7 +90,7 @@ export function CapabilityOptions({
   const typeDefaults = new Set(getDefaultCapabilities(businessType))
   // Sections a selected capability brings along (Instagram and the digital
   // menu both sell from the catalog), named so nothing appears unexplained.
-  const productsVia = selected.includes('products') ? [] : capabilitiesBringingModule('products', selected)
+  const productsVia = selected.includes('products') || menuOwnsCatalog(selected) ? [] : capabilitiesBringingModule('products', selected)
 
   // Capabilities outside the recommended set stay folded away until asked
   // for, unless one of them is already switched on.
@@ -100,7 +101,7 @@ export function CapabilityOptions({
     const active = selected.includes(option.key)
     const meta = OPTION_META[option.key] ?? { icon: Sparkles, fa: [], en: [] }
     const Icon = meta.icon
-    const sections = collapseDashboardNavigationModules(option.modules)
+    const sections = collapseDashboardNavigationModules(option.modules, [option.key])
       .filter((module) => !CORE.has(module))
       .map((module) => sectionLabel(module, businessType, locale))
     const isDefault = typeDefaults.has(option.key)

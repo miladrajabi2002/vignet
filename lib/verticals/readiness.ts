@@ -53,7 +53,7 @@ function steps(key: CapabilityKey, facts: ReadinessFacts): ReadinessStep[] {
       }]
     case 'digital-menu':
       return [
-        { key: 'items', fa: 'حداقل یک آیتم فعال در منو', en: 'At least one active menu item', done: facts.activeProducts > 0, href: '/products/new' },
+        { key: 'items', fa: 'حداقل یک آیتم فعال در منو', en: 'At least one active menu item', done: facts.activeProducts > 0, href: '/menu' },
         { key: 'chat', fa: 'لینک گفتگو برای سفارش از منو', en: 'A chat link so guests can order from the menu', done: facts.chatLinkLive, href: '/menu' },
       ]
     case 'bookings':

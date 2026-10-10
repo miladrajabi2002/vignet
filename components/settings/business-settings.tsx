@@ -392,7 +392,7 @@ export function BusinessSettings({
                 const on = keys.includes(option.key)
                 const Icon = OPTION_ICONS[option.key] ?? Sparkles
                 // Same folding as the real menu: services live inside bookings.
-                const sections = collapseDashboardNavigationModules(option.modules).filter((module) => !CORE.has(module))
+                const sections = collapseDashboardNavigationModules(option.modules, [option.key]).filter((module) => !CORE.has(module))
                 const recommended = option.recommendedFor.includes(type)
                 const isDefault = typeDefaults.includes(option.key)
                 // Off here, but another capability still brings the section.

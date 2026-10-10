@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- QR codes are generated data URLs and item photos come from arbitrary store hosts. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import QRCode from 'qrcode'
 import {
@@ -20,6 +20,7 @@ import {
   PackagePlus,
   Pencil,
   Plug,
+  Plus,
   QrCode,
   RefreshCw,
   Search,
@@ -34,6 +35,9 @@ import { MenuDesign } from '@/components/menu/menu-design'
 import { BADGE_LABELS, badgeTag, badgesFromTags, withoutBadge, type MenuBadge, type MenuSettings } from '@/lib/menu/settings'
 import { buildMenuSections } from '@/lib/menu/public-data'
 import { ProductImage } from '@/components/products/product-image'
+import { MenuItemSheet } from '@/components/menu/menu-item-sheet'
+import { MenuTabs } from '@/components/menu/menu-tabs'
+import { UNDO_RESTORED_EVENT } from '@/lib/undo-queue'
 
 export interface MenuItem {
   id: string
@@ -44,6 +48,8 @@ export interface MenuItem {
   /** null = not tracked (always available), 0 = sold out. */
   stock: number | null
   image: string | null
+  /** Every photo of the product; `image` is the first. */
+  images: string[]
   categoryId: string | null
   active: boolean
   /** Imported from a connected store; the next sync may overwrite edits. */
@@ -80,6 +86,8 @@ export function MenuWorkspace({
   categories: initialCategories,
   initialItems,
   truncated,
+  showOrders,
+  initialTab = 'items',
 }: {
   businessName: string
   slug: string
@@ -89,14 +97,20 @@ export function MenuWorkspace({
   categories: MenuCategory[]
   initialItems: MenuItem[]
   truncated: boolean
+  /** The catalog is only this menu, so its orders are a tab here. */
+  showOrders: boolean
+  initialTab?: 'items' | 'design'
 }) {
-  const [tab, setTab] = useState<'items' | 'design'>('items')
+  const [tab, setTab] = useState<'items' | 'design'>(initialTab)
   const [items, setItems] = useState(initialItems)
   const [categories, setCategories] = useState(initialCategories)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
+  // The item editor: null item = a new one, optionally inside a category.
+  const [editor, setEditor] = useState<{ item: MenuItem | null; categoryId?: string } | null>(null)
+  const removed = useRef<{ item: MenuItem; index: number } | null>(null)
 
   const stats = useMemo(() => {
     const visible = items.filter((item) => item.active)
@@ -154,6 +168,29 @@ export function MenuWorkspace({
     }
   }
 
+  function removeItem(id: string) {
+    const index = items.findIndex((row) => row.id === id)
+    if (index < 0) return
+    removed.current = { item: items[index], index }
+    setItems((rows) => rows.filter((row) => row.id !== id))
+  }
+
+  // The undo toast restores the product on the server; put the row back here.
+  useEffect(() => {
+    function onRestored(event: Event) {
+      const last = removed.current
+      if ((event as CustomEvent<{ kind?: string }>).detail?.kind !== 'product' || !last) return
+      removed.current = null
+      setItems((rows) => (rows.some((row) => row.id === last.item.id) ? rows : [...rows.slice(0, last.index), last.item, ...rows.slice(last.index)]))
+    }
+    window.addEventListener(UNDO_RESTORED_EVENT, onRestored)
+    return () => window.removeEventListener(UNDO_RESTORED_EVENT, onRestored)
+  }, [])
+
+  function saveItem(saved: MenuItem) {
+    setItems((rows) => (rows.some((row) => row.id === saved.id) ? rows.map((row) => (row.id === saved.id ? saved : row)) : [saved, ...rows]))
+  }
+
   async function moveCategory(categoryId: string, direction: -1 | 1) {
     const index = orderable.findIndex((category) => category.id === categoryId)
     const target = orderable[index + direction]
@@ -187,23 +224,20 @@ export function MenuWorkspace({
       <PageHeader
         icon={UtensilsCrossed}
         title="منوی دیجیتال"
-        subtitle="همان چیزی که مشتری با اسکن QR می‌بیند. هر تغییر اینجا یا در محصولات، همان لحظه در منو دیده می‌شود."
+        subtitle="همان چیزی که مشتری با اسکن QR می‌بیند. هر تغییر اینجا، همان لحظه در منو دیده می‌شود."
         actions={
           <>
             <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
               <ExternalLink className="h-4 w-4" />دیدن منوی مشتری
             </a>
-            <Link href="/products/new" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90">
+            <button type="button" onClick={() => { setTab('items'); setEditor({ item: null }) }} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90">
               <PackagePlus className="h-4 w-4" />افزودن آیتم
-            </Link>
+            </button>
           </>
         }
       />
 
-      <div className="ui-seg grid-cols-2 sm:w-[22rem]" role="tablist" aria-label="بخش‌های منو">
-        <button type="button" role="tab" aria-selected={tab === 'items'} onClick={() => setTab('items')} className="ui-seg-tab">آیتم‌ها</button>
-        <button type="button" role="tab" aria-selected={tab === 'design'} onClick={() => setTab('design')} className="ui-seg-tab">طراحی و اطلاعات</button>
-      </div>
+      <MenuTabs active={tab} showOrders={showOrders} onSelect={setTab} />
 
       {tab === 'design' ? (
         <MenuDesign
@@ -215,7 +249,7 @@ export function MenuWorkspace({
           sections={previewSections}
         />
       ) : items.length === 0 ? (
-        <EmptyMenu />
+        <EmptyMenu onAdd={() => setEditor({ item: null })} />
       ) : (
         <>
           <dl className="grid grid-cols-2 divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white/80 sm:grid-cols-4 sm:divide-x sm:rtl:divide-x-reverse">
@@ -261,9 +295,10 @@ export function MenuWorkspace({
                         <OrderButton label={`پایین‌تر بردن ${section.name}`} disabled={position < 0 || position >= orderable.length - 1 || busy !== null} onClick={() => void moveCategory(section.id, 1)}><ArrowDown className="h-4 w-4" /></OrderButton>
                       </span>
                     ) : null}
+                    onAdd={searching ? undefined : () => setEditor({ item: null, categoryId: section.real ? section.id : undefined })}
                   >
                     {(limit) => section.items.slice(0, limit).map((item) => (
-                      <ItemRow key={item.id} item={item} busy={busy === item.id} onPatch={(data) => void patchItem(item, data)} />
+                      <ItemRow key={item.id} item={item} busy={busy === item.id} onEdit={() => setEditor({ item })} onPatch={(data) => void patchItem(item, data)} />
                     ))}
                   </MenuSection>
                 )
@@ -276,6 +311,7 @@ export function MenuWorkspace({
                   </div>
                 </div>
               )}
+              <p className="text-center text-[12px] text-[var(--text-muted)]">تغییر نام یا حذف دسته‌ها، موجودی عددی و حذف گروهی در <Link href="/products" className="font-bold underline underline-offset-4">تنظیمات پیشرفتهٔ کاتالوگ</Link> است.</p>
               {truncated && (
                 <p className="text-center text-[12px] text-[var(--text-muted)]">فقط ۵۰۰ آیتم تازه‌تر اینجا آمده‌اند؛ بقیه را از <Link href="/products" className="font-bold underline underline-offset-4">محصولات</Link> مدیریت کنید.</p>
               )}
@@ -285,11 +321,24 @@ export function MenuWorkspace({
           </div>
         </>
       )}
+
+      {editor && (
+        <MenuItemSheet
+          key={editor.item?.id ?? 'new'}
+          item={editor.item}
+          categories={categories}
+          defaultCategoryId={editor.categoryId}
+          onClose={() => setEditor(null)}
+          onSaved={saveItem}
+          onDeleted={removeItem}
+          onCategoryCreated={(category) => setCategories((rows) => [...rows, category])}
+        />
+      )}
     </div>
   )
 }
 
-function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPatch: (data: Partial<Pick<MenuItem, 'active' | 'stock' | 'tags'>>) => void }) {
+function ItemRow({ item, busy, onEdit, onPatch }: { item: MenuItem; busy: boolean; onEdit: () => void; onPatch: (data: Partial<Pick<MenuItem, 'active' | 'stock' | 'tags'>>) => void }) {
   const badges = badgesFromTags(item.tags)
   const toggleBadge = (badge: MenuBadge) => onPatch({
     tags: badges.includes(badge) ? withoutBadge(item.tags, badge) : [...item.tags, badgeTag(badge)],
@@ -353,9 +402,9 @@ function ItemRow({ item, busy, onPatch }: { item: MenuItem; busy: boolean; onPat
         </details>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <Link href={`/products/${item.id}/edit`} aria-label={`ویرایش ${item.name}`} className="grid h-11 w-11 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] sm:h-9 sm:w-9">
+        <button type="button" onClick={onEdit} aria-label={`ویرایش ${item.name}`} className="grid h-11 w-11 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] sm:h-9 sm:w-9">
           <Pencil className="h-4 w-4" />
-        </Link>
+        </button>
         {busy ? <Loader2 className="mx-2.5 h-4 w-4 animate-spin text-[var(--text-hint)]" /> : (
           <Switch checked={item.active} onChange={(active) => onPatch({ active })} aria-label={item.active ? `پنهان کردن ${item.name} از منو` : `نمایش ${item.name} در منو`} />
         )}
@@ -377,6 +426,7 @@ function MenuSection({
   count,
   defaultOpen,
   order,
+  onAdd,
   children,
 }: {
   name: string
@@ -384,6 +434,8 @@ function MenuSection({
   count: number
   defaultOpen: boolean
   order: React.ReactNode
+  /** Adds an item straight into this category. */
+  onAdd?: () => void
   children: (limit: number) => React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -407,6 +459,11 @@ function MenuSection({
           {rest > 0 && (
             <button type="button" onClick={() => setLimit((value) => value + SECTION_PAGE)} className="mt-2 min-h-11 w-full rounded-xl text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]">
               نمایش {fa(Math.min(rest, SECTION_PAGE))} آیتم بعدی از {fa(rest)}
+            </button>
+          )}
+          {onAdd && (
+            <button type="button" onClick={onAdd} className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--border-default)] text-xs font-bold text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+              <Plus className="h-3.5 w-3.5" />افزودن آیتم به «{name}»
             </button>
           )}
         </>
@@ -437,14 +494,14 @@ function Kpi({ label, value, tone, onClick }: { label: string; value: string; to
   )
 }
 
-function EmptyMenu() {
+function EmptyMenu({ onAdd }: { onAdd: () => void }) {
   return (
     <section className="spatial-surface rounded-sheet p-6 text-center sm:p-10">
       <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--text-primary)] text-white shadow-[var(--shadow-control)]"><UtensilsCrossed className="h-6 w-6" /></span>
       <h2 className="ui-h2 mt-4">منو هنوز خالی است</h2>
-      <p className="ui-body mx-auto mt-1 max-w-md">منو از محصولات شما ساخته می‌شود: هر آیتم با دسته، قیمت و عکسش. اولین آیتم را اضافه کنید یا کاتالوگ فروشگاهتان را وصل کنید.</p>
+      <p className="ui-body mx-auto mt-1 max-w-md">هر آیتم با عکس، قیمت و دسته‌اش در منو می‌نشیند. اولین آیتم را همین‌جا اضافه کنید یا کاتالوگ فروشگاهتان را وصل کنید.</p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <Link href="/products/new" className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)]"><PackagePlus className="h-4 w-4" />افزودن اولین آیتم</Link>
+        <button type="button" onClick={onAdd} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)]"><PackagePlus className="h-4 w-4" />افزودن اولین آیتم</button>
         <Link href="/integrations" className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-white px-5 text-sm font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)]"><Plug className="h-4 w-4" />اتصال فروشگاه</Link>
       </div>
     </section>

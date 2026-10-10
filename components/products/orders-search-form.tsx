@@ -23,6 +23,7 @@ import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
  * server parent), so this component stays locale-agnostic.
  */
 export function OrdersSearchForm({
+  basePath = '/products/orders',
   defaultQuery,
   defaultStatus,
   statusOptions,
@@ -35,6 +36,8 @@ export function OrdersSearchForm({
   closeFilters,
   resultsLabel,
 }: {
+  /** Where the list lives: under products, or as a tab of the menu. */
+  basePath?: string
   defaultQuery: string
   defaultStatus: string
   /** Ordered list of status value → label pairs (already translated). */
@@ -74,13 +77,13 @@ export function OrdersSearchForm({
       if (trimmed !== defaultQuery.trim()) markSearchSent(trimmed)
       startSearchTransition(() => {
         const url = sp.toString()
-        router.replace(url ? `/products/orders?${url}` : '/products/orders', {
+        router.replace(url ? `${basePath}?${url}` : basePath, {
           scroll: false,
         })
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, statusInput, defaultQuery, defaultStatus, router, markSearchSent])
+  }, [searchInput, statusInput, defaultQuery, defaultStatus, router, markSearchSent, basePath])
 
   const hasFilters = !!searchInput.trim() || !!statusInput
   const selectedStatusLabel = statusOptions.find((option) => option.value === statusInput)?.label
@@ -90,7 +93,7 @@ export function OrdersSearchForm({
     setStatusInput('')
     setFiltersOpen(false)
     startSearchTransition(() => {
-      router.replace('/products/orders', { scroll: false })
+      router.replace(basePath, { scroll: false })
     })
   }
 
@@ -132,7 +135,7 @@ export function OrdersSearchForm({
   return (
     <>
       <form
-        action="/products/orders"
+        action={basePath}
         method="get"
         onSubmit={(event) => event.preventDefault()}
         className="sticky top-[5.35rem] z-20 md:static md:z-auto"

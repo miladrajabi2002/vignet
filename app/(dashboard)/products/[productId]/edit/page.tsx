@@ -1,19 +1,24 @@
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductForm, type VariationInput } from '@/components/products/product-form'
 import { PencilLine } from 'lucide-react'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 
 export default async function EditProductPage(
   props: {
     params: Promise<{ productId: string }>
+    searchParams: Promise<{ from?: string }>
   }
 ) {
   const params = await props.params;
+  // Opened from the menu's item editor: go back there, not to the catalog.
+  const fromMenu = (await props.searchParams).from === 'menu'
   const user = await requireUser()
   const t = await getTranslations('products')
+  const locale = await getLocale()
 
   const [product, categories] = await Promise.all([
     prisma.product.findFirst({
@@ -74,9 +79,10 @@ export default async function EditProductPage(
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader icon={PencilLine} title={t('edit')} subtitle={product.name} back={{ href: '/products', label: t('title') }} />
+      <PageHeader icon={PencilLine} title={t('edit')} subtitle={product.name} back={fromMenu ? { href: '/menu', label: getDashboardModuleLabel('menu', null, locale, '') } : { href: '/products', label: t('title') }} />
       <ProductForm
         mode="edit"
+        returnTo={fromMenu ? '/menu' : undefined}
         categories={categories}
         initial={{
           id: product.id,

@@ -24,6 +24,17 @@ describe('capabilities stored as keys', () => {
     expect(nav).not.toContain('services')
   })
 
+  it('a menu-only business has no separate products link, but keeps the module', () => {
+    expect(getDashboardNavigationModules(['digital-menu'])).toContain('menu')
+    expect(getDashboardNavigationModules(['digital-menu'])).not.toContain('products')
+    // The agent still sells from the catalog.
+    expect(getDashboardModules(['digital-menu'])).toContain('products')
+    // Selling products or on Instagram brings the link back.
+    expect(getDashboardNavigationModules(['digital-menu', 'products'])).toContain('products')
+    expect(getDashboardNavigationModules(['digital-menu', 'instagram'])).toContain('products')
+    expect(getDashboardNavigationModules(['products'])).toContain('products')
+  })
+
   it('a stored profile reads its keys, not the labels next to them', () => {
     const stored = normalizeBusinessProfile({ businessName: 'کافه رز', capabilities: ['services'], extras: [], locale: 'en' })
     // The English label ("Service catalog…") must not switch products on.

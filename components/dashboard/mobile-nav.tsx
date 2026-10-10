@@ -128,8 +128,8 @@ export function MobileNav({
 
 	useEffect(() => {
 		function onVerticalChange(event: Event) {
-			const detail = (event as CustomEvent<{ modules?: DashboardModuleKey[]; newlyEnabled?: DashboardModuleKey[] }>).detail
-			if (detail?.modules) setNav(getDashboardNavFromModules(detail.modules))
+			const detail = (event as CustomEvent<{ modules?: DashboardModuleKey[]; capabilities?: CapabilityKey[]; newlyEnabled?: DashboardModuleKey[] }>).detail
+			if (detail?.modules) setNav(getDashboardNavFromModules(detail.modules, detail.capabilities))
 			setNewModules(detail?.newlyEnabled ?? [])
 		}
 		window.addEventListener('vigent:vertical-changed', onVerticalChange)

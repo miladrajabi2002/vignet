@@ -48,8 +48,8 @@ export function getDashboardNavForProfile(capabilities: readonly CapabilityKey[]
 	return getDashboardNavigationModules(capabilities).map((module) => NAV_ITEMS[module])
 }
 
-export function getDashboardNavFromModules(modules: readonly DashboardModuleKey[]) {
-	return collapseDashboardNavigationModules(modules).map((module) => NAV_ITEMS[module]).filter(Boolean)
+export function getDashboardNavFromModules(modules: readonly DashboardModuleKey[], capabilities: readonly CapabilityKey[] = []) {
+	return collapseDashboardNavigationModules(modules, capabilities).map((module) => NAV_ITEMS[module]).filter(Boolean)
 }
 
 // The rail groups modules by job so a long vertical profile still scans in
