@@ -1185,7 +1185,7 @@ const RECOMMENDED_DESCRIPTIONS: Record<BusinessType, { fa: string; en: string }>
   SERVICES: { fa: 'نیازسنجی، ثبت درخواست، برآورد و پشتیبانی اجرای خدمت در یک ایجنت کامل', en: 'Needs discovery, request capture, estimates and delivery support in one complete agent' },
   EDUCATION: { fa: 'مشاوره دوره، ثبت‌نام، هماهنگی کلاس و پشتیبانی دانشجو در یک ایجنت کامل', en: 'Course advice, enrollment, class coordination and learner support in one complete agent' },
   SUPPORT: { fa: 'پاسخ خط اول، حل مسئله، ثبت و پیگیری درخواست در یک ایجنت کامل', en: 'Frontline answers, troubleshooting, request capture and follow-up in one complete agent' },
-  SOCIAL: { fa: 'فروش در دایرکت، پاسخ کامنت و پیگیری سفارش اینستاگرام در یک ایجنت کامل', en: 'DM sales, comment replies and Instagram order follow-up in one complete agent' },
+  SOCIAL: { fa: 'پاسخ دایرکت، پاسخ کامنت و پیگیری مشتری اینستاگرام در یک ایجنت کامل', en: 'DM replies, comment replies and Instagram customer follow-up in one complete agent' },
   CUSTOM: { fa: 'فروش، پاسخ‌گویی، ثبت درخواست و پیگیری مشتری در یک ایجنت کامل', en: 'Sales, support, request capture and customer follow-up in one complete agent' },
 }
 
