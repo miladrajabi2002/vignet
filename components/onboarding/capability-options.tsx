@@ -17,10 +17,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   CORE_DASHBOARD_MODULES,
-  capabilitiesBringingModule,
-  capabilityLabel,
   collapseDashboardNavigationModules,
-  menuOwnsCatalog,
   getDashboardModuleLabel,
   getDefaultCapabilities,
   type BusinessServiceOption,
@@ -88,9 +85,6 @@ export function CapabilityOptions({
   const more = options.filter((option) => !recommendedKeys.has(option.key))
   const bookingSelected = selected.includes('bookings')
   const typeDefaults = new Set(getDefaultCapabilities(businessType))
-  // Sections a selected capability brings along (Instagram and the digital
-  // menu both sell from the catalog), named so nothing appears unexplained.
-  const productsVia = selected.includes('products') || menuOwnsCatalog(selected) ? [] : capabilitiesBringingModule('products', selected)
 
   // Capabilities outside the recommended set stay folded away until asked
   // for, unless one of them is already switched on.
@@ -175,17 +169,6 @@ export function CapabilityOptions({
         )}
       </div>
       <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{hint}</p>
-
-      {productsVia.length > 0 && (
-        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-3 text-[12px] leading-5 text-[var(--text-secondary)]">
-          <Package className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            {fa
-              ? `«محصولات» هم همراه «${productsVia.map((key) => capabilityLabel(key, 'fa')).join('» و «')}» به منو می‌آید، چون فروش از همان کاتالوگ انجام می‌شود.`
-              : `Products also appear with ${productsVia.map((key) => capabilityLabel(key, 'en')).join(' and ')}, since sales use the same catalog.`}
-          </p>
-        </div>
-      )}
 
       {bookingSelected && (
         <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3.5 py-3 text-[12px] leading-5 text-emerald-800">

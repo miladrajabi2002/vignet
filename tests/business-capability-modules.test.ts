@@ -16,6 +16,10 @@ describe('capabilities stored as keys', () => {
     expect(getDashboardModules(['digital-menu'])).toEqual(expect.arrayContaining(['menu', 'products']))
     expect(getDashboardModules(['courses'])).toContain('courses')
     expect(getDashboardModules(['support'])).not.toContain('products')
+    // Instagram is its own section; the catalog comes only with selling products.
+    expect(getDashboardModules(['instagram'])).toContain('instagram')
+    expect(getDashboardModules(['instagram'])).not.toContain('products')
+    expect(getDashboardModules(['instagram', 'products'])).toEqual(expect.arrayContaining(['instagram', 'products']))
   })
 
   it('services link folds into bookings in the menu', () => {
@@ -29,9 +33,9 @@ describe('capabilities stored as keys', () => {
     expect(getDashboardNavigationModules(['digital-menu'])).not.toContain('products')
     // The agent still sells from the catalog.
     expect(getDashboardModules(['digital-menu'])).toContain('products')
-    // Selling products or on Instagram brings the link back.
+    // Selling products brings the link back; Instagram alone does not.
     expect(getDashboardNavigationModules(['digital-menu', 'products'])).toContain('products')
-    expect(getDashboardNavigationModules(['digital-menu', 'instagram'])).toContain('products')
+    expect(getDashboardNavigationModules(['digital-menu', 'instagram'])).not.toContain('products')
     expect(getDashboardNavigationModules(['products'])).toContain('products')
   })
 
@@ -49,6 +53,8 @@ describe('capabilities stored as keys', () => {
     expect(getDefaultCapabilities('FOOD')).toEqual(['digital-menu'])
     expect(getDefaultCapabilities('APPOINTMENTS')).toEqual(['bookings'])
     expect(getDefaultCapabilities('CUSTOM')).toEqual([])
+    // The Instagram-sales type starts with a catalog, as a default that can be switched off.
+    expect(getDefaultCapabilities('SOCIAL')).toEqual(['instagram', 'products'])
   })
 })
 
