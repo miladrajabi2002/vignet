@@ -69,6 +69,11 @@ export interface InboundMessage {
    * the account is mentioned in a user's story.
    */
   kind?: 'DM' | 'COMMENT' | 'REACTION' | 'STORY_REPLY' | 'STORY_REACTION' | 'STORY_MENTION'
+  /**
+   * Instagram only: the text is the title of a button the customer tapped
+   * (a postback or a quick-reply chip), not something they typed.
+   */
+  buttonTap?: boolean
   /** Instagram only: the post/reel media id a comment was left on. */
   postId?: string
   /** Instagram only: the comment id (for public replies). */

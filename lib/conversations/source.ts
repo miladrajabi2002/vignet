@@ -20,6 +20,8 @@ export type InboundSource = {
   storyId?: string
   storyMediaType?: string
   pendingFolder?: boolean
+  /** The text is the title of a button the customer tapped, not typed. */
+  buttonTap?: boolean
   /**
    * Verified attachment reference (view-time only, never a stored file):
    * `mediaKind` + `mediaUrl` (Instagram CDN URL) or `mediaFileId`
@@ -50,6 +52,7 @@ export function inboundMessageMetadata(
   if (message.storyId) source.storyId = message.storyId
   if (message.storyMediaType) source.storyMediaType = message.storyMediaType
   if (message.pendingFolder) source.pendingFolder = true
+  if (message.buttonTap) source.buttonTap = true
   // Verified channel attachment reference for view-time media display. The
   // URL/id is a channel-scoped pointer only — the media proxy route resolves
   // it live and the file is never persisted on this server.
@@ -75,6 +78,7 @@ export function readInboundSource(metadata: unknown): InboundSource | null {
 export function inboundSourceLabel(source: InboundSource | null, locale: 'fa' | 'en'): string | null {
   if (!source) return null
   if (source.channel !== 'INSTAGRAM') return null
+  if (source.buttonTap) return locale === 'fa' ? 'روی دکمه زد' : 'Tapped a button'
   const fa: Record<InboundSourceKind, string> = {
     DM: 'دایرکت اینستاگرام',
     COMMENT: 'کامنت اینستاگرام',

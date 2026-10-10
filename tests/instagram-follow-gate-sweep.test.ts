@@ -265,6 +265,21 @@ describe('follow-gate sweep', () => {
   })
 })
 
+describe('parked comment→DM reply (opener)', () => {
+  it('is never auto-delivered by the sweep — it waits for its button', async () => {
+    mocks.gateFindMany.mockResolvedValue([gate({}, { gateMode: 'CONTINUE', gateConfirmKeyword: 'مشاهده' })])
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    expect(await sweepInstagramFollowGates()).toBe(0)
+
+    // No follow check and no send: outside a tap the 24-hour window is closed.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(mocks.sendRichEntry).not.toHaveBeenCalled()
+    expect(mocks.gateUpdateMany).not.toHaveBeenCalled()
+  })
+})
+
 describe('follow-gate confirm tap', () => {
   const tap: InboundMessage = {
     kind: 'DM',
@@ -289,7 +304,9 @@ describe('follow-gate confirm tap', () => {
   }
 
   beforeEach(() => {
+    // The confirm lookup reads every pending gate of the sender (findMany).
     mocks.gateFindFirst.mockResolvedValue(gate())
+    mocks.gateFindMany.mockResolvedValue([gate()])
   })
 
   it('delivers once when the follow is visible', async () => {
@@ -325,11 +342,11 @@ describe('follow-gate confirm tap', () => {
   })
 
   it('matches an emoji-only confirm button and rejects a keyword buried in another word', async () => {
-    mocks.gateFindFirst.mockResolvedValue(gate({}, { gateConfirmKeyword: '✅' }))
+    mocks.gateFindMany.mockResolvedValue([gate({}, { gateConfirmKeyword: '✅' })])
     expect((await runInstagramAutomation(ctx({ ...tap, text: '✅' }))).handled).toBe(true)
 
     vi.clearAllMocks()
-    mocks.gateFindFirst.mockResolvedValue(gate({}, { gateConfirmKeyword: 'ok' }))
+    mocks.gateFindMany.mockResolvedValue([gate({}, { gateConfirmKeyword: 'ok' })])
     expect((await runInstagramAutomation(ctx({ ...tap, text: 'book' }))).handled).toBe(false)
   })
 })

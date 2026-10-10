@@ -12,6 +12,7 @@ import {
         type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { IG_MEDIA_MAX_BYTES } from '@/lib/instagram/limits'
 
 /**
  * MediaUploader — multi-image / single-video / single-audio uploader that
@@ -80,6 +81,35 @@ interface UploadResponse {
 
 const UPLOAD_ENDPOINT = '/api/uploads/instagram'
 
+const KIND_LABEL: Record<MediaKind, string> = { IMAGE: 'عکس', VIDEO: 'ویدیو', AUDIO: 'فایل صوتی' }
+
+function megabytes(bytes: number): string {
+        return Math.round(bytes / (1024 * 1024)).toLocaleString('fa-IR')
+}
+
+/** «حداکثر ۸ مگابایت» — the size line under each dropzone. */
+function sizeLimitLabel(kind: MediaKind): string {
+        return `حداکثر ${megabytes(IG_MEDIA_MAX_BYTES[kind])} مگابایت`
+}
+
+/** Why the upload API refused a file, in the operator's words. */
+function uploadErrorMessage(status: number, code: string | undefined, kind: MediaKind): string {
+        const error = code ?? ''
+        if (error === 'PLAN_BLOCKED') {
+                return 'برای آپلود رسانهٔ اتوماسیون، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
+        }
+        if (status === 413 || /TOO_LARGE/.test(error)) {
+                return `حجم ${KIND_LABEL[kind]} بیشتر از حد مجاز است (${sizeLimitLabel(kind)}).`
+        }
+        if (error.startsWith('INVALID_TYPE')) return 'این نوع فایل پشتیبانی نمی‌شود.'
+        if (error.startsWith('EMPTY_FILE')) return 'فایل خالی است.'
+        if (error === 'RATE_LIMIT') return 'تعداد آپلودها در این ساعت زیاد شده؛ کمی بعد دوباره تلاش کنید.'
+        if (error === 'UPLOAD_QUOTA_EXCEEDED') return 'سقف حجم آپلود امروز پر شده؛ فردا دوباره تلاش کنید.'
+        if (error === 'UPLOAD_CAPACITY_EXCEEDED') return 'ظرفیت آپلود موقتاً پر است؛ کمی بعد دوباره تلاش کنید.'
+        if (error === 'UNAUTHORIZED') return 'نشست شما منقضی شده؛ دوباره وارد شوید.'
+        return 'آپلود ناموفق بود.'
+}
+
 export function MediaUploader({
         onChange,
         maxImages = 5,
@@ -133,16 +163,22 @@ export function MediaUploader({
                 setError(null)
                 const next: MediaItem[] = []
                 const limit = tab === 'IMAGE' ? maxImages : 1
+                let rejection: string | null = null
                 for (const f of Array.from(fileList)) {
                         if (tab === 'IMAGE' && !f.type.startsWith('image/')) continue
                         if (tab === 'VIDEO' && !f.type.startsWith('video/')) continue
                         if (tab === 'AUDIO' && !f.type.startsWith('audio/')) continue
+                        // Refuse an oversized file before it is uploaded — Instagram
+                        // would reject it anyway, after the wait.
+                        if (f.size > IG_MEDIA_MAX_BYTES[tab]) {
+                                rejection = `حجم این ${KIND_LABEL[tab]} ${megabytes(f.size)} مگابایت است؛ ${sizeLimitLabel(tab)} قابل ارسال است.`
+                                continue
+                        }
                         if (items.length + next.length >= limit) {
-                                setError(
-                                        tab === 'IMAGE'
+                                rejection =
+                                        tab === 'IMAGE' && maxImages > 1
                                                 ? `حداکثر ${maxImages.toLocaleString('fa-IR')} عکس قابل افزودن است.`
-                                                : 'فقط یک فایل قابل افزودن است.',
-                                )
+                                                : 'فقط یک فایل قابل افزودن است.'
                                 break
                         }
                         const item: MediaItem = {
@@ -157,8 +193,9 @@ export function MediaUploader({
                         }
                         next.push(item)
                 }
+                if (rejection) setError(rejection)
                 if (next.length === 0) {
-                        if (!error) {
+                        if (!rejection) {
                                 setError(
                                         tab === 'IMAGE'
                                                 ? 'فقط فایل تصویری قابل آپلود است.'
@@ -244,18 +281,13 @@ export function MediaUploader({
                                         setS3Unavailable(true)
                                         reject(new Error('سرویس آپلود در دسترس نیست (احتمالاً S3 پیکربندی نشده).'))
                                 } else {
-                                        let msg = 'آپلود ناموفق بود.'
+                                        let code: string | undefined
                                         try {
-                                                const data = JSON.parse(xhr.responseText) as UploadResponse
-                                                if (data?.error === 'PLAN_BLOCKED') {
-                                                        msg = 'برای آپلود رسانهٔ اتوماسیون، دورهٔ آزمایشی یا اشتراک فعال لازم است.'
-                                                } else if (data?.error) {
-                                                        msg = data.error
-                                                }
+                                                code = (JSON.parse(xhr.responseText) as UploadResponse)?.error
                                         } catch {
-                                                /* ignore */
+                                                /* a proxy error page, not JSON */
                                         }
-                                        reject(new Error(msg))
+                                        reject(new Error(uploadErrorMessage(xhr.status, code, item.kind)))
                                 }
                         })
                         xhr.addEventListener('error', () => {
@@ -404,10 +436,10 @@ export function MediaUploader({
                                         </p>
                                         <p className="text-[12px] text-[var(--text-muted)]">
                                                 {tab === 'IMAGE'
-                                                        ? `حداکثر ${maxImages.toLocaleString('fa-IR')} عکس · JPG، PNG، WEBP`
+                                                        ? `${maxImages > 1 ? `حداکثر ${maxImages.toLocaleString('fa-IR')} عکس` : 'یک عکس'} · JPG، PNG، WEBP · ${sizeLimitLabel('IMAGE')}`
                                                         : tab === 'VIDEO'
-                                                                ? 'یک ویدیو · MP4، MOV (زیر ۲۵MB توصیه می‌شود)'
-                                                                : 'یک فایل صوتی · MP3، M4A، WAV'}
+                                                                ? `یک ویدیو · MP4، MOV · ${sizeLimitLabel('VIDEO')}`
+                                                                : `یک فایل صوتی · MP3، M4A، WAV · ${sizeLimitLabel('AUDIO')}`}
                                         </p>
                                         <input
                                                 ref={inputRef}
@@ -541,7 +573,7 @@ export function MediaUploader({
                                                                 <button
                                                                         type="button"
                                                                         onClick={() => remove(item.id)}
-                                                                        className="absolute end-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100"
+                                                                        className="absolute end-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white lg:h-7 lg:w-7 lg:opacity-0 lg:group-hover:opacity-100"
                                                                         aria-label="حذف"
                                                                 >
                                                                         <X className="h-3.5 w-3.5" />

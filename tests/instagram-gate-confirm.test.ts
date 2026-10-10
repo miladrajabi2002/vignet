@@ -10,13 +10,13 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     instagramFollowGate: {
-      findFirst: vi.fn().mockResolvedValue({
+      findMany: vi.fn().mockResolvedValue([{
         id: 'gate-1',
         payload: {
           gateMode: 'SOFT',
           gateConfirmKeyword: 'فالو کردم',
         },
-      }),
+      }]),
     },
     instagramAutomation: { findMany: vi.fn().mockResolvedValue([]) },
   },

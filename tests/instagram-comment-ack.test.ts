@@ -29,7 +29,13 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/lib/prisma', () => ({
         prisma: {
                 instagramAutomation: { findMany: mocks.automationFindMany },
-                instagramFollowGate: { findFirst: mocks.followGateFindFirst },
+                instagramFollowGate: {
+                        findFirst: mocks.followGateFindFirst,
+                        findMany: async (...args: unknown[]) => {
+                                const gate = await mocks.followGateFindFirst(...args)
+                                return gate ? [gate] : []
+                        },
+                },
         },
 }))
 vi.mock('@/lib/ai/chat-engine', () => ({ generateReply: mocks.generateReply }))

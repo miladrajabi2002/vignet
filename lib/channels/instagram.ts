@@ -1,5 +1,6 @@
 import { checkoutCardText, type CheckoutCard } from '@/lib/commerce/checkout-link'
 import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
+import { IG_SINGLE_TEXT_LIMIT } from '@/lib/instagram/comment-opener'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import {
         PRIVATE_REPLY_PREFIX,
@@ -48,7 +49,7 @@ const COMMENT_PREFIX = 'comment:'
 // units (Messenger's 2,000 does NOT apply to IG DMs). Split at ~900 with
 // headroom at sentence/paragraph boundaries so Persian replies stay readable
 // and every chunk stays safely under the platform cap (A14).
-const INSTAGRAM_TEXT_CHUNK_LIMIT = 900
+const INSTAGRAM_TEXT_CHUNK_LIMIT = IG_SINGLE_TEXT_LIMIT
 // Pause between consecutive chunks so burst sends respect the messaging
 // rate limit instead of tripping Meta's throttling (A14).
 const INSTAGRAM_CHUNK_DELAY_MS = 1_000
@@ -280,6 +281,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                                 text: postback.title,
                                                                 kind: 'DM',
                                                                 platformMessageId: postbackMessageId,
+                                                                buttonTap: true,
                                                         })
                                                 }
                                                 // ─── Media-only DM (A13) ───
@@ -345,6 +347,9 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 text,
                                                 kind: 'DM',
                                                 platformMessageId,
+                                                // A tapped quick-reply chip arrives as a normal text
+                                                // message that also carries `quick_reply`.
+                                                ...(m.message?.quick_reply ? { buttonTap: true } : {}),
                                                 ...(captionedMedia
                                                         ? {
                                                                 hasMedia: true,
@@ -1112,6 +1117,7 @@ interface IgWebhook {
                                 mid?: string
                                 is_echo?: boolean
                                 is_unsupported_message?: boolean
+                                quick_reply?: { payload?: string }
                                 tag?: string
                                 folder?: string
                                 reply_to?: {

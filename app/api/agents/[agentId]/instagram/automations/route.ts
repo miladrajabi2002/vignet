@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { IG_BUTTON_TITLE_LIMIT, isValidButtonUrl } from '@/lib/instagram/limits'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
@@ -43,8 +44,15 @@ const triggerSchema = z.object({
 const buttonSchema = z.union([
   z.string(),
   z.object({
-    title: z.string().min(1).max(20),
-    url: z.string().optional(),
+    title: z.string().min(1).max(IG_BUTTON_TITLE_LIMIT),
+    // Empty, or an absolute http(s) link — Instagram rejects the whole button
+    // message when one button's link has no scheme.
+    url: z
+      .string()
+      .refine((v) => v === '' || (/^https?:\/\//i.test(v) && isValidButtonUrl(v)), {
+        message: 'BUTTON_URL_INVALID: must be an absolute http(s) URL',
+      })
+      .optional(),
     payload: z.string().optional(),
   }),
 ])
@@ -94,6 +102,11 @@ const actionSchema = z.object({
         commentAckEnabled: z.boolean().default(false),
         commentAckText: z.string().default(''),
         commentAckTexts: z.array(z.string().max(300)).max(3).default([]),
+        // COMMENT + dmOnComment: the opening button message of a reply that
+        // needs more than Instagram's one private reply (640 / 20 are Meta's
+        // button-message limits).
+        dmOpenerText: z.string().max(640).default(''),
+        dmOpenerButton: z.string().max(20).default(''),
         followGate: z.boolean().default(false),
         gateMode: z.enum(['SOFT', 'STORY_MENTION']).default('SOFT'),
         gateButtonType: z.enum(['button', 'quick_reply']).default('button'),

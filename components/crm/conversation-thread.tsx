@@ -49,6 +49,8 @@ import { InboundMedia } from './inbound-media'
 import { OutboundMediaView, type OutboundMediaItem } from './outbound-media'
 import { conversationSessionBoundaries } from '@/lib/conversations/session'
 import { ConversationSessionDivider } from './conversation-session-divider'
+import { readOutboundReceipt } from '@/lib/conversations/outbound-receipt'
+import { ScenarioReceiptView } from './scenario-receipt'
 
 export type ThreadMessage = {
         id: string
@@ -389,8 +391,14 @@ export function ConversationThread({
                                         const mediaOnlyLabel = Boolean(inboundMediaKind) && isMediaPlaceholderText(m.content)
                                         // v3.2: scenario media receipts — render the real photo/video/audio
                                         // the automation sent and drop the bare «[تصویر]» notes from the text.
-                                        const outboundMedia = isUser ? null : readOutboundMedia(m.metadata)
-                                        const displayText = outboundMedia
+                                        // A scenario reply with a part-by-part receipt draws every
+                                        // piece (Direct text, buttons, media, the public comment
+                                        // reply) in its own bubble instead of one joined text.
+                                        const scenarioReceipt = isUser ? null : readOutboundReceipt(m.metadata)
+                                        const outboundMedia = isUser || scenarioReceipt ? null : readOutboundMedia(m.metadata)
+                                        const displayText = scenarioReceipt
+                                                ? ''
+                                                : outboundMedia
                                                 ? stripOutboundMediaNotes(showcase.text)
                                                 : showcase.text
                                         return (
@@ -427,6 +435,21 @@ export function ConversationThread({
                                                                                         </span>
                                                                                 )}
                                                                         </div>
+                                                                )}
+                                                                {scenarioReceipt && (
+                                                                        <ScenarioReceiptView
+                                                                                receipt={scenarioReceipt}
+                                                                                locale={locale}
+                                                                                dateLabel={formatDateTime(new Date(m.createdAt), locale)}
+                                                                                productRail={hasShowcase ? (
+                                                                                        <ProductShowcaseRail
+                                                                                                products={showcase.products}
+                                                                                                locale={locale}
+                                                                                                compact
+                                                                                                className="max-w-[46rem]"
+                                                                                        />
+                                                                                ) : undefined}
+                                                                        />
                                                                 )}
                                                                 {outboundMedia && (
                                                                         <div className="mb-1.5 flex max-w-full flex-col items-start gap-1.5">
@@ -493,7 +516,7 @@ export function ConversationThread({
                                                                                 <CheckoutCardView card={showcase.checkout} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" />
                                                                         </div>
                                                                 )}
-                                                                {!isUser && hasShowcase && (
+                                                                {!isUser && hasShowcase && !scenarioReceipt && (
                                                                         <ProductShowcaseRail
                                                                                 products={showcase.products}
                                                                                 locale={locale}
@@ -504,7 +527,7 @@ export function ConversationThread({
                                                                                 className="mt-2 max-w-[46rem]"
                                                                         />
                                                                 )}
-                                                                {!isUser && hasShowcase && !showcase.text && (
+                                                                {!isUser && hasShowcase && !showcase.text && !scenarioReceipt && (
                                                                         <span className="mt-0.5 px-1 text-[12px] text-[var(--text-muted)]">
                                                                                 {formatDateTime(new Date(m.createdAt), locale)}
                                                                         </span>

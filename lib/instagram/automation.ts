@@ -26,6 +26,18 @@ import {
         readPageToken,
         type InstagramReplyPolicy,
 } from '@/lib/instagram/config'
+import {
+        DEFAULT_OPENER_BUTTON,
+        DEFAULT_OPENER_TEXT,
+        IG_BUTTON_TEXT_LIMIT,
+        IG_BUTTON_TITLE_LIMIT,
+        fitsOnePrivateReply,
+} from '@/lib/instagram/comment-opener'
+import {
+        sanitizeOutboundParts,
+        type OutboundPart,
+        type OutboundScenario,
+} from '@/lib/conversations/outbound-receipt'
 
 /**
  * Instagram automation engine.
@@ -126,6 +138,16 @@ export interface AutomationAction {
   /** Up to 3 alternative ack texts; ONE is picked at random per comment
    *  (falls back to `commentAckText` when absent). */
   commentAckTexts?: string[]
+  /**
+   * COMMENT + dmOnComment: the opening message and its button. Instagram lets
+   * a business send ONE message to a commenter who has not written to the page
+   * in the last 24 hours, so a reply that needs more than one message (several
+   * parts, media, a product rail, a long text) starts with this button message
+   * and delivers the rest when the commenter taps it — the tap opens the
+   * messaging window. Empty → the built-in defaults.
+   */
+  dmOpenerText?: string
+  dmOpenerButton?: string
   /** Require a follow before sending the content. */
   followGate?: boolean
   gateMode?: 'SOFT' | 'STORY_MENTION'
@@ -350,6 +372,8 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
       typeof o.gateConfirmKeyword === 'string' ? o.gateConfirmKeyword : '',
     gateQuickReply: typeof o.gateQuickReply === 'string' ? o.gateQuickReply : '',
     contentText,
+    dmOpenerText: typeof o.dmOpenerText === 'string' ? o.dmOpenerText : '',
+    dmOpenerButton: typeof o.dmOpenerButton === 'string' ? o.dmOpenerButton : '',
     commentAckEnabled: o.commentAckEnabled === true,
     commentAckText: typeof o.commentAckText === 'string' ? o.commentAckText : '',
     commentAckTexts: Array.isArray(o.commentAckTexts)
@@ -370,6 +394,25 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
   }
 }
 
+/**
+ * Fold the spellings of one Persian word into a single form before keyword
+ * matching. Customers type «قيمت» with the Arabic yeh, «می خوام» / «می‌خوام» /
+ * «میخوام», Persian or Latin digits and stray diacritics; the operator typed
+ * the keyword once. Emoji and punctuation are kept — a keyword may be «🔥».
+ */
+export function normalizeMatchText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\u064A\u0649]/g, '\u06CC') // Arabic yeh / alef maksura → Persian yeh
+    .replace(/\u0643/g, '\u06A9') // Arabic kaf → Persian kaf
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0)) // Persian digits
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660)) // Arabic digits
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '') // harakat + tatweel
+    .replace(/[\u200c-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '') // ZWNJ + direction marks
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 /** Does `text` match the trigger's keyword set under its match mode? */
 function matchKeywords(
   text: string,
@@ -377,21 +420,28 @@ function matchKeywords(
 ): boolean {
   const kws = trigger.keywords ?? []
   if (!kws.length) return false
-  const hay = text.trim().toLowerCase()
+  const hay = normalizeMatchText(text)
   if (!hay) return false
+  // «می‌خوام», «می خوام» and «میخوام» are one word to the customer, so a
+  // keyword also matches with the spaces ignored on both sides. Only for
+  // keywords of four letters or more: a two-letter one («کد») would otherwise
+  // match across a word break («تک دونه»).
+  const hayTight = hay.replace(/ /g, '')
   for (const kw of kws) {
-    const needle = kw.trim().toLowerCase()
+    const needle = normalizeMatchText(kw)
     if (!needle) continue
+    const tight = needle.replace(/ /g, '')
+    const needleTight = tight.length >= 4 ? tight : null
     switch (trigger.matchMode) {
       case 'EXACT':
-        if (hay === needle) return true
+        if (hay === needle || (needleTight !== null && hayTight === needleTight)) return true
         break
       case 'STARTS_WITH':
-        if (hay.startsWith(needle)) return true
+        if (hay.startsWith(needle) || (needleTight !== null && hayTight.startsWith(needleTight))) return true
         break
       case 'CONTAINS':
       default:
-        if (hay.includes(needle)) return true
+        if (hay.includes(needle) || (needleTight !== null && hayTight.includes(needleTight))) return true
         break
     }
   }
@@ -443,10 +493,15 @@ async function findMatchingScenario(args: {
         const expired =
           trigger.storyExpiresAt !== undefined &&
           Date.now() >= new Date(trigger.storyExpiresAt).getTime()
+        // A picked story narrows WHERE the reply came from; the keywords still
+        // decide WHAT it has to say. Without this the «کلمات خاص» the operator
+        // typed were ignored and any reply to that story fired the scenario.
+        const hasKeywords = (trigger.keywords ?? []).some((kw) => kw.trim())
         matched =
           !expired &&
           storyIds.length > 0 &&
-          Boolean(args.msg.storyId && storyIds.includes(args.msg.storyId))
+          Boolean(args.msg.storyId && storyIds.includes(args.msg.storyId)) &&
+          (!hasKeywords || matchKeywords(args.msg.text, trigger))
       } else {
         matched = trigger.storyScope === 'ALL' || matchKeywords(args.msg.text, trigger)
       }
@@ -483,32 +538,7 @@ export async function willInstagramAutomationHandle(args: {
   msg: InboundMessage
 }): Promise<boolean> {
   if (args.msg.kind === 'DM' || args.msg.kind === undefined) {
-    const gate = await prisma.instagramFollowGate.findFirst({
-      where: {
-        agentId: args.agentId,
-        igSenderId: args.msg.senderId,
-        status: 'PENDING',
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { payload: true },
-    })
-    if (gate) {
-      const payload = (gate.payload && typeof gate.payload === 'object'
-        ? gate.payload
-        : {}) as Record<string, unknown>
-      const confirmKeyword = typeof payload.gateConfirmKeyword === 'string'
-        ? payload.gateConfirmKeyword.trim().toLowerCase()
-        : ''
-      const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
-      if (
-        gateMode !== 'STORY_MENTION' &&
-        confirmKeyword &&
-        isGateConfirmText(confirmKeyword, args.msg.text)
-      ) {
-        return true
-      }
-    }
+    if (await findConfirmableGate(args.agentId, args.msg.senderId, args.msg.text)) return true
   }
 
   if (args.msg.kind === 'STORY_MENTION') {
@@ -575,32 +605,7 @@ export async function willInstagramAutomationSilentlyIgnore(args: {
   msg: InboundMessage
 }): Promise<boolean> {
   if (args.msg.kind === 'DM' || args.msg.kind === undefined) {
-    const gate = await prisma.instagramFollowGate.findFirst({
-      where: {
-        agentId: args.agentId,
-        igSenderId: args.msg.senderId,
-        status: 'PENDING',
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { payload: true },
-    })
-    if (gate) {
-      const payload = (gate.payload && typeof gate.payload === 'object'
-        ? gate.payload
-        : {}) as Record<string, unknown>
-      const confirmKeyword = typeof payload.gateConfirmKeyword === 'string'
-        ? payload.gateConfirmKeyword.trim().toLowerCase()
-        : ''
-      const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
-      if (
-        gateMode !== 'STORY_MENTION' &&
-        confirmKeyword &&
-        isGateConfirmText(confirmKeyword, args.msg.text)
-      ) {
-        return false
-      }
-    }
+    if (await findConfirmableGate(args.agentId, args.msg.senderId, args.msg.text)) return false
   }
 
   if (args.msg.kind === 'STORY_MENTION') {
@@ -648,6 +653,13 @@ function normalizeGateText(s: string): string {
     .trim()
 }
 
+/**
+ * Gate mode of a parked comment→DM reply: no follow rule, the content is
+ * released by the tap on the opening message's button (the tap is what opens
+ * the 24-hour messaging window).
+ */
+const CONTINUE_GATE_MODE = 'CONTINUE'
+
 /** Casual Persian phrasings that all mean «I followed» — matched as contains. */
 const GATE_CONFIRM_SYNONYMS = [
   'فالو کردم',
@@ -662,19 +674,65 @@ const GATE_CONFIRM_SYNONYMS = [
  * exact-normalized equality OR a contained keyword/synonym (length-guarded so
  * long unrelated DMs can never hijack the gate).
  */
-function isGateConfirmText(confirmKeyword: string, text: string): boolean {
+function isGateConfirmText(confirmKeyword: string, text: string, exactOnly = false): boolean {
   // A button tap echoes the title verbatim. Compare the raw strings first so
   // an emoji-only keyword («✅») still matches — normalization strips it to ''.
   const rawKw = confirmKeyword.trim().toLowerCase()
-  if (rawKw && rawKw === text.trim().toLowerCase()) return true
+  const rawText = text.trim().toLowerCase()
+  if (rawKw && rawKw === rawText) return true
+  // Meta cuts a button title at 20 characters, so the tap of a longer label
+  // comes back shortened.
+  if (rawKw.length > IG_BUTTON_TITLE_LIMIT && rawKw.slice(0, IG_BUTTON_TITLE_LIMIT).trim() === rawText) return true
   const kw = normalizeGateText(confirmKeyword)
   const msg = normalizeGateText(text)
   if (!kw || !msg) return false
   if (msg === kw) return true
+  // An opening message's button is a plain word («مشاهده»): only the tap (or
+  // the same word typed) releases the parked reply, never a sentence that
+  // happens to contain it days later.
+  if (exactOnly) return false
   if (msg.length > 60) return false
   // Whole-word containment: a short keyword like «ok» must not match «book».
   if (` ${msg} `.includes(` ${kw} `)) return true
   return GATE_CONFIRM_SYNONYMS.some((syn) => msg.includes(normalizeGateText(syn)))
+}
+
+function readGatePayload(payload: Prisma.JsonValue | null | undefined): Record<string, unknown> {
+  return (payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload
+    : {}) as Record<string, unknown>
+}
+
+/**
+ * The pending gate this text confirms, newest first. One person can have
+ * several gates open at once (a follow request from one scenario, a parked
+ * reply from another), each with its own button — looking only at the newest
+ * gate left the older buttons dead.
+ */
+async function findConfirmableGate(agentId: string, senderId: string, text: string) {
+  if (!senderId || !text?.trim()) return null
+  const gates = await prisma.instagramFollowGate.findMany({
+    where: {
+      agentId,
+      igSenderId: senderId,
+      status: 'PENDING',
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  })
+  for (const gate of gates) {
+    const payload = readGatePayload(gate.payload)
+    if (payload.gateMode === 'STORY_MENTION') continue
+    const confirmKeyword = typeof payload.gateConfirmKeyword === 'string' ? payload.gateConfirmKeyword : ''
+    if (
+      confirmKeyword &&
+      isGateConfirmText(confirmKeyword, text, payload.gateMode === CONTINUE_GATE_MODE)
+    ) {
+      return { gate, payload }
+    }
+  }
+  return null
 }
 
 export interface AutomationContext {
@@ -701,8 +759,49 @@ export interface AutomationContext {
    *  metadata.vigentoOutbound.media so the CRM inbox renders the REAL media
    *  above the bubble instead of the bare «[تصویر]» text note. */
   receiptMedia?: Array<{ kind: 'photo' | 'video' | 'audio'; mediaUrl: string }>
+  /** The same delivery, part by part and in order (text, buttons, media, the
+   *  public comment reply) — persisted as metadata.vigentoOutbound.parts so
+   *  the inbox shows each piece the way the customer saw it. */
+  receiptParts?: OutboundPart[]
   /** Filled while an action runs: the person was asked to follow first. */
   outcome?: { gated: boolean }
+}
+
+/** Collectors of one delivery, shared by the inline run and gate fulfilment. */
+interface ReceiptBag {
+  receipt: string[]
+  receiptMedia: NonNullable<AutomationContext['receiptMedia']>
+  receiptParts: OutboundPart[]
+}
+
+function newReceiptBag(): ReceiptBag {
+  return { receipt: [], receiptMedia: [], receiptParts: [] }
+}
+
+/** Receipt a plain text send. `comment:` targets are public comment replies. */
+function noteText(bag: Pick<AutomationContext, 'receipt' | 'receiptParts'>, target: string, text: string, quickReplies?: string[]): void {
+  bag.receipt?.push(text)
+  if (!bag.receiptParts) return
+  if (target.startsWith('comment:')) bag.receiptParts.push({ kind: 'text', text, via: 'comment' })
+  else if (quickReplies?.length) {
+    bag.receiptParts.push({
+      kind: 'buttons',
+      text,
+      buttons: quickReplies.map((title) => ({ title })),
+      style: 'chips',
+    })
+  } else bag.receiptParts.push({ kind: 'text', text })
+}
+
+/** Receipt a button message (follow request, opening message, key message). */
+function noteButtons(
+  bag: Pick<AutomationContext, 'receipt' | 'receiptParts'>,
+  text: string,
+  buttons: Array<{ title: string; url?: string }>,
+  role?: 'follow_gate' | 'opener',
+): void {
+  if (text) bag.receipt?.push(text)
+  bag.receiptParts?.push({ kind: 'buttons', text, buttons, ...(role ? { role } : {}) })
 }
 
 /**
@@ -832,6 +931,38 @@ function pushMediaNote(
   else if (entry.type === 'VIDEO') receipt.push('[ویدیو]')
 }
 
+/**
+ * Receipt one delivered `messages[]` entry that did not go through the
+ * adapter's sendText: media (with its caption) and key messages sent by
+ * `sendRichEntry`. TEXT entries are receipted by the tracking adapter.
+ */
+function noteRichEntry(
+  bag: Pick<AutomationContext, 'receipt' | 'receiptMedia' | 'receiptParts'>,
+  entry: RichEntry,
+): void {
+  if (entry.type === 'IMAGE' || entry.type === 'AUDIO' || entry.type === 'VIDEO') {
+    if (bag.receipt) pushMediaNote(bag.receipt, entry)
+    const structured = structuredMediaEntry(entry)
+    if (structured) bag.receiptMedia?.push(structured)
+    bag.receiptParts?.push({
+      kind: 'media',
+      media: entry.type === 'IMAGE' ? 'photo' : entry.type === 'VIDEO' ? 'video' : 'audio',
+      ...(structured ? { mediaUrl: structured.mediaUrl } : {}),
+      ...(entry.type === 'IMAGE' && entry.text ? { caption: entry.text } : {}),
+    })
+    return
+  }
+  // A key message with inline buttons is sent by sendRichEntry itself; the
+  // chip variant goes through sendText and is already receipted there.
+  if (entry.type === 'QUICK_REPLY' && entry.buttons?.length && entry.buttonType !== 'quick_reply') {
+    noteButtons(
+      bag,
+      entry.text || '',
+      entry.buttons.slice(0, 3).map((b) => (typeof b === 'string' ? { title: b } : { title: b.title, url: b.url })),
+    )
+  }
+}
+
 /** v3.2: structured record for the receipt message metadata — the durable
  *  HTTPS URL the scenario actually delivered, so the inbox can render the
  *  real media instead of the «[تصویر]» placeholder. Returns null for text /
@@ -848,6 +979,27 @@ function structuredMediaEntry(
 }
 
 /**
+ * `metadata.vigentoOutbound` of a receipt message: the delivered media (v3.2
+ * shape, still read by older clients), the ordered parts and the scenario.
+ * Capped so a pathological scenario can't bloat the message row.
+ */
+function outboundMetadata(
+  bag: Pick<ReceiptBag, 'receiptMedia' | 'receiptParts'>,
+  scenario: OutboundScenario | null,
+): Prisma.InputJsonValue | null {
+  const media = bag.receiptMedia.slice(0, 10)
+  const parts = sanitizeOutboundParts(bag.receiptParts)
+  if (!media.length && !parts.length) return null
+  return {
+    vigentoOutbound: {
+      ...(media.length ? { media } : {}),
+      ...(parts.length ? { parts } : {}),
+      ...(scenario ? { scenario } : {}),
+    },
+  } as unknown as Prisma.InputJsonValue
+}
+
+/**
  * v3.1: persist what a scenario actually sent as the conversation's assistant
  * message (idempotent via resultForInboundEventId, same pattern the fixed-reply
  * and AI paths use). Text bodies + product markers — the CRM inbox renders the
@@ -856,14 +1008,12 @@ function structuredMediaEntry(
  */
 async function persistScenarioReceipt(
   ctx: AutomationContext,
-  receipt: string[],
-  receiptMedia: Array<{ kind: 'photo' | 'video' | 'audio'; mediaUrl: string }> = [],
+  bag: ReceiptBag,
+  scenario: OutboundScenario | null,
 ): Promise<void> {
-  const text = receipt.filter(Boolean).join('\n\n').trim()
+  const text = bag.receipt.filter(Boolean).join('\n\n').trim()
   if (!text || !ctx.conversationId || !ctx.inboundEventId) return
-  // v3.2: cap the persisted media list so a pathological scenario can't
-  // bloat the message row.
-  const media = receiptMedia.slice(0, 10)
+  const outbound = outboundMetadata(bag, scenario)
   try {
     await prisma.$transaction(async (tx) => {
       const inserted = await tx.message.createMany({
@@ -872,7 +1022,7 @@ async function persistScenarioReceipt(
           role: 'ASSISTANT',
           content: text,
           resultForInboundEventId: ctx.inboundEventId!,
-          ...(media.length ? { metadata: { vigentoOutbound: { media } } as Prisma.InputJsonValue } : {}),
+          ...(outbound ? { metadata: outbound } : {}),
         }],
         skipDuplicates: true,
       })
@@ -900,19 +1050,18 @@ async function persistScenarioReceipt(
  */
 async function deliverWithReceipt(
   ctx: AutomationContext,
+  scenario: OutboundScenario | null,
   deliver: (tracked: AutomationContext) => Promise<void>,
 ): Promise<void> {
-  const receipt: string[] = []
-  const receiptMedia: NonNullable<AutomationContext['receiptMedia']> = []
+  const bag = newReceiptBag()
   const tracked: AutomationContext = {
     ...ctx,
-    receipt,
-    receiptMedia,
+    ...bag,
     adapter: {
       ...ctx.adapter,
       async sendText(chatId, text, opts) {
         await ctx.adapter.sendText(chatId, text, opts)
-        receipt.push(text)
+        noteText(bag, chatId, text, opts?.quickReplies)
       },
     },
   }
@@ -920,7 +1069,7 @@ async function deliverWithReceipt(
     await deliver(tracked)
   } finally {
     // Persist even when a later part threw — the earlier parts did go out.
-    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt, receiptMedia)
+    if (bag.receipt.length > 0) await persistScenarioReceipt(ctx, bag, scenario)
   }
 }
 
@@ -969,8 +1118,8 @@ export async function runInstagramAutomation(
 
   // ─── Matched. Execute the action. ───
   const outcome = { gated: false }
-  const receipt: string[] = []
-  const receiptMedia: NonNullable<AutomationContext['receiptMedia']> = []
+  const bag = newReceiptBag()
+  const scenario: OutboundScenario = { id: row.id, name: row.name, type: row.type }
   try {
     let sent = false
     const beforeDispatch = async () => {
@@ -983,15 +1132,15 @@ export async function runInstagramAutomation(
         await beforeDispatch()
         await ctx.adapter.sendText(chatId, text, opts)
         // Receipt: plain-text sends are recorded verbatim (one entry per send).
-        receipt.push(text)
+        noteText(bag, chatId, text, opts?.quickReplies)
       },
     }
     await executeAction(
-      { ...ctx, adapter: trackingAdapter, beforeDispatch, receipt, receiptMedia, outcome },
+      { ...ctx, adapter: trackingAdapter, beforeDispatch, ...bag, outcome },
       row,
       action,
     )
-    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt, receiptMedia)
+    if (bag.receipt.length > 0) await persistScenarioReceipt(ctx, bag, scenario)
     if (outcome.gated) await logAutomationRun(ctx, row.id, row.type, 'GATED')
     else if (sent) await logAutomationRun(ctx, row.id, row.type, 'SENT')
     return { handled: true, replied: sent }
@@ -1008,7 +1157,7 @@ export async function runInstagramAutomation(
     // The parts sent BEFORE the failure did reach the customer (typically the
     // private reply that opens a comment→DM sequence) — receipt them, or the
     // inbox shows nothing for a message the customer is looking at.
-    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt, receiptMedia)
+    if (bag.receipt.length > 0) await persistScenarioReceipt(ctx, bag, scenario)
   }
   return { handled: true, replied: false }
 }
@@ -1104,7 +1253,7 @@ async function deliverEntries(
         } else {
           // Button Template — inside the bubble (default).
           await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
-          if (ctx.receipt && entry.text) ctx.receipt.push(entry.text)
+          noteButtons(ctx, entry.text || '', buttonActions.map((b) => ({ title: b.title, url: b.url })))
         }
       } catch (e) {
         // A closed 24-hour window is terminal — the plain-text fallback would fail
@@ -1141,51 +1290,191 @@ async function deliverEntries(
       capturedProducts.length = resolvedBefore
       continue
     }
-    if (ctx.receipt) pushMediaNote(ctx.receipt, entry)
-    const structured = structuredMediaEntry(entry)
-    if (structured) (ctx.receiptMedia ??= []).push(structured)
+    noteRichEntry(ctx, entry)
+    if (capturedProducts.length > resolvedBefore) ctx.receiptParts?.push({ kind: 'products' })
   }
   if (ctx.receipt) {
     for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
   }
 }
 
+/** Messaging window, kept a little under Meta's 24 hours so a send that
+ *  starts at the edge does not land outside it. */
+const IG_MESSAGING_WINDOW_MS = 23.5 * 60 * 60 * 1000
+
+/**
+ * Has this person written to the page inside the messaging window? Comments
+ * and message reactions do not open it — only a Direct message, a story reply
+ * or a button tap does. Read from the stored inbound turns of their DM thread,
+ * so an unknown person is «closed» (the safe answer: they get the opener).
+ */
+async function isMessagingWindowOpen(agentId: string, senderId: string): Promise<boolean> {
+  try {
+    const recent = await prisma.message.findMany({
+      where: {
+        role: 'USER',
+        createdAt: { gte: new Date(Date.now() - IG_MESSAGING_WINDOW_MS) },
+        conversation: { agentId, channel: 'INSTAGRAM', externalId: senderId },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { metadata: true },
+    })
+    return recent.some((message) => {
+      const meta = readGatePayload(message.metadata)
+      const inbound = readGatePayload(meta.vigentoInbound as Prisma.JsonValue | undefined)
+      return inbound.kind === 'DM'
+        || inbound.kind === 'STORY_REPLY'
+        || inbound.kind === 'STORY_REACTION'
+        || inbound.kind === 'STORY_MENTION'
+    })
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Park a reply until the person taps a button: one PENDING gate per scenario
+ * and person. Commenting again refreshes the parked content and its lifetime
+ * instead of stacking a new row per comment (one user once reached 7 rows).
+ */
+async function parkGate(
+  ctx: AutomationContext,
+  row: AutomationRow,
+  payload: Prisma.InputJsonValue,
+): Promise<void> {
+  const { msg, agent, contactId } = ctx
+  const existingGate = await prisma.instagramFollowGate.findFirst({
+    where: {
+      automationId: row.id,
+      igSenderId: msg.senderId,
+      status: 'PENDING',
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  })
+  if (existingGate) {
+    await prisma.instagramFollowGate.update({
+      where: { id: existingGate.id },
+      data: { payload, expiresAt: new Date(Date.now() + GATE_TTL_MS) },
+    })
+    return
+  }
+  await prisma.instagramFollowGate.create({
+    data: {
+      automationId: row.id,
+      agentId: agent.id,
+      contactId: contactId ?? null,
+      igSenderId: msg.senderId,
+      chatId: msg.senderId,
+      status: 'PENDING',
+      expiresAt: new Date(Date.now() + GATE_TTL_MS),
+      payload,
+    },
+  })
+}
+
 /**
  * Deliver a comment→DM reply.
  *
- * The former «ادامه» continue-button gate is gone: every part of the reply
- * is delivered immediately, in order. The first part claims the ONE private
- * reply each comment allows; the remaining parts go straight to the
- * commenter's IGSID as best-effort DMs — each part is sent independently so
- * one failed send never blocks the rest (errors are captured in the ErrorLog).
- * Other targets get every part right away.
+ * Instagram gives a business ONE message (the private reply) to a commenter
+ * who has not written to the page in the last 24 hours. Everything after it
+ * is rejected with «sent outside of allowed window» — the failure operators
+ * saw as «the text arrived, the photo and the catalog never did».
+ *
+ *   1. The reply is one short text / one button message → it IS the private
+ *      reply, nothing else to do.
+ *   2. The person wrote to the page inside the window → every part goes to
+ *      their Direct right away.
+ *   3. Otherwise → the private reply carries the operator's opening message
+ *      with one button and the reply is parked; the tap opens the window and
+ *      {@link tryFulfillFollowGate} releases every part, in order.
  */
 async function deliverToCommenter(
   ctx: AutomationContext,
+  row: AutomationRow,
+  action: AutomationAction,
   target: string,
   entries: RichEntry[],
 ): Promise<void> {
-  if (!isPrivateReplyTarget(target) || !ctx.msg.senderId || entries.length <= 1) {
+  if (!isPrivateReplyTarget(target) || !ctx.msg.senderId || fitsOnePrivateReply(entries)) {
     await deliverEntries(ctx, target, entries)
     return
   }
-  const [first, ...rest] = entries
-  await deliverEntries(ctx, target, [first])
-  for (const entry of rest) {
+  if (entries.length === 0) return
+
+  if (await isMessagingWindowOpen(ctx.agent.id, ctx.msg.senderId)) {
+    const [first, ...rest] = entries
+    let windowClosed = false
     try {
-      await deliverEntries(ctx, ctx.msg.senderId, [entry])
+      // Straight to the IGSID, not the private reply: if the window turns out
+      // to be closed after all, the private reply is still unspent and can
+      // carry the opener below.
+      await deliverEntries(ctx, ctx.msg.senderId, [first])
     } catch (e) {
-      // A closed 24-hour window is different: every remaining part fails the same
-      // way, so stop instead of burning one rejected call per part.
+      if (!isInstagram24hWindowError(e)) throw e
+      windowClosed = true
+    }
+    if (!windowClosed) {
+      for (const entry of rest) {
+        try {
+          await deliverEntries(ctx, ctx.msg.senderId, [entry])
+        } catch (e) {
+          // The window closed mid-sequence: every remaining part fails the
+          // same way, so stop instead of burning one rejected call per part.
+          if (isInstagram24hWindowError(e)) throw e
+          captureWarning('instagram:automation:multipart-rest', e as Error, {
+            workspaceId: ctx.agent.workspaceId,
+            metadata: { chatId: ctx.msg.senderId, entryType: entry.type },
+          })
+        }
+      }
+      return
+    }
+  }
+
+  await sendCommentOpener(ctx, row, action, target, entries)
+}
+
+/** Send the opening button message as the private reply and park the reply. */
+async function sendCommentOpener(
+  ctx: AutomationContext,
+  row: AutomationRow,
+  action: AutomationAction,
+  target: string,
+  entries: RichEntry[],
+): Promise<void> {
+  const { adapter, agent, msg, channelConfig } = ctx
+  const text = (action.dmOpenerText?.trim() || DEFAULT_OPENER_TEXT).slice(0, IG_BUTTON_TEXT_LIMIT)
+  const button = (action.dmOpenerButton?.trim() || DEFAULT_OPENER_BUTTON).slice(0, IG_BUTTON_TITLE_LIMIT).trim()
+
+  await ctx.beforeDispatch?.()
+  let sentAsButton = false
+  if (channelConfig) {
+    try {
+      await sendButtonMessage(channelConfig, target, text, [{ title: button }])
+      sentAsButton = true
+    } catch (e) {
       if (isInstagram24hWindowError(e)) throw e
-      // Best-effort: Meta rejects DMs to commenters with no open thread.
-      // Capture and move on so later parts (and the receipt) still go out.
-      captureWarning('instagram:automation:multipart-rest', e as Error, {
-        workspaceId: ctx.agent.workspaceId,
-        metadata: { chatId: ctx.msg.senderId, entryType: entry.type },
+      captureWarning('instagram:automation:opener-button', e as Error, {
+        workspaceId: agent.workspaceId,
+        metadata: { chatId: target },
       })
     }
   }
+  if (sentAsButton) noteButtons(ctx, text, [{ title: button }], 'opener')
+  else await adapter.sendText(target, text, { quickReplies: [button] })
+
+  await parkGate(ctx, row, {
+    kind: msg.kind,
+    commentId: msg.commentId,
+    postId: msg.postId,
+    gateMode: CONTINUE_GATE_MODE,
+    gateConfirmKeyword: button,
+    gateQuickReply: button,
+    contentMessages: entries,
+  } as Prisma.InputJsonValue)
 }
 
 async function executeAction(
@@ -1254,6 +1543,8 @@ async function executeAction(
         if (contentMessages.length > 0) {
           await deliverToCommenter(
             ctx,
+            row,
+            action,
             target,
             contentMessages.map((entry) => toRichEntry(entry as Record<string, unknown>)),
           )
@@ -1280,15 +1571,20 @@ async function executeAction(
         quickReplies: [gateQuickReply],
       })
     } else if (channelConfig) {
+      let sentAsButton = false
       try {
         await sendButtonMessage(channelConfig, target, gatePrompt, [
           { title: gateQuickReply },
         ])
+        sentAsButton = true
       } catch {
         await adapter.sendText(target, gatePrompt, {
           quickReplies: [gateQuickReply],
         })
       }
+      // The follow request is part of the conversation too — without this the
+      // inbox showed the customer's «دنبال کردم» tap answering nothing.
+      if (sentAsButton) noteButtons(ctx, gatePrompt, [{ title: gateQuickReply }], 'follow_gate')
     } else {
       await adapter.sendText(target, gatePrompt, {
         quickReplies: [gateQuickReply],
@@ -1296,11 +1592,7 @@ async function executeAction(
     }
 
     if (ctx.outcome) ctx.outcome.gated = true
-    // Dedupe: the customer commenting again while a gate is already pending
-    // used to stack a NEW gate row per comment (one user hit 7 rows). Refresh
-    // the existing PENDING gate for this automation+sender instead — the
-    // parked content and TTL stay current, the table stays clean.
-    const gatePayload = {
+    await parkGate(ctx, row, {
       kind: msg.kind,
       commentId: msg.commentId,
       postId: msg.postId,
@@ -1311,36 +1603,7 @@ async function executeAction(
       gatePrompt,
       gateQuickReply,
       contentMessages,
-    } as Prisma.InputJsonValue
-    const existingGate = await prisma.instagramFollowGate.findFirst({
-      where: {
-        automationId: row.id,
-        igSenderId: msg.senderId,
-        status: 'PENDING',
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    })
-    if (existingGate) {
-      await prisma.instagramFollowGate.update({
-        where: { id: existingGate.id },
-        data: { payload: gatePayload, expiresAt: new Date(Date.now() + GATE_TTL_MS) },
-      })
-    } else {
-      await prisma.instagramFollowGate.create({
-        data: {
-          automationId: row.id,
-          agentId: agent.id,
-          contactId: contactId ?? null,
-          igSenderId: msg.senderId,
-          chatId: msg.senderId,
-          status: 'PENDING',
-          expiresAt: new Date(Date.now() + GATE_TTL_MS),
-          payload: gatePayload,
-        },
-      })
-    }
+    } as Prisma.InputJsonValue)
     // The gate prompt went to the commenter's DM — acknowledge the public
     // comment as well so it isn't left unanswered.
     await postCommentAck(ctx, action)
@@ -1353,7 +1616,7 @@ async function executeAction(
       Math.floor(Math.random() * action.messages.length)
     ]
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
-    await deliverToCommenter(ctx, target, [entry])
+    await deliverToCommenter(ctx, row, action, target, [entry])
     // NOTE (v3.1): the comment→DM funnel no longer posts the DM body back as
     // a public comment reply — "ارسال در دایرکت" means INSTEAD of the public
     // reply, and posting it would leak DM content (links, prices) publicly.
@@ -1370,7 +1633,7 @@ async function executeAction(
   // was silently ignored.
   if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
-    await deliverToCommenter(ctx, target, action.messages)
+    await deliverToCommenter(ctx, row, action, target, action.messages)
     // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
     // MULTI_MESSAGE branch above.
     // v3.2: optional commentAck — post the short public ack on the comment.
@@ -1404,7 +1667,7 @@ async function executeAction(
       const entries: RichEntry[] = action.replyText
         ? [{ type: 'TEXT', text: action.replyText }, media]
         : [media]
-      await deliverToCommenter(ctx, target, entries)
+      await deliverToCommenter(ctx, row, action, target, entries)
       await postCommentAck(ctx, action)
       return
     }
@@ -1418,24 +1681,19 @@ async function executeAction(
     await ctx.beforeDispatch?.()
     if (action.mediaType === 'IMAGE' && legacyMediaDeliverable) {
       await sendImage(channelConfig, target, legacyMediaDeliverable, action.replyText || undefined)
-      if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'IMAGE' })
-      const structured = structuredMediaEntry({ type: 'IMAGE', mediaUrl: legacyMediaDeliverable })
-      if (structured && ctx.receiptMedia) ctx.receiptMedia.push(structured)
+      noteRichEntry(ctx, { type: 'IMAGE', mediaUrl: legacyMediaDeliverable, text: action.replyText || undefined })
     } else if (action.mediaType === 'AUDIO' && legacyMediaDeliverable) {
       await sendAudio(channelConfig, target, legacyMediaDeliverable)
-      if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'AUDIO' })
-      const structured = structuredMediaEntry({ type: 'AUDIO', mediaUrl: legacyMediaDeliverable })
-      if (structured && ctx.receiptMedia) ctx.receiptMedia.push(structured)
+      noteRichEntry(ctx, { type: 'AUDIO', mediaUrl: legacyMediaDeliverable })
     } else if (action.mediaType === 'VIDEO' && legacyMediaDeliverable) {
       await sendVideo(channelConfig, target, legacyMediaDeliverable)
-      if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'VIDEO' })
-      const structured = structuredMediaEntry({ type: 'VIDEO', mediaUrl: legacyMediaDeliverable })
-      if (structured && ctx.receiptMedia) ctx.receiptMedia.push(structured)
+      noteRichEntry(ctx, { type: 'VIDEO', mediaUrl: legacyMediaDeliverable })
     } else if (action.mediaType === 'PRODUCT' && action.productId) {
       const product = await resolveProduct(agent.id, action.productId)
       if (product) {
         await sendProductCard(channelConfig, target, product)
         if (ctx.receipt) ctx.receipt.push(productMarker(product))
+        ctx.receiptParts?.push({ kind: 'products' })
       }
     }
     // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
@@ -1454,9 +1712,14 @@ async function executeAction(
       // v1 fallback (messages[] empty): deliver the DM body only — no public
       // comment ack, per the v3.1 "ارسال در دایرکت" semantics (see the note
       // in the MULTI_MESSAGE branch).
-      await adapter.sendText(commentDmTarget(msg), action.contentText || action.replyText, {
-        quickReplies,
-      })
+      const body: RichEntry[] = [{ type: 'TEXT', text: action.contentText || action.replyText }]
+      if (fitsOnePrivateReply(body)) {
+        await adapter.sendText(commentDmTarget(msg), body[0].text!, { quickReplies })
+      } else {
+        // A long body is split into several messages — more than the one
+        // private reply — so it needs the opener like any multi-part reply.
+        await deliverToCommenter(ctx, row, action, commentDmTarget(msg), body)
+      }
       // v3.2: optional commentAck — acknowledge the public comment too.
       await postCommentAck(ctx, action)
       scheduleFollowUp(ctx, action, msg.senderId)
@@ -1628,43 +1891,31 @@ async function checkUserFollows(
 }
 
 /**
- * Try to fulfill a pending SOFT follow-gate when the user sends the confirm keyword.
- * `'fulfilled'` — this event released the content; `'handled'` — the tap was
- * answered (retry prompt, or another event already claimed the gate).
+ * Try to release a parked reply when the user taps (or types) a gate's button.
+ * `'fulfilled'` — a follow was confirmed and the content released;
+ * `'continued'` — an opening message's button released the parked reply (no
+ * follow rule); `'handled'` — the tap was answered (retry prompt, or another
+ * event already claimed the gate).
  */
 async function tryFulfillFollowGate(
   ctx: AutomationContext,
-): Promise<false | 'handled' | 'fulfilled'> {
-  const { adapter, msg, agent, channelConfig } = ctx
+): Promise<false | 'handled' | 'fulfilled' | 'continued'> {
+  const { msg, agent, channelConfig } = ctx
   const text = msg.text?.trim().toLowerCase()
   if (!text || !msg.senderId) return false
 
-  const gate = await prisma.instagramFollowGate.findFirst({
-    where: {
-      agentId: agent.id,
-      igSenderId: msg.senderId,
-      status: 'PENDING',
-      expiresAt: { gt: new Date() },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
-  if (!gate) return false
-
-  const payload = (gate.payload && typeof gate.payload === 'object'
-    ? gate.payload
-    : {}) as Record<string, unknown>
-  const confirmKw = typeof payload.gateConfirmKeyword === 'string'
-    ? payload.gateConfirmKeyword
-    : ''
+  const match = await findConfirmableGate(agent.id, msg.senderId, text)
+  if (!match) return false
+  const { gate, payload } = match
   const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
-  if (gateMode === 'STORY_MENTION') return false
-
-  if (!confirmKw || !isGateConfirmText(confirmKw, text)) return false
+  const isContinue = gateMode === CONTINUE_GATE_MODE
+  const scenario = await gateScenario(gate.automationId)
 
   // ── VERIFY the user actually follows the account ──
   // Before fulfilling the gate, check if the user is really a follower.
   // If they're NOT following, re-send the gate prompt (don't deliver content).
-  if (channelConfig) {
+  // (An opening message has no follow rule — its tap alone releases the reply.)
+  if (channelConfig && !isContinue) {
     const follows = await checkUserFollows(channelConfig, msg.senderId)
     if (follows === false) {
       console.log(`[ig-gate] user ${msg.senderId} clicked "${text}" but does NOT follow — re-sending gate prompt, sweep will auto-verify`)
@@ -1684,25 +1935,24 @@ async function tryFulfillFollowGate(
       // customer is actively trying — restart its fast re-check cadence.
       await patchGatePayload(gate.id, { lastTapAt: Date.now(), lastAutoCheckAt: 0 })
       await ctx.beforeDispatch?.()
-      try {
-        if (gateButtonType === 'quick_reply') {
-          await adapter.sendText(gate.chatId, retryPrompt, {
-            quickReplies: [gateQuickReply],
-          })
-        } else if (channelConfig) {
-          await sendButtonMessage(channelConfig, gate.chatId, retryPrompt, [
-            { title: gateQuickReply },
-          ])
-        } else {
-          await adapter.sendText(gate.chatId, retryPrompt, {
+      await deliverWithReceipt(ctx, scenario, async (tracked) => {
+        try {
+          if (gateButtonType === 'quick_reply') {
+            await tracked.adapter.sendText(gate.chatId, retryPrompt, {
+              quickReplies: [gateQuickReply],
+            })
+          } else {
+            await sendButtonMessage(channelConfig, gate.chatId, retryPrompt, [
+              { title: gateQuickReply },
+            ])
+            noteButtons(tracked, retryPrompt, [{ title: gateQuickReply }], 'follow_gate')
+          }
+        } catch {
+          await tracked.adapter.sendText(gate.chatId, retryPrompt, {
             quickReplies: [gateQuickReply],
           })
         }
-      } catch {
-        await adapter.sendText(gate.chatId, retryPrompt, {
-          quickReplies: [gateQuickReply],
-        })
-      }
+      })
       return 'handled' // gate handled (but not fulfilled) — don't fall through to AI
     }
   }
@@ -1723,7 +1973,7 @@ async function tryFulfillFollowGate(
 
   if (contentMessages.length > 0 && channelConfig) {
     try {
-      await deliverWithReceipt(ctx, (tracked) =>
+      await deliverWithReceipt(ctx, scenario, (tracked) =>
         deliverEntries(tracked, gate.chatId, contentMessages.map(toRichEntry)),
       )
     } catch (e) {
@@ -1733,7 +1983,20 @@ async function tryFulfillFollowGate(
       })
     }
   }
-  return 'fulfilled'
+  return isContinue ? 'continued' : 'fulfilled'
+}
+
+/** The scenario a gate belongs to, for the inbox receipt. Best-effort. */
+async function gateScenario(automationId: string): Promise<OutboundScenario | null> {
+  try {
+    const row = await prisma.instagramAutomation.findUnique({
+      where: { id: automationId },
+      select: { id: true, name: true, type: true },
+    })
+    return row ? { id: row.id, name: row.name, type: row.type } : null
+  } catch {
+    return null
+  }
 }
 
 /** Fulfill a pending STORY_MENTION gate when the mention webhook arrives. */
@@ -1851,7 +2114,7 @@ export async function sweepInstagramFollowGates(): Promise<number> {
       chatId: true,
       createdAt: true,
       payload: true,
-      automation: { select: { type: true, active: true } },
+      automation: { select: { type: true, active: true, name: true } },
     },
   })
 
@@ -1869,6 +2132,9 @@ export async function sweepInstagramFollowGates(): Promise<number> {
       if (gate.automation?.active === false) return false
       const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
       if (gateMode === 'STORY_MENTION') return false
+      // A parked comment→DM reply waits for its button: without the tap the
+      // 24-hour window is closed and there is no follow to verify.
+      if (gateMode === CONTINUE_GATE_MODE) return false
       if (failures >= GATE_AUTO_DELIVER_MAX_FAILURES) return false
       const hasRichContent = Array.isArray(payload.contentMessages) && payload.contentMessages.length > 0
       const hasLegacyContent =
@@ -1924,8 +2190,7 @@ export async function sweepInstagramFollowGates(): Promise<number> {
       Array.isArray(payload.contentMessages) && payload.contentMessages.length > 0
         ? (payload.contentMessages as Array<Record<string, unknown>>).map(toRichEntry)
         : [{ type: 'TEXT', text: payload.contentText as string }]
-    const receipt: string[] = []
-    const receiptMedia: NonNullable<AutomationContext['receiptMedia']> = []
+    const bag = newReceiptBag()
     const products: ProductShowcase[] = []
     let sentParts = 0
     let rejected: unknown = null
@@ -1959,10 +2224,13 @@ export async function sweepInstagramFollowGates(): Promise<number> {
       }
       if (result === 'sent') {
         sentParts += 1
-        if ((entry.type === 'TEXT' || entry.type === 'QUICK_REPLY') && entry.text) receipt.push(entry.text)
-        pushMediaNote(receipt, entry)
-        const structured = structuredMediaEntry(entry)
-        if (structured) receiptMedia.push(structured)
+        const hasInlineButtons =
+          entry.type === 'QUICK_REPLY' && !!entry.buttons?.length && entry.buttonType !== 'quick_reply'
+        if ((entry.type === 'TEXT' || entry.type === 'QUICK_REPLY') && entry.text && !hasInlineButtons) {
+          noteText(bag, gate.chatId, entry.text)
+        }
+        noteRichEntry(bag, entry)
+        if (products.length > resolvedBefore) bag.receiptParts.push({ kind: 'products' })
         continue
       }
       products.length = resolvedBefore
@@ -1990,9 +2258,17 @@ export async function sweepInstagramFollowGates(): Promise<number> {
     }
     if (sentParts === 0) continue // nothing deliverable (e.g. products deleted)
     fulfilledCount += 1
-    for (const p of products) receipt.push(productMarker(p))
+    for (const p of products) bag.receipt.push(productMarker(p))
 
-    const conversationId = await persistSweepReceipt(gate.agentId, gate.chatId, receipt, receiptMedia)
+    const automation = gate.automation as { type?: OutboundScenario['type']; name?: string } | null
+    const conversationId = await persistSweepReceipt(
+      gate.agentId,
+      gate.chatId,
+      bag,
+      automation?.type && automation.name
+        ? { id: gate.automationId, name: automation.name, type: automation.type }
+        : null,
+    )
 
     // The run report stays consistent with a manual confirm: same outcome tag.
     try {
@@ -2024,8 +2300,8 @@ export async function sweepInstagramFollowGates(): Promise<number> {
 async function persistSweepReceipt(
   agentId: string,
   chatId: string,
-  receipt: string[],
-  receiptMedia: NonNullable<AutomationContext['receiptMedia']>,
+  bag: ReceiptBag,
+  scenario: OutboundScenario | null,
 ): Promise<string | null> {
   try {
     const conversation = await prisma.conversation.findFirst({
@@ -2033,16 +2309,16 @@ async function persistSweepReceipt(
       select: { id: true },
     })
     if (!conversation) return null
-    const text = receipt.filter(Boolean).join('\n\n').trim()
+    const text = bag.receipt.filter(Boolean).join('\n\n').trim()
     if (!text) return conversation.id
-    const media = receiptMedia.slice(0, 10)
+    const outbound = outboundMetadata(bag, scenario)
     await prisma.$transaction([
       prisma.message.create({
         data: {
           conversationId: conversation.id,
           role: 'ASSISTANT',
           content: text,
-          ...(media.length ? { metadata: { vigentoOutbound: { media } } as Prisma.InputJsonValue } : {}),
+          ...(outbound ? { metadata: outbound } : {}),
         },
       }),
       prisma.conversation.update({

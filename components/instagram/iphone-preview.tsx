@@ -5,17 +5,14 @@ import {
         Heart,
         Send,
         Image as ImageIcon,
-        Mic,
         MoreHorizontal,
         Plus,
         Bookmark,
         MessageCircle,
-        KeyRound,
-        ShoppingBag,
-        Film,
         Check,
         UserPlus,
         Lock,
+        MousePointerClick,
 } from 'lucide-react'
 import type {
         AutomationType,
@@ -118,6 +115,8 @@ function usePreviewProduct(id: string | undefined): PreviewProduct | null | unde
         return product
 }
 
+export type CommentPreviewView = 'comment' | 'dm_new' | 'dm_follower'
+
 export interface IphonePreviewProps {
         mode: AutomationType
         /** The connected IG account's @username (no @). */
@@ -150,6 +149,14 @@ export interface IphonePreviewProps {
         gatePrompt?: string
         /** The confirm button's label (falls back to «دنبال کردم»). */
         gateButton?: string
+        /** Comment→DM: the opening button message, set when the reply needs
+         *  more than the one message Instagram allows to a commenter. */
+        dmOpener?: { text: string; button: string }
+        /** Comment→DM: which side of the funnel the phone shows — the post with
+         *  its comments, or the commenter's Direct thread. A follow-gated funnel
+         *  has two Direct paths: someone who does not follow yet (`dm_new`) and
+         *  someone who already does (`dm_follower`). */
+        commentView?: CommentPreviewView
         /** Extra classes for the phone frame (e.g. `max-w-none` to fill a larger stage). */
         frameClassName?: string
 }
@@ -185,7 +192,10 @@ type ScreenProps = Omit<IphonePreviewProps, 'mode'>
 
 function Screen(props: IphonePreviewProps) {
         if (props.mode === 'STORY') return <StoryScreen {...props} />
-        if (props.mode === 'COMMENT') return <CommentScreen {...props} />
+        if (props.mode === 'COMMENT') {
+                const direct = props.dmOnComment && props.commentView && props.commentView !== 'comment'
+                return direct ? <CommentDmScreen {...props} /> : <CommentScreen {...props} />
+        }
         return <DMScreen {...props} />
 }
 
@@ -325,25 +335,41 @@ function BotReplyBlock({
                         <IgOutgoing>
                                 <IgBubble side="out">{gate.button}</IgBubble>
                         </IgOutgoing>
-                        <GateStepLabel />
+                        <StepLabel>فالو تأیید شد — پاسخ اصلی ارسال می‌شود</StepLabel>
                         {reply}
                 </>
         )
 }
 
-/** The follow-request message — Button Template style, like the real DM. */
-function FollowGateBubble({ prompt, button }: { prompt: string; button: string }) {
+/**
+ * A text with one button under it — Instagram's Button Template, the shape of
+ * both the follow request and the opening message of a comment→DM reply. The
+ * optional caption says who gets it (it is not part of the real message).
+ */
+function ButtonMessageBubble({
+        caption,
+        captionIcon,
+        text,
+        button,
+}: {
+        caption?: string
+        captionIcon?: React.ReactNode
+        text: string
+        button: string
+}) {
         return (
                 <IgBubble side="in" flush style={{ width: pt(240) }}>
-                        <span
-                                className="flex items-center font-semibold"
-                                style={{ gap: pt(5), padding: `${pt(9)} ${pt(12)} 0`, fontSize: pt(12), color: IG_COLORS.label }}
-                        >
-                                <UserPlus aria-hidden style={{ width: pt(13), height: pt(13) }} />
-                                فقط برای کسی که هنوز فالو نکرده
-                        </span>
-                        <p dir="auto" className="whitespace-pre-line" style={{ padding: `${pt(4)} ${pt(12)} ${pt(9)}` }}>
-                                {prompt}
+                        {caption && (
+                                <span
+                                        className="flex items-center font-semibold"
+                                        style={{ gap: pt(5), padding: `${pt(9)} ${pt(12)} 0`, fontSize: pt(12), color: IG_COLORS.label }}
+                                >
+                                        {captionIcon}
+                                        {caption}
+                                </span>
+                        )}
+                        <p dir="auto" className="whitespace-pre-line" style={{ padding: `${pt(caption ? 4 : 9)} ${pt(12)} ${pt(9)}` }}>
+                                {text}
                         </p>
                         <span
                                 dir="auto"
@@ -356,16 +382,32 @@ function FollowGateBubble({ prompt, button }: { prompt: string; button: string }
         )
 }
 
-function GateStepLabel() {
+/** The follow-request message — Button Template style, like the real DM. */
+function FollowGateBubble({ prompt, button }: { prompt: string; button: string }) {
+        return (
+                <ButtonMessageBubble
+                        caption="فقط برای کسی که هنوز فالو نکرده"
+                        captionIcon={<UserPlus aria-hidden style={{ width: pt(13), height: pt(13) }} />}
+                        text={prompt}
+                        button={button}
+                />
+        )
+}
+
+/** A centred note between two moments of the thread (not a real message). */
+function StepLabel({ children }: { children: React.ReactNode }) {
         return (
                 <div className="flex shrink-0 items-center justify-center" style={{ padding: `${pt(2)} 0` }}>
-                        <span className="inline-flex items-center rounded-full bg-black/[0.05] font-medium text-[var(--text-muted)]" style={{ gap: pt(5), fontSize: pt(12), padding: `${pt(4)} ${pt(11)}` }}>
-                                <Check aria-hidden style={{ width: pt(12), height: pt(12) }} strokeWidth={3} />
-                                فالو تأیید شد — پاسخ اصلی ارسال می‌شود
+                        <span className="inline-flex items-center rounded-full bg-black/[0.05] text-center font-medium text-[var(--text-muted)]" style={{ gap: pt(5), fontSize: pt(12), padding: `${pt(4)} ${pt(11)}` }}>
+                                <Check aria-hidden className="shrink-0" style={{ width: pt(12), height: pt(12) }} strokeWidth={3} />
+                                {children}
                         </span>
                 </div>
         )
 }
+
+/** Shown on a key the operator has added but not named yet. */
+const KEY_PLACEHOLDER = 'عنوان کلید…'
 
 function ButtonChips({ buttons }: { buttons: NonNullable<AutomationMessage['buttons']> | string[] }) {
         if (buttons.length === 0) return null
@@ -377,10 +419,13 @@ function ButtonChips({ buttons }: { buttons: NonNullable<AutomationMessage['butt
                                         <span
                                                 key={i}
                                                 dir="auto"
-                                                className="rounded-full border border-black/15 bg-white font-semibold text-black"
+                                                className={cn(
+                                                        'rounded-full border border-black/15 bg-white font-semibold',
+                                                        btn.title.trim() ? 'text-black' : 'text-black/35',
+                                                )}
                                                 style={{ fontSize: pt(14), padding: `${pt(6)} ${pt(13)}` }}
                                         >
-                                                {btn.title}
+                                                {btn.title.trim() || KEY_PLACEHOLDER}
                                         </span>
                                 )
                         })}
@@ -439,9 +484,7 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                                         className="block w-full bg-black object-cover"
                                         style={{ maxHeight: pt(280) }}
                                 />
-                                {message.text?.trim() && (
-                                        <p dir="auto" style={{ padding: `${pt(8)} ${pt(12)}` }}>{message.text}</p>
-                                )}
+                                {/* No caption: Instagram delivers a video on its own. */}
                         </IgBubble>
                 )
         }
@@ -501,10 +544,13 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                                                 <span
                                                         key={i}
                                                         dir="auto"
-                                                        className="block border-t border-black/[0.08] text-center font-semibold"
+                                                        className={cn(
+                                                                'block border-t border-black/[0.08] text-center font-semibold',
+                                                                !btn.title.trim() && 'text-black/35',
+                                                        )}
                                                         style={{ padding: `${pt(9)} ${pt(12)}`, fontSize: pt(15) }}
                                                 >
-                                                        {btn.title}
+                                                        {btn.title.trim() || KEY_PLACEHOLDER}
                                                 </span>
                                         )
                                 })}
@@ -655,8 +701,10 @@ function CommentScreen(props: ScreenProps) {
                 followGate,
                 gatePrompt,
                 gateButton,
+                dmOpener,
         } = props
         const gate = followGate && replyMode !== 'SILENT' && replyMode !== 'STOP_AI' ? gateCopy(gatePrompt, gateButton) : null
+        const opener = dmOnComment ? dmOpener : undefined
 
         // The posts the scenario is scoped to (شرط اجرا). Empty → the scenario
         // runs on every post; the preview keeps its generic placeholder art.
@@ -824,26 +872,6 @@ function CommentScreen(props: ScreenProps) {
                                         <Heart className="mt-0.5 h-2.5 w-2.5 text-[var(--text-muted)]" />
                                 </div>
 
-                                {/* Follow gate — the commenter first gets a follow request in
-                                    DM; the reply below only goes out after they confirm. */}
-                                {gate && (
-                                        <div dir="rtl" className="rounded-xl border border-black/[0.08] bg-[#f6f6f8] p-2.5">
-                                                <p className="flex items-center gap-1 text-[10px] font-semibold text-[var(--text-primary)]">
-                                                        <Lock className="h-3 w-3" />
-                                                        ۱. درخواست فالو در دایرکت
-                                                        <span className="font-normal text-[var(--text-muted)]">(فقط غیرفالوورها)</span>
-                                                </p>
-                                                <div className="mt-1.5 overflow-hidden rounded-lg border border-black/[0.06] bg-white">
-                                                        <p dir="auto" className="whitespace-pre-line px-2 py-1.5 text-[11px] leading-snug text-black">{gate.prompt}</p>
-                                                        <p dir="auto" className="border-t border-black/[0.06] px-2 py-1 text-center text-[11px] font-semibold text-black">{gate.button}</p>
-                                                </div>
-                                                <p className="mt-1.5 flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-                                                        <Check className="h-3 w-3" strokeWidth={3} />
-                                                        {`بعد از زدن «${gate.button}»، پاسخ زیر ارسال می‌شود`}
-                                                </p>
-                                        </div>
-                                )}
-
                                 {/* Bot's reply (if STATIC/MULTI_MESSAGE) */}
                                 {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && publicReply && (
                                         <div className="flex gap-2 ps-7">
@@ -894,30 +922,32 @@ function CommentScreen(props: ScreenProps) {
                                         </div>
                                 )}
 
-                                {/* DM funnel — renders the builder sequence that will be
-                                    delivered to the commenter's DM (v3.1: full rich preview). */}
+                                {/* Direct funnel — a map of what happens in the commenter's
+                                    Direct. The thread itself is the «دایرکت» view of this
+                                    preview; under the post only the public part is real. */}
                                 {dmOnComment && (
                                         <div dir="rtl" className="rounded-xl border border-[#dd2a7b]/30 p-2.5" style={{ background: IG_GRADIENT_SOFT }}>
                                                 <p className="flex items-center gap-1 text-[10px] font-semibold text-[#dd2a7b]">
                                                         <Send className="h-3 w-3 -rotate-12" />
-                                                        {gate ? '۲. ارسال دایرکت' : 'ارسال دایرکت'}
-                                                        {dmMessages.length > 0 && (
-                                                                <span className="font-normal text-[var(--text-muted)]">
-                                                                        ({dmMessages.length.toLocaleString('fa-IR')} پیام)
-                                                                </span>
-                                                        )}
+                                                        ادامه در دایرکت
                                                 </p>
-                                                {dmMessages.length === 0 ? (
-                                                        <p className="mt-1 text-[11px] text-[var(--text-muted)] leading-snug">
-                                                                متن دایرکت نمونه…
-                                                        </p>
-                                                ) : (
-                                                        <div className="mt-1.5 space-y-1">
-                                                                {dmMessages.map((m) => (
-                                                                        <DmEntryRow key={m.id} message={m} />
-                                                                ))}
-                                                        </div>
-                                                )}
+                                                <ol className="mt-1.5 space-y-1">
+                                                        {gate && (
+                                                                <FunnelStep icon={<Lock className="h-3 w-3" />} note="فقط غیرفالوورها">
+                                                                        {`درخواست فالو با دکمهٔ «${gate.button}»`}
+                                                                </FunnelStep>
+                                                        )}
+                                                        {opener && (
+                                                                <FunnelStep icon={<MousePointerClick className="h-3 w-3" />} note={gate ? 'فالوورها' : undefined}>
+                                                                        {`پیام شروع با دکمهٔ «${opener.button}»`}
+                                                                </FunnelStep>
+                                                        )}
+                                                        <FunnelStep icon={<MessageCircle className="h-3 w-3" />} muted={dmMessages.length === 0}>
+                                                                {dmMessages.length === 0
+                                                                        ? 'پیام دایرکت را بنویسید…'
+                                                                        : `${dmMessages.length.toLocaleString('fa-IR')} پیام: ${dmSummary(dmMessages)}`}
+                                                        </FunnelStep>
+                                                </ol>
                                         </div>
                                 )}
                         </div>
@@ -937,102 +967,133 @@ function CommentScreen(props: ScreenProps) {
         )
 }
 
-// ── Comment→DM funnel entry row (v3.1) ─────────────────────────────────────
-// Compact row inside the "ارسال دایرکت" box: an icon per message type + the
-// text (or a type label for media entries) so the operator sees exactly what
-// the commenter will receive in DM — same as the DM chat preview, but fitted
-// to the comment screen's small canvas.
+// ── Comment→DM funnel map ─────────────────────────────────────────────────
 
-function DmEntryRow({ message }: { message: AutomationMessage }) {
-        const Icon =
-                message.type === 'IMAGE'
-                        ? ImageIcon
-                        : message.type === 'AUDIO'
-                                ? Mic
-                                : message.type === 'VIDEO'
-                                        ? Film
-                                        : message.type === 'QUICK_REPLY'
-                                                ? KeyRound
-                                                : message.type === 'PRODUCT' || message.type === 'PRODUCT_LIST'
-                                                        ? ShoppingBag
-                                                        : MessageCircle
-        const label =
-                message.type === 'IMAGE'
-                        ? 'عکس'
-                        : message.type === 'AUDIO'
-                                ? 'پیام صوتی'
-                                : message.type === 'VIDEO'
-                                        ? 'ویدیو'
-                                        : message.type === 'PRODUCT' || message.type === 'PRODUCT_LIST'
-                                                ? 'ویترین محصولات'
-                                                : ''
-        const body = (message.text ?? '').trim()
-        // v3.1: product rows show the real product image + name + count.
-        if (message.type === 'PRODUCT' || message.type === 'PRODUCT_LIST') {
-                const firstId = message.productId ?? message.productIds?.[0]
-                const count = message.type === 'PRODUCT_LIST' ? (message.productIds?.length ?? 1) : 1
-                if (firstId) return <DmProductRow productId={firstId} count={count} />
-        }
+/** One line of the «ادامه در دایرکت» map under the post. */
+function FunnelStep({
+        icon,
+        note,
+        muted = false,
+        children,
+}: {
+        icon: React.ReactNode
+        /** Who this step applies to, when not everyone. */
+        note?: string
+        muted?: boolean
+        children: React.ReactNode
+}) {
         return (
-                <div className="flex items-start gap-1.5 rounded-lg bg-white/70 px-2 py-1.5">
-                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[#dd2a7b]">
-                                <Icon className="h-3 w-3" />
-                        </span>
-                        <p className="min-w-0 flex-1 text-[11px] leading-snug text-black">
-                                {body ? (
-                                        message.type === 'QUICK_REPLY' && message.buttons?.length ? (
-                                                <>
-                                                        {body}
-                                                        <span className="ms-1 text-[var(--text-muted)]">
-                                                                + {message.buttons.length.toLocaleString('fa-IR')} کلید
-                                                        </span>
-                                                </>
-                                        ) : (
-                                                body
-                                        )
-                                ) : (
-                                        <span className="text-[var(--text-secondary)]">{label}</span>
-                                )}
+                <li className="flex items-start gap-1.5 rounded-lg bg-white/70 px-2 py-1.5">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-[#dd2a7b]">{icon}</span>
+                        <p className={cn('min-w-0 flex-1 text-[11px] leading-snug', muted ? 'text-[var(--text-muted)]' : 'text-black')}>
+                                {children}
+                                {note && <span className="ms-1 text-[var(--text-muted)]">({note})</span>}
                         </p>
-                </div>
+                </li>
         )
 }
 
-// ── Comment→DM product row (v3.1) ──────────────────────────────────────────
-// A compact row inside the «ارسال دایرکت» box for PRODUCT / PRODUCT_LIST
-// entries: real product thumbnail + name + price, with a count badge when the
-// showcase carries more than one product.
+const DM_KIND_LABEL: Record<AutomationMessage['type'], string> = {
+        TEXT: 'متن',
+        IMAGE: 'عکس',
+        AUDIO: 'وویس',
+        VIDEO: 'ویدیو',
+        QUICK_REPLY: 'کلید',
+        PRODUCT: 'محصول',
+        PRODUCT_LIST: 'ویترین',
+}
 
-function DmProductRow({ productId, count }: { productId: string; count: number }) {
-        const product = usePreviewProduct(productId)
-        const img = product?.images?.[0]
+/** «متن، عکس، ویترین» — the kinds of a Direct sequence, each named once. */
+function dmSummary(messages: AutomationMessage[]): string {
+        return [...new Set(messages.map((m) => DM_KIND_LABEL[m.type] ?? 'پیام'))].join('، ')
+}
+
+// ── Comment→DM: the commenter's Direct thread ─────────────────────────────
+// What the commenter sees after commenting, in the order it really happens:
+//   dm_new       follow request → tap → the reply
+//   dm_follower  opening message → tap → the reply (or the reply straight
+//                away when it is a single short text)
+// The tap is the customer's own bubble: it is what opens the 24-hour window.
+
+function CommentDmScreen(props: ScreenProps) {
+        const {
+                accountUsername,
+                accountAvatarUrl,
+                userText,
+                replyMode,
+                messages,
+                followGate,
+                gatePrompt,
+                gateButton,
+                dmOpener,
+                commentView,
+        } = props
+        const time = useIgClock()
+        const avatar = <IgAvatar size={28} src={accountAvatarUrl} label={accountUsername} />
+        const gate = followGate && commentView === 'dm_new' ? gateCopy(gatePrompt, gateButton) : null
+        const opener = gate ? undefined : dmOpener
+        const replies = visibleReplies(messages).filter(
+                (m) =>
+                        m.text.trim() ||
+                        m.mediaUrl ||
+                        m.productId ||
+                        (m.productIds && m.productIds.length > 0) ||
+                        (m.buttons && m.buttons.length > 0),
+        )
+        const comment = userText.trim() || 'کامنت نمونه…'
+        const replyBubbles =
+                replies.length === 0 ? (
+                        <IgBubble side="in" muted>
+                                پیام دایرکت را بنویسید…
+                        </IgBubble>
+                ) : (
+                        replies.map((m) => <MessageBubble key={m.id} message={m} />)
+                )
+
         return (
-                <div className="flex items-center gap-2 rounded-lg bg-white/70 px-2 py-1.5">
-                        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/[0.04]">
-                                {img ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <ProductImage src={img} alt={product?.name ?? ''} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                                ) : (
-                                        <ShoppingBag className="h-4 w-4 text-[var(--text-muted)]" />
-                                )}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                                <p className="truncate text-[11px] font-medium leading-snug text-black">
-                                        {product ? product.name : '…'}
-                                </p>
-                                <p className="text-[10px] leading-snug text-[var(--text-muted)]">
-                                        {product?.price != null
-                                                ? `${product.price.toLocaleString('fa-IR')} تومان`
-                                                : product === undefined
-                                                        ? '…'
-                                                        : 'بدون قیمت'}
-                                </p>
+                <IgDmScreen header={dmHeader(accountUsername, accountAvatarUrl)} composer={COMPOSER}>
+                        <IgTimestamp>Today {time}</IgTimestamp>
+
+                        {/* Instagram opens the thread with the comment being answered. */}
+                        <div className="flex max-w-[86%] shrink-0 flex-col items-start" style={{ paddingLeft: pt(38), gap: pt(3) }}>
+                                <IgMeta align="start">Replied to your comment</IgMeta>
+                                <IgBubble side="in" muted style={{ fontSize: pt(14), borderRadius: pt(14), padding: `${pt(5)} ${pt(10)}` }}>
+                                        {comment}
+                                </IgBubble>
                         </div>
-                        {count > 1 && (
-                                <span className="shrink-0 rounded-full bg-[#dd2a7b]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[#dd2a7b]">
-                                        {count.toLocaleString('fa-IR')} محصول
-                                </span>
+
+                        {replyMode !== 'STATIC' && replyMode !== 'MULTI_MESSAGE' ? (
+                                <BotReplyBlock
+                                        replyMode={replyMode}
+                                        messages={replies}
+                                        accountUsername={accountUsername}
+                                        accountAvatarUrl={accountAvatarUrl}
+                                />
+                        ) : gate ? (
+                                <>
+                                        <IgIncoming avatar={avatar}>
+                                                <ButtonMessageBubble text={gate.prompt} button={gate.button} />
+                                        </IgIncoming>
+                                        <IgOutgoing>
+                                                <IgBubble side="out">{gate.button}</IgBubble>
+                                        </IgOutgoing>
+                                        <StepLabel>فالو تأیید شد — پیام‌ها ارسال می‌شود</StepLabel>
+                                        <IgIncoming avatar={avatar}>{replyBubbles}</IgIncoming>
+                                </>
+                        ) : opener ? (
+                                <>
+                                        <IgIncoming avatar={avatar}>
+                                                <ButtonMessageBubble text={opener.text} button={opener.button} />
+                                        </IgIncoming>
+                                        <IgOutgoing>
+                                                <IgBubble side="out">{opener.button}</IgBubble>
+                                        </IgOutgoing>
+                                        <StepLabel>با زدن دکمه، پیام‌ها ارسال می‌شود</StepLabel>
+                                        <IgIncoming avatar={avatar}>{replyBubbles}</IgIncoming>
+                                </>
+                        ) : (
+                                <IgIncoming avatar={avatar}>{replyBubbles}</IgIncoming>
                         )}
-                </div>
+                </IgDmScreen>
         )
 }

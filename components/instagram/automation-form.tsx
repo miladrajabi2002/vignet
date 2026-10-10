@@ -45,12 +45,13 @@ import {
         Clock,
         Eye,
         ChevronLeft,
+        MousePointerClick,
         type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { SAVED_BEAT_MS, SaveButton, useSaveState } from '@/components/ui/save-button'
-import { IphonePreview } from '@/components/instagram/iphone-preview'
+import { IphonePreview, type CommentPreviewView } from '@/components/instagram/iphone-preview'
 import type { MediaItem } from '@/components/instagram/media-uploader'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
@@ -69,6 +70,21 @@ import {
         newMessageId,
 } from '@/components/instagram/types'
 import { parseInstagramPostReferences } from '@/lib/instagram/post-reference'
+import {
+        DEFAULT_OPENER_BUTTON,
+        DEFAULT_OPENER_TEXT,
+        IG_BUTTON_TEXT_LIMIT,
+        IG_BUTTON_TITLE_LIMIT,
+        fitsOnePrivateReply,
+} from '@/lib/instagram/comment-opener'
+import {
+        IG_BUTTONS_PER_MESSAGE,
+        IG_SINGLE_TEXT_LIMIT,
+        igKeyTextLimit,
+        isValidButtonUrl,
+        normalizeButtonUrl,
+} from '@/lib/instagram/limits'
+import { InstagramGlyph } from '@/components/marketing/social-links'
 import { igProxySrc } from '@/lib/instagram/media-proxy'
 import { ProductImage } from '@/components/products/product-image'
 import {
@@ -128,6 +144,9 @@ interface FormState {
         // Up to 3 variants — the engine posts ONE at random per comment.
         commentAckEnabled: boolean
         commentAckTexts: string[]
+        // COMMENT + dmOnComment: the opening button message. Empty = defaults.
+        dmOpenerText: string
+        dmOpenerButton: string
         // Follow gate (collapsed by default)
         followGate: boolean
         gateMode: GateMode
@@ -205,6 +224,8 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                                           (a.action.commentAckText ? [a.action.commentAckText] : []),
                           )
                         : [...DEFAULT_COMMENT_ACK_TEXTS],
+                dmOpenerText: a?.action.dmOpenerText ?? '',
+                dmOpenerButton: a?.action.dmOpenerButton ?? '',
                 followGate: a?.action.followGate ?? false,
                 gateMode: a?.action.gateMode ?? 'SOFT',
                 gateButtonType: a?.action.gateButtonType ?? 'button',
@@ -242,9 +263,55 @@ function hasMessageContent(m: AutomationMessage): boolean {
                 m.mediaUrl ||
                 m.productId ||
                 (m.productIds && m.productIds.length > 0) ||
-                (m.buttons && m.buttons.length > 0),
+                (m.buttons && m.buttons.some((b) => b.title.trim())),
         )
 }
+
+/** A key opens a link only inside the bubble — reply chips carry text alone. */
+function isLinkButton(m: AutomationMessage, b: QuickReplyButton): boolean {
+        return m.buttonType !== 'quick_reply' && b.url !== undefined
+}
+
+/**
+ * Why Instagram would cut or refuse this message as written; null when it can
+ * be sent. The save action stays closed until every message passes.
+ */
+function messageProblem(m: AutomationMessage): string | null {
+        const over = (limit: number) =>
+                `${m.text.length.toLocaleString('fa-IR')} کاراکتر است و اینستاگرام بیشتر از ${limit.toLocaleString('fa-IR')} را در یک پیام نمی‌فرستد.`
+        if ((m.type === 'TEXT' || m.type === 'IMAGE') && m.text.length > IG_SINGLE_TEXT_LIMIT) {
+                return `${m.type === 'IMAGE' ? 'کپشن' : 'متن پیام'} ${over(IG_SINGLE_TEXT_LIMIT)}`
+        }
+        if (m.type !== 'QUICK_REPLY') return null
+        const limit = igKeyTextLimit(m.buttonType)
+        if (m.text.length > limit) return `متن پیام ${over(limit)}`
+        const buttons = m.buttons ?? []
+        for (const b of buttons) {
+                const title = b.title.trim()
+                if (!isLinkButton(m, b)) continue
+                if (!title && b.url?.trim()) return 'عنوان کلیدِ لینک‌دار را بنویسید.'
+                if (title && !b.url?.trim()) return `لینک کلید «${title}» را وارد کنید.`
+                if (title && !isValidButtonUrl(b.url ?? '')) return `لینک کلید «${title}» معتبر نیست.`
+        }
+        if (buttons.some((b) => b.title.trim()) && !m.text.trim()) {
+                return 'متن پیامِ بالای کلیدها را بنویسید؛ اینستاگرام کلید بدون متن نمی‌فرستد.'
+        }
+        return null
+}
+
+/**
+ * Will this comment→DM reply start with the opening button message? Same rule
+ * the engine applies at send time: anything beyond one short text (or one key
+ * message) is more than the single message Instagram allows to a commenter
+ * who has not written to the page in the last 24 hours.
+ */
+function replyNeedsOpener(messages: AutomationMessage[]): boolean {
+        const filled = messages.filter(hasMessageContent)
+        return filled.length > 0 && !fitsOnePrivateReply(filled)
+}
+
+/** Ready-made labels for the opening message's button (≤ 20 characters). */
+const OPENER_BUTTON_SUGGESTIONS = ['مشاهده', 'مشاهده پست', 'ارسال کن', 'دریافت'] as const
 
 /** Default public acks posted on the comment when the reply goes to DM —
  *  the engine posts ONE of them at random per comment (colloquial variants,
@@ -274,7 +341,9 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
         // Normalize everything to the object form so the rest of the UI and
         // the buildPayload() pipeline can assume `QuickReplyButton[]`.
         function toButton(b: QuickReplyButton | string): QuickReplyButton {
-                return typeof b === 'string' ? { title: b } : { title: b.title, url: b.url }
+                if (typeof b === 'string') return { title: b }
+                // `url` present (even empty) marks a link key — see QuickReplyButton.
+                return b.url?.trim() ? { title: b.title, url: b.url } : { title: b.title }
         }
         const rawButtons: Array<QuickReplyButton | string> = Array.isArray(m.buttons)
                 ? m.buttons
@@ -291,7 +360,7 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
                 productIds: Array.isArray(m.productIds)
                         ? m.productIds.filter((id) => typeof id === 'string' && !!id).slice(0, 10)
                         : [],
-                buttons: rawButtons.slice(0, 3).map(toButton),
+                buttons: rawButtons.slice(0, IG_BUTTONS_PER_MESSAGE).map(toButton),
                 buttonType: m.buttonType ?? 'button',
         }
 }
@@ -340,6 +409,10 @@ export function AutomationForm({
         const saveState = useSaveState()
         const [error, setError] = useState<string | null>(null)
         const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
+        // Comment→DM funnels have two sides — the post and the commenter's
+        // Direct. The preview shows one at a time and follows the section
+        // being edited (see `followPreview`); the tabs switch it by hand.
+        const [previewView, setPreviewView] = useState<CommentPreviewView>('comment')
         const [, setStoryClock] = useState(0)
         // Tick every minute so the story countdown under the picked story stays live.
         useEffect(() => {
@@ -688,12 +761,15 @@ export function AutomationForm({
                         }
                         if (m.buttons && m.buttons.length > 0) {
                                 // Drop empty-title buttons; keep at most 3 (Instagram limit).
+                                // Reply chips cannot open a link, so a link typed before
+                                // switching to chips is not saved with them.
                                 const cleanButtons = m.buttons
                                         .filter((b) => b && typeof b === 'object' && b.title && b.title.trim())
-                                        .slice(0, 3)
+                                        .slice(0, IG_BUTTONS_PER_MESSAGE)
                                         .map((b) => {
                                                 const btn: QuickReplyButton = { title: b.title.trim() }
-                                                if (b.url && b.url.trim()) btn.url = b.url.trim()
+                                                const url = isLinkButton(m, b) ? normalizeButtonUrl(b.url ?? '') : ''
+                                                if (url) btn.url = url
                                                 return btn
                                         })
                                 if (cleanButtons.length > 0) out.buttons = cleanButtons
@@ -726,6 +802,10 @@ export function AutomationForm({
                                 type === 'COMMENT' && form.dmOnComment
                                         ? (normalizeAckTexts(form.commentAckTexts)[0] ?? '')
                                         : '',
+                        // Opening button message — kept even while unused so the
+                        // operator's wording survives adding/removing messages.
+                        dmOpenerText: type === 'COMMENT' && form.dmOnComment ? form.dmOpenerText.trim() : '',
+                        dmOpenerButton: type === 'COMMENT' && form.dmOnComment ? form.dmOpenerButton.trim() : '',
                         // Follow gate — save all fields so the engine can build the gate row
                         // and verify fulfillment on the user's reply. When the gate is OFF,
                         // send the fields anyway so re-enabling later keeps the user's draft.
@@ -819,6 +899,14 @@ export function AutomationForm({
                         setError(
                                 'آپلود عکس/ویدیو هنوز کامل نشده است یا ناموفق بوده است. لطفاً تا پایان آپلود (علامت ✓ روی پیش‌نمایش) صبر کنید و سپس ذخیره کنید؛ اگر آپلود خطا داده، روی «تلاش دوباره» بزنید یا فایل را حذف کنید.',
                         )
+                        return
+                }
+                // A message Instagram would cut or refuse (too long, a key without
+                // its text, a link key without a working link) is never saved.
+                const sendsMessages = showBuilder || (type === 'COMMENT' && form.replyMode === 'MULTI_MESSAGE')
+                const brokenMessage = sendsMessages ? form.messages.map(messageProblem).find(Boolean) : null
+                if (brokenMessage) {
+                        setError(brokenMessage)
                         return
                 }
                 // COMMENT SEND_DM: the funnel delivers the builder sequence in DM —
@@ -939,6 +1027,33 @@ export function AutomationForm({
                 form.replyMode === 'STATIC' &&
                 (isDm || isStory || (isComment && form.dmOnComment))
 
+        // Comment→DM: does this reply need more than Instagram's one private
+        // reply? Then it opens with the button message (see CommentOpenerField).
+        const needsOpener = isComment && form.dmOnComment && showBuilder && replyNeedsOpener(form.messages)
+        // The Direct side exists only for the comment→DM funnel; without a
+        // follow gate there is a single Direct path.
+        const hasDirectPreview = isComment && form.dmOnComment && showBuilder
+        const commentView: CommentPreviewView = !hasDirectPreview
+                ? 'comment'
+                : previewView === 'dm_new' && !form.followGate
+                        ? 'dm_follower'
+                        : previewView
+        /** Show the side of the funnel the operator is working on. `direct`
+         *  keeps the Direct path already on screen. */
+        const followPreview = (target: CommentPreviewView | 'direct') => {
+                if (!isComment) return
+                setPreviewView((current) =>
+                        target !== 'direct'
+                                ? target
+                                : current !== 'comment'
+                                        ? current
+                                        : form.followGate ? 'dm_new' : 'dm_follower',
+                )
+        }
+        const previewTabs = hasDirectPreview ? (
+                <PreviewViewTabs value={commentView} followGate={form.followGate} onChange={setPreviewView} />
+        ) : null
+
         const previewProps: React.ComponentProps<typeof IphonePreview> = {
                 mode: type,
                 accountUsername: accountUsername || 'vigent.bot',
@@ -957,6 +1072,13 @@ export function AutomationForm({
                 followGate: form.followGate,
                 gatePrompt: form.gatePrompt,
                 gateButton: form.gateQuickReply,
+                dmOpener: needsOpener
+                        ? {
+                                text: form.dmOpenerText.trim() || DEFAULT_OPENER_TEXT,
+                                button: form.dmOpenerButton.trim() || DEFAULT_OPENER_BUTTON,
+                        }
+                        : undefined,
+                commentView,
         }
 
         // ── Readiness — the save button stays disabled until these are done ──
@@ -968,6 +1090,7 @@ export function AutomationForm({
                         form.mediaFilter === 'SPECIFIC' &&
                         parsedPostReferences.invalid.length > 0,
                 showBuilder && !form.messages.some(hasMessageContent),
+                showBuilder && form.messages.some((m) => messageProblem(m) !== null),
                 isComment && form.replyMode === 'MULTI_MESSAGE' && !form.messages.some((m) => m.text.trim()),
                 form.messages.some((m) => !!m.mediaUrl && /^blob:/i.test(m.mediaUrl)),
         ].some(Boolean)
@@ -1054,7 +1177,7 @@ export function AutomationForm({
                                         </Section>
 
                                         {/* ─── Trigger section ─────────────────────────────────── */}
-                                        <Section id="automation-trigger" title="شرط اجرا" Icon={Zap}>
+                                        <Section id="automation-trigger" title="شرط اجرا" Icon={Zap} onFocusCapture={() => followPreview('comment')}>
                                                                                                 {/* Unified media field — ONE optional picker, no switch
                                                         (operator request): leave it empty and the scenario
                                                         runs on EVERY post/story of the page; pick anything
@@ -1176,8 +1299,11 @@ export function AutomationForm({
                                                         </div>
                                                 )}
 
-                                                {/* Match mode — SEGMENTED CONTROL (DM only, only meaningful with SPECIFIC keywords) */}
-                                                {isDm && form.keywordFilter === 'SPECIFIC' && (
+                                                {/* Match mode — SEGMENTED CONTROL, for every scenario type
+                                                    (only meaningful with SPECIFIC keywords). The engine has
+                                                    always honoured it for comments and stories too; the
+                                                    control was simply hidden there. */}
+                                                {form.keywordFilter === 'SPECIFIC' && (
                                                         <div className="space-y-1.5">
                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                         نحوه تطبیق کلمه‌کلیدی
@@ -1186,6 +1312,25 @@ export function AutomationForm({
                                                                         value={form.matchMode}
                                                                         onChange={(v) => set('matchMode', v)}
                                                                 />
+                                                                <p className="text-[12px] leading-5 text-[var(--text-muted)]">
+                                                                        {MATCH_MODE_DESC[form.matchMode]}
+                                                                        {isStory && form.storySnapshots.length > 0
+                                                                                ? ' — فقط روی استوری‌های انتخاب‌شده.'
+                                                                                : '.'}
+                                                                </p>
+                                                        </div>
+                                                )}
+
+                                                {/* Meta delivers the first-ever message of some users
+                                                    without the story reference, so a story scenario
+                                                    cannot recognise it. Said up front so a missed first
+                                                    reply is not read as a broken scenario. */}
+                                                {isStory && (
+                                                        <div className="flex items-start gap-2 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950" role="note">
+                                                                <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                                                                <p className="text-xs leading-6">
+                                                                        به‌خاطر یک باگ در سیستم متا، ممکن است پاسخِ اولین ریپلای استوریِ برخی کاربران (کسانی که برای اولین بار به پیج پیام می‌دهند) داده نشود؛ اینستاگرام آن پیام را بدون نشانهٔ استوری به ما می‌رساند. این محدودیت از سمت اینستاگرام است و ریپلای‌های بعدی همان کاربر درست پاسخ داده می‌شود.
+                                                                </p>
                                                         </div>
                                                 )}
                                         </Section>
@@ -1241,6 +1386,7 @@ export function AutomationForm({
                                         {showBuilder && (
                                                 <Section
                                                         id="automation-messages"
+                                                        onFocusCapture={() => followPreview('direct')}
                                                         title={isComment && form.dmOnComment ? 'پیام‌های دایرکت' : 'دنباله پیام‌ها'}
                                                         Icon={isComment && form.dmOnComment ? Send : MessageCircle}
                                                 >
@@ -1256,6 +1402,17 @@ export function AutomationForm({
                                                                         ? 'به‌جای ریپلای عمومی، این پیام‌ها در دایرکتِ کامنت‌گذار ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول اضافه کنید.'
                                                                         : 'پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.'}
                                                         </p>
+                                                        {isComment && form.dmOnComment && (
+                                                                <CommentOpenerField
+                                                                        needed={needsOpener}
+                                                                        followGate={form.followGate}
+                                                                        text={form.dmOpenerText}
+                                                                        button={form.dmOpenerButton}
+                                                                        onTextChange={(v) => set('dmOpenerText', v)}
+                                                                        onButtonChange={(v) => set('dmOpenerButton', v)}
+                                                                        onFocus={() => followPreview('dm_follower')}
+                                                                />
+                                                        )}
                                                 </Section>
                                         )}
 
@@ -1264,7 +1421,7 @@ export function AutomationForm({
                                             short operator-configured line under the comment itself
                                             so the comment isn't left unanswered. */}
                                         {isComment && form.dmOnComment && (
-                                                <Section title="پاسخ روی کامنت" Icon={MessageSquare}>
+                                                <Section title="پاسخ روی کامنت" Icon={MessageSquare} onFocusCapture={() => followPreview('comment')}>
                                                         <div className="flex items-start justify-between gap-3">
                                                                 <div className="flex min-w-0 items-start gap-2.5">
                                                                         <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
@@ -1389,6 +1546,8 @@ export function AutomationForm({
                                                                                         onChange={(e) => updateMessage(m.id, { text: e.target.value })}
                                                                                         placeholder="مثلاً سلام! لینک در دایرکت ارسال شد."
                                                                                         rows={2}
+                                                                                        maxLength={IG_SINGLE_TEXT_LIMIT}
+                                                                                        aria-label={`گزینهٔ ریپلای ${(idx + 1).toLocaleString('fa-IR')}`}
                                                                                         className="input resize-none"
                                                                                 />
                                                                                 {form.messages.length > 1 && (
@@ -1416,7 +1575,7 @@ export function AutomationForm({
                                         )}
 
                                         {/* ─── Follow gate (collapsed by default) ─────────────────── */}
-                                        <Section id="automation-follow-gate" title="شرط دنبال کردن" Icon={Shield}>
+                                        <Section id="automation-follow-gate" title="شرط دنبال کردن" Icon={Shield} onFocusCapture={() => followPreview('dm_new')}>
                                                 <div className="flex items-start justify-between gap-3">
                                                         <div className="flex min-w-0 items-start gap-2.5">
                                                                 <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
@@ -1452,6 +1611,8 @@ export function AutomationForm({
                                                                                 onChange={(e) => set('gatePrompt', e.target.value)}
                                                                                 placeholder="لطفاً ابتدا صفحه ما را دنبال کنید&#10;بعد از دنبال کردن، بر روی دکمه زیر کلیک کنید"
                                                                                 rows={3}
+                                                                                // Sent as a button message — Instagram cuts its body at 640.
+                                                                                maxLength={IG_BUTTON_TEXT_LIMIT}
                                                                                 className="input resize-none"
                                                                         />
                                                                 </div>
@@ -1463,6 +1624,8 @@ export function AutomationForm({
                                                                                 value={form.gateQuickReply}
                                                                                 onChange={(e) => set('gateQuickReply', e.target.value)}
                                                                                 placeholder="دنبال کردم"
+                                                                                // Instagram cuts a button title at 20 characters.
+                                                                                maxLength={IG_BUTTON_TITLE_LIMIT}
                                                                                 className="input"
                                                                         />
                                                                 </div>
@@ -1521,10 +1684,10 @@ export function AutomationForm({
                                 <div className="hidden lg:block">
                                         <div className="sticky top-24">
                                                 <PreviewStage
-                                                        Icon={HeaderIcon}
                                                         modeLabel={modeLabel}
                                                         steps={flowSteps}
                                                         previewProps={previewProps}
+                                                        tabs={previewTabs}
                                                 />
                                         </div>
                                 </div>
@@ -1536,6 +1699,7 @@ export function AutomationForm({
                                         modeLabel={modeLabel}
                                         steps={flowSteps}
                                         previewProps={previewProps}
+                                        tabs={previewTabs}
                                 />
 
                         </form>
@@ -1787,7 +1951,7 @@ function buildFlowSteps(form: FormState, type: AutomationType): FlowStep[] {
                                         : 'هر پاسخ به استوری',
                 })
         }
-        if (specific && !(type === 'STORY' && form.mediaFilter === 'SPECIFIC' && form.storySnapshots.length > 0)) {
+        if (specific) {
                 steps.push({ Icon: Tag, label: keywordLabel ?? 'کلمه کلیدی؟', pending: !keywordLabel })
         }
         if (form.followGate) steps.push({ Icon: Shield, label: 'بررسی فالو' })
@@ -1795,6 +1959,9 @@ function buildFlowSteps(form: FormState, type: AutomationType): FlowStep[] {
         const count = form.messages.filter(hasMessageContent).length
         if (type === 'COMMENT') {
                 if (form.dmOnComment) {
+                        if (form.replyMode === 'STATIC' && replyNeedsOpener(form.messages)) {
+                                steps.push({ Icon: MousePointerClick, label: 'پیام شروع + دکمه' })
+                        }
                         steps.push({ Icon: Send, label: count ? `${faNum(count)} پیام در دایرکت` : 'پیام دایرکت؟', pending: !count })
                         if (form.commentAckEnabled && form.commentAckTexts.some((t) => t.trim())) {
                                 steps.push({ Icon: MessageSquare, label: 'ریپلای زیر کامنت' })
@@ -1821,15 +1988,16 @@ function buildFlowSteps(form: FormState, type: AutomationType): FlowStep[] {
 }
 
 function PreviewStage({
-        Icon,
         modeLabel,
         steps,
         previewProps,
+        tabs,
 }: {
-        Icon: LucideIcon
         modeLabel: string
         steps: FlowStep[]
         previewProps: React.ComponentProps<typeof IphonePreview>
+        /** View switch of a comment→DM funnel (post / Direct). */
+        tabs?: React.ReactNode
 }) {
         return (
                 <section aria-label="پیش‌نمایش زنده سناریو" className="spatial-surface overflow-hidden rounded-[1.75rem]">
@@ -1839,7 +2007,7 @@ function PreviewStage({
                                                 className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white shadow-[0_8px_18px_-8px_rgba(221,42,123,0.7)]"
                                                 style={{ background: IG_GRADIENT }}
                                         >
-                                                <Icon className="h-4 w-4" aria-hidden="true" />
+                                                <InstagramGlyph className="h-5 w-5" />
                                         </span>
                                         <div className="min-w-0">
                                                 <p className="text-sm font-bold text-[var(--text-primary)]">پیش‌نمایش زنده</p>
@@ -1851,13 +2019,15 @@ function PreviewStage({
                                 <LivePill />
                         </div>
 
+                        {tabs && <div className="px-3 pb-3">{tabs}</div>}
+
                         <StageBackdrop className="mx-3 px-4 py-5">
                                 {/* Sized from the viewport height so the whole phone stays
                                     in view while the column is sticky (19rem ≈ sticky offset
-                                    + header + flow summary). */}
+                                    + header + flow summary; the view tabs take 3.75rem more). */}
                                 <div
                                         className="w-full"
-                                        style={{ maxWidth: `min(340px, max(240px, calc((100dvh - 19rem) / ${PHONE_RATIO})))` }}
+                                        style={{ maxWidth: `min(340px, max(240px, calc((100dvh - ${tabs ? '22.75rem' : '19rem'}) / ${PHONE_RATIO})))` }}
                                 >
                                         <IphonePreview {...previewProps} frameClassName="max-w-none" />
                                 </div>
@@ -1902,6 +2072,60 @@ function StageBackdrop({ className, children }: { className?: string; children: 
                                 style={{ background: IG_GRADIENT }}
                         />
                         {children}
+                </div>
+        )
+}
+
+/**
+ * Which side of a comment→DM funnel the phone shows. Two rows per tab — where
+ * («کامنت» / «دایرکت») and what — so three tabs still fit a 320px phone, each
+ * a full 44px touch target.
+ */
+function PreviewViewTabs({
+        value,
+        followGate,
+        onChange,
+}: {
+        value: CommentPreviewView
+        followGate: boolean
+        onChange: (view: CommentPreviewView) => void
+}) {
+        const tabs: Array<{ view: CommentPreviewView; where: string; what: string }> = followGate
+                ? [
+                        { view: 'comment', where: 'کامنت', what: 'زیر پست' },
+                        { view: 'dm_new', where: 'دایرکت', what: 'فالو ندارد' },
+                        { view: 'dm_follower', where: 'دایرکت', what: 'فالو دارد' },
+                ]
+                : [
+                        { view: 'comment', where: 'کامنت', what: 'زیر پست' },
+                        { view: 'dm_follower', where: 'دایرکت', what: 'پیام‌ها' },
+                ]
+        return (
+                <div
+                        role="group"
+                        aria-label="کدام بخش پیش‌نمایش نشان داده شود"
+                        className={cn('grid gap-1 rounded-2xl bg-[var(--bg-muted)] p-1', tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}
+                >
+                        {tabs.map((tab) => {
+                                const active = tab.view === value
+                                return (
+                                        <button
+                                                key={tab.view}
+                                                type="button"
+                                                aria-pressed={active}
+                                                onClick={() => onChange(tab.view)}
+                                                className={cn(
+                                                        'flex min-h-11 min-w-0 flex-col items-center justify-center rounded-xl px-1.5 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+                                                        active
+                                                                ? 'bg-white text-[var(--text-primary)] shadow-sm'
+                                                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                                                )}
+                                        >
+                                                <span className="max-w-full truncate text-[11px] font-medium leading-4 opacity-70">{tab.where}</span>
+                                                <span className="max-w-full truncate text-[12px] font-bold leading-5">{tab.what}</span>
+                                        </button>
+                                )
+                        })}
                 </div>
         )
 }
@@ -1959,6 +2183,7 @@ function MobilePreviewSheet({
         modeLabel,
         steps,
         previewProps,
+        tabs,
 }: {
         open: boolean
         onClose: () => void
@@ -1966,6 +2191,7 @@ function MobilePreviewSheet({
         modeLabel: string
         steps: FlowStep[]
         previewProps: React.ComponentProps<typeof IphonePreview>
+        tabs?: React.ReactNode
 }) {
         return (
                 <MobileBottomSheet
@@ -1978,6 +2204,7 @@ function MobilePreviewSheet({
                         onClose={onClose}
                         contentClassName="flex flex-col overflow-hidden p-0"
                 >
+                        {tabs && <div className="shrink-0 px-3 pt-3">{tabs}</div>}
                         <FitPhoneStage previewProps={previewProps} />
                         <FlowSummary steps={steps} className="shrink-0 px-4 pt-3" />
                 </MobileBottomSheet>
@@ -2021,6 +2248,7 @@ function Section({
         Icon,
         collapsible = false,
         defaultCollapsed = false,
+        onFocusCapture,
         children,
 }: {
         id?: string
@@ -2028,12 +2256,14 @@ function Section({
         Icon?: LucideIcon
         collapsible?: boolean
         defaultCollapsed?: boolean
+        /** Fires when focus enters anything inside — the live preview follows it. */
+        onFocusCapture?: () => void
         children: React.ReactNode
 }) {
         const [open, setOpen] = useState(!defaultCollapsed)
         if (!collapsible) {
                 return (
-                        <section id={id} className="spatial-surface scroll-mt-28 space-y-4 rounded-card p-5 sm:p-6">
+                        <section id={id} onFocusCapture={onFocusCapture} className="spatial-surface scroll-mt-28 space-y-4 rounded-card p-5 sm:p-6">
                                 <div className="flex items-center gap-2.5">
                                         {Icon && (
                                                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color:color-mix(in_srgb,var(--text-primary)_10%,transparent)] text-[var(--text-primary)]">
@@ -2047,7 +2277,7 @@ function Section({
                 )
         }
         return (
-                <section id={id} className="spatial-surface scroll-mt-28 overflow-hidden rounded-card">
+                <section id={id} onFocusCapture={onFocusCapture} className="spatial-surface scroll-mt-28 overflow-hidden rounded-card">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}
@@ -2067,6 +2297,106 @@ function Section({
                         </button>
                         {open && <div className="space-y-4 border-t border-[var(--border-subtle)] px-5 py-5 sm:px-6">{children}</div>}
                 </section>
+        )
+}
+
+// ── Comment→DM opening message ───────────────────────────────────────────
+// Instagram allows ONE message to a commenter who has not written to the page
+// in the last 24 hours. A reply that needs more starts with a short button
+// message; the tap opens the messaging window and the reply follows. The field
+// explains that in place — it is the difference between «the photo never
+// arrived» and a funnel the operator understands and words themselves.
+function CommentOpenerField({
+        needed,
+        followGate,
+        text,
+        button,
+        onTextChange,
+        onButtonChange,
+        onFocus,
+}: {
+        needed: boolean
+        followGate: boolean
+        text: string
+        button: string
+        onTextChange: (v: string) => void
+        onButtonChange: (v: string) => void
+        /** Focus entered the field — the preview shows the opener's path. */
+        onFocus?: () => void
+}) {
+        if (!needed) {
+                return (
+                        <p className="flex items-start gap-2 rounded-xl border border-emerald-300/60 bg-emerald-50 px-3 py-2.5 text-[12px] leading-6 text-emerald-900" role="status">
+                                <Check aria-hidden="true" className="mt-1 h-3.5 w-3.5 shrink-0" />
+                                <span className="min-w-0">
+                                        این پاسخ یک پیام متنی است و مستقیم در دایرکت کامنت‌گذار ارسال می‌شود. اگر پیام دوم، عکس، ویدیو یا محصول اضافه کنید، یک «پیام شروع» دکمه‌دار پیش از آن‌ها لازم می‌شود.
+                                </span>
+                        </p>
+                )
+        }
+        return (
+                <div onFocusCapture={onFocus} className="space-y-3 rounded-2xl border border-amber-300/70 bg-amber-50/70 p-3 sm:p-3.5">
+                        {/* The title sits beside the icon; the explanation runs the
+                            full card width below, so on a phone it is not squeezed
+                            into the narrow column next to the icon. */}
+                        <div className="flex items-center gap-2.5">
+                                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-800">
+                                        <MousePointerClick aria-hidden="true" className="h-4 w-4" />
+                                </span>
+                                <p className="min-w-0 text-sm font-bold text-amber-950">پیام شروع (دکمه‌دار)</p>
+                        </div>
+                        <p className="text-xs leading-6 text-amber-950">
+                                اینستاگرام اجازه می‌دهد به کسی که در ۲۴ ساعت گذشته به پیج پیام نداده، فقط <strong>یک پیام</strong> بفرستیم. پاسخ شما بیشتر از یک پیام سادهٔ متنی است؛ پس اول این پیام با یک دکمه فرستاده می‌شود و به‌محض اینکه کاربر روی دکمه بزند، همهٔ پیام‌های بالا به‌ترتیب برایش ارسال می‌شود.
+                        </p>
+                        <div className="space-y-1.5">
+                                <label htmlFor="dm-opener-text" className="text-xs font-medium text-amber-950">
+                                        متن پیام شروع
+                                </label>
+                                <textarea
+                                        id="dm-opener-text"
+                                        value={text}
+                                        onChange={(e) => onTextChange(e.target.value)}
+                                        placeholder={DEFAULT_OPENER_TEXT}
+                                        rows={2}
+                                        maxLength={IG_BUTTON_TEXT_LIMIT}
+                                        className="input resize-none"
+                                />
+                        </div>
+                        <div className="space-y-1.5">
+                                <label htmlFor="dm-opener-button" className="text-xs font-medium text-amber-950">
+                                        متن دکمه
+                                </label>
+                                <input
+                                        id="dm-opener-button"
+                                        value={button}
+                                        onChange={(e) => onButtonChange(e.target.value)}
+                                        placeholder={DEFAULT_OPENER_BUTTON}
+                                        maxLength={IG_BUTTON_TITLE_LIMIT}
+                                        className="input"
+                                />
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                        <span className="text-[12px] text-amber-900/80">پیشنهاد:</span>
+                                        {OPENER_BUTTON_SUGGESTIONS.map((label) => (
+                                                <button
+                                                        key={label}
+                                                        type="button"
+                                                        onClick={() => onButtonChange(label)}
+                                                        aria-pressed={(button.trim() || DEFAULT_OPENER_BUTTON) === label}
+                                                        className="spatial-press inline-flex min-h-9 items-center rounded-full border border-amber-900/15 bg-white px-3.5 text-[12px] font-medium text-amber-950 transition-colors hover:bg-amber-100 aria-pressed:border-amber-900/40 aria-pressed:bg-amber-100"
+                                                >
+                                                        {label}
+                                                </button>
+                                        ))}
+                                </div>
+                        </div>
+                        <ul className="list-disc space-y-1 ps-4 text-[12px] leading-6 text-amber-900 marker:text-amber-700/70">
+                                <li>اگر کاربر در ۲۴ ساعت اخیر به پیج پیام داده باشد، پیام‌ها مستقیم و بدون این مرحله ارسال می‌شوند.</li>
+                                {followGate && (
+                                        <li>این پیام برای کسانی است که از قبل پیج را فالو دارند؛ بقیه ابتدا «درخواست فالو» را می‌گیرند و با زدن دکمهٔ آن، پیام‌ها ارسال می‌شود.</li>
+                                )}
+                                <li>اگر خالی بگذارید، متن و دکمهٔ پیش‌فرض استفاده می‌شود.</li>
+                        </ul>
+                </div>
         )
 }
 
@@ -2434,6 +2764,7 @@ function MessageCard({
         // its own upload independently.
         const [voiceUploading, setVoiceUploading] = useState(false)
         const [voiceError, setVoiceError] = useState<string | null>(null)
+        const problem = messageProblem(message)
 
         const typeLabel =
                 message.type === 'TEXT'
@@ -2530,7 +2861,7 @@ function MessageCard({
                                                 type="button"
                                                 onClick={onMoveUp}
                                                 disabled={index === 0}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 lg:h-7 lg:w-7"
                                                 aria-label="بالا"
                                         >
                                                 <ArrowUp className="h-3.5 w-3.5" />
@@ -2539,7 +2870,7 @@ function MessageCard({
                                                 type="button"
                                                 onClick={onMoveDown}
                                                 disabled={index === total - 1}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 lg:h-7 lg:w-7"
                                                 aria-label="پایین"
                                         >
                                                 <ArrowDown className="h-3.5 w-3.5" />
@@ -2547,7 +2878,7 @@ function MessageCard({
                                         <button
                                                 type="button"
                                                 onClick={onRemove}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--danger)]"
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--danger)] lg:h-7 lg:w-7"
                                                 aria-label="حذف"
                                         >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -2557,13 +2888,20 @@ function MessageCard({
 
                         {/* Card body — by type */}
                         {message.type === 'TEXT' && (
-                                <textarea
-                                        value={message.text}
-                                        onChange={(e) => onUpdate({ text: e.target.value })}
-                                        placeholder="مثلاً سلام! برای مشاهده قیمت‌ها به دایرکت مراجعه کنید."
-                                        rows={3}
-                                        className="input resize-none"
-                                />
+                                <div className="space-y-1">
+                                        <textarea
+                                                value={message.text}
+                                                onChange={(e) => onUpdate({ text: e.target.value })}
+                                                placeholder="مثلاً سلام! برای مشاهده قیمت‌ها به دایرکت مراجعه کنید."
+                                                rows={3}
+                                                maxLength={IG_SINGLE_TEXT_LIMIT}
+                                                aria-label="متن پیام"
+                                                className="input resize-none"
+                                        />
+                                        <div className="flex justify-end">
+                                                <CharCount length={message.text.length} limit={IG_SINGLE_TEXT_LIMIT} />
+                                        </div>
+                                </div>
                         )}
 
                         {(message.type === 'IMAGE' ||
@@ -2643,80 +2981,42 @@ function MessageCard({
                                                 </div>
                                         )}
 
-                                        {(message.type === 'IMAGE' || message.type === 'VIDEO') && (
+                                        {message.type === 'IMAGE' && (
                                                 <div className="space-y-1.5">
-                                                        <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-                                                                کپشن (اختیاری)
-                                                        </label>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                                <label
+                                                                        htmlFor={`${message.id}-caption`}
+                                                                        className="text-[12px] font-medium text-[var(--text-secondary)]"
+                                                                >
+                                                                        کپشن (اختیاری)
+                                                                </label>
+                                                                {message.text.length > 0 && (
+                                                                        <CharCount length={message.text.length} limit={IG_SINGLE_TEXT_LIMIT} />
+                                                                )}
+                                                        </div>
                                                         <input
+                                                                id={`${message.id}-caption`}
                                                                 value={message.text}
                                                                 onChange={(e) => onUpdate({ text: e.target.value })}
                                                                 placeholder="مثلاً تخفیف ویژه تا پایان هفته"
+                                                                maxLength={IG_SINGLE_TEXT_LIMIT}
                                                                 className="input"
                                                         />
                                                 </div>
+                                        )}
+
+                                        {/* Instagram delivers a video without a caption — say so
+                                            instead of offering a field that is never sent. */}
+                                        {message.type === 'VIDEO' && (
+                                                <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
+                                                        ویدیو در دایرکت بدون کپشن فرستاده می‌شود؛ توضیح آن را با یک پیام «متن» بعد از ویدیو بنویسید.
+                                                </p>
                                         )}
                                 </div>
                         )}
 
                         {message.type === 'QUICK_REPLY' && (
-                                <div className="space-y-2.5">
-                                        <div className="space-y-1.5">
-                                                <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-                                                        متن اصلی
-                                                </label>
-                                                <textarea
-                                                        value={message.text}
-                                                        onChange={(e) => onUpdate({ text: e.target.value })}
-                                                        placeholder="مثلاً چه اطلاعاتی نیاز داری؟"
-                                                        rows={2}
-                                                        className="input resize-none"
-                                                />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                                <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-                                                        نوع دکمه
-                                                </label>
-                                                <div className="flex gap-2">
-                                                        <button
-                                                                type="button"
-                                                                onClick={() => onUpdate({ buttonType: 'button' })}
-                                                                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                                                                        (message.buttonType ?? 'button') === 'button'
-                                                                                ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
-                                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                                                                }`}
-                                                        >
-                                                                دکمه حبابی (Button Template)
-                                                        </button>
-                                                        <button
-                                                                type="button"
-                                                                onClick={() => onUpdate({ buttonType: 'quick_reply' })}
-                                                                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                                                                        message.buttonType === 'quick_reply'
-                                                                                ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
-                                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                                                                }`}
-                                                        >
-                                                                تراشه (Quick Reply)
-                                                        </button>
-                                                </div>
-                                                <p className="text-[12px] text-[var(--text-muted)]">
-                                                        {(message.buttonType ?? 'button') === 'button'
-                                                                ? 'دکمه داخل حباب پیام — در Message Requests هم دیده می‌شود.'
-                                                                : 'تراشه بالای کادر تایپ — بعد از کلیک ناپدید می‌شود.'}
-                                                </p>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                                <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-                                                        دکمه‌ها (حداکثر ۳)
-                                                </label>
-                                                <ButtonBuilder
-                                                        buttons={message.buttons ?? []}
-                                                        onChange={(buttons) => onUpdate({ buttons })}
-                                                />
-                                        </div>
-                                </div>
+                                <KeyMessageFields message={message} onUpdate={onUpdate} />
                         )}
 
                         {message.type === 'PRODUCT' && (
@@ -2756,39 +3056,166 @@ function MessageCard({
                                         />
                                 </div>
                         )}
+
+                        {problem && (
+                                <p role="status" className="mt-2.5 flex items-start gap-1.5 text-[12px] leading-relaxed text-[var(--amber)]">
+                                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        {problem}
+                                </p>
+                        )}
                 </div>
         )
 }
 
-// ── Button Builder (Vardast-style rows, replaces QuickRepliesEditor) ──────
+/** «۱۲ / ۶۴۰» beside a field — red once the text passes Instagram's limit. */
+function CharCount({ length, limit }: { length: number; limit: number }) {
+        return (
+                <span
+                        className={cn(
+                                'shrink-0 text-[12px] tabular-nums',
+                                length > limit ? 'font-semibold text-[var(--danger)]' : 'text-[var(--text-muted)]',
+                        )}
+                >
+                        {length.toLocaleString('fa-IR')} / {limit.toLocaleString('fa-IR')}
+                </span>
+        )
+}
+
+// ── Key message (text + up to 3 keys) ─────────────────────────────────────
 //
-// Each row is a single QUICK_REPLY button: title (max 20 chars — IG limit),
-// optional URL (turns the button into a "link" type), up/down arrows to
-// reorder, and a trash button. Max 3 buttons per message (Instagram limit).
-// The buttons prop is the new object form (`QuickReplyButton[]`), which the
-// backend zod schema now accepts alongside the legacy plain-string form.
+// Instagram has two places for keys, and they are not interchangeable:
+//   inside the bubble — stays in the chat; a key sends text OR opens a link.
+//   reply chips       — above the keyboard, gone after one tap; text only.
+// The form asks for the place first and offers the link choice only where
+// Instagram can honour it.
+function KeyMessageFields({
+        message,
+        onUpdate,
+}: {
+        message: AutomationMessage
+        onUpdate: (patch: Partial<AutomationMessage>) => void
+}) {
+        const chips = message.buttonType === 'quick_reply'
+        const textLimit = igKeyTextLimit(message.buttonType)
+        const buttons = message.buttons ?? []
+        const unsentLinks = chips ? buttons.filter((b) => b.url?.trim()).length : 0
+        const places: Array<{ value: 'button' | 'quick_reply'; title: string; note: string }> = [
+                { value: 'button', title: 'داخل حباب پیام', note: 'می‌ماند · متن یا لینک' },
+                { value: 'quick_reply', title: 'تراشهٔ پاسخ سریع', note: 'محو می‌شود · فقط متن' },
+        ]
+
+        return (
+                <div className="space-y-4">
+                        <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                        <label
+                                                htmlFor={`${message.id}-text`}
+                                                className="text-[12px] font-medium text-[var(--text-secondary)]"
+                                        >
+                                                متن پیام
+                                        </label>
+                                        <CharCount length={message.text.length} limit={textLimit} />
+                                </div>
+                                <textarea
+                                        id={`${message.id}-text`}
+                                        value={message.text}
+                                        onChange={(e) => onUpdate({ text: e.target.value })}
+                                        placeholder="مثلاً چه اطلاعاتی نیاز داری؟"
+                                        rows={2}
+                                        maxLength={textLimit}
+                                        className="input resize-none"
+                                />
+                        </div>
+
+                        <div className="space-y-1.5">
+                                <span id={`${message.id}-place`} className="block text-[12px] font-medium text-[var(--text-secondary)]">
+                                        جای کلیدها
+                                </span>
+                                <div className="ui-seg grid-cols-2" role="radiogroup" aria-labelledby={`${message.id}-place`}>
+                                        {places.map((place) => {
+                                                const active = chips ? place.value === 'quick_reply' : place.value === 'button'
+                                                return (
+                                                        <button
+                                                                key={place.value}
+                                                                type="button"
+                                                                role="radio"
+                                                                aria-checked={active}
+                                                                data-active={active}
+                                                                onClick={() => onUpdate({ buttonType: place.value })}
+                                                                className="ui-seg-tab flex-col gap-0 px-2 py-1.5 text-center"
+                                                        >
+                                                                <span className="text-[13px] font-semibold leading-5">{place.title}</span>
+                                                                <span className="text-[11px] leading-4 text-[var(--text-muted)]">{place.note}</span>
+                                                        </button>
+                                                )
+                                        })}
+                                </div>
+                                <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
+                                        {chips
+                                                ? 'تراشه‌ها بالای کادر نوشتن می‌آیند و با اولین لمس یا پیام بعدی محو می‌شوند.'
+                                                : 'کلیدها زیر متن، داخل همان حباب می‌مانند و در «درخواست‌های پیام» هم دیده می‌شوند.'}
+                                </p>
+                                {unsentLinks > 0 && (
+                                        <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-[var(--amber)]">
+                                                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                                تراشه لینک باز نمی‌کند؛ لینک {unsentLinks.toLocaleString('fa-IR')} کلید ذخیره نمی‌شود. برای کلید لینک‌دار «داخل حباب پیام» را انتخاب کنید.
+                                        </p>
+                                )}
+                        </div>
+
+                        <ButtonBuilder
+                                buttons={buttons}
+                                allowLinks={!chips}
+                                onChange={(next) => onUpdate({ buttons: next })}
+                        />
+                </div>
+        )
+}
+
+// ── Button Builder ────────────────────────────────────────────────────────
+//
+// One card per key: its title (≤ 20 characters — Instagram cuts the rest),
+// what a tap does («متن» / «لینک») and, for a link key, the
+// address. `url` present on a button — even empty — means «link key»; absent
+// means the key sends its title back as the customer's message.
 function ButtonBuilder({
         buttons,
+        allowLinks,
         onChange,
 }: {
         buttons: QuickReplyButton[]
+        /** False for reply chips — Instagram only lets them send text. */
+        allowLinks: boolean
         onChange: (b: QuickReplyButton[]) => void
 }) {
-        const MAX = 3
-        const TITLE_MAX = 20
+        // A link typed and then switched off comes back if the operator switches
+        // on again (a mis-tap on a phone must not cost a pasted address).
+        const stashedUrls = useRef<Record<number, string>>({})
 
         function update(idx: number, patch: Partial<QuickReplyButton>) {
-                const next = buttons.map((b, i) => (i === idx ? { ...b, ...patch } : b))
-                onChange(next)
+                onChange(buttons.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
+        }
+
+        function setLink(idx: number, link: boolean) {
+                const button = buttons[idx]
+                if (link === (button.url !== undefined)) return
+                if (link) {
+                        update(idx, { url: stashedUrls.current[idx] ?? '' })
+                } else {
+                        stashedUrls.current[idx] = button.url ?? ''
+                        onChange(buttons.map((b, i) => (i === idx ? { title: b.title } : b)))
+                }
         }
 
         function remove(idx: number) {
+                stashedUrls.current = {}
                 onChange(buttons.filter((_, i) => i !== idx))
         }
 
         function move(idx: number, dir: -1 | 1) {
                 const target = idx + dir
                 if (target < 0 || target >= buttons.length) return
+                stashedUrls.current = {}
                 const next = buttons.slice()
                 const [item] = next.splice(idx, 1)
                 next.splice(target, 0, item)
@@ -2796,108 +3223,168 @@ function ButtonBuilder({
         }
 
         function add() {
-                if (buttons.length >= MAX) return
+                if (buttons.length >= IG_BUTTONS_PER_MESSAGE) return
                 onChange([...buttons, { title: '' }])
         }
 
+        const iconButton =
+                'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-30'
+
         return (
                 <div className="space-y-2">
-                        {buttons.length === 0 && (
-                                <p className="text-[12px] text-[var(--text-muted)]">
-                                        هنوز دکمه‌ای اضافه نشده.
-                                </p>
-                        )}
+                        <div className="flex items-center justify-between gap-2">
+                                <span className="text-[12px] font-medium text-[var(--text-secondary)]">کلیدها</span>
+                                <span className="text-[12px] tabular-nums text-[var(--text-muted)]">
+                                        {buttons.length.toLocaleString('fa-IR')} از {IG_BUTTONS_PER_MESSAGE.toLocaleString('fa-IR')}
+                                </span>
+                        </div>
 
                         {buttons.map((b, idx) => {
-                                const isLink = !!(b.url && b.url.trim())
+                                const number = (idx + 1).toLocaleString('fa-IR')
+                                const isLink = allowLinks && b.url !== undefined
+                                const url = b.url ?? ''
+                                const badUrl = isLink && url.trim() !== '' && !isValidButtonUrl(url)
                                 return (
                                         <div
                                                 key={idx}
-                                                className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-2.5"
+                                                role="group"
+                                                aria-label={`کلید ${number}`}
+                                                className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-2.5"
                                         >
-                                                {/* Row 1: reorder handle + title + type badge + delete */}
+                                                {/* Title + its counter, then reorder / delete. */}
                                                 <div className="flex items-center gap-1.5">
-                                                        <div className="flex flex-col">
-                                                                <button
-                                                                        type="button"
-                                                                        onClick={() => move(idx, -1)}
-                                                                        disabled={idx === 0}
-                                                                        className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
-                                                                        aria-label="بالا"
-                                                                >
-                                                                        <ArrowUp className="h-3 w-3" />
-                                                                </button>
-                                                                <button
-                                                                        type="button"
-                                                                        onClick={() => move(idx, 1)}
-                                                                        disabled={idx === buttons.length - 1}
-                                                                        className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
-                                                                        aria-label="پایین"
-                                                                >
-                                                                        <ArrowDown className="h-3 w-3" />
-                                                                </button>
-                                                        </div>
-
+                                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--bg-muted)] text-[12px] font-medium text-[var(--text-secondary)]">
+                                                                {number}
+                                                        </span>
                                                         <input
                                                                 value={b.title}
-                                                                onChange={(e) => update(idx, { title: e.target.value.slice(0, TITLE_MAX) })}
-                                                                placeholder="مثلاً قیمت‌ها"
-                                                                maxLength={TITLE_MAX}
+                                                                onChange={(e) => update(idx, { title: e.target.value.slice(0, IG_BUTTON_TITLE_LIMIT) })}
+                                                                placeholder="عنوان کلید — مثلاً قیمت‌ها"
+                                                                maxLength={IG_BUTTON_TITLE_LIMIT}
                                                                 dir="auto"
-                                                                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+                                                                aria-label={`عنوان کلید ${number}`}
+                                                                className="input min-w-0 flex-1 !px-3 text-sm"
                                                         />
-
-                                                        {/* Type badge — link if URL is set, otherwise postback/text. */}
-                                                        <span
-                                                                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] font-medium ${
-                                                                        isLink
-                                                                                ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                                                                                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
-                                                                }`}
-                                                        >
-                                                                {isLink ? <Link2 className="h-3 w-3" /> : <Type className="h-3 w-3" />}
-                                                                {isLink ? 'لینک' : 'متن'}
-                                                        </span>
-
-                                                        <button
-                                                                type="button"
-                                                                onClick={() => remove(idx)}
-                                                                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--danger)]"
-                                                                aria-label="حذف دکمه"
-                                                        >
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                        </button>
+                                                        <CharCount length={b.title.length} limit={IG_BUTTON_TITLE_LIMIT} />
                                                 </div>
 
-                                                {/* Row 2: URL input — always visible (placeholder "لینک (اختیاری)"). */}
-                                                <div className="mt-2 flex items-center gap-1.5 ps-7">
-                                                        <Link2 className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-                                                        <input
-                                                                value={b.url ?? ''}
-                                                                onChange={(e) => update(idx, { url: e.target.value })}
-                                                                placeholder="لینک (اختیاری)"
-                                                                dir="ltr"
-                                                                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
-                                                        />
-                                                </div>
+                                                {allowLinks && (
+                                                        <div className="ui-seg grid-cols-2" role="radiogroup" aria-label={`کار کلید ${number}`}>
+                                                                <button
+                                                                        type="button"
+                                                                        role="radio"
+                                                                        aria-checked={!isLink}
+                                                                        data-active={!isLink}
+                                                                        onClick={() => setLink(idx, false)}
+                                                                        className="ui-seg-tab text-[13px]"
+                                                                >
+                                                                        <Type className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                        متن
+                                                                </button>
+                                                                <button
+                                                                        type="button"
+                                                                        role="radio"
+                                                                        aria-checked={isLink}
+                                                                        data-active={isLink}
+                                                                        onClick={() => setLink(idx, true)}
+                                                                        className="ui-seg-tab text-[13px]"
+                                                                >
+                                                                        <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                        لینک
+                                                                </button>
+                                                        </div>
+                                                )}
 
-                                                {/* Character-count hint for the title. */}
-                                                <div className="mt-1 ps-7 text-[12px] text-[var(--text-muted)]">
-                                                        {b.title.length.toLocaleString('fa-IR')} / {TITLE_MAX.toLocaleString('fa-IR')}
+                                                {isLink && (
+                                                        <div className="space-y-1">
+                                                                <input
+                                                                        // Not type="url": the browser's own bubble would
+                                                                        // fight the hint below. The keyboard still is.
+                                                                        type="text"
+                                                                        inputMode="url"
+                                                                        autoCapitalize="none"
+                                                                        autoCorrect="off"
+                                                                        spellCheck={false}
+                                                                        value={url}
+                                                                        onChange={(e) => update(idx, { url: e.target.value })}
+                                                                        // «example.com» becomes «https://example.com» on leaving the field.
+                                                                        onBlur={() => update(idx, { url: normalizeButtonUrl(url) })}
+                                                                        placeholder="https://example.com/page"
+                                                                        dir="ltr"
+                                                                        aria-label={`لینک کلید ${number}`}
+                                                                        aria-invalid={badUrl}
+                                                                        className={cn('input !px-3 text-sm', badUrl && '!border-[var(--danger)]')}
+                                                                />
+                                                                {badUrl && (
+                                                                        <p className="text-[12px] text-[var(--danger)]">
+                                                                                این آدرس معتبر نیست. نمونه: https://example.com/page
+                                                                        </p>
+                                                                )}
+                                                        </div>
+                                                )}
+
+                                                <div className="flex items-center justify-between gap-2">
+                                                        <p className="min-w-0 text-[12px] leading-relaxed text-[var(--text-muted)]">
+                                                                {isLink
+                                                                        ? 'با لمس، این صفحه برای مشتری باز می‌شود.'
+                                                                        : 'با لمس، همین عنوان به‌جای مشتری فرستاده می‌شود.'}
+                                                        </p>
+                                                        <div className="flex shrink-0 items-center">
+                                                                {buttons.length > 1 && (
+                                                                        <>
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => move(idx, -1)}
+                                                                                        disabled={idx === 0}
+                                                                                        className={iconButton}
+                                                                                        aria-label={`بالا بردن کلید ${number}`}
+                                                                                >
+                                                                                        <ArrowUp className="h-4 w-4" />
+                                                                                </button>
+                                                                                <button
+                                                                                        type="button"
+                                                                                        onClick={() => move(idx, 1)}
+                                                                                        disabled={idx === buttons.length - 1}
+                                                                                        className={iconButton}
+                                                                                        aria-label={`پایین بردن کلید ${number}`}
+                                                                                >
+                                                                                        <ArrowDown className="h-4 w-4" />
+                                                                                </button>
+                                                                        </>
+                                                                )}
+                                                                <button
+                                                                        type="button"
+                                                                        onClick={() => remove(idx)}
+                                                                        className={cn(iconButton, 'hover:!text-[var(--danger)]')}
+                                                                        aria-label={`حذف کلید ${number}`}
+                                                                >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                </button>
+                                                        </div>
                                                 </div>
                                         </div>
                                 )
                         })}
 
-                        {buttons.length < MAX && (
+                        {buttons.length < IG_BUTTONS_PER_MESSAGE ? (
                                 <button
                                         type="button"
                                         onClick={add}
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                                        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--border-default)] px-3 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                                 >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        افزودن کلید
+                                        <Plus className="h-4 w-4" />
+                                        {buttons.length === 0 ? 'افزودن اولین کلید' : 'افزودن کلید'}
                                 </button>
+                        ) : (
+                                <p className="text-[12px] text-[var(--text-muted)]">
+                                        اینستاگرام در هر پیام حداکثر {IG_BUTTONS_PER_MESSAGE.toLocaleString('fa-IR')} کلید نشان می‌دهد.
+                                </p>
+                        )}
+
+                        {buttons.length > 0 && (
+                                <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
+                                        لمسِ کلیدِ «متن» مثل پیام خود مشتری است؛ سناریوی دایرکتی که همین عنوان را کلمهٔ کلیدی دارد به آن جواب می‌دهد.
+                                </p>
                         )}
                 </div>
         )

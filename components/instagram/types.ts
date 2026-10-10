@@ -56,11 +56,16 @@ export type MediaType = 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT'
  * the user; `url` (optional) makes it a web_url button that opens a link,
  * omitting `url` makes it a postback button that sends the title back as a
  * message (Instagram quick-reply behavior).
+ *
+ * Only a button inside the bubble (`buttonType: 'button'`) can open a link —
+ * Instagram's reply chips send text and nothing else.
  */
 export interface QuickReplyButton {
         /** Button title (max 20 chars on Instagram). */
         title: string
-        /** URL the button opens. When omitted, tapping sends `title` back as a message. */
+        /** URL the button opens. When omitted, tapping sends `title` back as a
+         *  message. In the form an empty string means «link key, address not
+         *  typed yet»; it is never saved empty. */
         url?: string
 }
 
@@ -133,6 +138,12 @@ export interface AutomationAction {
         commentAckText?: string
         /** Up to 3 alternative ack texts; the engine posts ONE at random. */
         commentAckTexts?: string[]
+        /** COMMENT + dmOnComment: the opening button message used when the reply
+         *  needs more than the ONE message Instagram allows to a commenter who
+         *  has not written to the page in the last 24 hours. The rest of the
+         *  reply is sent when the commenter taps the button. */
+        dmOpenerText?: string
+        dmOpenerButton?: string
         // ── Follow gate (kept for v1 compatibility) ───────────────────────────
         followGate?: boolean
         gateMode?: GateMode

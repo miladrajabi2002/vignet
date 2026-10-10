@@ -38,6 +38,23 @@ describe('instagram postback idempotency id', () => {
     })
   })
 
+  it('marks a tap so the inbox can tell it from typed text', () => {
+    const [tap] = adapter.parseUpdate(postbackUpdate(1_711_234_567_890))
+    expect(tap.buttonTap).toBe(true)
+
+    const [chip, typed] = adapter.parseUpdate({
+      entry: [{
+        id: 'self',
+        messaging: [
+          { sender: { id: 'customer-1' }, message: { mid: 'm1', text: 'مشاهده', quick_reply: { payload: 'qr_0' } } },
+          { sender: { id: 'customer-1' }, message: { mid: 'm2', text: 'مشاهده' } },
+        ],
+      }],
+    })
+    expect(chip.buttonTap).toBe(true)
+    expect(typed.buttonTap).toBeUndefined()
+  })
+
   it('a second tap of the same button gets a DISTINCT id (no silent dedupe)', () => {
     const [first] = adapter.parseUpdate(postbackUpdate(1_711_234_567_890))
     const [second] = adapter.parseUpdate(postbackUpdate(1_711_234_600_001))

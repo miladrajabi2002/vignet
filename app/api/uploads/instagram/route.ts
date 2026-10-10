@@ -13,6 +13,7 @@ import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { tmpdir } from 'os'
 import { rateLimit, rateLimitCost } from '@/lib/ratelimit'
+import { IG_MEDIA_MAX_BYTES, igMediaKindOfMime } from '@/lib/instagram/limits'
 
 const execFileAsync = promisify(execFile)
 
@@ -148,7 +149,7 @@ async function transcodeToInstagramAudio(
  * so it must be publicly reachable over HTTPS — a relative URL won't work.
  *
  * Allowed types: image/*, audio/*, video/*.
- * Max size per file: 25 MB. Max files per request: 10.
+ * Max size per file: image 8 MB, video and audio 25 MB. Max files per request: 10.
  */
 
 export const runtime = 'nodejs'
@@ -260,10 +261,14 @@ export async function POST(req: Request) {
                 if (f.size === 0) {
                         return NextResponse.json({ error: `EMPTY_FILE: "${f.name}" is empty` }, { status: 400 })
                 }
-                if (f.size > MAX_BYTES) {
+                // Per-kind ceiling (image 8 MB, video/audio 25 MB) — the sizes
+                // Instagram accepts as a Direct attachment.
+                const kind = igMediaKindOfMime(normalizedMime)
+                const maxBytes = kind ? IG_MEDIA_MAX_BYTES[kind] : MAX_BYTES
+                if (f.size > maxBytes) {
                         return NextResponse.json(
                                 {
-                                        error: `TOO_LARGE: "${f.name}" is ${(f.size / 1024 / 1024).toFixed(2)} MB — max ${MAX_BYTES / 1024 / 1024} MB`,
+                                        error: `TOO_LARGE: "${f.name}" is ${(f.size / 1024 / 1024).toFixed(2)} MB — max ${maxBytes / 1024 / 1024} MB`,
                                 },
                                 { status: 400 },
                         )

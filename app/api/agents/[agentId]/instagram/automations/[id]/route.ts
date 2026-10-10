@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { IG_BUTTON_TITLE_LIMIT, isValidButtonUrl } from '@/lib/instagram/limits'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
@@ -13,8 +14,15 @@ type Params = { params: Promise<{ agentId: string; id: string }> }
 const buttonSchema = z.union([
   z.string(),
   z.object({
-    title: z.string().min(1).max(20),
-    url: z.string().optional(),
+    title: z.string().min(1).max(IG_BUTTON_TITLE_LIMIT),
+    // Empty, or an absolute http(s) link — Instagram rejects the whole button
+    // message when one button's link has no scheme.
+    url: z
+      .string()
+      .refine((v) => v === '' || (/^https?:\/\//i.test(v) && isValidButtonUrl(v)), {
+        message: 'BUTTON_URL_INVALID: must be an absolute http(s) URL',
+      })
+      .optional(),
     payload: z.string().optional(),
   }),
 ])
@@ -95,6 +103,8 @@ const updateSchema = z.object({
       commentAckEnabled: z.boolean().optional(),
       commentAckText: z.string().optional(),
       commentAckTexts: z.array(z.string().max(300)).max(3).optional(),
+      dmOpenerText: z.string().max(640).optional(),
+      dmOpenerButton: z.string().max(20).optional(),
       followGate: z.boolean().optional(),
       gateMode: z.enum(['SOFT', 'STORY_MENTION']).optional(),
       gateButtonType: z.enum(['button', 'quick_reply']).optional(),

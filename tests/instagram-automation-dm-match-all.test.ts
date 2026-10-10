@@ -30,7 +30,14 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    instagramFollowGate: { findFirst: mocks.followGateFindFirst },
+    instagramFollowGate: {
+      findFirst: mocks.followGateFindFirst,
+      // The confirm lookup reads every pending gate of the sender.
+      findMany: async (...args: unknown[]) => {
+        const gate = await mocks.followGateFindFirst(...args)
+        return gate ? [gate] : []
+      },
+    },
     instagramAutomation: { findMany: mocks.automationFindMany },
     conversation: { update: mocks.updateConversation },
   },
