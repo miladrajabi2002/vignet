@@ -43,9 +43,11 @@ export async function transcribeAudio(
         format: normalized.format,
       },
       ...(input.language ? { language: input.language } : {}),
+      // No `zdr` here on purpose: the pinned STT model has no zero-data-
+      // retention endpoint, so the platform-wide ZDR switch would 404 every
+      // transcription. Training on the audio stays denied.
       provider: {
         data_collection: 'deny',
-        zdr: runtime.zeroDataRetention,
       },
     }),
     signal: AbortSignal.timeout(90_000),

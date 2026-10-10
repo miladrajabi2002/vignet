@@ -70,7 +70,8 @@ describe('OpenRouter speech-to-text', () => {
     expect(body).toEqual(expect.objectContaining({
       model: 'openai/gpt-transcribe',
       input_audio: expect.objectContaining({ format: 'mp3' }),
-      provider: { data_collection: 'deny', zdr: true },
+      // ZDR is on in the mocked platform config, but STT must not forward it.
+      provider: { data_collection: 'deny' },
     }))
     expect(body).not.toHaveProperty('language')
     expect(mocks.ensureSttCreditAvailable).toHaveBeenCalledWith('workspace-1', 'stt:event-1')
