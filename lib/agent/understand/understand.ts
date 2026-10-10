@@ -1,13 +1,14 @@
 /**
- * One understanding call per customer turn: economical tier, forced tool
- * call, short timeout, no retry. Any failure (no key, budget, timeout,
+ * One understanding call per customer turn: economical tier, one JSON object
+ * as the reply (see schema.ts for why not a tool call), short timeout, no
+ * retry. Any failure (no key, budget, timeout,
  * malformed output, circuit open) returns { ok: false } and the turn falls
  * back to the legacy router — a slow provider never stalls a customer.
  */
 import { auxCompletion, AuxUnavailableError, type TurnLedger } from '@/lib/ai/llm/aux'
 import type { ChatUsage } from '@/lib/ai/openrouter'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
-import { parseUnderstanding, UNDERSTAND_TOOL, UNDERSTAND_TOOL_NAME } from '@/lib/agent/understand/schema'
+import { parseUnderstanding } from '@/lib/agent/understand/schema'
 import { verifyUnderstanding } from '@/lib/agent/understand/verify'
 import type { TurnCandidates, TurnUnderstanding, VerifiedUnderstanding } from '@/lib/agent/understand/types'
 
@@ -70,8 +71,7 @@ export async function understandTurn(params: UnderstandTurnParams): Promise<Unde
       conversationId: params.conversationId,
       ledger: params.ledger,
       messages: buildUnderstandMessages({ message: params.message, recent: params.recent, candidates: params.candidates }),
-      tools: [UNDERSTAND_TOOL],
-      toolChoice: { type: 'function', function: { name: UNDERSTAND_TOOL_NAME } },
+      responseFormat: 'json_object',
       temperature: 0,
       maxTokens: 450,
       timeoutMs: params.timeoutMs ?? 6_000,
@@ -79,9 +79,7 @@ export async function understandTurn(params: UnderstandTurnParams): Promise<Unde
     })
     model = result.model
     usage = result.usage
-    const call = result.toolCalls.find((item) => item.function.name === UNDERSTAND_TOOL_NAME) ?? result.toolCalls[0]
-    // Some providers answer a forced tool call in plain JSON content.
-    const raw = parseUnderstanding(call?.function.arguments ?? extractJson(result.content))
+    const raw = parseUnderstanding(extractJson(result.content))
     if (!raw) {
       failed()
       return { ok: false, errorCode: 'MALFORMED', model, latencyMs: Date.now() - startedAt, usage }

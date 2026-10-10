@@ -161,7 +161,7 @@ function requestBody(
     stream,
     reasoning: { enabled: false },
     provider: {
-      sort: runtime.providerSort,
+      sort: opts.providerSort ?? runtime.providerSort,
       data_collection: 'deny',
       zdr: runtime.zeroDataRetention,
       allow_fallbacks: true,
@@ -169,6 +169,7 @@ function requestBody(
     },
     ...(stream && opts.onUsage ? { stream_options: { include_usage: true } } : {}),
     ...(opts.tools?.length ? { tools: opts.tools, tool_choice: opts.toolChoice ?? 'auto' } : {}),
+    ...(opts.responseFormat ? { response_format: { type: opts.responseFormat } } : {}),
   }
 }
 
@@ -190,6 +191,13 @@ export interface ChatOptions {
    */
   timeoutMs?: number
   retries?: number
+  /** Ask for one JSON object as the reply content (structured readings). */
+  responseFormat?: 'json_object'
+  /**
+   * Provider sort for this call instead of the platform setting. Evaluation
+   * runs use it to score a reading under each routing.
+   */
+  providerSort?: 'price' | 'latency' | 'throughput'
 }
 
 export interface ChatUsage {

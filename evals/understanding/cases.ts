@@ -197,6 +197,13 @@ export const EVAL_CASES: EvalCase[] = [
   { id: 'M04', tags: ['handoff'], capabilities: STORE, message: 'این چه وضعشه هیچکس جواب نمیده', expect: { acts: ['complaint'] } },
   { id: 'M05', tags: ['handoff'], capabilities: STORE, message: 'اپراتور لطفا', expect: { acts: ['human_request'] } },
   { id: 'M06', tags: ['handoff'], capabilities: STORE, active: SOFA, message: 'رنگش با عکس فرق داشت یکم ناراحت شدم', expect: { acts: ['complaint'] } },
+  // Real conversations (2026-10): asking whether this is a bot is not asking
+  // for a person, and a problem report is neither a complaint nor a handoff.
+  { id: 'M07', tags: ['handoff', 'real'], capabilities: ['handoff'], history: [{ role: 'user', text: 'سلام' }, { role: 'assistant', text: 'سلام! چطور می‌توانم کمکتان کنم؟' }], message: 'خسته نباشید تو انسانی ؟', expect: { acts: [], notActs: ['human_request'] } },
+  { id: 'M08', tags: ['handoff', 'real'], capabilities: ['handoff'], message: 'شما هوش مصنوعی هستی؟', expect: { acts: [], notActs: ['human_request'] } },
+  { id: 'M09', tags: ['handoff', 'real'], capabilities: ['handoff'], message: 'سلام هر چه کد امنیتی میزنم میزنه اشتباه', expect: { acts: ['knowledge_question'], notActs: ['human_request'] } },
+  { id: 'M10', tags: ['handoff', 'real'], capabilities: ['handoff'], message: 'ببینید من میخوام با پشتیبان اینجا صحبت کنم نه با هوش مصنوعی یا بات', expect: { acts: ['human_request'] } },
+  { id: 'M11', tags: ['knowledge', 'real', 'regression'], capabilities: ['handoff'], message: 'عکس ازین طریق ارسال نمیشه', expect: { acts: [], notActs: ['product_search', 'human_request'] } },
 
   // ── N. Greetings / closings / deferral / small talk ──────────────────────
   { id: 'N01', tags: ['closing'], capabilities: STORE, history: [{ role: 'user', text: 'قیمت آباژور؟' }, { role: 'assistant', text: '۸۹۰ هزار تومان' }], message: 'خیلی ممنون', expect: { acts: ['thanks'] } },

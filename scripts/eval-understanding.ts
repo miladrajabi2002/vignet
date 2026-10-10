@@ -4,6 +4,8 @@
  *   npx tsx scripts/eval-understanding.ts --system legacy        # offline baseline (regex router)
  *   npx tsx -r dotenv/config scripts/eval-understanding.ts --system llm   # model reading (needs OPENROUTER_API_KEY)
  *   … --system both --model deepseek/deepseek-v4-flash --only G --label before
+ *   … --system llm --sort latency     # score the reading under another provider routing
+ *                                     # (default: the platform's provider sort, as production)
  *
  * Scores, per case: required acts present, forbidden acts absent (e.g. no
  * order_cancel on a colour change), referenced candidates, cart operations,
@@ -18,7 +20,7 @@ import { EVAL_CASES } from '../evals/understanding/cases'
 import type { EvalCase, EvalProduct } from '../evals/understanding/types'
 import { actDomain, legacyReading } from '@/lib/agent/understand/legacy-adapter'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
-import { parseUnderstanding, UNDERSTAND_TOOL, UNDERSTAND_TOOL_NAME } from '@/lib/agent/understand/schema'
+import { parseUnderstanding } from '@/lib/agent/understand/schema'
 import { verifyUnderstanding } from '@/lib/agent/understand/verify'
 import { tokenizeCatalogText } from '@/lib/ai/conversation'
 import type { ChatMessage } from '@/lib/ai/openrouter'
@@ -99,7 +101,9 @@ const DESTRUCTIVE: ActType[] = ['order_cancel']
 function routingCheck(c: EvalCase, predicted: ActType[]): boolean {
   const predictedDomains = new Set(predicted.length ? predicted.map(actDomain) : ['general'])
   const required = [...new Set(c.expect.acts.map(actDomain))]
-  const forbidden = [...new Set((c.expect.notActs ?? []).map(actDomain))].filter((domain) => domain !== 'general')
+  // A forbidden act in the same domain as a required one («cart_edit, not
+  // order_cancel») cannot be told apart at domain level; forbiddenActs does.
+  const forbidden = [...new Set((c.expect.notActs ?? []).map(actDomain))].filter((domain) => domain !== 'general' && !required.includes(domain))
   return required.every((domain) => predictedDomains.has(domain)) && !forbidden.some((domain) => predictedDomains.has(domain))
 }
 
@@ -109,7 +113,7 @@ function isDestructiveFalsePositive(c: EvalCase, set: Set<ActType>): boolean {
   return DESTRUCTIVE.some((act) => set.has(act) && !c.expect.acts.includes(act))
 }
 
-function score(c: EvalCase, predicted: ActType[], verified: VerifiedUnderstanding | null): Omit<CaseResult, 'id' | 'tags' | 'message'> {
+export function score(c: EvalCase, predicted: ActType[], verified: VerifiedUnderstanding | null): Omit<CaseResult, 'id' | 'tags' | 'message'> {
   const set = new Set(predicted)
   const checks: Record<string, boolean> = {}
   checks.routing = routingCheck(c, predicted)
@@ -168,7 +172,15 @@ function legacyRun(c: EvalCase): CaseResult {
   return { id: c.id, tags: c.tags, message: c.message, ...score(c, predicted, null) }
 }
 
-async function llmRun(c: EvalCase, model: string): Promise<CaseResult> {
+/** The model's reply content, without a code fence around the JSON. */
+function jsonOf(content: string): string | null {
+  const cleaned = content.replace(/```(?:json)?/gi, '').trim()
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+  return start >= 0 && end > start ? cleaned.slice(start, end + 1) : null
+}
+
+async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'latency' | 'throughput'): Promise<CaseResult> {
   const { chatCompletion } = await import('@/lib/ai/openrouter')
   const candidates = candidatesFor(c)
   const recent = (c.history ?? []).map((turn) => ({ role: turn.role, content: turn.text }))
@@ -177,16 +189,15 @@ async function llmRun(c: EvalCase, model: string): Promise<CaseResult> {
     const result = await chatCompletion({
       model,
       messages: buildUnderstandMessages({ message: c.message, recent, candidates }),
-      tools: [UNDERSTAND_TOOL],
-      toolChoice: { type: 'function', function: { name: UNDERSTAND_TOOL_NAME } },
+      responseFormat: 'json_object',
       temperature: 0,
       maxTokens: 450,
       timeoutMs: 15_000,
       retries: 1,
+      ...(providerSort ? { providerSort } : {}),
     })
     const latencyMs = Date.now() - startedAt
-    const call = result.toolCalls.find((item) => item.function.name === UNDERSTAND_TOOL_NAME) ?? result.toolCalls[0]
-    const raw = parseUnderstanding(call?.function.arguments ?? result.content)
+    const raw = parseUnderstanding(jsonOf(result.content))
     if (!raw) {
       return { id: c.id, tags: c.tags, message: c.message, predicted: [], refs: [], pass: false, checks: { parsed: false }, destructiveFalsePositive: false, latencyMs, error: 'MALFORMED' }
     }
@@ -277,14 +288,16 @@ async function main() {
       const model = arg('model') ?? (economicalModel ? await economicalModel().catch(() => 'deepseek/deepseek-v4-flash') : 'deepseek/deepseek-v4-flash')
       results = []
       const concurrency = Math.max(1, Number(arg('concurrency') ?? 4))
+      const sortArg = arg('sort')
+      const sort = sortArg === 'price' || sortArg === 'latency' || sortArg === 'throughput' ? sortArg : undefined
       let cursor = 0
       await Promise.all(Array.from({ length: concurrency }, async () => {
         while (cursor < cases.length) {
           const index = cursor++
-          results[index] = await llmRun(cases[index], model)
+          results[index] = await llmRun(cases[index], model, sort)
         }
       }))
-      console.log(`model: ${model}`)
+      console.log(`model: ${model}${sort ? ` · provider sort: ${sort}` : ' · provider sort: platform setting'}`)
     }
     const summary = summarize(current, results)
     fs.writeFileSync(path.join(outDir, `${label}-${current}.json`), JSON.stringify({ summary, results }, null, 2))

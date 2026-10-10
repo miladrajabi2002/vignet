@@ -75,6 +75,20 @@ export function agentCapabilities(input: Pick<UnderstandingStageInput, 'agent' |
   return capabilities
 }
 
+/**
+ * Capabilities whose turns the understanding layer routes: products, cart and
+ * orders, tracking, restock alerts, bookings and courses. An agent with none
+ * of them answers every turn from its knowledge base, so the reading would
+ * only add its latency and cost to a reply the knowledge path writes anyway
+ * (measured on live traffic: +3.7 s per turn). Handoff alone does not need
+ * the model: the keyword handoff policy runs on every turn regardless.
+ */
+const ROUTED_CAPABILITIES: readonly Capability[] = ['products', 'order_capture', 'restock', 'order_tracking', 'bookings', 'courses']
+
+export function needsUnderstanding(capabilities: readonly Capability[]): boolean {
+  return capabilities.some((capability) => ROUTED_CAPABILITIES.includes(capability))
+}
+
 export async function runUnderstandingStage(input: UnderstandingStageInput): Promise<UnderstandingStage> {
   const mode = await resolveUnderstandingMode(input.workspaceId).catch(() => ({ mode: 'off' as const, domains: {} as ResolvedUnderstandingMode['domains'], timeoutMs: 6_000 }))
   let outcome: UnderstandOutcome | null = null
@@ -101,7 +115,7 @@ export async function runUnderstandingStage(input: UnderstandingStageInput): Pro
         tracking: capabilities.includes('order_tracking'),
       },
     })
-    if (input.skip) {
+    if (input.skip || !needsUnderstanding(capabilities)) {
       skipped = true
     } else {
       candidates = await buildTurnCandidates({

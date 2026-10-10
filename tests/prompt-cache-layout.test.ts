@@ -5,7 +5,6 @@
  */
 import { describe, expect, it } from 'vitest'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
-import { UNDERSTAND_TOOL } from '@/lib/agent/understand/schema'
 import { buildMessages } from '@/lib/ai/rag'
 import type { TurnCandidates } from '@/lib/agent/understand/types'
 
@@ -15,12 +14,12 @@ const candidates = (overrides: Partial<TurnCandidates> = {}): TurnCandidates => 
 })
 
 describe('cache-friendly prompt layout', () => {
-  it('the understanding call has a fully static system prompt and tool; every per-turn value is in the last message', () => {
+  it('the understanding call has a fully static system prompt; every per-turn value is in the last message', () => {
     const one = buildUnderstandMessages({ message: 'شومیز دارین؟', recent: [], candidates: candidates() })
     const two = buildUnderstandMessages({ message: 'پسفردا عصر وقت دارید؟', recent: [{ role: 'assistant', content: 'سلام' }], candidates: candidates({ capabilities: ['bookings'], services: [{ ref: 'svc:1', id: 'x', name: 'کوتاهی مو' }] }) })
     expect(one[0]).toEqual(two[0])
     expect(one).toHaveLength(2)
-    expect(JSON.stringify(UNDERSTAND_TOOL)).not.toMatch(/\d{4}-\d{2}-\d{2}/)
+    expect(String(one[0].content)).not.toMatch(/\d{4}-\d{2}-\d{2}/)
   })
 
   it('the reply prompt starts with the agent’s own stable prompt, before catalog rows, knowledge and state', () => {

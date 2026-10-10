@@ -87,7 +87,10 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
     if (phraseAppearsIn(term, message, input.recentText)) return true
     const normalized = normalizeEvidenceText(term)
     if (input.vocabulary?.has(normalized)) return true
-    return normalized.split(' ').every((token) => token.length >= 2 && (input.vocabulary?.has(token) || phraseAppearsIn(token, message, input.recentText)))
+    // One-letter joiners («و») carry no identity: «سرویس قاشق و چنگال» is
+    // backed by «سرویس قاشق چنگال».
+    const tokens = normalized.split(' ').filter((token) => token.length >= 2)
+    return tokens.length > 0 && tokens.every((token) => input.vocabulary?.has(token) || phraseAppearsIn(token, message, input.recentText))
   }
 
   const verifiedActs: Act[] = []

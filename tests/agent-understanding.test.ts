@@ -40,7 +40,7 @@ const reading = (overrides: Partial<TurnUnderstanding>): TurnUnderstanding => ({
   ...overrides,
 })
 
-describe('understanding schema: tolerant parsing of the forced tool call', () => {
+describe('understanding schema: tolerant parsing of the model reading', () => {
   it('keeps only fields each act type allows and drops unknown types', () => {
     const parsed = parseUnderstanding(JSON.stringify({
       language: 'fa',
@@ -65,6 +65,24 @@ describe('understanding schema: tolerant parsing of the forced tool call', () =>
     expect(parseUnderstanding('{"acts":[]}')).toBeNull()
     expect(parseUnderstanding('not json')).toBeNull()
     expect(parseUnderstanding({ acts: [{ type: 'product_search' }] })).toBeNull()
+  })
+
+  // Shapes the live model produced in the evaluation (evals/results).
+  it('reads search words written in `query` and «act» for «type»', () => {
+    const parsed = parseUnderstanding({ relation: 'new_goal', customer: { mood: 'neu', buy: 1 }, acts: [{ act: 'product_search', display: 'showcase', target: 'active', query: 'شومیز', severity: 'low' }] })
+    expect(parsed?.acts).toEqual([{ type: 'product_search', terms: ['شومیز'], display: 'showcase' }])
+  })
+
+  it('reads one cart change written flat, but never guesses it from a borrowed `action`', () => {
+    const flat = parseUnderstanding({ relation: 'reference', customer: { mood: 'neu', buy: 3 }, acts: [{ type: 'cart_edit', op: 'set_quantity', line: 'cart:1', quantity: 3 }] })
+    expect(flat?.acts).toEqual([{ type: 'cart_edit', ops: [{ op: 'set_quantity', line: 'cart:1', quantity: 3 }] }])
+    // «نه یکی کافیه» came back as {target: cart:1, action: cancel}: removing the line would be wrong.
+    expect(parseUnderstanding({ relation: 'answer', customer: { mood: 'neu', buy: 3 }, acts: [{ type: 'cart_edit', target: 'cart:1', action: 'cancel' }] })).toBeNull()
+  })
+
+  it('an empty act list inside a complete reading means «nothing to act on»', () => {
+    const parsed = parseUnderstanding({ language: 'fa', relation: 'other', confidence: 0.9, customer: { mood: 'neu', buy: 0, cues: [] }, acts: [] })
+    expect(parsed?.acts).toEqual([{ type: 'other' }])
   })
 })
 

@@ -16,7 +16,7 @@ vi.mock('@/lib/commerce/order-service', () => ({ loadCartForUnderstanding: mocks
 vi.mock('@/lib/agent/understand/candidates', () => ({ buildTurnCandidates: mocks.candidates }))
 vi.mock('@/lib/agent/understand/log', () => ({ writeUnderstandingLog: mocks.log }))
 
-import { runUnderstandingStage, agentCapabilities } from '@/lib/agent/turn/understand-stage'
+import { runUnderstandingStage, agentCapabilities, needsUnderstanding } from '@/lib/agent/turn/understand-stage'
 import { planProductRequest } from '@/lib/ai/conversation'
 import { createEmptyConversationWorkingState } from '@/lib/ai/conversation-state'
 import { DEFAULT_UNDERSTANDING_CONFIG } from '@/lib/agent/understand/mode'
@@ -99,6 +99,23 @@ describe('understanding stage', () => {
     expect(mocks.understand).not.toHaveBeenCalled()
     stage.finalize([])
     expect(mocks.log.mock.calls[0][0]).toMatchObject({ status: 'skipped' })
+  })
+
+  it('an agent with nothing to route (knowledge only) never calls the model', async () => {
+    mocks.mode.mockResolvedValue({ mode: 'on', domains: DEFAULT_UNDERSTANDING_CONFIG.domains, timeoutMs: 6000 })
+    const knowledgeOnly: ChatAgent = { ...agent, productAccessEnabled: false, orderCaptureEnabled: false, orderTrackingEnabled: false }
+    const stage = await runUnderstandingStage(input('کارمزد نقد کردن درآمد چقدره؟', { agent: knowledgeOnly, capabilityGates: { bookings: false, courses: false } }))
+    expect(mocks.understand).not.toHaveBeenCalled()
+    expect(mocks.candidates).not.toHaveBeenCalled()
+    expect(stage.route).toBeNull()
+    expect(stage.routes('handoff')).toBe(false)
+    stage.finalize([])
+    expect(mocks.log.mock.calls[0][0]).toMatchObject({ status: 'skipped' })
+
+    expect(needsUnderstanding(['handoff'])).toBe(false)
+    expect(needsUnderstanding([])).toBe(false)
+    expect(needsUnderstanding(['order_tracking', 'handoff'])).toBe(true)
+    expect(needsUnderstanding(['bookings'])).toBe(true)
   })
 
   it('capabilities reflect the agent switches exactly', () => {

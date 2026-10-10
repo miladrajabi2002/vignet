@@ -1,14 +1,20 @@
 /**
- * The tool the understanding model must call, and a tolerant parser that
- * turns its arguments into a TurnUnderstanding.
+ * A tolerant parser for the understanding model's reading.
  *
- * The JSON schema is deliberately flat (one act object with optional fields
- * instead of a oneOf per act type): economical models fill a flat object far
- * more reliably. parseUnderstanding() then keeps, per act type, only the
- * fields that type allows and drops anything malformed. Unknown act types
- * are dropped, never guessed.
+ * The model writes the reading as one plain JSON object (the shapes are in
+ * the prompt). It used to be a forced tool call with a flat JSON schema; the
+ * evaluation on the live model showed that format depends on the provider
+ * that happens to serve the request: one fills the fields in alphabetical
+ * order and loses everything before «type», another writes search words into
+ * `query` and cart edits into `action`, a third does not offer tools at all.
+ * Plain JSON read 81–87% of the commerce cases right on five providers out of
+ * six, in a third of the time (evals/results).
+ *
+ * parseUnderstanding() keeps, per act type, only the fields that type allows
+ * and drops anything malformed. Unknown act types are dropped, never guessed;
+ * the recoveries it makes (search words in `query`, one cart op written flat,
+ * «act» for «type») lose nothing and are verified like any other reading.
  */
-import type { ChatTool } from '@/lib/ai/openrouter'
 import { TURN_CUES, type TurnBuyLevel, type TurnCue, type TurnMood } from '@/lib/ai/turn-signal'
 import {
   UNDERSTANDING_VERSION,
@@ -34,107 +40,6 @@ const RELATIONS: readonly Relation[] = ['new_goal', 'refinement', 'answer', 'ref
 const FIELDS: readonly ProductField[] = ['price', 'stock', 'material', 'size', 'dimensions', 'colors', 'link', 'photo', 'details']
 const TOPICS: readonly PolicyTopic[] = ['shipping_cost', 'delivery_time', 'shipping_method', 'payment', 'installment', 'warranty', 'return', 'hours', 'address', 'contact', 'other']
 const MOODS: readonly TurnMood[] = ['pos', 'neu', 'neg', 'ang']
-
-export const UNDERSTAND_TOOL_NAME = 'report_understanding'
-
-const refProp = { type: 'string', description: 'A candidate ref exactly as given (card:N, cart:N, active, seen:N, svc:N, course:N).' }
-
-export const UNDERSTAND_TOOL: ChatTool = {
-  type: 'function',
-  function: {
-    name: UNDERSTAND_TOOL_NAME,
-    description: 'Report the structured meaning of the customer\'s latest message.',
-    parameters: {
-      type: 'object',
-      properties: {
-        language: { type: 'string', enum: ['fa', 'en', 'ar'] },
-        relation: { type: 'string', enum: [...RELATIONS] },
-        answers_pending: { type: 'boolean', description: 'true only if the message answers the pending question/offer.' },
-        confidence: { type: 'number', description: '0..1' },
-        customer: {
-          type: 'object',
-          properties: {
-            mood: { type: 'string', enum: [...MOODS] },
-            buy: { type: 'integer', enum: [0, 1, 2, 3] },
-            cues: { type: 'array', items: { type: 'string', enum: [...TURN_CUES] } },
-          },
-          required: ['mood', 'buy'],
-        },
-        clarify: {
-          type: 'object',
-          properties: {
-            reason: { type: 'string', enum: ['ambiguous_reference', 'ambiguous_product', 'missing_info'] },
-            question: { type: 'string', description: 'One short question in the customer\'s language.' },
-          },
-        },
-        acts: {
-          type: 'array',
-          description: 'What the customer asks for, 1 to 3 items, in message order.',
-          items: {
-            type: 'object',
-            properties: {
-              type: { type: 'string', enum: [...ACT_TYPES] },
-              terms: { type: 'array', items: { type: 'string' }, description: 'product_search: product-identity keywords only (type/model/brand/code).' },
-              attributes: {
-                type: 'object',
-                properties: { color: { type: 'string' }, size: { type: 'string' }, material: { type: 'string' }, style: { type: 'string' }, design: { type: 'string' } },
-              },
-              max_price: { type: 'number', description: 'Toman. «۱۵ میلیون» = 15000000' },
-              min_price: { type: 'number' },
-              sort: { type: 'string', enum: ['price_asc', 'price_desc', 'popular'] },
-              count: { type: 'integer' },
-              display: { type: 'string', enum: ['showcase', 'consult', 'browse'] },
-              code: { type: 'string' },
-              target: refProp,
-              targets: { type: 'array', items: refProp },
-              field: { type: 'string', enum: [...FIELDS] },
-              question: { type: 'string' },
-              variant: { type: 'string' },
-              criterion: { type: 'string' },
-              items: {
-                type: 'array',
-                items: { type: 'object', properties: { target: refProp, variant: { type: 'string' }, quantity: { type: 'integer' } }, required: ['target'] },
-              },
-              ops: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    op: { type: 'string', enum: ['add', 'remove', 'set_quantity', 'set_variant'] },
-                    target: refProp,
-                    line: refProp,
-                    variant: { type: 'string' },
-                    quantity: { type: 'integer' },
-                  },
-                  required: ['op'],
-                },
-              },
-              name: { type: 'string' },
-              phone: { type: 'string' },
-              city: { type: 'string' },
-              address: { type: 'string' },
-              postal_code: { type: 'string' },
-              coupon: { type: 'string' },
-              shipping: { type: 'string' },
-              order_ref: { type: 'string' },
-              action: { type: 'string', enum: ['inquire', 'book', 'reschedule', 'cancel', 'list', 'enroll'] },
-              service: refProp,
-              course: refProp,
-              date: { type: 'string' },
-              time: { type: 'string' },
-              topic: { type: 'string', enum: [...TOPICS] },
-              detail: { type: 'string' },
-              query: { type: 'string' },
-              severity: { type: 'string', enum: ['low', 'high'] },
-            },
-            required: ['type'],
-          },
-        },
-      },
-      required: ['language', 'relation', 'acts', 'customer', 'confidence'],
-    },
-  },
-}
 
 // ─── Tolerant parsing ────────────────────────────────────────────────────────
 
@@ -205,10 +110,21 @@ function cartOps(value: unknown): CartOpInput[] {
   return ops
 }
 
+/**
+ * One cart change written flat on the act («op» + «line»/«target») instead
+ * of inside `ops`. Only an explicit op name is read: an `action` borrowed
+ * from the booking enum says nothing about which change the customer meant.
+ */
+function flatCartOp(item: Rec): CartOpInput[] {
+  if (!oneOf(item.op, ['add', 'remove', 'set_quantity', 'set_variant'] as const)) return []
+  return cartOps([{ op: item.op, target: item.target, line: item.line, variant: item.variant, quantity: item.quantity }])
+}
+
 function parseAct(raw: unknown): Act | null {
   const item = rec(raw)
   if (!item) return null
-  const type = oneOf(item.type, ACT_TYPES)
+  // «act» is how some providers' models name the discriminator.
+  const type = oneOf(item.type ?? item.act, ACT_TYPES)
   if (!type) return null
   switch (type) {
     case 'greeting': case 'thanks': case 'goodbye': case 'defer': case 'smalltalk': case 'reset_topic':
@@ -216,7 +132,10 @@ function parseAct(raw: unknown): Act | null {
     case 'payment_link_request': case 'shipping_change': case 'human_request': case 'other':
       return { type }
     case 'product_search': {
-      const terms = strings(item.terms, 6, 40)
+      // The search words belong in `terms`; a model that wrote them in
+      // `query` still named what the customer is looking for.
+      const listed = strings(item.terms, 6, 40)
+      const terms = listed.length ? listed : strings(typeof item.query === 'string' ? [item.query] : [], 1, 40)
       const attrs = attributes(item.attributes)
       const code = str(item.code, 24)
       const display = oneOf(item.display, ['showcase', 'consult', 'browse'] as const) ?? 'consult'
@@ -272,7 +191,8 @@ function parseAct(raw: unknown): Act | null {
       return { type, items }
     }
     case 'cart_edit': {
-      const ops = cartOps(item.ops)
+      const listed = cartOps(item.ops)
+      const ops = listed.length ? listed : flatCartOp(item)
       return ops.length ? { type, ops } : null
     }
     case 'order_details': {
@@ -327,9 +247,15 @@ export function parseUnderstanding(raw: unknown): TurnUnderstanding | null {
   const value = typeof raw === 'string' ? (() => { try { return JSON.parse(raw) as unknown } catch { return null } })() : raw
   const root = rec(value)
   if (!root) return null
-  const rawActs = Array.isArray(root.acts) ? root.acts : []
-  const acts = rawActs.slice(0, 4).map(parseAct).filter((act): act is Act => act !== null)
-  if (!acts.length) return null
+  if (!Array.isArray(root.acts)) return null
+  const parsedActs = root.acts.slice(0, 4).map(parseAct).filter((act): act is Act => act !== null)
+  // An empty list inside an otherwise complete reading is a reading too
+  // («nothing to act on»: a prompt injection, a remark). Acts that were
+  // written but unusable, or a bare `{"acts":[]}`, are not: the caller falls
+  // back rather than treat a garbled answer as «nothing».
+  const complete = oneOf(root.relation, RELATIONS) !== undefined && rec(root.customer) !== null
+  if (!parsedActs.length && (root.acts.length > 0 || !complete)) return null
+  const acts: Act[] = parsedActs.length ? parsedActs : [{ type: 'other' }]
   const customer = rec(root.customer) ?? {}
   const buy = int(customer.buy, 0, 3) ?? 0
   const cues = strings(customer.cues, 6, 20).filter((cue): cue is TurnCue => (TURN_CUES as readonly string[]).includes(cue))

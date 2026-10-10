@@ -128,6 +128,7 @@ export interface AuxCompletionParams {
   model?: string
   tools?: ChatTool[]
   toolChoice?: ChatOptions['toolChoice']
+  responseFormat?: ChatOptions['responseFormat']
   temperature?: number
   maxTokens?: number
   timeoutMs?: number
@@ -165,6 +166,7 @@ export async function auxCompletion(params: AuxCompletionParams): Promise<AuxCom
       maxTokens: params.maxTokens ?? 300,
       tools: params.tools,
       toolChoice: params.toolChoice,
+      responseFormat: params.responseFormat,
       timeoutMs: params.timeoutMs,
       retries: params.retries,
     })
