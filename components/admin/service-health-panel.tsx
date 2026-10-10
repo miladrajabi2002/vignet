@@ -18,6 +18,7 @@ import { formatLocalizedDateTime } from '@/lib/localized-date'
 
 type HealthState = 'healthy' | 'warning' | 'down' | 'unconfigured'
 type Service = { state: HealthState; latencyMs: number | null; detail: string; creditsRemainingUSD?: number | null; usageMonthlyUSD?: number | null }
+type RelayEvent = { at: number; host: string; path: string; method: string; trigger: 'fallback' | 'routed'; ok: boolean; status: number | null; latencyMs: number; error: string | null }
 type FailedJobLog = { id: string; name: string; failedReason: string; stacktrace: string[]; data: unknown; timestamp: number; processedOn: number | null; finishedOn: number | null; attemptsMade: number }
 type HealthPayload = {
   sampledAt: number
@@ -25,6 +26,7 @@ type HealthPayload = {
   queueMode: 'inline' | 'queue'
   queues: Array<{ name: string; waiting: number; active: number; delayed: number; failed: number; completed: number; failedJobs: FailedJobLog[] }>
   queueSummary: { failed: number; backlog: number }
+  relayEvents?: RelayEvent[]
   channels: Array<{ type: string; active: boolean; count: number; lastInboundAt: string | null }>
   attention: string[]
 }
@@ -45,6 +47,37 @@ const QUEUE_LABELS: Record<string, string> = {
   notifications: 'اعلان‌ها',
   'inbound-message': 'پیام‌های ورودی',
   campaigns: 'کمپین‌ها',
+  'woo-webhook': 'وب‌هوک ووکامرس',
+  'agent-improvement': 'بهبود ایجنت',
+}
+
+const RELAY_TRIGGER_LABELS: Record<RelayEvent['trigger'], string> = {
+  fallback: 'پشتیبان پس از خطای اتصال مستقیم',
+  routed: 'مستقیم از مسیر رله',
+}
+
+// How many relayed requests stay visible before the «older» disclosure.
+const RELAY_VISIBLE_EVENTS = 5
+
+const ms = (value: number) => `${value.toLocaleString('fa-IR')} میلی‌ثانیه`
+
+function RelayEventRow({ event }: { event: RelayEvent }) {
+  // The relay answering is the health signal; the target's own 4xx/5xx is only a warning.
+  const chip = !event.ok ? 'ui-chip-danger' : event.status !== null && event.status >= 400 ? 'ui-chip-warn' : 'ui-chip-ok'
+  return (
+    <li className="flex items-start gap-3 py-2.5">
+      <span aria-hidden className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', event.ok ? 'bg-emerald-500' : 'bg-red-500')} />
+      <div className="min-w-0 flex-1">
+        <p dir="ltr" className="truncate text-right text-[13px] font-medium text-[var(--text-primary)]">{event.method} {event.host}{event.path}</p>
+        <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)]">{RELAY_TRIGGER_LABELS[event.trigger] ?? event.trigger} · {formatLocalizedDateTime(event.at, 'fa')}</p>
+        {event.error && <p dir="auto" className="mt-0.5 text-[12px] leading-5 text-[var(--danger-ink)] [overflow-wrap:anywhere]">{event.error}</p>}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className={cn('ui-chip', chip)}>{event.ok ? <span dir="ltr">HTTP {event.status}</span> : 'بی‌پاسخ'}</span>
+        <span className="text-[12px] tabular-nums text-[var(--text-muted)]">{ms(event.latencyMs)}</span>
+      </div>
+    </li>
+  )
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -101,12 +134,16 @@ export function ServiceHealthPanel() {
     ...(data.services.iranRelay ? [{ key: 'iran-relay', label: 'رله ایران', icon: Globe2, value: data.services.iranRelay }] : []),
   ] : []
 
+  const relay = data?.services.iranRelay
+  const relayEvents = data?.relayEvents ?? []
+  const relayFailed = relayEvents.filter((event) => !event.ok).length
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="ui-h3">نقشه سلامت سرویس‌ها</h2>
-          <p className="ui-caption">پروب زنده دیتابیس، Redis، صف‌ها، فضای ذخیره‌سازی و Provider</p>
+          <p className="ui-caption">پروب زنده دیتابیس، Redis، صف‌ها، فضای ذخیره‌سازی، Provider و رله ایران</p>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={loading} className="admin-toolbar-button">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -116,19 +153,19 @@ export function ServiceHealthPanel() {
 
       {offline && <p role="alert" className="rounded-control border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-[var(--danger-ink)]">گزارش سلامت دریافت نشد. اتصال یا نشست ادمین را بررسی کنید.</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
+      <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
         {services.map(({ key, label, icon: Icon, value }) => {
           const meta = STATE_META[value.state]
           return (
-            <article key={key} className={cn('spatial-surface rounded-card p-4', meta.panel)}>
-              <div className="flex items-start justify-between gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)]"><Icon className="h-4 w-4" /></span>
-                <span className={cn('ui-chip', meta.chip)}><span aria-hidden className="ui-chip-dot" />{meta.label}</span>
-              </div>
-              <h3 className="ui-h3 mt-3 !text-[13px]">{label}</h3>
-              <p className="mt-1 min-h-9 text-[12px] leading-5 text-[var(--text-muted)]">{value.detail}</p>
-              <div className="mt-3 flex items-center justify-between gap-2 text-[12px] text-[var(--text-muted)]">
-                <span>{value.latencyMs === null ? '—' : `${value.latencyMs.toLocaleString('fa-IR')} میلی‌ثانیه`}</span>
+            // A compact row on phones (five tall tiles pushed everything else
+            // off-screen); from sm up the same cells reflow into a tile.
+            <article key={key} className={cn('spatial-surface grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 rounded-card p-3.5 sm:grid-cols-[auto_minmax(0,1fr)] sm:p-4', meta.panel)}>
+              <span className="row-span-2 grid h-9 w-9 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)] sm:row-span-1"><Icon className="h-4 w-4" /></span>
+              <h3 className="ui-h3 !text-[13px] sm:order-3 sm:col-span-2 sm:mt-3">{label}</h3>
+              <span className={cn('ui-chip sm:order-2 sm:justify-self-end', meta.chip)}><span aria-hidden className="ui-chip-dot" />{meta.label}</span>
+              <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)] [overflow-wrap:anywhere] sm:order-4 sm:col-span-2 sm:mt-1 sm:min-h-10">{value.detail}</p>
+              <div className="mt-0.5 flex flex-col items-end gap-0.5 text-[12px] tabular-nums text-[var(--text-muted)] sm:order-5 sm:col-span-2 sm:mt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                <span>{value.latencyMs === null ? '—' : ms(value.latencyMs)}</span>
                 {typeof value.creditsRemainingUSD === 'number' && <span>${value.creditsRemainingUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })} اعتبار</span>}
               </div>
             </article>
@@ -168,6 +205,45 @@ export function ServiceHealthPanel() {
               </tbody>
             </table>
           </div>
+          {relay && (
+            <div className="border-t border-[var(--border-subtle)] p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)]"><Globe2 className="h-4 w-4" /></span>
+                <div className="min-w-0 flex-1 basis-[11rem]">
+                  <h4 className="text-[13px] font-bold text-[var(--text-primary)]">پردازش‌های رله ایران</h4>
+                  <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)] [overflow-wrap:anywhere]">{relay.detail}</p>
+                </div>
+                <span className={cn('ui-chip shrink-0', STATE_META[relay.state].chip)}>
+                  <span aria-hidden className="ui-chip-dot" />
+                  {relay.state === 'healthy' ? 'پینگ پاسخ داد' : relay.state === 'down' ? 'پینگ بی‌پاسخ' : STATE_META[relay.state].label}
+                  {relay.latencyMs !== null && <span className="tabular-nums"> · {ms(relay.latencyMs)}</span>}
+                </span>
+              </div>
+              {relayEvents.length > 0 ? (
+                <>
+                  <p className="mt-3 text-[12px] text-[var(--text-muted)]">
+                    از {relayEvents.length.toLocaleString('fa-IR')} درخواست اخیر:{' '}
+                    <span className="font-bold text-[var(--ok-ink)]">{(relayEvents.length - relayFailed).toLocaleString('fa-IR')} پاسخ‌گرفته</span>
+                    {' · '}
+                    <span className={cn('font-bold', relayFailed > 0 ? 'text-[var(--danger-ink)]' : 'text-[var(--text-secondary)]')}>{relayFailed.toLocaleString('fa-IR')} بی‌پاسخ</span>
+                  </p>
+                  <ul className="mt-1 divide-y divide-[var(--border-subtle)]">
+                    {relayEvents.slice(0, RELAY_VISIBLE_EVENTS).map((event, index) => <RelayEventRow key={`${event.at}-${index}`} event={event} />)}
+                  </ul>
+                  {relayEvents.length > RELAY_VISIBLE_EVENTS && (
+                    <details className="border-t border-[var(--border-subtle)]">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center text-[12px] font-medium text-[var(--text-secondary)] [&::-webkit-details-marker]:hidden">{(relayEvents.length - RELAY_VISIBLE_EVENTS).toLocaleString('fa-IR')} درخواست قدیمی‌تر</summary>
+                      <ul className="divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+                        {relayEvents.slice(RELAY_VISIBLE_EVENTS).map((event, index) => <RelayEventRow key={`${event.at}-${index}`} event={event} />)}
+                      </ul>
+                    </details>
+                  )}
+                </>
+              ) : relay.state !== 'unconfigured' && (
+                <p className="mt-3 rounded-control bg-[var(--bg-surface)] px-3 py-2.5 text-[12px] leading-6 text-[var(--text-muted)]">هنوز درخواستی از مسیر رله ثبت نشده است. در حالت «پشتیبان» فقط وقتی اتصال مستقیم به یک سایت شکست بخورد، درخواست از رله عبور می‌کند و همین‌جا دیده می‌شود.</p>
+              )}
+            </div>
+          )}
           <div className="space-y-2 border-t border-[var(--border-subtle)] p-3 sm:p-4">
             {(data?.queues ?? []).filter((queue) => queue.failedJobs.length > 0).map((queue) => (
               <details key={`logs-${queue.name}`} className="group overflow-hidden rounded-control border border-red-200 bg-red-50/60">

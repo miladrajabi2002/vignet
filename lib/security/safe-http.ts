@@ -3,6 +3,7 @@ import http from 'node:http'
 import https from 'node:https'
 import net from 'node:net'
 import {
+  type IranRelayTrigger,
   canRelayAfterFailure,
   isRelayableNetworkError,
   markRelayHost,
@@ -222,7 +223,7 @@ async function hop(
     await resolvePublicAddress(hostname).catch((error) => {
       if (error instanceof UnsafeHttpTargetError) throw error
     })
-    return relayHop(url, options, method, requestBody)
+    return relayHop(url, options, method, requestBody, 'routed')
   }
   try {
     return await directHop(url, options, method, requestBody)
@@ -235,7 +236,7 @@ async function hop(
       throw error
     }
     try {
-      const relayed = await relayHop(url, options, method, requestBody)
+      const relayed = await relayHop(url, options, method, requestBody, 'fallback')
       markRelayHost(hostname)
       console.warn(`[safe-http] ${hostname} unreachable directly (${(error as Error).message}) — served via Iran relay`)
       return relayed
@@ -250,7 +251,8 @@ async function relayHop(
   url: URL,
   options: SafeHttpOptions,
   method: 'GET' | 'POST',
-  requestBody?: Buffer,
+  requestBody: Buffer | undefined,
+  trigger: IranRelayTrigger,
 ): Promise<SafeHttpResponse> {
   const headers = requestHeaders(options, requestBody)
   delete headers['Content-Length']
@@ -261,6 +263,7 @@ async function relayHop(
     body: requestBody,
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxBytes: options.maxBytes ?? DEFAULT_MAX_BYTES,
+    trigger,
   })
 }
 

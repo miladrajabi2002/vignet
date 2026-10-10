@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { QUEUE_NAMES, isQueueDisabled } from '@/lib/queue/connection'
 import { getBucket, getS3Client, isS3Configured } from '@/lib/storage/s3'
-import { iranRelayHealth } from '@/lib/security/iran-relay'
+import { iranRelayActivity, iranRelayHealth } from '@/lib/security/iran-relay'
 
 export const dynamic = 'force-dynamic'
 
@@ -172,12 +172,13 @@ export async function GET() {
   const visibleErrorWhere = hiddenWorkspaceIds.length
     ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
     : {}
-  const [database, redisQueues, storage, openRouter, iranRelay, channels, errorCount, failedPayments] = await Promise.all([
+  const [database, redisQueues, storage, openRouter, iranRelay, relayEvents, channels, errorCount, failedPayments] = await Promise.all([
     databaseHealth(),
     redisAndQueuesHealth(),
     storageHealth(),
     openRouterHealth(),
     iranRelayHealth(),
+    timed(iranRelayActivity(30), 2_000).catch(() => []),
     prisma.agentChannel.groupBy({
       by: ['type', 'active'],
       where: { agent: ADMIN_VISIBLE_RELATED_WHERE },
@@ -207,6 +208,7 @@ export async function GET() {
     queueMode: redisQueues.queueMode,
     queues: redisQueues.queues,
     queueSummary: { failed: queueFailed, backlog: queueBacklog },
+    relayEvents,
     channels: channels.map((row) => ({ type: row.type, active: row.active, count: row._count._all, lastInboundAt: row._max.lastInboundAt })),
     attention,
   })

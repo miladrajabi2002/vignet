@@ -22,11 +22,16 @@ export function AdminUsersSearchForm({
   placeholder,
   ariaLabel,
   basePath = '/admin/users',
+  queryParam = 'q',
+  pageParam = 'page',
 }: {
   defaultQuery: string
   placeholder: string
   ariaLabel: string
   basePath?: string
+  /** For pages that host more than one list and namespace their params. */
+  queryParam?: string
+  pageParam?: string
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -39,9 +44,9 @@ export function AdminUsersSearchForm({
     if (trimmed === defaultQuery.trim()) return
     const timer = window.setTimeout(() => {
       const sp = new URLSearchParams(searchParams.toString())
-      if (trimmed) sp.set('q', trimmed)
-      else sp.delete('q')
-      sp.delete('page')
+      if (trimmed) sp.set(queryParam, trimmed)
+      else sp.delete(queryParam)
+      sp.delete(pageParam)
       const url = sp.toString()
       markSearchSent(trimmed)
       startSearchTransition(() => {
@@ -51,7 +56,7 @@ export function AdminUsersSearchForm({
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, defaultQuery, searchParams, router, basePath, markSearchSent])
+  }, [searchInput, defaultQuery, searchParams, router, basePath, queryParam, pageParam, markSearchSent])
 
   return (
     <form
@@ -67,7 +72,7 @@ export function AdminUsersSearchForm({
       )}
       <input
         type="search"
-        name="q"
+        name={queryParam}
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
         placeholder={placeholder}

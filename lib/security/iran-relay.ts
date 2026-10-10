@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto'
 import type http from 'node:http'
+import { getRedis } from '@/lib/redis'
 
 /**
  * Client for the Iran relay (deploy/iran-relay/relay.php).
@@ -26,8 +27,28 @@ export interface RelayResponse {
   url: string
 }
 
+/** Why a request went through the relay instead of straight to the host. */
+export type IranRelayTrigger = 'fallback' | 'routed'
+
+/** One relayed request, as shown on the admin system page. */
+export interface IranRelayEvent {
+  at: number
+  host: string
+  path: string
+  method: 'GET' | 'POST'
+  trigger: IranRelayTrigger
+  /** The relay answered (whatever the target's HTTP status was). */
+  ok: boolean
+  status: number | null
+  latencyMs: number
+  error: string | null
+}
+
 const STICKY_MS = 30 * 60 * 1000
 const RELAY_OVERHEAD_MS = 5_000
+const ACTIVITY_KEY = 'iran-relay:activity'
+const ACTIVITY_MAX = 50
+const ACTIVITY_TTL_SECONDS = 7 * 24 * 60 * 60
 const stickyHosts = new Map<string, number>()
 
 interface RelayConfig {
@@ -148,9 +169,51 @@ async function callRelay(
   }
   if (!res.ok || json.ok !== true) {
     const reason = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-    throw new Error(`IRAN_RELAY_${reason.toUpperCase().replace(/^RELAY_/, '')}`)
+    throw Object.assign(new Error(`IRAN_RELAY_${reason.toUpperCase().replace(/^RELAY_/, '')}`), {
+      detail: typeof json.detail === 'string' ? json.detail : undefined,
+    })
   }
   return json
+}
+
+/**
+ * Keep the last relayed requests in Redis so the admin system page can show
+ * whether the relay is actually answering. Web and worker both relay, hence
+ * Redis and not process memory. Best-effort: never delays or fails a request.
+ */
+function recordRelayEvent(event: IranRelayEvent): void {
+  if (!process.env.REDIS_URL) return
+  try {
+    void getRedis()
+      .multi()
+      .lpush(ACTIVITY_KEY, JSON.stringify(event))
+      .ltrim(ACTIVITY_KEY, 0, ACTIVITY_MAX - 1)
+      .expire(ACTIVITY_KEY, ACTIVITY_TTL_SECONDS)
+      .exec()
+      .catch(() => undefined)
+  } catch {
+    // Redis unavailable — the activity list is diagnostics only.
+  }
+}
+
+function describeRelayError(error: unknown): string {
+  const { name, message = '', detail } = (error ?? {}) as { name?: string; message?: string; detail?: string }
+  if (name === 'TimeoutError' || name === 'AbortError') return 'رله در مهلت تعیین‌شده پاسخ نداد'
+  const hint = RELAY_ERROR_HINTS[message] ?? message
+  return (detail ? `${hint} (${detail})` : hint).slice(0, 200)
+}
+
+/** Most recent relayed requests, newest first. */
+export async function iranRelayActivity(limit = ACTIVITY_MAX): Promise<IranRelayEvent[]> {
+  if (!process.env.REDIS_URL) return []
+  const rows = await getRedis().lrange(ACTIVITY_KEY, 0, Math.max(0, limit - 1))
+  return rows.flatMap((row) => {
+    try {
+      return [JSON.parse(row) as IranRelayEvent]
+    } catch {
+      return []
+    }
+  })
 }
 
 /** Perform one HTTP hop (no redirect following) through the relay. */
@@ -161,21 +224,39 @@ export async function relayHttpRequest(args: {
   body?: Buffer
   timeoutMs: number
   maxBytes: number
+  trigger?: IranRelayTrigger
 }): Promise<RelayResponse> {
   const config = relayConfig()
   if (!config || config.mode === 'off') throw new Error('IRAN_RELAY_NOT_CONFIGURED')
-  const json = await callRelay(
-    config,
-    {
-      method: args.method,
-      url: args.url,
-      headers: args.headers,
-      body: args.body ? args.body.toString('base64') : null,
-      timeoutMs: args.timeoutMs,
-      maxBytes: args.maxBytes,
-    },
-    args.timeoutMs + RELAY_OVERHEAD_MS,
-  )
+  const started = Date.now()
+  // Host and path only: query strings can carry shop API keys.
+  const target = new URL(args.url)
+  const event = {
+    at: started,
+    host: target.hostname,
+    path: target.pathname.slice(0, 120),
+    method: args.method,
+    trigger: args.trigger ?? 'routed',
+  }
+  let json: Record<string, unknown>
+  try {
+    json = await callRelay(
+      config,
+      {
+        method: args.method,
+        url: args.url,
+        headers: args.headers,
+        body: args.body ? args.body.toString('base64') : null,
+        timeoutMs: args.timeoutMs,
+        maxBytes: args.maxBytes,
+      },
+      args.timeoutMs + RELAY_OVERHEAD_MS,
+    )
+  } catch (error) {
+    recordRelayEvent({ ...event, ok: false, status: null, latencyMs: Date.now() - started, error: describeRelayError(error) })
+    throw error
+  }
+  recordRelayEvent({ ...event, ok: true, status: Number(json.status) || 0, latencyMs: Date.now() - started, error: null })
   const body = Buffer.from(typeof json.body === 'string' ? json.body : '', 'base64')
   if (body.byteLength > args.maxBytes) throw new Error('HTTP_RESPONSE_TOO_LARGE')
   const headers = (json.headers && typeof json.headers === 'object' ? json.headers : {}) as http.IncomingHttpHeaders
@@ -198,6 +279,9 @@ const RELAY_ERROR_HINTS: Record<string, string> = {
   IRAN_RELAY_NOT_CONFIGURED: 'RELAY_SECRET داخل فایل روی هاست ایران هنوز مقدار پیش‌فرض است',
   IRAN_RELAY_BAD_SIGNATURE: 'RELAY_SECRET روی هاست با IRAN_RELAY_SECRET سرور یکی نیست',
   IRAN_RELAY_STALE_REQUEST: 'ساعت هاست ایران با سرور بیش از ۵ دقیقه اختلاف دارد',
+  IRAN_RELAY_UPSTREAM_UNREACHABLE: 'هاست ایران نتوانست به سایت مقصد وصل شود',
+  IRAN_RELAY_DNS_FAILED: 'هاست ایران دامنه مقصد را پیدا نکرد',
+  IRAN_RELAY_HOST_NOT_ALLOWED: 'دامنه مقصد در فهرست مجاز رله نیست',
 }
 
 /** Signed PING — proves the relay is reachable and shares our secret. */

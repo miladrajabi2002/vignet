@@ -11,6 +11,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   lookup: vi.fn(),
   httpsRequest: vi.fn(),
+  // In-memory stand-in for the Redis list behind the admin activity panel.
+  activity: [] as string[],
+}))
+
+vi.mock('@/lib/redis', () => ({
+  getRedis: () => ({
+    multi() {
+      const chain = {
+        lpush: (_key: string, value: string) => (mocks.activity.unshift(value), chain),
+        ltrim: (_key: string, start: number, stop: number) => (mocks.activity.splice(stop + 1), chain),
+        expire: () => chain,
+        exec: async () => [],
+      }
+      return chain
+    },
+    lrange: async (_key: string, start: number, stop: number) => mocks.activity.slice(start, stop + 1),
+  }),
 }))
 
 vi.mock('node:dns/promises', () => ({ default: { lookup: mocks.lookup } }))
@@ -53,6 +70,8 @@ beforeEach(() => {
   process.env.IRAN_RELAY_SECRET = SECRET
   delete process.env.IRAN_RELAY_MODE
   delete process.env.IRAN_RELAY_HOSTS
+  delete process.env.REDIS_URL
+  mocks.activity.length = 0
 })
 
 afterEach(() => {
@@ -117,6 +136,36 @@ describe('safeHttpGet with the Iran relay', () => {
 
     await expect(safeHttpGet('https://intranet.ir/')).rejects.toThrow('UNSAFE_HTTP_TARGET')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('logs relayed requests for the admin panel without the query string', async () => {
+    process.env.REDIS_URL = 'redis://test'
+    connectionReset()
+    fetchMock
+      .mockImplementationOnce(async () => relayReply('ok-bytes'))
+      .mockImplementationOnce(async () =>
+        new Response(JSON.stringify({ ok: false, error: 'upstream_unreachable', detail: 'Connection timed out' }), { status: 502 }),
+      )
+    const { safeHttpGet } = await import('@/lib/security/safe-http')
+    const { iranRelayActivity } = await import('@/lib/security/iran-relay')
+
+    await safeHttpGet('https://shop.example.com/wp-json/wc/v3/products?consumer_secret=cs_hidden')
+    // Now sticky: goes straight to the relay, which fails to reach the shop.
+    await expect(safeHttpGet('https://shop.example.com/b.jpg')).rejects.toThrow('IRAN_RELAY_UPSTREAM_UNREACHABLE')
+
+    const [failed, answered] = await iranRelayActivity()
+    expect(answered).toMatchObject({
+      host: 'shop.example.com',
+      path: '/wp-json/wc/v3/products',
+      method: 'GET',
+      trigger: 'fallback',
+      ok: true,
+      status: 200,
+      error: null,
+    })
+    expect(failed).toMatchObject({ path: '/b.jpg', trigger: 'routed', ok: false, status: null })
+    expect(failed.error).toContain('Connection timed out')
+    expect(JSON.stringify(mocks.activity)).not.toContain('cs_hidden')
   })
 
   it('reports an unconfigured relay to the admin health card', async () => {
