@@ -41,7 +41,7 @@ export default async function OnboardingPage() {
       businessType={workspace.businessType}
       businessProfile={businessProfile}
       agentTemplate={pack?.agentTemplate}
-      agentPreset={{ name: preset.name, welcomeMessage: preset.welcomeMessage }}
+      agentPreset={{ name: preset.name, welcomeMessage: preset.welcomeMessage, requireCustomerInfo: preset.requireCustomerInfo }}
     />
   )
 }

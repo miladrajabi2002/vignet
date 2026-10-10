@@ -29,6 +29,8 @@ import {
 import { cn } from '@/lib/utils'
 import { CapabilityOptions } from '@/components/onboarding/capability-options'
 import { GoalPicker } from '@/components/agents/goal-picker'
+import { Switch } from '@/components/ui/switch'
+import { StoreAccessPrompt } from '@/components/agents/store-access-prompt'
 import { getBusinessGoals } from '@/lib/ai/prompt-builder'
 import { WooConnectWizard } from '@/components/onboarding/woo-connect-wizard'
 import { ChannelMark, type ChannelKey } from '@/components/ui/channel-mark'
@@ -104,8 +106,8 @@ interface Props {
   businessType: string | null
   businessProfile: BusinessProfile | null
   agentTemplate?: string
-  /** Name and greeting the recommended template would give the agent. */
-  agentPreset: { name: string; welcomeMessage: string }
+  /** Name, greeting and pre-chat form default the recommended template would give the agent. */
+  agentPreset: { name: string; welcomeMessage: string; requireCustomerInfo: boolean }
 }
 
 export function OnboardingFlow({
@@ -601,7 +603,7 @@ function AgentStep({
   done: boolean
   businessType: string | null
   businessLabel: string
-  preset: { name: string; welcomeMessage: string }
+  preset: { name: string; welcomeMessage: string; requireCustomerInfo: boolean }
   website?: string
   customHref: string
   onBack: () => void
@@ -612,6 +614,10 @@ function AgentStep({
   const [name, setName] = useState(preset.name)
   const [welcome, setWelcome] = useState(preset.welcomeMessage)
   const [formality, setFormality] = useState<Formality>('casual')
+  const [requireCustomerInfo, setRequireCustomerInfo] = useState(preset.requireCustomerInfo)
+  const [handoffEnabled, setHandoffEnabled] = useState(true)
+  // Billed per analysed photo, so it stays off unless the owner asks for it.
+  const [imageInputEnabled, setImageInputEnabled] = useState(false)
   const goalOptions = getBusinessGoals(businessType)
   const [goals, setGoals] = useState<string[]>(() => goalOptions.map((goal) => goal.key))
   const [creating, setCreating] = useState(false)
@@ -629,7 +635,7 @@ function AgentStep({
       const response = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ setupMode: 'recommended', name: name.trim(), welcomeMessage: welcome.trim(), formality, goals }),
+        body: JSON.stringify({ setupMode: 'recommended', name: name.trim(), welcomeMessage: welcome.trim(), formality, goals, requireCustomerInfo, handoffEnabled, imageInputEnabled }),
       })
       if (!response.ok) throw new Error('CREATE_FAILED')
       const data = await response.json().catch(() => null)
@@ -717,6 +723,32 @@ function AgentStep({
             className="input min-h-[5.5rem] py-2.5 text-[15px] leading-7"
           />
 
+          {/* Agent-wide switches the template would otherwise decide silently. */}
+          <span className="ui-field-label mt-4">{fa ? 'در گفتگو با مشتری' : 'In customer conversations'}</span>
+          <div className="divide-y divide-[var(--border-subtle)] rounded-2xl border border-[var(--border-default)] bg-white">
+            <div className="flex items-center justify-between gap-4 px-3.5 py-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{fa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'}</p>
+                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'در ویجت سایت و لینک چت؛ مخاطب مستقیم در CRM ثبت می‌شود.' : 'On the website widget and chat link; the contact is saved to your CRM.'}</p>
+              </div>
+              <Switch checked={requireCustomerInfo} onChange={setRequireCustomerInfo} aria-label={fa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'} />
+            </div>
+            <div className="flex items-center justify-between gap-4 px-3.5 py-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{fa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'}</p>
+                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'برای شکایت، درخواست مستقیم و موارد حساس.' : 'For complaints, direct requests and sensitive cases.'}</p>
+              </div>
+              <Switch checked={handoffEnabled} onChange={setHandoffEnabled} aria-label={fa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'} />
+            </div>
+            <div className="flex items-center justify-between gap-4 px-3.5 py-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{fa ? 'دیدن عکس‌های مشتری' : 'Read customer photos'}</p>
+                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'ایجنت محتوای عکس را می‌بیند و جواب می‌دهد؛ هزینهٔ هر عکس از اعتبار کم می‌شود.' : 'The agent sees the photo and answers; each photo is charged to your credit.'}</p>
+              </div>
+              <Switch checked={imageInputEnabled} onChange={setImageInputEnabled} aria-label={fa ? 'دیدن عکس‌های مشتری' : 'Read customer photos'} />
+            </div>
+          </div>
+
           <a href={customHref} className="mt-4 inline-flex min-h-11 items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--text-primary)] hover:underline">
             <SlidersHorizontal className="h-4 w-4" />
             {fa ? 'تنظیمات بیشتر: نقش، قوانین و تحویل به اپراتور' : 'More settings: role, rules and operator handoff'}
@@ -770,7 +802,7 @@ function AgentStep({
 }
 
 // ─── Step 3: Give the agent something to answer from ────────────
-type KnowledgePanel = 'woo' | 'products' | 'text' | null
+type KnowledgePanel = 'woo' | 'access' | 'products' | 'text' | null
 
 function OptionRow({
   icon: Icon,
@@ -908,13 +940,23 @@ function KnowledgeStep({
     return (
       <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-start">
         <WooConnectWizard
-          onConnected={() => {
-            setPanel(null)
-            if (onWooConnected) onWooConnected()
-            else onContinue()
-          }}
+          onConnected={() => setPanel('access')}
           onDismiss={() => setPanel(null)}
         />
+      </motion.div>
+    )
+  }
+
+  // The store is connected: ask what the agent may do with it before moving on.
+  if (panel === 'access') {
+    const proceed = () => {
+      setPanel(null)
+      if (onWooConnected) onWooConnected()
+      else onContinue()
+    }
+    return (
+      <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-start">
+        <StoreAccessPrompt onDone={proceed} onSkip={proceed} />
       </motion.div>
     )
   }

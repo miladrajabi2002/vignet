@@ -66,9 +66,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'WORKSPACE_NOT_FOUND' }, { status: 404 })
     }
     const profile = readBusinessProfile(workspace.businessProfile)
-    // The setup screen lets the owner adjust the goals, name, greeting and
-    // tone before the agent is made; everything else stays as the template sets it.
-    const overrides = json as { name?: unknown; welcomeMessage?: unknown; formality?: unknown; goals?: unknown }
+    // The setup screen lets the owner adjust the goals, name, greeting, tone
+    // and the conversation switches (pre-chat name + number, operator handoff,
+    // reading photos) before the agent is made; everything else stays as the template sets it.
+    const overrides = json as {
+      name?: unknown
+      welcomeMessage?: unknown
+      formality?: unknown
+      goals?: unknown
+      requireCustomerInfo?: unknown
+      handoffEnabled?: unknown
+      imageInputEnabled?: unknown
+    }
     const goals = Array.isArray(overrides.goals)
       ? overrides.goals.filter((goal): goal is string => typeof goal === 'string').slice(0, 10)
       : null
@@ -86,6 +95,14 @@ export async function POST(req: Request) {
       ...preset,
       name,
       welcomeMessage,
+      requireCustomerInfo: typeof overrides.requireCustomerInfo === 'boolean'
+        ? overrides.requireCustomerInfo
+        : preset.requireCustomerInfo,
+      handoffEnabled: typeof overrides.handoffEnabled === 'boolean'
+        ? overrides.handoffEnabled
+        : preset.handoffEnabled,
+      // Billed per analysed image: on only when the owner asked for it.
+      imageInputEnabled: overrides.imageInputEnabled === true,
       promptConfig: formality
         ? { ...preset.promptConfig, conversation: { ...preset.promptConfig.conversation, formality } }
         : preset.promptConfig,

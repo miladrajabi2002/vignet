@@ -180,7 +180,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
         pollStoppedRef.current = true
         setPolling(false)
         setStep('success')
-        // Auto-advance to the next onboarding step after a short celebration.
+        // Auto-advance (to the store-access questions) after a short celebration.
         setTimeout(() => onConnectedRef.current(), 1800)
         return
       }

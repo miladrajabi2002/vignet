@@ -36,6 +36,14 @@ describe('simplified onboarding flow', () => {
     expect(flow).toContain("setupMode: 'recommended'")
     expect(flow).toContain('ساخت ایجنت و ادامه')
     expect(flow).toContain('تنظیمات بیشتر: نقش، قوانین و تحویل به اپراتور')
+    // The agent-wide switches are asked here, not decided silently by the template.
+    expect(flow).toContain('گرفتن نام و شماره پیش از گفتگو')
+    expect(flow).toContain('useState(preset.requireCustomerInfo)')
+    expect(flow).toContain('goals, requireCustomerInfo, handoffEnabled, imageInputEnabled }')
+    // A store connected during setup asks what the agent may do with it.
+    expect(flow).toContain("onConnected={() => setPanel('access')}")
+    expect(flow).toContain('<StoreAccessPrompt onDone={proceed} onSkip={proceed} />')
+    expect(read('app/api/agents/route.ts')).toContain("typeof overrides.requireCustomerInfo === 'boolean'")
     expect(flow).not.toContain('انتخاب و ساخت خودکار')
     expect(flow).toContain('href={customHref}')
     expect(wizard).toContain('const TOTAL = 2')

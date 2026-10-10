@@ -15,6 +15,8 @@ import {
         type StoreIntegrationItem,
 } from '@/components/integrations/store-integrations-section'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { StoreAccessPrompt } from '@/components/agents/store-access-prompt'
+import { loadStoreAccessChoice } from '@/lib/agents/store-access-choice'
 import type { PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan, type LimitedPlanResource } from '@/lib/billing/plans'
@@ -79,7 +81,8 @@ export default async function IntegrationsPage() {
                 },
         })
 
-        const [productCapacity, orderCapacity, customerCapacity, planDefs] = await Promise.all([
+        const [storeAccessChoice, productCapacity, orderCapacity, customerCapacity, planDefs] = await Promise.all([
+                loadStoreAccessChoice(user.workspaceId),
                 checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
                 checkWorkspaceResourceCreateAllowed(user.workspaceId, 'orders'),
                 checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers'),
@@ -149,6 +152,9 @@ export default async function IntegrationsPage() {
                                 title={t('title')}
                                 subtitle={t('subtitle')}
                         />
+
+                        {/* A connected store whose access the owner has not chosen yet. */}
+                        {storeAccessChoice.pending && <StoreAccessPrompt initial={storeAccessChoice} />}
 
                         <StoreIntegrationsSection
                                 integrations={storeIntegrations}
