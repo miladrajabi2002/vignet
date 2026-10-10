@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import {
 	Bookmark,
@@ -37,6 +37,13 @@ import type { HomeLocale } from './types'
 
 export type InstagramDemoMode = 'direct' | 'story' | 'comment'
 
+/** The store the demo plays as. The dashboard passes the connected account. */
+export type InstagramDemoAccount = { username: string; avatarUrl?: string }
+
+const DEMO_STORE = { name: 'Vigent Store', handle: 'vigent.store', initial: 'V', avatarUrl: undefined as string | undefined }
+
+const InstagramStoreContext = createContext(DEMO_STORE)
+
 const INSTAGRAM_SCENARIO_DELAYS: Record<InstagramDemoMode, readonly number[]> = {
 	direct: [650, 1600, 650, 1400, 2000, 1100, 650, 1400, 1400, 1700, 1100, 650, 1400, 4800],
 	story: [2000, 1600, 700, 1400, 1900, 1250, 650, 1400, 4800],
@@ -45,6 +52,7 @@ const INSTAGRAM_SCENARIO_DELAYS: Record<InstagramDemoMode, readonly number[]> = 
 
 function InstagramAutomationScreen({ locale, step }: { locale: HomeLocale; step: number }) {
 	const fa = locale === 'fa'
+	const store = useContext(InstagramStoreContext)
 	const liked = step >= 1
 	const commentText = fa ? 'لینک خرید این مدل رو می‌فرستین؟' : 'Can you send the checkout link for this one?'
 	const typedComment = useInstagramTypedText(commentText, step === 0)
@@ -52,13 +60,13 @@ function InstagramAutomationScreen({ locale, step }: { locale: HomeLocale; step:
 		<div className="flex h-full min-h-0 flex-col bg-white text-black" dir="ltr" style={{ paddingTop: pt(54) }}>
 			<div className="flex h-[52px] shrink-0 items-center border-b border-black/[0.08] px-2.5">
 				<InstagramIcon className="h-5 w-5" aria-hidden />
-				<p className="ms-2 text-[12px] font-semibold">vigent.store</p>
+				<p className="ms-2 min-w-0 truncate text-[12px] font-semibold">{store.handle}</p>
 				<span className="ms-auto grid h-10 w-10 place-items-center" aria-hidden><Info className="h-5 w-5" /></span>
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 				<div className="flex items-center gap-2.5 px-3 py-2">
-					<span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[9px] font-bold text-white">V</span>
-					<p className="text-[11.5px] font-semibold">vigent.store</p>
+					<span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[9px] font-bold text-white"><StoreFace /></span>
+					<p className="min-w-0 truncate text-[11.5px] font-semibold">{store.handle}</p>
 					<span className="ms-auto text-[15px] tracking-[2px]">•••</span>
 				</div>
 				<div className="relative grid aspect-square max-h-[250px] w-full place-items-center overflow-hidden bg-[radial-gradient(circle_at_30%_25%,#fff8e9_0%,#f5d5b8_40%,#c98b70_100%)]">
@@ -73,7 +81,7 @@ function InstagramAutomationScreen({ locale, step }: { locale: HomeLocale; step:
 					<Bookmark className="ms-auto h-[21px] w-[21px]" aria-hidden />
 				</div>
 				<p className="px-3 text-[10.5px] font-semibold">1,248 likes</p>
-				<p className="mt-1 px-3 text-[10.5px] leading-5"><span className="font-semibold">vigent.store</span> <bdi>{fa ? 'مانتو کتان در دو رنگ کرم و مشکی. برای لینک خرید کامنت بذار.' : 'Linen coat in cream and black. Comment for the checkout link.'}</bdi></p>
+				<p className="mt-1 px-3 text-[10.5px] leading-5"><span className="font-semibold">{store.handle}</span> <bdi>{fa ? 'مانتو کتان در دو رنگ کرم و مشکی. برای لینک خرید کامنت بذار.' : 'Linen coat in cream and black. Comment for the checkout link.'}</bdi></p>
 				<div className="mt-2 border-t border-black/[0.08] px-3 pt-2">
 					<AnimatePresence mode="wait" initial={false}>
 						{step === 0 ? (
@@ -102,7 +110,7 @@ function InstagramAutomationScreen({ locale, step }: { locale: HomeLocale; step:
 					<AnimatePresence initial={false}>
 						{step >= 2 ? (
 							<m.p initial={{ opacity: 0, transform: 'translateY(5px)' }} animate={{ opacity: 1, transform: 'translateY(0px)' }} transition={{ duration: 0.2, ease: EASE_OUT }} className="mt-1.5 text-[10.5px] leading-5 text-black/70">
-								<span className="font-semibold text-black">vigent.store</span> <bdi>{fa ? 'دایرکتت رو چک کن مریم جان 💌' : 'Check your DMs, Maryam 💌'}</bdi>
+								<span className="font-semibold text-black">{store.handle}</span> <bdi>{fa ? 'دایرکتت رو چک کن مریم جان 💌' : 'Check your DMs, Maryam 💌'}</bdi>
 							</m.p>
 						) : null}
 					</AnimatePresence>
@@ -137,7 +145,25 @@ function CoatArt({ tone = 'cream', className }: { tone?: 'cream' | 'black'; clas
 const STORE_AVATAR_BG = 'linear-gradient(135deg,#d8b48f,#8a6446)'
 
 function StoreAvatar({ size, ring }: { size: number; ring?: 'hairline' }) {
-	return <IgAvatar size={size} ring={ring} label="V" background={STORE_AVATAR_BG} />
+	const store = useContext(InstagramStoreContext)
+	return <IgAvatar size={size} ring={ring} src={store.avatarUrl} label={store.initial} background={STORE_AVATAR_BG} />
+}
+
+/** The store's picture for the hand-drawn avatar spots; its initial until (or unless) the picture loads. */
+function StoreFace() {
+	const store = useContext(InstagramStoreContext)
+	const [failedSrc, setFailedSrc] = useState<string | null>(null)
+	if (!store.avatarUrl || failedSrc === store.avatarUrl) return <>{store.initial}</>
+	return (
+		// eslint-disable-next-line @next/next/no-img-element
+		<img
+			src={store.avatarUrl}
+			alt=""
+			decoding="async"
+			onError={() => setFailedSrc(store.avatarUrl ?? null)}
+			className="block h-full w-full rounded-full object-cover"
+		/>
+	)
 }
 
 function InstagramTyping({ fa }: { fa: boolean }) {
@@ -261,6 +287,7 @@ function InstagramInlineProduct({ title, meta }: { title: string; meta: string }
 
 function InstagramStoryReplyCard({ locale }: { locale: HomeLocale }) {
 	const fa = locale === 'fa'
+	const store = useContext(InstagramStoreContext)
 	return (
 		<m.div
 			layout="position"
@@ -272,7 +299,7 @@ function InstagramStoryReplyCard({ locale }: { locale: HomeLocale }) {
 		>
 			<IgMeta>You replied to their story</IgMeta>
 			<div className="relative h-[112px] w-[70px] overflow-hidden rounded-control bg-[radial-gradient(circle_at_28%_16%,#f8dfc7_0%,#b9816d_42%,#4b3039_78%,#181018_100%)] text-white shadow-[0_8px_20px_rgba(0,0,0,0.14)] ring-1 ring-black/10">
-				<div className="absolute inset-x-1.5 top-1.5 flex items-center gap-1 text-[5.5px] font-semibold"><span className="grid h-2.5 w-2.5 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[4px]">V</span>vigent.store</div>
+				<div className="absolute inset-x-1.5 top-1.5 flex items-center gap-1 text-[5.5px] font-semibold"><span className="grid h-2.5 w-2.5 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[4px]"><StoreFace /></span><span className="min-w-0 truncate">{store.handle}</span></div>
 				<CoatArt className="absolute bottom-6 left-1/2 h-14 w-10 -translate-x-1/2 drop-shadow" />
 				<span className="absolute inset-x-1 bottom-1.5 rounded-full bg-black/55 px-1 py-0.5 text-center text-[5.5px] font-semibold">{fa ? 'مانتو کتان کرم' : 'Cream linen coat'}</span>
 			</div>
@@ -319,6 +346,7 @@ function InstagramProductCatalog({ locale, compact = false }: { locale: HomeLoca
 
 function InstagramStoryViewer({ locale, step }: { locale: HomeLocale; step: number }) {
 	const fa = locale === 'fa'
+	const store = useContext(InstagramStoreContext)
 	const storyReply = fa ? 'این رنگ کرمش هنوز موجوده؟' : 'Is this cream color still available?'
 	const typing = step === 1
 	const typedStoryReply = useInstagramTypedText(storyReply, typing)
@@ -332,10 +360,10 @@ function InstagramStoryViewer({ locale, step }: { locale: HomeLocale; step: numb
 					<span className="h-[2px] flex-1 rounded-full bg-white/35" />
 				</div>
 				<div className="mt-2 flex items-center gap-2">
-					<span className="grid h-8 w-8 place-items-center rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)' }}>
-						<span className="grid h-full w-full place-items-center rounded-full bg-[#1b1118] text-[9px] font-bold">V</span>
+					<span className="grid h-8 w-8 shrink-0 place-items-center rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)' }}>
+						<span className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#1b1118] text-[9px] font-bold"><StoreFace /></span>
 					</span>
-					<p className="text-[10.5px] font-semibold">vigent.store</p>
+					<p className="min-w-0 truncate text-[10.5px] font-semibold">{store.handle}</p>
 					<span className="text-[8px] text-white/65">2h</span>
 					<span className="ms-auto grid h-8 w-8 place-items-center text-[18px] tracking-[2px]" aria-hidden>•••</span>
 				</div>
@@ -465,6 +493,7 @@ function InstagramConversationScreen({ locale, mode, step }: { locale: HomeLocal
 				: null
 	const typedDraft = useInstagramTypedText(customerDraft?.text ?? null, Boolean(customerDraft))
 	const time = useIgClock()
+	const store = useContext(InstagramStoreContext)
 
 	return (
 		<IgDmScreen
@@ -472,7 +501,7 @@ function InstagramConversationScreen({ locale, mode, step }: { locale: HomeLocal
 			topInset={54}
 			live
 			header={{
-				name: 'Vigent Store',
+				name: store.name,
 				subtitle: 'Active now',
 				avatar: <StoreAvatar size={36} ring="hairline" />,
 			}}
@@ -563,10 +592,17 @@ function InstagramConversationScreen({ locale, mode, step }: { locale: HomeLocal
 /**
  * `only` pins the demo to one scenario and renders the phone alone (no
  * scenario picker) — the dashboard's empty Instagram tab replays the flow
- * that tab is about.
+ * that tab is about. `account` swaps the sample store for a real account's
+ * handle and profile picture.
  */
-export function InstagramMock({ locale, inverse = true, className, active = true, only }: { locale: HomeLocale; inverse?: boolean; className?: string; active?: boolean; only?: InstagramDemoMode }) {
+export function InstagramMock({ locale, inverse = true, className, active = true, only, account }: { locale: HomeLocale; inverse?: boolean; className?: string; active?: boolean; only?: InstagramDemoMode; account?: InstagramDemoAccount }) {
 	const fa = locale === 'fa'
+	const username = account?.username
+	const avatarUrl = account?.avatarUrl
+	const store = useMemo(
+		() => (username ? { name: username, handle: username, initial: username.charAt(0).toUpperCase(), avatarUrl } : DEMO_STORE),
+		[username, avatarUrl],
+	)
 	const reduce = useReducedMotion()
 	const firstMode = only ?? 'direct'
 	const [mode, setMode] = useState<InstagramDemoMode>(firstMode)
@@ -645,23 +681,25 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 	const tabLabel = fa ? 'سناریوهای اینستاگرام' : 'Instagram scenarios'
 
 	const phone = (
-		<IgPhone tone={showStoryViewer ? 'dark' : 'light'} className={only ? undefined : 'max-w-[260px] sm:max-w-[320px]'}>
-			<div className="relative min-h-0 flex-1 overflow-hidden">
-				<IgStatusBar tone={showStoryViewer ? 'dark' : 'light'} overlay />
-				<AnimatePresence mode="wait" initial={false}>
-					<m.div
-						key={showStoryViewer ? 'story-viewer' : showCommentFeed ? 'comment-feed' : `${mode}-conversation-${run}`}
-						initial={reduce ? false : { opacity: 0, transform: 'translateX(8px) scale(0.99)' }}
-						animate={{ opacity: 1, transform: 'translateX(0px) scale(1)' }}
-						exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-6px) scale(0.99)' }}
-						transition={{ duration: 0.22, ease: EASE_OUT }}
-						className="h-full"
-					>
-						{renderScenarioScreen()}
-					</m.div>
-				</AnimatePresence>
-			</div>
-		</IgPhone>
+		<InstagramStoreContext.Provider value={store}>
+			<IgPhone tone={showStoryViewer ? 'dark' : 'light'} className={only ? undefined : 'max-w-[260px] sm:max-w-[320px]'}>
+				<div className="relative min-h-0 flex-1 overflow-hidden">
+					<IgStatusBar tone={showStoryViewer ? 'dark' : 'light'} overlay />
+					<AnimatePresence mode="wait" initial={false}>
+						<m.div
+							key={showStoryViewer ? 'story-viewer' : showCommentFeed ? 'comment-feed' : `${mode}-conversation-${run}`}
+							initial={reduce ? false : { opacity: 0, transform: 'translateX(8px) scale(0.99)' }}
+							animate={{ opacity: 1, transform: 'translateX(0px) scale(1)' }}
+							exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-6px) scale(0.99)' }}
+							transition={{ duration: 0.22, ease: EASE_OUT }}
+							className="h-full"
+						>
+							{renderScenarioScreen()}
+						</m.div>
+					</AnimatePresence>
+				</div>
+			</IgPhone>
+		</InstagramStoreContext.Provider>
 	)
 
 	if (only) {

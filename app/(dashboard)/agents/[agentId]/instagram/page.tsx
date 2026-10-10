@@ -168,6 +168,7 @@ async function InstagramAutomationContent({
                 botUsername?: string
         }
         const accountUsername = cfg.botUsername ?? 'vigent.bot'
+        const accountAvatarUrl = `/api/agents/${agent.id}/channels/${igChannel.id}/avatar`
 
         const [rows, settingsRow] = await Promise.all([
                 prisma.instagramAutomation.findMany({
@@ -212,6 +213,7 @@ async function InstagramAutomationContent({
                         <InstagramAutomationManager
                                 agentId={agent.id}
                                 accountUsername={accountUsername}
+                                accountAvatarUrl={accountAvatarUrl}
                                 initialAutomations={automations}
                                 initialSettings={settings}
                                 initialTab={initialTab}

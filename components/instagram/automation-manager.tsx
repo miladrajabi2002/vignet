@@ -63,6 +63,7 @@ const TABS: TabDef[] = [
 export function InstagramAutomationManager({
         agentId,
         accountUsername,
+        accountAvatarUrl,
         initialAutomations,
         initialSettings,
         initialTab,
@@ -70,6 +71,7 @@ export function InstagramAutomationManager({
 }: {
         agentId: string
         accountUsername: string
+        accountAvatarUrl?: string
         initialAutomations: Automation[]
         initialSettings?: InstagramAutomationSettings
         /** Which family tab to open on mount (e.g. ?tab=STORY after saving
@@ -297,6 +299,8 @@ export function InstagramAutomationManager({
                                                 <EmptyState
                                                         type={activeTab}
                                                         text={t(currentTab.emptyKey)}
+                                                        accountUsername={accountUsername}
+                                                        accountAvatarUrl={accountAvatarUrl}
                                                         onCreate={() => router.push(newHref)}
                                                 />
                                         ) : (
@@ -515,7 +519,8 @@ function ChannelSettingsRail({
 // ── Empty state ─────────────────────────────────────────────────────────
 // The first-scenario moment is when "what does this do?" matters most, so
 // the empty tab plays that scenario type end to end on the Instagram phone
-// mockup: the customer writes, the store answers in the DM.
+// mockup: the customer writes, the store answers in the DM — as the
+// operator's own account (handle and profile picture), like the form preview.
 const EMPTY_DEMO: Record<AutomationType, { mode: InstagramDemoMode; fa: string; en: string }> = {
         DIRECT_MESSAGE: {
                 mode: 'direct',
@@ -537,10 +542,14 @@ const EMPTY_DEMO: Record<AutomationType, { mode: InstagramDemoMode; fa: string; 
 function EmptyState({
         type,
         text,
+        accountUsername,
+        accountAvatarUrl,
         onCreate,
 }: {
         type: AutomationType
         text: string
+        accountUsername: string
+        accountAvatarUrl?: string
         onCreate: () => void
 }) {
         const t = useTranslations('instagram')
@@ -568,6 +577,7 @@ function EmptyState({
                                 key={type}
                                 locale={fa ? 'fa' : 'en'}
                                 mode={demo.mode}
+                                account={{ username: accountUsername, avatarUrl: accountAvatarUrl }}
                                 label={fa ? demo.fa : demo.en}
                                 className="mx-auto w-[260px] max-w-full"
                         />
