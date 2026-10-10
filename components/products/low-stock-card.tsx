@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BellRing, Check, Loader2, PackageMinus, Pencil, X } from 'lucide-react'
+import { BellRing, PackageMinus, Pencil } from 'lucide-react'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { cn } from '@/lib/utils'
 
 function num(value: number, fa: boolean) {
@@ -13,7 +15,8 @@ function num(value: number, fa: boolean) {
 /**
  * Products page strip: how many tracked products are running low, and the
  * level that triggers the owner alert (panel + manager bot). The level is
- * edited in place; each product can still override it in its own form.
+ * edited in place and saved on leaving the field (or Enter; Escape takes the
+ * edit back); each product can still override it in its own form.
  */
 export function LowStockCard({
   fa,
@@ -32,24 +35,33 @@ export function LowStockCard({
   const [threshold, setThreshold] = useState(initialThreshold)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(initialThreshold))
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(false)
   const off = threshold === 0
 
-  async function save() {
-    const value = Math.max(0, Math.min(1000, Math.round(Number(draft.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))) || 0)))
-    setBusy(true)
-    setError(false)
-    const response = await fetch('/api/workspace/stock-alerts', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ threshold: value }),
-    }).catch(() => null)
-    setBusy(false)
-    if (!response?.ok) { setError(true); return }
+  const auto = useAutoSave({
+    value: threshold,
+    delay: 0,
+    save: async (value) => {
+      const response = await fetch('/api/workspace/stock-alerts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threshold: value }),
+      }).catch(() => null)
+      if (!response?.ok) throw new Error('SAVE_FAILED')
+      router.refresh()
+    },
+  })
+
+  // Escape closes the field without keeping the edit, whatever the blur that follows carries.
+  const discarded = useRef(false)
+
+  /** Leaving the field keeps what was typed; an empty or non-numeric field changes nothing. */
+  function commit() {
+    if (discarded.current) return
+    const digits = draft.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).trim()
+    const value = /^\d+$/.test(digits) ? Math.min(1000, Number(digits)) : threshold
     setThreshold(value)
+    setDraft(String(value))
     setEditing(false)
-    router.refresh()
   }
 
   return (
@@ -76,18 +88,17 @@ export function LowStockCard({
               inputMode="numeric"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Enter') void save() }}
+              onBlur={commit}
+              onFocus={(event) => event.currentTarget.select()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur()
+                if (event.key === 'Escape') { discarded.current = true; setDraft(String(threshold)); setEditing(false) }
+              }}
+              enterKeyHint="done"
               className="input h-9 min-h-9 w-20 text-center tabular-nums"
               autoFocus
             />
             <span>{fa ? 'عدد یا کمتر رسید خبرم کن (۰ = خاموش)' : 'units or fewer (0 = off)'}</span>
-            <button type="button" onClick={() => void save()} disabled={busy} aria-label={fa ? 'ذخیره' : 'Save'} className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-white disabled:opacity-50">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            </button>
-            <button type="button" onClick={() => { setEditing(false); setDraft(String(threshold)); setError(false) }} aria-label={fa ? 'انصراف' : 'Cancel'} className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border-default)] bg-white">
-              <X className="h-4 w-4" />
-            </button>
-            {error && <span role="alert" className="text-red-700">{fa ? 'ذخیره نشد' : 'Not saved'}</span>}
           </div>
         ) : (
           <p className="mt-0.5 text-[13px] leading-5 text-[var(--text-muted)]">
@@ -98,10 +109,11 @@ export function LowStockCard({
                 : `You hear in the panel${telegramConnected ? ' and the manager bot' : ''} when a product drops to ${threshold} or fewer.`}
           </p>
         )}
+        <AutoSaveStatus status={auto.status} onRetry={auto.flush} idleLabel={null} className="-ms-2.5 mt-1" />
       </div>
       {!editing && (
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)]">
+          <button type="button" onClick={() => { discarded.current = false; setEditing(true) }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--border-strong)]">
             <Pencil className="h-3.5 w-3.5" />
             {off ? (fa ? 'روشن کردن' : 'Turn on') : (fa ? 'تغییر حد' : 'Change level')}
           </button>

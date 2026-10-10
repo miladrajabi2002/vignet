@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
 import { ChannelMark } from '@/components/ui/channel-mark'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 
 export type MessengerKind =
   | 'TELEGRAM'
@@ -86,23 +87,18 @@ function ChannelSettings({
   const [items, setItems] = useState<string[]>(
     initialQuickReplies.length ? initialQuickReplies : [''],
   )
-  const saveState = useSaveState()
-
-  async function save() {
-    saveState.start()
-    try {
-      const quickReplies = items.map((s) => s.trim()).filter(Boolean).slice(0, 4)
+  // Blank rows are only placeholders; what is stored is the filled-in buttons.
+  const auto = useAutoSave({
+    value: items.map((s) => s.trim()).filter(Boolean).slice(0, 4),
+    save: async (quickReplies) => {
       const res = await fetch(`/api/agents/${agentId}/channels/${channelId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quickReplies }),
       })
       if (!res.ok) throw new Error('SAVE_FAILED')
-      saveState.done()
-    } catch {
-      saveState.fail()
-    }
-  }
+    },
+  })
 
   return (
     <div className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
@@ -129,7 +125,7 @@ function ChannelSettings({
               {t('msgrQuickRepliesHint')}
             </p>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" onBlur={auto.flush}>
             {items.map((val, i) => (
               <input
                 key={i}
@@ -152,7 +148,7 @@ function ChannelSettings({
             >
               + {t('msgrQuickRepliesAdd')}
             </button>
-            <SaveButton state={saveState.state} onClick={save} size="sm" label={t('save')} savingLabel={t('saving')} savedLabel={t('saved')} />
+            <AutoSaveStatus status={auto.status} onRetry={auto.flush} errorLabel={t('saveError')} className="-me-2.5" />
           </div>
         </div>
       )}

@@ -29,7 +29,6 @@ import {
   PlayCircle,
   RefreshCw,
   RotateCw,
-  Save,
   Send,
   Settings2,
   ShieldCheck,
@@ -39,7 +38,8 @@ import {
   Wifi,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { cn } from '@/lib/utils'
 import { dateLocaleTag } from '@/lib/localized-date'
@@ -82,7 +82,7 @@ interface OperatorChannelHealth {
   configurationUpdatedAt: string
 }
 
-type BusyAction = 'connect' | 'toggle' | 'chat' | 'test' | 'remove' | null
+type BusyAction = 'connect' | 'toggle' | 'test' | 'remove' | null
 type Feedback = { tone: 'success' | 'error' | 'info'; message: string } | null
 
 async function fetchOperatorHealth(): Promise<OperatorChannelHealth> {
@@ -191,7 +191,6 @@ export function OperatorChannelSetup({
   const [botToken, setBotToken] = useState('')
   const [operatorChatId, setOperatorChatId] = useState(current?.operatorChatId ?? '')
   const [busy, setBusy] = useState<BusyAction>(null)
-  const chatSave = useSaveState()
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [health, setHealth] = useState<OperatorChannelHealth | null>(null)
   const [healthLoading, setHealthLoading] = useState(Boolean(current))
@@ -312,32 +311,33 @@ export function OperatorChannelSetup({
     }
   }
 
-  async function saveChatId() {
-    if (!info || !operatorChatId.trim() || busy) return
-    setBusy('chat')
-    chatSave.start()
-    setFeedback(null)
-    try {
-      const response = await fetch('/api/operator-channel', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operatorChatId: operatorChatId.trim() }),
-      })
-      const data = (await response.json().catch(() => null)) as {
-        operatorChannel?: Omit<OperatorChannelInfo, 'botTokenMasked'>
-      } | null
-      if (!response.ok || !data?.operatorChannel) throw new Error('SAVE_CHAT_FAILED')
-      setInfo((value) => (value ? { ...value, ...data.operatorChannel } : value))
-      chatSave.done()
-      router.refresh()
-      void refreshHealth()
-    } catch {
-      chatSave.fail()
-      setFeedback({ tone: 'error', message: t('saveFailed') })
-    } finally {
-      setBusy(null)
-    }
-  }
+  // The manager chat id saves by itself once it differs from the stored one.
+  const chatId = operatorChatId.trim()
+  const chatAuto = useAutoSave({
+    value: chatId,
+    valid: Boolean(info) && Boolean(chatId) && chatId !== (info?.operatorChatId ?? ''),
+    delay: 1200,
+    save: async (next) => {
+      setFeedback(null)
+      try {
+        const response = await fetch('/api/operator-channel', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ operatorChatId: next }),
+        })
+        const data = (await response.json().catch(() => null)) as {
+          operatorChannel?: Omit<OperatorChannelInfo, 'botTokenMasked'>
+        } | null
+        if (!response.ok || !data?.operatorChannel) throw new Error('SAVE_CHAT_FAILED')
+        setInfo((value) => (value ? { ...value, ...data.operatorChannel } : value))
+        router.refresh()
+        void refreshHealth()
+      } catch (cause) {
+        setFeedback({ tone: 'error', message: t('saveFailed') })
+        throw cause
+      }
+    },
+  })
 
   async function testConnection() {
     if (!info || busy) return
@@ -585,25 +585,19 @@ export function OperatorChannelSetup({
 
                 <div className="rounded-2xl border border-black/[0.06] bg-white/75 p-3.5">
                   <label htmlFor="operator-chat-id" className="text-[12px] font-bold text-[var(--text-primary)]">{t('operatorChatId')}</label>
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="operator-chat-id"
-                      dir="ltr"
-                      type="text"
-                      inputMode="numeric"
-                      value={operatorChatId}
-                      onChange={(event) => setOperatorChatId(event.target.value)}
-                      placeholder="123456789"
-                      className="input min-h-11 min-w-0 flex-1 font-mono text-sm"
-                    />
-                    <SaveButton
-                      state={chatSave.state}
-                      onClick={() => void saveChatId()}
-                      dirty={Boolean(operatorChatId.trim()) && operatorChatId.trim() !== (info.operatorChatId ?? '')}
-                      disabled={busy !== null && busy !== 'chat'}
-                      icon={<Save className="h-4 w-4" />}
-                    />
-                  </div>
+                  <input
+                    id="operator-chat-id"
+                    dir="ltr"
+                    type="text"
+                    inputMode="numeric"
+                    value={operatorChatId}
+                    onChange={(event) => setOperatorChatId(event.target.value)}
+                    onBlur={chatAuto.flush}
+                    onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+                    placeholder="123456789"
+                    className="input mt-2 min-h-11 w-full font-mono text-sm"
+                  />
+                  <AutoSaveStatus status={chatAuto.status} onRetry={chatAuto.flush} className="-ms-2.5 mt-1.5" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">

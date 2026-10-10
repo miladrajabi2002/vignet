@@ -6,9 +6,10 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, ExternalLink, ImagePlus, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 import { PublicMenu } from '@/components/menu/public-menu'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import {
   ACCENT_SWATCHES,
   LAYOUT_LABELS,
@@ -16,13 +17,26 @@ import {
   MENU_THEMES,
   THEME_TOKENS,
   menuPalette,
+  menuSettingsSchema,
   type MenuSettings,
 } from '@/lib/menu/settings'
 import type { PublicMenuSection } from '@/lib/menu/public-data'
 
+/** Why a field is not saved yet, by the settings key the schema rejected. */
+const FIELD_HINTS: Record<string, string> = {
+  mapUrl: 'لینک مسیریابی باید با https:// شروع شود.',
+  coverImage: 'آدرس عکس کاور باید با https:// شروع شود.',
+  logo: 'آدرس لوگو باید با https:// شروع شود.',
+  instagram: 'آیدی اینستاگرام فقط حروف انگلیسی، عدد، نقطه و _ می‌پذیرد.',
+  openAt: 'ساعت شروع را کامل وارد کنید (مثل ۰۹:۳۰).',
+  closeAt: 'ساعت پایان را کامل وارد کنید (مثل ۲۳:۰۰).',
+}
+
 /**
  * «طراحی منو»: theme, colour, layout, cover, logo, hours and contact, with
- * the real menu rendering live in a phone frame as the owner edits.
+ * the real menu rendering live in a phone frame as the owner edits. Every
+ * change saves by itself; a value the menu cannot show yet (a half-typed
+ * link) waits until it is complete.
  */
 export function MenuDesign({
   businessName,
@@ -40,35 +54,35 @@ export function MenuDesign({
   sections: PublicMenuSection[]
 }) {
   const [settings, setSettings] = useState<MenuSettings>(initial)
-  const [saved, setSaved] = useState(() => JSON.stringify(initial))
-  const saveState = useSaveState()
-  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
-  const dirty = JSON.stringify(settings) !== saved
+  const [notice, setNotice] = useState<string | null>(null)
+  const invalid = useMemo(() => {
+    const parsed = menuSettingsSchema.safeParse(settings)
+    return parsed.success ? null : FIELD_HINTS[String(parsed.error.issues[0]?.path[0])] ?? 'یکی از مقدارها کامل نیست.'
+  }, [settings])
   const set = <K extends keyof MenuSettings>(key: K, value: MenuSettings[K]) => setSettings((current) => ({ ...current, [key]: value }))
   const palette = menuPalette(settings)
 
   const previewData = useMemo(() => ({ name: businessName, slug, settings, sections, chatUrl, table: '۷' }), [businessName, slug, settings, sections, chatUrl])
 
-  async function save() {
-    saveState.start()
-    setNotice(null)
-    const response = await fetch('/api/menu/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    }).catch(() => null)
-    if (response?.ok) {
-      setSaved(JSON.stringify(settings))
-      saveState.done()
-    } else {
-      saveState.fail()
-      setNotice({ ok: false, text: response?.status === 402 ? 'پلن فضای کاری فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'ذخیره نشد. آدرس‌ها باید با https شروع شوند و ساعت‌ها به شکل ۰۹:۳۰ باشند.' })
-    }
-  }
+  const auto = useAutoSave({
+    value: settings,
+    valid: !invalid,
+    save: async (next) => {
+      setNotice(null)
+      const response = await fetch('/api/menu/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      }).catch(() => null)
+      if (response?.ok) return
+      setNotice(response?.status === 402 ? 'پلن فضای کاری فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'اتصال را بررسی کنید و دوباره تلاش کنید.')
+      throw new Error('SAVE_FAILED')
+    },
+  })
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
-      <div className="min-w-0 space-y-4">
+      <div className="min-w-0 space-y-4" onBlur={auto.flush}>
         <Panel title="ظاهر" hint="تم، رنگ اصلی و چیدمان آیتم‌ها.">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="تم منو">
             {MENU_THEMES.map((theme) => {
@@ -168,14 +182,16 @@ export function MenuDesign({
           <p className="mt-2 text-[12px] leading-6 text-[var(--text-muted)]">برچسب‌های «پیشنهاد سرآشپز»، «پرطرفدار»، «جدید»، «تند» و «گیاهی» را از تب آیتم‌ها روی هر غذا بزنید؛ آیتم‌های سرآشپز و پرطرفدار بالای منو در «پیشنهاد ما» می‌آیند.</p>
         </Panel>
 
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-white/95 p-3 shadow-[var(--shadow-control)] backdrop-blur">
-          <SaveButton state={saveState.state} dirty={dirty} onClick={() => void save()} label="ذخیرهٔ طراحی" />
-          <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-[var(--border-subtle)] bg-white/95 py-2 pe-2 ps-3 shadow-[var(--shadow-control)] backdrop-blur">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            {invalid
+              ? <p role="alert" className="text-[13px] leading-6 text-amber-800">{invalid} تا آن موقع ذخیره نمی‌شود.</p>
+              : <AutoSaveStatus status={auto.status} onRetry={auto.flush} idleLabel="ذخیرهٔ خودکار؛ منوی مشتری به‌روز است" className="-ms-2.5" />}
+            {!invalid && auto.status === 'error' && notice && <p role="alert" className="text-[13px] text-red-700">{notice}</p>}
+          </div>
+          <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             <ExternalLink className="h-4 w-4" />منوی مشتری
           </a>
-          <p role="status" aria-live="polite" className={cn('text-[13px]', notice ? (notice.ok ? 'text-emerald-700' : 'text-red-700') : 'text-[var(--text-muted)]')}>
-            {notice?.text ?? (dirty ? 'تغییرات ذخیره‌نشده دارید.' : 'همهٔ تغییرات ذخیره شده و منوی مشتری به‌روز است.')}
-          </p>
         </div>
       </div>
 

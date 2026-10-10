@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { BarChart3, Mail, MessageSquareText, TrendingUp } from 'lucide-react'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 /**
  * Weekly business report opt-in. The report feature ships later — this card
@@ -13,26 +16,23 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
   const t = useTranslations('settings.weeklyReport')
   const fa = useLocale() !== 'en'
   const [email, setEmail] = useState(initialEmail)
-  const saveState = useSaveState()
-  const [error, setError] = useState(false)
+  const [touched, setTouched] = useState(false)
+  const value = email.trim()
+  // Empty clears the address; anything else has to look like one before it is sent.
+  const valid = value === '' || EMAIL.test(value)
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
-    saveState.start()
-    setError(false)
-    try {
+  const auto = useAutoSave({
+    value,
+    valid,
+    save: async (next) => {
       const res = await fetch('/api/workspace/report-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: next }),
       })
       if (!res.ok) throw new Error('SAVE_FAILED')
-      saveState.done()
-    } catch {
-      saveState.fail()
-      setError(true)
-    }
-  }
+    },
+  })
 
   return (
     <section id="settings-weekly-report" className="spatial-surface scroll-mt-28 overflow-hidden rounded-sheet">
@@ -51,11 +51,23 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
             </div>
           </div>
 
-          <form onSubmit={save} className="mt-5 flex flex-col gap-2 sm:flex-row">
-            <input dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="input min-h-12 flex-1 text-left text-sm" />
-            <SaveButton type="submit" state={saveState.state} icon={<Mail className="h-4 w-4" />} label={t('save')} savedLabel={t('saved')} />
-          </form>
-          <p aria-live="polite" className="mt-2 min-h-5 text-xs text-red-600">{error ? t('error') : ''}</p>
+          <input
+            dir="ltr"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            onBlur={() => { setTouched(true); auto.flush() }}
+            onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+            aria-label={t('title')}
+            aria-invalid={touched && !valid}
+            placeholder="you@example.com"
+            className="input mt-5 min-h-12 w-full text-left text-sm"
+          />
+          <div className="mt-2 flex min-h-8 items-center">
+            {touched && !valid
+              ? <p role="alert" className="text-xs text-red-600">{t('error')}</p>
+              : <AutoSaveStatus status={auto.status} onRetry={auto.flush} className="-ms-2.5" />}
+          </div>
         </div>
 
         <div className="relative overflow-hidden border-t border-[var(--border-default)] bg-black p-5 text-white lg:border-s lg:border-t-0">

@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { Slider } from '@/components/ui/slider'
 import { useTranslations, useLocale } from 'next-intl'
 import {
@@ -30,7 +30,7 @@ import {
 } from '@/lib/widget/config'
 import { WidgetPreview, WIDGET_ICON_COMPONENTS } from './widget-preview'
 import { ChannelMark } from '@/components/ui/channel-mark'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 
 /** Curated brand-color presets — one tap instead of fiddling with the picker. */
 const COLOR_PRESETS = [
@@ -72,19 +72,39 @@ export function WebWidgetChannel({
         const [copied, setCopied] = useState(false)
         const [detailsOpen, setDetailsOpen] = useState(false)
         const [showSettings, setShowSettings] = useState(false)
-        const saveState = useSaveState()
         const [error, setError] = useState<string | null>(null)
 
         const initial = normalizeWidgetSettings(config)
         const [settings, setSettings] = useState<WidgetSettings>(initial)
         const [domainsText, setDomainsText] = useState(initial.allowedDomains.join('\n'))
+        // The allow-list only counts once its field is left: a half-typed domain
+        // must never lock the live widget out of the site it is running on.
+        const [domains, setDomains] = useState(initial.allowedDomains)
 
-        // Warn before leaving with unsaved widget settings edits.
-        const settingsDirty = useMemo(
-                () => JSON.stringify(settings) !== JSON.stringify(initial) || domainsText !== initial.allowedDomains.join('\n'),
-                [settings, domainsText, initial],
-        )
-        useUnsavedChangesGuard(settingsDirty)
+        // Widget settings save by themselves, on a pause in editing or on leaving a field.
+        const enabledRef = useRef(enabled)
+        enabledRef.current = enabled
+        const auto = useAutoSave({
+                value: { ...settings, allowedDomains: domains },
+                save: async (config) => {
+                        // Saving posts the channel; a widget switched off meanwhile must stay off.
+                        if (!enabledRef.current) return
+                        setError(null)
+                        try {
+                                const res = await fetch(`/api/agents/${agentId}/channels`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ type: 'WEB_WIDGET', config }),
+                                })
+                                if (!res.ok) throw new Error('save failed')
+                                // Cache invalidation happens server-side in the POST /channels route.
+                                router.refresh()
+                        } catch (cause) {
+                                setError(t('saveError'))
+                                throw cause
+                        }
+                },
+        })
 
         const snippet = `<script src="${baseUrl}/widget/loader.js" data-agent-id="${agentId}"></script>`
 
@@ -129,30 +149,6 @@ export function WebWidgetChannel({
                         setError(t('saveError'))
                 } finally {
                         setBusy(false)
-                }
-        }
-
-        async function save() {
-                saveState.start()
-                setError(null)
-                const domains = normalizeDomains(domainsText)
-                try {
-                        const res = await fetch(`/api/agents/${agentId}/channels`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                        type: 'WEB_WIDGET',
-                                        config: { ...settings, allowedDomains: domains },
-                                }),
-                        })
-                        if (!res.ok) throw new Error('save failed')
-                        setDomainsText(domains.join('\n'))
-                        saveState.done()
-                        // Cache invalidation happens server-side in the POST /channels route.
-                        router.refresh()
-                } catch {
-                        saveState.fail()
-                        setError(t('saveError'))
                 }
         }
 
@@ -274,7 +270,7 @@ export function WebWidgetChannel({
                                         {showSettings && (
                                                 <div className="grid gap-5 lg:grid-cols-2">
                                                         {/* Form */}
-                                                        <div className="space-y-5">
+                                                        <div className="space-y-5" onBlur={auto.flush}>
                                                                 {/* Appearance */}
                                                                 <section className="space-y-3">
                                                                         <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
@@ -620,6 +616,11 @@ export function WebWidgetChannel({
                                                                                         onChange={(e) => {
                                                                                                 setDomainsText(e.target.value)
                                                                                         }}
+                                                                                        onBlur={() => {
+                                                                                                const next = normalizeDomains(domainsText)
+                                                                                                setDomains(next)
+                                                                                                setDomainsText(next.join('\n'))
+                                                                                        }}
                                                                                         className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
                                                                                 />
                                                                                 <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -635,7 +636,7 @@ export function WebWidgetChannel({
                                                                 </section>
 
                                                                 <div className="flex items-center gap-3">
-                                                                        <SaveButton state={saveState.state} dirty={settingsDirty} onClick={save} label={t('save')} savingLabel={t('saving')} savedLabel={t('saved')} />
+                                                                        <AutoSaveStatus status={auto.status} onRetry={auto.flush} className="-ms-2.5" />
                                                                 </div>
                                                         </div>
 

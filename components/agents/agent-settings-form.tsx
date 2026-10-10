@@ -25,6 +25,8 @@ import {
 import { ModelSelect } from '@/components/agent-builder/model-select'
 import { Switch, SwitchCard } from '@/components/ui/switch'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveDock } from '@/components/ui/auto-save-status'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import {
         buildLayeredPrompt,
@@ -162,46 +164,69 @@ export function AgentSettingsForm({
                 [promptConfig, form.systemPrompt, locale],
         )
 
+        const saveFailed = locale === 'fa' ? 'تنظیمات ذخیره نشد. دوباره تلاش کنید.' : 'Settings could not be saved. Please try again.'
+
+        // The behavior layers shape every reply, so they go live only on "save".
         async function save() {
                 if (saveState.saving) return
                 setSaveError('')
                 saveState.start()
                 try {
-                const keywords = form.handoffKeywords
-                        .split(/[,\u060c]/)
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                const hasStructured = hasMeaningfulPromptConfig(promptConfig)
-                const res = await fetch(`/api/agents/${agent.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(section === 'behavior' ? {
-                                promptConfig: hasStructured ? promptConfig : null,
-                                roleTemplate: agent.roleTemplate,
-                        } : {
-                                ...form,
-                                handoffKeywords: keywords,
-                                description: form.description || undefined,
-                                model: form.model || null,
-                                welcomeMessage: form.welcomeMessage || undefined,
-                                fallbackMessage: form.fallbackMessage || undefined,
-                                handoffMessage: form.handoffMessage || undefined,
-                                // ─ F3: customer identification
-                                requireCustomerInfo,
-                                customerInfoPrompt: customerInfoPrompt.trim() || null,
-                        }),
-                })
-                if (res.ok) {
+                        const hasStructured = hasMeaningfulPromptConfig(promptConfig)
+                        const res = await fetch(`/api/agents/${agent.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                        promptConfig: hasStructured ? promptConfig : null,
+                                        roleTemplate: agent.roleTemplate,
+                                }),
+                        })
+                        if (!res.ok) throw new Error('SAVE_FAILED')
                         saveState.done()
                         router.refresh()
-                } else {
-                        throw new Error('SAVE_FAILED')
-                }
                 } catch {
                         saveState.fail()
-                        setSaveError(locale === 'fa' ? 'تنظیمات ذخیره نشد. دوباره تلاش کنید.' : 'Settings could not be saved. Please try again.')
+                        setSaveError(saveFailed)
                 }
         }
+
+        // General settings save by themselves: on a pause in typing, on leaving a
+        // field, and right after a switch. An agent without a name is never sent.
+        const nameMissing = form.name.trim().length === 0
+        const general = useAutoSave({
+                value: { form, requireCustomerInfo, customerInfoPrompt },
+                valid: section === 'general' && !nameMissing,
+                delay: 1000,
+                save: async (next) => {
+                        setSaveError('')
+                        try {
+                                const res = await fetch(`/api/agents/${agent.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                                ...next.form,
+                                                handoffKeywords: next.form.handoffKeywords
+                                                        .split(/[,\u060c]/)
+                                                        .map((s) => s.trim())
+                                                        .filter(Boolean),
+                                                description: next.form.description || undefined,
+                                                model: next.form.model || null,
+                                                welcomeMessage: next.form.welcomeMessage || undefined,
+                                                fallbackMessage: next.form.fallbackMessage || undefined,
+                                                handoffMessage: next.form.handoffMessage || undefined,
+                                                // ─ F3: customer identification
+                                                requireCustomerInfo: next.requireCustomerInfo,
+                                                customerInfoPrompt: next.customerInfoPrompt.trim() || null,
+                                        }),
+                                })
+                                if (!res.ok) throw new Error('SAVE_FAILED')
+                                router.refresh()
+                        } catch (cause) {
+                                setSaveError(saveFailed)
+                                throw cause
+                        }
+                },
+        })
 
         // Owners switch the agent off to stop the AI on Instagram, which also
         // stops their scenarios. This keeps the agent on and hands Instagram to
@@ -292,7 +317,7 @@ export function AgentSettingsForm({
         const layerNumber = (value: number) => value.toLocaleString(fa ? 'fa-IR' : 'en-US')
 
         return (
-                <div className="space-y-6">
+                <div className="space-y-6" onBlur={general.flush}>
                         {section === 'behavior' ? (
                         <>
                         {/* ─ 6-LAYER PROMPT ENGINE ──────────────────────────────────── */}
@@ -387,8 +412,15 @@ export function AgentSettingsForm({
                                         <input
                                                 value={form.name}
                                                 onChange={(e) => set('name', e.target.value)}
+                                                maxLength={80}
+                                                aria-invalid={nameMissing}
                                                 className="input"
                                         />
+                                        {nameMissing && (
+                                                <p role="alert" className="mt-1.5 text-xs text-danger">
+                                                        {fa ? 'ایجنت بدون نام ذخیره نمی‌شود؛ یک نام بنویسید.' : 'An agent needs a name before changes can be saved.'}
+                                                </p>
+                                        )}
                                 </Field>
 
                                 {/* Columns follow the available width (not the viewport), so the
@@ -564,10 +596,8 @@ export function AgentSettingsForm({
                         </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3">
-                                        <SaveButton state={saveState.state} onClick={save} label={tc('save')} savingLabel={tc('saving')} savedLabel={tc('saved')} />
-                                        {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
-                        </div>
+                        {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
+                        <AutoSaveDock status={general.status} onRetry={general.flush} />
 
                         {/* Danger zone — delete agent */}
                         <div className="spatial-surface rounded-card p-5 sm:p-6">

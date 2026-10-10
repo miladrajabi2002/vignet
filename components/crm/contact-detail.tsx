@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { Switch } from '@/components/ui/switch'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { TagInput } from '@/components/ui/tag-input'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { cn } from '@/lib/utils'
 
 const STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
@@ -61,37 +62,39 @@ export function ContactDetailEditor({
   const [tags, setTags] = useState<string[]>(initialTags)
   const [notes, setNotes] = useState(initialNotes)
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn)
-  const saveState = useSaveState()
   const [error, setError] = useState<string | null>(null)
 
-  async function save() {
-    saveState.start()
-    setError(null)
-    try {
-      const res = await fetch(`/api/contacts/${contactId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim() || undefined,
-          stage,
-          tags,
-          notes: notes.trim() || null,
-          marketingOptIn,
-        }),
-      })
-      if (!res.ok) throw new Error('SAVE_FAILED')
-      const body = await res.json().catch(() => null)
-      if (body?.contact) onSaved?.(body.contact)
-      saveState.done()
-      router.refresh()
-    } catch {
-      saveState.fail()
-      setError(t('detail.saveFailed'))
-    }
-  }
+  // Every edit saves by itself: after a pause in typing, or on leaving a field.
+  const auto = useAutoSave({
+    value: {
+      name: name.trim() || undefined,
+      stage,
+      tags,
+      notes: notes.trim() || null,
+      marketingOptIn,
+    },
+    save: async (value) => {
+      setError(null)
+      try {
+        const res = await fetch(`/api/contacts/${contactId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(value),
+        })
+        if (!res.ok) throw new Error('SAVE_FAILED')
+        const body = await res.json().catch(() => null)
+        if (body?.contact) onSaved?.(body.contact)
+        router.refresh()
+      } catch (cause) {
+        setError(t('detail.saveFailed'))
+        throw cause
+      }
+    },
+  })
 
   return (
     <div
+      onBlur={auto.flush}
       className={cn(
         'space-y-4',
         !embedded && 'spatial-surface rounded-card p-5 sm:p-6',
@@ -164,8 +167,8 @@ export function ContactDetailEditor({
         </p>
       )}
 
-      <div className="flex items-center justify-end gap-2">
-        <SaveButton state={saveState.state} onClick={save} label={t('detail.save')} savedLabel={t('detail.saved')} />
+      <div className="flex items-center justify-end">
+        <AutoSaveStatus status={auto.status} onRetry={auto.flush} />
       </div>
 
     </div>
