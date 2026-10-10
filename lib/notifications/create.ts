@@ -1,8 +1,8 @@
 import type { NotificationType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { dispatchNotification } from '@/lib/queue/jobs'
-import { captureError } from '@/lib/errors/capture'
-import { sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
+import { captureError, captureWarning } from '@/lib/errors/capture'
+import { OperatorBotUnavailableError, sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 import type { OperatorPrefKey } from '@/lib/channels/operator-bot-screens'
 
 // Which «هشدارها» toggle in the manager bot governs each notification type.
@@ -74,7 +74,13 @@ export async function notifyWorkspace(params: NotifyParams): Promise<void> {
         category: typeof params.operatorTelegram === 'string' ? params.operatorTelegram : OPERATOR_CATEGORY[params.type],
       })
     } catch (e) {
-      captureError('notify:operator-telegram', e, { workspaceId: params.workspaceId })
+      // A revoked or blocked manager bot is the customer's to reconnect —
+      // worth a warning in the admin log, not a platform error.
+      if (e instanceof OperatorBotUnavailableError) {
+        captureWarning('notify:operator-bot-unavailable', e, { workspaceId: params.workspaceId })
+      } else {
+        captureError('notify:operator-telegram', e, { workspaceId: params.workspaceId })
+      }
     }
   }
 }

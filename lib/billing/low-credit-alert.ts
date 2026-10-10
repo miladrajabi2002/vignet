@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { captureError } from '@/lib/errors/capture'
-import { sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
+import { OperatorBotUnavailableError, sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 import { findModel, type ModelAlias } from '@/lib/ai/models'
 import {
   decideLowCreditAlertAction,
@@ -109,7 +109,12 @@ export async function processLowCreditAlert(params: {
         body: alert.body,
         link: '/billing',
         category: 'billing',
-      }).catch((error) => captureError('billing:low-credit-telegram', error, { workspaceId: params.workspaceId }))
+      }).catch((error) =>
+        captureError('billing:low-credit-telegram', error, {
+          workspaceId: params.workspaceId,
+          ...(error instanceof OperatorBotUnavailableError ? { level: 'warn' as const } : {}),
+        }),
+      )
     }
   } catch (error) {
     captureError('billing:low-credit-alert', error, {

@@ -13,6 +13,18 @@ const CATEGORY_ICON: Record<OperatorPrefKey, string> = {
 }
 
 /**
+ * Telegram refused the workspace's own manager bot: the token was revoked
+ * (401), the owner blocked the bot (403) or the chat is gone (400/404). The
+ * customer has to reconnect the bot — nothing on the platform is broken.
+ */
+export class OperatorBotUnavailableError extends Error {
+  constructor(readonly status: number, detail: string) {
+    super(`Operator bot is not usable (Telegram ${status}): ${detail}`)
+    this.name = 'OperatorBotUnavailableError'
+  }
+}
+
+/**
  * Send a concise operational alert through the workspace's Telegram manager
  * bot, unless the owner muted that category from the bot's «هشدارها» screen.
  * The message carries glass buttons: open it in the panel, or jump to the
@@ -27,7 +39,7 @@ export async function sendOperatorTelegramNotification(params: {
 }): Promise<boolean> {
   const channel = await prisma.operatorChannel.findUnique({
     where: { workspaceId: params.workspaceId },
-    select: { botToken: true, operatorChatId: true, active: true, prefs: true },
+    select: { id: true, botToken: true, operatorChatId: true, active: true, prefs: true, lastError: true },
   })
   if (!channel?.active || !channel.operatorChatId) return false
   if (!readOperatorPrefs(channel.prefs)[params.category]) return false
@@ -62,8 +74,19 @@ export async function sendOperatorTelegramNotification(params: {
     signal: AbortSignal.timeout(8_000),
   })
   if (!response.ok) {
-    const detail = await response.text().catch(() => '')
+    const detail = (await response.text().catch(() => '')).slice(0, 300)
+    if ([400, 401, 403, 404].includes(response.status)) {
+      // Surfaced on the manager-bot settings card so the owner sees why
+      // alerts stopped arriving.
+      await prisma.operatorChannel
+        .update({ where: { id: channel.id }, data: { lastError: `Telegram ${response.status}: ${detail}` } })
+        .catch(() => {})
+      throw new OperatorBotUnavailableError(response.status, detail)
+    }
     throw new Error(`Telegram notification failed: ${response.status} ${detail}`)
+  }
+  if (channel.lastError) {
+    await prisma.operatorChannel.update({ where: { id: channel.id }, data: { lastError: null } }).catch(() => {})
   }
   return true
 }
