@@ -296,6 +296,11 @@ export async function applyContactIdentity(params: {
   phone: string | null
 }): Promise<string | null> {
   const canonicalPhone = normalizeContactPhone(params.phone)
+  // A customer is someone we can name or reach. With no usable name and no
+  // valid phone there is nothing to apply — and for a conversation that has no
+  // contact yet (an anonymous web visitor) creating one would put an empty
+  // «بدون نام» row in the customers list.
+  if (!params.name?.trim() && !canonicalPhone) return params.contactId
   const variants = contactPhoneLookupVariants(canonicalPhone)
   const identities = [
     params.contactId ? `contact:${params.contactId}` : `conversation:${params.conversationId}`,

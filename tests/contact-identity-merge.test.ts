@@ -49,7 +49,7 @@ vi.mock('@/lib/billing/entitlements', () => ({
   WorkspaceResourceLimitError: mocks.WorkspaceResourceLimitError,
 }))
 
-import { resolveInboundContact } from '@/lib/crm/contact-identity'
+import { applyContactIdentity, resolveInboundContact } from '@/lib/crm/contact-identity'
 
 function contact(id: string, createdAt: string, phone: string, extra: Record<string, unknown> = {}) {
   return {
@@ -190,5 +190,40 @@ describe('cross-channel contact identity merge', () => {
     expect(id).toBeNull()
     expect(mocks.assertCapacity).toHaveBeenCalledWith(mocks.tx, 'workspace-1', 'customers', 50)
     expect(mocks.tx.contact.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('applyContactIdentity', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('never creates a customer with no name and no valid phone', async () => {
+    // An anonymous web visitor: no contact yet, nothing usable extracted.
+    const result = await applyContactIdentity({
+      workspaceId: 'workspace-1',
+      conversationId: 'conv-1',
+      contactId: null,
+      name: '  ',
+      phone: 'not-a-phone',
+    })
+
+    expect(result).toBeNull()
+    expect(mocks.withLocks).not.toHaveBeenCalled()
+    expect(mocks.tx.contact.create).not.toHaveBeenCalled()
+    expect(mocks.tx.conversation.update).not.toHaveBeenCalled()
+  })
+
+  it('leaves an existing contact untouched when there is nothing to apply', async () => {
+    const result = await applyContactIdentity({
+      workspaceId: 'workspace-1',
+      conversationId: 'conv-1',
+      contactId: 'contact-1',
+      name: null,
+      phone: null,
+    })
+
+    expect(result).toBe('contact-1')
+    expect(mocks.tx.contact.update).not.toHaveBeenCalled()
   })
 })
