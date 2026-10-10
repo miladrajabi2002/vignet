@@ -199,13 +199,28 @@ function WebhookHealth({ lastInboundAt }: { lastInboundAt?: string | null }) {
   )
 }
 
+/**
+ * Map the stored health error (a reason code from lib/channels/health.ts, or
+ * the older free-text form) to the message key that explains it to the owner.
+ */
+function lostReasonKey(type: MessengerKind, error?: string | null): string | null {
+  if (!error) return null
+  if (/^UNREACHABLE/.test(error)) return 'healthReasonUnreachable'
+  if (/TOKEN_REJECTED|NO_TOKEN|rejected the stored token/.test(error)) {
+    return type === 'INSTAGRAM' ? 'connectionLostInstagram' : 'connectionLostTokenRejected'
+  }
+  return null
+}
+
 /** Active health-check badge (A20): green = ok, orange = recent error,
  * red = down. Shows the last check time so operators trust the state. */
 function ChannelHealthBadge({
+  type,
   status,
   checkedAt,
   error,
 }: {
+  type: MessengerKind
   status?: string | null
   checkedAt?: string | null
   error?: string | null
@@ -218,6 +233,7 @@ function ChannelHealthBadge({
   const down = status === 'down'
   const degraded = status === 'degraded'
   const rel = checkedAt ? formatRelative(Date.now() - new Date(checkedAt).getTime(), t) : null
+  const reasonKey = lostReasonKey(type, error)
 
   return (
     <div className="mt-2">
@@ -241,7 +257,9 @@ function ChannelHealthBadge({
         {rel ? <span className="text-[var(--text-tertiary)]">— {t('healthChecked', { time: rel })}</span> : null}
       </button>
       {expanded && error ? (
-        <div className="mt-1 break-words text-[12px] leading-4 text-[var(--text-tertiary)]">{error}</div>
+        <div className="mt-1 break-words text-[12px] leading-4 text-[var(--text-tertiary)]">
+          {reasonKey ? t(reasonKey) : error}
+        </div>
       ) : null}
     </div>
   )
@@ -298,12 +316,16 @@ export function MessengerChannel({
   const fields = FIELD_SETS[type]
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(false)
+  const [reconnectOpen, setReconnectOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
 
   const isInstagram = type === 'INSTAGRAM'
+  // Connected on paper, but the periodic check says the provider no longer
+  // accepts the stored credentials — the owner has to reconnect.
+  const connectionLost = enabled && healthStatus === 'down'
   const guideSteps = t.raw(`guide.${type}`) as unknown
   const steps = Array.isArray(guideSteps) ? (guideSteps as string[]) : []
 
@@ -331,6 +353,7 @@ export function MessengerChannel({
       if (data.webhookSet === false) setError(t('webhookWarning'))
       setValues({})
       setOpen(false)
+      setReconnectOpen(false)
       router.refresh()
     } finally {
       setBusy(false)
@@ -344,6 +367,78 @@ export function MessengerChannel({
     setBusy(false)
     router.refresh()
   }
+
+  // The same form connects a new channel and reconnects a lost one: every
+  // connect route upserts the existing row back to active.
+  const connectForm = (
+    <>
+      {type === 'INSTAGRAM' ? (
+        // Instagram uses the platform-managed OAuth flow (one click →
+        // Facebook Login dialog → callback → channel persisted). No token
+        // pasting, no webhook configuration, no Meta dashboard visit.
+        <InstagramConnectFlow
+          agentId={agentId}
+          onClose={() => {
+            setOpen(false)
+            setReconnectOpen(false)
+          }}
+        />
+      ) : (
+        <>
+          {steps.length > 0 && (
+            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
+              <button
+                type="button"
+                onClick={() => setShowGuide((v) => !v)}
+                className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {t('setupGuide')}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${showGuide ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {showGuide && (
+                <ol className="list-decimal space-y-1.5 px-6 pb-3 text-xs text-[var(--text-secondary)] marker:text-[var(--text-tertiary)]">
+                  {steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+
+          {fields.map((f) => (
+            <div key={f.key} className="space-y-1">
+              <label className="text-xs text-[var(--text-secondary)]">{t(f.labelKey)}</label>
+              <input
+                dir="ltr"
+                value={values[f.key] ?? ''}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, [f.key]: e.target.value }))
+                }
+                placeholder={t(f.placeholderKey)}
+                className="w-full rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus:border-[var(--border-strong)]"
+              />
+            </div>
+          ))}
+
+          {error && <p className="text-xs text-danger">{error}</p>}
+          <div className="flex justify-end">
+            <button
+              onClick={connect}
+              disabled={busy || !isComplete(type, values)}
+              aria-busy={busy || undefined}
+              title={!isComplete(type, values) ? t('incompleteFormHint') : undefined}
+              className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {busy ? t('connecting') : t('connectConfirm')}
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  )
 
   return (
     <div className="spatial-surface rounded-card p-4 sm:p-5">
@@ -369,7 +464,11 @@ export function MessengerChannel({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 font-medium text-[var(--text-primary)]">
             {label}
-            {enabled && <Check className="h-4 w-4 text-success" />}
+            {connectionLost ? (
+              <AlertTriangle className="h-4 w-4 text-danger" aria-label={t('healthDown')} />
+            ) : (
+              enabled && <Check className="h-4 w-4 text-success" />
+            )}
           </div>
           <div className="truncate text-sm text-[var(--text-secondary)]">
             {enabled && botUsername ? `@${botUsername}` : hint}
@@ -429,7 +528,7 @@ export function MessengerChannel({
 
       {enabled && open && (
         <div id={`channel-details-${type.toLowerCase()}`}>
-          <ChannelHealthBadge status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
+          <ChannelHealthBadge type={type} status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
           <WebhookHealth lastInboundAt={lastInboundAt} />
 
       {/* Instagram no longer needs the Development Mode / App Review reminder:
@@ -450,70 +549,34 @@ export function MessengerChannel({
         </div>
       )}
 
+      {connectionLost && (
+        <div role="alert" className="mt-3 rounded-xl border border-danger/30 bg-danger/5 p-3">
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="font-medium text-danger">{t('connectionLostTitle')}</p>
+              <p className="mt-1 text-[var(--text-secondary)]">
+                {t(lostReasonKey(type, healthError) ?? 'connectionLostGeneric')} {t('connectionLostImpact')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReconnectOpen((value) => !value)}
+              aria-expanded={reconnectOpen}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
+            >
+              {t('reconnect')}
+              <ChevronDown
+                className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${reconnectOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+          </div>
+          {reconnectOpen && <div className="mt-3 space-y-3">{connectForm}</div>}
+        </div>
+      )}
+
       {!enabled && open && (
         <div id={`channel-details-${type.toLowerCase()}`} className="mt-4 space-y-3">
-          {type === 'INSTAGRAM' ? (
-            // Instagram uses the platform-managed OAuth flow (one click →
-            // Facebook Login dialog → callback → channel persisted). No token
-            // pasting, no webhook configuration, no Meta dashboard visit.
-            <InstagramConnectFlow
-              agentId={agentId}
-              onClose={() => setOpen(false)}
-            />
-          ) : (
-            <>
-              {steps.length > 0 && (
-                <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
-                  <button
-                    type="button"
-                    onClick={() => setShowGuide((v) => !v)}
-                    className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
-                  >
-                    {t('setupGuide')}
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${showGuide ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  {showGuide && (
-                    <ol className="list-decimal space-y-1.5 px-6 pb-3 text-xs text-[var(--text-secondary)] marker:text-[var(--text-tertiary)]">
-                      {steps.map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ol>
-                  )}
-                </div>
-              )}
-
-              {fields.map((f) => (
-                <div key={f.key} className="space-y-1">
-                  <label className="text-xs text-[var(--text-secondary)]">{t(f.labelKey)}</label>
-                  <input
-                    dir="ltr"
-                    value={values[f.key] ?? ''}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, [f.key]: e.target.value }))
-                    }
-                    placeholder={t(f.placeholderKey)}
-                    className="w-full rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus:border-[var(--border-strong)]"
-                  />
-                </div>
-              ))}
-
-              {error && <p className="text-xs text-danger">{error}</p>}
-              <div className="flex justify-end">
-                <button
-                  onClick={connect}
-                  disabled={busy || !isComplete(type, values)}
-                  aria-busy={busy || undefined}
-                  title={!isComplete(type, values) ? t('incompleteFormHint') : undefined}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
-                >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {busy ? t('connecting') : t('connectConfirm')}
-                </button>
-              </div>
-            </>
-          )}
+          {connectForm}
         </div>
       )}
     </div>

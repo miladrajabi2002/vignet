@@ -1,11 +1,11 @@
 import type { Prisma, ChannelType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
-import { captureError } from '@/lib/errors/capture'
+import { captureError, captureWarning } from '@/lib/errors/capture'
 import { readBotToken } from '@/lib/channels/config'
 import { notifyWorkspace } from '@/lib/notifications/create'
-import { getTelegramBotInfo } from '@/lib/channels/telegram'
-import { getBaleBotInfo } from '@/lib/channels/bale'
+import { TELEGRAM_BASE } from '@/lib/channels/telegram'
+import { BALE_BASE } from '@/lib/channels/bale'
 import { getRubikaBotInfo } from '@/lib/channels/rubika'
 import { getInstagramInfo } from '@/lib/channels/instagram'
 
@@ -27,14 +27,68 @@ import { getInstagramInfo } from '@/lib/channels/instagram'
  *
  * A21 — auto-disable: a channel that keeps failing its probe across
  * CHANNEL_DOWN_DISABLE_AFTER_SWEEPS consecutive sweeps is deactivated
- * (`active = false`) so the sweep stops probing it and stops emitting the
- * recurring "N/M channels are down" error every 5 minutes. Every reconnect
+ * (`active = false`) so the sweep stops probing it. Every reconnect
  * flow (messenger POST, Instagram OAuth callback, generic channels POST)
  * upserts `active: true`, so the operator can bring the channel back from the
  * same channels page at any time.
+ *
+ * Whose problem is it? A rejected token is the CUSTOMER's side (they revoked
+ * or regenerated it): the owner gets a plain-language notice and the admin
+ * log gets one `warn`, never an `error`. Only a provider we cannot reach at
+ * all is a platform-side signal — that is `degraded`, it never disables a
+ * channel or bothers the owner, and it is what the sweep logs as an error.
  */
 
 export type ChannelHealthStatus = 'ok' | 'degraded' | 'down' | 'unknown'
+
+/**
+ * Stable codes stored at the start of `healthError`; the channels page maps
+ * them to an explanation for the owner.
+ */
+export type ChannelHealthReason = 'TOKEN_REJECTED' | 'NO_TOKEN' | 'UNREACHABLE'
+
+type ProbeResult = {
+        status: ChannelHealthStatus
+        reason: ChannelHealthReason | null
+        error: string | null
+}
+
+const CHANNEL_LABEL_FA: Partial<Record<ChannelType, string>> = {
+        TELEGRAM: 'تلگرام',
+        BALE: 'بله',
+        RUBIKA: 'روبیکا',
+        INSTAGRAM: 'اینستاگرام',
+}
+
+/** Owner-facing explanation of a lost connection, in plain language. */
+function describeLostConnection(type: ChannelType, reason: ChannelHealthReason | null): string {
+        const label = CHANNEL_LABEL_FA[type] ?? type
+        if (reason === 'NO_TOKEN') return 'اطلاعات اتصال این کانال ناقص است.'
+        if (type === 'INSTAGRAM') {
+                return 'دسترسی ویجنت به این حساب اینستاگرام دیگر معتبر نیست؛ معمولاً بعد از تغییر رمز، حذف دسترسی اپ یا منقضی‌شدن اتصال پیش می‌آید.'
+        }
+        return `${label} توکن این ربات را دیگر قبول نمی‌کند؛ معمولاً یعنی توکن عوض یا باطل شده یا ربات حذف شده است.`
+}
+
+/**
+ * `getMe` for the Telegram-style Bot APIs, telling a rejected token (4xx)
+ * apart from a provider we could not reach (network error, 429, 5xx).
+ */
+async function probeBotApiToken(base: string, token: string): Promise<ProbeResult> {
+        try {
+                const res = await fetch(`${base}/bot${token}/getMe`, { signal: AbortSignal.timeout(10_000) })
+                if (res.status === 429 || res.status >= 500) {
+                        return { status: 'degraded', reason: 'UNREACHABLE', error: `UNREACHABLE: HTTP ${res.status}` }
+                }
+                const json = (await res.json().catch(() => ({}))) as { result?: { username?: string } }
+                return res.ok && json.result?.username
+                        ? { status: 'ok', reason: null, error: null }
+                        : { status: 'down', reason: 'TOKEN_REJECTED', error: 'TOKEN_REJECTED' }
+        } catch (e) {
+                const detail = e instanceof Error ? e.message.slice(0, 200) : 'probe failed'
+                return { status: 'degraded', reason: 'UNREACHABLE', error: `UNREACHABLE: ${detail}` }
+        }
+}
 
 const SMS_HEALTH_REDIS_KEY = 'sms:provider-health'
 
@@ -43,7 +97,7 @@ const CHANNEL_DOWN_DISABLE_AFTER_SWEEPS = 3
 const DOWN_STREAK_KEY = (channelId: string) => `health_down_streak:${channelId}`
 const DISABLED_ALERT_KEY = (channelId: string) => `health_disabled:${channelId}`
 
-/** Emit the "N/M channels are down" ErrorLog event at most once per hour. */
+/** Emit the "N/M channels could not be probed" ErrorLog event at most once per hour. */
 const SWEEP_ERROR_DEDUPE_KEY = 'health_sweep_error_dedupe'
 const SWEEP_ERROR_DEDUPE_TTL_S = 60 * 60
 
@@ -51,7 +105,7 @@ const SWEEP_ERROR_DEDUPE_TTL_S = 60 * 60
 async function probeMessengerChannel(
         type: ChannelType,
         config: Prisma.JsonValue,
-): Promise<{ status: ChannelHealthStatus; error: string | null }> {
+): Promise<ProbeResult> {
         // Instagram OAuth channels carry `userTokenEnc` instead of `botTokenEnc`.
         let token: string | null = readBotToken(config)
         if (!token) {
@@ -65,17 +119,15 @@ async function probeMessengerChannel(
                         }
                 }
         }
-        if (!token) return { status: 'down', error: 'NO_TOKEN' }
+        if (!token) return { status: 'down', reason: 'NO_TOKEN', error: 'NO_TOKEN' }
 
         try {
                 let ok = false
                 switch (type) {
                         case 'TELEGRAM':
-                                ok = Boolean(await getTelegramBotInfo(token))
-                                break
+                                return await probeBotApiToken(TELEGRAM_BASE, token)
                         case 'BALE':
-                                ok = Boolean(await getBaleBotInfo(token))
-                                break
+                                return await probeBotApiToken(BALE_BASE, token)
                         case 'RUBIKA':
                                 ok = Boolean(await getRubikaBotInfo(token))
                                 break
@@ -83,16 +135,14 @@ async function probeMessengerChannel(
                                 ok = Boolean(await getInstagramInfo(token))
                                 break
                         default:
-                                return { status: 'unknown', error: null }
+                                return { status: 'unknown', reason: null, error: null }
                 }
                 return ok
-                        ? { status: 'ok', error: null }
-                        : { status: 'down', error: 'API rejected the stored token' }
+                        ? { status: 'ok', reason: null, error: null }
+                        : { status: 'down', reason: 'TOKEN_REJECTED', error: 'TOKEN_REJECTED' }
         } catch (e) {
-                return {
-                        status: 'down',
-                        error: e instanceof Error ? e.message.slice(0, 240) : 'probe failed',
-                }
+                const detail = e instanceof Error ? e.message.slice(0, 200) : 'probe failed'
+                return { status: 'degraded', reason: 'UNREACHABLE', error: `UNREACHABLE: ${detail}` }
         }
 }
 
@@ -124,17 +174,17 @@ export async function probeSmsProvider(): Promise<{ status: ChannelHealthStatus;
  *
  * A21: a channel that fails CHANNEL_DOWN_DISABLE_AFTER_SWEEPS consecutive
  * probes is deactivated (active = false) with a one-time operator
- * notification, so persistent outages stop re-logging every sweep while the
- * reconnect flows can still re-activate the same row.
+ * notification, while the reconnect flows can still re-activate the same row.
  */
 export async function sweepChannelHealth(): Promise<{
         checked: number
         ok: number
         down: number
+        unreachable: number
         disabled: number
         notified: number
 }> {
-        const stats = { checked: 0, ok: 0, down: 0, disabled: 0, notified: 0 }
+        const stats = { checked: 0, ok: 0, down: 0, unreachable: 0, disabled: 0, notified: 0 }
         const channels = await prisma.agentChannel.findMany({
                 where: { active: true, type: { in: ['TELEGRAM', 'BALE', 'RUBIKA', 'INSTAGRAM'] } },
                 select: {
@@ -153,12 +203,16 @@ export async function sweepChannelHealth(): Promise<{
                 const probe = await probeMessengerChannel(ch.type, ch.config)
                 if (probe.status === 'ok') stats.ok += 1
                 if (probe.status === 'down') stats.down += 1
+                if (probe.reason === 'UNREACHABLE') stats.unreachable += 1
 
                 const becameDown = probe.status === 'down'
                 const wasDown = ch.healthStatus === 'down'
+                const label = CHANNEL_LABEL_FA[ch.type] ?? ch.type
 
                 // A21: track consecutive failures so a persistently dead channel
-                // is auto-disabled instead of re-alarming every single sweep.
+                // is auto-disabled instead of re-alarming every single sweep. An
+                // unreachable provider says nothing about the token, so it neither
+                // extends nor clears the streak.
                 let disableNow = false
                 if (probe.status === 'down') {
                         const streak = await getRedis()
@@ -168,7 +222,7 @@ export async function sweepChannelHealth(): Promise<{
                                 .expire(DOWN_STREAK_KEY(ch.id), 24 * 3600)
                                 .catch(() => {})
                         if (streak >= CHANNEL_DOWN_DISABLE_AFTER_SWEEPS) disableNow = true
-                } else {
+                } else if (probe.status === 'ok') {
                         await getRedis().del(DOWN_STREAK_KEY(ch.id)).catch(() => {})
                 }
 
@@ -180,7 +234,7 @@ export async function sweepChannelHealth(): Promise<{
                                         healthStatus: probe.status,
                                         healthCheckedAt: new Date(),
                                         healthError: disableNow
-                                                ? `auto-disabled after ${CHANNEL_DOWN_DISABLE_AFTER_SWEEPS} failed probes: ${probe.error ?? 'unknown'}`
+                                                ? `${probe.error ?? 'unknown'} (auto-disabled after ${CHANNEL_DOWN_DISABLE_AFTER_SWEEPS} failed checks)`
                                                 : probe.error,
                                         // Re-arm the silence alert latch on recovery so a
                                         // LATER down-episode notifies again.
@@ -200,11 +254,26 @@ export async function sweepChannelHealth(): Promise<{
                                 .set(DISABLED_ALERT_KEY(ch.id), '1', 'EX', 24 * 3600, 'NX')
                                 .catch(() => null)
                         if (disabledLatch) {
+                                // The customer's own connection, not a platform fault:
+                                // one warning for the admin log, never an error.
+                                captureWarning(
+                                        'channel-health:customer-disconnected',
+                                        `اتصال ${label} ایجنت «${ch.agent.name}» از سمت مشتری قطع است و کانال غیرفعال شد (خطای سیستم نیست؛ به صاحب کانال اطلاع داده شد)`,
+                                        {
+                                                workspaceId: ch.agent.workspaceId,
+                                                metadata: {
+                                                        channelId: ch.id,
+                                                        channelType: ch.type,
+                                                        agentId: ch.agent.id,
+                                                        reason: probe.reason,
+                                                },
+                                        },
+                                )
                                 await notifyWorkspace({
                                         workspaceId: ch.agent.workspaceId,
                                         type: 'CHANNEL_DOWN',
-                                        title: 'کانال به‌صورت خودکار غیرفعال شد',
-                                        body: `بررسی دوره‌ای چند بار متوالی نشان داد کانال ${ch.type} ایجنت «${ch.agent.name}» قطع است${probe.error ? ` (${probe.error})` : ''}. برای توقف هشدارهای تکراری، کانال غیرفعال شد؛ هر وقت خواستید از صفحه کانال‌ها دوباره متصلش کنید.`,
+                                        title: `${label} «${ch.agent.name}» غیرفعال شد`,
+                                        body: 'چند بررسی پیاپی نشان داد اتصال همچنان قطع است، برای همین این کانال موقتاً غیرفعال شد. هر وقت از صفحهٔ کانال‌ها دوباره متصلش کنید، بلافاصله فعال می‌شود.',
                                         link: `/agents/${ch.agent.id}/channels`,
                                         operatorTelegram: true,
                                 }).catch(() => {})
@@ -221,8 +290,8 @@ export async function sweepChannelHealth(): Promise<{
                                 await notifyWorkspace({
                                         workspaceId: ch.agent.workspaceId,
                                         type: 'CHANNEL_DOWN',
-                                        title: 'کانال پاسخگویی قطع شده است',
-                                        body: `بررسی دوره‌ای نشان داد کانال ${ch.type} ایجنت «${ch.agent.name}» پاسخ نمی‌دهد${probe.error ? ` (${probe.error})` : ''}. لطفاً از بخش کانال‌ها دوباره متصل شوید.`,
+                                        title: `اتصال ${label} «${ch.agent.name}» قطع شده است`,
+                                        body: `${describeLostConnection(ch.type, probe.reason)} تا اتصال دوباره، پیام مشتری‌ها در این کانال بی‌پاسخ می‌ماند. از صفحهٔ کانال‌ها دوباره متصلش کنید.`,
                                         link: `/agents/${ch.agent.id}/channels`,
                                         operatorTelegram: true,
                                 }).catch(() => {})
@@ -245,7 +314,7 @@ export async function sweepChannelHealth(): Promise<{
                 )
                 .catch(() => {})
 
-        if (stats.down > 0) {
+        if (stats.unreachable > 0) {
                 // Log the sweep alarm at most once per hour; fail open on Redis
                 // errors so observability never degrades silently.
                 let shouldLog = true
@@ -265,7 +334,7 @@ export async function sweepChannelHealth(): Promise<{
                 if (shouldLog) {
                         captureError(
                                 'channel-health:sweep',
-                                new Error(`${stats.down}/${stats.checked} channels are down`),
+                                new Error(`${stats.unreachable}/${stats.checked} channels could not be probed (provider unreachable)`),
                                 {},
                         )
                 }

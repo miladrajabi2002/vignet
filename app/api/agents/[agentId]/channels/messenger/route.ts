@@ -68,7 +68,7 @@ export async function POST(req: Request, props: Params) {
 
   const channel = await prisma.agentChannel.upsert({
     where: { agentId_type: { agentId: params.agentId, type } },
-    update: { active: true, config: configJson, webhookUrl },
+    update: { active: true, config: configJson, webhookUrl, healthStatus: 'unknown', healthError: null },
     create: {
       agentId: params.agentId,
       type,

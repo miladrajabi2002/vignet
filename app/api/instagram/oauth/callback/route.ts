@@ -202,7 +202,7 @@ export async function GET(req: Request) {
 
     await prisma.agentChannel.upsert({
       where: { agentId_type: { agentId: state.agentId, type: 'INSTAGRAM' } },
-      update: { active: true, config: configJson, webhookUrl },
+      update: { active: true, config: configJson, webhookUrl, healthStatus: 'unknown', healthError: null },
       create: {
         agentId: state.agentId,
         type: 'INSTAGRAM',
