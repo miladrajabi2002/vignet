@@ -83,7 +83,7 @@ export interface BusinessServiceOption {
 }
 
 export const BUSINESS_SERVICE_OPTIONS: readonly BusinessServiceOption[] = [
-  { key: 'instagram', fa: 'مدیریت و فروش در اینستاگرام', en: 'Instagram sales & management', descriptionFa: 'پاسخ دایرکت، مدیریت کامنت، فروش در دایرکت و اتوماسیون بدون کسر اعتبار', descriptionEn: 'DM replies, comment management, in-DM sales and no-credit automations with an active subscription', modules: ['instagram'], recommendedFor: ['SOCIAL', 'COMMERCE', 'FOOD', 'SERVICES', 'EDUCATION'] },
+  { key: 'instagram', fa: 'مدیریت اینستاگرام', en: 'Instagram management', aliases: ['مدیریت و فروش در اینستاگرام', 'Instagram sales & management'], descriptionFa: 'پاسخ دایرکت، مدیریت کامنت و استوری، و اتوماسیون بدون کسر اعتبار', descriptionEn: 'DM replies, comment and story management, and no-credit automations with an active subscription', modules: ['instagram'], recommendedFor: ['SOCIAL', 'COMMERCE', 'FOOD', 'SERVICES', 'EDUCATION'] },
   { key: 'products', fa: 'فروش و مدیریت محصولات', en: 'Product sales & management', descriptionFa: 'کاتالوگ، قیمت، موجودی و پیشنهاد محصول در پاسخ ایجنت', descriptionEn: 'Catalog, pricing, stock and product recommendations', modules: ['products'], recommendedFor: ['COMMERCE', 'SOCIAL', 'FOOD'] },
   { key: 'bookings', fa: 'رزرو و نوبت‌دهی', en: 'Bookings & appointments', descriptionFa: 'تقویم، ظرفیت، زمان آزاد و ثبت نوبت بدون تداخل', descriptionEn: 'Calendar, capacity, availability and conflict-free booking', modules: ['appointments', 'services'], recommendedFor: ['APPOINTMENTS', 'FOOD', 'SERVICES', 'EDUCATION'] },
   { key: 'services', fa: 'معرفی و مدیریت خدمات', en: 'Service catalog & management', descriptionFa: 'ثبت خدمات، مدت، محل ارائه و استفاده مستقیم توسط ایجنت', descriptionEn: 'Service catalog, duration, location and direct agent usage', modules: ['services'], recommendedFor: ['SERVICES', 'APPOINTMENTS', 'EDUCATION', 'SUPPORT'] },
@@ -210,7 +210,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['پاسخ خودکار دایرکت', 'مدیریت کامنت', 'اتوماسیون فروش', 'کاتالوگ در دایرکت'],
     featuresEn: ['Auto DM replies', 'Comment management', 'Sales automation', 'In-DM catalog'],
     coreModules: CORE_DASHBOARD_MODULES,
-    defaultCapabilities: ['instagram', 'products'],
+    defaultCapabilities: ['instagram'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['پاسخ دایرکت', 'فروش در دایرکت', 'مدیریت کامنت'],
     suggestedServicesEn: ['DM replies', 'In-DM sales', 'Comment management'],

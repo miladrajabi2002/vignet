@@ -50,7 +50,7 @@ const OPTION_META: Record<CapabilityKey, {
   products: { icon: Package, fa: ['کاتالوگ', 'قیمت و موجودی'], en: ['Catalog', 'Price & stock'] },
   bookings: { icon: CalendarDays, fa: ['تقویم و ظرفیت', 'بدون تداخل'], en: ['Calendar & capacity', 'Conflict-free'] },
   services: { icon: BriefcaseBusiness, fa: ['معرفی به مشتری', 'ثبت درخواست'], en: ['Customer-ready catalog', 'Request capture'] },
-  instagram: { icon: Camera, fa: ['دایرکت و کامنت', 'فروش خودکار'], en: ['DMs & comments', 'Automated sales'] },
+  instagram: { icon: Camera, fa: ['دایرکت و کامنت', 'پاسخ خودکار'], en: ['DMs & comments', 'Automated replies'] },
   'digital-menu': { icon: QrCode, fa: ['QR و لینک عمومی', 'سفارش‌گیری'], en: ['QR & public link', 'Ordering'] },
   courses: { icon: GraduationCap, fa: ['ظرفیت و جلسات', 'ثبت‌نام در گفتگو'], en: ['Capacity & sessions', 'In-chat enrollment'] },
   support: { icon: Headphones, fa: ['پاسخ دانش‌محور', 'تحویل به اپراتور'], en: ['Knowledge answers', 'Operator handoff'] },

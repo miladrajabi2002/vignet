@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  findCapabilityByLabel,
   getDashboardModules,
   getDashboardNavigationModules,
   getDefaultCapabilities,
@@ -53,8 +54,8 @@ describe('capabilities stored as keys', () => {
     expect(getDefaultCapabilities('FOOD')).toEqual(['digital-menu'])
     expect(getDefaultCapabilities('APPOINTMENTS')).toEqual(['bookings'])
     expect(getDefaultCapabilities('CUSTOM')).toEqual([])
-    // The Instagram-sales type starts with a catalog, as a default that can be switched off.
-    expect(getDefaultCapabilities('SOCIAL')).toEqual(['instagram', 'products'])
+    // Instagram is not a sales capability: its type starts without a catalog.
+    expect(getDefaultCapabilities('SOCIAL')).toEqual(['instagram'])
   })
 })
 
@@ -66,6 +67,10 @@ describe('profiles saved before keys existed keep their menu', () => {
   })
 
   it('maps labels (fa, en and earlier wording) and old free text', () => {
+    // The Instagram option was renamed; profiles holding the old label still read as Instagram.
+    expect(findCapabilityByLabel('مدیریت و فروش در اینستاگرام')?.key).toBe('instagram')
+    expect(findCapabilityByLabel('Instagram sales & management')?.key).toBe('instagram')
+    expect(findCapabilityByLabel('مدیریت اینستاگرام')?.key).toBe('instagram')
     expect(legacyCapabilities('SERVICES', ['معرفی و مدیریت خدمات', 'رزرو و نوبت‌دهی'])).toEqual(expect.arrayContaining(['services', 'bookings']))
     expect(legacyCapabilities('COMMERCE', ['Bookings & appointments'])).toContain('bookings')
     // The old courses option opened the bookings workspace; it still does.
