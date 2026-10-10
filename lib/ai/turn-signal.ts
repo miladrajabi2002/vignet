@@ -78,11 +78,11 @@ export interface TurnSignal {
 export const TURN_SIGNAL_INSTRUCTION = `=== Hidden status line (mandatory, every reply) ===
 End every reply with one extra final line in exactly this format. It is removed before the customer sees anything; never mention it.
 [[st:m=<pos|neu|neg|ang>;b=<0|1|2|3>;a=<y|p|n>;t=<topic>;c=<cues or ->;o=<offer>]]
-m = the customer's mood in their LAST message: pos only if they literally thank or praise; neu for plain questions, confirmations and requests (the default); neg if dissatisfied, impatient or disappointed; ang if angry or insulting.
+m = the customer's mood in their LAST message: pos only if they literally thank or praise; neu for plain questions, confirmations and requests (the default), including when they report a problem, say something does not work or ask for a person in a normal tone; neg only if they say they are unhappy, disappointed or impatient with the business or its answers; ang if angry or insulting.
 b = buying stage of their LAST message: 0 not about buying; 1 exploring what is offered; 2 asking about a specific item (price, stock, delivery, payment terms, comparison); 3 says they want it, asks how to order or pay, confirms an order, gives order details or says they paid.
 a = whether your reply resolves their request: y fully (or nothing needed answering); p partly; n you lack the information or ability.
 t = main topic, one of: product, price, stock, shipping, payment, order, return, booking, info, complaint, chat.
-c = cues literally present in their LAST message, comma-separated, or "-": thanks, praise, repeat (asks again for something still unresolved), confused, complaint, human (wants a person), decline (will not buy, or not now), pricey (finds it expensive), distrust.
+c = cues literally present in their LAST message, comma-separated, or "-": thanks, praise, repeat (asks again for something still unresolved), confused, complaint (unhappy with the business, an order or the service; a problem report or a request for help is not a complaint), human (wants a person), decline (will not buy, or not now), pricey (finds it expensive), distrust.
 o = what YOUR reply ends by offering or asking them to confirm: order (offered to register/place the order), restock (offered to notify when back in stock), showcase (offered to show/send products), booking (asked to confirm an appointment), or - for nothing.
 The status lines on earlier replies describe earlier messages. Judge the LAST message afresh; never copy an earlier line.`
 
@@ -267,14 +267,15 @@ const CUE_EFFECT: Record<TurnCue, number> = {
         repeat: -18,
         confused: -8,
         complaint: -22,
-        human: -8,
+        // Wanting a person says where the customer wants to talk, not how they feel.
+        human: 0,
         decline: 0,
         pricey: -3,
         distrust: -8,
 }
 
 /** Cues that say something about satisfaction (a decline or a price remark does not). */
-const SATISFACTION_CUES = new Set<TurnCue>(['thanks', 'praise', 'repeat', 'confused', 'complaint', 'human', 'distrust'])
+const SATISFACTION_CUES = new Set<TurnCue>(['thanks', 'praise', 'repeat', 'confused', 'complaint', 'distrust'])
 
 /** 0–100 reading of a single exchange. */
 export function turnSatisfaction(signal: TurnSignal): number {
@@ -313,6 +314,43 @@ export function conversationSatisfaction(signalsNewestFirst: TurnSignal[]): numb
                 weightSum += weight
         }
         return weightSum > 0 ? Math.round(total / weightSum) : null
+}
+
+/** The customer showed they are unhappy in this exchange (not merely asked for help). */
+export function showsFriction(signal: Pick<TurnSignal, 'mood' | 'cues'>): boolean {
+        return signal.mood === 'neg' || signal.mood === 'ang' || signal.cues.includes('complaint') || signal.cues.includes('repeat')
+}
+
+/**
+ * What became of the customer's last sign of friction:
+ *   none     — they never showed any;
+ *   open     — nothing after it says it was dealt with;
+ *   attended — a person answered afterwards, or the customer moved on to a
+ *              request the reply fully resolved;
+ *   resolved — the customer said so themselves (or thanked afterwards).
+ */
+export type FrictionOutcome = 'none' | 'open' | 'attended' | 'resolved'
+
+/** Lowest score of a conversation whose friction was dealt with: neutral. */
+export const ATTENDED_FLOOR = 55
+export const RESOLVED_FLOOR = 62
+export const THANKED_FLOOR = 72
+
+/**
+ * A score describes how the conversation stands now, so what happened after
+ * the last complaint outranks the complaint: «ناراضی» is kept for customers
+ * who showed friction that nobody has dealt with yet. Anger is only lifted by
+ * the customer's own words.
+ */
+export function settleSatisfaction(
+        score: number | null,
+        outcome: { friction: FrictionOutcome; angry: boolean; thanked: boolean },
+): number | null {
+        if (score === null) return null
+        if (outcome.friction === 'none') return Math.max(score, DISSATISFIED_BELOW)
+        if (outcome.friction === 'resolved') return Math.max(score, outcome.thanked ? THANKED_FLOOR : RESOLVED_FLOOR)
+        if (outcome.friction === 'attended' && !outcome.angry) return Math.max(score, ATTENDED_FLOOR)
+        return score
 }
 
 export type SatisfactionBucket = 'satisfied' | 'neutral' | 'dissatisfied'

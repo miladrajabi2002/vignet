@@ -19,7 +19,10 @@ import {
         readTurnSignal,
         saysPraise,
         saysThanks,
+        settleSatisfaction,
+        showsFriction,
         topicsFromSignals,
+        type FrictionOutcome,
         type TurnBuyLevel,
         type TurnMood,
         type TurnCue,
@@ -43,7 +46,10 @@ import {
  */
 
 // v4: customer-side readings from the understanding layer + conversation facts.
-export const SALES_INTELLIGENCE_VERSION = 'sales-hybrid-v4'
+// v5: satisfaction follows the outcome — friction that an operator answered,
+// the customer called solved or the conversation moved past is not «ناراضی»;
+// a problem report or a request for a person is not dissatisfaction.
+export const SALES_INTELLIGENCE_VERSION = 'sales-hybrid-v5'
 export const SALES_INTELLIGENCE_MESSAGE_LIMIT = 24
 
 export interface SalesConversationMessage {
@@ -241,6 +247,22 @@ const TERMS = {
                 'قبول ندارم', 'گران', 'دیر شده', 'disappointed', 'not happy',
                 'bad service', 'wrong', 'too expensive', 'late', 'frustrated',
         ],
+        // Words that say the customer is unhappy with the business itself. The
+        // `negative` list above also holds «مشکل» and «اشتباه», which appear in
+        // every ordinary problem report and say nothing about satisfaction.
+        dissatisfied: [
+                'ناراضی', 'راضی نیستم', 'راضی نبودم', 'بد بود', 'ناامید', 'پشیمون',
+                'پشیمان', 'خسته شدم', 'خسته شدیم', 'هیچکس جواب نمیده', 'هیچ کس جواب نمیده',
+                'هیچکس پاسخگو نیست', 'هیچ کس پاسخگو نیست', 'جواب نمیدید', 'جواب نمی دید',
+                'disappointed', 'not happy', 'unhappy', 'bad service', 'frustrated',
+                'nobody answers', 'no one answers',
+        ],
+        // The customer says the matter is settled.
+        resolved: [
+                'اوکی شد', 'اوکی شدش', 'اکی شد', 'حل شد', 'درست شد', 'برطرف شد', 'رفع شد',
+                'ردیف شد', 'مشکلم حل', 'مشکل حل', 'ok شد', 'resolved', 'solved',
+                'works now', 'it works', 'fixed now', 'all good',
+        ],
         severeDistress: [
                 'عصبانی', 'افتضاح', 'کلاهبرداری', 'شکایت میکنم', 'شکایت می کنم',
                 'دادگاه', 'پلیس', 'دیگه تحمل ندارم', 'فاجعه',
@@ -273,6 +295,10 @@ const TERMS = {
                 'با ربات حرف نمیزنم', 'با ربات کار ندارم', 'با ربات نمی‌خوام',
                 'ربات حرف نزن', 'دیگه ربات جواب نده', 'خود کارشناس بیاد',
                 'وصلم کن به کارشناس', 'ترانسفر کن به ادم',
+                // Real threads (2026-10) the list missed:
+                'با پشتیبان صحبت', 'با پشتیبان حرف', 'با پشتیبانی صحبت',
+                'صحبت با پشتیبان', 'پشتیبان انسانی', 'نه با هوش مصنوعی',
+                'نه با ربات', 'نه با بات',
         ],
         authority: [
                 'مدیر فروش', 'مسئول فروش', 'تصمیم گیرنده', 'تایید مدیر',
@@ -508,7 +534,9 @@ function detectRepeatedRequest(userMessagesNewestFirst: SalesConversationMessage
 }
 
 function countConsecutiveUnanswered(messages: SalesConversationMessage[]): number {
-        const assistant = [...messages].reverse().filter((message) => message.role === 'ASSISTANT')
+        // An operator's answer is flagged `unanswered` only to offer it to the
+        // learning center; it is the opposite of an unanswered customer.
+        const assistant = [...messages].reverse().filter((message) => message.role === 'ASSISTANT' && !isOperatorMessage(message))
         let count = 0
         for (const message of assistant) {
                 if (!message.unanswered) break
@@ -649,7 +677,12 @@ const ACT_TOPICS: Record<string, TurnTopic> = {
  * praise to stand (asymmetric trust).
  */
 export function exchangeSignals(messages: SalesConversationMessage[]): TurnSignal[] {
-        const signals: TurnSignal[] = []
+        return exchangeReadings(messages).map((reading) => reading.signal).reverse()
+}
+
+/** The same signals, oldest first, each with the index of its USER message. */
+function exchangeReadings(messages: SalesConversationMessage[]): Array<{ index: number; signal: TurnSignal }> {
+        const signals: Array<{ index: number; signal: TurnSignal }> = []
         for (let index = 0; index < messages.length; index += 1) {
                 const message = messages[index]
                 if (message.role !== 'USER') continue
@@ -667,9 +700,54 @@ export function exchangeSignals(messages: SalesConversationMessage[]): TurnSigna
                                 cues: [...new Set([...reading.cues, ...(replySignal?.cues ?? [])])],
                         }
                         : replySignal!
-                signals.push(reading ? groundTurnSignal(signal, message.content) : signal)
+                signals.push({ index, signal: reading ? groundTurnSignal(signal, message.content) : signal })
         }
-        return signals.reverse()
+        return signals
+}
+
+function isOperatorMessage(message: SalesConversationMessage): boolean {
+        const metadata = message.metadata
+        return message.role === 'ASSISTANT'
+                && Boolean(metadata && typeof metadata === 'object' && !Array.isArray(metadata) && (metadata as Record<string, unknown>).operator === true)
+}
+
+/**
+ * What became of the customer's last sign of friction. A message the models
+ * read (understanding layer or reply status line) is judged by that reading;
+ * one nobody read — the customer wrote while an operator owned the chat — is
+ * judged by the few words that state dissatisfaction outright.
+ */
+export function frictionOutcome(messages: SalesConversationMessage[]): { friction: FrictionOutcome; angry: boolean; thanked: boolean } {
+        const readings = new Map(exchangeReadings(messages).map((reading) => [reading.index, reading.signal]))
+        const friction = (index: number): 'none' | 'friction' | 'angry' => {
+                const message = messages[index]
+                const signal = readings.get(index)
+                const text = normalizeSalesText(message.content)
+                if (firstMatch(text, TERMS.severeDistress) || signal?.mood === 'ang') return 'angry'
+                if (signal ? showsFriction(signal) : Boolean(firstMatch(text, TERMS.dissatisfied))) return 'friction'
+                return 'none'
+        }
+        let last = -1
+        let angry = false
+        for (let index = 0; index < messages.length; index += 1) {
+                if (messages[index].role !== 'USER') continue
+                const kind = friction(index)
+                if (kind === 'none') continue
+                last = index
+                // Anger stays on the record until the customer's own words lift it.
+                angry = angry || kind === 'angry'
+        }
+        if (last < 0) return { friction: 'none', angry: false, thanked: false }
+
+        const after = messages.slice(last + 1)
+        const laterCustomer = after.filter((message) => message.role === 'USER')
+        const thanked = laterCustomer.some((message) => saysThanks(message.content) || saysPraise(message.content))
+        const saidResolved = laterCustomer.some((message) => Boolean(firstMatch(normalizeSalesText(message.content), TERMS.resolved)))
+        if (thanked || saidResolved) return { friction: 'resolved', angry, thanked }
+        if (after.some(isOperatorMessage)) return { friction: 'attended', angry, thanked: false }
+        // The customer went on to something else and the reply settled it.
+        const movedOn = [...readings].some(([index, signal]) => index > last && signal.answered === 'y')
+        return { friction: movedOn ? 'attended' : 'open', angry, thanked: false }
 }
 
 /**
@@ -1004,23 +1082,30 @@ export function analyzeSalesConversation(input: {
         )
         const consecutiveUnanswered = countConsecutiveUnanswered(messages)
 
-        // Satisfaction: from the reply model's per-exchange readings when the
-        // thread has them, otherwise from what the lexicon observed. Keyword
-        // friction still counts against a thread the model read as calm.
+        // Satisfaction: from the per-exchange readings when the thread has
+        // them, otherwise from what the lexicon observed — and only from words
+        // that state dissatisfaction: «مشکل» in a problem report is not one.
+        // The outcome then settles it: friction that was dealt with (operator
+        // answered, customer said it is solved, conversation moved on) no
+        // longer reads as dissatisfied.
+        const outcome = input.heuristicOnly
+                ? { friction: 'open' as FrictionOutcome, angry: severeDistress, thanked: false }
+                : frictionOutcome(messages)
         let satisfaction = conversationSatisfaction(signalsNewestFirst)
         if (satisfaction === null) {
+                const statedDissatisfaction = usersNewestFirst.some((message) => firstMatch(normalizeSalesText(message.content), TERMS.dissatisfied))
                 if (sentiment === 'DISTRESSED') satisfaction = 10
-                else if (sentiment === 'NEGATIVE') satisfaction = 30
+                else if (statedDissatisfaction && sentiment !== 'POSITIVE') satisfaction = sentiment === 'MIXED' ? 55 : 30
                 else if (sentiment === 'MIXED') satisfaction = 55
                 else if (sentiment === 'POSITIVE') satisfaction = 80
-                else if (repeatedRequest || consecutiveUnanswered >= 2) satisfaction = 40
         } else {
                 if (repeatedRequest) satisfaction -= 6
                 if (consecutiveUnanswered >= 2) satisfaction -= 8
         }
         if (satisfaction !== null) {
                 if (severeDistress) satisfaction = Math.min(satisfaction, 15)
-                satisfaction = Math.round(clamp(satisfaction, 0, 100))
+                satisfaction = settleSatisfaction(satisfaction, outcome)
+                satisfaction = satisfaction === null ? null : Math.round(clamp(satisfaction, 0, 100))
         }
 
         const recommendedAction = recommendNextAction({

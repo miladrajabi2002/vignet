@@ -18,6 +18,7 @@ import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import { recordConversationActivity } from '@/lib/conversations/activity'
 import { evaluateLearningEligibility } from '@/lib/ai/learning-policy'
+import { refreshConversationSalesInsight } from '@/lib/ai/sales-intelligence'
 
 type Params = { params: Promise<{ conversationId: string }> }
 
@@ -176,6 +177,11 @@ export async function POST(req: Request, props: Params) {
   })
   // Keep the contact's denormalized last-activity fresh for the CRM list.
   bumpContactActivity(conversation.id)
+  // A human answer changes how the conversation stands (a complaint someone
+  // answered is no longer an open one), so the stored reading follows it.
+  void refreshConversationSalesInsight(conversation.id).catch((error) =>
+    console.error('[operator-reply] sales insight refresh failed:', error),
+  )
 
   return NextResponse.json({
     message,

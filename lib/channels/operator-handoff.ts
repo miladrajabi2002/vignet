@@ -27,6 +27,7 @@ import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import { ensureConversationSummary } from '@/lib/conversations/summary'
 import { recordConversationActivity } from '@/lib/conversations/activity'
+import { refreshConversationSalesInsight } from '@/lib/ai/sales-intelligence'
 import { buildOperatorAlertKeyboard } from '@/lib/channels/operator-bot'
 import { CHANNEL_FA, readOperatorPrefs } from '@/lib/channels/operator-bot-screens'
 
@@ -328,6 +329,10 @@ export async function routeOperatorReplyFromTelegram(params: {
                 })
                 // Keep the contact's denormalized last-activity fresh for the CRM list.
                 bumpContactActivity(alert.conversationId)
+                // A human answer changes how the conversation stands.
+                void refreshConversationSalesInsight(alert.conversationId).catch((error) =>
+                        console.error('[operator-handoff] sales insight refresh failed:', error),
+                )
                 await prisma.handoffAlert.update({
                         where: { id: alert.id },
                         data: { state: 'claimed' },

@@ -4,7 +4,6 @@ import {
   CircleDot,
   Frown,
   Gauge,
-  Meh,
   Lightbulb,
   Smile,
   Sparkles,
@@ -264,7 +263,9 @@ export function SalesInsightText({
 
 /**
  * The automatic satisfaction read of a conversation as one quiet word with a
- * face; nothing when the thread holds no evidence either way.
+ * face. Only a verdict is shown: nothing when the thread holds no evidence
+ * either way, and nothing for a neutral reading — «خنثی» on most rows tells
+ * the owner nothing and buries the few rows that need a look.
  */
 export function SatisfactionText({
   satisfaction,
@@ -282,7 +283,8 @@ export function SatisfactionText({
   if (typeof satisfaction !== 'number') return null
   const score = clampPercent(satisfaction)
   const bucket = satisfactionBucket(score)
-  const Icon = bucket === 'satisfied' ? Smile : bucket === 'dissatisfied' ? Frown : Meh
+  if (bucket === 'neutral') return null
+  const Icon = bucket === 'satisfied' ? Smile : Frown
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
   const label = LABELS.satisfaction[locale][bucket]
   return (
@@ -290,8 +292,8 @@ export function SatisfactionText({
       className={cn(
         'inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium tabular-nums',
         variant === 'tag'
-          ? cn(TAG_BASE, bucket === 'satisfied' ? TAG_TONES.good : bucket === 'dissatisfied' ? TAG_TONES.bad : TAG_TONES.neutral)
-          : bucket === 'satisfied' ? 'text-emerald-700' : bucket === 'dissatisfied' ? 'text-red-700' : 'text-[var(--text-muted)]',
+          ? cn(TAG_BASE, bucket === 'satisfied' ? TAG_TONES.good : TAG_TONES.bad)
+          : bucket === 'satisfied' ? 'text-emerald-700' : 'text-red-700',
         className,
       )}
       title={`${locale === 'fa' ? 'رضایت مشتری (خودکار)' : 'Customer satisfaction (automatic)'}: ${nf.format(score)}٪`}
@@ -317,7 +319,10 @@ export function SalesInsightCard({
   const signals = insight.signalCodes.slice(0, 3)
   const objections = insight.objections.filter(Boolean).slice(0, 2)
   const risks = insight.riskFlags.slice(0, 2)
-  const satisfaction = typeof insight.satisfaction === 'number' ? clampPercent(insight.satisfaction) : null
+  const satisfactionScore = typeof insight.satisfaction === 'number' ? clampPercent(insight.satisfaction) : null
+  // Neutral readings are not shown anywhere (see SatisfactionText).
+  const satisfaction = satisfactionScore !== null && satisfactionBucket(satisfactionScore) !== 'neutral' ? satisfactionScore : null
+  const showSentiment = insight.sentiment !== 'NEUTRAL'
   const topics = (insight.topics ?? []).slice(0, 3)
 
   return (
@@ -370,16 +375,20 @@ export function SalesInsightCard({
             />
           </div>
         )}
-        <Metric
-          icon={<CircleDot className="h-3.5 w-3.5" />}
-          label={locale === 'fa' ? 'لحن' : 'Sentiment'}
-          value={LABELS.sentiment[locale][insight.sentiment]}
-        />
-        <Metric
-          icon={<Gauge className="h-3.5 w-3.5" />}
-          label={locale === 'fa' ? 'فوریت' : 'Urgency'}
-          value={LABELS.urgency[locale][insight.urgency]}
-        />
+        {showSentiment && (
+          <Metric
+            icon={<CircleDot className="h-3.5 w-3.5" />}
+            label={locale === 'fa' ? 'لحن' : 'Sentiment'}
+            value={LABELS.sentiment[locale][insight.sentiment]}
+          />
+        )}
+        <div className={showSentiment ? undefined : 'col-span-2'}>
+          <Metric
+            icon={<Gauge className="h-3.5 w-3.5" />}
+            label={locale === 'fa' ? 'فوریت' : 'Urgency'}
+            value={LABELS.urgency[locale][insight.urgency]}
+          />
+        </div>
       </div>
 
       {topics.length > 0 && (

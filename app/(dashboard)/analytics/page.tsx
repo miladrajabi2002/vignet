@@ -152,7 +152,8 @@ export default async function AnalyticsPage() {
   }
   const csatCount = csat.satisfied + csat.neutral + csat.dissatisfied
   // The headline is the classic CSAT ratio: of the customers who showed how
-  // they felt, how many left satisfied. Neutral threads are shown, not counted.
+  // they felt, how many left satisfied. Neutral threads are neither counted
+  // nor shown.
   const csatDecided = csat.satisfied + csat.dissatisfied
   const csatPct = csatDecided > 0 ? Math.round((csat.satisfied / csatDecided) * 100) : null
   const topTopics = Array.from(topicCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4)
@@ -342,14 +343,16 @@ export default async function AnalyticsPage() {
                 </p>
               </div>
               <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-[var(--bg-muted)]" aria-hidden="true">
-                <div className="h-full bg-emerald-500" style={{ width: `${(csat.satisfied / csatCount) * 100}%` }} />
-                <div className="h-full bg-[var(--border-strong)]" style={{ width: `${(csat.neutral / csatCount) * 100}%` }} />
-                <div className="h-full bg-red-500" style={{ width: `${(csat.dissatisfied / csatCount) * 100}%` }} />
+                {csatDecided > 0 && (
+                  <>
+                    <div className="h-full bg-emerald-500" style={{ width: `${(csat.satisfied / csatDecided) * 100}%` }} />
+                    <div className="h-full bg-red-500" style={{ width: `${(csat.dissatisfied / csatDecided) * 100}%` }} />
+                  </>
+                )}
               </div>
-              <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <dl className="mt-3 grid grid-cols-2 gap-2 text-center">
                 {([
                   ['satisfied', fa ? 'راضی' : 'Satisfied', 'bg-emerald-500'],
-                  ['neutral', fa ? 'خنثی' : 'Neutral', 'bg-[var(--border-strong)]'],
                   ['dissatisfied', fa ? 'ناراضی' : 'Dissatisfied', 'bg-red-500'],
                 ] as const).map(([key, label, dot]) => (
                   <div key={key} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-2">
