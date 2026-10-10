@@ -77,11 +77,15 @@ export function AgentSettingsForm({
         section = 'general',
         storeAccess,
         agent,
+        instagramConnected = false,
         modelPolicy,
 }: {
         section?: 'general' | 'behavior'
         storeAccess?: React.ReactNode
         agent: AgentSettingsData
+        /** An Instagram account is connected, so switching the agent off also
+         *  stops its scenarios — the form says so and offers the alternative. */
+        instagramConnected?: boolean
         modelPolicy: {
                 plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
                 enabledModels: ModelAlias[]
@@ -196,6 +200,38 @@ export function AgentSettingsForm({
                 } catch {
                         saveState.fail()
                         setSaveError(locale === 'fa' ? 'تنظیمات ذخیره نشد. دوباره تلاش کنید.' : 'Settings could not be saved. Please try again.')
+                }
+        }
+
+        // Owners switch the agent off to stop the AI on Instagram, which also
+        // stops their scenarios. This keeps the agent on and hands Instagram to
+        // the scenarios alone — what they were after.
+        const [scenariosOnlyState, setScenariosOnlyState] = useState<'idle' | 'saving' | 'done' | 'failed'>('idle')
+        async function keepOnScenariosOnly() {
+                if (scenariosOnlyState === 'saving') return
+                setScenariosOnlyState('saving')
+                try {
+                        const policy = 'AUTOMATION_ONLY'
+                        const res = await fetch(`/api/agents/${agent.id}/instagram/settings`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ replyPolicy: policy, dmReplyPolicy: policy, commentReplyPolicy: policy, storyReplyPolicy: policy }),
+                        })
+                        if (!res.ok) throw new Error('POLICY_FAILED')
+                        // Already saved as off: switch it back on now, after the policy.
+                        if (!agent.active) {
+                                const on = await fetch(`/api/agents/${agent.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ active: true }),
+                                })
+                                if (!on.ok) throw new Error('RESUME_FAILED')
+                        }
+                        set('active', true)
+                        setScenariosOnlyState('done')
+                        router.refresh()
+                } catch {
+                        setScenariosOnlyState('failed')
                 }
         }
 
@@ -363,10 +399,36 @@ export function AgentSettingsForm({
                                                 title={tf('agentActive')}
                                                 description={tf('agentActiveHint')}
                                                 checked={form.active}
-                                                onChange={(v) => set('active', v)}
+                                                onChange={(v) => {
+                                                        set('active', v)
+                                                        setScenariosOnlyState('idle')
+                                                }}
                                                 enabledLabel={ta('active')}
                                                 disabledLabel={ta('inactive')}
-                                        />
+                                        >
+                                                {instagramConnected && !form.active && (
+                                                        <div className="mt-2 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950" role="alert">
+                                                                <p className="text-[12px] leading-6">{tf('agentOffInstagramNote')}</p>
+                                                                <button
+                                                                        type="button"
+                                                                        onClick={keepOnScenariosOnly}
+                                                                        disabled={scenariosOnlyState === 'saving'}
+                                                                        className="spatial-press mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-3.5 text-[12px] font-semibold text-white disabled:opacity-60"
+                                                                >
+                                                                        {scenariosOnlyState === 'saving' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                                                        {tf('agentOffInstagramAction')}
+                                                                </button>
+                                                                {scenariosOnlyState === 'failed' && (
+                                                                        <p className="mt-2 text-[12px] leading-6 text-danger">{tf('agentOffInstagramFailed')}</p>
+                                                                )}
+                                                        </div>
+                                                )}
+                                                {instagramConnected && form.active && scenariosOnlyState === 'done' && (
+                                                        <p className="mt-2 rounded-xl bg-success/10 px-2.5 py-1.5 text-[12px] leading-6 text-success" role="status">
+                                                                {tf('agentOffInstagramDone')}
+                                                        </p>
+                                                )}
+                                        </SwitchCard>
                                         <SwitchCard
                                                 icon={Mic}
                                                 title={tf('voiceInputEnabled')}

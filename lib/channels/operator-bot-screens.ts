@@ -510,11 +510,18 @@ export async function agentsScreen(workspaceId: string, notice?: string): Promis
 }
 
 export async function agentConfirmScreen(workspaceId: string, agentId: string): Promise<BotScreen | null> {
-  const agent = await prisma.agent.findFirst({ where: { id: agentId, workspaceId }, select: { id: true, name: true, active: true } })
+  const agent = await prisma.agent.findFirst({
+    where: { id: agentId, workspaceId },
+    select: { id: true, name: true, active: true, channels: { where: { type: 'INSTAGRAM' }, select: { id: true } } },
+  })
   if (!agent) return null
+  // Stopping the agent also stops its Instagram scenarios — the usual surprise.
+  const instagramNote = agent.channels?.length
+    ? '\n\n⚠️ سناریوهای اینستاگرام هم تا روشن شدن دوباره اجرا نمی‌شوند. اگر فقط نمی‌خواهید هوش مصنوعی جواب بدهد، ایجنت را روشن نگه دارید و در بخش اینستاگرام «فقط سناریوها» را انتخاب کنید.'
+    : ''
   return {
     text: agent.active
-      ? `⏸ <b>ایجنت «${escapeHtml(agent.name)}» متوقف شود؟</b>\n\nتا وقتی دوباره روشنش کنید به پیام‌های جدید جواب نمی‌دهد و گفتگوها برای شما می‌ماند.`
+      ? `⏸ <b>ایجنت «${escapeHtml(agent.name)}» متوقف شود؟</b>\n\nتا وقتی دوباره روشنش کنید به پیام‌های جدید جواب نمی‌دهد و گفتگوها برای شما می‌ماند.${instagramNote}`
       : `▶️ <b>ایجنت «${escapeHtml(agent.name)}» روشن شود؟</b>\n\nاز همین لحظه دوباره به پیام‌های مشتری‌ها جواب می‌دهد.`,
     keyboard: kb([[btn(agent.active ? '✅ بله، متوقف کن' : '✅ بله، روشن کن', `g:y:${agent.id}`), btn('↩️ انصراف', 'm:agents')]]),
   }

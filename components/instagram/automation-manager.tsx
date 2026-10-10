@@ -11,6 +11,7 @@ import {
     Settings2,
     ChevronDown,
     Camera,
+    PowerOff,
     type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
@@ -62,6 +63,7 @@ const TABS: TabDef[] = [
 
 export function InstagramAutomationManager({
         agentId,
+        agentActive: initialAgentActive = true,
         accountUsername,
         accountAvatarUrl,
         initialAutomations,
@@ -70,6 +72,9 @@ export function InstagramAutomationManager({
         reports = {},
 }: {
         agentId: string
+        /** False while the agent is switched off — nothing from Instagram is
+         *  processed then, scenarios included. */
+        agentActive?: boolean
         accountUsername: string
         accountAvatarUrl?: string
         initialAutomations: Automation[]
@@ -107,6 +112,8 @@ export function InstagramAutomationManager({
         const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
         const [deleting, setDeleting] = useState(false)
         const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+        const [agentActive, setAgentActive] = useState(initialAgentActive)
+        const [resuming, setResuming] = useState<'scenarios' | 'all' | null>(null)
 
         const byType = useMemo(() => {
                 const map: Record<AutomationType, Automation[]> = {
@@ -198,6 +205,51 @@ export function InstagramAutomationManager({
                 }
         }
 
+        const scenariosOnly =
+                settings.dmReplyPolicy === 'AUTOMATION_ONLY' &&
+                settings.commentReplyPolicy === 'AUTOMATION_ONLY' &&
+                settings.storyReplyPolicy === 'AUTOMATION_ONLY'
+
+        // Switch the agent back on. With `onlyScenarios` the reply policy is
+        // saved first, so the AI never answers in the gap before it applies.
+        async function resumeAgent(onlyScenarios: boolean) {
+                if (resuming) return
+                setResuming(onlyScenarios ? 'scenarios' : 'all')
+                try {
+                        if (onlyScenarios && !scenariosOnly) {
+                                const policy: ReplyPolicy = 'AUTOMATION_ONLY'
+                                const patch = { replyPolicy: policy, dmReplyPolicy: policy, commentReplyPolicy: policy, storyReplyPolicy: policy }
+                                const res = await fetch(`/api/agents/${agentId}/instagram/settings`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(patch),
+                                })
+                                if (!res.ok) {
+                                        const data = await res.json().catch(() => ({}))
+                                        throw new Error(data.error === 'PLAN_BLOCKED' ? 'PLAN_BLOCKED' : 'RESUME_FAILED')
+                                }
+                                setSettings((current) => ({ ...current, ...patch }))
+                        }
+                        const res = await fetch(`/api/agents/${agentId}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ active: true }),
+                        })
+                        if (!res.ok) throw new Error('RESUME_FAILED')
+                        setAgentActive(true)
+                        flash('ok', locale === 'fa'
+                                ? (onlyScenarios ? 'ایجنت روشن شد؛ فقط سناریوها جواب می‌دهند' : 'ایجنت روشن شد')
+                                : (onlyScenarios ? 'Agent is on; only scenarios reply' : 'Agent is on'))
+                        router.refresh()
+                } catch (error) {
+                        flash('err', error instanceof Error && error.message === 'PLAN_BLOCKED'
+                                ? subscriptionRequired
+                                : locale === 'fa' ? 'ایجنت روشن نشد. دوباره تلاش کنید.' : 'Could not switch the agent on. Try again.')
+                } finally {
+                        setResuming(null)
+                }
+        }
+
         const fa = locale === 'fa'
         const newHref = `/instagram/new?agentId=${agentId}&type=${activeTab}`
         const activeTotal = automations.filter((item) => item.active).length
@@ -240,6 +292,47 @@ export function InstagramAutomationManager({
                                         </button>
                                 )}
                         />
+
+                        {/* A switched-off agent drops every Instagram event before the
+                            scenarios see it. Owners switch it off to stop the AI, so the
+                            way back offers exactly that: on, with only scenarios replying. */}
+                        {!agentActive && (
+                                <div className="flex items-start gap-3 rounded-card border border-amber-300/70 bg-amber-50 p-4 text-amber-950" role="alert">
+                                        <PowerOff aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                                        <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold">
+                                                        {fa ? 'ایجنت خاموش است؛ هیچ سناریویی اجرا نمی‌شود' : 'The agent is off, so no scenario runs'}
+                                                </p>
+                                                <p className="mt-1 text-[13px] leading-6">
+                                                        {fa
+                                                                ? 'تا وقتی ایجنت خاموش باشد، دایرکت‌ها، کامنت‌ها و استوری‌ها اصلاً بررسی نمی‌شوند. اگر فقط نمی‌خواهید هوش مصنوعی جواب بدهد، لازم نیست ایجنت خاموش بماند.'
+                                                                : 'While the agent is off, DMs, comments and stories are not looked at. If you only want the AI to stay quiet, the agent does not need to be off.'}
+                                                </p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => resumeAgent(true)}
+                                                                disabled={resuming !== null}
+                                                                className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] disabled:opacity-60"
+                                                        >
+                                                                {resuming === 'scenarios' && <Loader2 className="h-4 w-4 animate-spin" />}
+                                                                {fa ? 'روشن شود، فقط سناریوها جواب بدهند' : 'Switch on, scenarios only'}
+                                                        </button>
+                                                        {!scenariosOnly && (
+                                                                <button
+                                                                        type="button"
+                                                                        onClick={() => resumeAgent(false)}
+                                                                        disabled={resuming !== null}
+                                                                        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-900/25 bg-white px-4 text-[13px] font-semibold text-amber-950 disabled:opacity-60"
+                                                                >
+                                                                        {resuming === 'all' && <Loader2 className="h-4 w-4 animate-spin" />}
+                                                                        {fa ? 'روشن شود، هوش مصنوعی هم جواب بدهد' : 'Switch on, AI replies too'}
+                                                                </button>
+                                                        )}
+                                                </div>
+                                        </div>
+                                </div>
+                        )}
 
                         {/* One tab bar drives both the scenario list and that entry's settings. */}
                         <div className="ui-seg grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>

@@ -96,6 +96,7 @@ async function InstagramAutomationContent({
                 select: {
                         id: true,
                         name: true,
+                        active: true,
                         workspace: { select: { onboardingCompleted: true } },
                         channels: {
                                 where: { type: 'INSTAGRAM' },
@@ -218,6 +219,7 @@ async function InstagramAutomationContent({
                         {statusBanner}
                         <InstagramAutomationManager
                                 agentId={agent.id}
+                                agentActive={agent.active}
                                 accountUsername={accountUsername}
                                 accountAvatarUrl={accountAvatarUrl}
                                 initialAutomations={automations}

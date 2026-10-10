@@ -16,6 +16,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
   const [agent, workspace, platformPolicy, commercialPolicy] = await Promise.all([
     prisma.agent.findFirst({
     where: { id: agentId, workspaceId: user.workspaceId },
+    include: { channels: { where: { type: 'INSTAGRAM' }, select: { id: true } } },
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
@@ -30,6 +31,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
     <div className="space-y-6">
       <AgentSettingsForm
         section={section}
+        instagramConnected={agent.channels.length > 0}
         storeAccess={section === 'general' ? <AgentStoreAccess agentId={agentId} /> : undefined}
         modelPolicy={{
           plan: workspace?.plan ?? 'TRIAL',
