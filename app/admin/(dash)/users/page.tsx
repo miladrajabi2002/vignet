@@ -27,6 +27,8 @@ import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/a
 import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
 import { AdminUserMobileCards, type AdminMobileUser } from '@/components/admin/admin-user-mobile-cards'
 import { searchVariants } from '@/lib/search/persian'
+import { PlanRing, PlanRingLegend } from '@/components/ui/plan-ring'
+import { planStanding } from '@/lib/billing/plan-standing'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,6 +106,9 @@ export default async function AdminUsersPage(
               id: true,
               name: true,
               plan: true,
+              trialEndsAt: true,
+              // The live subscription period: what the avatar ring is drawn from.
+              subscriptions: { where: { status: 'ACTIVE' }, select: { currentPeriodEnd: true }, take: 1 },
               onboardingCompleted: true,
               onboardingKnowledgeSkipped: true,
               onboardingChannelSkipped: true,
@@ -195,6 +200,10 @@ export default async function AdminUsersPage(
     })),
   ]
 
+  const now = new Date()
+  const standingOf = (ws: NonNullable<(typeof items)[number]['workspace']>) =>
+    planStanding({ plan: ws.plan, trialEndsAt: ws.trialEndsAt, periodEnd: ws.subscriptions[0]?.currentPeriodEnd ?? null }, now)
+
   const makeHref = (p: number) => {
     const sp = new URLSearchParams()
     if (q) sp.set('q', q)
@@ -236,6 +245,7 @@ export default async function AdminUsersPage(
         name: workspace.name,
         planLabel: plan.label,
         planTone: plan.tone,
+        standing: standingOf(workspace),
         statusLabel: workspace.onboardingCompleted ? 'فعال' : stalled ? 'متوقف' : onboarding.labelFa,
         statusTone: workspace.onboardingCompleted ? 'success' : stalled ? 'warning' : 'info',
         counts: {
@@ -324,7 +334,8 @@ export default async function AdminUsersPage(
           {q ? `نتیجه‌ای برای «${q}» یافت نشد` : 'کاربری ثبت نشده'}
         </EmptyState>
       ) : (
-        <>
+        <div className="space-y-2.5">
+        <PlanRingLegend className="px-1" />
         <AdminUserMobileCards users={mobileUsers} />
         <div className="hidden md:block">
         <TableShell>
@@ -364,9 +375,13 @@ export default async function AdminUsersPage(
                 <tr key={u.id}>
                   <Td>
                     <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-chip bg-[var(--bg-muted)] text-[var(--text-secondary)]">
+                      <PlanRing
+                        standing={ws ? standingOf(ws) : null}
+                        className="h-10 w-10"
+                        innerClassName="bg-[var(--bg-muted)] text-[var(--text-secondary)]"
+                      >
                         <UserRound className="h-4 w-4 stroke-[1.8]" />
-                      </span>
+                      </PlanRing>
                       <div className="min-w-0">
                         <div className="truncate font-medium text-[var(--text-primary)] transition-colors group-hover:text-[var(--signal-strong)]">
                           {u.name ?? 'بدون نام'}
@@ -417,7 +432,7 @@ export default async function AdminUsersPage(
           </tbody>
         </TableShell>
         </div>
-        </>
+        </div>
       )}
 
       <AdminPagination page={page} hasNext={hasNext} makeHref={makeHref} />

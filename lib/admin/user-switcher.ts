@@ -1,11 +1,16 @@
+import type { Plan } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isPlatformOwnerPhone } from '@/lib/admin/owner'
+import { planStanding } from '@/lib/billing/plan-standing'
 
 export type SwitchableUser = {
   id: string
   name: string | null
   phone: string
   workspaceName: string
+  plan: Plan
+  /** Whether that plan still grants access (trial running, subscription live). */
+  planActive: boolean
   /** ISO timestamp of the newest sign-in or conversation activity. */
   lastActivityAt: string
 }
@@ -36,12 +41,18 @@ export async function listSwitchableUsers(): Promise<SwitchableUser[]> {
     name: string | null
     phone: string
     workspaceName: string
+    plan: Plan
+    trialEndsAt: Date | null
+    periodEnd: Date | null
     lastActivityAt: Date
   }[]>`
     SELECT u."id"    AS "id",
            u."name"  AS "name",
            u."phone" AS "phone",
            w."name"  AS "workspaceName",
+           w."plan"::text       AS "plan",
+           w."trialEndsAt"      AS "trialEndsAt",
+           s."currentPeriodEnd" AS "periodEnd",
            GREATEST(
              u."createdAt",
              COALESCE(u."lastLoginAt", u."createdAt"),
@@ -51,6 +62,9 @@ export async function listSwitchableUsers(): Promise<SwitchableUser[]> {
     JOIN "Workspace" w
       ON w."id" = u."workspaceId"
      AND w."excludeFromAdminReports" = false
+    LEFT JOIN "Subscription" s
+      ON s."workspaceId" = w."id"
+     AND s."status" = 'ACTIVE'
     LEFT JOIN LATERAL (
       SELECT c."updatedAt"
       FROM "Conversation" c
@@ -62,11 +76,17 @@ export async function listSwitchableUsers(): Promise<SwitchableUser[]> {
     ORDER BY "lastActivityAt" DESC
     LIMIT ${SWITCHABLE_USER_LIMIT}
   `
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    phone: row.phone,
-    workspaceName: row.workspaceName,
-    lastActivityAt: row.lastActivityAt.toISOString(),
-  }))
+  const now = new Date()
+  return rows.map((row) => {
+    const standing = planStanding(row, now)
+    return {
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      workspaceName: row.workspaceName,
+      plan: standing.plan,
+      planActive: standing.active,
+      lastActivityAt: row.lastActivityAt.toISOString(),
+    }
+  })
 }

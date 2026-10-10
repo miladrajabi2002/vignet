@@ -21,3 +21,15 @@ export const CHART_COLORS = [
   '#55524c', // secondary ink
   '#e6e1ff', // iris 100
 ]
+
+/**
+ * One colour per plan, wherever a plan is drawn (the plan mix, the ring around
+ * an account's avatar): the paid tiers carry ink and the accent, the trial
+ * stays a neutral grey.
+ */
+export const PLAN_COLOR: Record<string, string> = {
+  BUSINESS: CHART_INK,
+  PRO: CHART_ACCENT,
+  STARTER: '#b9adff', // iris 300
+  TRIAL: '#8c8780', // warm grey
+}

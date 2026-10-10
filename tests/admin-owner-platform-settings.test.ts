@@ -143,7 +143,7 @@ describe('admin control-center regressions', () => {
     expect(header).toContain('dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]')
     expect(layout).toContain('dashboard-shell-content')
     expect(layout).toContain('<div className="dashboard-main">')
-    expect(nav).toContain('Vigento AI')
+    expect(readFileSync(path.join(process.cwd(), 'app/admin/(dash)/vigento-card.tsx'), 'utf8')).toContain('Vigento AI')
     expect(nav).toContain('admin-rail-link')
     // Admin and dashboard share one page header (title bar + inline back).
     expect(ui).toContain('<DashboardPageHeader')

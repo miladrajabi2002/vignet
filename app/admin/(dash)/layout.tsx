@@ -5,7 +5,6 @@ import { AdminMobileNav } from './mobile-nav'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { ADMIN_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { prisma } from '@/lib/prisma'
-import { ADMIN_VISIBLE_USER_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 export const metadata = {
   title: 'پنل مالک | Vigent',
@@ -16,21 +15,7 @@ export const dynamic = 'force-dynamic'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Standalone admin guard — separate from the OTP/next-auth user session.
   await requireAdmin()
-  const startToday = new Date()
-  startToday.setHours(0, 0, 0, 0)
-  const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
-  const [mailUnreadCount, errors24h, newUsersToday] = await Promise.all([
-    prisma.adminMailboxMessage.count({ where: { readAt: null } }),
-    prisma.errorLog.count({
-      where: {
-        level: 'error',
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-        ...(hiddenWorkspaceIds.length ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] } : {}),
-      },
-    }),
-    prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startToday } } }),
-  ])
-  const pulse = { errors24h, newUsersToday }
+  const mailUnreadCount = await prisma.adminMailboxMessage.count({ where: { readAt: null } })
 
   return (
     <ScopedIntlProvider messagePaths={ADMIN_CLIENT_MESSAGE_PATHS}>
@@ -45,7 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminRail mailUnreadCount={mailUnreadCount} ownerName={ADMIN_OWNER_NAME} />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <AdminHeader ownerName={ADMIN_OWNER_NAME} mailUnreadCount={mailUnreadCount} pulse={pulse} />
+          <AdminHeader ownerName={ADMIN_OWNER_NAME} mailUnreadCount={mailUnreadCount} />
 
           <main id="admin-main" tabIndex={-1} className="dashboard-shell-content flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:pt-5 md:pb-10 focus:outline-none">
             <div className="dashboard-main">{children}</div>

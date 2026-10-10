@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ExternalLink, LogOut, Sparkles } from 'lucide-react'
+import { ExternalLink, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
 import { adminLogout } from '../login/actions'
@@ -24,34 +24,15 @@ export function AdminTag({ className }: { className?: string }) {
  */
 export function AdminRail({ mailUnreadCount = 0, ownerName }: { mailUnreadCount?: number; ownerName: string }) {
   const pathname = usePathname()
-  const vigentoActive = pathname.startsWith('/admin/vigento')
 
   return (
     <aside className="admin-rail sticky top-3 m-3 me-0 hidden h-[calc(100dvh-1.5rem)] w-[4.25rem] shrink-0 flex-col rounded-sheet p-2 md:flex lg:w-[17rem] lg:p-3">
-      <Link href="/admin" aria-label="داشبورد مدیریت" className="mb-2 flex min-h-12 items-center justify-center gap-2 px-2">
+      <Link href="/admin" aria-label="داشبورد مدیریت" className="mb-3 flex min-h-12 items-center justify-center gap-2 px-2">
         <Logo priority variant="white" className="hidden h-7 w-28 lg:block" />
         <span aria-hidden className="relative block h-7 w-[26px] overflow-hidden lg:hidden" dir="ltr">
           <Logo variant="white" className="absolute left-0 top-0 h-7 w-28" />
         </span>
         <AdminTag className="hidden lg:inline" />
-      </Link>
-
-      {/* The assistant is the rail's only filled block — and the one place the
-          accent appears at full strength. */}
-      <Link
-        href="/admin/vigento"
-        title="Vigento AI"
-        aria-current={vigentoActive ? 'page' : undefined}
-        className={cn(
-          'spatial-press mb-3 flex min-h-11 items-center justify-center gap-3 rounded-control bg-[var(--signal)] text-[13px] font-medium text-white lg:justify-start lg:px-3.5',
-          vigentoActive && 'ring-2 ring-white/70 ring-offset-2 ring-offset-[#111]',
-        )}
-      >
-        <span className="grid h-7 w-7 place-items-center rounded-chip bg-white/15">
-          <Sparkles className="h-4 w-4" />
-        </span>
-        <span className="hidden flex-1 lg:block">Vigento AI</span>
-        <span className="hidden text-[12px] font-normal text-white/75 lg:block">مدیریت هوشمند</span>
       </Link>
 
       {/* Every page stays reachable on short screens: the list scrolls without

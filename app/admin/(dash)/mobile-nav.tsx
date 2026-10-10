@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Poin
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, ExternalLink, LogOut, Menu, Sparkles, X } from 'lucide-react'
+import { ExternalLink, LogOut, Menu, X } from 'lucide-react'
 import { adminLogout } from '../login/actions'
 import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, ADMIN_PRIMARY_HREFS, isAdminNavActive } from './nav-items'
 import { cn } from '@/lib/utils'
@@ -42,9 +42,8 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
   const dragStartRef = useRef<{ y: number; time: number } | null>(null)
   const closeTimerRef = useRef<number | null>(null)
 
-  const vigentoActive = pathname.startsWith('/admin/vigento')
   // "More" reads as the current tab when the open page lives inside the sheet.
-  const moreActive = vigentoActive || SHEET_ITEMS.some((item) => isAdminNavActive(pathname, item))
+  const moreActive = SHEET_ITEMS.some((item) => isAdminNavActive(pathname, item))
 
   function showDrawer(trigger: HTMLElement) {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current)
@@ -302,23 +301,7 @@ export function AdminMobileNav({ mailUnreadCount = 0 }: { mailUnreadCount?: numb
                 </ul>
               </nav>
 
-              {/* The assistant: the sheet's one filled row, in the console's iris. */}
-              <Link
-                href="/admin/vigento"
-                onClick={requestClose}
-                aria-current={vigentoActive ? 'page' : undefined}
-                style={{ '--row': SHEET_ITEMS.length } as CSSProperties}
-                className="dashboard-more-row spatial-press mt-4 flex min-h-[3.25rem] items-center gap-3 rounded-control bg-[var(--signal)] px-3 text-white shadow-[var(--shadow-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
-              >
-                <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-[13px]">
-                  <span className="font-bold">Vigento AI</span>
-                  <span className="text-white/70"> · مدیریت هوشمند</span>
-                </span>
-                <ChevronLeft className="h-4 w-4 shrink-0 text-white/60" aria-hidden="true" />
-              </Link>
-
-              <div className="mt-1 grid grid-cols-2">
+              <div className="mt-3 grid grid-cols-2">
                 <Link
                   href="/"
                   target="_blank"

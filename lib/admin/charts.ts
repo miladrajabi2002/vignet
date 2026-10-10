@@ -259,45 +259,53 @@ export interface Slice {
         value: number
 }
 
-/** One revenue slice per subscription plan (successful payments only). */
-export interface PlanRevenueSlice {
+/** One row per plan: who is on it and what they have paid. */
+export interface PlanMixRow {
         key: string
         label: string
+        /** Workspaces currently on this plan. */
+        customerCount: number
         revenueIRR: number
         paymentCount: number
 }
 
+/** Highest tier first — the order every per-plan list in the console uses. */
+const PLAN_MIX_ORDER = ['BUSINESS', 'PRO', 'STARTER', 'TRIAL'] as const
+
 /**
- * Collected subscription revenue grouped by plan, all-time, in IRR.
+ * Customers and collected revenue per plan, all-time, in IRR.
+ * A workspace counts under the plan it is on NOW, and so do all of its
+ * successful payments (subscription and credit top-ups) — so "customers" and
+ * "revenue" on a row describe the same set of workspaces. Every plan is
+ * returned, including the empty ones.
  * USD payments are converted with the USD rate set in the admin panel
  * (platform commercial config) — matching the finance
  * summary on this dashboard. Hidden workspaces are excluded.
  */
-export async function revenueByPlan(): Promise<PlanRevenueSlice[]> {
+export async function planMix(): Promise<PlanMixRow[]> {
         const commercialConfig = await getPlatformCommercialConfig()
         const usdToIrr = commercialConfig.financeUsdToIRR && commercialConfig.financeUsdToIRR > 0
                 ? commercialConfig.financeUsdToIRR
                 : 0
 
         const rows = await prisma.$queryRaw<{
-                plan: string | null
+                plan: string
+                customers: bigint
                 irr: number | null
                 usd: number | null
                 cnt: bigint
         }[]>`
-    SELECT w."plan"::text      AS plan,
+    SELECT w."plan"::text         AS plan,
+           COUNT(DISTINCT w."id") AS customers,
            COALESCE(sum(p."amount") FILTER (WHERE p."currency" = 'IRR'), 0) AS irr,
            COALESCE(sum(p."amount") FILTER (WHERE p."currency" = 'USD'), 0) AS usd,
-           COUNT(*)            AS cnt
-    FROM "Payment" p
-    JOIN "Workspace" w
-      ON w."id" = p."workspaceId"
-     AND w."excludeFromAdminReports" = false
-    WHERE p."status" = 'PAID'
-      AND p."kind" = 'SUBSCRIPTION'
-      AND w."plan" IS NOT NULL
+           COUNT(p."id")          AS cnt
+    FROM "Workspace" w
+    LEFT JOIN "Payment" p
+      ON p."workspaceId" = w."id"
+     AND p."status" = 'PAID'
+    WHERE w."excludeFromAdminReports" = false
     GROUP BY 1
-    ORDER BY 2 DESC
   `
         const labels: Record<string, string> = {
                 TRIAL: 'آزمایشی',
@@ -305,12 +313,17 @@ export async function revenueByPlan(): Promise<PlanRevenueSlice[]> {
                 PRO: 'حرفه‌ای',
                 BUSINESS: 'بیزینس',
         }
-        return rows.map((r) => ({
-                key: r.plan ?? 'UNKNOWN',
-                label: labels[r.plan ?? ''] ?? r.plan ?? 'نامشخص',
-                revenueIRR: Math.round(Number(r.irr ?? 0) + Number(r.usd ?? 0) * usdToIrr),
-                paymentCount: Number(r.cnt),
-        }))
+        const byPlan = new Map(rows.map((r) => [r.plan, r]))
+        return PLAN_MIX_ORDER.map((plan) => {
+                const r = byPlan.get(plan)
+                return {
+                        key: plan,
+                        label: labels[plan],
+                        customerCount: Number(r?.customers ?? 0),
+                        revenueIRR: Math.round(Number(r?.irr ?? 0) + Number(r?.usd ?? 0) * usdToIrr),
+                        paymentCount: Number(r?.cnt ?? 0),
+                }
+        })
 }
 
 // ─── PER-WORKSPACE SPARKLINE ──────────────────────────────────────

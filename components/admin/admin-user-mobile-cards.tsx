@@ -15,6 +15,8 @@ import {
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { CopyButton } from '@/components/ui/copy-button'
 import { LEGACY_TONE, StatusChip } from '@/components/ui/status-chip'
+import { PlanRing } from '@/components/ui/plan-ring'
+import type { PlanStanding } from '@/lib/billing/plan-standing'
 
 type Tone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
@@ -28,6 +30,8 @@ export interface AdminMobileUser {
     name: string
     planLabel: string
     planTone: Tone
+    /** Drawn as the ring around the avatar. */
+    standing: PlanStanding
     statusLabel: string
     statusTone: Tone
     counts: {
@@ -67,9 +71,13 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
             className="admin-record spatial-press w-full text-start outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <span className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-[var(--bg-muted)] text-[var(--text-secondary)]">
-                <UserRound className="h-5 w-5" aria-hidden="true" />
-              </span>
+              <PlanRing
+                standing={user.workspace?.standing ?? null}
+                className="h-11 w-11"
+                innerClassName="bg-[var(--bg-muted)] text-[var(--text-secondary)]"
+              >
+                <UserRound className="h-[1.1rem] w-[1.1rem]" />
+              </PlanRing>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-[var(--text-primary)]">{user.name}</span>
                 <span dir="ltr" className="mt-1 block truncate text-start text-xs text-[var(--text-muted)]">{user.phone}</span>

@@ -2,7 +2,7 @@ import { AdminLoadingShell, ChartSkeleton, PageHeaderSkeleton, PanelSkeleton, St
 
 /**
  * Skeleton for /admin (the dashboard home) — mirrors it exactly:
- * header with range switch → 8 KPI cards → active users + donut →
+ * header with range switch → 8 KPI cards → active users + plan mix →
  * revenue + conversations charts. Every other admin page has its own
  * loading.tsx so no page borrows this shape.
  */
@@ -13,7 +13,7 @@ export default function AdminDashLoading() {
       <StatGridSkeleton count={8} />
       <div className="grid gap-4 lg:grid-cols-2">
         <PanelSkeleton delay={-140} rows={6} />
-        <ChartSkeleton delay={-260} />
+        <PanelSkeleton delay={-260} rows={6} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartSkeleton delay={-80} />

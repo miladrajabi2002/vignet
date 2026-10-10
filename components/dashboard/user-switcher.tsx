@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/impersonation'
 import type { SwitchableUser } from '@/lib/admin/user-switcher'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { PlanRing, PlanRingLegend } from '@/components/ui/plan-ring'
 import { relativeTime } from '@/lib/format'
 import { displayPhone, toEnglishDigits } from '@/lib/phone'
 import { cn } from '@/lib/utils'
@@ -187,7 +188,17 @@ export function UserSwitcher({
                       pendingId !== null && pendingId !== user.id && 'opacity-50',
                     )}
                   >
-                    <Avatar label={user.name ?? user.workspaceName} active={isCurrent} className="h-9 w-9" />
+                    <PlanRing
+                      standing={{ plan: user.plan, active: user.planActive }}
+                      fa={fa}
+                      className="h-10 w-10"
+                      innerClassName={cn(
+                        'text-[13px] font-bold',
+                        isCurrent ? 'bg-amber-100 text-amber-800' : 'bg-[var(--bg-surface)] text-[var(--text-primary)]',
+                      )}
+                    >
+                      {(user.name ?? user.workspaceName).trim().charAt(0) || '؟'}
+                    </PlanRing>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-bold leading-5 text-[var(--text-primary)]">
                         {user.name ?? user.workspaceName}
@@ -214,6 +225,9 @@ export function UserSwitcher({
           </ul>
         )}
       </div>
+
+      {/* What the ring around each avatar means. */}
+      <PlanRingLegend fa={fa} className="mt-2 shrink-0 border-t border-black/[0.06] px-1 pt-2" />
     </div>
   )
 

@@ -22,13 +22,13 @@ import {
   fa,
 } from './ui'
 import {
-  DonutChart,
   MonthlyBarChart,
   NetRevenueChart,
   TrendChart,
 } from '@/components/admin/trend-chart'
 import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
+import { PlanMixPanel } from '@/components/admin/plan-mix-panel'
 import {
   conversationsDaily,
   conversationsMonthly,
@@ -40,7 +40,7 @@ import {
   providerCostUSDDaily,
   connectionsDaily,
   revenueIRRMonthly,
-  revenueByPlan,
+  planMix,
   revenueNetDaily,
   topActiveUsers,
 } from '@/lib/admin/charts'
@@ -133,7 +133,7 @@ export default async function AdminOverviewPage(
     workspaceCount,
     conversationsToday,
     errors24h,
-    planRevenue,
+    planMixRows,
     rangeSeries,
     kpiTrends,
     aiOverview,
@@ -148,7 +148,7 @@ export default async function AdminOverviewPage(
     prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h }, level: 'error' }] } }),
-    revenueByPlan(),
+    planMix(),
     rangeSeriesPromise,
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
     //   range switch, so the cards always show recent site-wide momentum).
@@ -205,11 +205,6 @@ export default async function AdminOverviewPage(
         : orRemaining <= 5
           ? 'warning'
           : 'success'
-
-  // ── Revenue by plan (successful subscription payments, all-time) ──
-  const planRevenueSlices = planRevenue.map((p) => ({ label: p.label, value: p.revenueIRR }))
-  const planRevenueTotalIRR = planRevenueSlices.reduce((s, p) => s + p.value, 0)
-  const planRevenueToman = Math.round(planRevenueTotalIRR / 10)
 
   // ── Net revenue = all collected cash − real AI provider cost ──
   // getFinanceSummary() converts USD payments and the OpenRouter bill with the
@@ -309,7 +304,7 @@ export default async function AdminOverviewPage(
         </div>
       </section>
 
-      {/* ─── Active users list (replaces business activation funnel) ─── */}
+      {/* ─── Active users list + customers and revenue per plan ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel
           title="کاربران فعال"
@@ -374,14 +369,7 @@ export default async function AdminOverviewPage(
           )}
         </Panel>
 
-        <DonutChart
-          title="درآمد به تفکیک پلن"
-          subtitle="مجموع پرداخت‌های موفق اشتراک"
-          data={planRevenueSlices}
-          centerValue={planRevenueToman}
-          centerLabel="تومان"
-          format="irr"
-        />
+        <PlanMixPanel rows={planMixRows} />
       </div>
 
       {/* ─── Charts row: net revenue + conversations side by side ─── */}

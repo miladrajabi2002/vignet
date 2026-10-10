@@ -39,12 +39,17 @@ describe('owner console shell', () => {
 
     expect(sections.length).toBeGreaterThan(10)
     for (const section of sections) {
-      // Vigento is the rail's own filled shortcut, not a list row.
+      // Vigento is the header's filled card on every screen, not a menu row.
       if (section === 'vigento') continue
       expect(nav, `/admin/${section} is missing from nav-items.ts`).toContain(`'/admin/${section}`)
     }
-    expect(source(`${ADMIN_DIR}/admin-nav.tsx`)).toContain('href="/admin/vigento"')
-    expect(source(`${ADMIN_DIR}/mobile-nav.tsx`)).toContain('href="/admin/vigento"')
+    expect(source(`${ADMIN_DIR}/vigento-card.tsx`)).toContain('href="/admin/vigento"')
+    const header = source(`${ADMIN_DIR}/admin-header.tsx`)
+    expect(header).toContain('<VigentoCard compact />')
+    expect(header).toContain('<VigentoCard />')
+    expect(header).not.toContain('سلامت سامانه')
+    expect(source(`${ADMIN_DIR}/admin-nav.tsx`)).not.toContain('/admin/vigento')
+    expect(source(`${ADMIN_DIR}/mobile-nav.tsx`)).not.toContain('/admin/vigento')
   })
 
   it('drives the rail, the phone bar and its sheet from that registry', () => {
