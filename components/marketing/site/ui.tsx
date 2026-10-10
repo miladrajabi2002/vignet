@@ -29,6 +29,11 @@ const BTN_BASE = 'vg-press inline-flex items-center justify-center gap-2.5 white
 // pill shape is kept only for the large site CTAs (btnLg).
 export const btnDark = cn(BTN_BASE, 'vg-btn-dark bg-vg-ink text-white shadow-[var(--shadow-control)]')
 export const btnGhost = cn(BTN_BASE, 'vg-btn-ghost border border-black/[0.12] bg-white/70 text-vg-ink')
+// The same pair on a dark surface (the closing card): fills invert and the
+// focus ring is lifted to a lilac that still reads on near-black.
+const BTN_ON_DARK = 'focus-visible:ring-[#b9adff] focus-visible:ring-offset-[#0e0e11]'
+export const btnLight = cn(BTN_BASE, BTN_ON_DARK, 'vg-btn-light bg-white text-vg-ink')
+export const btnGhostDark = cn(BTN_BASE, BTN_ON_DARK, 'vg-btn-ghost-dark border border-white/[0.18] bg-white/[0.06] text-white')
 export const btnLg = 'h-[52px] rounded-full px-7 text-[15px] lg:h-14 lg:text-base'
 
 /** Dark announcement pill above an H1 (orbiting spark ring). */
@@ -101,7 +106,7 @@ export function CheckLine({ children, className, iconClassName }: { children: Re
 	)
 }
 
-/** Primary / secondary CTA pair used by heroes and the closing lamp. */
+/** Primary / secondary CTA pair used by heroes and the closing card (`onDark` inverts it for a dark surface). */
 export function CtaPair({
 	locale,
 	primary,
@@ -109,6 +114,7 @@ export function CtaPair({
 	secondaryHref,
 	secondaryIcon: SecondaryIcon,
 	secondaryAria,
+	onDark = false,
 	className,
 }: {
 	locale: SiteLocale
@@ -117,10 +123,11 @@ export function CtaPair({
 	secondaryHref: string
 	secondaryIcon?: IconType
 	secondaryAria?: string
+	onDark?: boolean
 	className?: string
 }) {
 	const external = /^(https?:|tel:)/.test(secondaryHref)
-	const ghostClass = cn(btnGhost, btnLg, 'w-full sm:w-auto')
+	const ghostClass = cn(onDark ? btnGhostDark : btnGhost, btnLg, 'w-full sm:w-auto')
 	const ghostInner = (
 		<>
 			{SecondaryIcon ? <SecondaryIcon aria-hidden className="size-[17px]" strokeWidth={1.8} /> : null}
@@ -129,7 +136,7 @@ export function CtaPair({
 	)
 	return (
 		<div className={cn('flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3', className)}>
-			<Link href={SIGNUP_HREF} className={cn(btnDark, btnLg, 'vg-sheen w-full sm:w-auto')}>
+			<Link href={SIGNUP_HREF} className={cn(onDark ? btnLight : btnDark, btnLg, 'vg-sheen w-full sm:w-auto')}>
 				{primary}
 				<ForwardArrow locale={locale} className="size-[18px]" />
 			</Link>

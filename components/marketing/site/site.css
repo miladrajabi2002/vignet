@@ -37,6 +37,8 @@
 	.vg-zoom:hover img { transform: scale(1.04); }
 	.vg-btn-dark:hover { background-color: #2a2a2e; }
 	.vg-btn-ghost:hover { background-color: #ffffff; border-color: rgba(17, 17, 17, .2); }
+	.vg-btn-light:hover { background-color: #ecebf5; }
+	.vg-btn-ghost-dark:hover { background-color: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .3); }
 	.vg-navlink:hover { color: #111111; background-color: rgba(17, 17, 17, .05); }
 	.vg-flink:hover { color: #111111; }
 }
@@ -182,6 +184,8 @@
 }
 @keyframes vg-blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 @keyframes vg-spin { to { transform: rotate(360deg); } }
+/* A white sheen is invisible on the white button of a dark surface: tint it. */
+.vg-btn-light.vg-sheen::after { background: linear-gradient(105deg, transparent 35%, rgba(91, 61, 232, .16) 50%, transparent 65%); }
 @keyframes vg-sheen { 0%, 60% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
 .vg-sheen-x { inset-inline-start: -40%; animation: vg-sheen-x 9s ease-in-out infinite; }
 @keyframes vg-sheen-x { 0%, 30% { transform: translateX(0); opacity: 0; } 32% { opacity: 1; } 42% { transform: translateX(var(--vg-sheen-dx, -420%)); opacity: 1; } 44%, 100% { transform: translateX(var(--vg-sheen-dx, -420%)); opacity: 0; } }
@@ -235,33 +239,91 @@
 /* Once an entrance finishes, MotionPauser drops the `vg-rv*` class so hover
    lifts and presses get their own snappy transitions back. */
 
-/* ── Closing-CTA lamp (the writora beam, restored) ───────────────────────
-   Two conic wings, an orb and a hairline sit closed at 15rem and open to
-   the measured title width (--lamp-open) when the card is revealed:
-   300ms delay, 800ms ease-in-out. Phones open slower and narrower so the
-   beam frames the title instead of flooding the card. */
-.vg-lamp-wing { width: var(--lamp-open, 30rem); opacity: 1; }
-.vg-lamp-orb { width: calc(var(--lamp-open, 30rem) * .53); }
-.vg-lamp-line { width: var(--lamp-open, 30rem); }
-.vg-rv-ready .vg-cta:not(.vg-in) .vg-lamp-wing { width: 15rem; opacity: .5; }
-.vg-rv-ready .vg-cta:not(.vg-in) .vg-lamp-orb { width: 8rem; }
-.vg-rv-ready .vg-cta:not(.vg-in) .vg-lamp-line { width: 15rem; }
-.vg-rv-ready .vg-cta .vg-lamp-wing { transition: width 800ms ease-in-out 300ms, opacity 800ms ease-in-out 300ms; }
-.vg-rv-ready .vg-cta .vg-lamp-orb,
-.vg-rv-ready .vg-cta .vg-lamp-line { transition: width 800ms ease-in-out 300ms; }
-@media (max-width: 767px) {
-	.vg-lamp-wing { width: min(var(--lamp-open, 30rem), 72vw, 17rem); opacity: .8; }
-	.vg-lamp-orb { width: min(calc(var(--lamp-open, 30rem) * .53), 38vw, 9rem); }
-	.vg-lamp-line { width: min(var(--lamp-open, 30rem), 72vw, 17rem); }
-	.vg-rv-ready .vg-cta:not(.vg-in) .vg-lamp-wing { width: 6rem; opacity: .35; }
-	.vg-rv-ready .vg-cta:not(.vg-in) .vg-lamp-orb { width: 4rem; }
-	.vg-rv-ready .vg-cta:not(.vg-in) .vg-lamp-line { width: 6rem; }
-	.vg-rv-ready .vg-cta .vg-lamp-wing { transition: width 1200ms cubic-bezier(.45, 0, .2, 1) 450ms, opacity 1200ms ease-in-out 450ms; }
-	.vg-rv-ready .vg-cta .vg-lamp-orb,
-	.vg-rv-ready .vg-cta .vg-lamp-line { transition: width 1200ms cubic-bezier(.45, 0, .2, 1) 450ms; }
+/* ── Closing CTA: dawn + signature ───────────────────────────────────────
+   A night card. When it is revealed the horizon's rim of light opens from
+   its centre, the halo rises behind the planet's edge, the title settles
+   word by word, an ink stroke signs its closing phrase and the logo star
+   lands on the end of the sentence. Entrances are one-shot transitions
+   armed by `.vg-rv-ready` (so no-JS and reduced-motion visitors get the
+   finished card); the only loops are opacity/transform and rest with the
+   rest of the page. The horizon is drawn with gradients inside a short
+   strip — no blur filters and no oversized layers for phones to composite.
+   --dawn-hz: height of the horizon's apex above the card's bottom edge.
+   --dawn-r: the planet's radius (larger = flatter horizon). */
+.vg-dawn { --dawn-hz: 3.5rem; --dawn-r: 34rem; padding-bottom: calc(var(--dawn-hz) + 2.25rem); }
+@media (min-width: 640px) { .vg-dawn { --dawn-hz: 4.75rem; --dawn-r: 72rem; padding-bottom: calc(var(--dawn-hz) + 3rem); } }
+@media (min-width: 1024px) { .vg-dawn { --dawn-r: 96rem; } }
+.vg-dawn-sky { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.vg-dawn-sky > * { position: absolute; }
+.vg-dawn-grid { inset: 0; -webkit-mask-image: linear-gradient(to bottom, #000, transparent 82%); mask-image: linear-gradient(to bottom, #000, transparent 82%); }
+.vg-dawn-dot { width: 2px; height: 2px; border-radius: 50%; background: #ffffff; opacity: .4; animation: vg-dawn-flicker var(--d, 5s) ease-in-out var(--s, 0s) infinite; }
+/* The halo's box runs 5rem below the horizon (hidden by the planet);
+   --halo-ry is the rest of its height as a share of the box, so the ellipse
+   fades out inside the box's top edge instead of being cut by it. */
+.vg-dawn-halo { left: 50%; bottom: calc(var(--dawn-hz) - 5rem); width: min(52rem, 124%); height: 15rem; --halo-ry: 66.6%; margin-left: calc(min(52rem, 124%) / -2); transform-origin: 50% calc(100% - 5rem); }
+.vg-dawn-halo > i {
+	position: absolute; inset: 0; transform-origin: inherit;
+	/* Stops follow an ease-out curve: a straight ramp to zero ends in a visible edge. */
+	background: radial-gradient(ellipse 50% var(--halo-ry) at 50% calc(100% - 5rem),
+		rgba(124, 98, 255, .62), rgba(110, 84, 246, .36) 20%, rgba(96, 68, 236, .18) 42%, rgba(91, 61, 232, .07) 64%, rgba(91, 61, 232, .02) 84%, rgba(91, 61, 232, 0));
+	animation: vg-dawn-breathe 7s ease-in-out infinite;
 }
+.vg-dawn-planet, .vg-dawn-rim { inset-inline: 0; bottom: 0; height: calc(var(--dawn-hz) + 2rem); }
+.vg-dawn-planet { background: radial-gradient(circle var(--dawn-r) at 50% calc(2rem + var(--dawn-r)), #08080a calc(var(--dawn-r) - 5rem), #15112f calc(var(--dawn-r) - 1px), transparent var(--dawn-r)); }
+.vg-dawn-rim {
+	background: radial-gradient(circle var(--dawn-r) at 50% calc(2rem + var(--dawn-r)),
+		transparent calc(var(--dawn-r) - 2.5px), #e4dcff calc(var(--dawn-r) - 1.25px), #e4dcff var(--dawn-r),
+		rgba(150, 128, 255, .6) calc(var(--dawn-r) + 1px), rgba(124, 98, 255, .18) calc(var(--dawn-r) + 10px), transparent calc(var(--dawn-r) + 26px));
+	/* The mask fades the rim toward both ends; growing it from zero width is
+	   what opens the horizon, soft-edged, from its centre. */
+	-webkit-mask: linear-gradient(90deg, transparent 6%, #000 50%, transparent 94%) center / 100% 100% no-repeat;
+	mask: linear-gradient(90deg, transparent 6%, #000 50%, transparent 94%) center / 100% 100% no-repeat;
+}
+@media (min-width: 640px) { .vg-dawn-halo { height: 21rem; --halo-ry: 76.1%; } }
+@media (max-width: 639px) { .vg-dawn-dot:nth-of-type(odd) { display: none; } }
+@keyframes vg-dawn-flicker { 0%, 100% { opacity: .15; } 50% { opacity: .7; } }
+@keyframes vg-dawn-breathe { 0%, 100% { opacity: .82; transform: scaleY(.94); } 50% { opacity: 1; transform: scaleY(1.04); } }
+
+/* The signature: words are inline blocks, the two strokes are filled brush
+   shapes revealed by a clip (drawn in the reading direction; the negative
+   insets leave room for their glow), the star is the logo's. */
+.vg-sig-w { display: inline-block; }
+.vg-sig { position: relative; display: inline-block; white-space: nowrap; }
+.vg-sig-ln {
+	position: absolute; inset-inline: -3%; bottom: -.3em; width: 106%; height: .42em; pointer-events: none;
+	fill: #cfc6ff; filter: drop-shadow(0 0 6px rgba(140, 115, 255, .75)); clip-path: inset(-12px -12px -12px -12px);
+}
+.vg-sig-ln-b { opacity: .5; }
+:dir(ltr) .vg-sig-ln, [dir='ltr'] .vg-sig-ln { transform: scaleX(-1); }
+/* Phones fit the title to the card's full width, so there the star sits above
+   the end of the phrase instead of beside it. */
+.vg-sig-star { position: absolute; inset-inline-end: -.2em; top: -.46em; width: .46em; height: .46em; }
+@media (min-width: 640px) { .vg-sig-star { inset-inline-end: -.5em; top: -.2em; } }
+.vg-sig-star > svg { display: block; width: 100%; height: 100%; overflow: visible; fill: #e4dcff; filter: drop-shadow(0 0 5px rgba(150, 128, 255, .9)); animation: vg-sig-twinkle 6s ease-in-out infinite; }
+@keyframes vg-sig-twinkle { 0%, 38%, 62%, 100% { transform: none; opacity: 1; } 50% { transform: scale(.6) rotate(45deg); opacity: .55; } }
+
+/* The entrance, in order: rim 300ms → halo and words 500ms → copy 900ms →
+   buttons 1050ms → first stroke 1250ms → second 1850ms → star 2250ms.
+   The transitions hang on `.vg-in`, not on the card: arming the hidden state
+   is then instant, so a visitor who reaches the card right after hydration
+   never meets a half-hidden signature still waiting out its delay. */
+.vg-rv-ready .vg-cta:not(.vg-in) .vg-dawn-rim { -webkit-mask-size: 0% 100%; mask-size: 0% 100%; opacity: 0; }
+.vg-rv-ready .vg-cta.vg-in .vg-dawn-rim { transition: -webkit-mask-size 1400ms var(--vg-ease-io) 300ms, mask-size 1400ms var(--vg-ease-io) 300ms, opacity 500ms ease 300ms; }
+.vg-rv-ready .vg-cta:not(.vg-in) .vg-dawn-halo { opacity: 0; transform: scaleY(.25); }
+.vg-rv-ready .vg-cta.vg-in .vg-dawn-halo { transition: opacity 1600ms ease-out 500ms, transform 2000ms cubic-bezier(.3, .7, .2, 1) 500ms; }
+.vg-rv-ready .vg-cta:not(.vg-in) .vg-dawn-rise { opacity: 0; transform: translateY(10px); }
+.vg-rv-ready .vg-cta.vg-in .vg-dawn-rise { transition: opacity 700ms var(--vg-ease-out), transform 800ms var(--vg-ease-out); transition-delay: var(--rise-d, 900ms); }
+.vg-rv-ready .vg-cta:not(.vg-in) .vg-sig-w { opacity: 0; transform: translateY(.35em); }
+.vg-rv-ready .vg-cta.vg-in .vg-sig-w { transition: opacity 700ms var(--vg-ease-out), transform 800ms var(--vg-ease-out), filter 800ms var(--vg-ease-out); transition-delay: calc(500ms + var(--i, 0) * 70ms); }
+.vg-rv-ready .vg-cta:not(.vg-in) .vg-sig-ln { clip-path: inset(-12px -12px -12px calc(100% + 12px)); }
+.vg-rv-ready .vg-cta.vg-in .vg-sig-ln { transition: clip-path 900ms var(--vg-ease-io) 1250ms; }
+.vg-rv-ready .vg-cta.vg-in .vg-sig-ln-b { transition-duration: 600ms; transition-delay: 1850ms; }
+.vg-rv-ready .vg-cta:not(.vg-in) .vg-sig-star { opacity: 0; transform: scale(0) rotate(-90deg); }
+.vg-rv-ready .vg-cta.vg-in .vg-sig-star { transition: opacity 300ms ease 2250ms, transform 700ms cubic-bezier(.34, 1.56, .64, 1) 2250ms; }
+/* Words also sharpen out of a soft blur where the compositor can afford it. */
+@media (min-width: 1024px) { .vg-rv-ready .vg-cta:not(.vg-in) .vg-sig-w { filter: blur(6px); } }
 /* Backlight behind the card: violet light spilling from both sides (and a
-   little from the top), fading in as the lamp opens, then breathing slowly. */
+   little from the top), fading in as the horizon opens, then breathing slowly. */
 .vg-cta-glow {
 	position: absolute; z-index: 0; pointer-events: none;
 	inset: 8% -2.5rem 6%; border-radius: 3rem;
@@ -278,10 +340,6 @@
 @keyframes vg-cta-breathe { 0%, 100% { transform: scale(.985, .96); } 50% { transform: scale(1.02, 1.05); } }
 .vg-cta-glow.vg-anim:not(.vg-on) { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .vg-cta-glow { animation: none; } }
-.vg-cta > .marketing-grid::after {
-	content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-	background: radial-gradient(circle at 50% 12%, rgba(150, 133, 251, .1), transparent 26rem), linear-gradient(to bottom, transparent 50%, rgba(91, 61, 232, .025));
-}
 /* One-line title fitted to its own container width (cqw), capped. */
 .vg-oneline { white-space: nowrap; font-size: var(--title-fallback, 1rem); font-size: min(var(--title-max, 2rem), var(--title-fit, 5cqw)); }
 
