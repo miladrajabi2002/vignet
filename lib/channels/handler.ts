@@ -244,6 +244,55 @@ async function resolveInstagramChannelById(
         }
 }
 
+/**
+ * Connected Instagram accounts that own one of `entityIds` but cannot receive
+ * because the agent (or the channel) is switched off. Their events are dropped
+ * on purpose, so they must not be reported as an unknown account.
+ */
+async function findPausedInstagramOwners(entityIds: string[]) {
+        const rows = await prisma.agentChannel.findMany({
+                where: { type: 'INSTAGRAM', OR: [{ active: false }, { agent: { active: false } }] },
+                select: {
+                        id: true,
+                        active: true,
+                        config: true,
+                        agent: { select: { id: true, active: true, workspaceId: true } },
+                },
+        })
+        const owners: Array<{
+                channelId: string
+                agentId: string
+                workspaceId: string
+                username: string | null
+                agentOff: boolean
+                ids: string[]
+        }> = []
+        for (const row of rows) {
+                // The mocked/unfiltered case must not turn a live channel into a paused one.
+                if (row.active !== false && row.agent?.active !== false) continue
+                if (!row.agent) continue
+                const cfg = (row.config as Record<string, unknown> | null) ?? {}
+                const ids = [cfg.igUserId, cfg.pageId, cfg.igBusinessAccountId, cfg.webhookIgId]
+                        .filter((v) => v !== undefined && v !== null)
+                        .map(String)
+                        .filter((id) => entityIds.includes(id))
+                if (!ids.length) continue
+                owners.push({
+                        channelId: row.id,
+                        agentId: row.agent.id,
+                        workspaceId: row.agent.workspaceId,
+                        username: typeof cfg.botUsername === 'string' ? cfg.botUsername : null,
+                        agentOff: row.agent.active === false,
+                        ids,
+                })
+        }
+        return owners
+}
+
+/** A busy paused account would otherwise write one warning per dropped event. */
+const PAUSED_WARNING_INTERVAL_MS = 60 * 60 * 1000
+const pausedWarnedAt = new Map<string, number>()
+
 /** Map a messenger channel to the Contact field that stores its user id. */
 function profileFields(
         type: MessengerType,
@@ -2245,21 +2294,47 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
                                                 console.error('[handler] self-heal webhookIgId persist failed:', e),
                                         )
                         }
-                } else if (totalIgChannels > 1) {
-                        const triedIds = Array.from(new Set(unresolvedEntries.flatMap((u) => u.ids)))
-                        captureWarning(
-                                'webhook:INSTAGRAM:no-channel',
-                                new Error(
-                                        `No Instagram channel found for the owner ids of ${unresolvedEntries.length} webhook entr${
-                                                unresolvedEntries.length === 1 ? 'y' : 'ies'
-                                        }: ${JSON.stringify(triedIds)}. ` +
-                                                'Single-channel fallback not applicable: found ' +
-                                                totalIgChannels +
-                                                ' IG channels. ' +
-                                                'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
-                                ),
-                                { metadata: { triedIds } },
-                        )
+                } else {
+                        const allTriedIds = Array.from(new Set(unresolvedEntries.flatMap((u) => u.ids)))
+                        // A connected account whose agent is switched off is the usual
+                        // cause, and it is the owner's own setting — say so, in their
+                        // workspace, instead of reporting an unknown account.
+                        const pausedOwners = await findPausedInstagramOwners(allTriedIds)
+                        const pausedIds = new Set(pausedOwners.flatMap((owner) => owner.ids))
+                        for (const owner of pausedOwners) {
+                                const last = pausedWarnedAt.get(owner.channelId) ?? 0
+                                if (Date.now() - last < PAUSED_WARNING_INTERVAL_MS) continue
+                                pausedWarnedAt.set(owner.channelId, Date.now())
+                                captureWarning(
+                                        'webhook:INSTAGRAM:agent-paused',
+                                        new Error(
+                                                `Instagram events for ${owner.username ? `@${owner.username}` : owner.channelId} are being dropped: ` +
+                                                        (owner.agentOff ? 'its agent is switched off' : 'the channel is switched off') +
+                                                        '. Scenarios and replies do not run until it is switched back on.',
+                                        ),
+                                        {
+                                                workspaceId: owner.workspaceId,
+                                                metadata: { channelId: owner.channelId, agentId: owner.agentId, triedIds: owner.ids },
+                                        },
+                                )
+                        }
+                        const unknown = unresolvedEntries.filter((u) => !u.ids.some((id) => pausedIds.has(id)))
+                        if (unknown.length && totalIgChannels > 1) {
+                                const triedIds = Array.from(new Set(unknown.flatMap((u) => u.ids)))
+                                captureWarning(
+                                        'webhook:INSTAGRAM:no-channel',
+                                        new Error(
+                                                `No Instagram channel found for the owner ids of ${unknown.length} webhook entr${
+                                                        unknown.length === 1 ? 'y' : 'ies'
+                                                }: ${JSON.stringify(triedIds)}. ` +
+                                                        'Single-channel fallback not applicable: found ' +
+                                                        totalIgChannels +
+                                                        ' IG channels. ' +
+                                                        'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
+                                        ),
+                                        { metadata: { triedIds } },
+                                )
+                        }
                 }
                 // 0 routable channels: Meta may keep delivering events for an account
                 // after its local channel was disconnected. Nothing to do — the signed

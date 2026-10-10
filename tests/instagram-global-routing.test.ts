@@ -118,6 +118,36 @@ describe('Instagram global webhook routing', () => {
     )
   })
 
+  it('names the real cause when the account is connected but its agent is switched off', async () => {
+    // The owner switched the agent off to stop the AI; their scenarios stop
+    // with it. That is a setting in their workspace, not an unknown account.
+    const paused = channelRow('ch-paused', '28929055536784123', 'ws-paused')
+    paused.agent.active = false
+    Object.assign(paused.config, { webhookIgId: '17841473935194423', botUsername: 'shop' })
+    mocks.count.mockResolvedValue(3)
+    mocks.findMany.mockImplementation(async ({ where }: { where: { OR?: unknown } }) =>
+      // Only the paused-owner lookup filters with OR; the live lookups do not see it.
+      where.OR ? [paused] : [],
+    )
+
+    await handleInstagramGlobalInbound(payload)
+
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.captureWarning).toHaveBeenCalledTimes(1)
+    expect(mocks.captureWarning).toHaveBeenCalledWith(
+      'webhook:INSTAGRAM:agent-paused',
+      expect.objectContaining({ message: expect.stringContaining('@shop') }),
+      expect.objectContaining({
+        workspaceId: 'ws-paused',
+        metadata: expect.objectContaining({ channelId: 'ch-paused', agentId: 'agent-ch-paused' }),
+      }),
+    )
+
+    // A busy paused page must not write one warning per dropped event.
+    await handleInstagramGlobalInbound(payload)
+    expect(mocks.captureWarning).toHaveBeenCalledTimes(1)
+  })
+
   it('routes each entry of a multi-account batch to its own tenant channel', async () => {
     const channelA = channelRow('ch-a', '111', 'ws-a')
     const channelB = channelRow('ch-b', '222', 'ws-b')
