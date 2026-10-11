@@ -33,7 +33,7 @@ lead: 'Every fixed automation — comment and story replies as well as DM scenar
 export function InstagramSection({ locale }: { locale: SiteLocale }) {
 	const c = COPY[locale]
 	return (
-		<section id="instagram" aria-labelledby="instagram-title" className="relative mt-14 scroll-mt-20 overflow-hidden bg-[#070707] px-4 py-14 text-white md:mt-20 md:py-20 lg:mt-0 lg:py-[120px]">
+		<section id="instagram" data-nav="dark" aria-labelledby="instagram-title" className="relative mt-14 scroll-mt-20 overflow-hidden bg-[#070707] px-4 py-14 text-white md:mt-20 md:py-20 lg:mt-0 lg:py-[120px]">
 			<div aria-hidden className="vg-dark-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_80%_50%_at_50%_60%,#000,transparent)] lg:[mask-image:radial-gradient(ellipse_70%_60%_at_50%_45%,#000,transparent)]" />
 			<div aria-hidden className="pointer-events-none absolute left-1/2 top-[300px] size-[510px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(150,133,251,0.22),rgba(236,72,153,0.07)_55%,rgba(7,7,7,0))] lg:left-[220px] lg:top-40 lg:size-[640px] lg:translate-x-0" />
 

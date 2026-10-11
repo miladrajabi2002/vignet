@@ -18,7 +18,7 @@ export default function ProductsLoading() {
     <div
       role="status"
       aria-busy="true"
-      className="mx-auto max-w-6xl space-y-6"
+      className="mx-auto max-w-none space-y-6"
     >
       <span className="sr-only">در حال بارگذاری محصولات...</span>
       <DashboardHeaderSkeleton actions={3} compactOnMobile />

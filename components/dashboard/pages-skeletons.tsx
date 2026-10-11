@@ -230,7 +230,7 @@ export function ScenariosSectionSkeleton({ delay = 0 }: { delay?: number }) {
 /** Mirrors AutomationForm: header + 2-column grid (fields + sticky side card). */
 export function AutomationFormSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <div className="flex items-center gap-3">
         <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-2xl" />
         <div className="space-y-1.5">
@@ -299,7 +299,7 @@ export function AutomationFormSkeleton({ delay = 0 }: { delay?: number }) {
  *  (19rem aside beside the chat at xl, matching the source typo class). */
 export function VigentoWorkspaceSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="mx-auto grid max-w-6xl gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
+    <div className="mx-auto grid max-w-none gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <section className="spatial-surface overflow-hidden rounded-sheet">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">

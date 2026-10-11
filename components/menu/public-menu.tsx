@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- menu photos come from arbitrary store/upload hosts. */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Clock, ImageOff, MapPin, Megaphone, Minus, Phone, Plus, Search, ShoppingBag, Sparkles, X } from 'lucide-react'
+import { Clock, MapPin, Megaphone, Minus, Phone, Plus, Search, ShoppingBag, Sparkles, UtensilsCrossed, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { normalizePersian } from '@/lib/search/persian'
 import { BADGE_LABELS, menuPalette, openState, type MenuBadge } from '@/lib/menu/settings'
@@ -22,6 +22,8 @@ type MenuPick = { id: string; variantId: number | null; qty: number }
 export function PublicMenu({ data, preview = false }: { data: PublicMenuData; preview?: boolean }) {
   const { settings } = data
   const palette = menuPalette(settings)
+  // The dashboard preview is a phone: it must not pick up the desktop breakpoints.
+  const wide = !preview
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [active, setActive] = useState(data.sections[0]?.key ?? '')
@@ -139,7 +141,7 @@ export function PublicMenu({ data, preview = false }: { data: PublicMenuData; pr
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       <header className="relative">
-        <div className={cn('relative overflow-hidden', settings.coverImage ? 'h-[200px] sm:h-[300px]' : 'h-[132px] sm:h-[180px]')}>
+        <div className={cn('relative overflow-hidden', settings.coverImage ? ['h-[200px]', wide && 'sm:h-[300px]'] : ['h-[132px]', wide && 'sm:h-[180px]'])}>
           {settings.coverImage ? (
             <img src={settings.coverImage} alt="" className="pm-cover h-full w-full object-cover" />
           ) : (
@@ -157,16 +159,16 @@ export function PublicMenu({ data, preview = false }: { data: PublicMenuData; pr
           </div>
         </div>
 
-        <div className="pm-rise relative mx-auto -mt-12 max-w-5xl px-4 sm:-mt-16">
+        <div className={cn('pm-rise relative mx-auto -mt-12 max-w-5xl px-4', wide && 'sm:-mt-16')}>
           <div className="flex items-end gap-3.5">
             {settings.logo ? (
-              <img src={settings.logo} alt={`لوگوی ${data.name}`} className="h-[76px] w-[76px] shrink-0 rounded-[22px] border-4 border-[var(--m-bg)] bg-[var(--m-surface)] object-cover shadow-lg sm:h-24 sm:w-24" />
+              <img src={settings.logo} alt={`لوگوی ${data.name}`} className={cn('h-[76px] w-[76px] shrink-0 rounded-[22px] border-4 border-[var(--m-bg)] bg-[var(--m-surface)] object-cover shadow-lg', wide && 'sm:h-24 sm:w-24')} />
             ) : (
-              <span className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-[22px] border-4 border-[var(--m-bg)] bg-[var(--m-accent)] text-3xl font-bold text-[var(--m-on-accent)] shadow-lg sm:h-24 sm:w-24">{data.name.trim().charAt(0)}</span>
+              <span className={cn('grid h-[76px] w-[76px] shrink-0 place-items-center rounded-[22px] border-4 border-[var(--m-bg)] bg-[var(--m-accent)] text-3xl font-bold text-[var(--m-on-accent)] shadow-lg', wide && 'sm:h-24 sm:w-24')}>{data.name.trim().charAt(0)}</span>
             )}
             <div className="min-w-0 pb-1">
-              <h1 className="text-[26px] font-bold leading-tight tracking-tight sm:text-[34px]">{data.name}</h1>
-              {settings.tagline && <p className="mt-1 text-[13.5px] leading-6 text-[var(--m-muted)] sm:text-[15px]">{settings.tagline}</p>}
+              <h1 className={cn('text-[26px] font-bold leading-tight tracking-tight', wide && 'sm:text-[34px]')}>{data.name}</h1>
+              {settings.tagline && <p className={cn('mt-1 text-[13.5px] leading-6 text-[var(--m-muted)]', wide && 'sm:text-[15px]')}>{settings.tagline}</p>}
             </div>
           </div>
 
@@ -295,11 +297,11 @@ export function PublicMenu({ data, preview = false }: { data: PublicMenuData; pr
                     ))}
                   </ul>
                 ) : settings.layout === 'grid' ? (
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                  <div className={cn('grid grid-cols-2 gap-3', wide && 'lg:grid-cols-3')}>
                     {section.items.map((item) => (
                       <article key={item.id} className={cn('pm-card relative overflow-hidden rounded-3xl border border-[var(--m-line)] bg-[var(--m-surface)]', item.soldOut && 'opacity-60')}>
                         <button type="button" onClick={() => !preview && setOpen(item)} className="block w-full text-start">
-                          <Photo item={item} className="aspect-square w-full sm:aspect-[4/3]" />
+                          <Photo item={item} className={cn('aspect-square w-full', wide && 'sm:aspect-[4/3]')} />
                           <div className="p-3 pb-12">
                             <h3 className="line-clamp-2 text-[14.5px] font-bold leading-6">{item.name}</h3>
                             <Badges badges={item.badges} soldOut={item.soldOut} className="mt-1" />
@@ -314,7 +316,7 @@ export function PublicMenu({ data, preview = false }: { data: PublicMenuData; pr
                     ))}
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className={cn('grid gap-3', wide && 'sm:grid-cols-2')}>
                     {section.items.map((item) => (
                       <article key={item.id} className={cn('pm-card relative flex gap-3 rounded-3xl border border-[var(--m-line)] bg-[var(--m-surface)] p-3', item.soldOut && 'opacity-60')}>
                         <button type="button" onClick={() => !preview && setOpen(item)} className="flex min-w-0 flex-1 gap-3 text-start">
@@ -324,7 +326,7 @@ export function PublicMenu({ data, preview = false }: { data: PublicMenuData; pr
                             {item.description && <p className="mt-1 line-clamp-2 text-[12.5px] leading-6 text-[var(--m-muted)]">{item.description}</p>}
                             <Price item={item} className="mt-auto pt-2" />
                           </div>
-                          <Photo item={item} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />
+                          {item.image && <Photo item={item} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />}
                         </button>
                         {!item.soldOut && item.variants.length === 0 && (
                           <div className="absolute bottom-2 end-2"><AddButton onAdd={() => addPick(item, null)} label={item.name} /></div>
@@ -425,7 +427,7 @@ function Photo({ item, className }: { item: PublicMenuItem; className?: string }
   return item.image ? (
     <img src={item.image} alt={item.name} loading="lazy" decoding="async" className={cn('bg-[var(--m-line)] object-cover', item.soldOut && 'grayscale', className)} />
   ) : (
-    <span aria-hidden className={cn('pm-noimg grid place-items-center text-[var(--m-muted)]', className)}><ImageOff className="h-5 w-5 opacity-50" /></span>
+    <span aria-hidden className={cn('pm-noimg grid place-items-center text-[var(--m-accent)]', className)}><UtensilsCrossed className="h-6 w-6 opacity-40" /></span>
   )
 }
 
@@ -567,11 +569,10 @@ const MENU_CSS = `
 .pm-chips::-webkit-scrollbar { display: none; }
 .pm-glass { background: color-mix(in srgb, var(--m-surface) 78%, transparent); color: var(--m-ink); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .pm-pattern { background:
-  radial-gradient(60% 90% at 85% 10%, color-mix(in srgb, var(--m-accent) 42%, transparent), transparent 70%),
-  radial-gradient(50% 80% at 10% 100%, color-mix(in srgb, var(--m-accent) 22%, transparent), transparent 70%),
-  radial-gradient(color-mix(in srgb, var(--m-ink) 10%, transparent) 1px, transparent 1px) 0 0 / 18px 18px,
-  var(--m-bg); }
-.pm-noimg { background: color-mix(in srgb, var(--m-accent) 7%, var(--m-bg)); }
+  radial-gradient(70% 120% at 85% 0%, color-mix(in srgb, var(--m-on-accent) 18%, transparent), transparent 70%),
+  radial-gradient(color-mix(in srgb, var(--m-on-accent) 14%, transparent) 1px, transparent 1px) 0 0 / 18px 18px,
+  var(--m-accent); }
+.pm-noimg { background: color-mix(in srgb, var(--m-accent) 10%, var(--m-surface)); }
 .pm-leader { border-bottom: 2px dotted var(--m-line); transform: translateY(-4px); }
 .pm-card { transition: transform 220ms cubic-bezier(.23,1,.32,1), box-shadow 220ms ease; }
 @media (hover: hover) and (pointer: fine) { .pm-card:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -26px rgba(0,0,0,.45); } }

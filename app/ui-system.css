@@ -133,10 +133,10 @@
 	to { opacity: 1; }
 }
 
-/* ── A disabled filled button reads as "not available" ─────────────────
-   Ink buttons used to fade to 40%, which made them look like a grey
-   secondary action. Muted fill + grey label + no shadow is unmistakable.
-   Buttons that are merely busy (aria-busy) keep their ink. */
+/* ── A disabled filled button keeps its shape ──────────────────────────
+   Disabled is the same button, dimmed: the primary stays ink (at 38%) so it
+   is still recognisably the page's main action and never reads as a fourth,
+   grey button style. Buttons that are merely busy (aria-busy) keep their ink. */
 :is(button, [role='button']):disabled:not([aria-busy='true']):not([data-save-state='saved']):is(
 	[class~='bg-black'],
 	[class~='bg-[#111]'],
@@ -146,10 +146,20 @@
 	[class~='bg-[var(--white)]'],
 	[class~='bg-vg-ink']
 ) {
-	background: var(--bg-muted) !important;
-	color: var(--text-hint) !important;
 	box-shadow: none !important;
-	opacity: 1 !important;
+	opacity: 0.38 !important;
+}
+
+/* ── A sticky action bar never floats over readable content ─────────────
+   The canvas fades in behind the bar, so the last card slides under a clean
+   edge instead of showing through or beside it. */
+.ui-sticky-actions::before {
+	content: '';
+	position: absolute;
+	inset: -1.25rem -0.5rem -1.25rem;
+	z-index: -1;
+	background: linear-gradient(180deg, transparent, var(--bg-base) 1.25rem);
+	pointer-events: none;
 }
 
 /* ── One save feel (components/ui/save-button.tsx) ───────────────────────

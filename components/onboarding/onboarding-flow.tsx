@@ -368,17 +368,17 @@ function TypeStep({
               transition={{ duration: 0.2, ease: EASE }}
               aria-pressed={active}
               className={cn(
-                'spatial-press group relative overflow-hidden rounded-card border bg-white p-3 text-start transition-colors duration-200 sm:p-4',
+                'spatial-press group relative overflow-hidden rounded-card border p-3 text-start transition-colors duration-200 sm:p-4',
                 active
-                  ? 'border-[var(--text-primary)]'
-                  : 'border-[var(--border-default)] hover:border-[var(--border-hover)]',
+                  ? 'border-[var(--signal)] bg-[var(--signal-soft)]'
+                  : 'border-[var(--border-default)] bg-white hover:border-[var(--border-hover)]',
               )}
-              style={{ boxShadow: active ? 'var(--shadow-lift)' : 'var(--shadow-card)' }}
+              style={{ boxShadow: 'var(--shadow-card)' }}
             >
               <span className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2.5">
                 <span className={cn(
                   'grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors duration-200 sm:h-10 sm:w-10',
-                  active ? 'bg-[var(--text-primary)] text-white' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]',
+                  active ? 'bg-[var(--signal)] text-white' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]',
                 )}>
                   {active ? <Check className="h-4 w-4" strokeWidth={3} /> : <Icon className="h-[1.15rem] w-[1.15rem]" strokeWidth={1.5} />}
                 </span>

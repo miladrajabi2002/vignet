@@ -2,13 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ADMIN_NAV_ITEMS, isAdminNavActive } from './nav-items'
 
 /**
- * The assistant's shortcut, in the header slot the user dashboard gives its
- * plan card. It is the console's one filled block — the only place the accent
- * appears at full strength — so it is not repeated in the rail or the sheet.
+ * The assistant's shortcut. It is a header control like its neighbours — same
+ * height, a hairline border — and the accent marks it only as tint and text,
+ * so each page's own primary action stays the strongest thing on screen.
+ * On phones it shrinks to the icon square beside the other shortcuts.
  */
 export function VigentoCard({ compact = false }: { compact?: boolean }) {
   const active = usePathname().startsWith('/admin/vigento')
@@ -17,24 +19,31 @@ export function VigentoCard({ compact = false }: { compact?: boolean }) {
       href="/admin/vigento"
       aria-current={active ? 'page' : undefined}
       aria-label="Vigento AI؛ مدیریت هوشمند پلتفرم"
+      title="Vigento AI"
       className={cn(
-        'spatial-press group flex min-w-0 items-center bg-[var(--signal)] text-white shadow-[var(--shadow-control)] outline-none transition-colors duration-200 hover:bg-[var(--signal-strong)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
-        compact
-          ? 'h-12 w-full max-w-[17rem] gap-2 rounded-control px-1.5 pe-2.5'
-          : 'h-14 w-[15rem] gap-2.5 rounded-card px-3 xl:h-[4.25rem] xl:w-[17rem] xl:px-3.5',
-        active && 'ring-2 ring-[var(--signal)] ring-offset-2',
+        'spatial-press inline-flex shrink-0 items-center justify-center rounded-card border font-bold outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
+        active
+          ? 'border-[var(--signal)] bg-[var(--signal-soft)] text-[var(--signal-strong)]'
+          : 'border-[color-mix(in_srgb,var(--signal)_28%,transparent)] bg-white text-[var(--signal-strong)] hover:bg-[var(--signal-soft)]',
+        compact ? 'h-12 w-12' : 'h-12 gap-2 px-4 text-[13px] xl:h-14 xl:px-5 xl:text-sm',
       )}
     >
-      <span className={cn('grid shrink-0 place-items-center rounded-full bg-white/15', compact ? 'h-9 w-9' : 'h-10 w-10 xl:h-12 xl:w-12')}>
-        <Sparkles aria-hidden="true" className={cn('stroke-[1.9]', compact ? 'h-4 w-4' : 'h-[1.1rem] w-[1.1rem] xl:h-5 xl:w-5')} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn('block truncate font-bold', compact ? 'text-[12px] leading-4' : 'text-[13px] leading-4 xl:text-[15px] xl:leading-5')}>
-          Vigento AI
-        </span>
-        <span className={cn('block truncate text-[12px] leading-4 text-white/75', compact ? 'mt-0.5' : 'mt-1')}>مدیریت هوشمند پلتفرم</span>
-      </span>
-      <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-white/70 transition-transform duration-200 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
+      <Sparkles aria-hidden="true" className={cn('shrink-0 stroke-[1.9]', compact ? 'h-[1.05rem] w-[1.05rem]' : 'h-4 w-4 xl:h-[1.1rem] xl:w-[1.1rem]')} />
+      {!compact && <span dir="ltr">Vigento AI</span>}
     </Link>
+  )
+}
+
+/** Phones: the header names the open page in the room the old card took. */
+export function AdminPageTitle() {
+  const pathname = usePathname()
+  const current = pathname.startsWith('/admin/vigento')
+    ? 'Vigento AI'
+    : ADMIN_NAV_ITEMS.find((item) => isAdminNavActive(pathname, item))?.label ?? 'پنل مدیریت'
+  return (
+    <p className="min-w-0 px-1">
+      <span className="block truncate text-[15px] font-bold leading-6 text-[var(--text-primary)]">{current}</span>
+      <span className="block truncate text-[12px] leading-4 text-[var(--text-muted)]">پنل مدیریت ویجنت</span>
+    </p>
   )
 }

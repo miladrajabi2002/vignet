@@ -30,7 +30,7 @@ const SHEET_EXIT_MS = 220
 const DISMISS_DISTANCE = 110
 const DISMISS_VELOCITY = 0.55
 
-const FOCUS_FORM = /^\/(?:agents\/[^/]+\/)?instagram\/(?:new|[^/]+\/edit)(?:\/|$)/
+const FOCUS_FORM = /^\/(?:(?:agents\/[^/]+\/)?instagram\/(?:new|[^/]+\/edit)|agents\/new)(?:\/|$)/
 
 function isActivePath(pathname: string, href: string) {
 	return pathname === href || pathname.startsWith(`${href}/`)

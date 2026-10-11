@@ -67,7 +67,10 @@ export function CapabilityStatusPanel({
       action={<Link href="/settings#settings-business-profile" className="ui-link">{fa ? 'مدیریت' : 'Manage'}<Arrow aria-hidden /></Link>}
     >
       {ordered.length ? (
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        // Phones: plain rows of name + status. A one-line description cut
+        // mid-sentence on every row said nothing; it lives on the capability's
+        // own page. Only an unfinished capability keeps its next step.
+        <ul className="grid grid-cols-1 gap-2 max-sm:gap-0 max-sm:divide-y max-sm:divide-[var(--border-subtle)] max-sm:overflow-hidden max-sm:rounded-xl max-sm:border max-sm:border-[var(--border-default)] sm:grid-cols-2">
           {ordered.map((key) => {
             const status = readiness[key]
             const Icon = ICONS[key]
@@ -79,14 +82,14 @@ export function CapabilityStatusPanel({
               <li key={key} className="min-w-0">
                 <Link
                   href={href}
-                  className="group flex min-h-[4.25rem] items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2.5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)]"
+                  className="group flex min-h-[3.25rem] items-center gap-3 bg-white px-3 py-2 transition-[border-color,transform] sm:min-h-[4.25rem] sm:rounded-xl sm:border sm:border-[var(--border-default)] sm:bg-[var(--bg-base)] sm:py-2.5 sm:hover:-translate-y-0.5 sm:hover:border-[var(--accent-border)]"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]">
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{capabilityLabel(key, fa ? 'fa' : 'en')}</span>
+                    <span className="flex flex-wrap items-center gap-1.5 max-sm:justify-between">
+                      <span className="truncate text-[13px] font-semibold text-[var(--text-primary)] sm:text-xs">{capabilityLabel(key, fa ? 'fa' : 'en')}</span>
                       <span className={cn(
                         'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[12px] font-bold',
                         ready ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700',
@@ -95,7 +98,7 @@ export function CapabilityStatusPanel({
                         {ready ? (fa ? 'آماده' : 'Ready') : (fa ? `${done.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')}` : `${done} of ${total}`)}
                       </span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-[var(--text-muted)]">
+                    <span className={cn('mt-0.5 block text-[12px] text-[var(--text-muted)] sm:truncate', (ready || !status?.next) && 'max-sm:hidden')}>
                       {ready || !status?.next
                         ? (fa ? getCapabilityOption(key).descriptionFa : getCapabilityOption(key).descriptionEn)
                         : (fa ? `قدم بعد: ${status.next.fa}` : `Next: ${status.next.en}`)}

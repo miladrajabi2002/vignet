@@ -14,7 +14,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  ImageOff,
   Loader2,
   MessageCircle,
   PackagePlus,
@@ -220,10 +219,11 @@ export function MenuWorkspace({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <PageHeader
         icon={UtensilsCrossed}
         title="منوی دیجیتال"
+        stackActions
         subtitle="همان چیزی که مشتری با اسکن QR می‌بیند. هر تغییر اینجا، همان لحظه در منو دیده می‌شود."
         actions={
           <>
@@ -351,7 +351,7 @@ function ItemRow({ item, busy, onEdit, onPatch }: { item: MenuItem; busy: boolea
       {item.image ? (
         <ProductImage src={item.image} alt="" loading="lazy" decoding="async" width={56} height={56} className={cn('h-14 w-14 shrink-0 rounded-xl object-cover', (!item.active || soldOut(item)) && 'opacity-50 grayscale')} />
       ) : (
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-muted)]" title="بدون عکس"><ImageOff className="h-4 w-4" /></span>
+        <button type="button" onClick={onEdit} title="افزودن عکس" aria-label={`افزودن عکس برای ${item.name}`} className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"><Plus className="h-4 w-4" /></button>
       )}
       <div className="min-w-0 flex-1">
         <p className={cn('truncate text-sm font-bold', item.active ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{item.name}</p>
@@ -363,20 +363,32 @@ function ItemRow({ item, busy, onEdit, onPatch }: { item: MenuItem; busy: boolea
           )}
           {discount && <span className="tabular-nums text-[var(--text-muted)] line-through">{fa(Math.round(item.comparePrice!))}</span>}
           {!item.active && <StatusChip tone="neutral">پنهان از منو</StatusChip>}
-          {item.active && soldOut(item) && <StatusChip tone="warn">تمام شده</StatusChip>}
           {item.stock != null && item.stock > 0 && <span className="text-[var(--text-muted)]">موجودی {fa(item.stock)}</span>}
           {item.active && quickStock && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onPatch({ stock: soldOut(item) ? null : 0 })}
-              className={cn(
-                'inline-flex min-h-8 items-center rounded-lg border px-2.5 text-[12px] font-bold transition-colors disabled:opacity-50',
-                soldOut(item) ? 'border-emerald-600/25 bg-emerald-50/60 text-emerald-700 hover:bg-emerald-50' : 'border-transparent text-[var(--text-muted)] hover:border-[var(--border-default)] hover:text-[var(--text-primary)]',
-              )}
-            >
-              {soldOut(item) ? 'موجود شد' : 'تمام شد'}
-            </button>
+            // Two states, the current one filled — never a lone "sold out" that reads as the status.
+            <span role="radiogroup" aria-label={`موجودی ${item.name}`} className="inline-flex rounded-lg bg-[var(--bg-muted)] p-0.5">
+              {([['موجود', false], ['تمام شد', true]] as const).map(([label, value]) => {
+                const on = soldOut(item) === value
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    disabled={busy}
+                    onClick={() => { if (!on) onPatch({ stock: value ? 0 : null }) }}
+                    className={cn(
+                      'min-h-8 rounded-md px-2.5 text-[12px] font-bold transition-colors disabled:opacity-50',
+                      on
+                        ? cn('bg-white shadow-[var(--shadow-xs)]', value ? 'text-amber-700' : 'text-emerald-700')
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                    )}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </span>
           )}
           {item.synced && <span className="inline-flex items-center gap-1 text-[var(--text-muted)]" title="از فروشگاه متصل وارد شده؛ همگام‌سازی بعدی ممکن است تغییرات را بازنویسی کند."><RefreshCw className="h-3 w-3" />همگام با فروشگاه</span>}
           {badges.map((badge) => <span key={badge} className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[12px] font-bold text-[var(--text-secondary)]">{BADGE_LABELS[badge]}</span>)}

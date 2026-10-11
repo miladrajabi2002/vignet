@@ -37,6 +37,13 @@ export const LAYOUT_LABELS: Record<MenuLayout, string> = {
   classic: 'کلاسیک بدون عکس',
 }
 
+/** One-word forms for a phone-width segmented control, where the full label wraps. */
+export const LAYOUT_SHORT_LABELS: Record<MenuLayout, string> = {
+  list: 'فهرست',
+  grid: 'کارتی',
+  classic: 'کلاسیک',
+}
+
 /** Accent swatches offered in the dashboard (any hex is accepted). */
 export const ACCENT_SWATCHES = ['#17171a', '#6d4aff', '#c2552f', '#d6aa5b', '#1f7a55', '#0e7490', '#b4235a', '#9a3412']
 

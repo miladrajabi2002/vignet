@@ -25,7 +25,7 @@ import {
 import { ModelSelect } from '@/components/agent-builder/model-select'
 import { Switch, SwitchCard } from '@/components/ui/switch'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
-import { AutoSaveDock } from '@/components/ui/auto-save-status'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import {
@@ -406,8 +406,16 @@ export function AgentSettingsForm({
 
                         </>
                         ) : (
-                        <>
+                        // One readable column: a switch stays next to the title it belongs to.
+                        <div className="mx-auto w-full max-w-[47.5rem] space-y-6">
                         <div className="spatial-surface space-y-5 rounded-card p-5 sm:p-6">
+                                {/* Saving is reported here, in the card's own header, never over the content. */}
+                                <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                        <h3 className="text-base font-medium text-[var(--text-primary)]">
+                                                {fa ? 'تنظیمات اصلی' : 'General settings'}
+                                        </h3>
+                                        <AutoSaveStatus status={general.status} onRetry={general.flush} className="-me-2.5" />
+                                </div>
                                 <Field label={tw('name')}>
                                         <input
                                                 value={form.name}
@@ -520,7 +528,7 @@ export function AgentSettingsForm({
 
                         {storeAccess}
 
-                        <div className="grid items-start gap-4 xl:grid-cols-2">
+                        <div className="grid items-start gap-6">
                         {/* ─ CUSTOMER IDENTIFICATION (F3) ──────────────────────────── */}
                         <div className="spatial-surface space-y-4 rounded-card p-5 sm:p-6">
                                 <div>
@@ -597,7 +605,6 @@ export function AgentSettingsForm({
                         </div>
 
                         {saveError && <p role="alert" className="text-sm text-danger">{saveError}</p>}
-                        <AutoSaveDock status={general.status} onRetry={general.flush} />
 
                         {/* Danger zone — delete agent */}
                         <div className="spatial-surface rounded-card p-5 sm:p-6">
@@ -624,7 +631,7 @@ export function AgentSettingsForm({
                                 </div>
                         </div>
 
-                        </>
+                        </div>
                         )}
 
                         {typeof document !== 'undefined' && createPortal(

@@ -49,12 +49,12 @@ export default async function StatusPage() {
 
         return (
                 <div className="marketing-page-shell min-h-screen px-3 pb-20 pt-24 sm:px-5 sm:pt-28">
-                        <div className="mx-auto max-w-6xl">
+                        <div className="mx-auto max-w-[1200px]">
                                 <header className="marketing-page-hero px-1 pb-10 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
                                         <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                                                 <div>
                                                 <MarketingHeroPill><span className="inline-flex items-center gap-2"><Activity className="h-3.5 w-3.5" />وضعیت سرویس‌ها</span></MarketingHeroPill>
-                                                        <h1 className="mt-5 text-4xl font-bold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t.title}</h1>
+                                                        <h1 className="mt-5 text-[clamp(1.75rem,7.6vw,2.25rem)] font-bold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t.title}</h1>
                                                         <p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub">{t.subtitle}</p>
                                                         {/* A live trace: the pulse runs while services answer; a
                                                             full outage shows a flat line instead of a heartbeat. */}
@@ -73,7 +73,7 @@ export default async function StatusPage() {
                                         </div>
                                 </header>
 
-                                <section className="relative z-10 mt-8 grid gap-3 sm:grid-cols-3">
+                                <section className="relative z-10 mt-6 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-3">
                                         <Metric icon={Server} label={t.healthyServices} value={`${healthy.toLocaleString('fa-IR')} از ${report.checks.length.toLocaleString('fa-IR')}`} />
                                         <Metric icon={Activity} label={t.averageResponse} value={`${averageLatency.toLocaleString('fa-IR')} ${t.ms}`} />
                                         <Metric icon={Clock3} label={t.lastChecked} value={checkedAt} small />
@@ -110,9 +110,11 @@ export default async function StatusPage() {
 
 function Metric({ icon: Icon, label, value, small = false }: { icon: typeof Activity; label: string; value: string; small?: boolean }) {
         return (
-                <div className="spatial-surface flex min-h-28 items-center gap-4 rounded-card p-4 sm:p-5">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><Icon className="h-4 w-4" /></span>
-                <div className="min-w-0"><p className="text-xs text-black/45">{label}</p><p className={`mt-1 font-semibold text-black ${small ? 'truncate text-xs' : 'text-lg tabular-nums'}`}>{value}</p></div>
+                // Phones: three figures share one row (no icon tile), so the list of
+                // services they summarise is still on the first screen.
+                <div className="spatial-surface flex items-center gap-4 rounded-card p-3 max-sm:flex-col max-sm:items-start max-sm:justify-center sm:min-h-28 sm:p-5">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white max-sm:hidden"><Icon className="h-4 w-4" /></span>
+                <div className="min-w-0 max-sm:w-full"><p className="text-xs leading-5 text-black/45">{label}</p><p className={`mt-1 font-semibold text-black ${small ? 'text-xs leading-5 sm:truncate' : 'text-[15px] tabular-nums sm:text-lg'}`}>{value}</p></div>
                 </div>
         )
 }

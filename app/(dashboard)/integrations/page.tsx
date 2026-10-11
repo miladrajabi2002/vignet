@@ -146,7 +146,7 @@ export default async function IntegrationsPage() {
         )
 
         return (
-                <div className="mx-auto max-w-6xl space-y-6">
+                <div className="mx-auto max-w-none space-y-6">
                         <PageHeader
                                 icon={Plug}
                                 title={t('title')}

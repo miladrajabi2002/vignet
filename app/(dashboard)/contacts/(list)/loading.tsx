@@ -18,7 +18,7 @@ export default function ContactsLoading() {
     <div
       role="status"
       aria-busy="true"
-      className="mx-auto max-w-6xl space-y-6"
+      className="mx-auto max-w-none space-y-6"
     >
       <span className="sr-only">در حال بارگذاری مخاطبان...</span>
       <DashboardHeaderSkeleton actions={4} compactOnMobile />

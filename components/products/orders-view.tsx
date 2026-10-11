@@ -239,7 +239,7 @@ export async function OrdersView({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <PageHeader
         icon={scope === 'menu' ? UtensilsCrossed : ShoppingBag}
         title={scope === 'menu' ? getDashboardModuleLabel('menu', null, locale, t('title')) : t('title')}

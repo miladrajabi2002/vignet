@@ -193,7 +193,7 @@ export default async function AnalyticsPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <PageHeader
         icon={BarChart3}
         title={fa ? 'تحلیل گفتگوها' : 'Conversation analytics'}
@@ -230,9 +230,9 @@ export default async function AnalyticsPage() {
             }}
           />
           <div className={cn('mt-3 flex flex-wrap items-center gap-4 text-[12px]', totalConversations === 0 && 'text-[var(--text-muted)]')}>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--text-primary)]" />{fa ? 'کل گفتگوها' : 'Total'}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />{fa ? 'حل‌شده' : 'Resolved'}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />{fa ? 'تحویل اپراتور' : 'Handed off'}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--signal)]" />{fa ? 'کل گفتگوها' : 'Total'}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--text-primary)]" />{fa ? 'حل‌شده' : 'Resolved'}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-600" />{fa ? 'تحویل اپراتور' : 'Handed off'}</span>
           </div>
         </DashboardPanel>
 
@@ -241,17 +241,7 @@ export default async function AnalyticsPage() {
           subtitle={fa ? 'کدام برنامه بیشترین ترافیک را دارد' : 'Where conversations come from'}
         >
           {channelData.length > 0 ? (
-            <>
-              <ChannelDonut data={channelData} />
-              <div className="mt-3 space-y-1.5">
-                {channelData.slice(0, 5).map((c) => (
-                  <div key={c.label} className="flex items-center justify-between text-xs">
-                    <span className="text-[var(--text-secondary)]">{c.label}</span>
-                    <span className="font-medium tabular-nums text-[var(--text-primary)]">{nfFa(c.value, fa)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
+            <ChannelDonut data={channelData} />
           ) : (
             <div className="grid h-40 place-items-center px-3 text-center text-sm leading-6 text-[var(--text-muted)]">{fa ? 'سهم هر برنامه بعد از اولین گفتگوها اینجا دیده می‌شود.' : 'Each app’s share appears here after the first conversations.'}</div>
           )}

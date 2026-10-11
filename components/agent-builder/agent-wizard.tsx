@@ -34,6 +34,7 @@ import { PROMPT_SCOPE_RULE_LIMIT } from '@/lib/agents/prompt-config-limits'
 import { StepProgress } from '@/components/ui/step-progress'
 import { Switch } from '@/components/ui/switch'
 import { TagInput } from '@/components/ui/tag-input'
+import { AutoTextarea } from '@/components/ui/auto-textarea'
 
 const TOTAL = 2
 
@@ -244,6 +245,8 @@ export function AgentWizard({
 	const [selectedRole, setSelectedRole] = useState<RoleTemplate>(defaultRole)
 	const [draft, setDraft] = useState<ConfigDraft>(draftFromRole(defaultRole))
 	const [showEditor, setShowEditor] = useState(false)
+	// Phones (and the full-width editor) fold the live preview behind its chip.
+	const [previewOpen, setPreviewOpen] = useState(false)
 	const goalOptions = getBusinessGoals(resolvedBusinessType)
 	const [goals, setGoals] = useState<string[]>(() => goalOptions.map((goal) => goal.key))
 	const [form, setForm] = useState<FormState>({
@@ -443,7 +446,8 @@ export function AgentWizard({
 					transition={{ duration: 0.25 }}
 				>
 					{step === 0 && (
-						<div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+						<div className={`grid items-start gap-3 ${showEditor ? '' : 'lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]'}`}>
+							<div className="min-w-0 space-y-3">
 							<div className="spatial-surface space-y-4 rounded-sheet p-5 sm:p-6">
 								<Field label={t('name')}>
 									<input
@@ -469,11 +473,13 @@ export function AgentWizard({
 													onClick={() => selectRole(role)}
 													className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-start transition-[border-color,box-shadow] duration-150 ${
 														selected
-															? 'border-[var(--text-primary)] shadow-[0_0_0_1px_var(--text-primary)]'
+															? 'border-[var(--signal)] bg-[var(--signal-soft)]'
 															: 'border-[var(--border-default)] bg-white hover:border-black/25'
 													}`}
 												>
-													<span className={`h-5 w-5 shrink-0 rounded-full border bg-white ${selected ? 'border-[6px] border-[var(--text-primary)]' : 'border-black/30'}`} />
+													<span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${selected ? 'border-[var(--signal)] bg-[var(--signal)] text-white' : 'border-black/30 bg-white text-transparent'}`}>
+														<Check className="h-3 w-3" strokeWidth={3} />
+													</span>
 													<span className="min-w-0">
 														<span className="block text-[13px] font-bold text-[var(--text-primary)]">{isFa ? role.nameFa : role.nameEn}</span>
 														<span className="block text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? role.descFa : role.descEn}</span>
@@ -498,22 +504,22 @@ export function AgentWizard({
 									{showEditor && (
 										<div id="wizard-behavior-editor" className="space-y-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
                                                                                                 <LayerField n={1} label={t('layerPersonality')}>
-                                                                                                        <textarea
+                                                                                                        <AutoTextarea
                                                                                                                 value={draft.personality}
                                                                                                                 onChange={(e) => setD('personality', e.target.value)}
                                                                                                                 rows={3}
                                                                                                                 placeholder={t('layerPersonalityPh')}
-                                                                                                                className="input resize-none text-sm"
+                                                                                                                className="input resize-none text-sm leading-7"
                                                                                                         />
                                                                                                 </LayerField>
                                                                                                 <LayerField n={2} label={t('layerTone')}>
                                                                                                         <div className="space-y-3">
-                                                                                                                <textarea
+                                                                                                                <AutoTextarea
                                                                                                                         value={draft.tone}
                                                                                                                         onChange={(e) => setD('tone', e.target.value)}
                                                                                                                         rows={2}
                                                                                                                         placeholder={t('layerTonePh')}
-                                                                                                                        className="input resize-none text-sm"
+                                                                                                                        className="input resize-none text-sm leading-7"
                                                                                                                 />
                                                                                                                 <NaturalConversationControls
                                                                                                                         value={{
@@ -539,18 +545,18 @@ export function AgentWizard({
                                                                                                         </div>
                                                                                                 </LayerField>
                                                                                                 <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
-                                                                                                        <div className="grid gap-3 sm:grid-cols-2">
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
-                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-red-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
+                                                                                                        <div className="grid gap-3">
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-emerald-700">{t('layerDoSay')}</span><AutoTextarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm leading-7" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-red-700">{t('layerDontSay')}</span><AutoTextarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm leading-7" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
                                                                                                         </div>
                                                                                                 </LayerField>
                                                                                                 <LayerField n={4} label={t('layerFallback')}>
-                                                                                                        <textarea
+                                                                                                        <AutoTextarea
                                                                                                                 value={draft.fallbackBehavior}
                                                                                                                 onChange={(e) => setD('fallbackBehavior', e.target.value)}
                                                                                                                 rows={2}
                                                                                                                 placeholder={t('layerFallbackPh')}
-                                                                                                                className="input resize-none text-sm"
+                                                                                                                className="input resize-none text-sm leading-7"
                                                                                                         />
                                                                                                 </LayerField>
                                                                                                 <LayerField n={5} label={tA('settingsForm.layerFormat')}>
@@ -561,19 +567,22 @@ export function AgentWizard({
                                                                                                                         ['fmtLinks', draft.fmtLinks, tA('settingsForm.fmt_links')],
                                                                                                                         ['fmtBullets', draft.fmtBullets, tA('settingsForm.fmt_bullets')],
                                                                                                                 ] as const).map(([key, active, label]) => (
-                                                                                                                        <button key={key} type="button" aria-pressed={active} onClick={() => setD(key, !active)} className={`spatial-press flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-medium ${active ? 'border-black bg-black text-white shadow-[var(--shadow-control)]' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-black/30'}`}>
-                                                                                                                                <span>{label}</span><span className={`grid h-5 w-5 place-items-center rounded-md ${active ? 'bg-white text-black' : 'bg-black/[0.05] text-transparent'}`}><Check className="h-3 w-3" /></span>
+                                                                                                                        <button key={key} type="button" aria-pressed={active} onClick={() => setD(key, !active)} className={`spatial-press flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-medium ${active ? 'border-[var(--signal-border)] bg-[var(--signal-soft)] text-[var(--signal-strong)]' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-black/30'}`}>
+                                                                                                                                <span>{label}</span><span className={`grid h-5 w-5 place-items-center rounded-md ${active ? 'bg-[var(--signal)] text-white' : 'bg-black/[0.05] text-transparent'}`}><Check className="h-3 w-3" /></span>
                                                                                                                         </button>
                                                                                                                 ))}
                                                                                                         </div>
                                                                                                         <p className="mt-2 text-[12px] font-medium text-[var(--text-secondary)]">{tA('settingsForm.formatLength')}</p>
-                                                                                                        <div className="mt-1.5 flex gap-1.5">
+                                                                                                        <div role="radiogroup" aria-label={tA('settingsForm.formatLength')} className="ui-seg mt-1.5 w-full grid-cols-3 sm:w-80">
                                                                                                                 {(['short', 'medium', 'long'] as const).map((len) => (
                                                                                                                         <button
                                                                                                                                 key={len}
                                                                                                                                 type="button"
+                                                                                                                                role="radio"
+                                                                                                                                aria-checked={draft.fmtLength === len}
+                                                                                                                                data-active={draft.fmtLength === len}
                                                                                                                                 onClick={() => setD('fmtLength', len)}
-                                                                                                                                className={`rounded-lg border px-3 py-1 text-xs transition-colors ${draft.fmtLength === len ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-foreground)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'}`}
+                                                                                                                                className="ui-seg-tab text-[13px]"
                                                                                                                         >
                                                                                                                                 {tA(`settingsForm.length_${len}`)}
                                                                                                                         </button>
@@ -582,12 +591,12 @@ export function AgentWizard({
                                                                                                 </LayerField>
                                                                                                 {/* Layer 6 — Q&A pairs */}
                                                                                                 <LayerField n={6} label={tA('settingsForm.layerQA')}>
-                                                                                                        <textarea
+                                                                                                        <AutoTextarea
                                                                                                                 value={draft.qaPairsText}
                                                                                                                 onChange={(e) => setD('qaPairsText', e.target.value)}
                                                                                                                 rows={4}
                                                                                                                 placeholder={locale === 'fa' ? 'سؤال نمونه مشتری|پاسخ ایده‌آل ایجنت\nهر خط یک نمونه' : 'Customer question|Ideal agent answer\nOne pair per line'}
-                                                                                                                className="input resize-none text-sm"
+                                                                                                                className="input resize-none text-sm leading-7"
                                                                                                         />
                                                                                                         <p className="mt-1.5 text-[12px] text-[var(--text-muted)]">
                                                                                                                 {locale === 'fa' ? 'هر خط یک نمونه: سؤال|پاسخ. حداکثر ۲۰ نمونه.' : 'One pair per line: question|answer. Max 20 pairs.'}
@@ -627,15 +636,51 @@ export function AgentWizard({
 								</Field>
 							</div>
 
-							{/* Live preview: follows the name, tone and greeting as they change. */}
-							<div className="rounded-sheet border border-[var(--border-subtle)] bg-[#fbfbfa] p-5 lg:sticky lg:top-24" aria-live="polite">
+							{/* The step's footer stays in view under the form it belongs to;
+							    on phones it replaces the tab bar (see FOCUS_FORM in mobile-nav). */}
+							<div data-sticky-actions="" className="ui-sticky-actions sticky z-20 [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:bottom-4">
+								<div className="flex items-center gap-2 rounded-card border border-black/[0.07] bg-white p-1.5 shadow-[var(--elev-2)] sm:p-2">
+									{step === 0 && onboardingMode && backButton}
+									<p className="min-w-0 flex-1 truncate px-2 text-[12px] font-medium text-[var(--text-muted)]">
+										{t('step', { n: 1, total: TOTAL })}
+										{!canNext && <span className="max-sm:hidden"> · {isFa ? 'نام ایجنت را بنویسید' : 'Name the agent first'}</span>}
+									</p>
+									<button
+										type="button"
+										onClick={() => canNext && setStep(1)}
+										disabled={!canNext}
+										className="spatial-press inline-flex min-h-11 items-center justify-center gap-1 rounded-control bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] max-sm:flex-[2]"
+									>
+										{tc('next')}
+										<ArrowRight className="h-4 w-4 rtl:rotate-180" />
+									</button>
+								</div>
+							</div>
+							</div>
+
+							{/* Live preview: follows the name, tone and greeting as they change.
+							    Beside the form on a wide screen; folded away on phones and while
+							    the six layers are open, so it never pushes the form down. */}
+							<div className={`rounded-sheet border border-[var(--border-subtle)] bg-[#fbfbfa] p-5 max-lg:order-first ${showEditor ? 'order-first' : 'lg:sticky lg:top-24'}`} aria-live="polite">
 								<div className="flex items-center justify-between gap-2">
 									<span className="truncate text-[13px] font-bold text-[var(--text-primary)]">{form.name.trim() || t('namePlaceholder')}</span>
-									<span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-medium text-emerald-700">
+									<button
+										type="button"
+										onClick={() => setPreviewOpen((v) => !v)}
+										aria-expanded={previewOpen}
+										aria-controls="wizard-live-preview"
+										className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-[12px] font-medium text-emerald-700 ${showEditor ? '' : 'lg:hidden'}`}
+									>
+										<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+										{isFa ? 'پیش‌نمایش' : 'Preview'}
+										{previewOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+									</button>
+									<span className={`shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-medium text-emerald-700 ${showEditor ? 'hidden' : 'hidden lg:inline-flex'}`}>
 										<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
 										{isFa ? 'پیش‌نمایش' : 'Preview'}
 									</span>
 								</div>
+								<div id="wizard-live-preview" className={`${previewOpen ? '' : 'hidden'} ${showEditor ? '' : 'lg:block'}`}>
 								<div className="mt-3 flex flex-col gap-2 text-[13px] leading-6">
 									<p className="ms-auto max-w-[85%] rounded-2xl rounded-se-md bg-[var(--text-primary)] px-3 py-2 text-white">
 										{form.welcomeMessage.trim() || t('welcomePlaceholder')}
@@ -648,6 +693,7 @@ export function AgentWizard({
 								<p className="mt-3 text-[12px] leading-5 text-[var(--text-muted)]">
 									{isFa ? 'با تغییر نام، لحن یا پیام، همین گفتگو عوض می‌شود. جواب دوم فقط نمونهٔ لحن است.' : 'This exchange follows the name, tone and greeting. The second reply only shows the tone.'}
 								</p>
+								</div>
 							</div>
 						</div>
 					)}
@@ -750,20 +796,6 @@ export function AgentWizard({
 				</motion.div>
 			</AnimatePresence>
 
-			{step === 0 && (
-				<div className="mt-4 flex items-center justify-between">
-					{backButton}
-					<button
-						type="button"
-						onClick={() => canNext && setStep(1)}
-						disabled={!canNext}
-						className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-medium text-white shadow-[var(--shadow-control)]"
-					>
-						{tc('next')}
-						<ArrowRight className="h-4 w-4 rtl:rotate-180" />
-					</button>
-				</div>
-			)}
 		</div>
 	)
 }

@@ -15,7 +15,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toEnglishDigits } from '@/lib/phone'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { Switch } from '@/components/ui/switch'
 import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
@@ -24,6 +23,7 @@ import { dateKeyInTimeZone } from '@/lib/bookings/time'
 import { formatDateKey } from '@/lib/localized-date'
 import { TimeRangeField, formatClock } from '@/components/ui/time-picker'
 import { DeleteServicePanel } from '@/components/bookings/delete-service'
+import { NumberField } from '@/components/admin/number-field'
 import { enableBookingModule, openBookingSetup } from '@/components/services/enable-booking'
 import {
   WEEKDAYS,
@@ -397,14 +397,15 @@ export function ServiceEditor({
               <Field label={fa ? 'توضیح کوتاه' : 'Short description'} hint={fa ? 'اختیاری' : 'Optional'}>
                 <input value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} className="input min-h-12 w-full" placeholder={fa ? 'چه چیزی شامل می‌شود؟' : 'What is included?'} />
               </Field>
-              <Field label={fa ? 'قیمت (تومان)' : 'Price (Toman)'} hint={fa ? 'اختیاری · خالی یعنی ایجنت قیمت نمی‌گوید' : 'Optional · empty means the agent won’t quote'}>
-                <input
-                  value={price ? Number(price).toLocaleString(fa ? 'fa-IR' : 'en-US') : ''}
-                  onChange={(event) => setPrice(toEnglishDigits(event.target.value).replace(/\D/g, '').slice(0, 11))}
-                  inputMode="numeric"
-                  dir="ltr"
-                  className="input min-h-12 w-full text-start"
+              <Field label={fa ? 'قیمت' : 'Price'} hint={fa ? 'اختیاری · خالی یعنی ایجنت قیمت نمی‌گوید' : 'Optional · empty means the agent won’t quote'}>
+                <NumberField
+                  value={price}
+                  onChange={(raw) => setPrice(raw.slice(0, 11))}
+                  unit={fa ? 'تومان' : 'Toman'}
+                  persian={fa}
+                  className="min-h-12"
                   placeholder={fa ? 'مثلاً ۵۰۰٬۰۰۰' : 'e.g. 500,000'}
+                  ariaLabel={fa ? 'قیمت به تومان' : 'Price in Toman'}
                 />
               </Field>
             </div>

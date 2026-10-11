@@ -57,7 +57,7 @@ export async function PricingSection() {
 
         return (
                                 <section id="pricing" className="marketing-story-section scroll-mt-24 bg-[var(--bg-surface)] py-9 sm:py-20 lg:py-24">
-                        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+                        <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
                                 <div className="mx-auto max-w-2xl text-center">
                                         <MarketingSectionPill>{t('eyebrow')}</MarketingSectionPill>
                                         <h2 className="marketing-heading mx-auto mt-4">{t('title')}</h2>

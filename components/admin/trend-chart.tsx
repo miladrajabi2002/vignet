@@ -17,7 +17,7 @@ import {
 	CartesianGrid,
 } from 'recharts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
-import { CHART_ACCENT_TINT, CHART_COLORS, CHART_INK } from './chart-palette'
+import { CHART_ACCENT, CHART_ACCENT_TINT, CHART_COLORS, CHART_INK } from './chart-palette'
 
 export interface DailyPoint {
   day: string
@@ -145,7 +145,7 @@ export function TrendChart({
   title,
   subtitle,
   data,
-  color = INK,
+  color = CHART_ACCENT,
   variant = 'bar',
   height = 240,
   format = 'number',

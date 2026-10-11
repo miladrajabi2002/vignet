@@ -246,7 +246,7 @@ export default async function ProductsPage(
   const emptyCatalog = products.length === 0 && !q && !categoryId && !stock
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <PageHeader
         icon={Package}
         title={t('title')}
@@ -325,7 +325,10 @@ export default async function ProductsPage(
                   )}
                 >
                   {tab.label}
-                  <span className={cn('rounded-full px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums', tab.tone === 'warn' ? 'bg-amber-100 text-amber-900' : tab.tone === 'danger' ? 'bg-red-50 text-red-700' : 'bg-black/[0.06] text-[var(--text-secondary)]')}>{nf(tab.count)}</span>
+                  {/* A zero says nothing; a plain count is quiet; colour only when the number asks for action. */}
+                  {tab.count > 0 && (
+                    <span className={cn(tab.tone === 'warn' ? 'rounded-full bg-amber-100 px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums text-amber-900' : tab.tone === 'danger' ? 'rounded-full bg-red-50 px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums text-red-700' : 'ui-tab-count')}>{nf(tab.count)}</span>
+                  )}
                 </Link>
               )
             })}

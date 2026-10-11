@@ -168,7 +168,7 @@ export default async function PublicBlogPostPage(props: Props) {
         ])
 
     return (
-        <article className="marketing-page-shell mx-auto min-h-screen max-w-6xl px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
+        <article className="marketing-page-shell mx-auto min-h-screen max-w-[1200px] px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
             <script
                                 type="application/ld+json"
                                 dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}

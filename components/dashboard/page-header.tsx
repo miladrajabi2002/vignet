@@ -26,6 +26,10 @@ import { cn } from '@/lib/utils'
  *                  under both at full width. When a tablet column is too
  *                  narrow for both, the actions drop to a second row so the
  *                  title never breaks inside a word.
+ *  - `stackActions` phones only: text buttons that cannot share a row with
+ *                  the title get their own row under the subtitle, and the
+ *                  last one (the page's primary action) takes the free width,
+ *                  so it is never pushed off the edge of the screen.
  *
  * By request there is no kicker / eyebrow copy above the title — only the
  * optional breadcrumb trail, which is navigation, not decoration.
@@ -37,6 +41,7 @@ export function PageHeader({
   actions,
   back,
   breadcrumbs,
+  stackActions = false,
   className,
 }: {
   icon?: React.ComponentType<{ className?: string }>
@@ -47,11 +52,13 @@ export function PageHeader({
   /** Where the round back control goes (label is used for its accessible name). */
   back?: { href: string; label: string }
   breadcrumbs?: { label: string; href?: string }[]
+  /** Phones: actions take their own full-width row (use when they are text buttons). */
+  stackActions?: boolean
   className?: string
 }) {
   return (
     <header className={cn('dashboard-page-header', className)}>
-      <div className="grid grid-cols-[minmax(8rem,1fr)_auto] items-center gap-x-3 gap-y-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+      <div className="grid grid-cols-[minmax(8rem,1fr)_minmax(0,auto)] items-center gap-x-3 gap-y-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-center gap-3 sm:min-w-[min(100%,17rem)] sm:flex-1 sm:gap-3.5">
           {back && <BackButton href={back.href} label={back.label} variant="icon" />}
           {back && Icon && <span aria-hidden className="hidden h-8 w-px shrink-0 bg-black/[0.08] sm:block" />}
@@ -89,7 +96,12 @@ export function PageHeader({
           </div>
         </div>
         {actions && (
-          <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto py-0.5 [&>:first-child]:ms-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:shrink-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:py-0">
+          <div
+            className={cn(
+              'flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto py-0.5 [&>:first-child]:ms-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:shrink-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:py-0',
+              stackActions && 'max-sm:order-last max-sm:col-span-2 max-sm:overflow-visible max-sm:[&>:first-child]:ms-0 max-sm:[&>:last-child]:flex-1 max-sm:[&>:last-child]:justify-center',
+            )}
+          >
             {actions}
           </div>
         )}

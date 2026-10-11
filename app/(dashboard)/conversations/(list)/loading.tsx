@@ -15,7 +15,7 @@ export default function ConversationsLoading() {
     <div
       role="status"
       aria-busy="true"
-      className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3"
+      className="mx-auto flex min-w-0 max-w-none flex-col gap-3"
     >
       <span className="sr-only">در حال بارگذاری مکالمات...</span>
       <DashboardHeaderSkeleton actions={2} compactOnMobile />

@@ -102,7 +102,7 @@ export function ServiceCatalog({
   const openCreate = (template?: ServiceTemplate | null) => setEditor({ open: true, service: null, template: template ?? null })
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <PageHeader
         icon={BriefcaseBusiness}
         title={title}

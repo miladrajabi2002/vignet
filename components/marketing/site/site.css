@@ -54,6 +54,40 @@
 	}
 }
 
+/* ── Page titles: one rule, one container ───────────────────────────────
+   Selling pages (home, pricing, solutions) centre their hero.
+   Reading pages (blog, docs, status, legal) start-align the title with the
+   text column under it.
+   Every public page sits in the navbar's own 1200px container, so the page
+   edge never jumps when moving between them. On phones a page title is
+   clamp(1.75rem, 7.6vw, 2.25rem): about 30px at 393px wide. */
+
+/* Over a dark section (data-nav="dark") the bar becomes dark glass with light
+   text. White glass there turned a muddy mid-grey and the links lost their
+   contrast. One 180ms cross-fade; the wordmark swaps by opacity. */
+.vg-logo-on-light, .vg-logo-on-dark { transition: opacity 180ms ease; }
+.vg-logo-on-dark { opacity: 0; }
+.vg-glass[data-tone='dark'] { background: rgba(14, 14, 17, .94); border-color: rgba(255, 255, 255, .12); }
+@media (min-width: 1024px) {
+	.vg-glass[data-tone='dark'] { background: rgba(14, 14, 17, .66); }
+}
+.vg-glass[data-tone='dark'] .vg-logo-on-light { opacity: 0; }
+.vg-glass[data-tone='dark'] .vg-logo-on-dark { opacity: 1; }
+.vg-glass[data-tone='dark'] .text-vg-sub { color: rgba(255, 255, 255, .76); }
+.vg-glass[data-tone='dark'] .text-vg-ink { color: #ffffff; }
+.vg-glass[data-tone='dark'] [aria-current] { background-color: rgba(255, 255, 255, .12); }
+.vg-glass[data-tone='dark'] .bg-black\/10 { background-color: rgba(255, 255, 255, .16); }
+.vg-glass[data-tone='dark'] .vg-btn-ghost { background-color: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .2); color: #ffffff; }
+.vg-glass[data-tone='dark'] .vg-btn-dark { background-color: #ffffff; color: #111111; }
+@media (hover: hover) and (pointer: fine) {
+	.vg-glass[data-tone='dark'] .vg-navlink:hover { color: #ffffff; background-color: rgba(255, 255, 255, .1); }
+	.vg-glass[data-tone='dark'] .vg-btn-ghost:hover { background-color: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .3); }
+	.vg-glass[data-tone='dark'] .vg-btn-dark:hover { background-color: #ecebf5; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.vg-glass, .vg-logo-on-light, .vg-logo-on-dark { transition: none; }
+}
+
 /* ── Surfaces ────────────────────────────────────────────────────────── */
 .vg-dots { background-image: radial-gradient(rgba(17, 17, 17, .075) 1px, transparent 1px); background-size: 22px 22px; }
 .vg-dark-grid {

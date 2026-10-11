@@ -22,7 +22,7 @@ export default function OverviewLoading() {
     <div
       role="status"
       aria-busy="true"
-      className="mx-auto max-w-6xl space-y-5 sm:space-y-6"
+      className="mx-auto max-w-none space-y-5 sm:space-y-6"
     >
       <span className="sr-only">در حال بارگذاری داشبورد...</span>
       {/* ── Operations center: summary + live flow in one card ── */}

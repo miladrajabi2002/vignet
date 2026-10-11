@@ -7,8 +7,8 @@ import { POSTER_COLORS, buildPosterPrompt, posterSummaryFrom } from '@/lib/blog/
 /**
  * Poster-prompt helper for blog posts without a cover image.
  *
- * Mirrors the JSON import dialog's "3 color prompt" section: for each of the
- * three fixed accent palettes it auto-builds the full Vigent poster prompt
+ * Mirrors the JSON import dialog's colour-prompt section: for each of the
+ * fixed accent palettes (brand colours first) it auto-builds the full Vigent poster prompt
  * from the post's own title/summary and offers a one-click copy button. The
  * prompt text itself stays collapsed (it is long) so the dialog stays
  * minimal.
@@ -94,11 +94,12 @@ export function PosterPromptDialog({
 
         <div className="max-h-[calc(100vh-10rem)] space-y-3 overflow-y-auto p-5">
           <p className="text-[12px] leading-relaxed text-zinc-500">
-            این پست بدون عکس جلد ذخیره شده است. ۳ پرامپت آماده برای Grok
+            این پست بدون عکس جلد ذخیره شده است. {variants.length.toLocaleString('fa-IR')} پرامپت آماده برای Grok
             Image / Midjourney / DALL-E از عنوان و خلاصه همین پست ساخته شده
             — هر کدام با یک رنگ accent ثابت، شامل ابعاد ۱۵۳۶×۱۰۲۴، اسم
-            دوزبانه «ویجنت / VIGENT» و آدرس vigent.ir. رنگ دلخواه را انتخاب
-            و دکمه کپی آن را بزن؛ بعد از تولید عکس، در ویرایشگر پست قرارش بده.
+            دوزبانه «ویجنت / VIGENT» و آدرس vigent.ir. چهار رنگ اول با برچسب «برند»
+            هم‌خانوادهٔ بنفش و مشکی سایت‌اند و کاورها را با بقیهٔ صفحه‌ها یک‌دست نگه می‌دارند.
+            رنگ دلخواه را انتخاب و دکمه کپی آن را بزن؛ بعد از تولید عکس، در ویرایشگر پست قرارش بده.
           </p>
 
           <div className="space-y-3">
@@ -120,6 +121,9 @@ export function PosterPromptDialog({
                       <span className="shrink-0 text-[12px] font-medium text-zinc-800">
                         {v.color.labelFa}
                       </span>
+                      {v.color.brand && (
+                        <span className="shrink-0 rounded-full bg-[var(--signal-soft)] px-1.5 text-[12px] font-bold leading-5 text-[var(--signal-strong)]">برند</span>
+                      )}
                       <span className="shrink-0 text-[12px] text-zinc-400" dir="ltr">
                         {v.color.hex}
                       </span>

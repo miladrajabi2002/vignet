@@ -488,7 +488,7 @@ function AgentSetupPanel({
                 'flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors',
                 step.done
                   ? 'border-success/15 bg-success/[0.04]'
-                  : 'border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]',
+                  : 'border-[var(--border-default)] bg-white shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)]',
               )}
             >
               {step.done ? (
@@ -581,7 +581,7 @@ function AgentGrowthPanel({
                     'rounded-2xl border p-3.5',
                     action.attention
                       ? 'border-black/15 bg-black/[0.035]'
-                      : 'border-[var(--border-default)] bg-[var(--bg-surface)]',
+                      : 'border-[var(--border-default)] bg-white shadow-[var(--shadow-xs)]',
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -640,7 +640,7 @@ function AgentGrowthPanel({
                 <Link
                   key={connection.key}
                   href={connection.href}
-                  className="group flex min-h-16 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2.5 transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]"
+                  className="group flex min-h-16 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white px-3.5 py-2.5 shadow-[var(--shadow-xs)] transition-[border-color,box-shadow] hover:border-[var(--signal)] hover:shadow-[0_0_0_3px_var(--signal-soft)]"
                 >
                   {connection.channel ? (
                     <ChannelMark channel={connection.channel} />

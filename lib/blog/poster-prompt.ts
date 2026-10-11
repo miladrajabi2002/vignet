@@ -3,8 +3,8 @@
  * admin blog manager's "no cover image" helper.
  *
  * Generates a ready-to-paste image-generation prompt (Grok Image /
- * Midjourney / DALL-E) in one of three fixed accent palettes, including the
- * Vigent bilingual wordmark, vigent.ir URL and the 1536×1024 spec.
+ * Midjourney / DALL-E) in one of the fixed accent palettes below, including
+ * the Vigent bilingual wordmark, vigent.ir URL and the 1536×1024 spec.
  */
 
 export interface PosterColor {
@@ -14,10 +14,59 @@ export interface PosterColor {
   hex: string
   moodFa: string
   moodEn: string
+  /** The site's own accent: the default pick, so covers match the public pages. */
+  brand?: boolean
 }
 
-// ── Poster color variants (3 fixed palettes) ────────────────────────
+// ── Poster color variants ───────────────────────────────────────────
+// The brand palette comes first: the public site is ink and iris, and covers
+// lit in gold or orange read as a second identity beside it. The three older
+// palettes stay at the end for a post that really needs a different mood.
 export const POSTER_COLORS: PosterColor[] = [
+  {
+    key: 'iris',
+    labelFa: 'آیریس ویجنت',
+    labelEn: 'Iris Violet',
+    hex: '#5B3DE8',
+    moodFa: 'رنگ برند؛ پیش‌فرض همهٔ مقاله‌ها',
+    moodEn: 'brand colour, the default',
+    brand: true,
+  },
+  {
+    key: 'lilac',
+    labelFa: 'یاسی روشن',
+    labelEn: 'Soft Lilac',
+    hex: '#B9ADFF',
+    moodFa: 'آرام، آموزشی، راهنمای قدم‌به‌قدم',
+    moodEn: 'calm, educational, how-to',
+    brand: true,
+  },
+  {
+    key: 'violet',
+    labelFa: 'بنفش عمیق',
+    labelEn: 'Deep Violet',
+    hex: '#3D27A6',
+    moodFa: 'تحلیلی، مقایسه، گزارش',
+    moodEn: 'analysis, comparison, report',
+    brand: true,
+  },
+  {
+    key: 'white',
+    labelFa: 'سفید روی مشکی',
+    labelEn: 'Soft White',
+    hex: '#F5F5F3',
+    moodFa: 'تک‌رنگ؛ اطلاعیه و خبر محصول',
+    moodEn: 'monochrome; announcements and product news',
+    brand: true,
+  },
+  {
+    key: 'coral',
+    labelFa: 'مرجانی',
+    labelEn: 'Coral',
+    hex: '#FB7185',
+    moodFa: 'اینستاگرام، محتوا، شبکه‌های اجتماعی',
+    moodEn: 'Instagram, content, social',
+  },
   {
     key: 'blue',
     labelFa: 'آبی سلطنتی',

@@ -14,7 +14,7 @@ import {
  */
 export default function ContactDetailLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <BackRowSkeleton />
 
       {/* Header card — avatar (lg) + name + channel badges + delete action */}

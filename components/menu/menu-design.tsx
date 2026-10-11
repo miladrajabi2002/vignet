@@ -13,6 +13,7 @@ import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import {
   ACCENT_SWATCHES,
   LAYOUT_LABELS,
+  LAYOUT_SHORT_LABELS,
   MENU_LAYOUTS,
   MENU_THEMES,
   THEME_TOKENS,
@@ -141,7 +142,10 @@ export function MenuDesign({
             <p className="mb-2 text-[13px] font-medium text-[var(--text-secondary)]">چیدمان آیتم‌ها</p>
             <div className="ui-seg grid-cols-3" role="tablist" aria-label="چیدمان آیتم‌ها">
               {MENU_LAYOUTS.map((layout) => (
-                <button key={layout} type="button" role="tab" aria-selected={settings.layout === layout} onClick={() => set('layout', layout)} className="ui-seg-tab text-[13px]">{LAYOUT_LABELS[layout]}</button>
+                <button key={layout} type="button" role="tab" aria-selected={settings.layout === layout} onClick={() => set('layout', layout)} aria-label={LAYOUT_LABELS[layout]} className="ui-seg-tab whitespace-nowrap text-[13px]">
+                  <span className="sm:hidden">{LAYOUT_SHORT_LABELS[layout]}</span>
+                  <span className="max-sm:hidden">{LAYOUT_LABELS[layout]}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -182,7 +186,8 @@ export function MenuDesign({
           <p className="mt-2 text-[12px] leading-6 text-[var(--text-muted)]">برچسب‌های «پیشنهاد سرآشپز»، «پرطرفدار»، «جدید»، «تند» و «گیاهی» را از تب آیتم‌ها روی هر غذا بزنید؛ آیتم‌های سرآشپز و پرطرفدار بالای منو در «پیشنهاد ما» می‌آیند.</p>
         </Panel>
 
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-[var(--border-subtle)] bg-white/95 py-2 pe-2 ps-3 shadow-[var(--shadow-control)] backdrop-blur">
+        <div className="ui-sticky-actions sticky z-10 [bottom:calc(5.25rem+env(safe-area-inset-bottom))] md:bottom-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-[var(--border-subtle)] bg-white py-2 pe-2 ps-3 shadow-[var(--elev-2)]">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             {invalid
               ? <p role="alert" className="text-[13px] leading-6 text-amber-800">{invalid} تا آن موقع ذخیره نمی‌شود.</p>
@@ -192,6 +197,7 @@ export function MenuDesign({
           <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             <ExternalLink className="h-4 w-4" />منوی مشتری
           </a>
+        </div>
         </div>
       </div>
 

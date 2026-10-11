@@ -561,7 +561,7 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
         const buttons = message.buttons ?? message.quickReplies ?? []
         return (
                 <div className="flex flex-col items-start">
-                        <IgBubble side="in">{message.text?.trim() ? message.text : 'متن پاسخ…'}</IgBubble>
+                        <IgBubble side="in">{message.text?.trim() ? message.text : 'متن پاسخ شما اینجا می‌آید'}</IgBubble>
                         <ButtonChips buttons={buttons} />
                 </div>
         )

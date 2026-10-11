@@ -4,7 +4,7 @@ import { DocsSidebar } from '@/components/docs/docs-sidebar'
 export default function DocsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="marketing-page-shell min-h-screen pb-24 pt-24 sm:pt-28">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-5 px-3 sm:px-5 md:grid-cols-[270px_minmax(0,1fr)] md:gap-6">
+      <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-5 px-3 sm:px-5 md:grid-cols-[270px_minmax(0,1fr)] md:gap-6">
         <aside className="sticky top-20 z-30 h-max rounded-card border border-black/[0.07] bg-white p-1 text-[var(--text-primary)] shadow-[var(--elev-1)] md:top-24 md:p-4">
           <div className="mb-3 hidden items-center justify-between px-2 py-1.5 md:flex">
             <div><p className="font-mono text-[12px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Vigent Docs</p><p className="mt-1 text-[12px] text-[var(--text-secondary)]">مرکز راهنمای ویجنت</p></div>

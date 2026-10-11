@@ -84,7 +84,7 @@ export function NaturalConversationControls({
                                                 {t('description')}
                                         </p>
 
-                                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                                                 {selectFields.map(({ key, options }) => (
                                                         <MaterialSelect
                                                                 key={key}
@@ -100,7 +100,7 @@ export function NaturalConversationControls({
                                                 ))}
                                         </div>
 
-                                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                        <div className="mt-3 grid gap-2">
                                                 {toggles.map(({ key, label }) => {
                                                         const active = value[key]
                                                         return (

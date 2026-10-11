@@ -87,20 +87,3 @@ export function AutoSaveStatus({
     </span>
   )
 }
-
-/**
- * The status as a small dock that stays in view at the bottom of a long
- * form (clear of the phone tab bar) and comes to rest where the save button
- * used to be.
- */
-export function AutoSaveDock({ className, ...props }: Parameters<typeof AutoSaveStatus>[0]) {
-  return (
-    // Sits at the start edge, so the back-to-top button (end corner) stays usable.
-    <div className="pointer-events-none sticky z-30 flex [bottom:calc(5.25rem+env(safe-area-inset-bottom))] md:bottom-4">
-      <AutoSaveStatus
-        {...props}
-        className={cn('pointer-events-auto min-h-10 border border-[var(--border-default)] bg-white/95 px-3.5 shadow-[var(--elev-2)] backdrop-blur', className)}
-      />
-    </div>
-  )
-}

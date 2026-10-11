@@ -42,7 +42,7 @@ export default async function ConversationThreadPage(props: {
         ].filter(Boolean)
 
         return (
-                <div className="mx-auto flex h-full max-w-7xl flex-col gap-3">
+                <div className="mx-auto flex h-full max-w-none flex-col gap-3">
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
                         <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-card p-3 sm:p-4">

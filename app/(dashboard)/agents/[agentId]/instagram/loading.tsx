@@ -11,7 +11,7 @@ import {
  */
 export default function AgentInstagramLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <DashboardHeaderSkeleton actions={1} />
       <CollapsibleSettingsCardSkeleton delay={-80} />
       <ScenariosSectionSkeleton delay={-160} />

@@ -54,7 +54,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
               className={`relative flex min-h-14 flex-col items-center justify-center rounded-xl border p-2 text-center transition-[border-color,background-color,color,transform,box-shadow] duration-200 ${
                 selected
                   ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)] shadow-sm'
-                  : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
+                  : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--signal)] hover:text-[var(--text-primary)] hover:shadow-[0_0_0_3px_var(--signal-soft)]'
               }`}
             >
               {selected && (

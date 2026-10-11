@@ -1095,6 +1095,22 @@ export function AutomationForm({
                 form.messages.some((m) => !!m.mediaUrl && /^blob:/i.test(m.mediaUrl)),
         ].some(Boolean)
 
+        // What is still missing, in the order the form asks for it — shown next
+        // to the disabled save button so it never looks broken.
+        const missingHint = ready
+                ? null
+                : !form.name.trim()
+                        ? 'نام سناریو را بنویسید'
+                        : form.keywordFilter === 'SPECIFIC' && form.keywords.length === 0 && !keywordInput.trim()
+                                ? 'دست‌کم یک کلمه اضافه کنید'
+                                : isComment && form.mediaFilter === 'SPECIFIC' && parsedPostReferences.invalid.length > 0
+                                        ? 'لینک پست را اصلاح کنید'
+                                        : form.messages.some((m) => !!m.mediaUrl && /^blob:/i.test(m.mediaUrl))
+                                                ? 'بارگذاری فایل هنوز تمام نشده'
+                                                : showBuilder && form.messages.some((m) => hasMessageContent(m) && messageProblem(m) !== null)
+                                                        ? 'یکی از پیام‌ها کامل نیست'
+                                                        : 'متن پاسخ را بنویسید'
+
         const modeLabel = isDm ? 'دایرکت' : isComment ? 'کامنت پست' : 'پاسخ استوری'
         const flowSteps = buildFlowSteps(form, type)
 
@@ -1120,7 +1136,7 @@ export function AutomationForm({
         }
 
         return (
-                <div className="mx-auto max-w-7xl space-y-5">
+                <div className="mx-auto max-w-none space-y-5">
                         {/* Page header — unified with the rest of the dashboard.
                             The Instagram gradient is preserved on the icon box via inline style. */}
                         <PageHeader
@@ -1645,9 +1661,15 @@ export function AutomationForm({
                                         <div
                                                 id="automation-publish"
                                                 data-sticky-actions=""
-                                                className="sticky z-20 scroll-mt-28 [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:bottom-4"
+                                                className="ui-sticky-actions sticky z-20 scroll-mt-28 [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:bottom-4"
                                         >
-                                                <div className="rounded-card border border-black/[0.07] bg-white/90 p-1.5 shadow-[var(--elev-2)] backdrop-blur-xl backdrop-saturate-150 sm:p-2">
+                                                <div className="rounded-card border border-black/[0.07] bg-white p-1.5 shadow-[var(--elev-2)] sm:p-2">
+                                                        {missingHint && (
+                                                                <p className="flex items-center gap-2 px-2 pb-1.5 pt-0.5 text-[12px] font-medium text-[var(--text-muted)] lg:hidden">
+                                                                        <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                                                                        {missingHint}
+                                                                </p>
+                                                        )}
                                                         <div className="flex items-center gap-1.5 sm:gap-2">
                                                                 <MobilePreviewButton onOpen={openPreview} />
                                                                 {ready ? (
@@ -1660,11 +1682,14 @@ export function AutomationForm({
                                                                                 }`}
                                                                         </p>
                                                                 ) : (
-                                                                        <span aria-hidden className="hidden flex-1 lg:block" />
+                                                                        <p className="hidden min-w-0 flex-1 items-center gap-2 truncate px-2 text-[12px] font-medium text-[var(--text-muted)] lg:flex">
+                                                                                <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                                                                                {missingHint}
+                                                                        </p>
                                                                 )}
                                                                 <Link
                                                                         href={`/instagram?tab=${type}`}
-                                                                        className="hidden min-h-11 shrink-0 items-center rounded-2xl px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-black/[0.05] hover:text-[var(--text-primary)] sm:inline-flex"
+                                                                        className="hidden min-h-11 shrink-0 items-center rounded-control border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] sm:inline-flex"
                                                                 >
                                                                         انصراف
                                                                 </Link>
@@ -2021,13 +2046,14 @@ function PreviewStage({
 
                         {tabs && <div className="px-3 pb-3">{tabs}</div>}
 
-                        <StageBackdrop className="mx-3 px-4 py-5">
-                                {/* Sized from the viewport height so the whole phone stays
-                                    in view while the column is sticky (19rem ≈ sticky offset
-                                    + header + flow summary; the view tabs take 3.75rem more). */}
+                        <StageBackdrop className="mx-3 px-3 py-4">
+                                {/* Sized from the viewport height so the phone fills the
+                                    stage while the column is sticky (17rem ≈ sticky offset
+                                    + header + flow summary; the view tabs take 3.75rem more).
+                                    The 300px floor keeps the bubbles readable on a short window. */}
                                 <div
                                         className="w-full"
-                                        style={{ maxWidth: `min(340px, max(240px, calc((100dvh - ${tabs ? '22.75rem' : '19rem'}) / ${PHONE_RATIO})))` }}
+                                        style={{ maxWidth: `min(360px, max(300px, calc((100dvh - ${tabs ? '20.75rem' : '17rem'}) / ${PHONE_RATIO})))` }}
                                 >
                                         <IphonePreview {...previewProps} frameClassName="max-w-none" />
                                 </div>
@@ -2053,7 +2079,7 @@ function LivePill() {
         )
 }
 
-/** Dotted backdrop + a soft Instagram-gradient glow, so the phone reads as the hero. */
+/** Dotted backdrop + a faint iris glow (the app's own accent, not Instagram's pink), so the phone reads as the hero. */
 function StageBackdrop({ className, children }: { className?: string; children: React.ReactNode }) {
         return (
                 <div
@@ -2068,8 +2094,7 @@ function StageBackdrop({ className, children }: { className?: string; children: 
                 >
                         <div
                                 aria-hidden
-                                className="pointer-events-none absolute left-1/2 top-[45%] -z-10 aspect-square w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-25 blur-3xl"
-                                style={{ background: IG_GRADIENT }}
+                                className="pointer-events-none absolute left-1/2 top-[45%] -z-10 aspect-square w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--signal)] opacity-[0.12] blur-3xl"
                         />
                         {children}
                 </div>
@@ -2413,32 +2438,23 @@ function MatchModeSelector({
                 { value: 'CONTAINS', label: 'شامل', desc: MATCH_MODE_DESC.CONTAINS },
                 { value: 'STARTS_WITH', label: 'شروع با', desc: MATCH_MODE_DESC.STARTS_WITH },
         ]
+        // Single choice → the same segmented control as "which words?" above it.
         return (
-                <div className="grid grid-cols-3 gap-2">
-                        {opts.map(({ value: v, label, desc }) => {
-                                const active = value === v
-                                return (
-                                        <button
-                                                key={v}
-                                                type="button"
-                                                onClick={() => onChange(v)}
-                                                title={desc}
-                                                className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-center transition-all ${
-                                                        active
-                                                                ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-sm'
-                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
-                                                }`}
-                                        >
-                                                <span
-                                                        className={`text-xs font-medium ${
-                                                                active ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
-                                                        }`}
-                                                >
-                                                        {label}
-                                                </span>
-                                        </button>
-                                )
-                        })}
+                <div className="ui-seg w-full grid-flow-col [grid-auto-columns:minmax(0,1fr)]" role="radiogroup" aria-label="نحوه تطبیق کلمه‌کلیدی">
+                        {opts.map(({ value: v, label, desc }) => (
+                                <button
+                                        key={v}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={value === v}
+                                        data-active={value === v}
+                                        onClick={() => onChange(v)}
+                                        title={desc}
+                                        className="ui-seg-tab min-h-9 px-3 text-xs"
+                                >
+                                        {label}
+                                </button>
+                        ))}
                 </div>
         )
 }
@@ -2488,14 +2504,14 @@ function DmActionSelector({
                                                 onClick={() => onChange(v)}
                                                 className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-start transition-all ${
                                                         active
-                                                                ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-sm'
-                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
+                                                                ? 'border-[var(--signal)] bg-[var(--signal-soft)]'
+                                                                : 'border-[var(--border-default)] bg-white hover:border-[var(--border-hover)]'
                                                 }`}
                                         >
                                                 <div
                                                         className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                                                                 active
-                                                                        ? 'bg-[var(--text-primary)] text-[var(--bg-base)]'
+                                                                        ? 'bg-[var(--signal)] text-white'
                                                                         : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
                                                         }`}
                                                 >
@@ -2563,14 +2579,14 @@ function CommentActionSelector({
                                                 onClick={() => pick(v)}
                                                 className={`flex items-start gap-3 rounded-xl border p-3 text-start transition-all ${
                                                         active
-                                                                ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-sm'
-                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
+                                                                ? 'border-[var(--signal)] bg-[var(--signal-soft)]'
+                                                                : 'border-[var(--border-default)] bg-white hover:border-[var(--border-hover)]'
                                                 }`}
                                         >
                                                 <div
                                                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
                                                                 active
-                                                                        ? 'bg-[var(--text-primary)] text-[var(--bg-base)]'
+                                                                        ? 'bg-[var(--signal)] text-white'
                                                                         : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
                                                         }`}
                                                 >
@@ -2613,14 +2629,14 @@ function StoryActionSelector({
                                                 onClick={() => onChange(v)}
                                                 className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-start transition-all ${
                                                         active
-                                                                ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-sm'
-                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
+                                                                ? 'border-[var(--signal)] bg-[var(--signal-soft)]'
+                                                                : 'border-[var(--border-default)] bg-white hover:border-[var(--border-hover)]'
                                                 }`}
                                         >
                                                 <div
                                                         className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                                                                 active
-                                                                        ? 'bg-[var(--text-primary)] text-[var(--bg-base)]'
+                                                                        ? 'bg-[var(--signal)] text-white'
                                                                         : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
                                                         }`}
                                                 >
@@ -2719,19 +2735,23 @@ function MessageBuilder({
                             is a self-contained pill with the type's icon + label, so the user
                             sees at a glance every kind of message they can add. No hidden
                             dropdown, no guessing. */}
-                        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
-                                <p className="mb-2.5 text-[12px] font-medium text-[var(--text-secondary)]">
+                        {/* White tiles straight on the card (no grey frame around grey
+                            tiles, which read as disabled fields); the "+" says each one
+                            adds something. */}
+                        <div>
+                                <p className="mb-2 text-[12px] font-medium text-[var(--text-secondary)]">
                                         افزودن پیام
                                 </p>
-                                <div className="grid grid-cols-3 gap-1.5">
+                                <div className="grid grid-cols-3 gap-2">
                                         {addOptions.map(({ value, label, Icon }) => (
                                                 <button
                                                         key={value}
                                                         type="button"
                                                         onClick={() => onAdd(value)}
-                                                        className="group flex flex-col items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-2.5 text-[12px] font-medium text-[var(--text-secondary)] transition-all hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] active:scale-95"
+                                                        className="group relative flex flex-col items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-2 py-2.5 text-[12px] font-medium text-[var(--text-secondary)] shadow-[var(--shadow-xs)] transition-[border-color,box-shadow,color,transform] hover:border-[var(--signal)] hover:text-[var(--text-primary)] hover:shadow-[0_0_0_3px_var(--signal-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:scale-95"
                                                 >
-                                                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg-base)] text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--white)] group-hover:text-[var(--bg-base)]">
+                                                        <Plus aria-hidden className="absolute end-1.5 top-1.5 h-3 w-3 text-[var(--text-hint)] transition-colors group-hover:text-[var(--signal)]" />
+                                                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--signal-soft)] group-hover:text-[var(--signal-strong)]">
                                                                 <Icon className="h-3.5 w-3.5" />
                                                         </span>
                                                         {label}

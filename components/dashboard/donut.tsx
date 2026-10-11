@@ -1,26 +1,15 @@
 'use client'
 
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { CHART_COLORS } from '@/components/admin/chart-palette'
 
 export interface NamedPoint {
   label: string
   value: number
 }
 
-// Theme-aware palette — uses CSS variables for the ink channel so it
-// inverts correctly between light and dark themes.
-const COLORS = [
-  'var(--text-primary)',
-  'var(--text-secondary)',
-  'var(--text-muted)',
-  'var(--text-hint)',
-  '#22c55e',
-  '#3b82f6',
-  '#f59e0b',
-  '#ef4444',
-  '#9685fb',
-  '#06b6d4',
-]
+// The shared chart palette (iris, ink, warm grey, then their quieter steps).
+const COLORS = CHART_COLORS
 
 /**
  * Theme-aware donut chart for the user dashboard.

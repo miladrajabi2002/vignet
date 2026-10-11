@@ -52,33 +52,39 @@ export default async function PublicBlogIndexPage() {
                                 })
                         : [],
         ])
+        const followCard = (
+                <div className="rounded-card border border-black/[0.08] bg-white px-5 py-5 shadow-[var(--elev-1)]">
+                        <div>
+                                <p className="text-sm font-bold text-vg-ink">ما را دنبال کنید</p>
+                                <p className="mt-1 text-[13px] leading-6 text-vg-cap">
+                                        جدیدترین مقالات در اینستاگرام و تلگرام
+                                </p>
+                        </div>
+                        <SocialLinks variant="default" className="mt-4" />
+                </div>
+        )
         return (
                 <div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
-                        <div className="mx-auto max-w-7xl">
-                        <header className="relative mb-10 border-b border-black/[0.08] px-1 pb-9 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
+                        <div className="mx-auto max-w-[1200px]">
+                        <header className="relative mb-6 border-b border-black/[0.08] px-1 pb-6 pt-2 sm:mb-10 sm:px-2 sm:pb-12 sm:pt-4">
                                 <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
                                 <div>
                                 <MarketingHeroPill>بلاگ</MarketingHeroPill>
-                                <h1 className="mt-5 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl lg:text-6xl">
+                                <h1 className="mt-4 text-[clamp(1.75rem,7.6vw,2.25rem)] font-bold leading-[1.3] text-vg-ink sm:mt-5 sm:text-5xl lg:text-6xl">
                                         بلاگ ویجنت
                                 </h1>
-                                <p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub sm:text-[18px]">
+                                <p className="mt-2 max-w-2xl text-[15px] leading-8 text-vg-sub sm:mt-4 sm:text-[18px]">
                                         مقالات و آموزش‌های هوش مصنوعی، چت‌بات‌ها و اتوماسیون فروش
                                 </p>
                                 </div>
-                                <div className="rounded-card border border-black/[0.08] bg-white px-5 py-5 shadow-[var(--elev-1)]">
-                                        <div>
-                                                <p className="text-sm font-bold text-vg-ink">ما را دنبال کنید</p>
-                                                <p className="mt-1 text-[13px] leading-6 text-vg-cap">
-                                                        جدیدترین مقالات در اینستاگرام و تلگرام
-                                                </p>
-                                        </div>
-                                        <SocialLinks variant="default" className="mt-4" />
-                                </div>
+                                {/* Beside the title on a wide screen. On phones it moves under the
+                                    articles: a reader arriving from search sees an article first. */}
+                                <div className="max-lg:hidden">{followCard}</div>
                                 </div>
                         </header>
 
                         <PublicBlogIndex posts={posts.map(toSearchablePublicPost)} categories={categories} locale="fa" />
+                        <div className="mt-10 lg:hidden">{followCard}</div>
                         </div>
                 </div>
         )

@@ -12,7 +12,7 @@ import {
  */
 export default function InstagramWorkspaceLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <DashboardHeaderSkeleton actions={1} />
 
       {/* Channel settings card (reply policy + stop words, collapsed) */}

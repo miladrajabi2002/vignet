@@ -122,7 +122,7 @@ export interface JsonImportDialogProps {
   onImport: (data: Partial<BlogPostData>) => void
 }
 
-// ── Poster color variants (3 fixed palettes) — shared via lib/blog/poster-prompt ──
+// ── Poster color variants (fixed palettes, brand colours first) — shared via lib/blog/poster-prompt ──
 
 interface PosterVariant {
   color: PosterColor
@@ -425,7 +425,7 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                 />
               </div>
 
-              {/* ── Poster prompt builder (3 color variants) ──────────── */}
+              {/* ── Poster prompt builder (one prompt per colour) ──────────── */}
               <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-800">
@@ -437,13 +437,13 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                     className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[12px] text-zinc-700 transition-colors hover:bg-zinc-100"
                   >
                     <Wand2 className="h-3 w-3" />
-                    ساخت ۳ پرامپت رنگی
+                    ساخت پرامپت‌های رنگی
                   </button>
                 </div>
                 <p className="text-[12px] leading-relaxed text-zinc-500">
-                  ۳ پرامپت آماده برای Grok Image / Midjourney / DALL-E — هر کدام با یک رنگ accent ثابت.
+                  {POSTER_COLORS.length.toLocaleString('fa-IR')} پرامپت آماده برای Grok Image / Midjourney / DALL-E — هر کدام با یک رنگ accent ثابت.
                   شامل ابعاد ۱۵۳۶×۱۰۲۴، اسم دوزبانه «ویجنت / VIGENT»، آدرس vigent.ir.
-                  رنگی که می‌خواهی را انتخاب کن و دکمه کپی آن را بزن.
+                  رنگ‌های با برچسب «برند» هم‌خانوادهٔ بنفش و مشکی سایت‌اند؛ رنگی که می‌خواهی را انتخاب کن و دکمه کپی آن را بزن.
                 </p>
 
                 {imagePrompt && (
@@ -468,7 +468,7 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                         >
                           {/* Color header + copy button */}
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                               <span
                                 className="inline-block h-4 w-4 shrink-0 rounded-full border border-zinc-300"
                                 style={{ backgroundColor: v.color.hex }}
@@ -477,6 +477,9 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
                               <span className="text-[12px] font-medium text-zinc-800">
                                 {v.color.labelFa}
                               </span>
+                              {v.color.brand && (
+                                <span className="shrink-0 rounded-full bg-[var(--signal-soft)] px-1.5 text-[12px] font-bold leading-5 text-[var(--signal-strong)]">برند</span>
+                              )}
                               <span className="text-[12px] text-zinc-400" dir="ltr">
                                 {v.color.hex}
                               </span>

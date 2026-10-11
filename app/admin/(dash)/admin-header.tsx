@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ExternalLink, LogOut, Mail, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { adminLogout } from '../login/actions'
-import { VigentoCard } from './vigento-card'
+import { AdminPageTitle, VigentoCard } from './vigento-card'
 
 const nf = new Intl.NumberFormat('fa-IR')
 
@@ -12,17 +12,17 @@ const ICON_BUTTON =
 
 /**
  * Admin header — the user dashboard's header in structure and size (greeting
- * at the start, the assistant's card and square shortcuts at the end), so moving
- * between the two panels feels like one product.
+ * at the start, the assistant's shortcut and square shortcuts at the end), so
+ * moving between the two panels feels like one product.
  */
 export function AdminHeader({ ownerName, mailUnreadCount }: { ownerName: string; mailUnreadCount: number }) {
   return (
     <header className="dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]">
-      <div className="mx-auto flex min-h-[4.5rem] max-w-[112rem] items-center justify-between gap-2 rounded-card border border-black/[0.07] bg-white/[0.76] px-3 shadow-[var(--elev-1)] backdrop-blur-xl supports-[backdrop-filter:none]:bg-white/[0.92] sm:gap-3 sm:px-4 xl:min-h-[5.5rem] xl:rounded-sheet xl:px-5">
+      <div className="mx-auto flex min-h-[4.5rem] max-w-[112rem] items-center justify-between gap-2 rounded-card border border-black/[0.07] bg-white px-3 shadow-[var(--elev-2)] sm:gap-3 sm:px-4 xl:min-h-[5.5rem] xl:rounded-sheet xl:px-5">
         <div className="flex min-w-0 flex-1 items-center">
-          {/* Phones: the assistant's card takes the start slot and the free width. */}
+          {/* Phones: the start slot names the open page. */}
           <div className="min-w-0 flex-1 sm:hidden">
-            <VigentoCard compact />
+            <AdminPageTitle />
           </div>
           <div className="hidden min-w-0 sm:block">
             <p className="flex min-w-0 items-center gap-2 text-sm font-bold leading-5 text-[var(--text-primary)] xl:text-[15px] xl:leading-6">
@@ -39,6 +39,9 @@ export function AdminHeader({ ownerName, mailUnreadCount }: { ownerName: string;
         <div className="flex shrink-0 items-center justify-end gap-1.5 xl:gap-2.5">
           <div className="hidden sm:block">
             <VigentoCard />
+          </div>
+          <div className="sm:hidden">
+            <VigentoCard compact />
           </div>
           <Link href="/" target="_blank" rel="noreferrer" aria-label="مشاهده سایت" title="مشاهده سایت" className={cn(ICON_BUTTON, 'hidden lg:inline-flex')}>
             <ExternalLink aria-hidden="true" className="h-[1.05rem] w-[1.05rem]" />

@@ -587,6 +587,10 @@ export function OperatorChannelSetup({
                   <label htmlFor="operator-chat-id" className="text-[12px] font-bold text-[var(--text-primary)]">{t('operatorChatId')}</label>
                   <input
                     id="operator-chat-id"
+                    name="telegram-chat-id"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
                     dir="ltr"
                     type="text"
                     inputMode="numeric"
@@ -674,7 +678,7 @@ export function OperatorChannelSetup({
                 {showTokenRotation && (
                   <div className="mt-2 rounded-2xl border border-black/[0.07] bg-white p-3">
                     <label htmlFor="rotate-bot-token" className="text-[12px] font-bold text-[var(--text-secondary)]">{copy('توکن جدید', 'New token')}</label>
-                    <input id="rotate-bot-token" dir="ltr" type="password" autoComplete="off" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder="1234567890:AA…" className="input mt-2 min-h-11 w-full font-mono text-sm" />
+                    <input id="rotate-bot-token" dir="ltr" type="password" name="telegram-bot-token" autoComplete="new-password" data-1p-ignore data-lpignore="true" spellCheck={false} value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder="1234567890:AA…" className="input mt-2 min-h-11 w-full font-mono text-sm" />
                     <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-3 text-[12px] font-bold text-white disabled:opacity-40">
                       {busy === 'connect' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <KeyRound className="h-4 w-4" />}
                       {copy('ثبت توکن جدید', 'Save new token')}
@@ -720,14 +724,14 @@ export function OperatorChannelSetup({
                   <label htmlFor="operator-bot-token" className="text-xs font-bold text-[var(--text-secondary)]">{t('botToken')}</label>
                   <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] underline decoration-black/20 underline-offset-4 hover:text-[var(--text-primary)]">@BotFather <ExternalLink className="h-3 w-3" /></a>
                 </div>
-                <input id="operator-bot-token" dir="ltr" type="password" autoComplete="off" value={botToken} onChange={(event) => { setBotToken(event.target.value); setFeedback(null) }} placeholder="1234567890:AA…" className="input min-h-12 w-full font-mono text-sm" />
+                <input id="operator-bot-token" dir="ltr" type="password" name="telegram-bot-token" autoComplete="new-password" data-1p-ignore data-lpignore="true" spellCheck={false} value={botToken} onChange={(event) => { setBotToken(event.target.value); setFeedback(null) }} placeholder="1234567890:AA…" className="input min-h-12 w-full font-mono text-sm" />
               </div>
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <label htmlFor="new-operator-chat-id" className="text-xs font-bold text-[var(--text-secondary)]">{t('operatorChatId')}</label>
                   <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] underline decoration-black/20 underline-offset-4 hover:text-[var(--text-primary)]">@userinfobot <ExternalLink className="h-3 w-3" /></a>
                 </div>
-                <input id="new-operator-chat-id" dir="ltr" type="text" inputMode="numeric" value={operatorChatId} onChange={(event) => setOperatorChatId(event.target.value)} placeholder="123456789" className="input min-h-12 w-full font-mono text-sm" />
+                <input id="new-operator-chat-id" name="telegram-chat-id" autoComplete="off" data-1p-ignore data-lpignore="true" dir="ltr" type="text" inputMode="numeric" value={operatorChatId} onChange={(event) => setOperatorChatId(event.target.value)} placeholder="123456789" className="input min-h-12 w-full font-mono text-sm" />
               </div>
               <button type="button" onClick={() => void connect()} disabled={busy !== null || !botToken.trim()} className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">
                 {busy === 'connect' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4" />}

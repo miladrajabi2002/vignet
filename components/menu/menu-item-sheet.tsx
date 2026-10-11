@@ -9,6 +9,7 @@ import { queueUndo } from '@/lib/undo-queue'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { Switch } from '@/components/ui/switch'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { NumberField } from '@/components/admin/number-field'
 import { SAVED_BEAT_MS, SaveButton, useSaveState } from '@/components/ui/save-button'
 import { uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 import { ProductImage } from '@/components/products/product-image'
@@ -202,7 +203,7 @@ export function MenuItemSheet({
         </label>
 
         <div className="grid grid-cols-2 gap-3">
-          <PriceField label="قیمت (تومان)" value={price} onChange={setPrice} empty="بدون قیمت: «برای قیمت پیام دهید»" />
+          <PriceField label="قیمت" value={price} onChange={setPrice} empty="بدون قیمت: «برای قیمت پیام دهید»" />
           <PriceField label="قبل از تخفیف (اختیاری)" value={comparePrice} onChange={setComparePrice} disabled={!price} />
         </div>
 
@@ -285,8 +286,9 @@ function PriceField({ label, value, onChange, disabled, empty }: { label: string
   return (
     <label className="block min-w-0">
       <span className="mb-1.5 block truncate text-[13px] text-[var(--text-secondary)]">{label}</span>
-      <input dir="ltr" inputMode="numeric" value={value} disabled={disabled} onChange={(event) => onChange(digits(event.target.value))} placeholder="0" className="input w-full text-left tabular-nums disabled:opacity-50" />
-      <span className="mt-1 block min-h-5 text-[12px] leading-5 text-[var(--text-muted)]">{value ? `${fa(Number(value))} تومان` : empty}</span>
+      <NumberField value={value} onChange={(raw) => onChange(digits(raw))} unit="تومان" persian disabled={disabled} placeholder="۰" ariaLabel={label} />
+      {/* The field itself reads ۲۸۵٬۰۰۰ تومان, so the line below only explains an empty one. */}
+      <span className="mt-1 block min-h-5 text-[12px] leading-5 text-[var(--text-muted)]">{value ? '' : empty}</span>
     </label>
   )
 }

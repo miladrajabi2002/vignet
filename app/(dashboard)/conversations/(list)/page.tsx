@@ -372,7 +372,7 @@ export default async function ConversationsPage(props: {
         const filtered = Boolean(channelFilter || statusFilter || agentFilter || salesFilter || query)
 
         return (
-                <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3">
+                <div className="mx-auto flex min-w-0 max-w-none flex-col gap-3">
                         <PageHeader
                                 icon={MessagesSquare}
                                 title={t('title')}

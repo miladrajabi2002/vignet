@@ -86,7 +86,7 @@ export function CoursesWorkspace({
   const rosterCourse = courses.find((course) => course.id === rosterId) ?? null
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <PageHeader
         icon={GraduationCap}
         title={fa ? 'دوره‌ها' : 'Courses'}
@@ -113,7 +113,7 @@ export function CoursesWorkspace({
               ] as const).map(([key, label, count]) => (
                 <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)} className="ui-seg-tab text-sm">
                   {label}
-                  <span className="rounded-full bg-black/[0.07] px-1.5 text-[12px] tabular-nums">{num(count, fa)}</span>
+                  {count > 0 && <span className="ui-tab-count">{num(count, fa)}</span>}
                 </button>
               ))}
             </div>

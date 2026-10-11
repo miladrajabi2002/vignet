@@ -356,9 +356,7 @@ export function InstagramAutomationManager({
                                                                         ? <>{fa ? 'استوری' : 'Story'}<span className="hidden sm:inline">{fa ? ' و واکنش' : ' & reactions'}</span></>
                                                                         : t(labelKey)}
                                                         </span>
-                                                        <span className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums ${active ? 'bg-[var(--text-primary)] text-white' : 'bg-black/[0.08] text-[var(--text-secondary)]'}`}>
-                                                                {activeCount.toLocaleString(numLocale)}
-                                                        </span>
+                                                        {activeCount > 0 && <span className="ui-tab-count">{activeCount.toLocaleString(numLocale)}</span>}
                                                 </button>
                                         )
                                 })}

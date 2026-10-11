@@ -91,7 +91,7 @@ export default async function SettingsPage() {
   const readiness = await getCapabilityReadiness(user.workspaceId, workspaceCapabilities(workspace))
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <PageHeader
         icon={SlidersHorizontal}
         title={t('settings.title')}

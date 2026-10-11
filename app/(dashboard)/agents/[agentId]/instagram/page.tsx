@@ -215,7 +215,7 @@ async function InstagramAutomationContent({
         const reports = await getAutomationReports({ workspaceId: user.workspaceId, automationIds: rows.map((row) => row.id) })
 
         return (
-                <div className="mx-auto max-w-6xl space-y-5">
+                <div className="mx-auto max-w-none space-y-5">
                         {statusBanner}
                         <InstagramAutomationManager
                                 agentId={agent.id}

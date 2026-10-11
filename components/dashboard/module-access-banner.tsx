@@ -72,7 +72,7 @@ export function ModuleAccessBanner({
   }
 
   return (
-    <div className="mx-auto mb-4 flex max-w-6xl flex-col gap-3 rounded-2xl border border-[var(--signal-border)] bg-[var(--signal-soft)] px-4 py-3 sm:flex-row sm:items-center" role="status">
+    <div className="mx-auto mb-4 flex max-w-none flex-col gap-3 rounded-2xl border border-[var(--signal-border)] bg-[var(--signal-soft)] px-4 py-3 sm:flex-row sm:items-center" role="status">
       <PanelRightOpen className="hidden h-5 w-5 shrink-0 text-[var(--signal-strong)] sm:block" />
       <div className="min-w-0 flex-1 text-[var(--signal-strong)]">
         <p className="text-[13px] font-bold">{t('moduleOffTitle', { capability: optionLabel })}</p>

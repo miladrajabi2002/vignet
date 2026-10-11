@@ -40,11 +40,11 @@ export function GoalPicker({
               className={cn(
                 'flex min-h-11 w-full items-center gap-3 rounded-xl border px-3.5 py-2 text-start transition-[border-color,box-shadow] duration-150',
                 active
-                  ? 'border-[var(--text-primary)] shadow-[0_0_0_1px_var(--text-primary)]'
+                  ? 'border-[var(--signal)] bg-[var(--signal-soft)]'
                   : 'border-[var(--border-default)] bg-white hover:border-black/25',
               )}
             >
-              <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border', active ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-black/30 bg-white text-transparent')}>
+              <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border', active ? 'border-[var(--signal)] bg-[var(--signal)] text-white' : 'border-black/30 bg-white text-transparent')}>
                 <Check className="h-3 w-3" strokeWidth={3} />
               </span>
               <span className="min-w-0">

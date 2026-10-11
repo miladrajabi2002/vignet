@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function AnalyticsLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       <DashboardHeaderSkeleton actions={1} />
 
       {/* KPI row */}

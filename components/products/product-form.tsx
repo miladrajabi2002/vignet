@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, ImageOff, Layers, Plus, Sparkles, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { NumberField } from '@/components/admin/number-field'
 import { SAVED_BEAT_MS, SaveButton, useSaveState } from '@/components/ui/save-button'
 import { UploadDropzone, uploadFileWithProgress } from '@/components/ui/upload-dropzone'
 import { ProductImage } from '@/components/products/product-image'
@@ -108,6 +109,7 @@ export function ProductForm({
   returnTo?: string
 }) {
   const t = useTranslations('products.form')
+  const persianDigits = useLocale() !== 'en'
   const router = useRouter()
 
   const [form, setForm] = useState<ProductFormData>(
@@ -245,10 +247,10 @@ export function ProductForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('price')}>
-          <UnitInput type="number" inputMode="numeric" unit={t('priceUnit')} value={form.price} onChange={(e) => set('price', e.target.value)} />
+          <NumberField value={form.price} onChange={(raw) => set('price', raw)} unit={t('priceUnit')} persian={persianDigits} ariaLabel={t('price')} />
         </Field>
         <Field label={t('comparePrice')} optional={t('optional')} hint={t('comparePriceHint')}>
-          <UnitInput type="number" inputMode="numeric" unit={t('priceUnit')} value={form.comparePrice} onChange={(e) => set('comparePrice', e.target.value)} />
+          <NumberField value={form.comparePrice} onChange={(raw) => set('comparePrice', raw)} unit={t('priceUnit')} persian={persianDigits} ariaLabel={t('comparePrice')} />
         </Field>
         <Field label={t('sku')}>
           <input dir="ltr" value={form.sku} onChange={(e) => set('sku', e.target.value)} className="input font-mono text-sm" />
@@ -656,15 +658,5 @@ function Field({ label, hint, optional, children }: { label: string; hint?: stri
       {children}
       {hint ? <p className="ui-field-hint">{hint}</p> : null}
     </fieldset>
-  )
-}
-
-/** Number field with its unit inside the control (end side), not in the label. */
-function UnitInput({ unit, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { unit: string }) {
-  return (
-    <div className="relative">
-      <input {...props} className="input pe-16" />
-      <span className="pointer-events-none absolute end-3.5 top-1/2 -translate-y-1/2 text-[12px] text-[var(--text-muted)]">{unit}</span>
-    </div>
   )
 }

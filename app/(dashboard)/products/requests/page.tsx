@@ -73,7 +73,7 @@ export default async function ChatRequestsPage() {
   const groups = [...byProduct.values()].sort((left, right) => right.alerts.length - left.alerts.length)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <PageHeader icon={MessageSquareText} title={t('title')} subtitle={t('subtitle')} />
 
       <CommerceTabs

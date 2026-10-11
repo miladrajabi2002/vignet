@@ -148,7 +148,7 @@ export default async function ContactDetailPage(
   const stageLabel = t(({ lead: 'stageLead', qualified: 'stageQualified', customer: 'stageCustomer', lost: 'stageLost' } as Record<string, string>)[contact.stage] ?? 'stageLead')
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="mx-auto max-w-none space-y-4">
       <BackButton href="/contacts" label={t('title')} />
 
       {/* Header: who this is, the one useful action, and delete. */}

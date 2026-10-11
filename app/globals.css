@@ -132,11 +132,12 @@
            0  hairline only (lists, tables, insets) — no shadow token
            1  resting card                 → --elev-1
            2  floating (menus, sheets, bars, dialogs) → --elev-2
-           Each level stacks a short contact shadow under longer ambient
-           ones, so the edge stays crisp without a heavy border.
+           A resting card is its hairline plus a 2px contact shadow; only
+           floating surfaces carry the long ambient shadow, so a menu, sheet
+           or sticky bar reads as clearly above the cards beneath it.
            The legacy names below alias onto those two levels so every
            existing surface lands on the same depth. */
-        --elev-1: 0 1px 1px rgba(17, 17, 17, 0.03), 0 3px 6px -1px rgba(17, 17, 17, 0.04), 0 10px 20px -6px rgba(17, 17, 17, 0.07);
+        --elev-1: 0 1px 2px rgba(17, 17, 17, 0.05);
         --elev-2: 0 4px 8px -2px rgba(17, 17, 17, 0.05), 0 16px 32px -8px rgba(17, 17, 17, 0.12), 0 32px 56px -16px rgba(17, 17, 17, 0.1);
         --shadow-xs: 0 1px 2px rgba(17, 17, 17, 0.04);
         --shadow-sm: var(--shadow-xs);
@@ -552,6 +553,8 @@
                 outline: none;
         }
         [dir='rtl'] .ui-num input { text-align: right; }
+        /* Phones: 16px keeps iOS from zooming the page when the field is focused. */
+        @media (max-width: 639px) { .ui-num input { font-size: 16px; } }
         .ui-num input::placeholder { color: var(--text-hint); font-weight: 400; }
         .ui-num input:focus-visible { outline: none; }
         .ui-num-unit {
@@ -687,13 +690,38 @@
                 padding-inline: 0.75rem;
         }
 
+        /* Scrolling content must never show above or behind the sticky bar:
+           a canvas-coloured mask fills the gap over the bar and fades out
+           just below it, so cards slide under a clean edge. */
+        .dashboard-shell-header::before {
+                content: '';
+                position: absolute;
+                inset: 0 0 -1rem;
+                z-index: -1;
+                background: linear-gradient(180deg, var(--bg-base) calc(100% - 1rem), transparent);
+                pointer-events: none;
+        }
+
         .dashboard-shell-content {
                 padding-inline: 1rem;
+        }
+
+        /* One measure for every route: the header frame tops out at 84.5rem
+           and the page column sits 2.25rem inside it on each side (80rem), so
+           the title of every page starts on the same line under the header. */
+        .dashboard-shell-frame {
+                margin-inline: auto;
+                max-width: 84.5rem;
         }
 
         .dashboard-main {
                 margin-inline: auto;
                 width: 100%;
+                max-width: 80rem;
+        }
+
+        /* The admin panel keeps its wider frame: its tables need the room. */
+        .admin-root .dashboard-main {
                 max-width: 108rem;
         }
 
@@ -704,16 +732,24 @@
 
         @media (min-width: 1024px) {
                 .dashboard-shell-header { padding-inline: 1.5rem; }
-                .dashboard-shell-content { padding-inline: 2.5rem; }
+                .dashboard-shell-content { padding-inline: 3rem; }
+                .admin-root .dashboard-shell-content { padding-inline: 2.5rem; }
         }
 
         @media (min-width: 1280px) {
                 .dashboard-shell-header { padding-inline: 1.75rem; }
-                .dashboard-shell-content { padding-inline: 3rem; }
+                .dashboard-shell-content { padding-inline: 4rem; }
+                .admin-root .dashboard-shell-content { padding-inline: 3rem; }
         }
 
         .dashboard-card {
                 box-shadow: var(--elev-1);
+        }
+
+        /* A switch row is read as one line: title, note, switch. Past this
+           measure the switch drifts too far from the title it belongs to. */
+        .ui-switch-list {
+                max-width: 47.5rem;
         }
 
         /* Content surface: opaque white, level-1 elevation. No backdrop blur —
@@ -1791,6 +1827,17 @@ html[dir='rtl'] .undo-indeterminate {
 			color: var(--text-primary);
 			background: rgba(255, 255, 255, 0.55);
 		}
+	}
+	/* A count beside a tab label: plain grey figures, never a filled badge —
+	   the label is what the tab is, the number is only a detail. Callers do
+	   not render it at all for zero. */
+	.ui-tab-count {
+		flex-shrink: 0;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
+		color: var(--text-muted);
 	}
 	/* Icon inside a tab: a plain glyph — grey when idle, ink when selected.
 	   (It used to sit in a tile that turned solid black, a second "active"

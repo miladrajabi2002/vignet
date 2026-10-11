@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { CHART_ACCENT, CHART_HANDOFF, CHART_INK } from '@/components/admin/chart-palette'
 
 export interface TrendPoint {
   label: string
@@ -21,10 +22,13 @@ export interface TrendPoint {
 }
 
 /**
- * Monochrome area chart for a daily metric trend. When the data carries the
- * optional `resolved` / `handoff` breakdown (the analytics page), the two
- * series are layered on top of the ink "total" area so the on-chart legend
- * matches what is actually drawn.
+ * Area chart for a daily metric trend, in the shared chart palette
+ * (components/admin/chart-palette.ts): the total is iris with a soft area;
+ * the optional `resolved` breakdown is a thin ink line and `handoff` a thin
+ * amber one (amber is the app's colour for "handed to an operator").
+ *
+ * The last point is the day still in progress. Drawn solid it reads as a
+ * sudden drop to zero, so that final segment is dashed and ends in a dot.
  *
  * The mount animation is disabled: the chart paints instantly instead of
  * drawing for ~1.5s, which reads as faster and never fights
@@ -33,10 +37,13 @@ export interface TrendPoint {
 export function ConversationChart({
   data,
   empty,
+  partialLast = true,
 }: {
   data: TrendPoint[]
   /** Copy (and an optional next step) for a window with no activity at all. */
   empty?: { title?: string; hint?: string; action?: { href: string; label: string } }
+  /** False when the last point is a finished period, not the day in progress. */
+  partialLast?: boolean
 }) {
   const locale = useLocale()
   const fa = locale === 'fa'
@@ -51,6 +58,16 @@ export function ConversationChart({
     fa
       ? { total: 'کل گفتگوها', resolved: 'حل‌شده', handoff: 'تحویل اپراتور' }[key]
       : { total: 'Total', resolved: 'Resolved', handoff: 'Handed off' }[key]
+
+  // The total is split in two so the open day can be dashed: `settled` stops
+  // at yesterday, `open` is only the last two points.
+  const last = data.length - 1
+  const dashed = partialLast && data.length > 2
+  const rows = data.map((point, index) => ({
+    ...point,
+    settled: dashed && index === last ? null : point.value,
+    open: dashed && index >= last - 1 ? point.value : null,
+  }))
 
   // No conversations in the window: keep the axes so the card still reads as a
   // chart, and say when it fills up instead of drawing a flat line at zero.
@@ -84,19 +101,11 @@ export function ConversationChart({
       aria-label={fa ? `روند ${data.length} روز اخیر؛ بیشترین مقدار ${peak.toLocaleString(numberLocale)}` : `Trend across ${data.length} points; peak value ${peak}`}
     >
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+        <AreaChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
         <defs>
           <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgb(var(--ink-rgb))" stopOpacity={0.18} />
-            <stop offset="100%" stopColor="rgb(var(--ink-rgb))" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="trendFillResolved" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity={0.16} />
-            <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="trendFillHandoff" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.14} />
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+            <stop offset="0%" stopColor={CHART_ACCENT} stopOpacity={0.2} />
+            <stop offset="100%" stopColor={CHART_ACCENT} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} stroke="rgba(var(--ink-rgb),0.055)" strokeDasharray="3 4" />
@@ -127,29 +136,48 @@ export function ConversationChart({
             fontFamily: 'IRANSansWeb',
           }}
           labelStyle={{ color: 'var(--text-secondary)' }}
-          formatter={(value, name) => [
-            Number(value ?? 0).toLocaleString(numberLocale),
-            typeof name === 'string' && name ? name : fa ? 'تعداد' : 'Count',
-          ]}
+          // `settled` and `open` are the same metric; the tooltip names it once.
+          formatter={(value, name, item) => (item?.dataKey === 'open' && item?.payload?.settled != null
+            ? [null, null]
+            : [
+                Number(value ?? 0).toLocaleString(numberLocale),
+                typeof name === 'string' && name ? name : fa ? 'تعداد' : 'Count',
+              ])}
         />
         <Area
           type="monotone"
-          dataKey="value"
+          dataKey="settled"
           name={seriesName('total')}
-          stroke="rgb(var(--ink-rgb))"
-          strokeWidth={1.5}
+          stroke={CHART_ACCENT}
+          strokeWidth={2}
           fill="url(#trendFill)"
           dot={false}
           isAnimationActive={false}
         />
+        {dashed && (
+          <Area
+            type="linear"
+            dataKey="open"
+            name={seriesName('total')}
+            stroke={CHART_ACCENT}
+            strokeWidth={2}
+            strokeDasharray="3 4"
+            fill="none"
+            dot={(props: { cx?: number; cy?: number; index?: number }) => (props.index === last && props.cx != null && props.cy != null
+              ? <circle key="open-day" cx={props.cx} cy={props.cy} r={3.5} fill="#ffffff" stroke={CHART_ACCENT} strokeWidth={2} />
+              : <g key={`open-${props.index}`} />)}
+            activeDot={false}
+            isAnimationActive={false}
+          />
+        )}
         {hasResolved && (
           <Area
             type="monotone"
             dataKey="resolved"
             name={seriesName('resolved')}
-            stroke="#10b981"
-            strokeWidth={1.5}
-            fill="url(#trendFillResolved)"
+            stroke={CHART_INK}
+            strokeWidth={1.25}
+            fill="none"
             dot={false}
             isAnimationActive={false}
           />
@@ -159,9 +187,9 @@ export function ConversationChart({
             type="monotone"
             dataKey="handoff"
             name={seriesName('handoff')}
-            stroke="#f59e0b"
-            strokeWidth={1.5}
-            fill="url(#trendFillHandoff)"
+            stroke={CHART_HANDOFF}
+            strokeWidth={1.25}
+            fill="none"
             dot={false}
             isAnimationActive={false}
           />

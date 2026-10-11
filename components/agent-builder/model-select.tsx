@@ -102,16 +102,16 @@ export function ModelSelect({
               className={cn(
                 'flex flex-col gap-3 rounded-2xl border p-4 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
                 on
-                  ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-[var(--shadow-control)]'
+                  ? 'border-[var(--signal)] bg-[var(--signal-soft)]'
                   : allowed
-                    ? 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
+                    ? 'border-[var(--border-default)] bg-white hover:border-[var(--border-hover)]'
                     : 'border-[var(--border-default)] bg-[var(--bg-muted)]',
               )}
             >
               <div className="flex items-start gap-3">
                 <span className={cn(
                   'grid h-9 w-9 shrink-0 place-items-center rounded-xl',
-                  on ? 'bg-[var(--text-primary)] text-[var(--bg-base)]' : 'bg-[var(--bg-muted)] text-[var(--text-primary)]',
+                  on ? 'bg-[var(--signal)] text-white' : 'bg-[var(--bg-muted)] text-[var(--text-primary)]',
                 )}>
                   <Icon className="h-4 w-4" />
                 </span>
@@ -136,7 +136,7 @@ export function ModelSelect({
                 <span
                   className={cn(
                     'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                    on ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : 'border-[var(--border-hover)]',
+                    on ? 'border-[var(--signal)] bg-[var(--signal)] text-white' : 'border-[var(--border-hover)]',
                   )}
                 >
                   {on && <Check className="h-3.5 w-3.5" />}

@@ -61,14 +61,14 @@ export default async function PublicBlogCategoryPage(props: Props) {
 
     return (
         <div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
-                        <div className="mx-auto max-w-7xl">
-                        <header className="relative mb-10 border-b border-black/[0.08] px-1 pb-9 pt-2 sm:px-2 sm:pb-12 sm:pt-4 text-center">
+                        <div className="mx-auto max-w-[1200px]">
+                        <header className="relative mb-6 border-b border-black/[0.08] px-1 pb-6 pt-2 sm:mb-10 sm:px-2 sm:pb-12 sm:pt-4">
                                 <MarketingHeroPill>بلاگ</MarketingHeroPill>
-                                <h1 className="mt-4 text-4xl font-bold leading-[1.3] text-vg-ink sm:text-5xl">
+                                <h1 className="mt-4 text-[clamp(1.75rem,7.6vw,2.25rem)] font-bold leading-[1.3] text-vg-ink sm:text-5xl">
                                         {category.name}
                                 </h1>
                                 {category.description && (
-                                        <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-8 text-vg-sub">{category.description}</p>
+                                        <p className="mt-3 max-w-2xl text-[15px] leading-8 text-vg-sub">{category.description}</p>
                                 )}
                         </header>
 

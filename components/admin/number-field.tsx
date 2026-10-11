@@ -32,12 +32,16 @@ export function groupDigits(value: string): string {
  * digits accepted, no browser spinners, and the unit as its own cell at the
  * field's end (it used to be an overlay that sat on top of the value).
  * `onChange` receives the bare number string ('' when cleared).
+ * `persian` shows the value in Persian digits with the Persian thousands
+ * separator (۲۸۵٬۰۰۰) — what a Persian-speaking owner reads in the dashboard;
+ * the stored string stays Latin either way.
  */
 export function NumberField({
   value,
   onChange,
   unit,
   decimals = false,
+  persian = false,
   disabled,
   placeholder,
   id,
@@ -48,6 +52,7 @@ export function NumberField({
   onChange: (raw: string) => void
   unit?: string
   decimals?: boolean
+  persian?: boolean
   disabled?: boolean
   placeholder?: string
   id?: string
@@ -61,7 +66,10 @@ export function NumberField({
   // While typing, the field shows exactly what was typed: a form that stores
   // an emptied field as 0 must not put a "0" back under the caret.
   const [draft, setDraft] = useState<string | null>(null)
-  const display = groupDigits(draft ?? (value === null || value === undefined ? '' : normalizeNumberInput(String(value), decimals)))
+  const grouped = groupDigits(draft ?? (value === null || value === undefined ? '' : normalizeNumberInput(String(value), decimals)))
+  const display = persian
+    ? grouped.replace(/\d/g, (digit) => PERSIAN_DIGITS[Number(digit)]).replace(/,/g, '٬')
+    : grouped
 
   useLayoutEffect(() => {
     const input = inputRef.current
@@ -71,7 +79,8 @@ export function NumberField({
     let seen = 0
     let position = 0
     while (position < display.length && seen < digits) {
-      if (/[\d.]/.test(display[position])) seen += 1
+      const char = display[position]
+      if ((char >= '0' && char <= '9') || char === '.' || PERSIAN_DIGITS.includes(char)) seen += 1
       position += 1
     }
     input.setSelectionRange(position, position)

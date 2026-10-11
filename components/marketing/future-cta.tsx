@@ -76,7 +76,7 @@ export function FutureCta() {
 			{/* Ambient backlight: the card glows onto the page from its sides, the
 			    way a wall-mounted TV spills light, instead of a flat empty band. */}
 			<div aria-hidden className="vg-cta-glow vg-anim" />
-			<div className="vg-dawn relative flex min-h-[26rem] w-full flex-col items-center justify-center overflow-hidden rounded-sheet border border-white/[0.08] bg-[#0e0e11] px-5 pt-14 text-center shadow-[0_16px_50px_rgba(30,18,70,0.22)] sm:min-h-[31rem] sm:rounded-[2.75rem] sm:px-8 sm:pt-16 sm:shadow-[0_28px_90px_rgba(30,18,70,0.28)]">
+			<div data-nav="dark" className="vg-dawn relative flex min-h-[26rem] w-full flex-col items-center justify-center overflow-hidden rounded-sheet border border-white/[0.08] bg-[#0e0e11] px-5 pt-14 text-center shadow-[0_16px_50px_rgba(30,18,70,0.22)] sm:min-h-[31rem] sm:rounded-[2.75rem] sm:px-8 sm:pt-16 sm:shadow-[0_28px_90px_rgba(30,18,70,0.28)]">
 				{/* The sky: paper grid fading downward, specks, the rising halo, the
 				    planet's edge and its rim of light. All gradients, no blur filters. */}
 				<div aria-hidden className="vg-dawn-sky vg-anim">

@@ -320,7 +320,7 @@ export default async function OverviewPage() {
     : `${nf.format(conversationsToday)} new conversations today; ${handedOff > 0 ? `${nf.format(handedOff)} are waiting for you` : 'nothing is waiting for you'}${pendingImprovements > 0 ? `, and ${nf.format(pendingImprovements)} improvements are ready to approve` : ''}.`
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
+    <div className="mx-auto max-w-none space-y-5 sm:space-y-6">
       {!workspace.dashboardChecklistDismissedAt && !checklistCompleted && (
         <DashboardCompletionChecklist
           locale={lang}

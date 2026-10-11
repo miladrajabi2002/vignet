@@ -11,7 +11,7 @@ export default function CoursesLoading() {
     <div
       role="status"
       aria-busy="true"
-      className="mx-auto max-w-6xl space-y-5"
+      className="mx-auto max-w-none space-y-5"
     >
       <span className="sr-only">در حال بارگذاری دوره‌ها...</span>
       <DashboardHeaderSkeleton actions={1} />

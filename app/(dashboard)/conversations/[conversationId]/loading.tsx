@@ -16,7 +16,7 @@ import {
  */
 export default function ConversationDetailLoading() {
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
+    <div className="mx-auto flex h-full max-w-none flex-col gap-4">
       <BackRowSkeleton delay={-40} className="w-fit self-start shrink-0" />
 
       {/* Contact header card */}

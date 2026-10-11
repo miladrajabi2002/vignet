@@ -23,11 +23,11 @@ export function LegalPage({
 }) {
 	return (
 		<div className="marketing-page-shell min-h-screen px-3 pb-20 pt-24 sm:px-5 sm:pt-28">
-			<div className="mx-auto max-w-6xl">
+			<div className="mx-auto max-w-[1200px]">
 				<header className="marketing-page-hero px-1 pb-10 pt-2 sm:px-2 sm:pb-12 sm:pt-4">
 					<div className="relative z-10 max-w-3xl">
 						<MarketingHeroPill><span className="inline-flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5" />{eyebrow}</span></MarketingHeroPill>
-						<h1 className="mt-5 text-balance text-4xl font-bold leading-[1.25] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
+						<h1 className="mt-5 text-balance text-[clamp(1.75rem,7.6vw,2.25rem)] font-bold leading-[1.3] tracking-[-0.04em] sm:text-5xl sm:leading-[1.25] rtl:tracking-normal">
 							{title}
 						</h1>
 						<p className="mt-4 max-w-2xl text-[15px] leading-8 text-vg-sub">{description}</p>

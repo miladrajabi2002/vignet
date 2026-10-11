@@ -266,11 +266,11 @@ export default async function PricingPage() {
         return (
                 <div className="marketing-page-shell min-h-screen pb-20 pt-24 sm:pt-28">
                         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
-                        <div className="mx-auto max-w-7xl px-3 sm:px-5">
-                                <header className="marketing-page-hero px-6 pb-10 pt-4 sm:px-10 sm:pb-14 sm:pt-8">
+                        <div className="mx-auto max-w-[1200px] px-3 sm:px-5">
+                                <header className="marketing-page-hero px-4 pb-7 pt-4 sm:px-10 sm:pb-14 sm:pt-8">
                                         <div className="relative z-10 mx-auto max-w-3xl text-center">
                                                 <MarketingHeroPill>{copy.heroEyebrow}</MarketingHeroPill>
-                                                <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.2] tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">
+                                                <h1 className="mt-5 text-balance text-[clamp(1.75rem,7.6vw,2.25rem)] font-bold leading-[1.3] tracking-[-0.04em] sm:text-5xl sm:leading-[1.2] rtl:tracking-normal">
                                                         {copy.h1}
                                                 </h1>
                                                 <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-8 text-vg-sub">
@@ -279,16 +279,18 @@ export default async function PricingPage() {
                                         </div>
                                 </header>
 
-                                <section className="relative z-10 mt-8 grid gap-3 sm:grid-cols-3" aria-label={copy.assurancesLabel}>
+                                <section className="relative z-10 mt-6 grid gap-2 sm:mt-8 sm:grid-cols-3 sm:gap-3" aria-label={copy.assurancesLabel}>
                                         {copy.assurances.map(({ title, text }, index) => {
                                                 const Icon = ASSURANCE_ICONS[index]
                                                 return (
-                                                        <article key={title} className="spatial-surface rounded-card bg-white p-5">
-                                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white">
+                                                        // Phones: a compact row (icon beside the text), so the three
+                                                        // assurances do not push the plans a full screen down.
+                                                        <article key={title} className="spatial-surface rounded-card bg-white p-3.5 max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)] max-sm:items-center max-sm:gap-x-3 sm:p-5">
+                                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white max-sm:row-span-2">
                                                                         <Icon className="h-4 w-4" />
                                                                 </span>
-                                                                <h2 className="mt-4 text-sm font-bold text-black">{title}</h2>
-                                                                <p className="mt-2 text-xs leading-6 text-black/45">{text}</p>
+                                                                <h2 className="text-sm font-bold text-black sm:mt-4">{title}</h2>
+                                                                <p className="text-xs leading-6 text-black/45 sm:mt-2">{text}</p>
                                                         </article>
                                                 )
                                         })}
@@ -301,7 +303,7 @@ export default async function PricingPage() {
 
                         {/* How credit is spent, shown rather than told: the question
                             buyers ask most before choosing a plan. */}
-                        <section aria-labelledby="credit-how-title" className="mx-auto mt-4 max-w-7xl px-3 sm:px-5">
+                        <section aria-labelledby="credit-how-title" className="mx-auto mt-4 max-w-[1200px] px-3 sm:px-5">
                                 <div className="mx-auto grid max-w-6xl items-center gap-8 rounded-sheet border border-black/[0.08] bg-white px-6 py-10 shadow-[var(--elev-2)] sm:px-10 sm:py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
                                         <div>
                                                 <MarketingSectionPill>{copy.creditEyebrow}</MarketingSectionPill>
@@ -324,7 +326,7 @@ export default async function PricingPage() {
                                         <CreditFlowMotion locale={locale} />
                                 </div>
                         </section>
-                        <section aria-labelledby="pricing-faq-title" className="mx-auto mt-4 max-w-7xl px-3 sm:px-5">
+                        <section aria-labelledby="pricing-faq-title" className="mx-auto mt-4 max-w-[1200px] px-3 sm:px-5">
                                 <div className="mx-auto grid max-w-6xl gap-10 rounded-sheet border border-black/[0.08] bg-white px-6 py-12 shadow-[var(--elev-2)] sm:px-10 sm:py-14 lg:grid-cols-[0.7fr_1.3fr]">
                                         <div>
                                                 <MarketingSectionPill>{copy.faqEyebrow}</MarketingSectionPill>

@@ -272,11 +272,12 @@ export function AppointmentsWorkspace({
   const openCreate = (template?: ServiceTemplate | null) => setEditor({ open: true, service: null, template: template ?? null })
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-none space-y-5">
       {/* ── Header ── */}
       <PageHeader
         icon={CalendarCheck2}
         title={title}
+        stackActions
         subtitle={fa
           ? 'خدمت و ساعت کاری را تعریف کنید؛ ایجنت در گفتگو زمان آزاد واقعی را پیشنهاد می‌دهد، بدون تداخل رزرو می‌کند و به شما خبر می‌دهد.'
           : 'Define services and hours; the agent offers real free times in chat, books without conflicts and alerts you.'}
@@ -304,7 +305,7 @@ export function AppointmentsWorkspace({
               </button>
               <button type="button" role="tab" aria-selected={tab === 'services'} onClick={() => switchTab('services')} className="ui-seg-tab text-sm">
                 <LayoutGrid className="h-4 w-4" />{fa ? 'خدمات' : 'Services'}
-                <span className="rounded-full bg-black/[0.07] px-1.5 text-[12px] tabular-nums">{num(services.length, fa)}</span>
+                {services.length > 0 && <span className="ui-tab-count">{num(services.length, fa)}</span>}
               </button>
             </div>
             <dl className="grid grid-cols-4 divide-x divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white/80 rtl:divide-x-reverse lg:min-w-[30rem]">
@@ -365,6 +366,9 @@ export function AppointmentsWorkspace({
                     const closed = isClosedDate(services, key)
                     const dateObj = new Date(`${key}T12:00:00Z`)
                     const weekday = new Intl.DateTimeFormat(dateLocaleTag(locale), { weekday: 'short', timeZone: 'UTC' }).format(dateObj)
+                    // Seven cells on a phone are ~46px each: a full Persian day name
+                    // («چهارشنبه») runs into its neighbour, so phones show the initial.
+                    const weekdayInitial = new Intl.DateTimeFormat(dateLocaleTag(locale), { weekday: 'narrow', timeZone: 'UTC' }).format(dateObj)
                     const day = new Intl.DateTimeFormat(dateLocaleTag(locale), { day: 'numeric', timeZone: 'UTC' }).format(dateObj)
                     return (
                       <button
@@ -383,7 +387,10 @@ export function AppointmentsWorkspace({
                               : 'border-[var(--border-default)] bg-white text-[var(--text-primary)] hover:border-[var(--border-strong)]',
                         )}
                       >
-                        <span className={cn('text-[12px] font-medium', selected ? 'text-white/70' : 'text-[var(--text-muted)]')}>{weekday}</span>
+                        <span className={cn('text-[12px] font-medium', selected ? 'text-white/70' : 'text-[var(--text-muted)]')}>
+                          <span className="sm:hidden">{weekdayInitial}</span>
+                          <span className="max-sm:hidden">{weekday}</span>
+                        </span>
                         <span className="text-lg font-bold leading-7 tabular-nums">{day}</span>
                         {closed ? (
                           <span className={cn('mt-1 text-[12px]', selected ? 'text-white/70' : 'text-[var(--text-muted)]')}>{fa ? 'تعطیل' : 'Off'}</span>

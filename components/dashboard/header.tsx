@@ -250,7 +250,7 @@ export async function Header({
 
   return (
     <header className="dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]">
-      <div className="mx-auto flex min-h-[4.5rem] max-w-[112rem] items-center justify-between gap-3 rounded-card border border-black/[0.07] bg-white/[0.76] px-3 shadow-[var(--elev-1)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/[0.92] sm:px-4 xl:min-h-[5.5rem] xl:rounded-sheet xl:px-5">
+      <div className="dashboard-shell-frame flex min-h-[4.5rem] items-center justify-between gap-3 rounded-card border border-black/[0.07] bg-white px-3 shadow-[var(--elev-2)] sm:px-4 xl:min-h-[5.5rem] xl:rounded-sheet xl:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3.5 xl:gap-4">
           {/* On phones the plan card (or the owner's account switcher) takes the start slot so it gets the full free width. */}
           <div className="min-w-0 flex-1 sm:hidden">

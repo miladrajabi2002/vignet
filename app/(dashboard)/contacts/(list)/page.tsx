@@ -312,7 +312,7 @@ export default async function ContactsPage(
   const activeStages = stageDonut.filter((item) => item.value > 0)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-none space-y-6">
       <ContactsView
         key={`contacts:${page}:${query}:${stage}:${channel}:${tag}`}
         initial={rows}

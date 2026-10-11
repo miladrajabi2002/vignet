@@ -60,6 +60,9 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const copy = COPY[locale]
 	const pathname = usePathname()
 	const [scrolled, setScrolled] = useState(false)
+	// White glass over a dark section turns muddy grey, so the bar follows what
+	// is under it: sections marked data-nav="dark" switch it to dark glass.
+	const [tone, setTone] = useState<'light' | 'dark'>('light')
 	const [activeSection, setActiveSection] = useState('')
 	// /en/* is the English URL of the same page, so /en is a homepage too.
 	const english = pathname === '/en' || pathname.startsWith('/en/')
@@ -68,11 +71,28 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const home = english ? '/en' : '/'
 
 	useEffect(() => {
-		const onScroll = () => setScrolled(window.scrollY > 10)
+		// The bar's own centre line: whatever sits under it decides the tone.
+		const NAV_LINE = 40
+		const onScroll = () => {
+			setScrolled(window.scrollY > 10)
+			let dark = false
+			for (const section of document.querySelectorAll('[data-nav="dark"]')) {
+				const rect = section.getBoundingClientRect()
+				if (rect.top <= NAV_LINE && rect.bottom >= NAV_LINE) {
+					dark = true
+					break
+				}
+			}
+			setTone(dark ? 'dark' : 'light')
+		}
 		onScroll()
 		window.addEventListener('scroll', onScroll, { passive: true })
-		return () => window.removeEventListener('scroll', onScroll)
-	}, [])
+		window.addEventListener('resize', onScroll, { passive: true })
+		return () => {
+			window.removeEventListener('scroll', onScroll)
+			window.removeEventListener('resize', onScroll)
+		}
+	}, [pathname])
 
 	useEffect(() => {
 		if (!isLandingPath || !('IntersectionObserver' in window)) {
@@ -104,9 +124,11 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 		<header className="fixed inset-x-0 top-0 z-50 px-3 pt-2 lg:px-5 lg:pt-3.5">
 			<nav
 				aria-label={copy.primaryNav}
+				data-tone={tone}
 				className={cn(
-					'vg-glass relative mx-auto grid h-[58px] max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center rounded-card border px-2 transition-[border-color,box-shadow] duration-200 md:flex md:justify-between md:px-2.5 lg:h-16',
-					scrolled ? 'border-black/10 shadow-[var(--elev-1)]' : 'border-black/[0.07] shadow-[var(--elev-1)]',
+					'vg-glass relative mx-auto grid h-[58px] max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center rounded-card border px-2 transition-[background-color,border-color,box-shadow] duration-200 md:flex md:justify-between md:px-2.5 lg:h-16',
+					// At rest the bar is a card on the page; once content scrolls under it, it floats.
+					scrolled ? 'border-black/10 shadow-[var(--elev-2)]' : 'border-black/[0.07] shadow-[var(--elev-1)]',
 				)}
 			>
 				<div className="col-start-1 flex items-center justify-start md:hidden">
@@ -162,7 +184,10 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 						aria-label={copy.homeAria}
 					className="col-start-2 inline-flex min-h-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vg-signal md:absolute md:left-1/2 md:-translate-x-1/2"
 				>
-					<Logo priority className="h-7 w-28 lg:h-[26px] lg:w-[116px]" />
+					<span className="relative block">
+						<Logo priority className="vg-logo-on-light h-7 w-28 lg:h-[26px] lg:w-[116px]" />
+						<Logo variant="white" className="vg-logo-on-dark absolute inset-0 h-7 w-28 lg:h-[26px] lg:w-[116px]" />
+					</span>
 				</Link>
 
 				<div className="col-start-3 hidden items-center justify-end gap-1.5 md:flex lg:gap-2">

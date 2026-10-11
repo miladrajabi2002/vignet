@@ -126,29 +126,16 @@ export function Toolbar({
 
 type StatTone = "default" | "success" | "warning" | "danger" | "info";
 
-// Icon tile + mini-trend colour per tone. This is the one place the console
-// uses colour freely: a tinted tile and a matching sparkline, nothing more.
-const STAT_TONES: Record<StatTone, { tile: string; spark: string }> = {
-  default: {
-    tile: "bg-[#111] text-white",
-    spark: "#111111",
-  },
-  success: {
-    tile: "bg-[var(--ok-soft)] text-[var(--ok-ink)]",
-    spark: "#15803d",
-  },
-  warning: {
-    tile: "bg-[var(--warn-soft)] text-[var(--warn-ink)]",
-    spark: "#d97706",
-  },
-  danger: {
-    tile: "bg-[var(--danger-soft)] text-[var(--danger-ink)]",
-    spark: "#dc2626",
-  },
-  info: {
-    tile: "bg-[var(--signal-tint)] text-[var(--signal-strong)]",
-    spark: "#5b3de8",
-  },
+// A tone is a status, not decoration: every icon tile is the same quiet grey
+// and every mini-trend the same iris, so a card that really reports trouble
+// (`danger`: red figure, red edge, red trend) is the only coloured one in a row.
+const STAT_TILE = "bg-[var(--bg-muted)] text-[var(--text-secondary)]";
+const STAT_TONES: Record<StatTone, { spark: string }> = {
+  default: { spark: "#5b3de8" },
+  success: { spark: "#5b3de8" },
+  warning: { spark: "#5b3de8" },
+  danger: { spark: "#dc2626" },
+  info: { spark: "#5b3de8" },
 };
 
 export function StatCard({
@@ -182,15 +169,21 @@ export function StatCard({
     typeof value === "string" ? /^(.+?)\s*(تومان)\s*$/.exec(value) : null;
 
   return (
-    // Compact tile: tinted icon beside the label, the value under it, and
-    // only as much height as the content needs.
-    <Card pad={false} className="flex flex-col p-3.5 sm:p-4">
+    // Compact tile: icon beside the label, the value under it, and only as
+    // much height as the content needs (it does not stretch to its row).
+    <Card
+      pad={false}
+      className={cn(
+        "flex flex-col self-start p-3.5 sm:p-4",
+        tone === "danger" && "border-[color-mix(in_srgb,var(--danger-ink)_35%,transparent)]",
+      )}
+    >
       <div className="flex items-center gap-2.5">
         {icon && (
           <span
             className={cn(
               "grid h-8 w-8 shrink-0 place-items-center rounded-chip sm:h-9 sm:w-9 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-[1.05rem] sm:[&_svg]:w-[1.05rem]",
-              palette.tile,
+              STAT_TILE,
             )}
           >
             {icon}
@@ -243,7 +236,7 @@ export function StatCard({
         </div>
       )}
       {series && series.length > 0 && (
-        <div className="mt-auto pt-2.5">
+        <div className="pt-2.5">
           <Sparkline
             data={series}
             color={palette.spark}

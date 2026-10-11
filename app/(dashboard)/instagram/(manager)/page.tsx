@@ -35,7 +35,7 @@ export default async function InstagramWorkspacePage({
   })
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-none">
       {agent ? (
         <AgentInstagramPage
           params={Promise.resolve({ agentId: agent.id })}

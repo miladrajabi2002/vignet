@@ -188,7 +188,7 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
   }, [restored, initialQuestion, ask])
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
+    <div className="mx-auto grid max-w-none gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <section className="spatial-surface flex h-[calc(100dvh-12.5rem)] min-h-[26rem] flex-col overflow-hidden rounded-sheet md:h-[calc(100dvh-8.75rem)] md:min-h-[32rem] xl:h-[calc(100dvh-9.75rem)]">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">

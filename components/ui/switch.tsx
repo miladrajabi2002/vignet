@@ -113,7 +113,8 @@ export function SwitchCard({
 }) {
         const [expanded, setExpanded] = useState(false)
         const fa = useLocale() !== 'en'
-        const long = typeof description === 'string' && description.length > 90
+        // Two full lines are always readable; only a longer note folds behind "more".
+        const long = typeof description === 'string' && description.length > 110
         return (
                 <div className="flex items-start gap-3 px-3.5 py-3">
                         <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
@@ -128,7 +129,7 @@ export function SwitchCard({
                                                 </span>
                                         )}
                                 </h3>
-                                <p className={cn('text-[12px] leading-6 text-[var(--text-secondary)]', long && !expanded && 'line-clamp-1')}>
+                                <p className={cn('text-[12px] leading-6 text-[var(--text-secondary)]', long && !expanded && 'line-clamp-2')}>
                                         {description}
                                 </p>
                                 {long && (
