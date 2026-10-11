@@ -66,6 +66,19 @@ export function TelegramGlyph({ strokeWidth = 2, ...props }: SVGProps<SVGSVGElem
 	)
 }
 
+/**
+ * Telegram's paper plane as drawn in the panel's channel badges (Tabler brand
+ * set, MIT) — one open stroke, so the public site and the inbox show the same
+ * mark. Follows currentColor and strokeWidth like a lucide icon.
+ */
+export function TelegramPlane({ strokeWidth = 2, ...props }: SVGProps<SVGSVGElement>) {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+			<path d="M15 10l-4 4l6 6l4 -16l-18 7l4 2l2 6l3 -4" />
+		</svg>
+	)
+}
+
 export function TelegramIcon({ className }: { className?: string }) {
 	return (
 		<svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">

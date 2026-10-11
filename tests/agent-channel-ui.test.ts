@@ -44,6 +44,10 @@ describe('agent channel UI', () => {
     expect(instagram).toContain('این پیام نشانه مشکل امنیتی پیج شما نیست')
     expect(instagram).toContain('پیج اضافه شده؛ اتصال')
     expect(instagram).toContain('SUPPORT_TELEGRAM_URL')
+    // Support is reachable by a visible Telegram username, a call or an SMS.
+    expect(instagram).toContain('@{SUPPORT_TELEGRAM_USERNAME}')
+    expect(instagram).toContain('href={`tel:${SUPPORT_PHONE_E164}`}')
+    expect(instagram).toContain('href={`sms:${SUPPORT_PHONE_E164}`}')
   })
 
   it('keeps large connection editors collapsed by default', () => {

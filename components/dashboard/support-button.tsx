@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
-import { BookOpen, Check, Copy, Headphones, Phone, Send, Sparkles } from 'lucide-react'
+import { BookOpen, Check, Copy, Headphones, Phone, Sparkles } from 'lucide-react'
+import { TelegramPlane } from '@/components/marketing/social-links'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import {
   SUPPORT_PHONE_DISPLAY,
@@ -68,7 +69,7 @@ export function SupportButton() {
               </span>
             </a>
             <a href={SUPPORT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={row}>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eff6ff] text-[#0369a1]"><Send aria-hidden="true" className="h-[18px] w-[18px] -rotate-12" /></span>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eff6ff] text-[#0369a1]"><TelegramPlane className="h-[18px] w-[18px]" /></span>
               <span className="min-w-0">
                 <span className="block text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پیام در تلگرام' : 'Message on Telegram'}</span>
                 <span className="block text-[12px] text-[var(--text-muted)]">{fa ? 'با اسکرین‌شات خطا' : 'Send a screenshot'}</span>

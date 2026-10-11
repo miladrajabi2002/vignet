@@ -364,8 +364,9 @@ export function InstagramAutomationManager({
 
                         <AutomationsReportSummary
                                 fa={fa}
-                                reports={reports}
-                                names={Object.fromEntries(automations.map((item) => [item.id, item.name]))}
+                                type={activeTab}
+                                reports={current.flatMap((item) => reports[item.id] ?? [])}
+                                names={Object.fromEntries(current.map((item) => [item.id, item.name]))}
                         />
 
                         {/* Phones and tablets: the entry's settings fold above its scenarios. */}

@@ -111,10 +111,10 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
       </div>
 
       <div className="grid grid-cols-2 gap-3 min-[1380px]:grid-cols-4">
-        <StatCard label="کل رخدادها" value={fa(allLogCount)} icon={<AlertOctagon className="h-5 w-5" />} series={errTrend30.map((point) => point.value)} />
-        <StatCard label="خطاهای ۲۴ ساعت" value={fa(errors24h)} tone={errors24h > 0 ? 'danger' : 'success'} icon={<AlertTriangle className="h-5 w-5" />} series={errorTrend7.map((point) => point.value)} />
-        <StatCard label="رخدادهای ۷ روز اخیر" value={fa(weekTotal)} tone="info" icon={<Activity className="h-5 w-5" />} series={errTrend7.map((point) => point.value)} />
-        <StatCard label="منبع پرتکرار" value={topSource?.source ?? 'بدون خطا'} sub={topSource ? `${fa(topSource.total)} رخداد در ۷ روز` : 'رخدادی ثبت نشده است'} tone={topSource ? 'warning' : 'success'} icon={<Radar className="h-5 w-5" />} series={topSource?.series ?? []} />
+        <StatCard label="کل رخدادها" value={fa(allLogCount)} icon={<AlertOctagon className="h-5 w-5" />} series={errTrend30.map((point) => point.value)} seriesInvert />
+        <StatCard label="خطاهای ۲۴ ساعت" value={fa(errors24h)} tone={errors24h > 0 ? 'danger' : 'success'} icon={<AlertTriangle className="h-5 w-5" />} series={errorTrend7.map((point) => point.value)} seriesInvert />
+        <StatCard label="رخدادهای ۷ روز اخیر" value={fa(weekTotal)} tone="info" icon={<Activity className="h-5 w-5" />} series={errTrend7.map((point) => point.value)} seriesInvert />
+        <StatCard label="منبع پرتکرار" value={topSource?.source ?? 'بدون خطا'} sub={topSource ? `${fa(topSource.total)} رخداد در ۷ روز` : 'رخدادی ثبت نشده است'} tone={topSource ? 'warning' : 'success'} icon={<Radar className="h-5 w-5" />} series={topSource?.series ?? []} seriesInvert />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">

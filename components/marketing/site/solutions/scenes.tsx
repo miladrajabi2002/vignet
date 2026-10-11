@@ -22,7 +22,7 @@ import {
 	UserCheck,
 	Zap,
 } from 'lucide-react'
-import { InstagramGlyph } from '@/components/marketing/social-links'
+import { InstagramGlyph, TelegramPlane } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { DemoPointer } from '@/components/motion/pointer'
 import { CHANNELS, ChannelBadge, type IconType, type SiteLocale } from '../ui'
@@ -351,7 +351,7 @@ function TelegramScene({ locale }: { locale: SiteLocale }) {
 			<div className="flex items-center gap-2.5 border-b border-black/[0.06] bg-white px-4 py-3">
 				<span className="inline-flex size-9 items-center justify-center rounded-full bg-[#2aabee] text-white"><Bot className="size-[18px]" strokeWidth={1.8} /></span>
 				<div className="grow"><div className="text-[14px] font-bold">{t('فروشگاه ویجنت', 'Vigent Store')}</div><div className="text-[11.5px] text-[#2aabee]">{t('ربات', 'bot')}</div></div>
-				<Send className="size-4 -rotate-12 text-[#2aabee]" strokeWidth={2} />
+				<TelegramPlane className="size-4 text-[#2aabee]" />
 			</div>
 			{/* Telegram never mirrors bubbles: the bot sits left, you sit right. */}
 			<div dir="ltr" className="flex grow flex-col gap-2 bg-[#dfe8d5] p-3 lg:p-4" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.35) 1.5px, transparent 1.5px)', backgroundSize: '18px 18px' }}>

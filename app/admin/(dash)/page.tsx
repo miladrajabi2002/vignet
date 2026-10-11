@@ -265,6 +265,7 @@ export default async function AdminOverviewPage(
           series={kpiTrends.orCost.map((point) => point.value)}
           seriesLabels={kpiTrends.orCost.map((point) => point.day)}
           seriesValueFormat="usd"
+          seriesInvert
         />
         <StatCard
           label="کاربر جدید امروز"
@@ -300,6 +301,7 @@ export default async function AdminOverviewPage(
           icon={<AlertTriangle className="h-5 w-5" />}
           series={kpiTrends.err.map((point) => point.value)}
           seriesLabels={kpiTrends.err.map((point) => point.day)}
+          seriesInvert
         />
         </div>
       </section>

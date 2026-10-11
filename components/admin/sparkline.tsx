@@ -2,24 +2,7 @@
 
 import { useId } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
-
-type TrendDirection = "up" | "down" | "flat";
-
-/**
- * Compute trend direction from a daily series.
- * >5% change = up/down, otherwise flat.
- */
-function computeTrend(data: number[]): TrendDirection {
-  if (!data || data.length === 0) return "flat";
-  const firstNonZero = data.find((v) => v > 0) ?? 0;
-  const last = data[data.length - 1] ?? 0;
-  if (firstNonZero === 0 && last === 0) return "flat";
-  if (firstNonZero === 0 && last > 0) return "up";
-  const pct = ((last - firstNonZero) / firstNonZero) * 100;
-  if (pct > 5) return "up";
-  if (pct < -5) return "down";
-  return "flat";
-}
+import { computeTrend, isTrendGood } from "./series-trend";
 
 function fa(n: number): string {
   return Number(n).toLocaleString("fa-IR");
@@ -124,11 +107,10 @@ export function Sparkline({
   // Determine stroke color.
   let stroke: string;
   if (color === "auto") {
-    const dir = computeTrend(data);
-    if (dir === "flat") {
+    const isGood = isTrendGood(computeTrend(data).direction, invert);
+    if (isGood === null) {
       stroke = "#8c8780"; // --text-hint: a quiet line when nothing moved
     } else {
-      const isGood = invert ? dir === "down" : dir === "up";
       stroke = isGood ? "#15803d" : "#dc2626";
     }
   } else {

@@ -213,4 +213,21 @@ describe('marketing homepage UX contracts', () => {
 		expect(page).toContain('telephone: SUPPORT_PHONE_E164')
 		expect(page).toContain("contactType: 'customer support'")
 	})
+
+	it('shows the live eNamad seal in the footer without costing the first paint', () => {
+		const footer = read('components/marketing/footer.tsx')
+		const seal = read('components/marketing/enamad-seal.tsx')
+
+		expect(footer.match(/<EnamadSeal\b/g)).toHaveLength(1)
+		// eNamad validates the click and the image by referrer.
+		expect(seal.match(/^\s*referrerPolicy="origin"$/gm)).toHaveLength(2)
+		expect(seal).not.toContain('rel="noopener noreferrer"')
+		expect(seal).toContain('href={`https://trustseal.enamad.ir/?${ENAMAD_QUERY}`}')
+		expect(seal).toContain('src={`https://trustseal.enamad.ir/logo.aspx?${ENAMAD_QUERY}`}')
+		expect(seal).toContain('loading="lazy"')
+		expect(seal).toContain('fetchPriority="low"')
+		// The label fallback relies on an unloaded image having no height.
+		expect(seal).not.toMatch(/<img[^>]*\s(?:width|height)=/s)
+		expect(seal).not.toContain("'use client'")
+	})
 })

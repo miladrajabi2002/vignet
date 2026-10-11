@@ -196,7 +196,7 @@ export function AutomationCard({
                                         </div>
                                 )}
                                 <div className="mt-0.5">
-                                        <AutomationReportStrip fa={fa} report={report} />
+                                        <AutomationReportStrip fa={fa} type={automation.type} report={report} />
                                 </div>
                         </Link>
 

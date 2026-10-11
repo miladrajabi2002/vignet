@@ -17,13 +17,26 @@ import {
   ShieldCheck,
   KeyRound,
   MessagesSquare,
-  Send,
+  MessageSquare,
+  Phone,
+  Copy,
+  Check,
   Unplug,
   UserRoundPlus,
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { SUPPORT_PHONE_DISPLAY, SUPPORT_TELEGRAM_URL } from '@/lib/marketing/contact'
+import { TelegramPlane } from '@/components/marketing/social-links'
+import {
+  SUPPORT_PHONE_DISPLAY,
+  SUPPORT_PHONE_E164,
+  SUPPORT_TELEGRAM_URL,
+  SUPPORT_TELEGRAM_USERNAME,
+} from '@/lib/marketing/contact'
+
+const SUPPORT_PHONE_FA = SUPPORT_PHONE_DISPLAY.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])
+const CONTACT_ACTION =
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]'
 
 /**
  * Instagram connection flow — platform-managed OAuth (the Vardast/ManyChat model).
@@ -351,7 +364,7 @@ export function InstagramConnectFlow({
 
               <ol className="mt-4 space-y-2" aria-label="مراحل آماده‌سازی اتصال اینستاگرام">
                 {[
-                  ['۱', `نام کاربری پیج را در تلگرام برای پشتیبانی بفرستید: ${SUPPORT_PHONE_DISPLAY}`],
+                  ['۱', 'نام کاربری پیج را برای پشتیبانی بفرستید؛ در تلگرام یا با پیامک.'],
                   ['۲', 'پشتیبانی پیج را در نقش مجاز اپ Meta اضافه می‌کند؛ اگر دعوت نمایش داده شد، آن را در Instagram بپذیرید.'],
                   ['۳', 'VPN را روشن کنید، برگردید و دکمه «پیج اضافه شده؛ اتصال» را بزنید.'],
                 ].map(([step, text]) => (
@@ -361,6 +374,50 @@ export function InstagramConnectFlow({
                   </li>
                 ))}
               </ol>
+
+              {/* Both ways to reach support, each with the value shown and copyable. */}
+              <div className="mt-3 space-y-2">
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+                  <div className="flex items-center gap-2">
+                    <TelegramPlane className="h-4 w-4 shrink-0 text-[#0369a1]" />
+                    <span className="text-[12px] text-[var(--text-muted)]">تلگرام ویجنت</span>
+                    <bdi dir="ltr" className="ms-auto text-sm font-bold text-[var(--text-primary)]">@{SUPPORT_TELEGRAM_USERNAME}</bdi>
+                    <CopyValueButton value={`@${SUPPORT_TELEGRAM_USERNAME}`} label="کپی آیدی تلگرام" />
+                  </div>
+                  <a
+                    data-autofocus
+                    href={SUPPORT_TELEGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${CONTACT_ACTION} mt-2 w-full`}
+                  >
+                    <TelegramPlane className="h-4 w-4" />
+                    پیام در تلگرام
+                  </a>
+                  <p className="mt-2 text-[12px] leading-5 text-[var(--text-muted)]">
+                    اگر لینک باز نشد، آیدی را کپی و در تلگرام جستجو کنید.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+                  <div className="flex items-center gap-2">
+                    <Phone aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-primary)]" />
+                    <span className="text-[12px] text-[var(--text-muted)]">تماس و پیامک</span>
+                    <bdi dir="ltr" className="ms-auto text-sm font-bold tabular-nums text-[var(--text-primary)]">{SUPPORT_PHONE_FA}</bdi>
+                    <CopyValueButton value={SUPPORT_PHONE_DISPLAY} label="کپی شماره پشتیبانی" />
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <a href={`tel:${SUPPORT_PHONE_E164}`} className={CONTACT_ACTION}>
+                      <Phone aria-hidden className="h-4 w-4" />
+                      تماس
+                    </a>
+                    <a href={`sms:${SUPPORT_PHONE_E164}`} className={CONTACT_ACTION}>
+                      <MessageSquare aria-hidden className="h-4 w-4" />
+                      پیامک
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
             {/* Footer */}
             <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -371,26 +428,14 @@ export function InstagramConnectFlow({
               >
                 انصراف
               </button>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <a
-                  data-autofocus
-                  href={SUPPORT_TELEGRAM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                >
-                  <Send className="h-4 w-4" />
-                  پیام به پشتیبانی
-                </a>
-                <button
-                  type="button"
-                  onClick={confirmVpn}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  پیج اضافه شده؛ اتصال
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={confirmVpn}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                پیج اضافه شده؛ اتصال
+              </button>
             </div>
           </div>
             </div>,
@@ -473,6 +518,32 @@ export function InstagramConnectFlow({
           )
         : null}
     </div>
+  )
+}
+
+function CopyValueButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2_000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={label}
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+    >
+      {copied ? <Check aria-hidden className="h-3.5 w-3.5 text-[var(--ok)]" /> : <Copy aria-hidden className="h-3.5 w-3.5" />}
+      {copied ? 'کپی شد' : 'کپی'}
+    </button>
   )
 }
 

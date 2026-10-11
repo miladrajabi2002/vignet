@@ -37,6 +37,7 @@ import {
   Webhook,
   Wifi,
 } from 'lucide-react'
+import { TelegramPlane } from '@/components/marketing/social-links'
 import { Switch } from '@/components/ui/switch'
 import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
@@ -437,7 +438,7 @@ export function OperatorChannelSetup({
             <div className="flex flex-wrap gap-2">
               {botUrl && (
                 <a href={botUrl} target="_blank" rel="noreferrer" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <Send className="h-4 w-4" />
+                  <TelegramPlane className="h-4 w-4" />
                   {copy('باز کردن ربات', 'Open bot')}
                   <ExternalLink className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                 </a>

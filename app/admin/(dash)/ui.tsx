@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Sparkline } from "@/components/admin/sparkline";
+import { computeTrend, isTrendGood } from "@/components/admin/series-trend";
 import { TableLabels } from "@/components/admin/table-labels";
 import { cn } from "@/lib/utils";
 import { PERSIAN_DATE_LOCALE } from "@/lib/localized-date";
@@ -126,17 +127,12 @@ export function Toolbar({
 
 type StatTone = "default" | "success" | "warning" | "danger" | "info";
 
-// A tone is a status, not decoration: every icon tile is the same quiet grey
-// and every mini-trend the same iris, so a card that really reports trouble
-// (`danger`: red figure, red edge, red trend) is the only coloured one in a row.
+// A tone is a status, not decoration: every icon tile is the same quiet grey,
+// and a card that really reports trouble (`danger`: red figure, red edge) is
+// the only coloured one in a row. The mini-trend is coloured by where the
+// series is heading instead: green when it got better, red when it got worse,
+// grey when it did not move.
 const STAT_TILE = "bg-[var(--bg-muted)] text-[var(--text-secondary)]";
-const STAT_TONES: Record<StatTone, { spark: string }> = {
-  default: { spark: "#5b3de8" },
-  success: { spark: "#5b3de8" },
-  warning: { spark: "#5b3de8" },
-  danger: { spark: "#dc2626" },
-  info: { spark: "#5b3de8" },
-};
 
 export function StatCard({
   label,
@@ -148,6 +144,7 @@ export function StatCard({
   series,
   seriesLabels,
   seriesValueFormat = "number",
+  seriesInvert = false,
 }: {
   label: string;
   value: string | number;
@@ -158,8 +155,10 @@ export function StatCard({
   series?: number[]; // 7-day (or similar) daily values for an inline sparkline
   seriesLabels?: string[]; // optional per-point labels (e.g. Persian short dates) for the hover tooltip
   seriesValueFormat?: "number" | "irr" | "usd"; // value formatting inside the hover tooltip
+  seriesInvert?: boolean; // up is bad (errors, costs): a rising series turns red
 }) {
-  const palette = STAT_TONES[tone];
+  const seriesTrend = computeTrend(series ?? []);
+  const seriesGood = isTrendGood(seriesTrend.direction, seriesInvert);
 
   // Split a trailing currency unit («تومان») off the value string so it can
   // render much smaller than the number and stay on the same baseline —
@@ -236,17 +235,42 @@ export function StatCard({
         </div>
       )}
       {series && series.length > 0 && (
-        <div className="pt-2.5">
-          <Sparkline
-            data={series}
-            color={palette.spark}
-            width={200}
-            height={28}
-            fluid
-            labels={seriesLabels}
-            valueLabel={label}
-            valueFormat={seriesValueFormat}
-          />
+        <div className="flex items-center gap-2 pt-2.5">
+          <div className="min-w-0 flex-1">
+            <Sparkline
+              data={series}
+              color="auto"
+              invert={seriesInvert}
+              width={200}
+              height={28}
+              fluid
+              labels={seriesLabels}
+              valueLabel={label}
+              valueFormat={seriesValueFormat}
+            />
+          </div>
+          <span
+            className={cn(
+              "ui-chip shrink-0 tabular-nums",
+              seriesGood === null
+                ? "ui-chip-neutral"
+                : seriesGood
+                  ? "ui-chip-ok"
+                  : "ui-chip-danger",
+            )}
+          >
+            {seriesTrend.direction === "flat" ? (
+              "ثابت"
+            ) : (
+              <>
+                <span aria-hidden>{seriesTrend.direction === "up" ? "▲" : "▼"}</span>
+                <span className="sr-only">
+                  {seriesTrend.direction === "up" ? "افزایش" : "کاهش"}
+                </span>
+                {Math.abs(seriesTrend.pct).toLocaleString("fa-IR")}٪
+              </>
+            )}
+          </span>
         </div>
       )}
     </Card>

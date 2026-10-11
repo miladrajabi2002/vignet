@@ -23,7 +23,7 @@ import {
 	WandSparkles,
 	Zap,
 } from 'lucide-react'
-import { InstagramIcon, TelegramIcon } from '@/components/marketing/social-links'
+import { InstagramIcon, TelegramIcon, TelegramPlane } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { DemoPointer } from './pointer'
 
@@ -310,7 +310,7 @@ export function HandoffMotion({ locale, className }: { locale: MotionLocale; cla
 						<div className="flex items-center gap-2 text-[12px] font-bold"><span className="inline-flex size-6 items-center justify-center rounded-full bg-[#e0f2fe] text-[#0369a1]"><TelegramIcon className="size-3.5" /></span>{t('ربات اپراتور', 'Operator bot')}<span className="ms-auto text-[10.5px] font-normal text-vg-cap">{t('همین حالا', 'now')}</span></div>
 						<div className="text-[12px] font-bold">{t('گفتگوی حساس · سارا', 'Sensitive chat · Sara')}</div>
 						<div className="vg-t4 rounded-xl bg-vg-bg p-2 text-[11.5px] leading-[1.8] text-vg-sub">{t('خلاصه: پرداخت ۲٬۴۸۰٬۰۰۰ تومان موفق، سفارش ثبت نشده، اینستاگرام.', 'Summary: 2,480,000 toman paid, order not created, Instagram.')}</div>
-						<span className="relative inline-flex h-8 w-fit items-center gap-1.5 rounded-chip bg-vg-ink px-3 text-[11.5px] text-white"><Send className="size-3.5" strokeWidth={2} />{t('پاسخ از تلگرام', 'Reply from Telegram')}<Tap step={5} /></span>
+						<span className="relative inline-flex h-8 w-fit items-center gap-1.5 rounded-chip bg-vg-ink px-3 text-[11.5px] text-white"><TelegramPlane className="size-3.5" />{t('پاسخ از تلگرام', 'Reply from Telegram')}<Tap step={5} /></span>
 					</div>
 					<Chip step={6} tone="violet"><UserRound className="size-3.5" strokeWidth={2} />{t('در دست اپراتور', 'With an operator')}</Chip>
 				</div>

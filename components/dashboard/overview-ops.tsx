@@ -404,9 +404,8 @@ export function OperatorBotCard({ locale, connected = false, paused = false, bot
 			<div className="grid gap-0 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
 				<div className="p-4 sm:p-6">
 					<div className="flex items-start gap-3">
-						<span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#2aabee] text-white shadow-[0_8px_20px_-10px_rgba(42,171,238,0.9)]">
+						<span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#2aabee] text-white shadow-[0_8px_20px_-10px_rgba(42,171,238,0.9)]">
 							<TelegramIcon className="h-6 w-6" />
-							{connected ? <span className="absolute -bottom-0.5 -end-0.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--ok)] text-[9px] font-bold text-white ring-2 ring-white">✓</span> : null}
 						</span>
 						<div className="min-w-0 flex-1">
 							<div className="flex flex-wrap items-center gap-2">
