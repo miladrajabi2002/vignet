@@ -1,5 +1,6 @@
 import { LowStockCard } from '@/components/products/low-stock-card'
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { cookies } from 'next/headers'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Plus, Package, FolderTree } from 'lucide-react'
@@ -25,6 +26,7 @@ import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from 
 import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
 import { PRODUCTS_VIEW_COOKIE } from '@/lib/products/view-preference'
+import { STOCK_FILTER_KEYS, stockFilterWhere, type StockFilter } from '@/lib/products/stock-filter'
 
 const PAGE_SIZE = 20
 
@@ -42,9 +44,7 @@ export default async function ProductsPage(
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
   const categoryId = searchParams.categoryId ?? ''
-  const stock = ['in_stock', 'out_of_stock', 'low_stock', 'hidden'].includes(searchParams.stock ?? '')
-    ? searchParams.stock!
-    : ''
+  const stock = STOCK_FILTER_KEYS.find((key) => key === searchParams.stock) ?? ''
   // An explicit ?view= wins; otherwise the last view this browser picked.
   const savedView = (await cookies()).get(PRODUCTS_VIEW_COOKIE)?.value
   const view = searchParams.view === 'cards' || searchParams.view === 'table'
@@ -57,15 +57,6 @@ export default async function ProductsPage(
     select: { lowStockThreshold: true, operatorChannels: { where: { active: true }, select: { operatorChatId: true }, take: 1 } },
   })
   const lowStockThreshold = stockAlert?.lowStockThreshold ?? 3
-  // Tracked stock at or under the level: products using the default level,
-  // plus any product already alerted under its own override.
-  const lowStockWhere: Prisma.ProductWhereInput = {
-    stock: { not: null },
-    OR: [
-      { lowStockAlertedAt: { not: null } },
-      ...(lowStockThreshold > 0 ? [{ lowStockThreshold: null, stock: { lte: lowStockThreshold } }] : []),
-    ],
-  }
 
   const orderBy: Prisma.ProductOrderByWithRelationInput =
     sort === 'price_asc'
@@ -79,15 +70,7 @@ export default async function ProductsPage(
   const productWhere: Prisma.ProductWhereInput = {
     workspaceId: user.workspaceId,
     ...(categoryId ? { categoryId } : {}),
-    ...(stock === 'in_stock'
-      ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
-      : stock === 'out_of_stock'
-        ? { stock: 0 }
-        : stock === 'low_stock'
-          ? lowStockWhere
-          : stock === 'hidden'
-            ? { active: false }
-            : {}),
+    ...stockFilterWhere(stock, lowStockThreshold),
     ...(q
       ? {
           AND: [{
@@ -147,11 +130,11 @@ export default async function ProductsPage(
     }),
     checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
     getEffectivePlanDefs(),
-    prisma.product.count({ where: { workspaceId: user.workspaceId, active: true, ...lowStockWhere } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, ...stockFilterWhere('low_stock', lowStockThreshold) } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, stock: { not: null } } }),
     // Counts for the status tabs: the whole catalog, not the current search.
     prisma.product.count({ where: { workspaceId: user.workspaceId } }),
-    prisma.product.count({ where: { workspaceId: user.workspaceId, OR: [{ stock: null }, { stock: { gt: 0 } }] } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, ...stockFilterWhere('in_stock', lowStockThreshold) } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, stock: 0 } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, active: false } }),
   ])
@@ -224,13 +207,25 @@ export default async function ProductsPage(
     const qs = sp.toString()
     return qs ? `/products?${qs}` : '/products'
   }
-  const statusTabs = [
-    { key: '', label: fa ? 'همه' : 'All', count: allCount, tone: '' },
-    { key: 'in_stock', label: t('inStock'), count: inStockCount, tone: '' },
-    ...(trackedStockCount > 0 ? [{ key: 'low_stock', label: t('lowStock'), count: lowStockCount, tone: lowStockCount > 0 ? 'warn' : '' }] : []),
-    { key: 'out_of_stock', label: t('outOfStock'), count: outOfStockCount, tone: outOfStockCount > 0 ? 'danger' : '' },
-    { key: 'hidden', label: fa ? 'پنهان' : 'Hidden', count: hiddenCount, tone: '' },
+  const statusTabs: { key: StockFilter; label: string; count: number; dot: string | null; hint: string; separated?: boolean }[] = [
+    { key: '', label: fa ? 'همه' : 'All', count: allCount, dot: null, hint: fa ? 'همه محصولات، از جمله ناموجود و پنهان' : 'Every product, including out-of-stock and hidden ones' },
+    { key: 'in_stock', label: t('inStock'), count: inStockCount, dot: 'bg-success', hint: fa ? 'موجودی نامحدود یا بیشتر از حد هشدار' : 'Unlimited, or above the alert level' },
+    ...(trackedStockCount > 0
+      ? [{
+          key: 'low_stock' as const,
+          label: t('lowStock'),
+          count: lowStockCount,
+          dot: 'bg-warning',
+          hint: lowStockThreshold > 0
+            ? (fa ? `موجودی بین ۱ تا ${nf(lowStockThreshold)} عدد` : `1 to ${lowStockThreshold} in stock`)
+            : (fa ? 'هشدار موجودی کم خاموش است' : 'Low-stock alerts are off'),
+        }]
+      : []),
+    { key: 'out_of_stock', label: t('outOfStock'), count: outOfStockCount, dot: 'bg-danger', hint: fa ? 'موجودی صفر' : 'Stock at zero' },
+    // Visibility, not stock: a hidden product is also counted in one of the stock tabs.
+    { key: 'hidden', label: fa ? 'پنهان' : 'Hidden', count: hiddenCount, dot: 'bg-[var(--text-hint)]', hint: fa ? 'در فروشگاه نمایش داده نمی‌شوند' : 'Not shown in the store', separated: true },
   ]
+  const activeTab = statusTabs.find((tab) => tab.key === stock) ?? statusTabs[0]
   const storeLabel = !wooIntegration
     ? (fa ? 'اتصال فروشگاه' : 'Connect a store')
     : wooIntegration.active
@@ -308,31 +303,29 @@ export default async function ProductsPage(
         <>
           {/* Stock state is the first cut of a catalog, so the counts are the tabs.
               Phones pick stock in the filter sheet instead, so the tabs are desktop only. */}
-          <nav aria-label={t('stockFilter')} className="-mb-2 hidden gap-1 md:flex overflow-x-auto border-b border-[var(--border-subtle)] [scrollbar-width:none]">
-            {statusTabs.map((tab) => {
-              const active = stock === tab.key
-              return (
-                <Link
-                  key={tab.key || 'all'}
-                  href={tabHref(tab.key)}
-                  scroll={false}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    '-mb-px inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
-                    active
-                      ? 'border-[var(--text-primary)] font-bold text-[var(--text-primary)]'
-                      : 'border-transparent font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                  )}
-                >
-                  {tab.label}
-                  {/* A zero says nothing; a plain count is quiet; colour only when the number asks for action. */}
-                  {tab.count > 0 && (
-                    <span className={cn(tab.tone === 'warn' ? 'rounded-full bg-amber-100 px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums text-amber-900' : tab.tone === 'danger' ? 'rounded-full bg-red-50 px-1.5 py-0.5 text-[12px] font-bold leading-none tabular-nums text-red-700' : 'ui-tab-count')}>{nf(tab.count)}</span>
-                  )}
-                </Link>
-              )
-            })}
-          </nav>
+          <div className="-mb-2 hidden flex-wrap items-center gap-x-4 gap-y-2 md:flex">
+            <nav aria-label={t('stockFilter')} className="ui-seg grid-flow-col auto-cols-max max-w-full overflow-x-auto [scrollbar-width:none]">
+              {statusTabs.map((tab) => {
+                const active = stock === tab.key
+                return (
+                  <Fragment key={tab.key || 'all'}>
+                    {tab.separated && <span aria-hidden className="mx-1 my-2.5 w-px bg-[rgba(17,17,17,0.12)]" />}
+                    <Link
+                      href={tabHref(tab.key)}
+                      scroll={false}
+                      aria-current={active ? 'page' : undefined}
+                      className="ui-seg-tab shrink-0 gap-2 whitespace-nowrap px-3 text-[13px] font-medium"
+                    >
+                      {tab.dot && <span aria-hidden className={cn('size-1.5 rounded-full', tab.dot)} />}
+                      {tab.label}
+                      <span className={cn('ui-tab-count', active && 'text-[var(--text-secondary)]')}>{nf(tab.count)}</span>
+                    </Link>
+                  </Fragment>
+                )
+              })}
+            </nav>
+            <p className="text-[13px] text-[var(--text-muted)]">{activeTab.hint}</p>
+          </div>
 
           <ProductsToolbar
             categories={categories}

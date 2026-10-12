@@ -123,7 +123,7 @@ export function ProductTable({
         <ul className="divide-y divide-[var(--border-subtle)]">
           {rows.map((product) => {
             const level = product.lowStockThreshold ?? lowStockThreshold
-            const out = product.stock === 0
+            const out = product.stock !== null && product.stock <= 0
             const low = !out && product.stock !== null && level > 0 && product.stock <= level
             const locked = storeSynced && Boolean(product.externalId)
             const lockedTitle = fa ? 'قیمت و موجودی این محصول از فروشگاه همگام می‌شود.' : 'Price and stock of this product sync from the store.'
