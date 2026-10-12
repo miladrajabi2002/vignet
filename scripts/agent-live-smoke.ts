@@ -53,6 +53,10 @@ function parseSse(raw: string): { answer: string; conversationId: string } {
         conversationId = event.conversationId
       } else if (event.type === 'delta' && typeof event.text === 'string') {
         answer += event.text
+      } else if (event.type === 'replace' && typeof event.text === 'string') {
+        // The post-processed final reply replaces the live draft; a short
+        // reply may arrive only this way.
+        answer = event.text
       } else if (event.type === 'error') {
         throw new Error(`stream error: ${String(event.message || 'unknown')}`)
       }
@@ -246,6 +250,9 @@ async function main(): Promise<void> {
         name: `Agent live smoke ${runId}`,
         slug: `agent-live-smoke-${runId}`,
         plan: 'TRIAL',
+        // A shop: the workspace must have the products module, or the
+        // capability gate switches the agent's catalog access off.
+        businessType: 'COMMERCE',
         trialEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         aiCreditBalanceIRR: 100_000,
         excludeFromAdminReports: true,
