@@ -132,7 +132,52 @@ class Vigent_Woo_Updater {
                         // wp_update_plugins() خودش در قالب pre_set_site_transient_update_plugins
                         // از filter_update_transient ما رد می‌شه و اطلاعات ما رو می‌خونه.
                         wp_update_plugins();
+                        $this->ensure_update_in_transient();
                 }
+        }
+
+        /**
+         * Make sure WordPress's `update_plugins` transient carries our update.
+         *
+         * `wp_update_plugins()` only hands our filter a transient with a
+         * `checked` map after api.wordpress.org has answered. A host that
+         * cannot reach wordpress.org (common on Iranian servers) bails out
+         * before that, so our entry never lands and both the AJAX installer
+         * and update.php report "no update". Write the entry ourselves then.
+         *
+         * @return bool True when the transient holds an update for this plugin.
+         */
+        public function ensure_update_in_transient() {
+                $plugin_file = self::plugin_file();
+                $current     = get_site_transient( 'update_plugins' );
+                if ( is_object( $current ) && isset( $current->response[ $plugin_file ] ) ) {
+                        return true;
+                }
+
+                if ( ! is_object( $current ) ) {
+                        $current = new stdClass();
+                }
+                if ( ! isset( $current->last_checked ) ) {
+                        $current->last_checked = time();
+                }
+                if ( ! isset( $current->response ) || ! is_array( $current->response ) ) {
+                        $current->response = array();
+                }
+                // Only our own plugin goes into `checked`, so WordPress still
+                // sees the other plugins as unchecked and keeps retrying them.
+                if ( ! isset( $current->checked ) || ! is_array( $current->checked ) ) {
+                        $current->checked = array();
+                }
+                $current->checked[ $plugin_file ] = VIGENT_WOO_VERSION;
+
+                $current = $this->filter_update_transient( $current );
+                if ( ! isset( $current->response[ $plugin_file ] ) ) {
+                        return false;
+                }
+                set_site_transient( 'update_plugins', $current );
+
+                $stored = get_site_transient( 'update_plugins' );
+                return is_object( $stored ) && isset( $stored->response[ $plugin_file ] );
         }
 
         /**

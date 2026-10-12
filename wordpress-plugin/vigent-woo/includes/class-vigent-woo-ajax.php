@@ -478,6 +478,7 @@ class Vigent_Woo_Ajax {
                         // the package URL on the first click.
                         delete_site_transient( 'update_plugins' );
                         wp_update_plugins();
+                        Vigent_Woo_Updater::instance()->ensure_update_in_transient();
                 }
 
                 // Include last-auto-check metadata so the UI can show
@@ -552,9 +553,10 @@ class Vigent_Woo_Ajax {
                 delete_site_transient( 'update_plugins' );
                 wp_update_plugins();
 
-                // Verify the transient now has our update info.
-                $current = get_site_transient( 'update_plugins' );
-                if ( ! is_object( $current ) || ! isset( $current->response[ Vigent_Woo_Updater::plugin_file() ] ) ) {
+                // Verify the transient now has our update info. When
+                // wordpress.org is unreachable wp_update_plugins() never
+                // runs our filter, so the updater writes the entry itself.
+                if ( ! Vigent_Woo_Updater::instance()->ensure_update_in_transient() ) {
                         wp_send_json_error(
                                 array( 'message' => __( 'بروزرسانی در زمان مقرر یافت نشد. چند ثانیه دیگر دوباره دکمه «بررسی بروزرسانی» را بزنید.', 'vigent-woo' ) ),
                                 500
