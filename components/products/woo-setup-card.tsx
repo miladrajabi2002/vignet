@@ -3,7 +3,6 @@
 import { useLocale } from 'next-intl'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
     Plus,
     Loader2,
@@ -13,13 +12,18 @@ import {
     AlertCircle,
     X,
     Globe,
-    Download,
-    Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLocalizedDateTime } from '@/lib/localized-date'
 import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
 import type { PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+    WooPluginDownloadLink,
+    WooPluginSetup,
+    normalizeStoreUrlInput,
+    wooCreateErrorMessage,
+} from '@/components/integrations/woo-plugin-setup'
 
 /**
  * Vigent connection card — uses the same `spatial-surface` design language
@@ -72,6 +76,9 @@ export function WooSetupCard({
     const [integration, setIntegration] = useState(initial)
     const [showForm, setShowForm] = useState(false)
     const [syncing, setSyncing] = useState(false)
+    const [toggling, setToggling] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+    const [confirmDelete, setConfirmDelete] = useState(false)
     const [storeUrl, setStoreUrl] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
@@ -119,6 +126,12 @@ export function WooSetupCard({
 
     async function submit(e: React.FormEvent) {
         e.preventDefault()
+        if (submitting) return
+        const url = normalizeStoreUrlInput(storeUrl)
+        if (!url) {
+            setFormError(fa ? 'آدرس سایت را وارد کنید.' : 'Enter your site address.')
+            return
+        }
         setFormError(null)
         setSubmitting(true)
         try {
@@ -127,19 +140,13 @@ export function WooSetupCard({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: 'WOOCOMMERCE',
-                    storeUrl: storeUrl.trim(),
+                    storeUrl: url,
                     credentials: {},
                 }),
             })
             const data = await res.json().catch(() => ({}))
             if (!res.ok) {
-                setFormError(
-                    data.error === 'INVALID'
-                        ? (fa ? 'آدرس سایت نامعتبر است.' : 'The site address is not valid.')
-                        : data.error === 'UNSAFE_STORE_URL'
-                            ? (fa ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.' : 'This site address cannot be accepted for security reasons.')
-                            : (fa ? 'خطا در ساخت اتصال.' : 'The connection could not be created.'),
-                )
+                setFormError(wooCreateErrorMessage(data.error, fa))
                 return
             }
             setShowForm(false)
@@ -174,20 +181,44 @@ export function WooSetupCard({
     }
 
     async function toggleActive() {
-        if (!integration) return
-        await fetch(`/api/integrations/${integration.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ active: !integration.active }),
-        })
-        router.refresh()
+        if (!integration || toggling) return
+        const nextActive = !integration.active
+        setToggling(true)
+        setNotice(null)
+        try {
+            const res = await fetch(`/api/integrations/${integration.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: nextActive }),
+            })
+            if (!res.ok) throw new Error('toggle failed')
+            setIntegration({ ...integration, active: nextActive })
+            router.refresh()
+        } catch {
+            setNotice({
+                type: 'err',
+                msg: nextActive
+                    ? (fa ? 'فعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be enabled. Try again.')
+                    : (fa ? 'غیرفعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be disabled. Try again.'),
+            })
+        } finally {
+            setToggling(false)
+        }
     }
 
     async function remove() {
         if (!integration) return
-        if (!confirm((fa ? 'این اتصال حذف شود؟' : 'Delete this connection?'))) return
-        await fetch(`/api/integrations/${integration.id}`, { method: 'DELETE' })
-        router.refresh()
+        setDeleting(true)
+        try {
+            const res = await fetch(`/api/integrations/${integration.id}`, { method: 'DELETE' })
+            if (!res.ok) throw new Error('delete failed')
+            router.refresh()
+        } catch {
+            setNotice({ type: 'err', msg: (fa ? 'حذف اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be deleted. Try again.') })
+        } finally {
+            setConfirmDelete(false)
+            setDeleting(false)
+        }
     }
 
     // ── Not connected yet ────────────────────────────────────────────────
@@ -204,34 +235,48 @@ export function WooSetupCard({
                                 {fa ? 'سایت وردپرسی یا ووکامرسی خود را وصل کنید' : 'Connect your WordPress or WooCommerce site'}
                             </h2>
                             <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
-                                {fa ? 'محصولات و سفارش‌ها به‌صورت خودکار با ویجنت همگام می‌شوند. فقط آدرس سایت را وارد کنید.' : 'Products and orders sync with Vigent automatically. Just enter your site address.'}
+                                {fa ? 'آدرس سایت را وارد کنید و افزونه ویجنت را در وردپرس نصب کنید؛ محصولات و سفارش‌ها خودکار همگام می‌شوند.' : 'Enter your site address and install the Vigent plugin in WordPress. Products and orders then sync automatically.'}
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
-                    >
-                        <Plus className="h-4 w-4" />
-                        {fa ? 'اتصال سایت' : 'Connect site'}
-                    </button>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowForm(true)}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {fa ? 'اتصال سایت' : 'Connect site'}
+                        </button>
+                        <WooPluginDownloadLink variant="quiet" />
+                    </div>
                 </div>
 
                 {showForm && (
-                    <form onSubmit={submit} className="mt-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+                    <form onSubmit={submit} noValidate className="mt-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
                         <div className="mb-4 flex items-center justify-between">
                             <h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'آدرس سایت را وارد کنید' : 'Enter your site address'}</h3>
-                            <button type="button" onClick={() => setShowForm(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                            <button
+                                type="button"
+                                onClick={() => setShowForm(false)}
+                                aria-label={fa ? 'بستن' : 'Close'}
+                                className="-m-2 grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            >
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <input
                                 dir="ltr"
-                                type="url"
-                                required
+                                type="text"
+                                inputMode="url"
+                                autoComplete="url"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                aria-label={fa ? 'آدرس سایت' : 'Site address'}
+                                aria-invalid={formError ? true : undefined}
                                 value={storeUrl}
-                                onChange={(e) => setStoreUrl(e.target.value)}
+                                onChange={(e) => { setStoreUrl(e.target.value); if (formError) setFormError(null) }}
                                 placeholder="https://example.com"
                                 className="input flex-1 font-mono text-sm"
                                 autoFocus
@@ -245,9 +290,9 @@ export function WooSetupCard({
                                 {submitting ? (fa ? 'در حال ایجاد…' : 'Creating…') : (fa ? 'ایجاد اتصال' : 'Create connection')}
                             </button>
                         </div>
-                        {formError && <p className="mt-2 text-xs text-danger">{formError}</p>}
-                        <p className="mt-2 text-xs text-[var(--text-muted)]">
-                            {fa ? 'پس از ایجاد اتصال، افزونه وردپرس را نصب کنید و دکمه «اتصال» را در آن بزنید — همه چیز خودکار است.' : 'After creating the connection, install the WordPress plugin and press “Connect” in it. The rest is automatic.'}
+                        {formError && <p role="alert" className="mt-2 text-xs text-danger">{formError}</p>}
+                        <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
+                            {fa ? 'پس از ایجاد اتصال، دکمه دانلود افزونه و مراحل نصب همین‌جا نمایش داده می‌شود.' : 'After the connection is created, the plugin download button and the install steps appear right here.'}
                         </p>
                     </form>
                 )}
@@ -277,9 +322,9 @@ export function WooSetupCard({
                 <div className="flex min-w-0 items-start gap-3">
                     <span className={cn(
                         'grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[var(--bg-base)] shadow-[var(--shadow-control)]',
-                        syncPausedByPlan ? 'bg-amber-500' : isPluginConfigured ? 'bg-emerald-600' : 'bg-[var(--text-primary)]',
+                        syncPausedByPlan ? 'bg-amber-500' : !integration.active ? 'bg-black/30' : isPluginConfigured ? 'bg-emerald-600' : 'bg-[var(--text-primary)]',
                     )}>
-                        {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+                        {isPluginConfigured && integration.active ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                     </span>
                     <div className="min-w-0">
                         <p dir="ltr" className="truncate text-base font-bold tracking-tight text-[var(--text-primary)]" title={integration.storeUrl}>
@@ -322,16 +367,20 @@ export function WooSetupCard({
                     <button
                         type="button"
                         onClick={toggleActive}
-                        className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                        disabled={toggling}
+                        aria-busy={toggling || undefined}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
-                        {integration.active ? (fa ? 'غیرفعال' : 'Disabled') : (fa ? 'فعال' : 'Enable')}
+                        {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        {integration.active ? (fa ? 'غیرفعال کردن' : 'Disable') : (fa ? 'فعال کردن' : 'Enable')}
                     </button>
                     <button
                         type="button"
-                        onClick={remove}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger"
+                        onClick={() => setConfirmDelete(true)}
+                        disabled={deleting}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger disabled:opacity-50"
                     >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                         {fa ? 'حذف' : 'Delete'}
                     </button>
                 </div>
@@ -351,35 +400,9 @@ export function WooSetupCard({
                 </div>
             )}
 
-            {/* Pending state — guide user to install plugin */}
+            {/* Pending state — the install guide, with the plugin download */}
             {!isPluginConfigured && integration.active && (
-                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <div className="flex items-start gap-3">
-                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-amber-800">{fa ? 'در انتظار اتصال افزونه' : 'Waiting for the plugin'}</p>
-                            <p className="mt-1 text-xs leading-relaxed text-amber-700">
-                                {fa ? 'افزونه را در وردپرس نصب کنید و دکمه «اتصال» را در آن بزنید. پس از اتصال، اینجا خودکار به‌روز می‌شود.' : 'Install the plugin in WordPress and press “Connect” in it. This card updates by itself once connected.'}
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <a
-                                    href="/api/downloads/wordpress-plugin"
-                                    download
-                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-amber-600 px-3 text-xs font-bold text-white transition-colors hover:bg-amber-700"
-                                >
-                                    <Download className="h-3.5 w-3.5" />
-                                    {fa ? 'دانلود افزونه' : 'Download plugin'}
-                                </a>
-                                <Link
-                                    href="/docs/woocommerce"
-                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-300 px-3 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100"
-                                >
-                                    {fa ? 'راهنما' : 'Guide'}
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <WooPluginSetup storeUrl={integration.storeUrl} className="mt-4" />
             )}
 
             {/* Error */}
@@ -388,6 +411,17 @@ export function WooSetupCard({
                     <strong>{fa ? 'خطای هم‌گام‌سازی:' : 'Sync error:'}</strong> {integration.lastSyncError}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={confirmDelete}
+                title={fa ? 'حذف اتصال سایت' : 'Delete site connection'}
+                description={fa ? `اتصال به ${integration.storeUrl} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.` : `The connection to ${integration.storeUrl} will be deleted; its orders and sync settings leave the panel.`}
+                confirmLabel={fa ? 'حذف اتصال' : 'Delete connection'}
+                tone="danger"
+                busy={deleting}
+                onConfirm={remove}
+                onClose={() => { if (!deleting) setConfirmDelete(false) }}
+            />
         </section>
     )
 }
