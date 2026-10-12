@@ -10,6 +10,7 @@ import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { ChatAgent } from '@/lib/ai/chat-types'
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 import type { TurnLedger } from '@/lib/ai/llm/aux'
+import { findModel } from '@/lib/ai/models'
 import type { TurnLanguage } from '@/lib/ai/turn-language'
 import { loadCartForUnderstanding } from '@/lib/commerce/order-service'
 import { buildTurnCandidates } from '@/lib/agent/understand/candidates'
@@ -29,6 +30,8 @@ export interface UnderstandingStage {
 export interface UnderstandingStageInput {
   workspaceId: string
   agent: ChatAgent
+  /** The mode this turn runs in, after the platform policy (plan, enabled modes). */
+  modelAlias: string
   conversationId: string
   inboundMessageId: string | null
   message: string
@@ -95,6 +98,7 @@ export async function runUnderstandingStage(input: UnderstandingStageInput): Pro
         candidates,
         vocabulary: input.searchVocabulary ?? input.corpusTokens ?? null,
         ledger: input.ledger,
+        reasoningEffort: findModel(input.modelAlias).reasoningEffort ?? null,
       })
       if (outcome.ok) {
         route = routeFromUnderstanding({

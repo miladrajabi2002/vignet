@@ -12,7 +12,7 @@ vi.mock('@/lib/ai/llm/aux', () => ({
 }))
 
 import { AuxUnavailableError } from '@/lib/ai/llm/aux'
-import { resetUnderstandingCircuit, understandTurn, UNDERSTAND_ATTEMPTS } from '@/lib/agent/understand/understand'
+import { resetUnderstandingCircuit, understandTurn, UNDERSTAND_ATTEMPTS, UNDERSTAND_MAX_TOKENS, UNDERSTAND_REASONING_HEADROOM } from '@/lib/agent/understand/understand'
 import { UNDERSTAND_SYSTEM_PROMPT } from '@/lib/agent/understand/prompt'
 import type { TurnCandidates } from '@/lib/agent/understand/types'
 
@@ -26,6 +26,8 @@ const reply = (content: string) => ({ content, toolCalls: [], usage, model: 'm',
 const call = (message: string) => understandTurn({ workspaceId: 'w', agentId: 'a', conversationId: 'c', message, recent: [], candidates })
 
 describe('understanding call format', () => {
+  const thanks = '{"language":"fa","relation":"closing","confidence":1,"customer":{"mood":"pos","buy":0,"cues":[]},"acts":[{"type":"thanks"}]}'
+
   beforeEach(() => {
     mocks.aux.mockReset()
     resetUnderstandingCircuit()
@@ -42,6 +44,17 @@ describe('understanding call format', () => {
     expect(outcome.ok && outcome.verified.acts).toEqual([{ type: 'cart_edit', ops: [{ op: 'remove', line: 'cart:1' }] }])
   })
 
+  it('a thinking read asks for the effort and leaves room for the thinking tokens', async () => {
+    mocks.aux.mockResolvedValue(reply(thanks))
+    await call('خیلی ممنون')
+    await understandTurn({ workspaceId: 'w', agentId: 'a', conversationId: 'c', message: 'خیلی ممنون', recent: [], candidates, reasoningEffort: 'low' })
+    const [direct, thinking] = mocks.aux.mock.calls.map((args) => args[0])
+    expect(direct.reasoningEffort).toBeUndefined()
+    expect(direct.maxTokens).toBe(UNDERSTAND_MAX_TOKENS)
+    expect(thinking.reasoningEffort).toBe('low')
+    expect(thinking.maxTokens).toBe(UNDERSTAND_MAX_TOKENS + UNDERSTAND_REASONING_HEADROOM)
+  })
+
   it('reads JSON wrapped in a code fence or pretty-printed', async () => {
     mocks.aux.mockResolvedValue(reply('```json\n{\n  "language": "fa",\n  "relation": "closing",\n  "confidence": 1,\n  "customer": {"mood": "pos", "buy": 0, "cues": ["thanks"]},\n  "acts": [{"type": "thanks"}]\n}\n```'))
     const outcome = await call('خیلی ممنون')
@@ -54,7 +67,6 @@ describe('understanding call format', () => {
   })
 
   const timeout = () => Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' })
-  const thanks = '{"language":"fa","relation":"closing","confidence":1,"customer":{"mood":"pos","buy":0,"cues":[]},"acts":[{"type":"thanks"}]}'
 
   it('tries a slow reading once more instead of routing the turn by regex', async () => {
     mocks.aux.mockRejectedValueOnce(timeout()).mockResolvedValueOnce(reply(thanks))

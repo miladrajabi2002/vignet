@@ -1,6 +1,6 @@
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
-import { AGENT_MODELS } from '@/lib/ai/models'
+import { AGENT_MODELS, type ReasoningEffort } from '@/lib/ai/models'
 import { providerPreferences } from '@/lib/ai/provider-routing'
 
 // ─ A4: provider retry policy ────────────────────────────────────────────────
@@ -168,7 +168,7 @@ function requestBody(
     // 8,000-token completion against the shared platform account.
     max_tokens: Math.min(Math.max(opts.maxTokens ?? 700, 1), opts.task === 'learning-review' ? 4500 : 1200),
     stream,
-    reasoning: { enabled: false },
+    reasoning: opts.reasoningEffort ? { effort: opts.reasoningEffort, exclude: true } : { enabled: false },
     provider: {
       ...providerPreferences(opts.model, runtime.providerRouting, { attempt: opts.providerAttempt, sort: opts.providerSort, only: opts.providerOnly }),
       data_collection: 'deny',
@@ -202,6 +202,11 @@ export interface ChatOptions {
   retries?: number
   /** Ask for one JSON object as the reply content (structured readings). */
   responseFormat?: 'json_object'
+  /**
+   * Let the model think before it answers. The thinking is never returned,
+   * but its tokens count against maxTokens. Default: no thinking.
+   */
+  reasoningEffort?: ReasoningEffort
   /**
    * Provider sort for this call instead of the platform setting. Evaluation
    * runs use it to score a reading under each routing.

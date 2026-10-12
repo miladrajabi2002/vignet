@@ -502,6 +502,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 const understanding = await runUnderstandingStage({
                         workspaceId,
                         agent,
+                        modelAlias,
                         conversationId,
                         inboundMessageId: inbound.id,
                         message,

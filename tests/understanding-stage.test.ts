@@ -40,7 +40,7 @@ const reading = (acts: Array<Record<string, unknown>>) => ({
 
 function input(message: string, extra: Partial<Parameters<typeof runUnderstandingStage>[0]> = {}) {
   return {
-    workspaceId: 'w', agent, conversationId: 'c', inboundMessageId: 'm', message,
+    workspaceId: 'w', agent, modelAlias: 'fast', conversationId: 'c', inboundMessageId: 'm', message,
     history: [], state: createEmptyConversationWorkingState('s'),
     serviceNames: [], turnLang: 'fa' as const,
     ...extra,
@@ -51,6 +51,13 @@ describe('understanding stage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.candidates.mockResolvedValue(candidates)
+  })
+
+  it('lets the smart mode think before it reads, and the fast mode read directly', async () => {
+    mocks.understand.mockResolvedValue(reading([{ type: 'thanks' }]))
+    await runUnderstandingStage(input('ممنون'))
+    await runUnderstandingStage(input('ممنون', { modelAlias: 'smart' }))
+    expect(mocks.understand.mock.calls.map((args) => args[0].reasoningEffort)).toEqual([null, 'low'])
   })
 
   it('turns the verified reading into the route of the turn and logs it once', async () => {

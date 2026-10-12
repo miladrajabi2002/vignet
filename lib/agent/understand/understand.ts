@@ -8,6 +8,7 @@
  * result is { ok: false } and the turn is answered without a reading.
  */
 import { auxCompletion, AuxUnavailableError, type TurnLedger } from '@/lib/ai/llm/aux'
+import type { ReasoningEffort } from '@/lib/ai/models'
 import type { ChatUsage } from '@/lib/ai/openrouter'
 import { UNDERSTANDING_TIMEOUT_MS } from '@/lib/agent/understand/domains'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
@@ -34,6 +35,12 @@ export type UnderstandOutcome =
 
 /** Attempts per turn. Each one is a fresh request, on the next provider, with its own timeout. */
 export const UNDERSTAND_ATTEMPTS = 3
+
+/** The reading itself: one JSON object of about a hundred tokens. */
+export const UNDERSTAND_MAX_TOKENS = 450
+// Thinking tokens come out of the same budget. At low effort the longest
+// thinking of the 162 evaluation cases was about 700 tokens.
+export const UNDERSTAND_REASONING_HEADROOM = 600
 
 // Consecutive failed turns open a short circuit so an outage costs no latency.
 const CIRCUIT_LIMIT = 4
@@ -62,6 +69,8 @@ export interface UnderstandTurnParams {
   vocabulary?: ReadonlySet<string> | null
   ledger?: TurnLedger | null
   timeoutMs?: number
+  /** The agent's mode thinks before it reads (see AGENT_MODELS). */
+  reasoningEffort?: ReasoningEffort | null
 }
 
 export async function understandTurn(params: UnderstandTurnParams): Promise<UnderstandOutcome> {
@@ -95,7 +104,8 @@ async function attemptUnderstanding(params: UnderstandTurnParams, startedAt: num
       messages: buildUnderstandMessages({ message: params.message, recent: params.recent, candidates: params.candidates }),
       responseFormat: 'json_object',
       temperature: 0,
-      maxTokens: 450,
+      maxTokens: UNDERSTAND_MAX_TOKENS + (params.reasoningEffort ? UNDERSTAND_REASONING_HEADROOM : 0),
+      ...(params.reasoningEffort ? { reasoningEffort: params.reasoningEffort } : {}),
       timeoutMs: params.timeoutMs ?? UNDERSTANDING_TIMEOUT_MS,
       retries: 0,
       providerAttempt: attempt,

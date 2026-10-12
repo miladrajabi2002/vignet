@@ -4,6 +4,11 @@
  * Users store an alias (fast / smart), never a raw provider slug. The actual
  * OpenRouter model is resolved server-side and can be rotated from the owner
  * panel without migrating every Agent row.
+ *
+ * Both modes run the same model. They differ in how the customer's message is
+ * read: fast reads it directly, smart lets the model think first
+ * (`reasoningEffort`), which reads more turns right and takes about half a
+ * second longer (scripts/eval-understanding.ts --reasoning low).
  */
 
 export const MODEL_ALIASES = ['fast', 'smart'] as const
@@ -12,6 +17,8 @@ export type ModelAlias = (typeof MODEL_ALIASES)[number]
 export const DEFAULT_MODEL: ModelAlias = 'fast'
 
 export type ModelTier = 'economy' | 'smart'
+
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high'
 
 export interface AgentModel {
   /** Stable alias persisted on Agent.model. */
@@ -25,6 +32,8 @@ export interface AgentModel {
   quality: number
   cost: number
   goodForPersian: boolean
+  /** How hard the model thinks while reading the customer's message. Unset: no thinking. */
+  reasoningEffort?: ReasoningEffort
   /** Fixed customer charge for one successful text reply, in Iranian rials. */
   replyPriceIRR: number
   /** Public reference rates used by the pricing guide (USD / 1M tokens). */
@@ -42,15 +51,15 @@ export const AGENT_MODELS: AgentModel[] = [
     id: 'fast',
     name: 'سریع و اقتصادی',
     nameEn: 'Fast & economical',
-    provider: 'DeepSeek V4 Flash',
-    providerId: 'deepseek/deepseek-v4-flash',
+    provider: 'DeepSeek V4.1 Flash',
+    providerId: 'deepseek/deepseek-v4.1-flash',
     tier: 'economy',
     quality: 4,
     cost: 1,
     goodForPersian: true,
     replyPriceIRR: 4_000,
-    inputUsdPerMillion: 0.09,
-    outputUsdPerMillion: 0.18,
+    inputUsdPerMillion: 0.02,
+    outputUsdPerMillion: 0.4,
     descFa: 'پیش‌فرض ویجنت؛ پاسخ فوری با کمترین هزینه. برای بیشتر سؤال‌های روزمرهٔ مشتری کافی است.',
     descEn: 'Vigent’s default: instant replies at the lowest cost. Enough for most everyday customer questions.',
     bestForFa: ['قیمت و موجودی', 'سؤال‌های متداول', 'پیگیری سفارش'],
@@ -66,11 +75,12 @@ export const AGENT_MODELS: AgentModel[] = [
     quality: 5,
     cost: 2,
     goodForPersian: true,
+    reasoningEffort: 'low',
     replyPriceIRR: 6_500,
     inputUsdPerMillion: 0.02,
     outputUsdPerMillion: 0.4,
-    descFa: 'نسل تازه‌تر با درک بهتر؛ پیام‌های طولانی و چندمرحله‌ای را دقیق‌تر می‌فهمد و دستورالعمل‌های شما را بهتر رعایت می‌کند.',
-    descEn: 'The newer generation with deeper understanding: reads long, multi-step messages more accurately and follows your instructions more closely.',
+    descFa: 'پیش از پاسخ، روی پیام مشتری بیشتر فکر می‌کند؛ پیام‌های طولانی و چندمرحله‌ای را دقیق‌تر می‌فهمد و پاسخ کمی دیرتر می‌رسد.',
+    descEn: 'Thinks the customer’s message through before answering: reads long, multi-step messages more accurately, and the reply takes a moment longer.',
     bestForFa: ['مشاوره فروش', 'گفتگوی چندمرحله‌ای', 'سؤال‌های پیچیده'],
     bestForEn: ['Sales advice', 'Multi-step chats', 'Complex questions'],
   },

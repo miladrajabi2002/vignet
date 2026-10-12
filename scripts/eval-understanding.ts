@@ -5,6 +5,7 @@
  *   … --system both --model deepseek/deepseek-v4-flash --only G --label before
  *   … --system llm --sort latency     # score the reading under another provider routing
  *   … --system llm --provider gmicloud/fp8   # score one provider alone, before adding it to the order
+ *   … --system llm --reasoning low    # the smart mode's reading: the model thinks first
  *                                     # (default: the platform's provider sort, as production)
  *
  * Scores, per case: required acts present, forbidden acts absent (e.g. no
@@ -20,7 +21,9 @@ import { EVAL_CASES } from '../evals/understanding/cases'
 import type { EvalCase, EvalProduct } from '../evals/understanding/types'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
 import { parseUnderstanding } from '@/lib/agent/understand/schema'
+import { UNDERSTAND_MAX_TOKENS, UNDERSTAND_REASONING_HEADROOM } from '@/lib/agent/understand/understand'
 import { verifyUnderstanding } from '@/lib/agent/understand/verify'
+import type { ReasoningEffort } from '@/lib/ai/models'
 import { tokenizeCatalogText } from '@/lib/ai/conversation'
 import type { Act, ActType, TurnCandidates, VerifiedUnderstanding } from '@/lib/agent/understand/types'
 
@@ -168,7 +171,7 @@ function jsonOf(content: string): string | null {
   return start >= 0 && end > start ? cleaned.slice(start, end + 1) : null
 }
 
-async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'latency' | 'throughput', providerOnly?: string): Promise<CaseResult> {
+async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'latency' | 'throughput', providerOnly?: string, reasoningEffort?: ReasoningEffort): Promise<CaseResult> {
   const { chatCompletion } = await import('@/lib/ai/openrouter')
   const candidates = candidatesFor(c)
   const recent = (c.history ?? []).map((turn) => ({ role: turn.role, content: turn.text }))
@@ -179,7 +182,8 @@ async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'late
       messages: buildUnderstandMessages({ message: c.message, recent, candidates }),
       responseFormat: 'json_object',
       temperature: 0,
-      maxTokens: 450,
+      maxTokens: UNDERSTAND_MAX_TOKENS + (reasoningEffort ? UNDERSTAND_REASONING_HEADROOM : 0),
+      ...(reasoningEffort ? { reasoningEffort } : {}),
       timeoutMs: 15_000,
       retries: 1,
       ...(providerSort ? { providerSort } : {}),
@@ -276,14 +280,16 @@ async function main() {
       const concurrency = Math.max(1, Number(arg('concurrency') ?? 4))
       const sortArg = arg('sort')
       const sort = sortArg === 'price' || sortArg === 'latency' || sortArg === 'throughput' ? sortArg : undefined
+      const reasoningArg = arg('reasoning')
+      const reasoning = reasoningArg === 'minimal' || reasoningArg === 'low' || reasoningArg === 'medium' || reasoningArg === 'high' ? reasoningArg : undefined
       let cursor = 0
       await Promise.all(Array.from({ length: concurrency }, async () => {
         while (cursor < cases.length) {
           const index = cursor++
-          results[index] = await llmRun(cases[index], model, sort, arg('provider') ?? undefined)
+          results[index] = await llmRun(cases[index], model, sort, arg('provider') ?? undefined, reasoning)
         }
       }))
-      console.log(`model: ${model}${arg('provider') ? ` · provider: ${arg('provider')}` : sort ? ` · provider sort: ${sort}` : ' · provider routing: platform setting'}`)
+      console.log(`model: ${model}${reasoning ? ` · reasoning: ${reasoning}` : ''}${arg('provider') ? ` · provider: ${arg('provider')}` : sort ? ` · provider sort: ${sort}` : ' · provider routing: platform setting'}`)
     }
     const summary = summarize(current, results)
     fs.writeFileSync(path.join(outDir, `${label}-${current}.json`), JSON.stringify({ summary, results }, null, 2))

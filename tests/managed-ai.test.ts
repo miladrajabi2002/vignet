@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentCreateSchema } from '@/lib/validations/agent'
 import {
   DEFAULT_MODEL,
+  findModel,
   getReplyPriceIRR,
   resolveModelAlias,
   resolveModelId,
@@ -25,7 +26,7 @@ describe('managed model policy', () => {
 
   it('resolves provider models from the admin panel, not env', () => {
     vi.stubEnv('OPENROUTER_MODEL_FAST', 'vendor/ignored')
-    expect(resolveModelId('fast')).toBe('deepseek/deepseek-v4-flash')
+    expect(resolveModelId('fast')).toBe('deepseek/deepseek-v4.1-flash')
     expect(resolveModelId('fast', { fast: 'vendor/panel-fast' })).toBe('vendor/panel-fast')
   })
 
@@ -34,7 +35,13 @@ describe('managed model policy', () => {
     expect(resolveModelAlias('balanced')).toBe('smart')
     expect(resolveModelAlias('premium')).toBe('smart')
     expect(resolveModelId('premium')).toBe('deepseek/deepseek-v4.1-flash')
-    expect(resolveModelId(null)).toBe('deepseek/deepseek-v4-flash')
+    expect(resolveModelId(null)).toBe('deepseek/deepseek-v4.1-flash')
+  })
+
+  it('runs both modes on one model: only the smart mode thinks before it reads', () => {
+    expect(resolveModelId('smart')).toBe(resolveModelId('fast'))
+    expect(findModel('fast').reasoningEffort).toBeUndefined()
+    expect(findModel('smart').reasoningEffort).toBe('low')
   })
 
   it('rejects raw model slugs and strips legacy client completion controls', () => {
@@ -63,7 +70,8 @@ describe('managed model policy', () => {
 describe('OpenRouter platform wrapper', () => {
   it('enforces privacy, price routing and output caps and captures exact cost', async () => {
     vi.stubEnv('OPENROUTER_API_KEY', 'test-platform-key')
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // A Response body is read once, so every call gets its own.
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(
         JSON.stringify({
           id: 'gen_test',
@@ -81,7 +89,7 @@ describe('OpenRouter platform wrapper', () => {
     )
 
     const result = await chatCompletion({
-      model: 'deepseek/deepseek-v4-flash',
+      model: 'deepseek/deepseek-v4.1-flash',
       messages: [{ role: 'user', content: 'سلام' }],
       maxTokens: 8000,
     })
@@ -92,15 +100,20 @@ describe('OpenRouter platform wrapper', () => {
     expect(body.reasoning).toEqual({ enabled: false })
     expect(body.provider).toMatchObject({
       // The curated order of the model, best first, with fallbacks after it.
-      order: DEFAULT_PROVIDER_ORDERS['deepseek/deepseek-v4-flash'],
+      order: DEFAULT_PROVIDER_ORDERS['deepseek/deepseek-v4.1-flash'],
       allow_fallbacks: true,
       data_collection: 'deny',
       // Catalog reference rates × safety margin, never below the floors that
-      // keep the curated providers eligible (deepseek-v4-flash: 0.09/0.18
+      // keep the curated providers eligible (deepseek-v4.1-flash: 0.02/0.4
       // per M × 3 is under both floors).
       max_price: { prompt: 0.5, completion: 2 },
     })
     expect(body.provider).not.toHaveProperty('zdr')
+
+    await chatCompletion({ model: 'deepseek/deepseek-v4.1-flash', messages: [{ role: 'user', content: 'سلام' }], reasoningEffort: 'low' })
+    // Thinking is asked for by effort and never returned with the reply.
+    expect(JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body)).reasoning).toEqual({ effort: 'low', exclude: true })
+
     expect(result.usage).toMatchObject({
       promptTokens: 4000,
       completionTokens: 500,
