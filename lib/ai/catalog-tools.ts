@@ -12,75 +12,16 @@
  */
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import type { ChatMessage, ChatTool, ChatUsage } from '@/lib/ai/openrouter'
-import { auxCompletion, type TurnLedger } from '@/lib/ai/llm/aux'
+import type { ChatUsage } from '@/lib/ai/openrouter'
 import type { CatalogProduct } from '@/lib/ai/rag'
-import { extractProductTerms, GLOBAL_PRODUCT_WORDS, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
+import { extractProductTerms, GLOBAL_PRODUCT_WORDS, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText } from '@/lib/ai/conversation'
 import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
 import { attributeLaneIds } from '@/lib/search/attribute-lane'
 import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
 
 const MAX_RESULTS = 10
 
-// ─── Gate ───────────────────────────────────────────────────────────────────
-
-/** «زیر ۲۰ میلیون»، «تا ۵۰۰ تومن»، «بودجه‌م ۱۰ میلیونه»، "under 200". */
-export const PRICE_CONSTRAINT_RE =
-  /(?:زیر|کمتر\s*از|ارزون\s*تر\s*از|ارزان\s*تر\s*از|تا|حداکثر|نهایتا|نهایتاً|بالای|بیشتر\s*از|حدود|بین|بودجه(?:[\s\u200c]*ا?م)?(?:\s*حدود)?)\s*[\d٫.,/]+\s*(?:میلیون|میلیون\s*تومن|هزار|تومن|تومان|تومنی|م(?:\s|$)|تا\s*[\d]+)|(?:under|below|less\s+than|up\s+to|max(?:imum)?|budget(?:\s+of)?)\s*\$?\s*\d/iu
-
-/** «ارزون‌ترین»، «گرون‌ترین»، «پرفروش‌ترین»، "cheapest". */
-export const SUPERLATIVE_RE =
-  /(?:ارزون|ارزان|گرون|گران|بزرگ|کوچیک|کوچک|سبک|پرفروش|محبوب|جدید)[\s\u200c]*ترین|بهترین|(?:cheapest|most\s+expensive|best\s*sell(?:er|ing)|most\s+popular|newest)/iu
-
 export type CatalogToolReason = 'EMPTY_RESULT' | 'PRICE_CONSTRAINT' | 'SUPERLATIVE'
-
-/**
- * Which product turns get the tools. Deterministic flows that already work
- * (explicit vitrines with rows, variant pick/browse, code vitrines, cheaper
- * alternatives, comparisons, anaphora clarifications) keep their own path.
- */
-export function catalogToolGate(params: {
-  message: string
-  plan: ProductRequestPlan
-  catalogProducts: CatalogProduct[]
-  productAccessEnabled: boolean
-  hasActiveProduct: boolean
-}): CatalogToolReason | null {
-  if (process.env.CATALOG_TOOLS_DISABLED === '1' || !params.productAccessEnabled) return null
-  const plan = params.plan
-  if (plan.variantBrowse || plan.variantPick || plan.codeVariantVitrine || plan.cheaperAlternative
-    || plan.comparisonConsult || plan.anaphoraConsult || plan.requestNewTopic || plan.advisoryConsult) return null
-  const text = normalizePersianText(params.message)
-  const productContext = plan.isProductTurn || Boolean(plan.semanticTurn) || Boolean(plan.analyzerTurn)
-  if (PRICE_CONSTRAINT_RE.test(text) && (productContext || params.hasActiveProduct)) return 'PRICE_CONSTRAINT'
-  if (SUPERLATIVE_RE.test(text) && (productContext || params.hasActiveProduct)) return 'SUPERLATIVE'
-  if (productContext && params.catalogProducts.length === 0) return 'EMPTY_RESULT'
-  return null
-}
-
-// ─── Tools ──────────────────────────────────────────────────────────────────
-
-export const CATALOG_TOOLS: ChatTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'search_catalog',
-      description: 'Search this store\'s product catalog. Use short product keywords in the customer\'s language (e.g. "میز تلویزیون", "پاف"). Returns matching products with exact prices and stock. Prices are in Toman.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: { type: 'string', description: 'Product keywords only (type, model, material, color, size). Leave empty to browse by price only.' },
-          max_price: { type: 'number', description: 'Upper price limit in Toman (e.g. 20 million = 20000000).' },
-          min_price: { type: 'number', description: 'Lower price limit in Toman.' },
-          in_stock_only: { type: 'boolean', description: 'Only products available right now. Default true.' },
-          sort: { type: 'string', enum: ['relevance', 'price_asc', 'price_desc', 'popular'], description: 'Result order. Default relevance.' },
-          limit: { type: 'number', description: 'Max results, 1-10. Default 6.' },
-        },
-        required: [],
-      },
-    },
-  },
-]
 
 // ─── Tool execution ─────────────────────────────────────────────────────────
 
@@ -289,87 +230,6 @@ export interface CatalogSearchPlan {
   usage: ChatUsage | null
   /** The model planned the searches (false = deterministic fallback). */
   modelPlanned: boolean
-}
-
-function plannerTranscript(history: ChatMessage[], message: string): string {
-  const recent = history
-    .filter((item) => (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string')
-    .slice(-4)
-    .map((item) => `${item.role === 'user' ? 'مشتری' : 'فروشنده'}: ${String(item.content).replace(/\[\[product:[^\n]*?\]\]/g, '').replace(/\s+/g, ' ').slice(0, 280)}`)
-  return [...recent, `پیام فعلی مشتری: ${message.slice(0, 400)}`].join('\n')
-}
-
-const PLANNER_SYSTEM = `You plan product searches for an online store's chat assistant. Read the conversation and call search_catalog one to three times to find what the customer is asking for right now.
-- query: short product keywords in the customer's language (product type + distinctive words such as model, size, color). Resolve references like "همون"/"این" from the conversation.
-- Budgets are in Toman: «۱۰ میلیون» = 10000000, «۵۰۰ هزار» = 500000. «زیر/تا/حداکثر X» → max_price; «بالای/حداقل X» → min_price.
-- «ارزون‌ترین» → sort price_asc; «گرون‌ترین» → price_desc; «پرفروش‌ترین/محبوب‌ترین» → popular.
-- If the first wording may miss, add one more call with a synonym or the broader product type.
-Only call the tool; do not write a reply.`
-
-/**
- * One compact function-calling round: the model turns the customer's words
- * into structured searches; the server enforces the parsed budget/sort,
- * executes them against the agent's assigned catalog, and hands the rows to
- * the ordinary reply pipeline (streaming, product cards, guards) together
- * with a precise instruction. Returns null when there is nothing to add.
- */
-export async function planCatalogSearch(params: {
-  agentId: string
-  /** When set, the planner call is recorded in the usage log (platform budget). */
-  workspaceId?: string
-  conversationId?: string
-  /** Ignored: the planner always runs on the economical tier (auxCompletion). */
-  model?: string
-  message: string
-  history: ChatMessage[]
-  reason: CatalogToolReason
-  isFa: boolean
-  ledger?: TurnLedger | null
-  vocabulary?: ReadonlySet<string> | null
-}): Promise<CatalogSearchPlan | null> {
-  let usage: ChatUsage | null = null
-  let calls: Array<Record<string, unknown>> = []
-  try {
-    if (!params.workspaceId) throw new Error('NO_WORKSPACE')
-    // Turning a sentence into one to three structured searches is an
-    // extraction task: economical tier, recorded under its own purpose.
-    const result = await auxCompletion({
-      purpose: 'catalog_plan',
-      workspaceId: params.workspaceId,
-      agentId: params.agentId,
-      conversationId: params.conversationId,
-      ledger: params.ledger,
-      messages: [
-        { role: 'system', content: PLANNER_SYSTEM },
-        { role: 'user', content: plannerTranscript(params.history, params.message) },
-      ],
-      temperature: 0,
-      maxTokens: 300,
-      tools: CATALOG_TOOLS,
-      toolChoice: 'auto',
-    })
-    usage = result.usage
-    calls = result.toolCalls
-      .filter((call) => call.function.name === 'search_catalog')
-      .slice(0, 3)
-      .flatMap((call) => {
-        try { return [JSON.parse(call.function.arguments || '{}') as Record<string, unknown>] } catch { return [] }
-      })
-  } catch {
-    // Provider without tool support: the deterministic query below still runs.
-  }
-  const modelPlanned = calls.length > 0
-  if (!modelPlanned) calls = [{ query: extractProductTerms(params.message).join(' ') }]
-  return runCatalogSearches({
-    vocabulary: params.vocabulary,
-    agentId: params.agentId,
-    message: params.message,
-    calls,
-    reason: params.reason,
-    isFa: params.isFa,
-    usage,
-    modelPlanned,
-  })
 }
 
 /**

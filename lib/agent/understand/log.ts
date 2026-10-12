@@ -5,21 +5,14 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { UnderstandOutcome } from '@/lib/agent/understand/understand'
-import type { LegacyReading } from '@/lib/agent/understand/legacy-adapter'
-import type { UnderstandingMode } from '@/lib/agent/understand/mode'
 
 export function writeUnderstandingLog(params: {
   workspaceId: string
   agentId: string
   conversationId: string
   messageId: string | null
-  mode: UnderstandingMode
   outcome: UnderstandOutcome | null
-  legacy: LegacyReading | null
-  diffKinds: string[]
-  agreed: boolean | null
   routedDomains: string[]
-  status?: 'ok' | 'fallback' | 'skipped'
 }): void {
   const outcome = params.outcome
   const verified = outcome?.ok ? outcome.verified : null
@@ -28,8 +21,10 @@ export function writeUnderstandingLog(params: {
     agentId: params.agentId,
     conversationId: params.conversationId,
     messageId: params.messageId,
-    mode: params.mode,
-    status: params.status ?? (outcome?.ok ? 'ok' : outcome ? 'fallback' : 'skipped'),
+    // The layer has one mode. «fallback» = no reading: the turn was answered
+    // as a plain conversation turn; «skipped» = a message with no text.
+    mode: 'on',
+    status: outcome?.ok ? 'ok' : outcome ? 'fallback' : 'skipped',
     errorCode: outcome && !outcome.ok ? outcome.errorCode : null,
     model: outcome?.model ?? null,
     latencyMs: outcome ? Math.round(outcome.latencyMs) : null,
@@ -51,9 +46,6 @@ export function writeUnderstandingLog(params: {
         unavailable: verified.unavailable,
       })) as Prisma.InputJsonValue
       : undefined,
-    legacy: params.legacy ? (JSON.parse(JSON.stringify(params.legacy)) as Prisma.InputJsonValue) : undefined,
-    diffKinds: params.diffKinds,
-    agreed: params.agreed,
   }
   void prisma.turnUnderstandingLog.create({ data }).catch(() => {})
 }

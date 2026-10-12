@@ -4,7 +4,6 @@ import { languageMirroringInstruction } from '@/lib/agent-kernel/skills/language
 import { agentSkillTrace } from '@/lib/agent-kernel/contracts'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import { buildMessages } from '@/lib/ai/rag'
-import { planProductRequest } from '@/lib/ai/conversation'
 import { greetingReplyText, isGreetingOnlyMessage } from '@/lib/channels/greeting'
 import { showcaseIntroText } from '@/lib/products/presentation'
 import type { ChatMessage } from '@/lib/ai/openrouter'
@@ -161,20 +160,5 @@ describe('greeting fast path — Arabic greetings get Arabic replies', () => {
   it('keeps English and Persian greetings as before', () => {
     expect(greetingReplyText('hello', false)).toContain('Hello')
     expect(greetingReplyText('سلام', false)).toContain('خوش آمدید')
-  })
-})
-
-describe('regression — product request planning stays intact', () => {
-  it('still routes a Persian bare product code to the code variant vitrine', () => {
-    const plan = planProductRequest('پیراهن ۰۷۰۶', [])
-    expect(plan.codeVariantVitrine).toBe(true)
-    expect(plan.codeIdentified).toBe(true)
-    expect(plan.searchTerms).toContain('0706')
-  })
-
-  it('still routes an Arabic digits message to the same deterministic path', () => {
-    // Arabic-Indic digits ٠٧٨٨ normalize to 0788 and stay a product code.
-    const plan = planProductRequest('٠٧٨٨', [])
-    expect(plan.codeIdentified).toBe(true)
   })
 })

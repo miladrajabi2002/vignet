@@ -83,6 +83,11 @@ vi.mock('@/lib/products/presentation', async (orig) => ({
 vi.mock('@/lib/notifications/create', () => ({ notifyWorkspace: vi.fn(async (params: Record<string, unknown>) => { state.notifications.push(params) }) }))
 
 import { rememberRestockOffer, resolveRestockTurn, sweepRestockAlerts } from '@/lib/commerce/restock-service'
+import { detectRestockRequest } from './support/regex-reading'
+
+/** One customer turn; the request is what the reading of that message would say. */
+const restockTurn = (turn: Omit<Parameters<typeof resolveRestockTurn>[0], 'request'>) =>
+  resolveRestockTurn({ ...turn, request: detectRestockRequest(turn.message, turn.lastAssistantText) })
 
 const base = {
   enabled: true, workspaceId: 'w', agentId: 'a', conversationId: 'c1', contactId: 'k', contactPhone: null,
@@ -102,7 +107,7 @@ beforeEach(() => {
 describe('back-in-stock, end to end', () => {
   it('offer → «آره» → alert → restock → one message with card → owner summary', async () => {
     await rememberRestockOffer('c1', [{ productId: 'pouf', variationId: null, name: 'پاف مراکشی', variant: null }])
-    const accepted = await resolveRestockTurn({ ...base, message: 'آره لطفا', lastAssistantText: 'فعلاً ناموجوده؛ اگه بخواید، موجود که شد همین‌جا خبرتون می‌کنم' })
+    const accepted = await restockTurn({ ...base, message: 'آره لطفا', lastAssistantText: 'فعلاً ناموجوده؛ اگه بخواید، موجود که شد همین‌جا خبرتون می‌کنم' })
     expect(accepted.kind === 'reply' && accepted.text).toContain('«پاف مراکشی» که موجود شد، همین‌جا بهتون پیام می‌دم')
     expect(state.alerts).toHaveLength(1)
 
@@ -125,22 +130,22 @@ describe('back-in-stock, end to end', () => {
   })
 
   it('never registers an alert for something already available', async () => {
-    const reply = await resolveRestockTurn({ ...base, message: 'موجود شد خبرم کنید', lastAssistantText: null, activeEntityId: 'tv' })
+    const reply = await restockTurn({ ...base, message: 'موجود شد خبرم کنید', lastAssistantText: null, activeEntityId: 'tv' })
     expect(reply.kind === 'reply' && reply.text).toContain('همین الان موجوده')
     expect(state.alerts).toHaveLength(0)
   })
 
   it('web visitor without a phone is asked for one, then registered', async () => {
     await rememberRestockOffer('c1', [{ productId: 'pouf', variationId: null, name: 'پاف مراکشی', variant: null }])
-    const ask = await resolveRestockTurn({ ...base, channel: 'WEB_WIDGET', message: 'خبرم کنید', lastAssistantText: null })
+    const ask = await restockTurn({ ...base, channel: 'WEB_WIDGET', message: 'خبرم کنید', lastAssistantText: null })
     expect(ask.kind === 'reply' && ask.text).toContain('شماره موبایل')
-    const done = await resolveRestockTurn({ ...base, channel: 'WEB_WIDGET', contactPhone: '09121112233', message: '09121112233', lastAssistantText: null })
+    const done = await restockTurn({ ...base, channel: 'WEB_WIDGET', contactPhone: '09121112233', message: '09121112233', lastAssistantText: null })
     expect(done.kind === 'reply' && done.text).toContain('خبرتون می‌کنیم')
     expect(state.alerts).toHaveLength(1)
   })
 
   it('a closed Instagram window becomes a follow-up task, not a silent failure', async () => {
-    await resolveRestockTurn({ ...base, channel: 'INSTAGRAM', message: 'موجود شد خبرم کن', lastAssistantText: null, activeEntityId: 'pouf' })
+    await restockTurn({ ...base, channel: 'INSTAGRAM', message: 'موجود شد خبرم کن', lastAssistantText: null, activeEntityId: 'pouf' })
     state.products[0].stock = 2
     state.failWith = Object.assign(new Error('outside of allowed window'), { name: 'Instagram24hWindowError' })
     const stats = await sweepRestockAlerts()
@@ -150,7 +155,7 @@ describe('back-in-stock, end to end', () => {
   })
 
   it('a transient provider error keeps the alert active for the next sweep', async () => {
-    await resolveRestockTurn({ ...base, message: 'موجود شد خبرم کن', lastAssistantText: null, activeEntityId: 'pouf' })
+    await restockTurn({ ...base, message: 'موجود شد خبرم کن', lastAssistantText: null, activeEntityId: 'pouf' })
     state.products[0].stock = 2
     state.failWith = new Error('ECONNRESET')
     expect((await sweepRestockAlerts()).failed).toBe(1)

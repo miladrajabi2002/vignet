@@ -69,35 +69,6 @@ export function pluginSupportsCheckout(version: string | null | undefined): bool
   return true
 }
 
-// ─── Intent helpers for an open payment link ────────────────────────────────
-
-function normalize(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/[‌‍]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-}
-
-const PAYMENT_CLAIM_RE =
-  /(?:پرداخت|واریز|کارت\s?به\s?کارت)\s?(?:رو\s|را\s)?(?:کردم|کردیم|انجام\s?دادم|شد(?:\s|$|؟|\?)|زدم)|پولشو\s?(?:دادم|زدم)|پرداختش\s?کردم|(?:^|\s)(?:i\s+(?:have\s+)?paid|payment\s+(?:is\s+)?done|paid\s+already)(?:\s|$)/u
-
-/** «پرداخت کردم»، «واریز کردم»، «پرداخت شد؟» */
-export function isPaymentClaim(message: string): boolean {
-  const text = normalize(message)
-  return text.split(' ').length <= 12 && PAYMENT_CLAIM_RE.test(text)
-}
-
-const LINK_REQUEST_RE =
-  /لینک(?:\s?(?:پرداخت|خرید))?\s?(?:رو\s|را\s)?(?:دوباره|مجدد|باز)?\s?(?:بفرست|بده|کو|کجاست|نیومد|نیامد|کار\s?نمی\s?کنه|کار\s?نمیکنه|باز\s?نمی\s?شه|بازنمیشه|خرابه)|(?:send|resend)\s+(?:me\s+)?(?:the\s+)?(?:payment\s+)?link|link\s+(?:doesn'?t|does\s+not)\s+work/u
-
-/** «لینک پرداخت رو دوباره بفرست»، «لینک کار نمی‌کنه» */
-export function isLinkRequest(message: string): boolean {
-  return LINK_REQUEST_RE.test(normalize(message))
-}
 
 const COUPON_RE = /(?:کد\s?تخفیف|کوپن|کد\s?کوپن|coupon(?:\s?code)?|discount\s?code|promo\s?code)\s*(?:م|من|ام)?\s*[:：\-]?\s*(?:هم\s)?(?:دارم\s)?[:：]?\s*([A-Za-z0-9][A-Za-z0-9_-]{2,29})/iu
 

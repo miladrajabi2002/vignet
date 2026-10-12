@@ -21,8 +21,6 @@ vi.mock('@/lib/products/description', () => ({
   normalizeAttributes: vi.fn(() => []),
   stripListBlocks: vi.fn((value: string) => value),
 }))
-
-import { planProductRequest, showcaseSubjectPhrase } from '@/lib/ai/conversation'
 import { buildTrustedProductReply, showcaseIntroText } from '@/lib/products/presentation'
 
 const catalogRow = (id: string, name: string) => ({
@@ -79,34 +77,6 @@ describe('showcase introduction — the message sent before the catalog', () => 
     expect(multi.split('\n')[1]).toContain('color or size')
     expect(showcaseIntroText({ count: 1, isFa: false }).split('\n')[0]).toContain('one available matching product')
     expect(showcaseIntroText({ count: 0, subject: 'shirt', isFa: false }).split('\n')[0]).toContain('could not find an available shirt')
-  })
-})
-
-describe('showcaseSubjectPhrase — only catalog nouns are named back', () => {
-  it('carries the bare noun of a vitrin phrase', () => {
-    expect(showcaseSubjectPhrase(planProductRequest('شومیز', []))).toBe('شومیز')
-    expect(showcaseSubjectPhrase(planProductRequest('کیف دوشی دارین؟', []))).toBe('کیف')
-    expect(showcaseSubjectPhrase(planProductRequest('سارافون مجلسی', []))).toBe('سارافون')
-    expect(showcaseSubjectPhrase(planProductRequest('دنبال کیف هستم', []))).toBe('کیف')
-  })
-
-  it('drops non-noun modifiers so the intro stays true for every shown card', () => {
-    // «مجلسی» ranks results but does not strictly filter them; naming it would
-    // imply all ten cards are مجلسی.
-    expect(showcaseSubjectPhrase(planProductRequest('شومیز مجلسی', []))).toBe('شومیز')
-  })
-
-  it('carries prior subject terms into a follow-up showcase command', () => {
-    const history = [
-      { role: 'user' as const, content: 'دنبال یه شومیز خوشگل هستم' },
-      { role: 'assistant' as const, content: 'چند مدل شومیز داریم؛ می‌خواهید نشانتان بدهم؟' },
-    ]
-    expect(showcaseSubjectPhrase(planProductRequest('آره نشون بده', history))).toBe('شومیز')
-  })
-
-  it('returns an empty phrase when no catalog noun is present', () => {
-    expect(showcaseSubjectPhrase(planProductRequest('سلام', []))).toBe('')
-    expect(showcaseSubjectPhrase({ ...planProductRequest('شومیز', []), searchTerms: [] })).toBe('')
   })
 })
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@/lib/ai/openrouter'
-import { historyForProductTurn, historyPlanForTurn, planProductRequest } from '@/lib/ai/conversation'
 import { conversationFlowInstruction } from '@/lib/agent-kernel/skills/conversation-flow'
 import { enforceActionCapabilities } from '@/lib/agent-kernel/skills/action-capabilities'
 
@@ -76,42 +75,6 @@ describe('agent kernel quality guards — fabricated order confirmations', () =>
   })
 })
 
-describe('agent kernel quality guards — link/payment follow-up routing', () => {
-  const productHistory = [
-    user('0634'),
-    assistant('۲ رنگ موجودِ «ست خانگی خرسی 0634» را برایتان فرستادم؛ عکس، قیمت و موجودی هر رنگ روی کارت خودش هست. کدام رنگ را می‌خواهید؟'),
-    user('آبی'),
-    assistant('رنگ آبیِ «ست خانگی خرسی 0634» موجود است؛ قیمت آن 898,000 تومان است.'),
-  ]
-
-  it('keeps «لینک پرداخت رو برام ارسال کنید» anchored to the discussed product', () => {
-    const plan = planProductRequest('لینک پرداخت رو لطفاً برام ارسال کنید', productHistory)
-    expect(plan.isProductTurn).toBe(true)
-    expect(plan.searchTerms).toContain('0634')
-    // Must NOT fire the catalog-wide deterministic vitrine.
-    expect(plan.explicitShowcase).toBe(false)
-  })
-
-  it('keeps «ارسال کنید لینک را» anchored to the discussed product without a showcase', () => {
-    const plan = planProductRequest('ارسال کنید لینک را', productHistory)
-    expect(plan.isProductTurn).toBe(true)
-    expect(plan.searchTerms).toContain('0634')
-    expect(plan.explicitShowcase).toBe(false)
-  })
-
-  it('treats a payment-link request with no product context as a non-product turn', () => {
-    const plan = planProductRequest('لینک پرداخت رو بفرست', [])
-    expect(plan.isProductTurn).toBe(false)
-  })
-
-  it('resolves «این مدل چه رنگ هایی موجوده؟» to the discussed product variants', () => {
-    const plan = planProductRequest('الان این مدل چه رنگ هایی موجوده؟', productHistory)
-    expect(plan.variantBrowse).toBe(true)
-    expect(plan.variantTargetRefs.length).toBeGreaterThan(0)
-    expect(plan.isProductTurn).toBe(true)
-  })
-})
-
 describe('agent kernel quality guards — history-dependent references in the flow skill', () => {
   it('marks «این مدل» as a history-dependent reference so the model resolves it', () => {
     const instruction = conversationFlowInstruction({
@@ -130,29 +93,5 @@ describe('agent kernel quality guards — history-dependent references in the fl
       userMessage: 'لینکش رو بفرست',
     })
     expect(instruction).toContain('مرجع')
-  })
-})
-
-/**
- * Regression (October 2026): the understanding call timed out, the regex
- * router read «…ایونت‌های باهمیم…» as a new product subject and dropped the
- * whole conversation — including three replies in which the agent had said it
- * has no registration link. With no memory of that, it then invented one.
- */
-describe('agent kernel quality guards — a failed reading never wipes the conversation', () => {
-  const history = [
-    user('از کجا باید ثبت‌نام کنم؟'),
-    assistant('لینک ثبت‌نام دقیق و مستقیمش رو فعلاً در اطلاعاتم ندارم.'),
-  ]
-  const reset = { ...planProductRequest('میز تلویزیون دارید؟', []), resetProductContext: true }
-
-  it('keeps the history when the reset comes from regex alone', () => {
-    const plan = historyPlanForTurn(reset, { understandingFailed: true, explicitReset: false })
-    expect(historyForProductTurn(history, plan)).toEqual(history)
-  })
-
-  it('still honours the customer’s own «از اول» and a reset read by the model', () => {
-    expect(historyForProductTurn(history, historyPlanForTurn(reset, { understandingFailed: true, explicitReset: true }))).toEqual([])
-    expect(historyForProductTurn(history, historyPlanForTurn(reset, { understandingFailed: false, explicitReset: false }))).toEqual([])
   })
 })

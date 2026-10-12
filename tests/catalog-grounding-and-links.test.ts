@@ -12,11 +12,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-import {
-  extractProductTerms,
-  fetchCatalogProducts,
-  planProductRequest,
-} from '@/lib/ai/conversation'
+import { extractProductTerms } from '@/lib/ai/conversation'
 import { enforceTrustedLinkPresentation } from '@/lib/agent-kernel/skills/action-capabilities'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import { runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
@@ -49,54 +45,6 @@ function product(params: {
 
 describe('catalog grounding for concrete product requests', () => {
   beforeEach(() => vi.resetAllMocks())
-
-  it('does not turn cross-field semantic neighbours into the requested product', async () => {
-    mocks.findProducts.mockResolvedValue([
-      product({
-        id: 'home-set',
-        name: 'ست خانگی میو پلنگی',
-        description: 'بلوز و شلوار راحتی',
-        attributes: { رنگ: 'قهوه ای' },
-        category: 'ست خانگی',
-      }),
-      product({ id: 'wide-jeans', name: 'شلوار جین واید', category: 'شلوار' }),
-    ])
-
-    const rows = await fetchCatalogProducts('agent-1', ['home-set'], planProductRequest('شلوار پلنگی', []))
-    expect(rows).toEqual([])
-  })
-
-  it('keeps the real exact item and identifies it for automatic card/link hydration', async () => {
-    mocks.findProducts.mockResolvedValue([
-      product({
-        id: 'leopard-pants',
-        name: 'شلوار پلنگی آوا',
-        attributes: { رنگ: 'قهوه ای', سایز: '36, 38, 40, 42' },
-        category: 'شلوار',
-        url: 'https://shop.example.com/product/leopard-pants',
-      }),
-      product({ id: 'wide-jeans', name: 'شلوار جین واید', category: 'شلوار' }),
-    ])
-
-    const rows = await fetchCatalogProducts('agent-1', [], planProductRequest('شلوار پلنگی', []))
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({
-      id: 'leopard-pants',
-      url: 'https://shop.example.com/product/leopard-pants',
-      fullTermMatch: true,
-    })
-  })
-
-  it('does not mislabel a broad one-word category result as one exact product', async () => {
-    mocks.findProducts.mockResolvedValue([
-      product({ id: 'pants-a', name: 'شلوار آوا', category: 'شلوار' }),
-      product({ id: 'pants-b', name: 'شلوار بهار', category: 'شلوار' }),
-    ])
-
-    const rows = await fetchCatalogProducts('agent-1', [], planProductRequest('شلوار', []))
-    expect(rows).toHaveLength(2)
-    expect(rows.every((row) => row.fullTermMatch === false)).toBe(true)
-  })
 
   it('drops conversational price words from catalog identity terms', () => {
     expect(extractProductTerms('قیمت شومیز آریا چنده؟')).toEqual(['شومیز', 'آریا'])

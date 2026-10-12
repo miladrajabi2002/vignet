@@ -1,10 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { parseUnderstanding } from '@/lib/agent/understand/schema'
 import { ACTION_CONFIDENCE_FLOOR, verifyUnderstanding } from '@/lib/agent/understand/verify'
 import { routeFromUnderstanding } from '@/lib/agent/turn/route'
 import { composeTurnBrief, closingReplyFor } from '@/lib/agent/turn/brief'
-import { legacyReading, readingDiff } from '@/lib/agent/understand/legacy-adapter'
-import { parseUnderstandingConfig, resolveUnderstandingMode, resetUnderstandingConfigCache, routesFromUnderstanding } from '@/lib/agent/understand/mode'
 import { recentShownCardIds, vocabularySample } from '@/lib/agent/understand/candidates'
 import { buildUnderstandPayload } from '@/lib/agent/understand/prompt'
 import { createEmptyConversationWorkingState } from '@/lib/ai/conversation-state'
@@ -267,44 +265,6 @@ describe('router: verified acts → decisions for the existing executors', () =>
     const { verified, route: decided } = route(reading({ acts: [{ type: 'course', action: 'enroll' }] }))
     expect(decided.course).toBeNull()
     expect(composeTurnBrief({ route: decided, refs: verified.refs, lang: 'fa' })).toContain('ثبت‌نام دوره')
-  })
-})
-
-describe('legacy reading for shadow agreement', () => {
-  it('reproduces the known regex misroutes so the diff is visible', () => {
-    const legacy = legacyReading({
-      message: 'فردا میرسه دستم؟',
-      history: [],
-      hasDraft: false,
-      capabilities: { orderCapture: true, bookings: true, courses: false, restock: true, tracking: true },
-    })
-    expect(legacy.acts).toContain('booking')
-    const diff = readingDiff({ acts: [{ type: 'policy_question', topic: 'delivery_time' }] }, legacy)
-    expect(diff.agreed).toBe(false)
-    expect(diff.diffKinds).toContain('-booking')
-  })
-})
-
-describe('rollout mode', () => {
-  afterEach(() => {
-    delete process.env.AGENT_UNDERSTANDING_MODE
-    resetUnderstandingConfigCache()
-  })
-
-  it('parses and clamps the stored config; per-workspace overrides win; no env var can force a mode', async () => {
-    const config = parseUnderstandingConfig({ mode: 'shadow', domains: { orders: false }, timeoutMs: 99_999, workspaces: { w1: 'on', w2: 'nonsense' } })
-    expect(config.mode).toBe('shadow')
-    expect(config.domains.orders).toBe(false)
-    expect(config.domains.products).toBe(true)
-    expect(config.timeoutMs).toBe(15_000)
-    expect(config.workspaces).toEqual({ w1: 'on' })
-    // A stale «AGENT_UNDERSTANDING_MODE=off» left in a server .env is ignored:
-    // after a deploy the admin-panel setting (default «on») decides.
-    process.env.AGENT_UNDERSTANDING_MODE = 'off'
-    const resolved = await resolveUnderstandingMode('w1')
-    expect(resolved.mode).toBe('on')
-    expect(routesFromUnderstanding({ ...resolved, mode: 'on' }, 'products')).toBe(true)
-    expect(routesFromUnderstanding({ ...resolved, mode: 'shadow' }, 'products')).toBe(false)
   })
 })
 

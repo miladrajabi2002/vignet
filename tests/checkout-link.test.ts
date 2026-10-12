@@ -1,21 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  checkoutCardText,
-  checkoutMarker,
-  composeCheckoutFallback,
-  composeLinkMessage,
-  extractCouponCode,
-  isLinkRequest,
-  isPaymentClaim,
-  isValidLinkSlug,
-  newLinkSlug,
-  parseCheckoutDirective,
-  pluginSupportsCheckout,
-  signPayload,
-  storeCheckoutUrl,
-  verifyPayloadSignature,
-  type CheckoutCard,
-} from '@/lib/commerce/checkout-link'
+import { checkoutCardText, checkoutMarker, composeCheckoutFallback, composeLinkMessage, extractCouponCode, isValidLinkSlug, newLinkSlug, parseCheckoutDirective, pluginSupportsCheckout, signPayload, storeCheckoutUrl, verifyPayloadSignature, type CheckoutCard } from '@/lib/commerce/checkout-link'
 import { stripProductTokens } from '@/lib/widget/config'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { stripFabricatedPaymentLinks } from '@/lib/agent-kernel/skills/action-capabilities'
@@ -108,19 +92,6 @@ describe('checkout card marker', () => {
 })
 
 describe('customer intents around an open payment link', () => {
-  it('recognises payment claims', () => {
-    for (const message of ['پرداخت کردم', 'من پرداخت کردم', 'واریز کردم', 'پرداخت شد؟', 'کارت به کارت کردم', 'I paid']) {
-      expect(isPaymentClaim(message)).toBe(true)
-    }
-    expect(isPaymentClaim('چطوری پرداخت کنم؟')).toBe(false)
-  })
-
-  it('recognises link requests', () => {
-    for (const message of ['لینک پرداخت رو دوباره بفرست', 'لینک کار نمیکنه', 'لینک کو؟', 'send the payment link again']) {
-      expect(isLinkRequest(message)).toBe(true)
-    }
-    expect(isLinkRequest('سلام')).toBe(false)
-  })
 
   it('extracts coupon codes, including Persian digits', () => {
     expect(extractCouponCode('کد تخفیف VIGENT10 دارم')).toBe('VIGENT10')

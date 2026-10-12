@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectCartEditCue, mentionsLine, planCartEditDeterministic } from '@/lib/commerce/cart-edit'
+import { mentionsLine, planCartEditDeterministic } from '@/lib/commerce/cart-edit'
 import type { OrderDraftItem } from '@/lib/commerce/order-capture'
 
 function item(productId: string, name: string, quantity = 1, variant: string | null = null): OrderDraftItem {
@@ -7,32 +7,6 @@ function item(productId: string, name: string, quantity = 1, variant: string | n
 }
 
 const cart = [item('tv', 'میز تلویزیون لیان'), item('lamp', 'آباژور چوبی'), item('puff', 'پاف مخمل', 1, 'رنگ: طوسی')]
-
-describe('cart edit cues', () => {
-  it('detects additions', () => {
-    for (const message of ['یه پاف طوسی هم اضافه کن', 'یه آباژور هم بذار', 'دو تا کوسن هم اضافه کن', 'اینم می‌خوام', 'add a cushion', 'I also want a lamp']) {
-      expect(detectCartEditCue(message), message).toBe('add')
-    }
-  })
-
-  it('detects removals', () => {
-    for (const message of ['لیان رو حذف کن', 'آباژور رو نمیخوام', 'پاف رو بردار', 'remove the lamp']) {
-      expect(detectCartEditCue(message), message).toBe('remove')
-    }
-  })
-
-  it('detects quantity and variant changes', () => {
-    for (const message of ['دوتا کن', 'سه تا بشه', 'رنگش رو سفید کن', 'به جاش مشکی بذار', 'make it two']) {
-      expect(detectCartEditCue(message), message).toBe('change')
-    }
-  })
-
-  it('ignores ordinary order answers', () => {
-    for (const message of ['علی رضایی 09123456789', 'تهران، خیابان آزادی، پلاک ۲۰', 'تایید', 'ارسالش چند روزه؟']) {
-      expect(detectCartEditCue(message), message).toBeNull()
-    }
-  })
-})
 
 describe('deterministic cart planner (model unavailable)', () => {
   it('removes the one line the message names by a distinctive word', () => {

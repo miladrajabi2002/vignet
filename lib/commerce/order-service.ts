@@ -56,10 +56,9 @@ import {
 import { isItemAvailable, restockMode, restockOfferLine } from '@/lib/commerce/restock'
 import { rememberRestockOffer } from '@/lib/commerce/restock-service'
 import { heldByOthers, startCartHold, withHeldStock } from '@/lib/commerce/cart-hold'
-import { legacyOrderSignals, type OrderTurnSignals } from '@/lib/commerce/order-signals'
+import { type OrderTurnSignals } from '@/lib/commerce/order-signals'
 import {
   planCartEditDeterministic,
-  planCartEditWithModel,
   type CartCandidate,
   type CartEditCue,
   type CartEditOp,
@@ -71,7 +70,6 @@ import {
   itemLine,
 } from '@/lib/commerce/checkout-link'
 import type { CheckoutContext, DraftQuoteView } from '@/lib/commerce/checkout-service'
-import type { TurnLedger } from '@/lib/ai/llm/aux'
 
 /** A draft untouched for this long is abandoned, never silently resumed. */
 export const ORDER_DRAFT_TTL_MS = 48 * 60 * 60 * 1000
@@ -108,18 +106,13 @@ export interface OrderCaptureTurnParams {
   restockEnabled: boolean
   /** In-chat checkout (payment link on the store). Null = operator pre-order. */
   checkout?: CheckoutContext | null
-  /**
-   * Legacy cart-edit planner («یه پاف هم اضافه کن») on the economical tier.
-   * Null = deterministic only. Unused when `signals` carries cart ops.
-   */
-  cartPlanner?: { ledger?: TurnLedger | null } | null
   /** agent.cartHoldEnabled: one-hour hold on this cart; other chats' holds reduce stock. */
   cartHold?: boolean
   /**
-   * What the message means for the order. From the turn-understanding layer
-   * when it read this turn; otherwise the legacy regex detectors.
+   * What the message means for the order, from the verified reading of this
+   * turn (emptyOrderSignals() when the turn has none).
    */
-  signals?: OrderTurnSignals
+  signals: OrderTurnSignals
 }
 
 type DraftRow = {
@@ -555,23 +548,9 @@ async function applyCartEdits(params: OrderCaptureTurnParams, state: OrderDraftS
     const product = byId.get(id)
     return product ? [{ id: product.id, name: product.name, price: product.price, variants: availableVariations(product).map(variationLabel).filter(Boolean).slice(0, 12) }] : []
   })
-  const cartView = state.items.map((item) => ({
-    ...item,
-    variants: byId.get(item.productId) ? availableVariations(byId.get(item.productId)!).map(variationLabel).filter(Boolean).slice(0, 12) : [],
-  }))
-
-  // Understanding-resolved operations need no second model call.
-  let ops: CartEditOp[] | null = signals.cartOps ? signals.cartOps : params.cartPlanner
-    ? await planCartEditWithModel({
-      workspaceId: params.workspaceId,
-      agentId: params.agentId,
-      conversationId: params.conversationId,
-      ledger: params.cartPlanner.ledger,
-      message: params.message,
-      cart: cartView,
-      candidates,
-    }).catch(() => null)
-    : null
+  // Operations resolved by the reading; otherwise the cue is applied to the
+  // one product this turn identified.
+  let ops: CartEditOp[] | null = signals.cartOps
   if (!ops) {
     const identifiedIds = new Set(candidateRows.filter((row) => row.fullTermMatch).map((row) => parentId(row.id)))
     const identified = candidates.filter((candidate) => identifiedIds.has(candidate.id))
@@ -911,7 +890,7 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
 // ─── Turn resolver ──────────────────────────────────────────────────────────
 
 export async function resolveOrderCaptureTurn(params: OrderCaptureTurnParams): Promise<OrderCaptureOutcome> {
-  const signals = params.signals ?? legacyOrderSignals(params.message, params.lastAssistantText)
+  const signals = params.signals
   const outcome = await resolveCartTurn(params, signals)
   // The first reply that shows a cart with items also says until when it is held.
   if (!params.cartHold || outcome.kind !== 'reply' || !outcome.draftId) return outcome
@@ -1060,7 +1039,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
         }
       }
       // Several products named at once: every available one joins the cart.
-      if (opening && signals.source === 'legacy') {
+      if (opening && signals.source === 'message') {
         for (const extra of await productsNamedInMessage(params)) {
           if (extra.id === product.id || state.items.length >= MAX_CART_LINES) continue
           const extraMatch = variantFromMessage(extra, params.message, null)

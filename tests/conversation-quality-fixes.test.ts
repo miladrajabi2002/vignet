@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@/lib/ai/openrouter'
-import { historyForProductTurn, planProductRequest } from '@/lib/ai/conversation'
 import { buildTurnReceipts } from '@/lib/conversations/activity'
 import {
   enforceActionCapabilities,
@@ -14,58 +13,6 @@ import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 
 const user = (content: string): ChatMessage => ({ role: 'user', content })
 const assistant = (content: string): ChatMessage => ({ role: 'assistant', content })
-
-describe('conversation quality fixes — shipping policy routing', () => {
-  it.each([
-    'فروشگاه قبول ميكنه با اسنپ هم ارسال كنه؟',
-    'نه من ماشين بگيرم و با ماشين برام ارسال كنن',
-    'قسط ها تموم شد لباس رو ارسال میکنید؟',
-    'امروز جمعه هست با تیپاکس هم میشه بفرستین که زود برسه',
-    'فقط با تيپاكس و پست ميفرستيد؟',
-    'نحوه ارسال چطوره؟',
-    'با پست هم میفرستید؟',
-  ])('keeps shipping questions out of the catalog showcase: %s', (message) => {
-    const plan = planProductRequest(message, [])
-    expect(plan.isProductTurn).toBe(false)
-    expect(plan.explicitShowcase).toBe(false)
-  })
-
-  it.each([
-    'شومیز',
-    'دنبال یه شومیز مجلسی هستم',
-    'بلوز دارید؟',
-    'دامن کار رو هم موجود دارید',
-    'تونیک روناز 0788',
-    'مانتو کاپشن دارید؟',
-  ])('treats garment nouns as catalog intent: %s', (message) => {
-    expect(planProductRequest(message, []).isProductTurn).toBe(true)
-  })
-
-  it('searches for the bare garment term itself', () => {
-    expect(planProductRequest('شومیز', []).searchTerms).toContain('شومیز')
-  })
-
-  it.each([
-    'کاتالوگ رو بفرست',
-    'قیمت ها رو بفرست',
-    'عکس محصولات رو ارسال کنید',
-    'همه رو بفرست',
-    '۵ تا رو بفرست',
-  ])('still treats an explicit showcase demand as a showcase: %s', (message) => {
-    const plan = planProductRequest(message, [user('چی دارید؟'), assistant('لباس مجلسی داریم.')])
-    // A strong shipping signal must never suppress a real showcase demand
-    // about catalog objects (کاتالوگ/قیمت/عکس/مدل/…).
-    expect(plan.explicitShowcase).toBe(true)
-  })
-
-  it.each([
-    'پیراهن وارداتی شنل رنگ صورتی',
-    'پستتون قشنگ بود',
-  ])('small talk and product statements are not showcases: %s', (message) => {
-    const plan = planProductRequest(message, [user('چی دارید؟'), assistant('لباس مجلسی داریم.')])
-    expect(plan.explicitShowcase).toBe(false)
-  })
-})
 
 describe('conversation quality fixes — action capability guard', () => {
   it('detects an in-chat order creation request', () => {
@@ -198,17 +145,5 @@ describe('conversation quality fixes — kernel skill activation', () => {
     })
     expect(plan.active.some((s) => s.key === 'visual-reference-grounding')).toBe(true)
     expect(plan.instructions.visualReference).toContain('photo')
-  })
-})
-
-describe('conversation quality fixes — history integrity', () => {
-  it('keeps history intact for shipping policy turns (no showcase boundary)', () => {
-    const history = [
-      user('سلام'),
-      assistant('سلام! چطور می‌تونم کمکتون کنم؟'),
-      user('فروشگاه قبول ميكنه با اسنپ هم ارسال كنه؟'),
-    ]
-    const plan = planProductRequest(history[2].content ?? '', history.slice(0, 2))
-    expect(historyForProductTurn(history.slice(0, 2), plan)).toEqual(history.slice(0, 2))
   })
 })

@@ -9,6 +9,7 @@
  */
 import { auxCompletion, AuxUnavailableError, type TurnLedger } from '@/lib/ai/llm/aux'
 import type { ChatUsage } from '@/lib/ai/openrouter'
+import { UNDERSTANDING_TIMEOUT_MS } from '@/lib/agent/understand/domains'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
 import { parseUnderstanding } from '@/lib/agent/understand/schema'
 import { verifyUnderstanding } from '@/lib/agent/understand/verify'
@@ -40,6 +41,7 @@ const CIRCUIT_COOLDOWN_MS = 2 * 60_000
 let consecutiveFailures = 0
 let circuitOpenUntil = 0
 
+/** Test hook: start every case with a closed circuit. */
 export function resetUnderstandingCircuit(): void {
   consecutiveFailures = 0
   circuitOpenUntil = 0
@@ -94,7 +96,7 @@ async function attemptUnderstanding(params: UnderstandTurnParams, startedAt: num
       responseFormat: 'json_object',
       temperature: 0,
       maxTokens: 450,
-      timeoutMs: params.timeoutMs ?? 6_000,
+      timeoutMs: params.timeoutMs ?? UNDERSTANDING_TIMEOUT_MS,
       retries: 0,
       providerAttempt: attempt,
     })

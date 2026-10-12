@@ -64,6 +64,7 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 import { resolveOrderCaptureTurn, type OrderCaptureTurnParams } from '@/lib/commerce/order-service'
+import { regexOrderSignals } from './support/regex-reading'
 import type { CatalogProduct } from '@/lib/ai/rag'
 
 const checkout = { integrationId: 'int1', storeUrl: 'https://shop.example', webhookSecret: 's', flow: 'AUTO', ttlHours: 24 }
@@ -74,9 +75,10 @@ function row(id: string, name: string, fullTermMatch = false): CatalogProduct {
 
 function params(message: string, overrides: Partial<OrderCaptureTurnParams> = {}): OrderCaptureTurnParams {
   return {
+    signals: regexOrderSignals(message, overrides.lastAssistantText ?? null),
     enabled: true, workspaceId: 'w', agentId: 'a', conversationId: 'c1', contactId: null, channel: 'CHAT_LINK', message, lang: 'fa',
     catalogProducts: [], recentCardIds: [], activeEntityId: null, variantHint: null, lastAssistantText: null,
-    prefill: { name: null, phone: null, city: null, address: null }, restockEnabled: true, checkout, cartPlanner: null,
+    prefill: { name: null, phone: null, city: null, address: null }, restockEnabled: true, checkout,
     ...overrides,
   }
 }

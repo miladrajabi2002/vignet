@@ -42,9 +42,11 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 import { resolveOrderCaptureTurn, type OrderCaptureTurnParams } from '@/lib/commerce/order-service'
+import { regexOrderSignals } from './support/regex-reading'
 
 function params(message: string, overrides: Partial<OrderCaptureTurnParams> = {}): OrderCaptureTurnParams {
   return {
+    signals: regexOrderSignals(message, overrides.lastAssistantText ?? null),
     enabled: true,
     workspaceId: 'w',
     agentId: 'a',

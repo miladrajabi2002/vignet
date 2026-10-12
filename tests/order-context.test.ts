@@ -9,6 +9,8 @@ vi.mock('@/lib/prisma', () => ({
 import { buildOrderContext } from '@/lib/ai/order-context'
 
 const base = {
+  // What the reading of an order-tracking message says, without a verified number.
+  understood: { tracking: { orderRef: null } },
   workspaceId: 'workspace-1',
   enabled: true,
   language: 'fa',
@@ -60,6 +62,7 @@ describe('verified order context', () => {
       ...base,
       message: '73803',
       history: [{ role: 'assistant', content: 'چه رنگی می‌خواهید؟' }],
+      understood: { tracking: null },
     })
 
     expect(context).toBe('')

@@ -1,26 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  applyOrderSlots,
-  assistantOfferedOrder,
-  composeOrderAsk,
-  composeOrderSubmitted,
-  composeOrderSummary,
-  composeShippingQuestion,
-  detectOrderIntent,
-  extractOrderSlots,
-  formatOrderForOperator,
-  isOrderCancellation,
-  isOrderConfirmation,
-  isOrderDecline,
-  isQuestion,
-  matchShippingChoice,
-  mentionsShippingMethod,
-  missingOrderSlots,
-  newDraftCode,
-  orderInProgressInstruction,
-  parseOrdinalChoice,
-  type OrderDraftState,
-} from '@/lib/commerce/order-capture'
+import { applyOrderSlots, composeOrderAsk, composeOrderSubmitted, composeOrderSummary, composeShippingQuestion, extractOrderSlots, formatOrderForOperator, matchShippingChoice, mentionsShippingMethod, missingOrderSlots, newDraftCode, orderInProgressInstruction, parseOrdinalChoice, type OrderDraftState } from '@/lib/commerce/order-capture'
 
 function draft(overrides: Partial<OrderDraftState> = {}): OrderDraftState {
   return {
@@ -37,64 +16,6 @@ function draft(overrides: Partial<OrderDraftState> = {}): OrderDraftState {
     ...overrides,
   }
 }
-
-describe('order intent', () => {
-  it.each([
-    'میخوام سفارش بدم',
-    'می‌خوام همینو بخرم',
-    'چطوری سفارش بدم؟',
-    'از کجا بخرمش؟',
-    'همینو میخوام',
-    'سفارشمو ثبت کنید',
-    'ثبت سفارش',
-    'یکی ازش برام بفرستید',
-    'I want to buy this',
-    'how can I order?',
-  ])('detects «%s»', (message) => {
-    expect(detectOrderIntent(message)).toBe(true)
-  })
-
-  it.each([
-    'سفارشم ثبت شده؟',
-    'سفارشم کجاست',
-    'کد رهگیری سفارشم چیه',
-    'اینو میخوام ببینم',
-    'قیمتش چنده؟',
-    'عکس بیشتر دارید؟',
-  ])('ignores «%s»', (message) => {
-    expect(detectOrderIntent(message)).toBe(false)
-  })
-
-  it('recognises the agent’s own order offer', () => {
-    expect(assistantOfferedOrder('می‌خواید همین‌جا براتون ثبتش کنم؟')).toBe(true)
-    expect(assistantOfferedOrder('قیمتش ۱۲ میلیونه')).toBe(false)
-  })
-})
-
-describe('control messages', () => {
-  it('confirmation needs a short, unambiguous yes', () => {
-    expect(isOrderConfirmation('بله')).toBe(true)
-    expect(isOrderConfirmation('آره ثبتش کن')).toBe(true)
-    expect(isOrderConfirmation('تأیید')).toBe(true)
-    expect(isOrderConfirmation('درسته ممنون')).toBe(true)
-    expect(isOrderConfirmation('بله ولی آدرس عوض شده')).toBe(false)
-    expect(isOrderConfirmation('بله میخوام بدونم ارسالش چند روزه و هزینش چقدره')).toBe(false)
-  })
-
-  it('decline and cancel are distinct', () => {
-    expect(isOrderDecline('نه')).toBe(true)
-    expect(isOrderCancellation('بیخیال')).toBe(true)
-    expect(isOrderCancellation('لغوش کنید')).toBe(true)
-    expect(isOrderCancellation('نمیخوامش')).toBe(true)
-    // An address containing a long number is data, not a cancellation.
-    expect(isOrderCancellation('نمیخوام 09121234567')).toBe(false)
-  })
-
-  it('questions are routed to the model', () => {
-    expect(isQuestion('ارسالش چند روز طول میکشه؟')).toBe(true)
-    expect(isQuestion('علی رضایی')).toBe(false)
-  })
-})
 
 describe('slot extraction', () => {
   it('parses a multi-line reply with name, phone and address', () => {

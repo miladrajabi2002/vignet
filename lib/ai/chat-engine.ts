@@ -4,7 +4,7 @@
  *
  *   gates (ownership, plan, credit) → identity → history/state →
  *   UNDERSTAND (lib/agent/turn/understand-stage.ts) → decide per domain
- *   (verified model reading, or the legacy regex router as fallback) →
+ *   (the verified model reading; a turn without one is a plain conversation turn) →
  *   retrieve/execute (catalog, order flow, restock, tracking, booking/course)
  *   → compose (prompt + turn brief) → reply → guards → persist (+ turn cost,
  *   product memory, pending offer).
@@ -24,41 +24,32 @@ import { retrieveContext, buildMessages, type CatalogProduct } from '@/lib/ai/ra
 import { readCustomerAgentPreferences } from '@/lib/ai/customer-agent-preferences'
 import { readEvidenceMemory, activeFacts } from '@/lib/ai/memory-evidence'
 import { captureStatedFacts } from '@/lib/ai/fact-capture'
-import { detectOrderIntent } from '@/lib/commerce/order-capture'
+import { emptyOrderSignals } from '@/lib/commerce/order-signals'
 import { hasActiveOrderDraft, markOrderDraftSubmitted, resolveOrderCaptureTurn } from '@/lib/commerce/order-service'
-import { detectRestockRequest, restockMode, restockOfferLine } from '@/lib/commerce/restock'
+import { restockMode, restockOfferLine } from '@/lib/commerce/restock'
 import { rememberRestockOffer, resolveRestockTurn, unavailableItemsFromCatalog } from '@/lib/commerce/restock-service'
-import { catalogToolGate, insertBeforeTurnMarker, planCatalogSearch, runCatalogSearches, type CatalogToolReason } from '@/lib/ai/catalog-tools'
+import { insertBeforeTurnMarker, runCatalogSearches, type CatalogToolReason } from '@/lib/ai/catalog-tools'
 import { previousSessionPlanningRows } from '@/lib/ai/conversation-memory'
-import { closingReplyText } from '@/lib/ai/response-policy'
 import { extractTurnSignal, visibleWhileStreaming, type TurnSignal } from '@/lib/ai/turn-signal'
 import { extractIdentity, applyExtractedIdentity } from '@/lib/ai/customer-identification'
 import { extractIdentityWithAi } from '@/lib/ai/ai-identity-extractor'
 import {
-        resolveConversation,
-        loadHistory,
-        fetchCatalogCategories,
-        fetchCatalogProducts,
-        fetchCatalogProductsByIds,
-        fetchCatalogServices,
-        findAssignedCatalogReference,
-        historyForProductTurn,
-        historyPlanForTurn,
-        isHumanOwnedConversation,
-        planProductRequest,
-        productRequestFromCatalogReference,
-        showcaseSubjectPhrase,
-        isNarrowedProductRequest,
-        extractProductTerms,
-        assistantCardIds,
-        normalizePersianText,
-        UNRESOLVED_ANAPHORA_RE,
-        GLOBAL_PRODUCT_WORDS,
-        type ProductRequestPlan,
+  resolveConversation,
+  loadHistory,
+  fetchCatalogCategories,
+  fetchCatalogProducts,
+  fetchCatalogProductsByIds,
+  fetchCatalogServices,
+  historyForProductTurn,
+  isHumanOwnedConversation,
+  showcaseSubjectPhrase,
+  isNarrowedProductRequest,
+  assistantCardIds,
+  GLOBAL_PRODUCT_WORDS,
+  type ProductRequestPlan,
 } from '@/lib/ai/conversation'
 import { catalogSearchVocabulary, getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
 import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
-import { analyzerGate, analyzeTurn, analyzerSearchTerms } from '@/lib/ai/turn-analyzer'
 import { shouldHandoff, handoffReplyText } from '@/lib/ai/handoff'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
@@ -84,8 +75,6 @@ import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts
 import { createLivePreviewGuard, runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
 import { linkEvidenceForTurn, resolveLinkGuardMode } from '@/lib/agent-kernel/skills/link-grounding'
 import { repairUngroundedLinkReply } from '@/lib/agent/turn/link-repair'
-import { hasBookingIntent } from '@/lib/bookings/intent'
-import { hasCourseIntent } from '@/lib/courses/intent'
 import { loadWorkspaceModules } from '@/lib/verticals/workspace-capabilities'
 import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
 import {
@@ -94,20 +83,18 @@ import {
 } from '@/lib/ai/agent-runtime'
 import { loadCustomerChannelContext } from '@/lib/ai/customer-channel-context'
 import {
-        advanceConversationWorkingState,
-        buildConversationStateTrace,
-        createEmptyConversationWorkingState,
-        contextualizeProductRequest,
-        enrichConversationStateWithCatalog,
-        loadConversationWorkingState,
-        promoteConversationStateToProduct,
-        startCatalogProductGoal,
-        type ConversationStateTrace,
-        type ConversationWorkingState,
-        type PendingStateKind,
+  advanceConversationWorkingState,
+  buildConversationStateTrace,
+  createEmptyConversationWorkingState,
+  enrichConversationStateWithCatalog,
+  loadConversationWorkingState,
+  promoteConversationStateToProduct,
+  type ConversationStateTrace,
+  type ConversationWorkingState,
+  type PendingStateKind,
 } from '@/lib/ai/conversation-state'
 import { TurnLedger } from '@/lib/ai/llm/aux'
-import { UNDERSTANDING_DOMAINS, type UnderstandingDomain } from '@/lib/agent/understand/mode'
+import { UNDERSTANDING_DOMAINS } from '@/lib/agent/understand/domains'
 import { runUnderstandingStage } from '@/lib/agent/turn/understand-stage'
 import { emptyProductPlan } from '@/lib/agent/turn/route'
 import { closingReplyFor, composeSpellingNote, composeTurnBrief } from '@/lib/agent/turn/brief'
@@ -122,8 +109,6 @@ import {
         persistInboundTurnMessage,
         type AssistantTurnObservation,
 } from '@/lib/agent/turn/persist'
-
-const CATALOG_REFINEMENT_CUE_RE = /(?:برای|مناسب|رنگ|سایز|اندازه|قد|جنس|پارچه|متریال|سبک|بودجه|قیمت|موجود|مدرن|کلاسیک|مینیمال|مشکی|سفید|سبز|آبی|قرمز|زرد|صورتی|بنفش|طوسی|کرم|قهوه\s*ای|for|suitable|colou?r|size|material|style|budget|price|stock)/iu
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -509,21 +494,10 @@ async function prepareTurn(params: StartChatParams): Promise<
         // Identity plus attribute/variation words (رنگ، سایز، طرح…) for spelling
         // fixes and for verifying the understanding layer's search terms.
         const searchVocabulary = catalogSearchVocabulary(catalogLexicon)
-        // The legacy regex plan stays computed: it is the fallback router, the
-        // state replay source for older messages and the shadow baseline.
-        const rawProductRequest = planProductRequest(message, planningHistory, corpusTokens)
                 const lastAssistantText = [...history].reverse().find((item) => item.role === 'assistant')?.content ?? null
                 // An order in progress or a back-in-stock request is never a
                 // «مرسی/باشه» closing: «باشه» confirms a summary there.
                 const hasDraft = agent.orderCaptureEnabled ? await hasActiveOrderDraft(conversationId) : false
-                const commerceCandidate = Boolean(
-                        (agent.orderCaptureEnabled && (detectOrderIntent(message) || hasDraft))
-                        || (agent.restockAlertsEnabled !== false && detectRestockRequest(message, lastAssistantText)),
-                )
-                // Anchored, whole-message closings («ممنون», «خداحافظ») are a
-                // deterministic fast path: no understanding call, no reply call.
-                const fastClosing = commerceCandidate ? null : closingReplyText(message, history, turnLang)
-
                 // ── Understand ─────────────────────────────────────────────
                 const understanding = await runUnderstandingStage({
                         workspaceId,
@@ -532,26 +506,20 @@ async function prepareTurn(params: StartChatParams): Promise<
                         inboundMessageId: inbound.id,
                         message,
                         history: modelHistory,
-                        planningHistory,
                         state: loadedState.state,
                         capabilityGates: params.capabilityGates,
                         serviceNames: catalogServices.map((service) => service.name),
                         corpusTokens: corpusTokens ?? null,
                         searchVocabulary,
-                        legacyPlan: rawProductRequest,
                         ledger,
                         turnLang,
-                        skip: Boolean(fastClosing),
                 })
                 const route = understanding.route
-                const routed = (domain: UnderstandingDomain) => understanding.routes(domain)
-                // A reading that could not be obtained is not replaced by the
-                // regex router: no product, booking or course intent is read
-                // into the message, and the model answers it with the whole
-                // conversation and the retrieved knowledge in front of it.
-                const readingFailed = understanding.readingFailed
-                const legacyPlan = readingFailed ? emptyProductPlan() : rawProductRequest
-                const routedDomains = UNDERSTANDING_DOMAINS.filter((domain) => routed(domain))
+                // Every routing decision below comes from the verified reading.
+                // A turn whose reading could not be obtained has no route: nothing
+                // is read into the message, and the model answers it as a plain
+                // conversation turn with the retrieved knowledge in front of it.
+                const routedDomains = route ? [...UNDERSTANDING_DOMAINS] : []
                 if (understanding.outcome?.ok) {
                         recordCustomerReading(inbound.id, understanding.outcome.verified)
                 }
@@ -562,68 +530,19 @@ async function prepareTurn(params: StartChatParams): Promise<
                         message,
                         messageId: inbound.id,
                         createdAt: inbound.createdAt,
-                        productPlan: legacyPlan,
-                        knownServiceNames: catalogServices.map((service) => service.name),
-                        understood: routed('state') && route ? route.stateTurn : null,
+                        understood: route ? route.stateTurn : null,
                 })
-                const productsRouted = routed('products') && route !== null
-                let productRequest: ProductRequestPlan
-                let anaphoricWithoutProduct = false
-                if (productsRouted) {
-                        // The verified reading decides whether this is a product
-                        // turn and which rows it is about; no regex promotion.
-                        const plan = route.productPlan ?? emptyProductPlan()
-                        productRequest = agent.productAccessEnabled ? plan : { ...plan, isProductTurn: false }
-                } else {
-                        productRequest = contextualizeProductRequest(legacyPlan, workingState)
-                        // ── Unresolved anaphora guard ──────────────────────────
-                        // «این مدل آماده موجود دارید؟» when the conversation never
-                        // identified ANY product: a clarification ask answered from
-                        // the knowledge base, never a random catalog row.
-                        const recentMarkerProductIds: string[] = []
-                        for (const item of history.slice(-8)) {
-                                if (item.role !== 'assistant') continue
-                                recentMarkerProductIds.push(...assistantCardIds(item))
-                        }
-                        let priorUserNamesProduct = false
-                        if (corpusTokens) {
-                                let checked = 0
-                                for (let index = history.length - 1; index >= 0 && checked < 3; index -= 1) {
-                                        const item = history[index]
-                                        if (item.role !== 'user') continue
-                                        checked += 1
-                                        const priorTerms = extractProductTerms(normalizePersianText(item.content ?? ''))
-                                        if (priorTerms.some((term) => corpusTokens?.has(term))) {
-                                                priorUserNamesProduct = true
-                                                break
-                                        }
-                                }
-                        }
-                        anaphoricWithoutProduct = productRequest.isProductTurn
-                                && UNRESOLVED_ANAPHORA_RE.test(normalizePersianText(message))
-                                && recentMarkerProductIds.length === 0
-                                && !workingState.activeEntity?.id
-                                && !priorUserNamesProduct
-                        if (anaphoricWithoutProduct) {
-                                productRequest = {
-                                        ...productRequest,
-                                        isProductTurn: false,
-                                        explicitShowcase: false,
-                                        discoveryBrowse: false,
-                                        resetProductContext: false,
-                                        requestNewTopic: false,
-                                        searchTerms: [],
-                                        includeProductCards: false,
-                                        variantBrowse: false,
-                                        variantPick: false,
-                                        codeVariantVitrine: false,
-                                        anaphoraConsult: true,
-                                }
-                        }
-                }
+                const productsRouted = route !== null
+                // The verified reading decides whether this is a product turn and
+                // which rows it is about.
+                const routedPlan = route?.productPlan ?? emptyProductPlan()
+                let productRequest: ProductRequestPlan = agent.productAccessEnabled
+                        ? routedPlan
+                        : { ...routedPlan, isProductTurn: false }
 
-                const closingReply = fastClosing
-                        ?? (routed('state') && route?.closing && !hasDraft ? closingReplyFor(route.closing, turnLang === 'en' ? 'en' : 'fa') : null)
+                const closingReply = route?.closing && !hasDraft
+                        ? closingReplyFor(route.closing, turnLang === 'en' ? 'en' : 'fa')
+                        : null
                 if (closingReply) {
                         const skillPlan = compileAgentSkillPlan({
                                 language: turnLang,
@@ -639,9 +558,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 state: workingState,
                                 historyLoaded: modelHistory.filter((item) => item.role !== 'system').length,
                                 historySent: modelHistory.filter((item) => item.role !== 'system').length,
-                                resetReason: legacyPlan.requestNewTopic
+                                resetReason: productRequest.requestNewTopic
                                         ? 'EXPLICIT_RESET'
-                                        : legacyPlan.resetProductContext ? 'NEW_PRODUCT_SUBJECT' : null,
+                                        : productRequest.resetProductContext ? 'NEW_PRODUCT_SUBJECT' : null,
                                 retrievalQuery: '',
                         })
                         understanding.finalize(routedDomains)
@@ -669,126 +588,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                         }
                 }
 
-                let catalogReference: Awaited<ReturnType<typeof findAssignedCatalogReference>> = null
-                let catalogStartedNewGoal = false
-                const stateRelation = workingState.lastTurn?.relation
-                if (!productsRouted) {
-                        const shortBareCatalogCandidate = Boolean(
-                                stateRelation && ['REFINEMENT', 'CORRECTION'].includes(stateRelation) &&
-                                message.trim().split(/\s+/u).length <= 6 &&
-                                !CATALOG_REFINEMENT_CUE_RE.test(message),
-                        )
-                        const shouldProbeCatalog = Boolean(
-                                agent.productAccessEnabled && !anaphoricWithoutProduct && stateRelation && (
-                                        stateRelation === 'NEW_GOAL' ||
-                                        shortBareCatalogCandidate ||
-                                        (!productRequest.isProductTurn && workingState.lastTurn?.intent === 'GENERAL'
-                                                && ['REFINEMENT', 'REFERENCE', 'ANSWER'].includes(stateRelation))
-                                ),
-                        )
-                        if (shouldProbeCatalog) {
-                                const probeMessages = [...new Set([
-                                        message,
-                                        workingState.activeGoal?.label ?? '',
-                                ].filter(Boolean))]
-                                let referenceMessage = message
-                                for (const probeMessage of probeMessages) {
-                                        catalogReference = await findAssignedCatalogReference(agent.id, probeMessage).catch((error) => {
-                                                captureError('chat-engine:catalog-reference-probe', error, {
-                                                        workspaceId,
-                                                        metadata: { agentId: agent.id, conversationId },
-                                                })
-                                                return null
-                                        })
-                                        if (catalogReference) {
-                                                referenceMessage = probeMessage
-                                                break
-                                        }
-                                }
-                                if (catalogReference) {
-                                        productRequest = productRequestFromCatalogReference(
-                                                productRequest,
-                                                referenceMessage,
-                                                catalogReference,
-                                        )
-                                        // A catalog match recovered from the saved goal
-                                        // anchors this follow-up; it does not turn the
-                                        // customer's refinement into a fresh vitrine.
-                                        if (referenceMessage !== message) {
-                                                productRequest = {
-                                                        ...productRequest,
-                                                        explicitShowcase: false,
-                                                        inventoryMode: 'ANY',
-                                                }
-                                        }
-                                        const replacesExistingGoal = referenceMessage === message
-                                                && Boolean(loadedState.state.activeGoal)
-                                                && (stateRelation === 'CORRECTION' || (
-                                                        stateRelation === 'REFINEMENT'
-                                                        && catalogReference.searchTerms.length >= 2
-                                                        && !CATALOG_REFINEMENT_CUE_RE.test(message)
-                                                ))
-                                        if (replacesExistingGoal) {
-                                                workingState = startCatalogProductGoal(
-                                                        workingState,
-                                                        message,
-                                                        inbound.id,
-                                                        catalogReference.searchTerms,
-                                                        catalogReference.productIds,
-                                                        catalogReference.match === 'EXACT',
-                                                )
-                                                productRequest = { ...productRequest, resetProductContext: true }
-                                                catalogStartedNewGoal = true
-                                        } else {
-                                                workingState = promoteConversationStateToProduct(
-                                                        workingState,
-                                                        catalogReference.searchTerms,
-                                                        catalogReference.productIds,
-                                                        catalogReference.match === 'EXACT',
-                                                )
-                                        }
-                                        productRequest = contextualizeProductRequest(productRequest, workingState)
-                                }
-                        }
-                }
-                // ── Semantic catalog probe (legacy router only) ───────────
-                // When the vocabulary layer did not flag a product turn, the
-                // vector index may still promote a STRONG product match.
-                const semanticProbeAllowed = Boolean(
-                        !productsRouted &&
-                        agent.productAccessEnabled &&
-                        !anaphoricWithoutProduct &&
-                        !productRequest.isProductTurn &&
-                        !productRequest.requestNewTopic &&
-                        message.trim().length >= 4,
-                )
-                // ── LLM turn analyzer — TERM_BUILD phase (legacy router only) ──
-                if (
-                        !productsRouted &&
-                        analyzerGate({
-                                message,
-                                plan: productRequest,
-                                productAccessEnabled: agent.productAccessEnabled,
-                        }) === 'TERM_BUILD'
-                ) {
-                        const termAnalysis = await analyzeTurn({
-                                workspaceId,
-                                agentId: agent.id,
-                                conversationId,
-                                message,
-                                history: modelHistory.slice(-6),
-                                corpusTokens,
-                                phase: 'TERM_BUILD',
-                                ledger,
-                        }).catch(() => null)
-                        if (termAnalysis?.intent === 'product' && termAnalysis.productKeywords.length > 0) {
-                                productRequest = {
-                                        ...productRequest,
-                                        searchTerms: analyzerSearchTerms(termAnalysis, message),
-                                        analyzerTurn: true,
-                                }
-                        }
-                }
                 // Rows the customer referred to by ref (card / active / seen /
                 // cart) are loaded by id; only a description search goes to
                 // vector + lexical retrieval.
@@ -820,83 +619,18 @@ async function prepareTurn(params: StartChatParams): Promise<
                         query: retrievalQuery,
                         limit: searchingCatalog
                                 ? Math.min(24, Math.max(12, productRequest.requestedCount * 2))
-                                : semanticProbeAllowed ? 6 : 3,
-                        includeProductCatalog: searchingCatalog || semanticProbeAllowed,
+                                : 3,
+                        includeProductCatalog: searchingCatalog,
                         excludeProductContentFromText: true,
                         contextTextLimit: 4,
                 })
                 bumpProductQueries(workspaceId, chunks)
 
-                // Promote a non-product turn to a product consult when a product
-                // chunk is a STRONG semantic match (legacy router only).
-                const SEMANTIC_PRODUCT_PROMOTION_SIM = 0.45
-                if (semanticProbeAllowed) {
-                        const strongProductChunks = chunks.filter((chunk) => {
-                                const metadata = chunk.metadata
-                                return metadata && typeof metadata === 'object' && 'productId' in metadata
-                                        && chunk.similarity >= SEMANTIC_PRODUCT_PROMOTION_SIM
-                        })
-                        if (strongProductChunks.length > 0) {
-                                productRequest = {
-                                        ...productRequest,
-                                        isProductTurn: true,
-                                        explicitShowcase: false,
-                                        discoveryBrowse: false,
-                                        resetProductContext: false,
-                                        requestNewTopic: false,
-                                        searchTerms: extractProductTerms(message),
-                                        inventoryMode: 'ANY',
-                                        semanticTurn: true,
-                                }
-                        }
-                }
-
-                // ── Handoff signal ────────────────────────────────────────
-                // Routed: the verified reading (explicit human request or a
-                // high-severity complaint). Legacy: the analyzer RESCUE phase.
-                let analyzerHandoffSignal = routed('handoff') && route
-                        ? route.handoff.human || route.handoff.complaintHigh
-                        : false
-                if (
-                        !productsRouted &&
-                        analyzerGate({
-                                message,
-                                plan: productRequest,
-                                productAccessEnabled: agent.productAccessEnabled,
-                                retrievedChunkCount: chunks.length,
-                        }) === 'RESCUE'
-                ) {
-                        const rescue = await analyzeTurn({
-                                workspaceId,
-                                agentId: agent.id,
-                                conversationId,
-                                message,
-                                history: modelHistory.slice(-6),
-                                corpusTokens,
-                                phase: 'RESCUE',
-                                ledger,
-                        }).catch(() => null)
-                        if (rescue) {
-                                if (rescue.intent === 'product' && rescue.productKeywords.length > 0) {
-                                        productRequest = {
-                                                ...productRequest,
-                                                isProductTurn: true,
-                                                explicitShowcase: false,
-                                                discoveryBrowse: false,
-                                                resetProductContext: false,
-                                                requestNewTopic: false,
-                                                searchTerms: analyzerSearchTerms(rescue, message),
-                                                inventoryMode: 'ANY',
-                                                analyzerTurn: true,
-                                        }
-                                } else if (rescue.handoffUrgent && !routed('handoff')) {
-                                        analyzerHandoffSignal = true
-                                }
-                        }
-                }
+                // An explicit human request or a high-severity complaint in the
+                // verified reading escalates to a person.
+                const analyzerHandoffSignal = route ? route.handoff.human || route.handoff.complaintHigh : false
 
                 const productIds = [...new Set([
-                        ...(catalogReference?.productIds ?? []),
                         ...chunks
                         .map((chunk) => {
                                 const metadata = chunk.metadata
@@ -909,29 +643,13 @@ async function prepareTurn(params: StartChatParams): Promise<
                         .filter((id): id is string => !!id),
                 ])]
 
-                // A singular detail follow-up («قیمتش؟», «پارچش چیه؟») right after
-                // the agent showed exactly ONE product card is about that card.
                 const recentAssistants = history.filter((item) => item.role === 'assistant').slice(-2)
-                const lastAssistant = recentAssistants.at(-1)
-                const lastCardIds = lastAssistant ? assistantCardIds(lastAssistant) : []
                 // Cards the customer received in the last two replies: not
                 // re-sent on follow-ups, and their names need no re-introduction.
                 const shownCardIds = [...new Set(recentAssistants.flatMap((item) => assistantCardIds(item)))]
-                const anchorProductId = !productsRouted
-                        && agent.productAccessEnabled
-                        && productRequest.isProductTurn
-                        && !productRequest.includeProductCards
-                        && !productRequest.resetProductContext
-                        && !productRequest.comparisonConsult
-                        && (productRequest.subjectSwitchTerms?.length ?? 0) === 0
-                        && lastCardIds.length === 1
-                        ? lastCardIds[0]
-                        : null
                 // «خیلی گرونه، ارزون‌ترش چی دارید؟»: measure alternatives against the
                 // item under discussion; the search itself applies the price ceiling.
-                const cheaperReferenceId = productsRouted
-                        ? route.cheaperReferenceId
-                        : workingState.activeEntity?.id ?? lastCardIds[0] ?? workingState.candidateEntityIds[0] ?? null
+                const cheaperReferenceId = route?.cheaperReferenceId ?? null
                 if (productRequest.cheaperAlternative && agent.productAccessEnabled) {
                         const [reference] = cheaperReferenceId
                                 ? await fetchCatalogProductsByIds(agent.id, [cheaperReferenceId]).catch(() => [])
@@ -986,7 +704,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 follow: agent.orderUpdatesEnabled
                                         ? { agentId: agent.id, conversationId, channel: params.channel }
                                         : null,
-                                understood: routed('tracking') && route ? { tracking: route.orderTracking } : null,
+                                understood: { tracking: route?.orderTracking ?? null },
                         }),
                         // Category overview keeps browse-turn consulting factual.
                         agent.productAccessEnabled && productRequest.discoveryBrowse
@@ -994,10 +712,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 : Promise.resolve([] as string[]),
                 ])
                 let catalogProducts = fetchedCatalogProducts
-                if (anchorProductId) {
-                        const anchored = await fetchCatalogProductsByIds(agent.id, [anchorProductId]).catch(() => [])
-                        if (anchored.length) catalogProducts = anchored
-                }
                 // A described product the strict search did not find: one broader
                 // deterministic search (synonyms are already in the terms) before
                 // any «not found» — no planner call on the understanding path.
@@ -1083,7 +797,6 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 })
                         : null
                 try {
-                        const restockRouted = routed('restock') && route !== null
                         const restock = await resolveRestockTurn({
                                 enabled: restockEnabled,
                                 workspaceId,
@@ -1096,19 +809,15 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 lang: commerceLang,
                                 lastAssistantText,
                                 catalogProducts,
-                                activeEntityId: restockRouted && route.restock?.targetId ? route.restock.targetId : activeProductId,
+                                activeEntityId: route?.restock?.targetId ?? activeProductId,
                                 cartHold: agent.cartHoldEnabled === true,
-                                ...(restockRouted ? { requestOverride: route.restock?.request ?? null } : {}),
+                                request: route?.restock?.request ?? null,
                         })
                         if (restock.kind === 'reply') {
                                 commerceTurn = { kind: 'reply', text: restock.text }
                         } else if (agent.orderCaptureEnabled && agent.productAccessEnabled) {
-                                const ordersRouted = routed('orders') && route !== null
                                 const order = await resolveOrderCaptureTurn({
                                         checkout: checkoutContext,
-                                        // The understanding layer already resolved cart edits;
-                                        // the legacy planner runs only on the fallback path.
-                                        cartPlanner: ordersRouted ? null : { ledger },
                                         enabled: true,
                                         workspaceId,
                                         agentId: agent.id,
@@ -1129,7 +838,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                         }),
                                         restockEnabled,
                                         cartHold: agent.cartHoldEnabled === true,
-                                        ...(ordersRouted ? { signals: route.orderSignals } : {}),
+                                        signals: route?.orderSignals ?? emptyOrderSignals(),
                                 })
                                 if (order.kind === 'reply') commerceTurn = { kind: 'reply', text: order.text }
                                 else if (order.kind === 'submit') commerceTurn = order
@@ -1152,52 +861,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         await rememberRestockOffer(conversationId, unavailableItemsFromCatalog(catalogProducts))
                                 .catch((error) => captureError('chat-engine:restock-offer', error, { workspaceId }))
                 }
-                // ── Function-calling catalog search (legacy router only) ──────
-                // Budgets, superlatives and empty lexical results where the regex
-                // planner is weakest; the understanding path carries them already.
-                if (!productsRouted && commerceTurn.kind === 'none') {
-                        catalogToolReason = catalogToolGate({
-                                message,
-                                plan: productRequest,
-                                catalogProducts,
-                                productAccessEnabled: agent.productAccessEnabled,
-                                hasActiveProduct: Boolean(activeProductId),
-                        })
-                        if (catalogToolReason) {
-                                const searchPlan = await planCatalogSearch({
-                                        vocabulary: searchVocabulary,
-                                        agentId: agent.id,
-                                        workspaceId,
-                                        conversationId,
-                                        message,
-                                        history: modelHistory,
-                                        reason: catalogToolReason,
-                                        isFa: turnLang !== 'en',
-                                        ledger,
-                                }).catch((error) => {
-                                        captureError('chat-engine:catalog-search-plan', error, {
-                                                workspaceId,
-                                                metadata: { agentId: agent.id, conversationId },
-                                        })
-                                        return null
-                                })
-                                if (searchPlan) {
-                                        catalogProducts = searchPlan.products
-                                        catalogSearchInstruction = searchPlan.instruction
-                                        productRequest = {
-                                                ...productRequest,
-                                                isProductTurn: true,
-                                                explicitShowcase: false,
-                                                discoveryBrowse: false,
-                                                unavailableMatch: false,
-                                                includeProductCards: searchPlan.products.length > 0,
-                                        }
-                                        workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
-                                } else {
-                                        catalogToolReason = null
-                                }
-                        }
-                } else if (productsRouted && catalogToolReason && catalogProducts.length) {
+                if (productsRouted && catalogToolReason && catalogProducts.length) {
                         productRequest = {
                                 ...productRequest,
                                 isProductTurn: true,
@@ -1209,29 +873,15 @@ async function prepareTurn(params: StartChatParams): Promise<
                         workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
                 }
 
-                const historyPlan = historyPlanForTurn(productRequest, {
-                        understandingFailed: understanding.outcome?.ok === false,
-                        explicitReset: legacyPlan.requestNewTopic,
-                })
-                const turnHistory = historyForProductTurn(modelHistory, historyPlan)
-                const turnPlanningHistory = historyForProductTurn(planningHistory, historyPlan)
+                const turnHistory = historyForProductTurn(modelHistory, productRequest)
+                const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
                 // A booking/course dialog continues on short answers («شنبه ساعت ۵»)
                 // to the agent's own question, even when the answer alone reads
                 // as nothing in particular.
                 const continuesTask = (intent: 'BOOKING' | 'SERVICE') => loadedState.state.activeGoal?.intent === intent
                         && ['ANSWER', 'REFINEMENT', 'CORRECTION', 'REFERENCE'].includes(workingState.lastTurn?.relation ?? '')
-                const bookingIntent = routed('bookings') && route
-                        ? route.booking !== null || continuesTask('BOOKING')
-                        : readingFailed ? continuesTask('BOOKING') : hasBookingIntent([
-                                ...planningHistory,
-                                { role: 'user', content: message },
-                        ])
-                const courseIntent = routed('courses') && route
-                        ? route.course !== null || continuesTask('SERVICE')
-                        : readingFailed ? continuesTask('SERVICE') : hasCourseIntent([
-                                ...planningHistory,
-                                { role: 'user', content: message },
-                        ])
+                const bookingIntent = Boolean(route?.booking) || continuesTask('BOOKING')
+                const courseIntent = Boolean(route?.course) || continuesTask('SERVICE')
                 const skillPlan = compileAgentSkillPlan({
                         language: turnLang,
                         userMessage: message,
@@ -1293,7 +943,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         messages[0].content = insertBeforeTurnMarker(messages[0].content ?? '', spellingNote)
                 }
                 // ── Turn brief: what the customer asked and what is resolved ──
-                if (route && understanding.outcome?.ok && understanding.mode.mode === 'on' && messages[0]?.role === 'system') {
+                if (route && understanding.outcome?.ok && messages[0]?.role === 'system') {
                         const brief = composeTurnBrief({
                                 route,
                                 refs: understanding.outcome.verified.refs,
@@ -1307,11 +957,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                         state: workingState,
                         historyLoaded: modelHistory.filter((item) => item.role !== 'system').length,
                         historySent: turnHistory.filter((item) => item.role !== 'system').length,
-                        resetReason: legacyPlan.requestNewTopic
+                        resetReason: productRequest.requestNewTopic
                                 ? 'EXPLICIT_RESET'
-                                : legacyPlan.resetProductContext || catalogStartedNewGoal
-                                        ? 'NEW_PRODUCT_SUBJECT'
-                                        : null,
+                                : productRequest.resetProductContext ? 'NEW_PRODUCT_SUBJECT' : null,
                         retrievalQuery,
                 })
                 understanding.finalize(routedDomains)
@@ -1344,13 +992,13 @@ async function prepareTurn(params: StartChatParams): Promise<
                         orderCaptureEnabled: agent.orderCaptureEnabled === true,
                         ledger,
                         understoodDomains: routedDomains,
-                        bookingHint: routed('bookings') && route?.booking ? route.booking.hint : undefined,
-                        bookingConfirmed: routed('bookings') && route?.booking
+                        bookingHint: route?.booking ? route.booking.hint : undefined,
+                        bookingConfirmed: route?.booking
                                 ? understanding.outcome?.ok === true && understanding.outcome.verified.answersPending
                                         && understanding.candidates?.pending?.kind === 'booking_confirm'
                                 : undefined,
-                        bookingIntentKnown: routed('bookings') && route !== null && bookingIntent,
-                        courseHint: routed('courses') && route?.course ? [route.course.action, route.course.hint].filter(Boolean).join(' ') : undefined,
+                        bookingIntentKnown: bookingIntent,
+                        courseHint: route?.course ? [route.course.action, route.course.hint].filter(Boolean).join(' ') : undefined,
                         discussedProducts: catalogProducts
                                 .filter((product) => product.fullTermMatch)
                                 .map((product) => ({ id: product.id, name: product.name })),

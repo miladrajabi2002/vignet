@@ -122,6 +122,7 @@ describe('skills detectors — tool failure investigator', () => {
         messageId: 'm20',
         content: 'فعلاً موجود نیست.',
         userContent: 'شومیز دارین؟',
+        userActs: ['product_search'],
         receipts: [{ kind: 'catalog_checked', count: 12 }],
       }),
     ], [])

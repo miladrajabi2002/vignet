@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planProductRequest, extractProductTerms, isNarrowedProductRequest } from '@/lib/ai/conversation'
+import { extractProductTerms } from '@/lib/ai/conversation'
 import { buildMessages } from '@/lib/ai/rag'
 import { showcaseIntroText } from '@/lib/products/presentation'
 import { handoffReplyText, type HandoffDecision } from '@/lib/ai/handoff'
@@ -18,46 +18,6 @@ import { allVariationsSoldOut } from '@/lib/ai/conversation'
  */
 const corpus = new Set(['میز', 'تلویزیون', 'نقش', 'نگار', 'آپادانا', 'لاهیجان', 'پاف', 'مراکشی', 'نیمکتی', 'ak-85'])
 
-describe('live regression — follow-ups keep the product the customer is talking about', () => {
-  const history = [
-    { role: 'user' as const, content: 'میز تلویزیون نقش طرح آپادانا سایز ۱۶۰ رو دارید؟' },
-    { role: 'assistant' as const, content: 'بله موجوده' },
-  ]
-
-  it('«قیمتش چنده؟» keeps a design name that is part of the product identity', () => {
-    // Before: «آپادانا» was dropped as a "variant" and the price of «لاهیجان» came back.
-    const plan = planProductRequest('قیمتش چنده؟', history, corpus)
-    expect(plan.searchTerms).toContain('آپادانا')
-    expect(plan.searchTerms).toContain('160')
-  })
-
-  it('still drops a true variant value that is not catalog identity', () => {
-    const plan = planProductRequest('پارچش چیه؟', [
-      { role: 'user', content: 'پیراهن شراره طرح شش' },
-      { role: 'assistant', content: 'طرح 10 و 11 موجودند.' },
-    ], new Set(['پیراهن', 'شراره']))
-    expect(plan.searchTerms).not.toContain('شش')
-  })
-
-  it('«ارزون‌ترش چی دارید؟» asks for cheaper alternatives in the same family, not a pair comparison', () => {
-    const plan = planProductRequest('اوه خیلی گرونه، ارزون‌ترش چی دارید؟', [
-      { role: 'user', content: 'میز تلویزیون نقش طرح آپادانا سایز ۱۹۰ قیمتش چنده؟' },
-      { role: 'assistant', content: '۳۹،۹۷۰،۰۰۰ تومان' },
-    ], corpus)
-    expect(plan.cheaperAlternative).toBe(true)
-    expect(plan.comparisonConsult).toBe(false)
-    expect(plan.isProductTurn).toBe(true)
-    expect(plan.searchTerms).toEqual(['میز', 'تلویزیون'])
-  })
-
-  it('«کدومش ارزون‌تره؟» remains a two-sided comparison', () => {
-    const plan = planProductRequest('کدومش ارزون‌تره؟', [
-      { role: 'user', content: 'بین میز جلومبلی نقش و نگار کدوم بهتره؟' },
-    ], corpus)
-    expect(plan.cheaperAlternative).toBe(false)
-  })
-})
-
 describe('live regression — conversational words never become required catalog terms', () => {
   it.each([
     ['پاف مراکشی کد AK-85 چه رنگ‌ها یا طرح‌هایی داره؟', 'داره'],
@@ -70,16 +30,6 @@ describe('live regression — conversational words never become required catalog
 
   it('keeps a real city-named design («طرح لاهیجان») as a term', () => {
     expect(extractProductTerms('میز عسلی طرح لاهیجان')).toContain('لاهیجان')
-  })
-})
-
-describe('live regression — showcase copy does not re-ask what the customer just said', () => {
-  it('drops the size/color question when the request already narrowed by size', () => {
-    const plan = planProductRequest('سایز ۱۲۰ هاش رو نشونم بده', [{ role: 'user', content: 'پاف نیمکتی دارید؟' }], corpus)
-    expect(isNarrowedProductRequest(plan)).toBe(true)
-    const intro = showcaseIntroText({ count: 6, subject: 'پاف نیمکتی', lang: 'fa', narrowed: true })
-    expect(intro.split('\n')).toHaveLength(1)
-    expect(intro).not.toMatch(/[؟?]/u)
   })
 })
 
@@ -220,25 +170,5 @@ describe('live regression — sold-out catalog request still shows the catalog h
     expect(intro).toContain('فعلاً همه ناموجودن')
     expect(intro).not.toMatch(/پیدا نکردم|پیدا نشد/u)
     expect(intro).not.toMatch(/خبرتون می‌کنم|اطلاع می‌دم/u)
-  })
-})
-
-describe('live regression — a size filter after a vitrine is a family showcase, not a single-product pick', () => {
-  it('«سایز ۱۲۰ هاش رو نشونم بده» after several cards stays a showcase', () => {
-    const history = [
-      { role: 'user' as const, content: 'پاف نیمکتی دارید؟' },
-      { role: 'assistant' as const, content: '۱۰ مدل داریم\n[[product:{"id":"p1","name":"پاف نیمکتی طرح کاشانه سایز 120"}]]\n[[product:{"id":"p2","name":"پاف نیمکتی طرح قمصر سایز 90"}]]' },
-    ]
-    const plan = planProductRequest('سایز ۱۲۰ هاش رو نشونم بده', history, corpus)
-    expect(plan.variantPick).toBe(false)
-    expect(plan.explicitShowcase).toBe(true)
-  })
-
-  it('«رنگ شکلاتی دارین؟» after ONE product card is still a variant pick', () => {
-    const history = [
-      { role: 'user' as const, content: 'تونیک روناز 0788' },
-      { role: 'assistant' as const, content: '[[product:{"id":"p1","name":"تونیک روناز 0788"}]]' },
-    ]
-    expect(planProductRequest('رنگ شکلاتی دارین؟', history).variantPick).toBe(true)
   })
 })

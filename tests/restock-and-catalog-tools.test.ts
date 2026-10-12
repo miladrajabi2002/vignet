@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  composeRestockConfirmed,
-  composeRestockNotice,
-  detectRestockRequest,
-  isItemAvailable,
-  restockDedupeKey,
-  restockMode,
-  restockOfferLine,
-} from '@/lib/commerce/restock'
-import { catalogToolGate, insertBeforeTurnMarker, parseBudget, PRICE_CONSTRAINT_RE, SUPERLATIVE_RE } from '@/lib/ai/catalog-tools'
-import { planProductRequest, type ProductRequestPlan } from '@/lib/ai/conversation'
+import { composeRestockConfirmed, composeRestockNotice, isItemAvailable, restockDedupeKey, restockMode, restockOfferLine } from '@/lib/commerce/restock'
+import { insertBeforeTurnMarker, parseBudget } from '@/lib/ai/catalog-tools'
 import { enforceActionCapabilities, enforceNoFalseFollowUp, actionCapabilityInstruction } from '@/lib/agent-kernel/skills/action-capabilities'
 import { showcaseIntroText } from '@/lib/products/presentation'
 import { buildMessages } from '@/lib/ai/rag'
@@ -33,31 +24,6 @@ describe('back-in-stock: where the promise can be kept', () => {
   it('the conditional offer survives the false-follow-up guard', () => {
     const line = restockOfferLine('direct', 'fa')!
     expect(enforceNoFalseFollowUp(`فعلاً ناموجوده. ${line}`, true)).toContain(line)
-  })
-})
-
-describe('back-in-stock: request detection', () => {
-  it.each([
-    'موجود شد خبرم کنید',
-    'هر وقت اومد بهم خبر بدید',
-    'اگه شارژ شد اطلاع بدید',
-    'خبرم کن',
-    'notify me when it is back',
-  ])('explicit: «%s»', (message) => {
-    expect(detectRestockRequest(message, null)).toBe('explicit')
-  })
-
-  it('a short yes counts only right after the agent’s offer', () => {
-    const offer = 'فعلاً ناموجوده؛ اگه بخواید، موجود که شد همین‌جا خبرتون می‌کنم'
-    expect(detectRestockRequest('آره لطفا', offer)).toBe('accept')
-    expect(detectRestockRequest('حتما', offer)).toBe('accept')
-    expect(detectRestockRequest('آره', 'قیمتش ۱۲ میلیونه')).toBeNull()
-    expect(detectRestockRequest('آره ولی رنگ دیگه‌ای هم دارید؟ میخوام مقایسه کنم', offer)).toBeNull()
-  })
-
-  it('plain stock questions are not alert requests', () => {
-    expect(detectRestockRequest('کی موجود میشه؟', null)).toBeNull()
-    expect(detectRestockRequest('موجوده؟', null)).toBeNull()
   })
 })
 
@@ -116,37 +82,6 @@ describe('back-in-stock offer reaches the model and the sold-out vitrine', () =>
 })
 
 describe('catalog tools gate', () => {
-  const plan = (message: string, overrides: Partial<ProductRequestPlan> = {}): ProductRequestPlan => ({
-    ...planProductRequest(message, []),
-    ...overrides,
-  })
-
-  it('price constraints and superlatives are recognised', () => {
-    expect(PRICE_CONSTRAINT_RE.test('میز تلویزیون زیر ۲۰ میلیون دارید؟'.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))))).toBe(true)
-    expect(PRICE_CONSTRAINT_RE.test('بودجه‌م 10 میلیونه')).toBe(true)
-    expect(PRICE_CONSTRAINT_RE.test('میز ۱۶۰ دارید؟')).toBe(false)
-    expect(SUPERLATIVE_RE.test('ارزون‌ترین میزتون کدومه')).toBe(true)
-    expect(SUPERLATIVE_RE.test('ارزون ترین پاف')).toBe(true)
-  })
-
-  it('opens on budgets, superlatives and empty searches only', () => {
-    const common = { productAccessEnabled: true, hasActiveProduct: false }
-    expect(catalogToolGate({ ...common, message: 'میز تلویزیون زیر 20 میلیون دارید؟', plan: plan('میز تلویزیون زیر 20 میلیون دارید؟'), catalogProducts: [] })).toBe('PRICE_CONSTRAINT')
-    expect(catalogToolGate({ ...common, message: 'ارزون‌ترین میز تلویزیون', plan: plan('ارزون‌ترین میز تلویزیون'), catalogProducts: [] })).toBe('SUPERLATIVE')
-    expect(catalogToolGate({ ...common, message: 'میز تلویزیون دارید؟', plan: plan('میز تلویزیون دارید؟'), catalogProducts: [] })).toBe('EMPTY_RESULT')
-    const row = { id: 'p', name: 'میز', description: null, price: 1, stock: 1, category: null, image: null, url: null, attributes: null, tags: [] }
-    expect(catalogToolGate({ ...common, message: 'میز تلویزیون دارید؟', plan: plan('میز تلویزیون دارید؟'), catalogProducts: [row] })).toBeNull()
-  })
-
-  it('keeps deterministic flows and the kill switch', () => {
-    const common = { productAccessEnabled: true, hasActiveProduct: true, catalogProducts: [] }
-    expect(catalogToolGate({ ...common, message: 'ارزون‌ترش چی دارید', plan: plan('ارزون‌ترش چی دارید', { cheaperAlternative: true }) })).toBeNull()
-    expect(catalogToolGate({ ...common, message: 'طرح 05', plan: plan('طرح 05', { variantPick: true }) })).toBeNull()
-    expect(catalogToolGate({ ...common, productAccessEnabled: false, message: 'زیر 20 میلیون', plan: plan('میز زیر 20 میلیون') })).toBeNull()
-    process.env.CATALOG_TOOLS_DISABLED = '1'
-    expect(catalogToolGate({ ...common, message: 'میز زیر 20 میلیون', plan: plan('میز زیر 20 میلیون') })).toBeNull()
-    delete process.env.CATALOG_TOOLS_DISABLED
-  })
 
   it('parses budgets in Toman, server-side', () => {
     expect(parseBudget('یه میز جلومبلی زیر ۱۰ میلیون میخوام')).toEqual({ maxPrice: 10_000_000, minPrice: null })

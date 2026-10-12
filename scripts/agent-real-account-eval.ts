@@ -4,7 +4,7 @@ import { applyPlatformModelPolicy, getPlatformAiConfig } from '@/lib/ai/platform
 import { resolveModelAlias, resolveModelId } from '@/lib/ai/models'
 import { resolveSystemPrompt, type PromptConfig } from '@/lib/ai/prompt-builder'
 import { buildMessages, type CatalogProduct } from '@/lib/ai/rag'
-import { planProductRequest } from '@/lib/ai/conversation'
+import { emptyProductPlan } from '@/lib/agent/turn/route'
 import { AGENT_MAX_RESPONSE_TOKENS, AGENT_RESPONSE_TEMPERATURE } from '@/lib/ai/agent-runtime'
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import { runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
@@ -79,7 +79,7 @@ async function complete(params: {
   products?: CatalogProduct[]
 }): Promise<{ answer: string; latencyMs: number }> {
   const startedAt = Date.now()
-  const productRequest = planProductRequest(params.question, [])
+  const productRequest = { ...emptyProductPlan(), isProductTurn: Boolean(params.products?.length) }
   const skillPlan = compileAgentSkillPlan({
     language: params.language,
     userMessage: params.question,

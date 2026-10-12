@@ -1,7 +1,6 @@
 /**
  * Turn-understanding evaluation runner.
  *
- *   npx tsx scripts/eval-understanding.ts --system legacy        # offline baseline (regex router)
  *   npx tsx -r dotenv/config scripts/eval-understanding.ts --system llm   # model reading (needs OPENROUTER_API_KEY)
  *   … --system both --model deepseek/deepseek-v4-flash --only G --label before
  *   … --system llm --sort latency     # score the reading under another provider routing
@@ -19,15 +18,22 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EVAL_CASES } from '../evals/understanding/cases'
 import type { EvalCase, EvalProduct } from '../evals/understanding/types'
-import { actDomain, legacyReading } from '@/lib/agent/understand/legacy-adapter'
 import { buildUnderstandMessages } from '@/lib/agent/understand/prompt'
 import { parseUnderstanding } from '@/lib/agent/understand/schema'
 import { verifyUnderstanding } from '@/lib/agent/understand/verify'
 import { tokenizeCatalogText } from '@/lib/ai/conversation'
-import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { Act, ActType, TurnCandidates, VerifiedUnderstanding } from '@/lib/agent/understand/types'
 
-type System = 'legacy' | 'llm'
+type System = 'llm'
+
+/** Domain bucket of an act: a case is routed right when the domains match. */
+function actDomain(act: ActType): string {
+  if (['product_search', 'product_question', 'variants', 'compare', 'cheaper_alternative'].includes(act)) return 'product'
+  if (['order_start', 'cart_edit', 'order_details', 'order_confirm', 'order_decline', 'order_cancel', 'payment_claim', 'payment_link_request', 'shipping_change'].includes(act)) return 'order'
+  if (['thanks', 'goodbye', 'defer'].includes(act)) return 'closing'
+  if (['policy_question', 'knowledge_question', 'other', 'smalltalk', 'greeting'].includes(act)) return 'general'
+  return act
+}
 
 interface CaseResult {
   id: string
@@ -154,25 +160,6 @@ export function score(c: EvalCase, predicted: ActType[], verified: VerifiedUnder
   }
 }
 
-function legacyRun(c: EvalCase): CaseResult {
-  const history: ChatMessage[] = (c.history ?? []).map((turn) => ({ role: turn.role, content: turn.text }))
-  const capabilities = new Set(c.capabilities ?? [])
-  const reading = legacyReading({
-    message: c.message,
-    history,
-    hasDraft: (c.cart ?? []).length > 0,
-    capabilities: {
-      orderCapture: capabilities.has('order_capture'),
-      bookings: capabilities.has('bookings'),
-      courses: capabilities.has('courses'),
-      restock: capabilities.has('restock'),
-      tracking: capabilities.has('order_tracking'),
-    },
-  })
-  const predicted = reading.acts
-  return { id: c.id, tags: c.tags, message: c.message, ...score(c, predicted, null) }
-}
-
 /** The model's reply content, without a code fence around the JSON. */
 function jsonOf(content: string): string | null {
   const cleaned = content.replace(/```(?:json)?/gi, '').trim()
@@ -274,18 +261,15 @@ export function summarize(system: System, results: CaseResult[]) {
 }
 
 async function main() {
-  const system = (arg('system') ?? 'legacy') as System | 'both'
   const only = arg('only')
   const label = arg('label') ?? new Date().toISOString().slice(0, 10)
   const cases = EVAL_CASES.filter((c) => !only || c.id.startsWith(only) || c.tags.includes(only))
   const outDir = path.join(process.cwd(), 'evals', 'results')
   fs.mkdirSync(outDir, { recursive: true })
-  const systems: System[] = system === 'both' ? ['legacy', 'llm'] : [system]
+  const systems: System[] = ['llm']
   for (const current of systems) {
     let results: CaseResult[]
-    if (current === 'legacy') {
-      results = cases.map(legacyRun)
-    } else {
+    {
       const { economicalModel } = await import('@/lib/ai/llm/aux').catch(() => ({ economicalModel: null }))
       const model = arg('model') ?? (economicalModel ? await economicalModel().catch(() => 'deepseek/deepseek-v4-flash') : 'deepseek/deepseek-v4-flash')
       results = []

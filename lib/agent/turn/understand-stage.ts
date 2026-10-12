@@ -1,47 +1,27 @@
 /**
  * Turn stage «understand»: build the closed candidate list, read the message
- * with the understanding model, verify it, route it, and keep the legacy
- * router's reading next to it for agreement metrics.
+ * with the understanding model, verify the reading and turn it into routing.
  *
- * Returns routing that the engine applies per domain (mode.ts). Every failure
- * path returns `route: null`, so the engine keeps the legacy decision.
+ * Every turn of every agent is read. When the reading cannot be obtained the
+ * stage returns `route: null`, and the engine answers the turn as a plain
+ * conversation turn: nothing is read into the message by any other means.
  */
 import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { ChatAgent } from '@/lib/ai/chat-types'
-import type { ProductRequestPlan } from '@/lib/ai/conversation'
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 import type { TurnLedger } from '@/lib/ai/llm/aux'
 import type { TurnLanguage } from '@/lib/ai/turn-language'
 import { loadCartForUnderstanding } from '@/lib/commerce/order-service'
 import { buildTurnCandidates } from '@/lib/agent/understand/candidates'
-import { legacyReading, readingDiff, type LegacyReading } from '@/lib/agent/understand/legacy-adapter'
 import { writeUnderstandingLog } from '@/lib/agent/understand/log'
-import {
-  DEFAULT_UNDERSTANDING_CONFIG,
-  resolveUnderstandingMode,
-  routesFromUnderstanding,
-  type ResolvedUnderstandingMode,
-  type UnderstandingDomain,
-} from '@/lib/agent/understand/mode'
 import { understandTurn, type UnderstandOutcome } from '@/lib/agent/understand/understand'
 import { routeFromUnderstanding, type UnderstoodRoute } from '@/lib/agent/turn/route'
 import type { Capability, TurnCandidates } from '@/lib/agent/understand/types'
 
 export interface UnderstandingStage {
-  mode: ResolvedUnderstandingMode
   outcome: UnderstandOutcome | null
   route: UnderstoodRoute | null
   candidates: TurnCandidates | null
-  legacy: LegacyReading | null
-  /**
-   * The reading was attempted and could not be obtained. Such a turn is not
-   * handed to the regex router: the model answers it as a plain conversation
-   * turn. (An operator who switched the layer off chose the legacy path, so
-   * «off», «shadow» and the DISABLED stop are not failures.)
-   */
-  readingFailed: boolean
-  /** Does this domain take the model reading on this turn? */
-  routes(domain: UnderstandingDomain): boolean
   /** Write the per-turn log once the engine knows what it routed. */
   finalize(routedDomains: string[]): void
 }
@@ -54,19 +34,14 @@ export interface UnderstandingStageInput {
   message: string
   /** Model-facing history (current session + cross-channel context). */
   history: ChatMessage[]
-  /** History used by the regex planner (for the legacy reading). */
-  planningHistory: ChatMessage[]
   state: ConversationWorkingState
   capabilityGates?: { products?: boolean; bookings?: boolean; courses?: boolean }
   serviceNames: string[]
   corpusTokens?: ReadonlySet<string> | null
   /** Identity plus attribute/variation words: what a verified search term may be. */
   searchVocabulary?: ReadonlySet<string> | null
-  legacyPlan: ProductRequestPlan
   ledger?: TurnLedger | null
   turnLang: TurnLanguage
-  /** A deterministic fast path already answers this turn (closing / greeting). */
-  skip?: boolean
 }
 
 export function agentCapabilities(input: Pick<UnderstandingStageInput, 'agent' | 'capabilityGates' | 'serviceNames'>): Capability[] {
@@ -83,118 +58,73 @@ export function agentCapabilities(input: Pick<UnderstandingStageInput, 'agent' |
   return capabilities
 }
 
-/**
- * Capabilities whose turns the understanding layer routes: products, cart and
- * orders, tracking, restock alerts, bookings and courses. An agent with none
- * of them answers every turn from its knowledge base, so the reading would
- * only add its latency and cost to a reply the knowledge path writes anyway
- * (measured on live traffic: +3.7 s per turn). Handoff alone does not need
- * the model: the keyword handoff policy runs on every turn regardless.
- */
-const ROUTED_CAPABILITIES: readonly Capability[] = ['products', 'order_capture', 'restock', 'order_tracking', 'bookings', 'courses']
-
-export function needsUnderstanding(capabilities: readonly Capability[]): boolean {
-  return capabilities.some((capability) => ROUTED_CAPABILITIES.includes(capability))
-}
-
 export async function runUnderstandingStage(input: UnderstandingStageInput): Promise<UnderstandingStage> {
-  const mode = await resolveUnderstandingMode(input.workspaceId).catch(() => ({ mode: 'off' as const, domains: {} as ResolvedUnderstandingMode['domains'], timeoutMs: DEFAULT_UNDERSTANDING_CONFIG.timeoutMs }))
   let outcome: UnderstandOutcome | null = null
   let route: UnderstoodRoute | null = null
   let candidates: TurnCandidates | null = null
-  let legacy: LegacyReading | null = null
-  let skipped = false
 
-  if (mode.mode !== 'off' && input.message.trim()) {
+  // A message with no text (a bare photo or voice note) has nothing to read.
+  if (input.message.trim()) {
     const capabilities = agentCapabilities(input)
     const cart = capabilities.includes('order_capture')
       ? await loadCartForUnderstanding(input.conversationId).catch(() => null)
       : null
-    legacy = legacyReading({
-      message: input.message,
-      history: input.planningHistory,
-      plan: input.legacyPlan,
-      hasDraft: Boolean(cart && !cart.openCheckout),
-      capabilities: {
-        orderCapture: capabilities.includes('order_capture'),
-        bookings: capabilities.includes('bookings'),
-        courses: capabilities.includes('courses'),
-        restock: capabilities.includes('restock'),
-        tracking: capabilities.includes('order_tracking'),
-      },
-    })
-    if (input.skip || !needsUnderstanding(capabilities)) {
-      skipped = true
-    } else {
-      candidates = await buildTurnCandidates({
-        agentId: input.agent.id,
+    candidates = await buildTurnCandidates({
+      agentId: input.agent.id,
+      workspaceId: input.workspaceId,
+      history: input.history,
+      state: input.state,
+      capabilities,
+      serviceNames: input.serviceNames,
+      coursesEnabled: capabilities.includes('courses'),
+      vocabulary: input.corpusTokens ?? null,
+      draft: cart ? { status: cart.status, expecting: cart.expecting, items: cart.items } : null,
+      openCheckout: cart?.openCheckout ? { expecting: cart.expecting } : null,
+    }).catch(() => null)
+    if (candidates) {
+      const recent = input.history
+        .filter((item): item is ChatMessage & { role: 'user' | 'assistant' } => item.role === 'user' || item.role === 'assistant')
+        .slice(-6)
+        .map((item) => ({ role: item.role, content: item.content }))
+      outcome = await understandTurn({
         workspaceId: input.workspaceId,
-        history: input.history,
-        state: input.state,
-        capabilities,
-        serviceNames: input.serviceNames,
-        coursesEnabled: capabilities.includes('courses'),
-        vocabulary: input.corpusTokens ?? null,
-        draft: cart ? { status: cart.status, expecting: cart.expecting, items: cart.items } : null,
-        openCheckout: cart?.openCheckout ? { expecting: cart.expecting } : null,
-      }).catch(() => null)
-      if (candidates) {
-        const recent = input.history
-          .filter((item): item is ChatMessage & { role: 'user' | 'assistant' } => item.role === 'user' || item.role === 'assistant')
-          .slice(-6)
-          .map((item) => ({ role: item.role, content: item.content }))
-        outcome = await understandTurn({
-          workspaceId: input.workspaceId,
-          agentId: input.agent.id,
-          conversationId: input.conversationId,
-          message: input.message,
-          recent,
+        agentId: input.agent.id,
+        conversationId: input.conversationId,
+        message: input.message,
+        recent,
+        candidates,
+        vocabulary: input.searchVocabulary ?? input.corpusTokens ?? null,
+        ledger: input.ledger,
+      })
+      if (outcome.ok) {
+        route = routeFromUnderstanding({
+          verified: outcome.verified,
           candidates,
-          vocabulary: input.searchVocabulary ?? input.corpusTokens ?? null,
-          ledger: input.ledger,
-          timeoutMs: mode.timeoutMs,
+          message: input.message,
+          state: input.state,
+          corpusTokens: input.corpusTokens ?? null,
+          lang: input.turnLang === 'en' ? 'en' : input.turnLang === 'ar' ? 'ar' : 'fa',
         })
-        if (outcome.ok) {
-          route = routeFromUnderstanding({
-            verified: outcome.verified,
-            candidates,
-            message: input.message,
-            state: input.state,
-            corpusTokens: input.corpusTokens ?? null,
-            lang: input.turnLang === 'en' ? 'en' : input.turnLang === 'ar' ? 'ar' : 'fa',
-          })
-        }
       }
     }
   }
 
   let logged = false
-  const stage: UnderstandingStage = {
-    mode,
+  return {
     outcome,
     route,
     candidates,
-    legacy,
-    readingFailed: mode.mode === 'on' && outcome !== null && !outcome.ok && outcome.errorCode !== 'DISABLED',
-    routes: (domain) => route !== null && routesFromUnderstanding(mode, domain),
     finalize: (routedDomains) => {
-      if (logged || mode.mode === 'off') return
+      if (logged) return
       logged = true
-      const diff = outcome?.ok && legacy ? readingDiff(outcome.verified, legacy) : null
       writeUnderstandingLog({
         workspaceId: input.workspaceId,
         agentId: input.agent.id,
         conversationId: input.conversationId,
         messageId: input.inboundMessageId,
-        mode: mode.mode,
         outcome,
-        legacy,
-        diffKinds: diff?.diffKinds ?? [],
-        agreed: diff ? diff.agreed : null,
         routedDomains,
-        ...(skipped ? { status: 'skipped' as const } : {}),
       })
     },
   }
-  return stage
 }

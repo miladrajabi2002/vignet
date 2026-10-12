@@ -171,17 +171,19 @@ async function receiptTurns(since: Date): Promise<ReceiptTurnInput[]> {
     LIMIT ${MAX_RECEIPT_MESSAGES}`
   if (!rows.length) return []
   const conversationIds = [...new Set(rows.map((r) => r.conversationId))]
-  const userRows = await prisma.$queryRaw<Array<{ id: string; conversationId: string; createdAt: Date; content: string }>>`
-    SELECT m.id, m."conversationId", m."createdAt", LEFT(m.content, 300) AS content
+  const userRows = await prisma.$queryRaw<Array<{ id: string; conversationId: string; createdAt: Date; content: string; acts: unknown }>>`
+    SELECT m.id, m."conversationId", m."createdAt", LEFT(m.content, 300) AS content,
+           m.metadata->'understanding'->'acts' AS acts
     FROM "Message" m
     WHERE m.role = 'USER' AND m."createdAt" > (${since} AT TIME ZONE 'UTC')
       AND m."conversationId" IN (${Prisma.join(conversationIds)})
     ORDER BY m."createdAt" ASC
     LIMIT ${MAX_PAIRING_USER_MESSAGES}`
-  const byConversation = new Map<string, Array<{ id: string; createdAt: Date; content: string }>>()
+  const byConversation = new Map<string, Array<{ id: string; createdAt: Date; content: string; acts: string[] }>>()
   for (const row of userRows) {
     const list = byConversation.get(row.conversationId) ?? []
-    list.push({ id: row.id, createdAt: row.createdAt, content: row.content })
+    const acts = Array.isArray(row.acts) ? row.acts.filter((act): act is string => typeof act === 'string') : []
+    list.push({ id: row.id, createdAt: row.createdAt, content: row.content, acts })
     byConversation.set(row.conversationId, list)
   }
   return rows.map((row) => {
@@ -196,6 +198,7 @@ async function receiptTurns(since: Date): Promise<ReceiptTurnInput[]> {
       content: row.content ?? '',
       receipts: parseReceipts(row.receipts),
       userContent: preceding?.content,
+      userActs: preceding?.acts,
     }
   })
 }

@@ -1,11 +1,11 @@
 /**
  * Ratchet on Persian regex literals in production code.
  *
- * Meaning comes from the turn-understanding layer; the legacy regex router is
- * kept only as the fallback for turns without a usable reading. Its regexes
- * may be deleted but never added: every file has a budget (its count when the
- * understanding layer landed) and a file outside the list has a budget of
- * zero. Shape-certain parsers (digits, phone, postal code, dates, evidence
+ * Meaning comes from the turn-understanding layer and from nothing else: the
+ * regex router is gone, and a turn without a reading is answered as a plain
+ * conversation turn. What remains are reply guards, shape parsers and text
+ * normalisers; they may be deleted but never added: every file has a budget
+ * (its current count) and a file outside the list has a budget of zero. Shape-certain parsers (digits, phone, postal code, dates, evidence
  * checks) belong in lib/agent/parsers/ and are outside the budget.
  *
  * When you remove regexes, lower the file's number in

@@ -1,7 +1,5 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { planProductRequest, type ProductRequestPlan } from '@/lib/ai/conversation'
-import type { ChatMessage } from '@/lib/ai/openrouter'
 import { loadConversationSession, sessionMessageWhere } from '@/lib/conversations/session-store'
 
 /**
@@ -148,25 +146,6 @@ export interface ConversationStateTrace {
   guardCodes: string[]
 }
 
-type ProductPlanLike = Pick<
-  ProductRequestPlan,
-  | 'isProductTurn'
-  | 'explicitShowcase'
-  | 'discoveryBrowse'
-  | 'resetProductContext'
-  | 'requestNewTopic'
-  | 'requestedCount'
-  | 'searchTerms'
-  | 'subjectSwitchTerms'
-  | 'inventoryMode'
-  | 'codeIdentified'
-  | 'variantBrowse'
-  | 'variantHint'
-  | 'variantPick'
-  | 'variantTargetRefs'
-  | 'codeVariantVitrine'
->
-
 type TranscriptRow = {
   id: string
   role: string
@@ -184,37 +163,6 @@ const MAX_SHOWCASE = 10
 const REPLAY_BATCH = 240
 const PENDING_KINDS: readonly PendingStateKind[] = [
   'confirm_order_summary', 'confirm_cancel', 'order_offer', 'restock_offer', 'showcase_offer', 'booking_confirm', 'ask_slot', 'ask_choice',
-]
-
-const GREETING_RE = /^(?:(?:سلام|درود|وقت(?:تون|تان)?\s*(?:بخیر|خوش)|صبح\s*بخیر|عصر\s*بخیر|شب\s*بخیر|hi|hello|hey|good\s+(?:morning|afternoon|evening))[\s!,.،؟?]*)+$/iu
-const CLOSING_RE = /^(?:ممنون|مرسی|سپاس|تشکر|خداحافظ|فعلا|فعلاً|دستت\s*درد\s*نکنه|نه\s*ممنون|thanks?|thank\s+you|bye|goodbye)[\s!,.،؟?]*$/iu
-const RESET_RE = /(?:بی\s*خیال|فراموش\s*(?:کن|کنید|کنین)|از\s*اول\s*(?:شروع|بپرس)|درخواست\s*جدید|موضوع\s*جدید|never\s*mind|forget\s+(?:it|that|the\s+previous)|start\s*over|new\s*(?:request|topic))/iu
-const CORRECTION_RE = /(?:(?:^|[^\p{L}])نه(?:[،,\s]|$)|منظورم|اشتباه|درستش|اصلاح|گفتم|فراموش|wrong|not\s+that|i\s+meant|correction)/iu
-const REFERENCE_RE = /(?:کدومش|کدامش|این\s*(?:مدل|محصول|مورد|یکی|دوتا)|اون|آن|همین|همون|همان|قبلی|اولی|دومی|جفتشون|قیمتش|رنگش|سایزش|لینکش|which\s+one|this\s+(?:one|model|product)|that\s+one|same\s+one|previous)/iu
-const ORDER_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|تحویل\s*سفارش|کد\s*پیگیری|order|tracking|shipment)/iu
-const BOOKING_RE = /(?:نوبت|رزرو|وقت\s*(?:بگیر|می\s*خوا|خالی|آزاد|مشاوره|ویزیت|بد[هی]|دهی)|appointment|booking|reserve)/iu
-const SERVICE_RE = /(?:خدمت|خدمات|سرویس|مشاوره|تعمیر|نصب|آموزش|دوره|کلاس|کاشت|ترمیم|مانیکور|پدیکور|فیشیال|ماساژ|ویزیت|درمان|طراحی|حسابداری|حقوقی|service|consultation|repair|installation|course|class|treatment|design|accounting|legal)/iu
-const BUSINESS_INFO_RE = /(?:آدرس|نشانی|ساعت\s*کاری|شماره\s*(?:تماس|تلفن)|ارسال\s*رایگان|هزینه\s*ارسال|روش\s*پرداخت|گارانتی|مرجوعی|آ?ماده\s*سازی|زمان\s*(?:آماده|ارسال|تحویل|تولید)|چقدر\s*طول|طول\s*(?:می\s*)?کشه|میکشه|چند\s*(?:روز|هفته)|address|business\s*hours|phone|shipping|payment\s*method|warranty|return\s*policy|lead\s*time|delivery\s*time)/iu
-const SUPPORT_RE = /(?:مشکل|خراب|شکست|پاره|کار\s*نمی|خطا|ارور|بازگشت\s*وجه|مرجوع|پشتیبانی|problem|broken|error|refund|support)/iu
-const SHOPPING_RE = /(?:محصول|کالا|خرید|قیمت|موجود|مدل|رنگ|سایز|جنس|پارچه|می\s*(?:خوام|خواهم)|میخوام|دنبال|لازم\s*دارم|product|catalog|price|buy|in\s*stock|looking\s+for|i\s+(?:want|need))/iu
-
-const SLOT_PATTERNS: Array<[string, RegExp]> = [
-  ['style', /(?:مدرن|کلاسیک|مینیمال|سنتی|اسپرت|رسمی|کژوال|modern|classic|minimal|traditional|sporty|formal|casual)/iu],
-  ['color', /(?:مشکی|سفید|سبز|آبی|ابی|قرمز|زرد|صورتی|بنفش|نارنجی|طوسی|خاکستری|کرم|قهوه\s*ای|طلایی|نقره\s*ای|black|white|green|blue|red|yellow|pink|purple|orange|gray|grey|cream|brown|gold|silver)/iu],
-  ['size', /(?:سایز|اندازه|ابعاد|متراژ|(?:^|[^\p{L}\p{N}])قد(?:$|[^\p{L}\p{N}])|دور\s*(?:سینه|کمر|باسن)|size|dimensions?|measurement|length|area)/iu],
-  ['budget', /(?:بودجه|تومان|تومن|ریال|میلیارد|میلیون|هزار|budget|price\s*range|billion|million|dollar|usd)/iu],
-  ['location', /(?:شهر|منطقه|محله|استان|آدرس|تهران|کرج|مشهد|شیراز|اصفهان|تبریز|قم|location|city|district|address)/iu],
-  // Payment method is order-intake information the operator explicitly asks
-  // for («شهر مقصد و روش پرداخت (نقدی یا اعتباری) رو بگید»). Capturing it as
-  // a slot keeps the reply from re-asking and keeps the collected state
-  // visible to the model on later turns.
-  ['payment', /(?:نقدی|قسطی|اقساط|اعتباری|اسنپ\s*پی|دیجی\s*پی|کارت\s*به\s*کارت|پرداخت\s*(?:نقدی|قسطی|آنلاین|اعتباری)|cash|installment)/iu],
-  ['date', /(?:امروز|فردا|پس\s*فردا|شنبه|یکشنبه|دوشنبه|سه\s*شنبه|چهارشنبه|پنجشنبه|جمعه|تاریخ|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|date)/iu],
-  ['time', /(?:صبح|ظهر|عصر|شب|ساعت|بازه\s*زمانی|morning|afternoon|evening|night|time)/iu],
-  ['quantity', /(?:تعداد|عدد|دونه|چند\s*تا|quantity|pieces?|items?)/iu],
-  ['material', /(?:جنس|پارچه|متریال|چوب|فلز|چرم|نخ|پنبه|material|fabric|wood|metal|leather|cotton)/iu],
-  ['use_case', /(?:برای\s+|کاربرد|استفاده|مهمونی|مهمانی|محل\s*کار|روزمره|هدیه|use\s*case|for\s+work|daily|gift)/iu],
-  ['product_code', /(?:(?:کد|شناسه)(?:\s*(?:محصول|کالا))?|sku)\s*[:：#-]?\s*[\p{L}\p{N}_-]+/iu],
 ]
 
 const QUESTION_SLOT_PATTERNS: Array<[string, RegExp]> = [
@@ -470,31 +418,6 @@ export function parseConversationWorkingState(value: unknown, sessionStartId = '
   return state
 }
 
-function matchesKnownService(message: string, names: string[]): boolean {
-  const haystack = normalize(message).toLocaleLowerCase('fa')
-  return names.some((name) => {
-    const normalizedName = normalize(name).toLocaleLowerCase('fa')
-    if (normalizedName.length >= 2 && haystack.includes(normalizedName)) return true
-    const meaningful = genericAnchors(normalizedName).filter((token) => token.length >= 3)
-    return meaningful.length > 0 && meaningful.every((token) => haystack.includes(token))
-  })
-}
-
-function detectIntent(
-  message: string,
-  productPlan?: ProductPlanLike,
-  knownServiceNames: string[] = [],
-): ConversationIntent {
-  const normalized = normalize(message)
-  if (ORDER_RE.test(normalized)) return 'ORDER'
-  if (BOOKING_RE.test(normalized)) return 'BOOKING'
-  if (BUSINESS_INFO_RE.test(normalized)) return 'BUSINESS_INFO'
-  if (SUPPORT_RE.test(normalized)) return 'SUPPORT'
-  if (matchesKnownService(normalized, knownServiceNames) || SERVICE_RE.test(normalized)) return 'SERVICE'
-  if (productPlan?.isProductTurn || SHOPPING_RE.test(normalized)) return 'PRODUCT'
-  return 'GENERAL'
-}
-
 export function detectConversationQuestionSlot(question: string): string {
   for (const [key, pattern] of QUESTION_SLOT_PATTERNS) {
     if (pattern.test(question)) return key
@@ -516,97 +439,11 @@ function extractLastQuestion(reply: string): string | null {
     : null
 }
 
-function normalizeSlotValue(key: string, message: string): string {
-  let value = bounded(normalize(message), MAX_GOAL_CHARS)
-  if (key === 'style') {
-    const match = value.match(/مدرن|کلاسیک|مینیمال|سنتی|اسپرت|رسمی|کژوال|modern|classic|minimal|traditional|sporty|formal|casual/iu)?.[0]
-    if (match) value = match
-    value = value.replace(/(?:ه|است)$/u, '')
-  }
-  if (key === 'color') {
-    const match = value.match(SLOT_PATTERNS.find(([slot]) => slot === 'color')?.[1] ?? /$^/u)?.[0]
-    if (match) value = match
-  }
-  return bounded(value, MAX_GOAL_CHARS)
-}
-
-function matchesQuestionSlot(key: string, message: string): boolean {
-  if (key === 'answer' || key === 'product' || key === 'service' || key === 'order_number') return true
-  const pattern = SLOT_PATTERNS.find(([slot]) => slot === key)?.[1]
-  if (pattern?.test(message)) return true
-  const normalized = normalize(message)
-  if (key === 'size' && /^(?:\d{1,4}|x?s|[smlx]{1,3}|فری|کوچک|متوسط|بزرگ)$/iu.test(normalized)) return true
-  if ((key === 'budget' || key === 'quantity') && /\d/u.test(normalized)) return true
-  if (key === 'date' && /\d{1,4}[/-]\d{1,2}/u.test(normalized)) return true
-  if (key === 'time' && /\d{1,2}(?::\d{2})?/u.test(normalized)) return true
-  // Vertical vocabularies are open-ended: a city can be «رشت», a style can
-  // be «بوهو» and a material can be a new trade name. A short declarative
-  // answer is therefore accepted when it does not explicitly look like a
-  // different typed slot or a new task. This preserves open-world coverage
-  // without treating «برای مبل سبز» as the answer to «چه سبکی؟».
-  const explicitKeys = Object.keys(explicitSlots(normalized, '__probe__'))
-  if (explicitKeys.length > 0 && !explicitKeys.includes(key)) return false
-  if (/[؟?]/u.test(normalized) || normalized.split(/\s+/u).length > 10 || normalized.length > 100) return false
-  if (BUSINESS_INFO_RE.test(normalized) || ORDER_RE.test(normalized) || SUPPORT_RE.test(normalized)) return false
-  if (key !== 'service' && (BOOKING_RE.test(normalized) || SERVICE_RE.test(normalized))) return false
-  return normalized.length > 0
-}
-
-function explicitSlots(message: string, messageId: string): Record<string, ConversationStateFact> {
-  const slots: Record<string, ConversationStateFact> = {}
-  for (const [key, pattern] of SLOT_PATTERNS) {
-    if (!pattern.test(message)) continue
-    const value = normalizeSlotValue(key, message)
-    slots[key] = {
-      value,
-      normalizedValue: normalize(value).toLocaleLowerCase('fa'),
-      sourceMessageId: messageId,
-      confidence: 'EXPLICIT',
-    }
-  }
-  return slots
-}
-
 function entityType(intent: ConversationIntent): NonNullable<ConversationWorkingState['activeEntity']>['type'] {
   if (intent === 'PRODUCT') return 'PRODUCT'
   if (intent === 'SERVICE' || intent === 'BOOKING') return 'SERVICE'
   if (intent === 'ORDER') return 'ORDER'
   return 'OTHER'
-}
-
-function shouldReplaceGoal(
-  state: ConversationWorkingState,
-  intent: ConversationIntent,
-  productPlan?: ProductPlanLike,
-): boolean {
-  if (!state.activeGoal) return true
-  if (productPlan?.resetProductContext && productPlan.isProductTurn) return true
-  if (intent === 'BUSINESS_INFO') return false
-  if (intent === 'GENERAL') return false
-  if (intent === state.activeGoal.intent) {
-    // «میز تلویزیون ۱۶۰ می‌خوام» after a «میز عسلی» goal: sibling product
-    // families share the head noun but name a DIFFERENT subject. Fresh
-    // non-attribute terms that the current anchors do not carry prove a real
-    // product switch, so the goal and anchors must restart — accumulating
-    // them forever once made every later catalog search fail closed with
-    // «محصول پیدا نشد» even though the product existed in the catalog.
-    if (intent === 'PRODUCT' && productPlan?.isProductTurn) {
-      const freshSubjectTerms = (productPlan.subjectSwitchTerms ?? [])
-        .filter((term) => term.length >= 3)
-      if (freshSubjectTerms.length > 0 && state.searchAnchors.length > 0) {
-        const carriesNewSubject = freshSubjectTerms.some((term) =>
-          !state.searchAnchors.some((anchor) =>
-            anchor === term
-            || (anchor.length >= 3 && term.includes(anchor))
-            || (term.length >= 3 && anchor.includes(term))))
-        if (carriesNewSubject) return true
-      }
-    }
-    return false
-  }
-  // A strong task transition is a new active objective. A later side policy
-  // question deliberately does not erase the shopping/service objective.
-  return ['ORDER', 'BOOKING', 'SERVICE', 'SUPPORT', 'PRODUCT'].includes(intent)
 }
 
 export function advanceConversationWorkingState(params: {
@@ -615,72 +452,37 @@ export function advanceConversationWorkingState(params: {
   message: string
   messageId: string
   createdAt: Date | string
-  productPlan?: ProductPlanLike
-  knownServiceNames?: string[]
-  /** The understanding layer's reading; replaces the regex classifier when set. */
-  understood?: UnderstoodTurnState | null
+  /** The verified reading of this turn; null when it could not be obtained. */
+  understood: UnderstoodTurnState | null
 }): ConversationWorkingState {
   if (params.understood) return advanceFromUnderstanding({ ...params, understood: params.understood })
-  let next = cloneState(params.state)
+  return advanceWithoutReading(params)
+}
+
+/**
+ * A turn without a reading: nothing is read into the message. The first
+ * message opens a general goal; a later one is kept as a detail of whatever
+ * is active, so the reply still sees it in context.
+ */
+function advanceWithoutReading(params: {
+  state: ConversationWorkingState
+  sessionStartId: string
+  message: string
+  messageId: string
+  createdAt: Date | string
+}): ConversationWorkingState {
+  const next = cloneState(params.state)
   // The agent's pending question/offer is consumed by this customer turn.
   if (next.pending) next.pending = null
   next.sessionStartId = params.sessionStartId || params.messageId
   const message = bounded(params.message, MAX_GOAL_CHARS)
-  const normalized = normalize(message)
-  const intent = detectIntent(message, params.productPlan, params.knownServiceNames)
   let relation: ConversationTurnRelation
-
-  const resetRequested = RESET_RE.test(normalized) || params.productPlan?.requestNewTopic
-  const textAfterReset = normalized.replace(RESET_RE, '').replace(/[،,:؛;.!؟?\s-]+/gu, ' ').trim()
-  const resetCarriesNewGoal = resetRequested
-    && textAfterReset.length >= 2
-    && intent !== 'GENERAL'
-    && !params.productPlan?.requestNewTopic
-  // Product memory survives a topic reset on this path too: «همون اولی» may come back.
-  const memory = next.discussedEntities
-  if (resetRequested && !resetCarriesNewGoal) {
-    const reset = createEmptyConversationWorkingState(next.sessionStartId)
-    reset.status = 'RESET'
-    if (memory) reset.discussedEntities = memory
-    reset.lastTurn = { relation: 'RESET', intent, sourceMessageId: params.messageId }
-    reset.throughId = params.messageId
-    reset.throughAt = new Date(params.createdAt).toISOString()
-    return reset
-  }
-  if (resetCarriesNewGoal) {
-    next = createEmptyConversationWorkingState(next.sessionStartId)
-    if (memory) next.discussedEntities = memory
-  }
-  const correctionRequested = CORRECTION_RE.test(normalized)
-  const correctionCarriesNewGoal = correctionRequested && Boolean(next.activeGoal) && (
-    Boolean(params.productPlan?.resetProductContext && params.productPlan.isProductTurn)
-    || (intent !== 'GENERAL' && intent !== 'BUSINESS_INFO' && intent !== next.activeGoal?.intent)
-  )
-  const lastQuestionCanAcceptAnswer = Boolean(
-    next.lastQuestion && next.activeGoal &&
-    // If the customer already named a concrete product, a later accidental
-    // «چه محصولی؟» restart must not relabel «مدرنه» as the product name.
-    !(next.lastQuestion.key === 'product'
-      && next.activeGoal.intent === 'PRODUCT'
-      && next.searchAnchors.length > 0) &&
-    matchesQuestionSlot(next.lastQuestion.key, message),
-  )
-  if (GREETING_RE.test(normalized)) relation = 'GREETING'
-  else if (CLOSING_RE.test(normalized)) relation = 'CLOSING'
-  else if (resetCarriesNewGoal || correctionCarriesNewGoal) relation = 'NEW_GOAL'
-  else if (correctionRequested) relation = 'CORRECTION'
-  else if (intent === 'BUSINESS_INFO' && next.activeGoal) relation = 'SIDE_QUESTION'
-  else if (shouldReplaceGoal(next, intent, params.productPlan)) relation = 'NEW_GOAL'
-  else if (lastQuestionCanAcceptAnswer) relation = 'ANSWER'
-  else if (REFERENCE_RE.test(normalized)) relation = 'REFERENCE'
-  else if (next.activeGoal) relation = 'REFINEMENT'
-  else relation = 'OTHER'
-
-  if (relation === 'NEW_GOAL') {
+  if (!next.activeGoal) {
+    relation = 'NEW_GOAL'
     next.status = 'ACTIVE'
-    next.activeGoal = { intent, label: message, sourceMessageId: params.messageId }
+    next.activeGoal = { intent: 'GENERAL', label: message, sourceMessageId: params.messageId }
     next.activeEntity = {
-      type: entityType(intent),
+      type: entityType('GENERAL'),
       id: null,
       label: message,
       sourceMessageId: params.messageId,
@@ -690,64 +492,22 @@ export function advanceConversationWorkingState(params: {
     next.slots = {}
     next.candidateEntityIds = []
     next.lastAnswer = null
-    next.searchAnchors = uniqueBounded(
-      params.productPlan?.isProductTurn && params.productPlan.searchTerms.length
-        ? params.productPlan.searchTerms
-        : genericAnchors(message),
-      MAX_ANCHORS,
-    )
-  } else if (relation === 'CLOSING') {
-    if (next.activeGoal) next.status = 'RESOLVED'
-  } else if (relation === 'SIDE_QUESTION') {
-    // A side policy question mid-goal can still carry order-intake facts
-    // («تهرانم، نقدی می‌خوام؛ آماده‌سازی و ارسالش چقدر طول می‌کشه؟») — capture
-    // the city/payment slots so the reply can acknowledge them and later
-    // turns never re-ask, WITHOUT merging anything into the product anchors.
-    if (next.activeGoal) next.status = 'ACTIVE'
-    Object.assign(next.slots, explicitSlots(message, params.messageId))
-  } else if (['REFINEMENT', 'ANSWER', 'REFERENCE', 'CORRECTION'].includes(relation)) {
-    if (next.activeGoal) next.status = 'ACTIVE'
+    next.searchAnchors = uniqueBounded(genericAnchors(message), MAX_ANCHORS)
+  } else {
+    relation = 'REFINEMENT'
+    next.status = 'ACTIVE'
     const fact: ConversationStateFact = {
       value: message,
-      normalizedValue: normalized.toLocaleLowerCase('fa'),
+      normalizedValue: normalize(message).toLocaleLowerCase('fa'),
       sourceMessageId: params.messageId,
-      confidence: relation === 'ANSWER' ? 'ANSWER_TO_QUESTION' : 'EXPLICIT',
+      confidence: 'EXPLICIT',
     }
     next.constraints = [
       ...next.constraints.filter((item) => item.normalizedValue !== fact.normalizedValue),
       fact,
     ].slice(-MAX_CONSTRAINTS)
-
-    if (relation === 'ANSWER' && next.lastQuestion) {
-      const key = next.lastQuestion.key
-      const answerValue = normalizeSlotValue(key, message)
-      next.slots[key] = {
-        value: answerValue,
-        normalizedValue: normalize(answerValue).toLocaleLowerCase('fa'),
-        sourceMessageId: params.messageId,
-        confidence: 'ANSWER_TO_QUESTION',
-      }
-      next.lastAnswer = {
-        key,
-        question: next.lastQuestion.text,
-        value: message,
-        sourceMessageId: params.messageId,
-      }
-      next.lastQuestion = null
-    }
-    Object.assign(next.slots, explicitSlots(message, params.messageId))
-    if (next.activeGoal?.intent === 'PRODUCT' && params.productPlan?.isProductTurn) {
-      // Current-subject-first: activeSubject (anchors[0]) must track what the
-      // customer is asking about right now, and stale anchors must never evict
-      // the live terms from the bounded window.
-      next.searchAnchors = uniqueBounded(
-        [...params.productPlan.searchTerms, ...resolveAnchorConflicts(params.productPlan.searchTerms, next.searchAnchors)],
-        MAX_ANCHORS,
-      )
-    }
   }
-
-  next.lastTurn = { relation, intent, sourceMessageId: params.messageId }
+  next.lastTurn = { relation, intent: next.activeGoal?.intent ?? 'GENERAL', sourceMessageId: params.messageId }
   next.throughId = params.messageId
   next.throughAt = new Date(params.createdAt).toISOString()
   return next
@@ -884,28 +644,16 @@ export async function loadConversationWorkingState(
       { inboundEventId: { not: excludeInboundEventId } },
     ] } : {}),
   }
-  const replayHistory: ChatMessage[] = []
-  if (savedMatchesSession && state.activeGoal) {
-    replayHistory.push({ role: 'user', content: state.activeGoal.label })
-    if (state.lastQuestion) replayHistory.push({ role: 'assistant', content: state.lastQuestion.text })
-  }
+  // Rows the stored state has not seen yet (a new session, or a turn whose
+  // state was never saved). The reading of those customer messages is gone,
+  // so no goal is made up from their text: they only move the cursor, and the
+  // next turn that is read sets the goal. The agent's own questions are still
+  // observed, so an answer to the last one is recognised.
   const applyRows = (rows: TranscriptRow[]) => {
     for (const row of rows.filter((item) => isAfterCursor(item, state))) {
-      if (row.role === 'USER') {
-        const productPlan = planProductRequest(row.content, replayHistory)
-        state = advanceConversationWorkingState({
-          state,
-          sessionStartId: session.start.id || row.id,
-          message: row.content,
-          messageId: row.id,
-          createdAt: row.createdAt,
-          productPlan,
-        })
-      } else {
-        state = observeAssistantTurn(state, row.content, row.id, row.createdAt)
-      }
-      replayHistory.push({ role: row.role === 'USER' ? 'user' : 'assistant', content: row.content })
-      if (replayHistory.length > REPLAY_BATCH) replayHistory.shift()
+      state = row.role === 'USER'
+        ? { ...state, throughId: row.id, throughAt: new Date(row.createdAt).toISOString() }
+        : observeAssistantTurn(state, row.content, row.id, row.createdAt)
     }
   }
 
@@ -951,71 +699,6 @@ export async function loadConversationWorkingState(
   return { state, expectedRevision }
 }
 
-function termsFromState(state: ConversationWorkingState): string[] {
-  const slotValues = Object.values(state.slots).flatMap((fact) => genericAnchors(fact.value))
-  const constraintValues = state.constraints.slice(-4).flatMap((fact) => genericAnchors(fact.value))
-  return uniqueBounded([...state.searchAnchors, ...slotValues, ...constraintValues], MAX_ANCHORS)
-}
-
-/** Promote terse answers/refinements to the active product turn and anchor RAG. */
-export function contextualizeProductRequest(
-  plan: ProductRequestPlan,
-  state: ConversationWorkingState,
-): ProductRequestPlan {
-  const turn = state.lastTurn
-  // Natural «میخوام» language can look commercial even when it names a real
-  // service. The state resolver has access to registered service names and its
-  // strong service/order/support intent wins over a generic shopping verb.
-  if (state.activeGoal && state.activeGoal.intent !== 'PRODUCT' && turn
-    && ['SERVICE', 'BOOKING', 'ORDER', 'BUSINESS_INFO', 'SUPPORT'].includes(turn.intent)) {
-    return {
-      ...plan,
-      isProductTurn: false,
-      explicitShowcase: false,
-      discoveryBrowse: false,
-      resetProductContext: false,
-      searchTerms: [],
-      codeIdentified: false,
-      variantBrowse: false,
-      variantHint: null,
-      variantPick: false,
-      variantTargetRefs: [],
-      codeVariantVitrine: false,
-    }
-  }
-  if (!state.activeGoal || state.activeGoal.intent !== 'PRODUCT' || !turn) return plan
-  // Cheaper alternatives deliberately search the whole FAMILY; merging the
-  // goal's design/size anchors back in would find only the same item again.
-  if (plan.cheaperAlternative) return { ...plan, isProductTurn: true }
-  if (turn.relation === 'RESET' || turn.relation === 'NEW_GOAL' || turn.relation === 'SIDE_QUESTION'
-    || turn.relation === 'GREETING' || turn.relation === 'CLOSING') return plan
-  if (!['PRODUCT', 'GENERAL'].includes(turn.intent)) return plan
-  if (!['ANSWER', 'REFINEMENT', 'REFERENCE', 'CORRECTION'].includes(turn.relation)) return plan
-
-  // Current-first merge: the live message's own terms must never be evicted
-  // by stale goal anchors. State anchors once came first and filled the whole
-  // bounded window, silently discarding the current terms («میز تلویزیون»
-  // searched as «فرق جلومبلی نقش نگار…») so every later catalog search failed
-  // closed. A genuine subject switch never reaches this merge: the state
-  // engine already restarted the goal (NEW_GOAL) and this function returns
-  // the plan untouched.
-  const searchTerms = uniqueBounded(
-    [...plan.searchTerms, ...resolveAnchorConflicts(plan.searchTerms, termsFromState(state))],
-    MAX_ANCHORS,
-  )
-  return {
-    ...plan,
-    isProductTurn: true,
-    // Preserve a real «show/send» request. The promotion itself never invents
-    // showcase intent for a terse answer such as «مدرنه».
-    explicitShowcase: plan.explicitShowcase,
-    discoveryBrowse: false,
-    resetProductContext: false,
-    requestNewTopic: false,
-    searchTerms,
-  }
-}
-
 export function enrichConversationStateWithCatalog(
   state: ConversationWorkingState,
   products: Array<{ id: string; name: string; fullTermMatch?: boolean }>,
@@ -1055,36 +738,6 @@ export function promoteConversationStateToProduct(
   next.searchAnchors = uniqueBounded([...searchTerms, ...resolveAnchorConflicts(searchTerms, next.searchAnchors)], MAX_ANCHORS)
   next.candidateEntityIds = uniqueBounded(productIds, MAX_CANDIDATES)
   if (next.lastTurn) next.lastTurn.intent = 'PRODUCT'
-  return next
-}
-
-/** Start a clean product goal after the assigned catalog proves a topic switch. */
-export function startCatalogProductGoal(
-  state: ConversationWorkingState,
-  message: string,
-  messageId: string,
-  searchTerms: string[],
-  productIds: string[] = [],
-  exactMatch = false,
-): ConversationWorkingState {
-  const next = cloneState(state)
-  const label = bounded(message, MAX_GOAL_CHARS)
-  next.status = 'ACTIVE'
-  next.activeGoal = { intent: 'PRODUCT', label, sourceMessageId: messageId }
-  next.activeEntity = {
-    type: 'PRODUCT',
-    id: exactMatch && productIds.length === 1 ? productIds[0] : null,
-    label,
-    sourceMessageId: messageId,
-    source: 'CATALOG',
-  }
-  next.searchAnchors = uniqueBounded(searchTerms, MAX_ANCHORS)
-  next.constraints = []
-  next.slots = {}
-  next.candidateEntityIds = uniqueBounded(productIds, MAX_CANDIDATES)
-  next.lastQuestion = null
-  next.lastAnswer = null
-  next.lastTurn = { relation: 'NEW_GOAL', intent: 'PRODUCT', sourceMessageId: messageId }
   return next
 }
 

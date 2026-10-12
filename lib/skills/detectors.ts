@@ -14,7 +14,6 @@
  *  - Evidence is bounded (sliced quotes) — never whole transcripts.
  */
 
-import { planProductRequest } from '@/lib/ai/conversation'
 import type { SkillKey, SkillSeverity } from './registry'
 
 export interface FindingDraft {
@@ -358,6 +357,8 @@ export interface ReceiptTurnInput {
   receipts: Array<{ kind: string; count?: number }>
   /** Immediately preceding customer message, when known. */
   userContent?: string
+  /** What the verified reading of that message saw (act types). */
+  userActs?: string[]
 }
 
 /** v1.1.0 — a reply that states stock status (موجود/ناموجود…) with neither a
@@ -439,12 +440,10 @@ export function detectToolFailures(
     }
 
     if (catalogChecked > 0 && presented === 0 && turn.userContent) {
-      // Only an EXPLICIT request to see products ("کاتالوگ بفرست", "شومیز دارین؟")
-      // proves the customer expected cards; a passing product mention may be
-      // answered in text legitimately. This also avoids vocabulary quirks like
-      // «کلاه برداری» tripping a bare product noun.
-      const plan = planProductRequest(turn.userContent, [])
-      if (plan.explicitShowcase) {
+      // Only a request the reading saw as a product search ("کاتالوگ بفرست",
+      // "شومیز دارین؟") proves the customer expected cards; a passing product
+      // mention may be answered in text legitimately.
+      if (turn.userActs?.includes('product_search')) {
         const list = noshowByAgent.get(turn.agentId) ?? []
         list.push({ messageId: turn.messageId, conversationId: turn.conversationId, catalogChecked, userContent: turn.userContent.slice(0, 160), at: turn.createdAt })
         noshowByAgent.set(turn.agentId, list)

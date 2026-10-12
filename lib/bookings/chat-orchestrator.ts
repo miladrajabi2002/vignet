@@ -13,7 +13,6 @@ import {
   executeBookingAgentTool,
 } from '@/lib/bookings/agent-tools'
 import type { ConversationReceipt } from '@/lib/conversations/activity'
-import { hasBookingIntent } from '@/lib/bookings/intent'
 import { describeResolvedDateTime, resolvePersianDateTime } from '@/lib/agent/parsers/persian-datetime'
 
 // services → slots (+ nearest date) → confirm/book → final reply, with room
@@ -123,7 +122,7 @@ export async function maybeRunBookingAgentTurn(params: {
   /** The understanding layer read «yes» to the agent's booking summary. */
   confirmed?: boolean
 }): Promise<BookingChatResult | null> {
-  if (!params.intentKnown && !hasBookingIntent(params.messages)) return null
+  if (!params.intentKnown) return null
 
   const hasActiveService = await prisma.service.count({
     where: { workspaceId: params.workspaceId, active: true },

@@ -3,14 +3,12 @@ import {
   BadgeCheck,
   Cpu,
   Gauge,
-  Scale,
   Sparkles,
   Timer,
   Wallet,
 } from 'lucide-react'
-import { UnderstandingModeForm } from '@/components/admin/understanding-mode-form'
 import { getAgentCoreReport, type AgentCapabilityRow, type CountRow } from '@/lib/admin/agent-core'
-import { UNDERSTANDING_DOMAINS } from '@/lib/agent/understand/mode'
+import { UNDERSTANDING_DOMAINS } from '@/lib/agent/understand/domains'
 import {
   Badge,
   EmptyState,
@@ -100,14 +98,13 @@ const PURPOSE_LABELS: Record<string, string> = {
   understand: 'فهم نوبت',
   cart_plan: 'برنامهٔ سبد',
   catalog_plan: 'برنامهٔ جستجوی کاتالوگ',
-  turn_analyzer: 'تحلیل نوبت (مسیر قدیمی)',
+  turn_analyzer: 'تحلیل نوبت (حذف‌شده)',
   summary: 'خلاصهٔ گفتگو',
   memory: 'حافظهٔ گفتگو',
   eval: 'ارزیابی',
   link_repair: 'بازنویسی لینک بی‌منبع',
 }
 
-const MODE_LABELS: Record<string, string> = { on: 'فعال', shadow: 'سایه', off: 'خاموش' }
 
 const CHANNEL_LABELS: Record<string, string> = {
   TELEGRAM: 'تلگرام',
@@ -185,12 +182,6 @@ function Bars({ rows, labels, total }: { rows: CountRow[]; labels: Record<string
   )
 }
 
-function diffLabel(kind: string): string {
-  const sign = kind.startsWith('+') ? 'فقط مدل: ' : kind.startsWith('-') ? 'فقط مسیر قدیمی: ' : ''
-  const key = kind.replace(/^[+-]/, '')
-  return `${sign}${DOMAIN_LABELS[key] ?? ACT_LABELS[key] ?? key}`
-}
-
 function Flag({ on, children }: { on: boolean; children: React.ReactNode }) {
   return <Badge tone={on ? 'success' : 'muted'}>{children}</Badge>
 }
@@ -204,7 +195,6 @@ function AgentRow({ agent }: { agent: AgentCapabilityRow }) {
           <p className="truncate text-[12px] text-[var(--text-muted)]">{agent.workspaceName}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             {!agent.active && <Badge tone="warning">غیرفعال</Badge>}
-            <Badge tone={agent.effectiveMode === 'on' ? 'info' : 'muted'}>فهم: {MODE_LABELS[agent.effectiveMode]}</Badge>
           </div>
         </div>
       </Td>
@@ -254,10 +244,6 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
   const perReplyTrend = cost?.perReply.current != null && cost.perReply.previous
     ? Math.round(((cost.perReply.current - cost.perReply.previous) / cost.perReply.previous) * 100)
     : null
-  const workspaceOptions = [...new Map(report.agents.map((agent) => [agent.workspaceId, { id: agent.workspaceId, name: agent.workspaceName }])).values()]
-  for (const item of rollout.workspaces) {
-    if (!workspaceOptions.some((option) => option.id === item.id)) workspaceOptions.push({ id: item.id, name: item.name })
-  }
 
   return (
     <div className="space-y-6">
@@ -301,12 +287,6 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
           tone={q && answeredTotal && q.answered.n / answeredTotal > 0.1 ? 'warning' : 'success'}
         />
         <StatCard
-          label="هم‌نظری با مسیر قدیمی"
-          value={pct(u.agreed, u.compared)}
-          sub={`${fa(u.compared - u.agreed)} نوبت متفاوت — نمونه‌ها پایین صفحه`}
-          icon={<Scale className="h-4 w-4" />}
-        />
-        <StatCard
           label="تأخیر فهم (p95)"
           value={ms(u.latencyP95)}
           sub={`میانه ${ms(u.latencyP50)}`}
@@ -315,10 +295,9 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
         />
       </div>
 
-      <UnderstandingModeForm initial={rollout.config} workspaces={workspaceOptions} />
       {rollout.envDisabled && (
         <p className="rounded-control bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-          AGENT_UNDERSTANDING_DISABLED روی سرور فعال است؛ هیچ فراخوانی فهم انجام نمی‌شود و همهٔ نوبت‌ها با مسیر قدیمی جواب می‌گیرند.
+          AGENT_UNDERSTANDING_DISABLED روی سرور فعال است؛ هیچ فراخوانی فهم انجام نمی‌شود و نوبت‌ها بدون خوانش، مثل یک گفتگوی ساده، جواب می‌گیرند.
         </p>
       )}
 
@@ -329,15 +308,14 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
           ) : (
             <div className="divide-y divide-[var(--border-subtle)]">
               <KV label="کل نوبت‌ها">{fa(u.total)}</KV>
-              <KV label="خوانش معتبر / برگشت به مسیر قدیمی">{fa(u.ok)} / {fa(u.fallback)}</KV>
+              <KV label="خوانش معتبر / بدون خوانش">{fa(u.ok)} / {fa(u.fallback)}</KV>
               <KV label="میانگین اطمینان مدل">{u.avgConfidence == null ? '—' : `${Math.round(u.avgConfidence * 100).toLocaleString('fa-IR')}٪`}</KV>
               <KV label="اطمینان زیر کف (اقدام تغییردهنده مسدود)">{fa(u.lowConfidence)}</KV>
               <KV label="هزینهٔ کل فهم">{usd(u.costUSD, 4)}</KV>
               <KV label="هزینهٔ هر فراخوانی فهم">{usd(u.avgCostUSD)}</KV>
-              <KV label="حالت‌ها">{u.byMode.map((row) => `${MODE_LABELS[row.key] ?? row.key}: ${fa(row.count)}`).join(' · ') || '—'}</KV>
               {u.errors.length > 0 && (
                 <div className="py-2.5">
-                  <p className="mb-2 text-xs text-[var(--text-muted)]">دلیل برگشت به مسیر قدیمی</p>
+                  <p className="mb-2 text-xs text-[var(--text-muted)]">دلیل نبودِ خوانش</p>
                   <Bars rows={u.errors} labels={ERROR_LABELS} />
                 </div>
               )}
@@ -349,14 +327,8 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
           <Bars rows={u.acts} labels={ACT_LABELS} />
         </Panel>
 
-        <Panel title="حوزه‌هایی که از فهم تصمیم گرفتند" subtitle="و جاهایی که با مسیر قدیمی فرق داشت">
+        <Panel title="حوزه‌هایی که از فهم تصمیم گرفتند">
           <Bars rows={u.routed} labels={DOMAIN_LABELS} />
-          {u.diffs.length > 0 && (
-            <div className="mt-5">
-              <p className="mb-2 text-xs text-[var(--text-muted)]">تفاوت‌ها با مسیر قدیمی</p>
-              <Bars rows={u.diffs.map((row) => ({ key: row.key, count: row.count }))} labels={Object.fromEntries(u.diffs.map((row) => [row.key, diffLabel(row.key)]))} />
-            </div>
-          )}
         </Panel>
       </div>
 
@@ -477,30 +449,6 @@ export default async function AgentCorePage({ searchParams }: { searchParams: Pr
       </Panel>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Panel title="نمونهٔ نوبت‌هایی که مدل و مسیر قدیمی متفاوت خواندند" subtitle="برای بازبینی دستی؛ تصمیم در حالت «فعال» با مدل است">
-          {u.disagreements.length ? (
-            <ul className="space-y-3">
-              {u.disagreements.map((row) => (
-                <li key={row.id} className="rounded-control bg-[var(--bg-surface)] p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-[var(--text-muted)]">
-                    <span>{fmtDate(row.createdAt)}</span>
-                    {row.confidence != null && <span>اطمینان {Math.round(row.confidence * 100).toLocaleString('fa-IR')}٪</span>}
-                  </div>
-                  <p className="mt-1.5 line-clamp-3 text-[13px] text-[var(--text-primary)]">{row.message ?? '—'}</p>
-                  <div className="mt-2 flex flex-wrap gap-1 text-[12px]">
-                    <span className="text-[var(--text-muted)]">مدل:</span>
-                    {row.acts.length ? row.acts.map((act) => <Badge key={`m-${act}`} tone="info">{ACT_LABELS[act] ?? act}</Badge>) : <Badge tone="muted">—</Badge>}
-                    <span className="ms-2 text-[var(--text-muted)]">قدیمی:</span>
-                    {row.legacyActs.length ? row.legacyActs.map((act) => <Badge key={`l-${act}`} tone="muted">{ACT_LABELS[act] ?? act}</Badge>) : <Badge tone="muted">—</Badge>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState icon={<Scale />}>در این بازه نوبت متفاوتی ثبت نشده است.</EmptyState>
-          )}
-        </Panel>
-
         <Panel title="هسته در هر نوبت چه کاری می‌تواند بکند" subtitle="فهرست بستهٔ کنش‌ها؛ هر چیز خارج از آن «سایر» خوانده می‌شود و پاسخ عادی می‌گیرد">
           <div className="space-y-4">
             {CORE_ABILITIES.map((group) => (

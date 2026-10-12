@@ -79,7 +79,7 @@ describe('product memory in the conversation state', () => {
 
   it('the agent\'s pending offer is consumed by the next customer turn', () => {
     const offered = setPending(createEmptyConversationWorkingState('s'), { kind: 'restock_offer', sourceMessageId: 'a1' })
-    const next = advanceConversationWorkingState({ state: offered, sessionStartId: 's', message: 'آره', messageId: 'u2', createdAt: new Date() })
+    const next = advanceConversationWorkingState({ state: offered, sessionStartId: 's', message: 'آره', messageId: 'u2', createdAt: new Date(), understood: null })
     expect(next.pending).toBeNull()
   })
 

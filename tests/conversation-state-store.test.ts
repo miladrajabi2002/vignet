@@ -69,30 +69,9 @@ describe('conversation state persistence and recovery', () => {
     expect(mocks.findMessages.mock.calls[0][0].orderBy[0]).toEqual({ createdAt: 'desc' })
     expect(mocks.findMessages.mock.calls[0][0].take).toBe(240)
     expect(loaded.state.throughId).toBe('m-0299')
-    expect(loaded.state.activeGoal?.label).toBe('مانتو میخوام')
+    // Unread messages move the cursor; no goal is made up from their text.
+    expect(loaded.state.activeGoal).toBeNull()
     expect(loaded.expectedRevision).toBeNull()
-  })
-
-  it('rebuilds the exact multi-turn Javaheri goal instead of trusting the bad assistant restart', async () => {
-    const rows = [
-      row(1, 'USER', 'سلام'),
-      row(2, 'ASSISTANT', 'سلام! چطور می‌تونم کمکتون کنم؟'),
-      row(3, 'USER', 'جلومبلی میخواستم'),
-      row(4, 'ASSISTANT', 'چه سبکی مدنظرتونه؛ مدرن یا کلاسیک؟'),
-      row(5, 'USER', 'میخوام برای مبل سبز مناسب باشه'),
-      row(6, 'ASSISTANT', 'دنبال چه محصولی هستید؟ جلومبلی، عسلی یا میز تلویزیون؟'),
-      row(7, 'USER', 'مدرنه'),
-      row(8, 'ASSISTANT', 'سلام، چطور می‌تونم کمکتون کنم؟'),
-    ]
-    mocks.findMessages.mockResolvedValue([...rows].reverse())
-
-    const loaded = await loadConversationWorkingState('conversation')
-    expect(loaded.state.activeGoal).toMatchObject({ intent: 'PRODUCT', label: 'جلومبلی میخواستم' })
-    expect(loaded.state.searchAnchors).toContain('جلومبلی')
-    expect(loaded.state.searchAnchors).not.toContain('میخواستم')
-    expect(loaded.state.slots.color?.normalizedValue).toBe('سبز')
-    expect(loaded.state.slots.style?.normalizedValue).toBe('مدرن')
-    expect(loaded.state.throughId).toBe('m-0008')
   })
 
   it('replays every unseen batch after a saved cursor without gaps', async () => {
@@ -102,8 +81,7 @@ describe('conversation state persistence and recovery', () => {
       sessionStartId: 'session-start',
       message: 'کفش میخوام',
       messageId: 'm-0000',
-      createdAt: new Date('2026-01-01T00:00:00Z'),
-    })
+      createdAt: new Date('2026-01-01T00:00:00Z'), understood: null })
     mocks.findState.mockResolvedValue({
       conversationId: 'conversation',
       sessionStartId: 'session-start',
@@ -130,8 +108,7 @@ describe('conversation state persistence and recovery', () => {
       sessionStartId: 'old-session',
       message: 'مبل میخوام',
       messageId: 'old-message',
-      createdAt: new Date('2025-12-01T00:00:00Z'),
-    })
+      createdAt: new Date('2025-12-01T00:00:00Z'), understood: null })
     mocks.findState.mockResolvedValue({
       conversationId: 'conversation', sessionStartId: 'old-session', state: old,
       throughId: old.throughId, throughAt: new Date(old.throughAt), revision: 3,
@@ -158,8 +135,7 @@ describe('conversation state persistence and recovery', () => {
       sessionStartId: 'session-start',
       message: 'کتاب میخوام',
       messageId: 'u-1',
-      createdAt: new Date(),
-    })
+      createdAt: new Date(), understood: null })
     expect(await persistConversationWorkingState({
       conversationId: 'conversation', state, expectedRevision: null,
     })).toBe(true)

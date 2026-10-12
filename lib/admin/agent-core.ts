@@ -3,17 +3,11 @@ import 'server-only'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE, adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
-import {
-  getUnderstandingConfig,
-  type UnderstandingConfig,
-  type UnderstandingMode,
-} from '@/lib/agent/understand/mode'
 import { loadWorkspaceModules } from '@/lib/verticals/workspace-capabilities'
 
 /**
  * Agent-core report for the admin console: how the turn-understanding layer
- * is rolled out, what each customer turn costs, how well replies land, how
- * accurate the reading is against the legacy router, and exactly which
+ * is rolled out, what each customer turn costs, how well replies land, and exactly which
  * capabilities every agent has. Each section is read independently so one
  * missing table (an unapplied migration) never blanks the whole page.
  */
@@ -96,7 +90,6 @@ export interface AgentCapabilityRow {
   workspaceName: string
   active: boolean
   language: string
-  effectiveMode: UnderstandingMode
   modules: { products: boolean; bookings: boolean; courses: boolean }
   productAccess: boolean
   products: number
@@ -120,9 +113,8 @@ export interface AgentCoreReport {
   days: number
   since: Date
   rollout: {
-    config: UnderstandingConfig
+    /** AGENT_UNDERSTANDING_DISABLED: the emergency stop of the reading call. */
     envDisabled: boolean
-    workspaces: Array<{ id: string; name: string; mode: UnderstandingMode }>
   }
   understanding: UnderstandingSection
   cost: CostSection | null
@@ -425,7 +417,7 @@ async function qualitySection(since: Date): Promise<QualitySection | null> {
   }
 }
 
-async function agentRows(since: Date, config: UnderstandingConfig): Promise<AgentCapabilityRow[]> {
+async function agentRows(since: Date): Promise<AgentCapabilityRow[]> {
   try {
     const agents = await prisma.agent.findMany({
       where: { ...ADMIN_VISIBLE_RELATED_WHERE },
@@ -491,7 +483,6 @@ async function agentRows(since: Date, config: UnderstandingConfig): Promise<Agen
         workspaceName: agent.workspace.name,
         active: agent.active,
         language: agent.language,
-        effectiveMode: config.workspaces[agent.workspaceId] ?? config.mode,
         modules: gates,
         productAccess,
         products: productMap.get(agent.workspaceId) ?? 0,
@@ -521,25 +512,17 @@ export async function getAgentCoreReport(days: number): Promise<AgentCoreReport>
   const span = Math.min(90, Math.max(1, Math.round(days)))
   const since = new Date(Date.now() - span * 86_400_000)
   const previousSince = new Date(since.getTime() - span * 86_400_000)
-  const config = await getUnderstandingConfig()
-  const overrideIds = Object.keys(config.workspaces)
-  const [understanding, cost, quality, agents, overrideWorkspaces] = await Promise.all([
+  const [understanding, cost, quality, agents] = await Promise.all([
     understandingSection(since),
     costSection(since, previousSince),
     qualitySection(since),
-    agentRows(since, config),
-    overrideIds.length
-      ? prisma.workspace.findMany({ where: { id: { in: overrideIds } }, select: { id: true, name: true } }).catch(() => [])
-      : Promise.resolve([]),
+    agentRows(since),
   ])
-  const names = new Map(overrideWorkspaces.map((workspace) => [workspace.id, workspace.name]))
   return {
     days: span,
     since,
     rollout: {
-      config,
-      envDisabled: process.env.AGENT_UNDERSTANDING_DISABLED === '1' || process.env.AGENT_UNDERSTANDING_DISABLED === 'true',
-      workspaces: overrideIds.map((id) => ({ id, name: names.get(id) ?? id, mode: config.workspaces[id] })),
+      envDisabled: process.env.AGENT_UNDERSTANDING_DISABLED === '1',
     },
     understanding,
     cost,

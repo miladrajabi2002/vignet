@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConversationMemory, Prisma } from '@prisma/client'
 import { loadConversationHistory, isConversationMemory, isPreviousSessionDigest, previousSessionPlanningRows, HISTORY_TOKEN_BUDGET, RECENT_HISTORY_LIMIT, estimateHistoryTokens } from '@/lib/ai/conversation-memory'
-import { historyForProductTurn, planProductRequest } from '@/lib/ai/conversation'
 import { loadConversationSession } from '@/lib/conversations/session-store'
 
 const mocks = vi.hoisted(() => ({
@@ -318,14 +317,5 @@ describe('adaptive session memory', () => {
     await loadConversationHistory('thread')
     expect(memory?.throughId).toBe(cursor)
     expect(mocks.findMemory).toHaveBeenCalled()
-  })
-
-  it('keeps memory on catalog follow-ups but honors an explicit topic reset', async () => {
-    appendLong(20)
-    rows[18].content = 'محصولات رو نشون بده'
-    const history = await loadConversationHistory('thread')
-    const followup = historyForProductTurn(history, planProductRequest('و قیمتش؟', history))
-    expect(isConversationMemory(followup[0])).toBe(true)
-    expect(historyForProductTurn(history, planProductRequest('بیخیال از اول شروع کن', history))).toEqual([])
   })
 })

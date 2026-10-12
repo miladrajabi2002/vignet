@@ -100,15 +100,4 @@ describe('product memory survives topic drift', () => {
     expect(route.productIds).toEqual([])
     expect(verified.notes.length).toBeGreaterThan(0)
   })
-
-  it('legacy fallback path: a regex topic reset keeps the remembered products too', async () => {
-    let state = shownCards()
-    state = advanceConversationWorkingState({ state, sessionStartId: 'm0', message: 'بی خیال', messageId: 'm2', createdAt: new Date() })
-    expect(state.status).toBe('RESET')
-    expect(state.discussedEntities?.map((entity) => entity.id)).toEqual(['p-sofa', 'p-table', 'p-puff'])
-    state = advanceConversationWorkingState({ state, sessionStartId: 'm0', message: 'موضوع جدید: فرش ماشینی میخوام', messageId: 'm3', createdAt: new Date() })
-    expect(state.discussedEntities?.map((entity) => entity.id)).toContain('p-puff')
-    const candidates = await candidatesFor(state)
-    expect([...candidates.shownCards, ...candidates.seen].map((item) => item.id)).toContain('p-puff')
-  })
 })

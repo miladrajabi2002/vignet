@@ -1,9 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { toEnglishDigits } from '@/lib/phone'
 import { dateLocaleTag } from '@/lib/localized-date'
-
-const ORDER_INTENT = /(?:سفارش|پیگیری\s*(?:خرید|مرسوله|ارسال)?|کد\s*رهگیری|وضعیت\s*(?:خرید|ارسال)|order|tracking|shipment)/i
-const ORDER_MUTATION_INTENT = /(?:ثبت\s*سفارش|سفارش\s*(?:بدم|بدهم|ثبت|لغو)|لغو\s*سفارش|تغییر\s*سفارش|مرجوع|خرید\s*(?:کنم|انجام)|place\s+an?\s*order|cancel\s+(?:my\s+)?order|change\s+(?:my\s+)?order)/i
 const ORDER_FOLLOWUP_CONTEXT = /(?:شماره|کد)\s*(?:سفارش|مرسوله)|پیگیری\s*(?:سفارش|مرسوله)|order\s*(?:number|id|code)|tracking\s*(?:number|code)/i
 
 const FA_STATUS: Record<string, string> = {
@@ -14,11 +11,6 @@ const FA_STATUS: Record<string, string> = {
   cancelled: 'لغوشده',
   refunded: 'بازپرداخت‌شده',
   failed: 'ناموفق',
-}
-
-/** Legacy keyword reading: is this message about an existing order? (fallback + eval baseline) */
-export function detectsOrderTracking(message: string): boolean {
-  return ORDER_INTENT.test(message)
 }
 
 function extractOrderId(message: string): string | null {
@@ -118,7 +110,7 @@ export async function buildOrderContext(params: {
    * with the order reference it verified in the message. Order creation is
    * the order flow's job, never a refusal block here.
    */
-  understood?: { tracking: { orderRef: string | null } | null } | null
+  understood: { tracking: { orderRef: string | null } | null }
 }): Promise<string> {
   const bareOrderId = extractBareOrderId(params.message)
   const isOrderContinuation = Boolean(
@@ -126,16 +118,8 @@ export async function buildOrderContext(params: {
       typeof turn.content === 'string' && ORDER_FOLLOWUP_CONTEXT.test(turn.content)),
   )
   const understood = params.understood
-  if (understood) {
-    if (!understood.tracking && !isOrderContinuation) return ''
-  } else if (!ORDER_INTENT.test(params.message) && !isOrderContinuation) return ''
+  if (!understood.tracking && !isOrderContinuation) return ''
   const isFa = params.language !== 'en'
-
-  if (!understood && ORDER_MUTATION_INTENT.test(params.message)) {
-    return isFa
-      ? '\n\nاین ایجنت اجازه ثبت، لغو، مرجوع یا ویرایش سفارش را ندارد. صریح و کوتاه بگو که فعلاً فقط مشاوره محصول و پیگیری خواندنی سفارش‌های موجود ممکن است؛ انجام عملیات سفارش را تأیید نکن.'
-      : '\n\nThis agent cannot create, cancel, return, or change orders. Clearly say that only product consultation and read-only tracking of existing orders are currently available; never confirm an order mutation.'
-  }
 
   if (!params.enabled) {
     return isFa
@@ -143,7 +127,7 @@ export async function buildOrderContext(params: {
       : '\n\nOrder tracking access is disabled for this agent. Do not expose order data; direct the customer to human support.'
   }
 
-  const externalOrderId = understood?.tracking?.orderRef
+  const externalOrderId = understood.tracking?.orderRef
     ? toEnglishDigits(understood.tracking.orderRef).replace(/^#/, '').trim()
     : extractOrderId(params.message) ?? (isOrderContinuation ? bareOrderId : null)
   if (!externalOrderId) {

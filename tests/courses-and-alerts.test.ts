@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { enrollmentOpen, placementFor, seatSummary } from '@/lib/courses/service'
-import { hasCourseIntent } from '@/lib/courses/intent'
-import { enrollmentClaimWithoutAction } from '@/lib/courses/chat-orchestrator'
 import { dueReminderStage, composeBookingReminder } from '@/lib/bookings/customer-reminders'
 import { expiryStage, PAID_STAGES, TRIAL_STAGES } from '@/lib/billing/plan-expiry-alerts'
 import { lowStockAlertText } from '@/lib/commerce/low-stock'
@@ -28,13 +26,6 @@ describe('course seats and waitlist', () => {
     expect(enrollmentOpen({ status: 'PUBLISHED', enrollmentDeadline: past, firstSessionAt: future }, now)).toBe('deadline')
     expect(enrollmentOpen({ status: 'PUBLISHED', enrollmentDeadline: null, firstSessionAt: past }, now)).toBe('deadline')
     expect(enrollmentOpen({ status: 'DRAFT', enrollmentDeadline: null, firstSessionAt: future }, now)).toBe('not_open')
-  })
-
-  it('detects course intent and unverified enrollment claims', () => {
-    expect(hasCourseIntent([{ role: 'user', content: 'برای دوره پایتون ثبت‌نام دارید؟' }])).toBe(true)
-    expect(hasCourseIntent([{ role: 'user', content: 'قیمت این کفش چنده' }])).toBe(false)
-    expect(enrollmentClaimWithoutAction('ثبت‌نام شما انجام شد', [])).toBe('enrolled')
-    expect(enrollmentClaimWithoutAction('ثبت‌نام شما انجام شد', [{ kind: 'course_enrolled' }])).toBeNull()
   })
 })
 
