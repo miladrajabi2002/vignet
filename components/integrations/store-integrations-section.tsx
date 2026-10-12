@@ -561,25 +561,7 @@ function IntegrationCard({
             {/* Recent sync activity — last 3 days. Deliveries that changed
                 nothing (plugin pings, unchanged items) are noise and hidden. */}
             {isPluginConfigured && visibleLogs.length > 0 && (
-                <div className="mt-4">
-                    <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                        {fa ? 'تغییرات دریافت‌شده از سایت' : 'Changes received from the site'}
-                        <span className="ms-2 text-[var(--text-muted)]">{fa ? '· ۳ روز اخیر' : '· last 3 days'}</span>
-                    </p>
-                    <div className="max-h-64 space-y-1 overflow-y-auto">
-                        {visibleLogs.map((log) => (
-                            <div key={log.id} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2 text-xs">
-                                {log.outcome === 'ok' ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                                ) : (
-                                    <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                                )}
-                                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{logLabel(log, fa)}</span>
-                                <time suppressHydrationWarning dateTime={log.createdAt} className="shrink-0 tabular-nums text-[var(--text-muted)]">{relativeTime(log.createdAt, fa)}</time>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <SyncActivity logs={visibleLogs} fa={fa} />
             )}
 
             {/* Error */}
@@ -590,6 +572,90 @@ function IntegrationCard({
             )}
         </section>
     )
+}
+
+const ACTIVITY_PREVIEW = 4
+const ACTIVITY_EXPANDED = 20
+
+/**
+ * The latest changes from the site, a few at a time. More are one tap away
+ * instead of a scrollable box, which is awkward on a phone.
+ */
+function SyncActivity({ logs, fa }: { logs: SyncLogEntry[]; fa: boolean }) {
+    const [expanded, setExpanded] = useState(false)
+    const shown = logs.slice(0, expanded ? ACTIVITY_EXPANDED : ACTIVITY_PREVIEW)
+    const applied = logs.reduce((sum, log) => sum + (log.outcome === 'ok' ? log.count : 0), 0)
+    const failed = logs.filter((log) => log.outcome !== 'ok').length
+    const num = (n: number) => n.toLocaleString(fa ? 'fa-IR' : 'en-US')
+    const hiddenCount = Math.min(logs.length, ACTIVITY_EXPANDED) - ACTIVITY_PREVIEW
+
+    return (
+        <div className="mt-4">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className="text-xs font-medium text-[var(--text-secondary)]">
+                    {fa ? 'تغییرات دریافت‌شده از سایت' : 'Changes received from the site'}
+                    <span className="ms-2 text-[var(--text-muted)]">{fa ? '۳ روز اخیر' : 'last 3 days'}</span>
+                </p>
+                <p className="text-xs tabular-nums text-[var(--text-muted)]">
+                    {fa ? `${num(applied)} مورد همگام شد` : `${num(applied)} items synced`}
+                    {failed > 0 && (
+                        <span className="ms-2 font-medium text-red-600">{fa ? `${num(failed)} خطا` : `${num(failed)} errors`}</span>
+                    )}
+                </p>
+            </div>
+            <ul className="space-y-1.5">
+                {shown.map((log) => {
+                    const failedLog = log.outcome !== 'ok'
+                    return (
+                        <li key={log.id} className="flex items-start gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2.5 text-xs">
+                            {failedLog ? (
+                                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                            ) : (
+                                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="leading-5 text-[var(--text-primary)]">{logLabel(log, fa)}</p>
+                                {failedLog && log.message && (
+                                    <p title={log.message} className="mt-0.5 line-clamp-2 text-[11px] leading-5 text-red-700">{log.message}</p>
+                                )}
+                            </div>
+                            <time
+                                suppressHydrationWarning
+                                dateTime={log.createdAt}
+                                title={absoluteTime(log.createdAt, fa)}
+                                className="shrink-0 pt-0.5 text-[11px] tabular-nums text-[var(--text-muted)]"
+                            >
+                                {shortTime(log.createdAt, fa)}
+                            </time>
+                        </li>
+                    )
+                })}
+            </ul>
+            {logs.length > ACTIVITY_PREVIEW && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded((value) => !value)}
+                    aria-expanded={expanded}
+                    className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[var(--border-default)] text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                >
+                    {expanded
+                        ? (fa ? 'نمایش کمتر' : 'Show less')
+                        : (fa ? `نمایش ${num(hiddenCount)} مورد بیشتر` : `Show ${num(hiddenCount)} more`)}
+                </button>
+            )}
+        </div>
+    )
+}
+
+/** Under a day: "۲ ساعت پیش"; older: the date, so the row says when it happened. */
+function shortTime(iso: string, fa: boolean): string {
+    const age = Date.now() - new Date(iso).getTime()
+    if (age < 24 * 60 * 60 * 1000) return relativeTime(iso, fa)
+    return new Date(iso).toLocaleString(fa ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function absoluteTime(iso: string, fa: boolean): string {
+    return new Date(iso).toLocaleString(fa ? 'fa-IR' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function logLabel(log: SyncLogEntry, fa: boolean): string {
