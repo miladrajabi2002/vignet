@@ -1,8 +1,8 @@
 {
   ".codex/hooks.json": {
-    "mtime": 1784111537.0083735,
-    "seen": 1791841087.0541468,
-    "ast_hash": "2d74eddb7afba9d1c45809f6e29527f4",
+    "mtime": 1791841107.6724555,
+    "seen": 1791841819.601944,
+    "ast_hash": "005ac71c84af2cae38e255e2b9de2411",
     "semantic_hash": ""
   },
   ".eslintrc.json": {
@@ -2536,9 +2536,9 @@
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/vigent-woo.php": {
-    "mtime": 1791823226.609577,
-    "seen": 1791841087.0558972,
-    "ast_hash": "86c45039236ae9f15e67fce78e6a5902",
+    "mtime": 1791841791.959287,
+    "seen": 1791841819.644982,
+    "ast_hash": "c14fcbb0a6f2b3e1897495b359d70df3",
     "semantic_hash": ""
   },
   "worker/index.ts": {
@@ -2626,9 +2626,9 @@
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/readme.txt": {
-    "mtime": 1791823226.608577,
-    "seen": 1791841087.0559766,
-    "ast_hash": "a12d3beafd760c0c0e48e42681ec267b",
+    "mtime": 1791841791.9862869,
+    "seen": 1791841819.6466873,
+    "ast_hash": "04ce116625f4d9bfebbb29155a1ec06c",
     "semantic_hash": ""
   },
   "public/android-chrome-192x192.png": {
@@ -3458,9 +3458,9 @@
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/includes/class-vigent-woo-ajax.php": {
-    "mtime": 1791823226.6065772,
-    "seen": 1791841087.0558844,
-    "ast_hash": "3e183f49b856fe1e18e46eb5e13a4d50",
+    "mtime": 1791841756.2955039,
+    "seen": 1791841819.6447153,
+    "ast_hash": "bd98934d1998e8c244e8e98c20d9f41a",
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/includes/class-vigent-woo-cli.php": {
@@ -3494,9 +3494,9 @@
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/includes/class-vigent-woo-updater.php": {
-    "mtime": 1785025169.8689692,
-    "seen": 1791841087.0558944,
-    "ast_hash": "bf2a2d90baff295cfb06bc1ce1264d57",
+    "mtime": 1791841756.240504,
+    "seen": 1791841819.6449463,
+    "ast_hash": "46e35c6036d25b72b72d539a31efd50a",
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/uninstall.php": {
