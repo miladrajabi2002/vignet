@@ -1,14 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
+import { Route, Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { cn } from '@/lib/utils'
-import { MaterialSelect } from '@/components/ui/material-select'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { AGENT_MODELS, type ModelAlias } from '@/lib/ai/models'
 import { NumberField } from '@/components/admin/number-field'
-import { Switch } from '@/components/ui/switch'
+import { ProviderRoutingField } from '@/components/admin/provider-routing-field'
 
 type NumberPath =
   | ['trialCreditIRR']
@@ -126,13 +125,23 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
           <Field label="تعرفه هر عکس توصیف‌شده" hint="پیش‌فرض: ۸۰ تومان برای هر عکس؛ فقط ایجنت‌های با توصیف عکس روشن">
             <MoneyInput value={toToman(value.visionPricePerImageIRR)} onChange={(raw) => setNumber(['visionPricePerImageIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
           </Field>
-          <Field label="اولویت انتخاب Provider" hint="در تمام درخواست‌های OpenRouter">
-            <MaterialSelect value={value.providerSort} onValueChange={(next) => setField('providerSort', next as PlatformCommercialConfig['providerSort'])} ariaLabel="اولویت انتخاب Provider" buttonClassName="admin-input" options={[{ value: 'price', label: 'کمترین قیمت' }, { value: 'latency', label: 'کمترین تأخیر' }, { value: 'throughput', label: 'بیشترین توان پردازش' }]} />
-          </Field>
-          <div className="flex min-h-[76px] items-center justify-between gap-4 self-start rounded-control bg-[var(--bg-surface)] px-4 py-3">
-            <div><span className="text-[13px] font-bold text-[var(--text-primary)]">Zero Data Retention</span><span className="mt-1 block text-[12px] text-[var(--text-muted)]">عدم نگهداری داده توسط Provider</span></div>
-            <Switch checked={value.zeroDataRetention} onChange={(next) => setField('zeroDataRetention', next)} aria-label="Zero Data Retention" />
+        </div>
+      </section>
+
+      <section className="spatial-surface rounded-card p-4 sm:p-6">
+        <div className="flex items-center gap-3">
+          <span className="admin-icon-well"><Route className="h-4 w-4" /></span>
+          <div>
+            <h2 className="ui-h3 !leading-6">مسیریابی Providerها</h2>
+            <p className="text-[12px] text-[var(--text-muted)]">هر مدل را چند Provider با سرعت و قیمت متفاوت اجرا می‌کنند؛ فهرست هر مدل از سریع‌ترین و ارزان‌ترین‌ها چیده شده است.</p>
           </div>
+        </div>
+        <div className="mt-5">
+          <ProviderRoutingField
+            value={value.providerRouting}
+            onChange={(next) => setField('providerRouting', next)}
+            models={AGENT_MODELS.map((model) => ({ id: model.providerId, label: MODEL_META[model.id] }))}
+          />
         </div>
       </section>
 

@@ -37,6 +37,7 @@ export type AuxPurpose =
   | 'memory'
   | 'eval'
   | 'identity'
+  | 'link_repair'
 
 export interface AuxCallRecord {
   purpose: AuxPurpose
@@ -133,6 +134,8 @@ export interface AuxCompletionParams {
   maxTokens?: number
   timeoutMs?: number
   retries?: number
+  /** Which try of the same request this is; a retry starts at the next provider. */
+  providerAttempt?: number
   ledger?: TurnLedger | null
   /** Overrides ledger.turnKey for the UsageLog row. */
   turnKey?: string | null
@@ -169,6 +172,7 @@ export async function auxCompletion(params: AuxCompletionParams): Promise<AuxCom
       responseFormat: params.responseFormat,
       timeoutMs: params.timeoutMs,
       retries: params.retries,
+      providerAttempt: params.providerAttempt,
     })
     const latencyMs = Date.now() - startedAt
     params.ledger?.add({

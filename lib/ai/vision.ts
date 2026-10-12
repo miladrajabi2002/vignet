@@ -155,9 +155,8 @@ export async function describeImage(input: DescribeImageInput): Promise<Describe
           max_tokens: 400,
           reasoning: { enabled: false },
           provider: {
-            sort: runtime?.providerSort ?? 'price',
+            sort: runtime?.providerRouting.sort ?? 'price',
             data_collection: 'deny',
-            zdr: Boolean(runtime?.zeroDataRetention),
             allow_fallbacks: true,
           },
         }),

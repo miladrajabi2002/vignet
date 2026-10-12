@@ -1,6 +1,7 @@
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { AGENT_MODELS } from '@/lib/ai/models'
+import { providerPreferences } from '@/lib/ai/provider-routing'
 
 // ─ A4: provider retry policy ────────────────────────────────────────────────
 // Transient failures (network blips, timeouts, 429/5xx) are retried up to
@@ -135,20 +136,28 @@ function appHeaders(): Record<string, string> {
 // their own listed rates).
 const MAX_PRICE_MARGIN = 3
 const DEFAULT_MAX_PRICE = { prompt: 1.5, completion: 3 }
+// The cap exists to keep a runaway provider out, not to choose between normal
+// ones — the provider order does that. Floors keep it from doing more: the
+// catalog lists the cheapest price of a model, and three times that still
+// filtered out all but two of the smart model's thirty-one providers. A turn
+// also sends thousands of tokens and receives about a hundred, so several of
+// the cheapest providers per reply charge little for input and more for output.
+const MIN_PROMPT_CAP = 0.5
+const MIN_COMPLETION_CAP = 2
 
-function maxPriceFor(model: string): { prompt: number; completion: number } {
+export function maxPriceFor(model: string): { prompt: number; completion: number } {
   const catalog = AGENT_MODELS.find((m) => m.providerId === model)
   if (!catalog) return DEFAULT_MAX_PRICE
   return {
-    prompt: catalog.inputUsdPerMillion * MAX_PRICE_MARGIN,
-    completion: catalog.outputUsdPerMillion * MAX_PRICE_MARGIN,
+    prompt: Math.max(catalog.inputUsdPerMillion * MAX_PRICE_MARGIN, MIN_PROMPT_CAP),
+    completion: Math.max(catalog.outputUsdPerMillion * MAX_PRICE_MARGIN, MIN_COMPLETION_CAP),
   }
 }
 
 function requestBody(
   opts: ChatOptions,
   stream: boolean,
-  runtime: Pick<PlatformCommercialConfig, 'providerSort' | 'zeroDataRetention'>,
+  runtime: Pick<PlatformCommercialConfig, 'providerRouting'>,
 ): Record<string, unknown> {
   const maxPrice = maxPriceFor(opts.model)
   return {
@@ -161,10 +170,10 @@ function requestBody(
     stream,
     reasoning: { enabled: false },
     provider: {
-      sort: opts.providerSort ?? runtime.providerSort,
+      ...providerPreferences(opts.model, runtime.providerRouting, { attempt: opts.providerAttempt, sort: opts.providerSort, only: opts.providerOnly }),
       data_collection: 'deny',
-      zdr: runtime.zeroDataRetention,
-      allow_fallbacks: true,
+      // After the curated order, any other provider is still better than no reply.
+      allow_fallbacks: !opts.providerOnly,
       max_price: maxPrice,
     },
     ...(stream && opts.onUsage ? { stream_options: { include_usage: true } } : {}),
@@ -186,8 +195,8 @@ export interface ChatOptions {
   toolChoice?: 'auto' | 'none' | { type: 'function'; function: { name: string } }
   /**
    * Per-attempt timeout and retry budget. Customer-path auxiliary calls
-   * (turn understanding) use a short timeout and no retry so a slow
-   * provider degrades to the deterministic fallback instead of stalling.
+   * (turn understanding) set their own timeout and no provider-level retry;
+   * the caller decides whether a failed attempt is worth a second one.
    */
   timeoutMs?: number
   retries?: number
@@ -198,6 +207,13 @@ export interface ChatOptions {
    * runs use it to score a reading under each routing.
    */
   providerSort?: 'price' | 'latency' | 'throughput'
+  /** Pin one provider, with no fallback: evaluation runs score it alone. */
+  providerOnly?: string
+  /**
+   * Which try of the same request this is (0 = first). A retry starts at the
+   * next provider of the curated order instead of the one that just failed.
+   */
+  providerAttempt?: number
 }
 
 export interface ChatUsage {
@@ -365,7 +381,7 @@ export async function* streamChatWithRetry(
   for (let attempt = 0; attempt <= STREAM_RETRY_ATTEMPTS; attempt++) {
     if (attempt > 0) await sleepMs(STREAM_RETRY_DELAY_MS)
     try {
-      for await (const delta of streamChat(opts)) {
+      for await (const delta of streamChat({ ...opts, providerAttempt: (opts.providerAttempt ?? 0) + attempt })) {
         firstTokenReceived = true
         yield delta
       }

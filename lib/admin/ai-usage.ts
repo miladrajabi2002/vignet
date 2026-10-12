@@ -89,8 +89,8 @@ export interface OpenRouterManagedModel {
 
 export interface OpenRouterConfigStatus {
   apiKeyConfigured: boolean
-  providerSort: string
-  zeroDataRetention: boolean
+  /** «order» = the curated provider list; otherwise OpenRouter's own sort. */
+  providerRouting: string
   models: OpenRouterManagedModel[]
 }
 
@@ -237,8 +237,7 @@ export function getOpenRouterConfigStatus(
 
   return {
     apiKeyConfigured: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
-    providerSort: commercialConfig?.providerSort || 'price',
-    zeroDataRetention: commercialConfig?.zeroDataRetention ?? true,
+    providerRouting: commercialConfig?.providerRouting.mode === 'sort' ? commercialConfig.providerRouting.sort : 'order',
     models: AGENT_MODELS.map((model) => {
       const providerId = resolveModelId(model.id, platformPolicy?.providerModels)
       const configuredInPanel = Boolean(platformPolicy?.providerModels[model.id]?.trim())

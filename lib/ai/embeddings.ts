@@ -68,8 +68,6 @@ async function callEmbeddings(
   ctx: EmbedContext,
   input: string[],
 ): Promise<number[][]> {
-  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
-  const runtime = await getPlatformCommercialConfig()
   const res = await fetch(`${OPENROUTER_BASE}/embeddings`, {
     method: 'POST',
     headers: {
@@ -85,7 +83,6 @@ async function callEmbeddings(
       dimensions: EMBED_DIM,
       provider: {
         data_collection: 'deny',
-        zdr: runtime.zeroDataRetention,
       },
     }),
     signal: AbortSignal.timeout(60_000),

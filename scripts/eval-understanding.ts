@@ -5,6 +5,7 @@
  *   npx tsx -r dotenv/config scripts/eval-understanding.ts --system llm   # model reading (needs OPENROUTER_API_KEY)
  *   … --system both --model deepseek/deepseek-v4-flash --only G --label before
  *   … --system llm --sort latency     # score the reading under another provider routing
+ *   … --system llm --provider gmicloud/fp8   # score one provider alone, before adding it to the order
  *                                     # (default: the platform's provider sort, as production)
  *
  * Scores, per case: required acts present, forbidden acts absent (e.g. no
@@ -180,7 +181,7 @@ function jsonOf(content: string): string | null {
   return start >= 0 && end > start ? cleaned.slice(start, end + 1) : null
 }
 
-async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'latency' | 'throughput'): Promise<CaseResult> {
+async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'latency' | 'throughput', providerOnly?: string): Promise<CaseResult> {
   const { chatCompletion } = await import('@/lib/ai/openrouter')
   const candidates = candidatesFor(c)
   const recent = (c.history ?? []).map((turn) => ({ role: turn.role, content: turn.text }))
@@ -195,6 +196,7 @@ async function llmRun(c: EvalCase, model: string, providerSort?: 'price' | 'late
       timeoutMs: 15_000,
       retries: 1,
       ...(providerSort ? { providerSort } : {}),
+      ...(providerOnly ? { providerOnly } : {}),
     })
     const latencyMs = Date.now() - startedAt
     const raw = parseUnderstanding(jsonOf(result.content))
@@ -294,10 +296,10 @@ async function main() {
       await Promise.all(Array.from({ length: concurrency }, async () => {
         while (cursor < cases.length) {
           const index = cursor++
-          results[index] = await llmRun(cases[index], model, sort)
+          results[index] = await llmRun(cases[index], model, sort, arg('provider') ?? undefined)
         }
       }))
-      console.log(`model: ${model}${sort ? ` · provider sort: ${sort}` : ' · provider sort: platform setting'}`)
+      console.log(`model: ${model}${arg('provider') ? ` · provider: ${arg('provider')}` : sort ? ` · provider sort: ${sort}` : ' · provider routing: platform setting'}`)
     }
     const summary = summarize(current, results)
     fs.writeFileSync(path.join(outDir, `${label}-${current}.json`), JSON.stringify({ summary, results }, null, 2))

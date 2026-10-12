@@ -7,6 +7,7 @@ import {
   resolveModelId,
 } from '@/lib/ai/models'
 import { chatCompletion } from '@/lib/ai/openrouter'
+import { DEFAULT_PROVIDER_ORDERS } from '@/lib/ai/provider-routing'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -90,14 +91,16 @@ describe('OpenRouter platform wrapper', () => {
     expect(body.max_tokens).toBe(1200)
     expect(body.reasoning).toEqual({ enabled: false })
     expect(body.provider).toMatchObject({
-      sort: 'price',
+      // The curated order of the model, best first, with fallbacks after it.
+      order: DEFAULT_PROVIDER_ORDERS['deepseek/deepseek-v4-flash'],
+      allow_fallbacks: true,
       data_collection: 'deny',
-      zdr: true,
-      // Derived from the AGENT_MODELS catalog reference rates × safety margin
-      // (deepseek-v4-flash: 0.09/0.18 per M × 3) — a model rotation updates
-      // the cap automatically instead of leaving a stale hardcoded value.
-      max_price: { prompt: 0.27, completion: 0.54 },
+      // Catalog reference rates × safety margin, never below the floors that
+      // keep the curated providers eligible (deepseek-v4-flash: 0.09/0.18
+      // per M × 3 is under both floors).
+      max_price: { prompt: 0.5, completion: 2 },
     })
+    expect(body.provider).not.toHaveProperty('zdr')
     expect(result.usage).toMatchObject({
       promptTokens: 4000,
       completionTokens: 500,

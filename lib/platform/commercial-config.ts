@@ -1,6 +1,7 @@
 import type { Plan } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
+import { DEFAULT_PROVIDER_ROUTING, parseProviderRouting, serializeProviderRouting, type ProviderRouting } from '@/lib/ai/provider-routing'
 
 export const PLATFORM_STT_MODEL = 'openai/gpt-transcribe'
 
@@ -23,8 +24,7 @@ export type PlatformCommercialConfig = {
   sttPricePerMinuteIRR: number
   visionModel: string
   visionPricePerImageIRR: number
-  providerSort: 'price' | 'latency' | 'throughput'
-  zeroDataRetention: boolean
+  providerRouting: ProviderRouting
   replyPricesIRR: Record<ModelAlias, number>
   trialCreditIRR: number
   financeUsdToIRR: number | null
@@ -41,8 +41,7 @@ export const DEFAULT_COMMERCIAL_CONFIG: PlatformCommercialConfig = {
   sttPricePerMinuteIRR: 100,
   visionModel: PLATFORM_VISION_MODEL,
   visionPricePerImageIRR: 800,
-  providerSort: 'price',
-  zeroDataRetention: true,
+  providerRouting: DEFAULT_PROVIDER_ROUTING,
   replyPricesIRR: {
     fast: 4_000,
     smart: 6_500,
@@ -151,10 +150,7 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
       sttPricePerMinuteIRR: safePositive(row.sttPricePerMinuteIRR, fallback.sttPricePerMinuteIRR),
       visionModel: PLATFORM_VISION_MODEL,
       visionPricePerImageIRR: safePositive(row.visionPricePerImageIRR, fallback.visionPricePerImageIRR),
-      providerSort: ['price', 'latency', 'throughput'].includes(row.providerSort)
-        ? row.providerSort as PlatformCommercialConfig['providerSort']
-        : fallback.providerSort,
-      zeroDataRetention: row.zeroDataRetention,
+      providerRouting: parseProviderRouting(row.providerSort),
       replyPricesIRR: Object.fromEntries(MODEL_ALIASES.map((alias) => [
         alias,
         safePositive(storedPrices[alias], fallback.replyPricesIRR[alias]),
@@ -174,15 +170,14 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
 export async function updatePlatformCommercialConfig(
   input: PlatformCommercialConfig,
 ): Promise<PlatformCommercialConfig> {
-  const row = await prisma.platformAiSettings.upsert({
+  await prisma.platformAiSettings.upsert({
     where: { id: 'primary' },
     create: {
       id: 'primary',
       sttModel: PLATFORM_STT_MODEL,
       sttPricePerMinuteIRR: input.sttPricePerMinuteIRR,
       visionPricePerImageIRR: input.visionPricePerImageIRR,
-      providerSort: input.providerSort,
-      zeroDataRetention: input.zeroDataRetention,
+      providerSort: serializeProviderRouting(input.providerRouting),
       replyPricesIRR: input.replyPricesIRR,
       trialCreditIRR: input.trialCreditIRR,
       planConfig: input.plans,
@@ -192,8 +187,7 @@ export async function updatePlatformCommercialConfig(
       sttModel: PLATFORM_STT_MODEL,
       sttPricePerMinuteIRR: input.sttPricePerMinuteIRR,
       visionPricePerImageIRR: input.visionPricePerImageIRR,
-      providerSort: input.providerSort,
-      zeroDataRetention: input.zeroDataRetention,
+      providerSort: serializeProviderRouting(input.providerRouting),
       replyPricesIRR: input.replyPricesIRR,
       trialCreditIRR: input.trialCreditIRR,
       planConfig: input.plans,
@@ -201,5 +195,5 @@ export async function updatePlatformCommercialConfig(
     },
   })
   cache = null
-  return getPlatformCommercialConfig().then((value) => ({ ...value, zeroDataRetention: row.zeroDataRetention }))
+  return getPlatformCommercialConfig()
 }

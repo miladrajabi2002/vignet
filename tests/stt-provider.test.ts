@@ -34,7 +34,6 @@ describe('OpenRouter speech-to-text', () => {
     mocks.getCommercialConfig.mockResolvedValue({
       sttModel: 'legacy/provider',
       sttPricePerMinuteIRR: 100,
-      zeroDataRetention: true,
     })
     mocks.ensureSttCreditAvailable.mockResolvedValue(undefined)
     mocks.captureSttCredit.mockResolvedValue({ chargeIRR: 25, balanceAfterIRR: 975 })

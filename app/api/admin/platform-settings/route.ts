@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdminAuthed } from '@/lib/admin/auth'
+import { isProviderSlug, MAX_PROVIDER_ORDER } from '@/lib/ai/provider-routing'
 import {
   getPlatformCommercialConfig,
   PLATFORM_STT_MODEL,
@@ -28,8 +29,14 @@ const schema = z.object({
   sttPricePerMinuteIRR: positiveInt,
   visionModel: z.literal(PLATFORM_VISION_MODEL),
   visionPricePerImageIRR: positiveInt,
-  providerSort: z.enum(['price', 'latency', 'throughput']),
-  zeroDataRetention: z.boolean(),
+  providerRouting: z.object({
+    mode: z.enum(['order', 'sort']),
+    sort: z.enum(['price', 'latency', 'throughput']),
+    orders: z.record(
+      z.string().trim().min(1).max(160),
+      z.array(z.string().refine(isProviderSlug, 'Invalid provider slug')).max(MAX_PROVIDER_ORDER),
+    ),
+  }),
   replyPricesIRR: z.object({
     fast: positiveInt,
     smart: positiveInt,

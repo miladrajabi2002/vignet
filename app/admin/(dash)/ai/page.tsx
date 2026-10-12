@@ -12,7 +12,6 @@ import {
   MessagesSquare,
   Route,
   ServerCog,
-  ShieldCheck,
   Users,
   BrainCircuit,
 } from 'lucide-react'
@@ -178,11 +177,9 @@ function AccountStatus({
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
             <span className="inline-flex min-h-9 items-center gap-2 rounded-control bg-[var(--bg-surface)] px-3 text-[var(--text-secondary)]">
               <Route className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-              مسیریابی: <bdi dir="ltr" className="font-mono">{config.providerSort}</bdi>
-            </span>
-            <span className="inline-flex min-h-9 items-center gap-2 rounded-control bg-[var(--bg-surface)] px-3 text-[var(--text-secondary)]">
-              <ShieldCheck className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-              نگهداری صفر داده: {config.zeroDataRetention ? 'فعال' : 'غیرفعال'}
+              مسیریابی: {config.providerRouting === 'order'
+                ? 'فهرست نوبتی Providerها'
+                : <bdi dir="ltr" className="font-mono">{config.providerRouting}</bdi>}
             </span>
           </div>
         </div>

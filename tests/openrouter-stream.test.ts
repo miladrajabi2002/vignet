@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/platform/commercial-config', () => ({
-  getPlatformCommercialConfig: vi.fn(async () => ({ providerSort: 'price', zeroDataRetention: false })),
+  getPlatformCommercialConfig: vi.fn(async () => ({ providerRouting: { mode: 'sort', sort: 'price', orders: {} } })),
 }))
 
 import { streamChat } from '@/lib/ai/openrouter'
