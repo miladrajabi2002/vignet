@@ -135,7 +135,7 @@ export default async function ProductsPage(
     // Counts for the status tabs: the whole catalog, not the current search.
     prisma.product.count({ where: { workspaceId: user.workspaceId } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, ...stockFilterWhere('in_stock', lowStockThreshold) } }),
-    prisma.product.count({ where: { workspaceId: user.workspaceId, stock: 0 } }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, ...stockFilterWhere('out_of_stock', lowStockThreshold) } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, active: false } }),
   ])
 
