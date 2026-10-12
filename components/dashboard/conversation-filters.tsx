@@ -267,8 +267,8 @@ export function ConversationFilters({
                                         <MaterialSelect
                                                 value={activeChannel ?? ''}
                                                 onValueChange={(channel) => navigate({ channel })}
-                                                ariaLabel={isFa ? 'برنامهٔ گفتگو' : 'Conversation channel'}
-                                                label={isFa ? 'برنامه' : 'App'}
+                                                ariaLabel={isFa ? 'اتصال' : 'Conversation channel'}
+                                                label={isFa ? 'اتصال' : 'App'}
                                                 className="min-w-40"
                                                 options={channelOptions.map((option) => ({
                                                         value: option.key === 'ALL' ? '' : option.key,
@@ -365,7 +365,7 @@ export function ConversationFilters({
                                 title={isFa ? 'فیلتر گفتگوها' : 'Conversation filters'}
                                 description={
                                         isFa
-                                                ? 'صندوق گفتگوها را بر اساس وضعیت، برنامه، ایجنت و هوش فروش محدود کنید'
+                                                ? 'صندوق گفتگوها را بر اساس وضعیت، اتصال، ایجنت و هوش فروش محدود کنید'
                                                 : 'Narrow the inbox by status, channel, agent, and sales intelligence'
                                 }
                                 closeLabel={isFa ? 'بستن فیلترها' : 'Close filters'}
@@ -406,11 +406,11 @@ export function ConversationFilters({
                                         </FilterField>
 
                                         {channelOptions.length > 0 && (
-                                                <FilterField label={isFa ? 'برنامهٔ گفتگو' : 'Channel'}>
+                                                <FilterField label={isFa ? 'اتصال' : 'Channel'}>
                                                         <MaterialSelect
                                                                 value={activeChannel ?? ''}
                                                                 onValueChange={(channel) => navigate({ channel })}
-                                                                ariaLabel={isFa ? 'برنامهٔ گفتگو' : 'Conversation channel'}
+                                                                ariaLabel={isFa ? 'اتصال' : 'Conversation channel'}
                                                                 options={channelOptions.map((option) => ({
                                                                         value: option.key === 'ALL' ? '' : option.key,
                                                                         label: option.label,

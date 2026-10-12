@@ -138,7 +138,7 @@ export function CampaignComposer({
             <div className="py-10 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-[var(--ok)]" />
               <h3 className="mt-4 text-lg font-bold text-[var(--text-primary)]">{isFa ? 'کمپین وارد صف شد' : 'Campaign queued'}</h3>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-[var(--text-secondary)]">{isFa ? 'رضایت و فعال‌بودن برنامه برای هر مخاطب دوباره بررسی می‌شود. نتیجه هر ارسال جداگانه ثبت خواهد شد.' : 'Consent and channel availability are rechecked per recipient. Each delivery result is recorded separately.'}</p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-[var(--text-secondary)]">{isFa ? 'رضایت و فعال‌بودن اتصال برای هر مشتری دوباره بررسی می‌شود. نتیجه هر ارسال جداگانه ثبت خواهد شد.' : 'Consent and channel availability are rechecked per recipient. Each delivery result is recorded separately.'}</p>
               <button type="button" onClick={onClose} className="mt-6 min-h-11 rounded-xl bg-[var(--white)] px-5 text-sm font-medium text-[var(--bg-base)]">{isFa ? 'بستن' : 'Close'}</button>
             </div>
           ) : (
@@ -147,7 +147,7 @@ export function CampaignComposer({
                 <div className="flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]"><Users className="h-4 w-4 text-vg-signal" />{isFa ? '۱. پیش‌نمایش مخاطبان' : '1. Audience preview'}</h3>{previewing && <Loader2 className="h-4 w-4 animate-spin" />}</div>
                 {preview && (
                   <div className="mt-4">
-                    <div className="grid grid-cols-3 gap-2 text-center"><AudienceStat label={isFa ? 'مجاز برای ارسال' : 'Eligible'} value={preview.eligibleCount} tone="success" /><AudienceStat label={isFa ? 'بدون رضایت' : 'No consent'} value={preview.excludedNoConsent} tone="warning" /><AudienceStat label={isFa ? 'بدون برنامهٔ فعال' : 'No active channel'} value={preview.excludedNoChannel} tone="muted" /></div>
+                    <div className="grid grid-cols-3 gap-2 text-center"><AudienceStat label={isFa ? 'مجاز برای ارسال' : 'Eligible'} value={preview.eligibleCount} tone="success" /><AudienceStat label={isFa ? 'بدون رضایت' : 'No consent'} value={preview.excludedNoConsent} tone="warning" /><AudienceStat label={isFa ? 'بدون اتصال فعال' : 'No active channel'} value={preview.excludedNoChannel} tone="muted" /></div>
                     {preview.sample.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{preview.sample.map((item) => <span key={item.id} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[12px] text-[var(--text-secondary)]">{item.label} · {item.channel}</span>)}</div>}
                     {preview.capped && <p className="mt-3 text-[12px] text-amber-500">{isFa ? 'این کمپین برای ایمنی به ۵۰۰ مخاطب اول محدود شده است.' : 'For safety, this campaign is capped at the first 500 contacts.'}</p>}
                   </div>

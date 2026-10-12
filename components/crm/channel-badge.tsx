@@ -102,7 +102,7 @@ export const CHANNEL_LABELS_FA: Record<ChannelType, string> = {
   WHATSAPP: 'واتساپ',
   INSTAGRAM: 'اینستاگرام',
   API: 'اتصال مستقیم',
-  CHAT_LINK: 'لینک چت',
+  CHAT_LINK: 'چت لینک',
 }
 
 /** Channel name in the panel's language; unknown values fall back to the raw key. */

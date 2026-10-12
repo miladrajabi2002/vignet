@@ -72,7 +72,7 @@ const CHANNEL_META: Record<string, { fa: string; en: string; icon: LucideIcon }>
   INSTAGRAM: { fa: 'اینستاگرام', en: 'Instagram', icon: MessageCircle },
   RUBIKA: { fa: 'روبیکا', en: 'Rubika', icon: Cable },
   BALE: { fa: 'بله', en: 'Bale', icon: Send },
-  WEB_WIDGET: { fa: 'ویجت وب', en: 'Web widget', icon: Globe2 },
+  WEB_WIDGET: { fa: 'ویجت سایت', en: 'Web widget', icon: Globe2 },
   CHAT_LINK: { fa: 'لینک گفتگو', en: 'Chat link', icon: Link2 },
   API: { fa: 'اتصال API', en: 'API connection', icon: Code2 },
 }
@@ -346,12 +346,12 @@ export default async function AgentDetailPage(
     growthActions.push({
       key: 'channel-growth',
       icon: Share2,
-      title: fa ? 'گسترش دسترسی به یک برنامهٔ دیگر' : 'Add another customer channel',
+      title: fa ? 'یک اتصال دیگر اضافه کنید' : 'Add another customer channel',
       desc: fa
-        ? 'یک برنامهٔ مکمل اضافه کنید تا مشتریان از مسیرهای بیشتری به ایجنت برسند.'
+        ? 'یک پیام‌رسان یا سایت دیگر وصل کنید تا مشتری‌ها از راه‌های بیشتری به ایجنت برسند.'
         : 'Add a complementary channel so more customers can reach the agent.',
       href: `/agents/${agent.id}/channels`,
-      cta: fa ? 'مدیریت برنامه‌ها' : 'Manage channels',
+      cta: fa ? 'مدیریت اتصال‌ها' : 'Manage channels',
       badge: fa ? 'پیشنهاد رشد' : 'Growth idea',
     })
   }

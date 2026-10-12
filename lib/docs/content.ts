@@ -203,7 +203,7 @@ const ALL_DOCS: DocPage[] = [
                 icon: Bot,
                 title: { fa: 'ساخت ایجنت', en: 'Building agents' },
                 description: {
-                        fa: 'ساخت، پیکربندی و تست ایجنت',
+                        fa: 'ساخت، تنظیم و تست ایجنت',
                         en: 'Create, configure and test an agent',
                 },
                 blocks: [
@@ -225,7 +225,7 @@ const ALL_DOCS: DocPage[] = [
                                                 en: 'Persona: the system prompt that defines its behaviour',
                                         },
                                         {
-                                                fa: 'پیکربندی: مدل، زبان و سبک پاسخ‌گویی',
+                                                fa: 'تنظیم: مدل، زبان و سبک پاسخ‌گویی',
                                                 en: 'Config: model, language and response style',
                                         },
                                 ],
@@ -320,7 +320,7 @@ const ALL_DOCS: DocPage[] = [
                         },
                         {
                                 type: 'p',
-                                fa: 'برای آپلود فایل، باید فضای ذخیره‌سازی Supabase پیکربندی شده باشد. منابع متنی و لینک بدون آن نیز کار می‌کنند.',
+                                fa: 'برای آپلود فایل، باید فضای ذخیره‌سازی Supabase تنظیم شده باشد. منابع متنی و لینک بدون آن نیز کار می‌کنند.',
                                 en: 'File upload requires Supabase Storage to be configured. Text and URL sources work without it.',
                         },
                 ],
@@ -376,7 +376,7 @@ const ALL_DOCS: DocPage[] = [
         {
                 slug: 'channels',
                 icon: Share2,
-                title: { fa: 'کانال‌ها و ویجت وب', en: 'Channels & web widget' },
+                title: { fa: 'کانال‌ها و ویجت سایت', en: 'Channels & web widget' },
                 description: {
                         fa: 'ایجنت را روی سایت خود قرار دهید',
                         en: 'Put your agent on your website',
@@ -384,16 +384,16 @@ const ALL_DOCS: DocPage[] = [
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'کانال‌ها مشخص می‌کنند که ایجنت کجا با مشتریان گفتگو می‌کند. ویجت وب و کانال‌های پیام‌رسان (تلگرام، اینستاگرام، روبیکا و بله) در دسترس هستند.',
+                                fa: 'کانال‌ها مشخص می‌کنند که ایجنت کجا با مشتریان گفتگو می‌کند. ویجت سایت و کانال‌های پیام‌رسان (تلگرام، اینستاگرام، روبیکا و بله) در دسترس هستند.',
                                 en: 'Channels define where your agent talks to customers. The web widget and messaging channels (Telegram, Instagram, Rubika, and Bale) are available.',
                         },
-                        { type: 'h2', fa: 'فعال‌سازی ویجت وب', en: 'Enable the web widget' },
+                        { type: 'h2', fa: 'فعال‌سازی ویجت سایت', en: 'Enable the web widget' },
                         {
                                 type: 'steps',
                                 items: [
                                         { fa: 'به صفحهٔ ایجنت ← کانال‌ها بروید', en: 'Go to the agent → Channels' },
                                         {
-                                                fa: 'روی «فعال‌سازی» در بخش ویجت وب کلیک کنید',
+                                                fa: 'روی «فعال‌سازی» در بخش ویجت سایت کلیک کنید',
                                                 en: 'Click “Enable” under Web widget',
                                         },
                                         { fa: 'کد نصب را کپی کنید', en: 'Copy the embed code' },
@@ -1193,13 +1193,13 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 icon: Headset,
                 title: { fa: 'انتقال به اپراتور', en: 'Operator handoff' },
                 description: {
-                        fa: 'چگونه گفتگو از ایجنت به اپراتور انسانی منتقل می‌شود و چگونه پاسخ دهید.',
+                        fa: 'چگونه گفتگو از ایجنت به اپراتور منتقل می‌شود و چگونه پاسخ دهید.',
                         en: 'How a conversation is escalated from the agent to a human operator and how you reply.',
                 },
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'وقتی ایجنت نتوانست پاسخ بدهد یا مشتری درخواست اپراتور کرد، گفتگو به‌صورت خودکار (یا دستی) به یک اپراتور انسانی منتقل می‌شود. در این حالت هوش مصنوعی کنار می‌رود تا اپراتور مستقیماً پاسخ دهد.',
+                                fa: 'وقتی ایجنت نتوانست پاسخ بدهد یا مشتری درخواست اپراتور کرد، گفتگو به‌صورت خودکار (یا دستی) به یک اپراتور منتقل می‌شود. در این حالت هوش مصنوعی کنار می‌رود تا اپراتور مستقیماً پاسخ دهد.',
                                 en: 'When the agent can’t answer or the customer asks for a human, the conversation is escalated (automatically or manually) to a human operator. The AI steps aside so the operator can reply directly.',
                         },
                         { type: 'motion', motion: 'handoff' },
@@ -1221,7 +1221,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                         },
                                 ],
                         },
-                        { type: 'h2', fa: 'پیکربندی بات اپراتور تلگرام', en: 'Configure the operator Telegram bot' },
+                        { type: 'h2', fa: 'تنظیم بات اپراتور تلگرام', en: 'Configure the operator Telegram bot' },
                         {
                                 type: 'p',
                                 fa: 'برای دریافت هشدارهای انتقال در تلگرام، یک بات با @BotFather بسازید، شماره chat_id خود را از @userinfobot بگیرید و در «تنظیمات ← بات اپراتور تلگرام» وارد کنید. ویجنت به‌صورت خودکار webhook را ثبت می‌کند.',
@@ -1307,7 +1307,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 type: 'list',
                                 items: [
                                         {
-                                                fa: 'ویجت وب: بله، چون هویت بازدیدکننده ناشناس است و برای پیگیری به نام/شماره نیاز داریم.',
+                                                fa: 'ویجت سایت: بله، چون هویت بازدیدکننده ناشناس است و برای پیگیری به نام/شماره نیاز داریم.',
                                                 en: 'Web widget: yes, because the visitor’s identity is anonymous and you need a name/phone for follow-up.',
                                         },
                                         {
@@ -1398,7 +1398,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 type: 'steps',
                                 items: [
                                         {
-                                                fa: 'فایل افزونه را از پنل ویجنت (صفحهٔ محصولات یا اتصالات) یا از آدرس /downloads/vigent-wordpress.zip دانلود کنید.',
+                                                fa: 'فایل افزونه را از پنل ویجنت (صفحهٔ محصولات یا اتصال‌ها) یا از آدرس /downloads/vigent-wordpress.zip دانلود کنید.',
                                                 en: 'Download the plugin zip from the Vigent panel (Products or Integrations page) or from /downloads/vigent-wordpress.zip.',
                                         },
                                         {
@@ -1439,7 +1439,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                         { type: 'h2', fa: 'گام ۵ (اختیاری) — فعال‌سازی هم‌گام‌سازی کامل', en: 'Step 5 (optional) — Enable full sync' },
                         {
                                 type: 'p',
-                                fa: 'اگر می‌خواهید ویجنت هر ۳۰ دقیقه فروشگاه را هم poll کند (به‌علاوهٔ webhook)، باید Consumer Key/Secret ووکامرس را در پنل ویجنت وارد کنید. برای ساخت این کلیدها: در وردپرس به WooCommerce ← Settings ← Advanced ← REST API بروید، روی «Add key» بزنید، دسترسی «Read/Write» انتخاب کنید و کلیدها را کپی کنید. سپس در پنل ویجنت (بخش اتصالات) این کلیدها را وارد کنید.',
+                                fa: 'اگر می‌خواهید ویجنت هر ۳۰ دقیقه فروشگاه را هم poll کند (به‌علاوهٔ webhook)، باید Consumer Key/Secret ووکامرس را در پنل ویجنت وارد کنید. برای ساخت این کلیدها: در وردپرس به WooCommerce ← Settings ← Advanced ← REST API بروید، روی «Add key» بزنید، دسترسی «Read/Write» انتخاب کنید و کلیدها را کپی کنید. سپس در پنل ویجنت (بخش اتصال‌ها) این کلیدها را وارد کنید.',
                                 en: 'If you want Vigent to also poll your store every 30 minutes (in addition to webhooks), enter your WooCommerce Consumer Key/Secret in the Vigent panel. To create these keys: in WordPress go to WooCommerce → Settings → Advanced → REST API, click “Add key”, choose “Read/Write” permission, and copy the keys. Then enter them in the Vigent panel (Integrations section).',
                         },
                         { type: 'h2', fa: 'عیب‌یابی', en: 'Troubleshooting' },
@@ -1507,7 +1507,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                         },
                         {
                                 type: 'callout',
-                                fa: 'محدودیت برنامه‌ها: در تلگرام، بله و روبیکا پیام هر زمان می‌رسد. اینستاگرام و واتس‌اپ فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهند؛ خبرهای بعد از آن فرستاده نمی‌شوند. در ویجت سایت و لینک چت، خبر در همان گفتگو ثبت می‌شود و مشتری با برگشتن به چت آن را می‌بیند. سفارشی که در ووکامرس لغو شود با نسخهٔ فعلی افزونه از ویجنت حذف می‌شود، بنابراین پیام لغو فرستاده نمی‌شود.',
+                                fa: 'محدودیت پیام‌رسان‌ها: در تلگرام، بله و روبیکا پیام هر زمان می‌رسد. اینستاگرام و واتس‌اپ فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهند؛ خبرهای بعد از آن فرستاده نمی‌شوند. در ویجت سایت و چت لینک، خبر در همان گفتگو ثبت می‌شود و مشتری با برگشتن به چت آن را می‌بیند. سفارشی که در ووکامرس لغو شود با نسخهٔ فعلی افزونه از ویجنت حذف می‌شود، بنابراین پیام لغو فرستاده نمی‌شود.',
                                 en: 'Channel limits: Telegram, Bale and Rubika deliver at any time. Instagram and WhatsApp only allow messages within 24 hours of the customer’s last message; later updates are not sent. On the website widget and chat link, the update is saved in the conversation and the customer sees it when they come back. With the current plugin a cancelled WooCommerce order is removed from Vigent, so no cancellation message is sent.',
                         },
                         { type: 'h2', fa: 'نگه‌داری سبد برای یک ساعت', en: 'One-hour cart hold' },
@@ -1634,7 +1634,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                                 en: 'Text-question embeddings — 7-day TTL. Repeated questions skip the embedding API entirely.',
                                         },
                                         {
-                                                fa: 'پیکربندی عمومی ویجت (نام، رنگ، تم، موقعیت، فونت) — TTL ۶۰ ثانیه. هر پیام جدید این کانفیگ را می‌خواند.',
+                                                fa: 'تنظیم عمومی ویجت (نام، رنگ، تم، موقعیت، فونت) — TTL ۶۰ ثانیه. هر پیام جدید این کانفیگ را می‌خواند.',
                                                 en: 'Public widget config (name, color, theme, position, font) — 60s TTL. Read on every chat message.',
                                         },
                                 ],
@@ -1785,7 +1785,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'ویجت چت، ایجنت شما را روی هر وب‌سایتی قرار می‌دهد. کافی است از صفحهٔ کانال‌ها ← ویجت وب، کد اسکریپت را کپی و قبل از بستهٔ </body> سایت خود بچسبانید.',
+                                fa: 'ویجت چت، ایجنت شما را روی هر وب‌سایتی قرار می‌دهد. کافی است از صفحهٔ کانال‌ها ← ویجت سایت، کد اسکریپت را کپی و قبل از بستهٔ </body> سایت خود بچسبانید.',
                                 en: 'The chat widget puts your agent on any website. Copy the script tag from Channels → Web Widget and paste it before your site\'s closing </body> tag.',
                         },
                         { type: 'motion', motion: 'widget' },

@@ -96,16 +96,16 @@ const SHORT: Record<string, Copy> = {
   comment_unavailable: { fa: 'کامنت دیگر در دسترس نیست', en: 'Comment no longer available' },
   reply_window_closed: { fa: 'مهلت پاسخ ۲۴ساعته بسته شده', en: '24-hour reply window closed' },
   recipient_unreachable: { fa: 'مشتری در دسترس نیست', en: 'Customer unreachable' },
-  token_invalid: { fa: 'اتصال برنامه منقضی شده', en: 'Channel connection expired' },
-  permission_missing: { fa: 'دسترسی برنامه کافی نیست', en: 'Channel permission missing' },
+  token_invalid: { fa: 'اتصال منقضی شده', en: 'Channel connection expired' },
+  permission_missing: { fa: 'دسترسی اتصال کافی نیست', en: 'Channel permission missing' },
   rate_limited: { fa: 'محدودیت ارسال؛ کمی بعد', en: 'Rate limited; retry shortly' },
   network_error: { fa: 'خطای شبکه در ارسال', en: 'Network error while sending' },
-  message_rejected: { fa: 'برنامه پیام را نپذیرفت', en: 'Channel rejected the message' },
+  message_rejected: { fa: 'پیام‌رسان پیام را نپذیرفت', en: 'Channel rejected the message' },
   products_need_dm: { fa: 'محصول فقط در دایرکت ارسال می‌شود', en: 'Products need a direct message' },
   missing_thread: { fa: 'گفتگوی مقصد پیدا نشد', en: 'No destination thread' },
-  channel_inactive: { fa: 'برنامه غیرفعال است', en: 'Channel is inactive' },
-  credentials_missing: { fa: 'برنامه متصل نیست', en: 'Channel not connected' },
-  channel_retired: { fa: 'این برنامه دیگر پشتیبانی نمی‌شود', en: 'Channel retired' },
+  channel_inactive: { fa: 'اتصال غیرفعال است', en: 'Channel is inactive' },
+  credentials_missing: { fa: 'اتصال برقرار نیست', en: 'Channel not connected' },
+  channel_retired: { fa: 'این اتصال دیگر پشتیبانی نمی‌شود', en: 'Channel retired' },
 }
 
 /** Full sentence under the composer: what happened and what to do. */
@@ -123,23 +123,23 @@ const LONG: Record<string, Copy> = {
     en: 'The customer blocked the bot, deactivated their account or never accepted the chat, so the message cannot reach them.',
   },
   token_invalid: {
-    fa: 'اتصال این برنامه منقضی یا باطل شده است. از بخش کانال‌ها برنامه را دوباره وصل کنید.',
+    fa: 'این اتصال منقضی یا باطل شده است. از بخش اتصال‌ها دوباره وصلش کنید.',
     en: 'This channel’s connection expired or was revoked. Reconnect it from the channels page.',
   },
   permission_missing: {
-    fa: 'برنامه دسترسی لازم برای این نوع ارسال را ندارد. از بخش کانال‌ها برنامه را قطع و دوباره وصل کنید و همهٔ دسترسی‌ها را تأیید کنید.',
+    fa: 'این اتصال دسترسی لازم برای این نوع ارسال را ندارد. از بخش اتصال‌ها قطع و دوباره وصلش کنید و همهٔ دسترسی‌ها را تأیید کنید.',
     en: 'The channel lacks the permission for this kind of send. Disconnect and reconnect it from the channels page, approving every permission.',
   },
   rate_limited: {
-    fa: 'برنامه موقتاً جلوی ارسال‌های پشت‌سرهم را گرفته است. یک دقیقه صبر کنید و دوباره بفرستید.',
+    fa: 'پیام‌رسان موقتاً جلوی ارسال‌های پشت‌سرهم را گرفته است. یک دقیقه صبر کنید و دوباره بفرستید.',
     en: 'The channel is temporarily throttling sends. Wait a minute and send again.',
   },
   network_error: {
-    fa: 'ارتباط با سرور برنامه برقرار نشد. چند لحظه بعد دوباره تلاش کنید.',
+    fa: 'ارتباط با سرور پیام‌رسان برقرار نشد. چند لحظه بعد دوباره تلاش کنید.',
     en: 'Could not reach the channel’s servers. Try again in a moment.',
   },
   message_rejected: {
-    fa: 'برنامه این پیام را نپذیرفت (مثلاً متن خیلی طولانی یا قالب نامعتبر). متن را کوتاه‌تر کنید و دوباره بفرستید.',
+    fa: 'پیام‌رسان این پیام را نپذیرفت (مثلاً متن خیلی طولانی یا قالب نامعتبر). متن را کوتاه‌تر کنید و دوباره بفرستید.',
     en: 'The channel rejected this message (for example it was too long or malformed). Shorten it and send again.',
   },
   products_need_dm: {
@@ -147,19 +147,19 @@ const LONG: Record<string, Copy> = {
     en: 'This is a public comment thread; product cards only go out in direct messages. Send the product link as text instead.',
   },
   missing_thread: {
-    fa: 'گفتگوی مقصد این مشتری در برنامه پیدا نشد؛ پیام فقط در پنل ثبت شد.',
+    fa: 'گفتگوی مقصد این مشتری در پیام‌رسان پیدا نشد؛ پیام فقط در پنل ثبت شد.',
     en: 'No destination thread exists for this customer; the message was only saved in the dashboard.',
   },
   channel_inactive: {
-    fa: 'این برنامه برای ایجنت غیرفعال است. از بخش کانال‌ها آن را فعال کنید.',
+    fa: 'این اتصال برای ایجنت غیرفعال است. از بخش اتصال‌ها فعالش کنید.',
     en: 'This channel is turned off for the agent. Turn it on from the channels page.',
   },
   credentials_missing: {
-    fa: 'برنامه به ایجنت متصل نیست. از بخش کانال‌ها آن را دوباره وصل کنید.',
+    fa: 'این اتصال به ایجنت وصل نیست. از بخش اتصال‌ها دوباره وصلش کنید.',
     en: 'The channel is not connected to the agent. Reconnect it from the channels page.',
   },
   channel_retired: {
-    fa: 'این برنامه دیگر پشتیبانی نمی‌شود؛ پیام فقط در گفتگو ثبت شد.',
+    fa: 'این اتصال دیگر پشتیبانی نمی‌شود؛ پیام فقط در گفتگو ثبت شد.',
     en: 'This channel is retired; the message was only saved in the conversation.',
   },
 }

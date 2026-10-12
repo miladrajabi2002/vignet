@@ -733,7 +733,7 @@ function AgentStep({
             <div className="flex items-center justify-between gap-4 px-3.5 py-3">
               <div className="min-w-0">
                 <p className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{fa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'}</p>
-                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'در ویجت سایت و لینک چت؛ مخاطب مستقیم در CRM ثبت می‌شود.' : 'On the website widget and chat link; the contact is saved to your CRM.'}</p>
+                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'در ویجت سایت و چت لینک؛ مشتری مستقیم در لیست مشتری‌ها ثبت می‌شود.' : 'On the website widget and chat link; the contact is saved to your CRM.'}</p>
               </div>
               <Switch checked={requireCustomerInfo} onChange={setRequireCustomerInfo} aria-label={fa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'} />
             </div>
@@ -1204,7 +1204,7 @@ function ChannelStep({
 
       <StepHeading
         title={fa ? 'مشتری از کجا پیام بدهد؟' : 'Where will customers message you?'}
-        subtitle={fa ? 'لینک چت همین حالا ساخته می‌شود. بقیه چند دقیقه کار دارند.' : 'The chat link is ready in one click. The others take a few minutes.'}
+        subtitle={fa ? 'چت لینک همین حالا ساخته می‌شود. بقیه چند دقیقه کار دارند.' : 'The chat link is ready in one click. The others take a few minutes.'}
       />
 
       <motion.div variants={staggerChild} className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
@@ -1213,7 +1213,7 @@ function ChannelStep({
             <ChannelMark channel="CHAT_LINK" size="sm" className="!h-9 !w-9 !rounded-xl" />
             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[12px] font-medium text-emerald-700">{fa ? 'یک کلیک' : 'One click'}</span>
           </div>
-          <span className="mt-1 text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'لینک چت' : 'Chat link'}</span>
+          <span className="mt-1 text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'چت لینک' : 'Chat link'}</span>
           <span className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'صفحهٔ گفتگوی آماده، بدون سایت' : 'A ready chat page, no website needed'}</span>
           {linkUrl ? (
             <button type="button" onClick={() => void copy()} className={cn(ROW_BTN_LIGHT, 'mt-2 w-full')}>
@@ -1258,7 +1258,7 @@ function ChannelStep({
 
       {linkUrl && (
         <p role="status" className="mt-3 text-[13px] text-[var(--text-secondary)]">
-          {fa ? 'لینک چت ساخته شد: ' : 'Chat link created: '}
+          {fa ? 'چت لینک ساخته شد: ' : 'Chat link created: '}
           <span dir="ltr" className="select-all font-medium text-[var(--text-primary)]">{linkUrl}</span>
         </p>
       )}
@@ -1357,7 +1357,7 @@ function DoneStep({ agentId, instagramConnected }: { agentId: string | null; ins
       : []),
     ...(linkUrl
       ? [{
-          title: fa ? 'لینک چت را برای اولین مشتری بفرستید' : 'Send the chat link to your first customer',
+          title: fa ? 'چت لینک را برای اولین مشتری بفرستید' : 'Send the chat link to your first customer',
           body: <span dir="ltr" className="select-all">{linkUrl.replace(/^https?:\/\//, '')}</span>,
           action: (
             <button type="button" onClick={() => void copy()} className={ROW_BTN_LIGHT}>
@@ -1370,10 +1370,10 @@ function DoneStep({ agentId, instagramConnected }: { agentId: string | null; ins
         ? []
         : [{
             title: fa ? 'یک راه تماس برای مشتری باز کنید' : 'Open a way for customers to reach you',
-            body: fa ? 'لینک چت، ویجت سایت، اینستاگرام یا تلگرام' : 'Chat link, website widget, Instagram or Telegram',
+            body: fa ? 'چت لینک، ویجت سایت، اینستاگرام یا تلگرام' : 'Chat link, website widget, Instagram or Telegram',
             action: (
               <button type="button" onClick={() => void finish(agentId ? `/agents/${agentId}/channels` : '/agents')} disabled={leaving} className={ROW_BTN_LIGHT}>
-                {fa ? 'اتصال برنامه' : 'Connect an app'}
+                {fa ? 'افزودن اتصال' : 'Connect an app'}
               </button>
             ),
           }]),

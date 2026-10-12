@@ -98,7 +98,7 @@ export function SupportButton() {
             </Link>
             <Link href="/docs" onClick={() => setOpen(false)} className="spatial-press flex min-h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
               <BookOpen aria-hidden="true" className="h-4 w-4" />
-              {fa ? 'مستندات' : 'Docs'}
+              {fa ? 'راهنما' : 'Docs'}
             </Link>
           </div>
         </div>

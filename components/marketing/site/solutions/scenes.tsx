@@ -117,17 +117,17 @@ function UnifiedInboxScene({ locale }: { locale: SiteLocale }) {
 					})}
 				</div>
 				<div className="vg-t6 hidden w-[200px] shrink-0 flex-col gap-2 rounded-2xl bg-vg-bg p-3 lg:flex">
-					<div className="flex items-center gap-2"><span className="inline-flex size-9 items-center justify-center rounded-full bg-vg-soft font-bold text-[#4c2fd0]">{t('س', 'S')}</span><div><div className="text-[13px] font-bold">{t('سارا', 'Sara')}</div><div className="text-[11px] text-vg-cap">{t('۳ برنامه', '3 channels')}</div></div></div>
+					<div className="flex items-center gap-2"><span className="inline-flex size-9 items-center justify-center rounded-full bg-vg-soft font-bold text-[#4c2fd0]">{t('س', 'S')}</span><div><div className="text-[13px] font-bold">{t('سارا', 'Sara')}</div><div className="text-[11px] text-vg-cap">{t('۳ اتصال', '3 channels')}</div></div></div>
 					<div className="flex gap-1">{[0, 4, 1].map((c) => <ChannelBadge key={c} channel={CHANNELS[c]} size={24} iconSize={12} radius={7} />)}</div>
 					<div className="rounded-xl bg-white p-2 text-[11.5px] leading-[1.8] text-vg-sub">{t('۲ سفارش قبلی · آخرین خرید: کت کرم', '2 past orders · last: cream coat')}</div>
 					<span className="vg-t7 w-fit rounded-full bg-[#dcfce7] px-2 py-0.5 text-[11px] text-[#166534]">{t('قصد خرید بالا', 'High intent')}</span>
 					<span className="vg-t8 mt-auto flex flex-col gap-1 rounded-xl bg-vg-ink p-2.5 text-[11.5px] leading-[1.7] text-white">
 						<Inbox className="size-4 text-[#b9adff]" strokeWidth={2} />
-						{t('۶ برنامه، ۱ صندوق؛ هیچ پیامی گم نمی‌شود', '6 channels, 1 inbox — nothing gets lost')}
+						{t('۶ اتصال، ۱ صندوق؛ هیچ پیامی گم نمی‌شود', '6 channels, 1 inbox — nothing gets lost')}
 					</span>
 				</div>
 			</div>
-			<Chip step={7} tone="ink" className="self-center lg:hidden"><Inbox className="size-3.5" strokeWidth={2} />{t('۶ برنامه · ۱ صندوق · بدون پیام گم‌شده', '6 channels · 1 inbox · nothing lost')}</Chip>
+			<Chip step={7} tone="ink" className="self-center lg:hidden"><Inbox className="size-3.5" strokeWidth={2} />{t('۶ اتصال · ۱ صندوق · بدون پیام گم‌شده', '6 channels · 1 inbox · nothing lost')}</Chip>
 		</Frame>
 	)
 }
@@ -445,6 +445,7 @@ function WooCommerceScene({ locale }: { locale: SiteLocale }) {
 const SCENES: Record<string, (props: { locale: SiteLocale }) => ReactNode> = {
 	'unified-inbox': UnifiedInboxScene,
 	'persian-ai-chatbot': PersianChatbotScene,
+	'website-chat': PersianChatbotScene,
 	'ecommerce-ai': EcommerceScene,
 	'customer-support-ai': SupportScene,
 	instagram: InstagramScene,

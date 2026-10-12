@@ -232,7 +232,7 @@ function formatOperatorAlertMessage(ctx: HandoffContext): string {
         lines.push('')
         lines.push(`👤 <b>مشتری:</b> ${escapeTelegramHtml(ctx.contactName || 'ناشناس')}`)
         if (ctx.contactPhone) lines.push(`📞 <b>شماره:</b> ${escapeTelegramHtml(ctx.contactPhone)}`)
-        lines.push(`📱 <b>برنامه:</b> ${CHANNEL_FA[ctx.channel] ?? escapeTelegramHtml(ctx.channel)}`)
+        lines.push(`📱 <b>اتصال:</b> ${CHANNEL_FA[ctx.channel] ?? escapeTelegramHtml(ctx.channel)}`)
         lines.push(`🤖 <b>ایجنت:</b> ${escapeTelegramHtml(ctx.agentName)}`)
         lines.push(`📝 <b>دلیل:</b> ${escapeTelegramHtml(ctx.reason)}`)
         if (ctx.summary) {

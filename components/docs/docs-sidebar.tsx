@@ -99,7 +99,7 @@ export function DocsSidebar() {
         <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
       </button>
 
-      <nav className="hidden min-w-0 flex-col gap-1 md:flex" aria-label={locale === 'fa' ? 'فهرست مستندات' : 'Documentation navigation'}>
+      <nav className="hidden min-w-0 flex-col gap-1 md:flex" aria-label={locale === 'fa' ? 'فهرست راهنما' : 'Documentation navigation'}>
         <div className="mb-2">
           <DocsSearchField query={query} onQueryChange={setQuery} locale={locale} />
         </div>
@@ -135,7 +135,7 @@ export function DocsSidebar() {
               : `${filteredItems.length} guides`}
           </p>
         </div>
-        <nav className="grid gap-2" aria-label={locale === 'fa' ? 'فهرست مستندات' : 'Documentation navigation'}>
+        <nav className="grid gap-2" aria-label={locale === 'fa' ? 'فهرست راهنما' : 'Documentation navigation'}>
           {filteredItems.map(({ slug, href, icon: Icon, title }) => {
             const active = pathname === href
             return (

@@ -195,18 +195,18 @@ export function OperatorReply({
     <p className="inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
       <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
       {deliveryReasonDetail(delivery.reason, fa)
-        ?? (fa ? 'ارسال به برنامه ناموفق بود. اتصال برنامه را بررسی و دوباره تلاش کنید.' : 'Channel delivery failed. Check the connection and try again.')}
+        ?? (fa ? 'پیام به مشتری نرسید. اتصال را بررسی و دوباره تلاش کنید.' : 'Channel delivery failed. Check the connection and try again.')}
     </p>
   ) : delivery?.status === 'unavailable' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
       <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
       {deliveryReasonDetail(delivery.reason, fa)
-        ?? (fa ? 'این برنامه اکنون آمادهٔ ارسال نیست. اتصال برنامه را بررسی کنید.' : 'This channel is not ready to send. Check its connection.')}
+        ?? (fa ? 'این اتصال الان آمادهٔ ارسال نیست. اتصال را بررسی کنید.' : 'This channel is not ready to send. Check its connection.')}
     </p>
   ) : delivery?.status === 'sent' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
       <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
-      {fa ? 'پیام به برنامه ارسال شد.' : 'Message sent to the channel.'}
+      {fa ? 'پیام برای مشتری فرستاده شد.' : 'Message sent to the channel.'}
     </p>
   ) : delivery?.status === 'stored' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">

@@ -749,7 +749,7 @@ export function AgentWizard({
 									<div className="flex items-center justify-between gap-4">
 										<div>
 											<p className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'}</p>
-											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'فقط در ویجت سایت و لینک چت' : 'Website widget and chat link only'}</p>
+											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'فقط در ویجت سایت و چت لینک' : 'Website widget and chat link only'}</p>
 										</div>
 										<Switch checked={form.requireCustomerInfo} onChange={(v) => set('requireCustomerInfo', v)} aria-label={isFa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'} />
 									</div>

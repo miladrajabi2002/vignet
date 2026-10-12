@@ -12,7 +12,7 @@ const STEPS = [
   { label: 'کسب‌وکار', en: 'Business', icon: Store },
   { label: 'ایجنت', en: 'Agent', icon: Bot },
   { label: 'محصولات و خدمات', en: 'Products & services', icon: Package },
-  { label: 'اتصال برنامه', en: 'Connect an app', icon: Plug },
+  { label: 'افزودن اتصال', en: 'Connect an app', icon: Plug },
 ] as const
 
 export function OnboardingShell({

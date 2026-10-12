@@ -182,4 +182,29 @@ export const SOLUTIONS_EN: Solution[] = [
       { q: 'How is the store connection protected?', a: 'Webhook requests are authenticated with an HMAC-SHA256 signature and sensitive stored credentials are encrypted.' },
     ],
   },
+  {
+    slug: 'website-chat',
+    metaTitle: 'AI Chatbot for Your Website and Chat Link | Vigent',
+    metaDescription: 'Put an AI sales and support agent on your own website with one line of code, or publish a standalone chat link when you have no site. Connects to WooCommerce.',
+    keywords: ['AI chatbot for website', 'website chat widget', 'AI live chat', 'chat link', 'WooCommerce chat assistant'],
+    serviceType: 'AI chatbot for websites and standalone chat links',
+    title: 'An AI chatbot for your own website',
+    subtitle: 'One line of code puts the Vigent agent on your site to advise shoppers, take orders, and hand off when needed. No website? A chat link does the same job.',
+    benefits: [
+      { title: 'Shopping advice from your own catalog', desc: 'The agent asks what the customer needs and recommends from your products using current price and stock.' },
+      { title: 'Orders inside the conversation', desc: 'It builds the cart and sends a payment link on your own site, or passes the order to an operator to arrange.' },
+      { title: 'Install with one line of code', desc: 'Paste the widget snippet into your theme. Change color, position, and welcome message later from the dashboard without touching code.' },
+      { title: 'A chat link when you have no site', desc: 'A standalone chat page at your own address for your bio, stories, or a QR code.' },
+    ],
+    steps: [
+      'Create the agent and add your products and business information.',
+      'Create the website widget and paste the snippet before the closing body tag, or publish a chat link.',
+      'Register your site address in the widget settings and test with a few real questions.',
+    ],
+    faq: [
+      { q: 'Do I need an Instagram account to use it?', a: 'No. You can run only the website widget or only a chat link.' },
+      { q: 'Which websites does the widget work on?', a: 'Any site where you can add one line of code, WordPress or custom.' },
+      { q: 'What happens when the agent does not know an answer?', a: 'It hands the conversation to an operator with a summary and records the question so you can approve an answer for next time.' },
+    ],
+  },
 ]

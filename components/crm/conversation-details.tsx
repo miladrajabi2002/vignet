@@ -122,7 +122,7 @@ export function ConversationDetails({
                                                                 </span>
                                                         ) : '—'}
                                                 </Row>
-                                                <Row label={fa ? 'برنامه' : 'App'}>
+                                                <Row label={fa ? 'اتصال' : 'App'}>
                                                         <ChannelBadge type={channel} label={sourceTag} />
                                                 </Row>
                                                 {handle && (

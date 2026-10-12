@@ -37,7 +37,7 @@ const CHANNEL_FILTER_WHERE: Partial<Record<ChannelType, Prisma.ContactWhereInput
 }
 
 const STAGE_LABELS_FA: Record<string, string> = {
-  lead: 'سرنخ',
+  lead: 'مشتری احتمالی',
   qualified: 'واجد شرایط',
   customer: 'مشتری',
   lost: 'از دست‌رفته',
@@ -399,18 +399,18 @@ export default async function ContactsPage(
               locale === 'fa' ? 'ایجاد خودکار: ' : 'Auto-created: ',
             body:
               locale === 'fa'
-                ? 'در پیام‌رسان‌ها مشتری با شناسه برنامه ساخته می‌شود؛ در وب‌ویجت و لینک چت نیز به‌محض دریافت نام یا شماره، پروفایل مشتری به‌صورت خودکار ایجاد و به گفتگو متصل می‌شود.'
+                ? 'در پیام‌رسان‌ها مشتری با شناسهٔ همان پیام‌رسان ساخته می‌شود؛ در ویجت سایت و چت لینک نیز به‌محض دریافت نام یا شماره، پروفایل مشتری به‌صورت خودکار ایجاد و به گفتگو متصل می‌شود.'
                 : 'Messenger customers are created from their channel identity. In web widget and chat-link conversations, the customer profile is created and attached as soon as a name or phone is available.',
           },
           {
             icon: GitMerge,
             term:
               locale === 'fa'
-                ? 'یکپارچه‌سازی بین برنامه‌ها: '
+                ? 'یکی شدن بین اتصال‌ها: '
                 : 'Cross-channel unification: ',
             body:
               locale === 'fa'
-                ? 'اگر یک شخص از چند برنامه با یک شماره پیام بدهد، گفتگوها و سوابق او روی یک مشتری ادغام می‌شوند. قالب‌های +989…، 09… و 989… یک شماره واحد محسوب می‌شوند.'
+                ? 'اگر یک شخص از چند اتصال با یک شماره پیام بدهد، گفتگوها و سوابق او روی یک مشتری ادغام می‌شوند. قالب‌های +989…، 09… و 989… یک شماره واحد محسوب می‌شوند.'
                 : 'When the same person uses multiple channels with one phone number, conversations and history merge into one customer. +989…, 09…, and 989… formats are treated as the same number.',
           },
           {
@@ -419,7 +419,7 @@ export default async function ContactsPage(
               locale === 'fa' ? 'مرحله (Stage): ' : 'Pipeline stage: ',
             body:
               locale === 'fa'
-                ? 'هر مشتری یک مرحله فروش دارد: لید (سرنخ)، واجد شرایط، مشتری، یا از دست رفته. می‌توانید در نمای pipeline مرحله را با drag-and-drop تغییر دهید. مراحل به‌صورت پیش‌فرض روی «لید» هستند.'
+                ? 'هر مشتری یک مرحله فروش دارد: مشتری احتمالی، واجد شرایط، مشتری، یا از دست رفته. می‌توانید در نمای pipeline مرحله را با drag-and-drop تغییر دهید. مراحل به‌صورت پیش‌فرض روی «لید» هستند.'
                 : 'Each customer has a sales stage: lead, qualified, customer, or lost. Drag-and-drop in the pipeline view to change it. New customers default to "lead".',
           },
           {

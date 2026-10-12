@@ -159,7 +159,7 @@ export const CHANNELS: { id: ChannelId; icon: IconType; tint: string; color: str
 	{ id: 'bale', icon: BaleIcon as IconType, tint: '#e6f7f1', color: '#047857', label: { fa: 'بله', en: 'Bale' }, short: { fa: 'بله', en: 'Bale' } },
 	{ id: 'rubika', icon: RubikaIcon as IconType, tint: '#fff7ed', color: '#c2410c', label: { fa: 'روبیکا', en: 'Rubika' }, short: { fa: 'روبیکا', en: 'Rubika' } },
 	{ id: 'site', icon: Globe, tint: '#f3f1ff', color: '#5b3de8', label: { fa: 'ویجت سایت', en: 'Website widget' }, short: { fa: 'سایت', en: 'Website' } },
-	{ id: 'link', icon: Link2, tint: '#f4f4f5', color: '#3f3f46', label: { fa: 'لینک چت بیو', en: 'Bio chat link' }, short: { fa: 'لینک چت', en: 'Chat link' } },
+	{ id: 'link', icon: Link2, tint: '#f4f4f5', color: '#3f3f46', label: { fa: 'چت لینک بیو', en: 'Bio chat link' }, short: { fa: 'چت لینک', en: 'Chat link' } },
 ]
 
 export function ChannelBadge({ channel, size = 34, iconSize = 18, radius = 10 }: { channel: (typeof CHANNELS)[number]; size?: number; iconSize?: number; radius?: number }) {

@@ -68,9 +68,9 @@ const CHANNEL_LABELS_FA: Record<string, string> = {
         INSTAGRAM: 'اینستاگرام',
         RUBIKA: 'روبیکا',
         BALE: 'بله',
-        WEB_WIDGET: 'ویجت وب',
+        WEB_WIDGET: 'ویجت سایت',
         API: 'API',
-        CHAT_LINK: 'لینک چت',
+        CHAT_LINK: 'چت لینک',
 }
 
 export default async function ConversationsPage(props: {
@@ -476,7 +476,7 @@ export default async function ConversationsPage(props: {
                                                                 icon={MessagesSquare}
                                                                 preview="chat"
                                                                 title={t('empty')}
-                                                                description={isFa ? 'اولین برنامه را وصل کنید؛ پیام‌های مشتری‌ها از همهٔ برنامه‌ها همین‌جا کنار هم می‌آیند.' : 'Connect your first app — customer messages from every app will land here side by side.'}
+                                                                description={isFa ? 'اولین اتصال را اضافه کنید؛ پیام مشتری‌ها از همه‌جا همین‌جا کنار هم می‌آید.' : 'Connect your first app — customer messages from every app will land here side by side.'}
                                                                 action={{ href: '/integrations', label: t('emptyCta') }}
                                                         />
                                                 )}

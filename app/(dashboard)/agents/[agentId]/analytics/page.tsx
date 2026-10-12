@@ -228,7 +228,7 @@ export default async function AgentAnalyticsPage(
               locale === 'fa' ? 'تعداد گفتگوها: ' : 'Total conversations: ',
             body:
               locale === 'fa'
-                ? 'کل گفتگوهای این ایجنت در همه برنامه‌ها و همه زمان‌ها. یک گفتگو ممکن است چند پیام داشته باشد ولی فقط یک‌بار شمرده می‌شود.'
+                ? 'کل گفتگوهای این ایجنت در همهٔ اتصال‌ها و همهٔ زمان‌ها. یک گفتگو ممکن است چند پیام داشته باشد ولی فقط یک‌بار شمرده می‌شود.'
                 : 'All conversations this agent has ever had across every channel. A conversation may contain many messages but is counted once.',
           },
           {
@@ -270,11 +270,11 @@ export default async function AgentAnalyticsPage(
             icon: PieChart,
             term:
               locale === 'fa'
-                ? 'تفکیک برنامه‌ها: '
+                ? 'به تفکیک اتصال: '
                 : 'Channel breakdown: ',
             body:
               locale === 'fa'
-                ? 'تعداد گفتگوها به تفکیک برنامه (تلگرام، بله، روبیکا، واتساپ، اینستاگرام، وب‌ویجت). به شما نشان می‌دهد مشتریان بیشتر از کدام برنامه می‌آیند.'
+                ? 'تعداد گفتگوها به تفکیک اتصال (تلگرام، بله، روبیکا، واتساپ، اینستاگرام، وب‌ویجت). به شما نشان می‌دهد مشتریان بیشتر از کدام اتصال می‌آیند.'
                 : 'Conversation count per channel (Telegram, Bale, Rubika, WhatsApp, Instagram, web widget). Shows where your customers reach you most.',
           },
           {

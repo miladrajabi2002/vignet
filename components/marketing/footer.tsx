@@ -19,7 +19,7 @@ tagline: 'ایجنت هوش مصنوعی برای فروش، پشتیبانی و
 			{ href: '/solutions', label: 'راهکارها' },
 			{ href: '/#pricing', label: 'قیمت‌ها' },
 			{ href: '/blog', label: 'بلاگ' },
-{ href: '/docs', label: 'مستندات' },
+{ href: '/docs', label: 'راهنما' },
 			{ href: '/solutions/woocommerce', label: 'افزونهٔ وردپرس', desktop: true },
 		],
 		privacy: 'حریم خصوصی',

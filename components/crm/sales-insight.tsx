@@ -113,7 +113,7 @@ const SIGNAL_LABELS: Record<string, readonly [string, string]> = {
   SEVERE_DISTRESS: ['نارضایتی شدید', 'Severe distress'],
   HIGH_URGENCY: ['فوریت بالا', 'High urgency'],
   MEDIUM_URGENCY: ['محدودیت زمانی', 'Time constraint'],
-  HUMAN_REQUEST: ['درخواست اپراتور انسانی', 'Requested a human operator'],
+  HUMAN_REQUEST: ['درخواست اپراتور', 'Requested a human operator'],
   AUTHORITY_REQUIRED: ['نیاز به اختیار انسانی', 'Human authority may be required'],
   REPEATED_REQUEST: ['تکرار درخواست حل‌نشده', 'Repeated unresolved request'],
   OBJECTION_PRICE: ['مانع قیمت یا بودجه', 'Price or budget objection'],
@@ -438,7 +438,7 @@ export function SalesInsightCard({
           {insight.handoffRecommended && (
             <p className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-amber-700">
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-              {locale === 'fa' ? 'ورود اپراتور انسانی توصیه شده است' : 'Human operator involvement is recommended'}
+              {locale === 'fa' ? 'بهتر است اپراتور وارد گفتگو شود' : 'Human operator involvement is recommended'}
             </p>
           )}
         </div>

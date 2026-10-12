@@ -19,7 +19,7 @@ const PLAN_LABELS = {
 } satisfies Record<'fa' | 'en', Record<Plan, string>>
 
 const RESOURCE_LABELS = {
-  fa: { products: 'محصول', orders: 'سفارش', customers: 'مشتری', channels: 'اتصال برنامه' },
+  fa: { products: 'محصول', orders: 'سفارش', customers: 'مشتری', channels: 'اتصال' },
   en: { products: 'product', orders: 'order', customers: 'customer', channels: 'channel connection' },
 } satisfies Record<'fa' | 'en', Record<LimitedPlanResource, string>>
 

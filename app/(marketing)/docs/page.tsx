@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = ((await getLocale()) === 'en' ? 'en' : 'fa') as Locale
   const isEn = locale === 'en'
   return {
-    title: isEn ? 'Documentation — Build Agents, Connect Channels, Manage Costs' : 'راهنمای ویجنت — ساخت ایجنت، اتصال کانال و مدیریت هزینه',
+    title: isEn ? 'Documentation — Build Agents, Connect Channels, Manage Costs' : 'راهنمای ویجنت | ساخت ایجنت، اتصال به اینستاگرام و سایت، هزینه‌ها',
     description: isEn
       ? 'Practical guides for building Persian AI agents, knowledge bases, connecting Instagram and messengers, bookings, CRM and cost management in Vigent.'
       : 'راهنمای عملی ساخت ایجنت فارسی، پایگاه دانش، اتصال اینستاگرام و پیام‌رسان‌ها، رزرو، CRM و مدیریت هزینه در ویجنت.',

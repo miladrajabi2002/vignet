@@ -163,7 +163,7 @@ export function InstagramConnectFlow({
         } else if (data.error === 'NOT_FOUND') {
           setError('این ایجنت پیدا نشد.')
         } else if (data.error === 'CHANNEL_LIMIT') {
-          setError('سهمیهٔ اتصال برنامه‌های پلن شما تکمیل شده است. یک برنامه را حذف کنید یا پلن را ارتقا دهید.')
+          setError('تعداد اتصال‌های پلن شما پر شده. یکی را حذف کنید یا پلن را بالاتر ببرید.')
         } else if (res.status >= 500) {
           setError('سرویس اتصال اینستاگرام موقتاً در دسترس نیست. چند دقیقه دیگر دوباره تلاش کنید.')
         } else {
@@ -303,7 +303,7 @@ export function InstagramConnectFlow({
             className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
             <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-            بازگشت به برنامه‌ها
+            بازگشت به اتصال‌ها
           </button>
         </div>
       </div>
@@ -493,7 +493,7 @@ export function InstagramConnectFlow({
                       فقط پروفایل حرفه‌ای، پیام‌ها و کامنت‌ها برای پاسخ‌گویی و اتوماسیون درخواست می‌شوند؛ همان مواردی که در صفحه تأیید می‌بینید.
                     </TrustItem>
                     <TrustItem icon={Unplug} title="هر زمان خواستید قطعش کنید">
-                      می‌توانید برنامه را از ویجنت حذف کنید یا دسترسی برنامه را از تنظیمات Instagram لغو کنید.
+                      می‌توانید اتصال را از ویجنت حذف کنید یا دسترسی ویجنت را از تنظیمات Instagram بردارید.
                     </TrustItem>
                   </div>
 

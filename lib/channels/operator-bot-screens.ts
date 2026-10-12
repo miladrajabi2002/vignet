@@ -50,7 +50,7 @@ const PREF_LABELS: Record<OperatorPrefKey, { icon: string; title: string; hint: 
   stock: { icon: '📦', title: 'موجودی کم محصول', hint: 'وقتی موجودی به حد هشدار می‌رسد' },
   bookings: { icon: '📅', title: 'رزرو، لغو و یادآوری نوبت', hint: 'نوبت‌های جدید و نزدیک' },
   billing: { icon: '💳', title: 'اعتبار و پلن', hint: 'کم شدن اعتبار و پایان دوره' },
-  health: { icon: '🩺', title: 'قطعی اتصال برنامه‌ها', hint: 'وقتی یک برنامه پیام دریافت نمی‌کند' },
+  health: { icon: '🩺', title: 'قطع شدن اتصال‌ها', hint: 'وقتی یک اتصال پیام نمی‌گیرد' },
   daily: { icon: '🌅', title: 'گزارش صبحگاهی', hint: 'هر روز ساعت ۹ صبح' },
 }
 
@@ -107,7 +107,7 @@ export const CHANNEL_FA: Record<ChannelType, string> = {
   BALE: 'بله',
   RUBIKA: 'روبیکا',
   WEB_WIDGET: 'ویجت سایت',
-  CHAT_LINK: 'لینک چت',
+  CHAT_LINK: 'چت لینک',
   WHATSAPP: 'واتساپ',
   API: 'API',
 }
@@ -342,7 +342,7 @@ export const QUICK_REPLIES = [
 export async function quickRepliesScreen(workspaceId: string, alertId: string): Promise<BotScreen | null> {
   const alert = await prisma.handoffAlert.findFirst({ where: { id: alertId, workspaceId }, select: { id: true, contactName: true } })
   if (!alert) return null
-  const lines = [`⚡ <b>پاسخ آماده برای ${escapeHtml(alert.contactName || 'مشتری')}</b>`, 'با یک لمس، همان متن برای مشتری در برنامهٔ خودش فرستاده می‌شود.', DIVIDER]
+  const lines = [`⚡ <b>پاسخ آماده برای ${escapeHtml(alert.contactName || 'مشتری')}</b>`, 'با یک لمس، همان متن برای مشتری در همان پیام‌رسان خودش فرستاده می‌شود.', DIVIDER]
   QUICK_REPLIES.forEach((reply, index) => lines.push(`${fa(index + 1)}. ${reply}`))
   const rows: Row[] = [
     QUICK_REPLIES.slice(0, 3).map((_, index) => btn(`ارسال ${fa(index + 1)}`, `a:s:${alert.id}:${index}`)),
@@ -577,7 +577,7 @@ export function helpScreen(): BotScreen {
       DIVIDER,
       'همه‌چیز با دکمه‌های شیشه‌ای کار می‌کند؛ لازم نیست دستوری تایپ کنید.',
       '',
-      '🙋 <b>گفتگوی سپرده‌شده:</b> هشدار با خلاصه می‌رسد. «قبول» یعنی شما پیگیری می‌کنید؛ «نوشتن پاسخ» یا «پاسخ آماده» پیام را مستقیم برای مشتری در همان برنامه می‌فرستد.',
+      '🙋 <b>گفتگوی سپرده‌شده:</b> هشدار با خلاصه می‌رسد. «قبول» یعنی شما پیگیری می‌کنید؛ «نوشتن پاسخ» یا «پاسخ آماده» پیام را مستقیم برای مشتری در همان اتصال می‌فرستد.',
       '↩️ روی خود پیام هشدار هم می‌توانید Reply بزنید و جواب بدهید.',
       '📊 <b>گزارش:</b> امروز، ۷ و ۳۰ روز — و هر صبح ساعت ۹ یک خلاصه.',
       '🤖 <b>ایجنت‌ها:</b> در مواقع لازم یک ایجنت را متوقف یا روشن کنید.',

@@ -1,4 +1,4 @@
-import { Bot, Headset, Inbox, Send, ShoppingCart, Store } from 'lucide-react'
+import { Bot, Headset, Inbox, MessagesSquare, Send, ShoppingCart, Store } from 'lucide-react'
 import { InstagramGlyph } from '@/components/marketing/social-links'
 import type { IconType, SiteLocale } from './ui'
 
@@ -11,9 +11,9 @@ export const SOLUTION_CARDS: Record<string, { icon: IconType; name: Record<SiteL
 	'unified-inbox': {
 		icon: Inbox,
 		name: { fa: 'صندوق پیام یکپارچه', en: 'Unified inbox' },
-		pitch: { fa: 'پیام‌های همهٔ برنامه‌ها در یک صفحه', en: 'Every channel’s messages on one screen' },
+		pitch: { fa: 'همهٔ پیام‌ها در یک صفحه', en: 'Every channel’s messages on one screen' },
 		card: { fa: 'دایرکت اینستاگرام، تلگرام، بله، روبیکا و ویجت سایت در یک صفحه؛ با ایجنت و CRM یکپارچه.', en: 'Instagram DMs, Telegram, Bale, Rubika and your website widget on one screen, with the agent and CRM built in.' },
-		tags: { fa: ['همهٔ کسب‌وکارها', '۶ برنامه'], en: ['Every business', '6 channels'] },
+		tags: { fa: ['همهٔ کسب‌وکارها', '۶ اتصال'], en: ['Every business', '6 channels'] },
 	},
 	'persian-ai-chatbot': {
 		icon: Bot,
@@ -57,9 +57,16 @@ export const SOLUTION_CARDS: Record<string, { icon: IconType; name: Record<SiteL
 		card: { fa: 'افزونه را نصب کنید؛ ایجنت از قیمت و موجودی واقعی جواب می‌دهد — روی سایت، تلگرام و اینستاگرام.', en: 'Install the plugin and the agent answers from real price and stock — on your site, Telegram and Instagram.' },
 		tags: { fa: ['وردپرس', 'ووکامرس'], en: ['WordPress', 'WooCommerce'] },
 	},
+	'website-chat': {
+		icon: MessagesSquare,
+		name: { fa: 'چت‌بات سایت و چت لینک', en: 'Website chat & chat link' },
+		pitch: { fa: 'فروش و مشاوره در سایت خودتان', en: 'Sell and advise on your own site' },
+		card: { fa: 'ایجنت با یک خط کد روی سایت شما جواب می‌دهد و سفارش می‌گیرد؛ اگر سایت ندارید، چت لینک بسازید.', en: 'One line of code puts the agent on your site to answer and take orders; no site? Publish a chat link.' },
+		tags: { fa: ['سایت', 'بدون سایت هم می‌شود'], en: ['Website', 'No site needed'] },
+	},
 }
 
-export const SOLUTION_ORDER = ['unified-inbox', 'persian-ai-chatbot', 'ecommerce-ai', 'customer-support-ai', 'instagram', 'telegram', 'woocommerce'] as const
+export const SOLUTION_ORDER = ['unified-inbox', 'persian-ai-chatbot', 'website-chat', 'ecommerce-ai', 'customer-support-ai', 'instagram', 'telegram', 'woocommerce'] as const
 
 /**
  * One-sentence definitions shown in the "short answer" box at the top of each
@@ -67,7 +74,7 @@ export const SOLUTION_ORDER = ['unified-inbox', 'persian-ai-chatbot', 'ecommerce
  */
 export const SOLUTION_ANSWERS: Record<string, Record<SiteLocale, string>> = {
 	'unified-inbox': {
-		fa: 'صندوق پیام یکپارچهٔ ویجنت یعنی یک صفحه برای همهٔ برنامه‌ها، یک ایجنت که خودکار پاسخ می‌دهد و یک پروندهٔ CRM برای هر مشتری.',
+		fa: 'صندوق پیام یکپارچهٔ ویجنت یعنی یک صفحه برای همهٔ پیام‌ها، یک ایجنت که خودکار پاسخ می‌دهد و یک پروندهٔ CRM برای هر مشتری.',
 		en: 'Vigent’s unified inbox is one screen for every channel, one agent that answers automatically and one CRM record per customer.',
 	},
 	'persian-ai-chatbot': {
@@ -79,7 +86,7 @@ export const SOLUTION_ANSWERS: Record<string, Record<SiteLocale, string>> = {
 		en: 'Vigent’s store AI finds products inside the conversation, quotes live price and stock, sends product cards and moves the order forward.',
 	},
 	'customer-support-ai': {
-		fa: 'پشتیبانی هوشمند ویجنت سؤال‌های تکراری را خودکار جواب می‌دهد و گفتگوهای حساس را با خلاصهٔ کامل به اپراتور انسانی می‌سپارد.',
+		fa: 'پشتیبانی هوشمند ویجنت سؤال‌های تکراری را خودکار جواب می‌دهد و گفتگوهای حساس را با خلاصهٔ کامل به اپراتور می‌سپارد.',
 		en: 'Vigent’s AI support answers repeat questions automatically and hands sensitive conversations to a human operator with a full summary.',
 	},
 	instagram: {
@@ -94,6 +101,10 @@ export const SOLUTION_ANSWERS: Record<string, Record<SiteLocale, string>> = {
 		fa: 'دستیار ووکامرس ویجنت با افزونهٔ رسمی، محصولات و سفارش‌های فروشگاه وردپرسی را همگام می‌کند تا ایجنت همیشه از قیمت و موجودی واقعی جواب دهد.',
 		en: 'Vigent’s WooCommerce assistant syncs your WordPress store’s products and orders through the official plugin, so the agent always answers from real price and stock.',
 	},
+	'website-chat': {
+		fa: 'چت‌بات سایت ویجنت یک ویجت گفتگو است که با یک خط کد روی سایت شما نصب می‌شود؛ ایجنت هوش مصنوعی پشت آن مشاوره می‌دهد، سفارش می‌گیرد و گفتگوهای حساس را به اپراتور می‌سپارد.',
+		en: 'Vigent’s website chatbot is a chat widget installed with one line of code; the AI agent behind it advises shoppers, takes orders, and hands sensitive conversations to an operator.',
+	},
 }
 
 type Stat = { value: string; label: string }
@@ -106,10 +117,10 @@ type Stat = { value: string; label: string }
 export const SOLUTION_FACTS: Record<string, { stats: Record<SiteLocale, Stat[]>; steps: Record<SiteLocale, string[]> }> = {
 	'unified-inbox': {
 		stats: {
-			fa: [{ value: '۶', label: 'برنامه در یک صندوق' }, { value: '۱', label: 'پرونده برای هر مشتری' }, { value: '۰', label: 'پیام گم‌شده' }, { value: '۲۴/۷', label: 'پاسخ خودکار' }],
+			fa: [{ value: '۶', label: 'اتصال در یک صندوق' }, { value: '۱', label: 'پرونده برای هر مشتری' }, { value: '۰', label: 'پیام گم‌شده' }, { value: '۲۴/۷', label: 'پاسخ خودکار' }],
 			en: [{ value: '6', label: 'apps in one inbox' }, { value: '1', label: 'record per customer' }, { value: '0', label: 'lost messages' }, { value: '24/7', label: 'automatic replies' }],
 		},
-		steps: { fa: ['ساخت ایجنت و افزودن دانش', 'اتصال برنامه‌ها', 'رسیدگی از یک صفحه'], en: ['Build the agent and add knowledge', 'Connect your apps', 'Handle everything on one screen'] },
+		steps: { fa: ['ساخت ایجنت و افزودن دانش', 'افزودن اتصال‌ها', 'رسیدگی از یک صفحه'], en: ['Build the agent and add knowledge', 'Connect your apps', 'Handle everything on one screen'] },
 	},
 	'persian-ai-chatbot': {
 		stats: {
@@ -152,5 +163,12 @@ export const SOLUTION_FACTS: Record<string, { stats: Record<SiteLocale, Stat[]>;
 			en: [{ value: 'Official', label: 'WordPress plugin' }, { value: 'Auto', label: 'price and stock sync' }, { value: 'Orders', label: 'tracked from WooCommerce' }, { value: 'Everywhere', label: 'site, Telegram and Instagram' }],
 		},
 		steps: { fa: ['ساخت ایجنت', 'نصب افزونه روی وردپرس', 'همگام‌سازی کامل'], en: ['Build the agent', 'Install the WordPress plugin', 'Run a full sync'] },
+	},
+	'website-chat': {
+		stats: {
+			fa: [{ value: '۱', label: 'خط کد برای نصب' }, { value: '۶', label: 'سؤال پیشنهادی در چت لینک' }, { value: 'QR', label: 'برای بیو، کارت و ویترین' }, { value: '۲۴/۷', label: 'پاسخ خودکار' }],
+			en: [{ value: '1', label: 'line of code to install' }, { value: '6', label: 'suggested questions on a chat link' }, { value: 'QR', label: 'for bio, cards and storefront' }, { value: '24/7', label: 'automatic replies' }],
+		},
+		steps: { fa: ['ساخت ایجنت و افزودن محصولات', 'نصب ویجت یا انتشار چت لینک', 'ثبت آدرس سایت و تست'], en: ['Build the agent and add products', 'Install the widget or publish a chat link', 'Register your site and test'] },
 	},
 }

@@ -59,7 +59,7 @@ export function contactDisplayName(params: {
 			case 'WHATSAPP':
 				return 'کاربر واتساپ'
 			case 'WEB_WIDGET':
-				return 'کاربر وب‌ویجت'
+				return 'کاربر ویجت سایت'
 			case 'CHAT_LINK':
 				return 'کاربر لینک‌چت'
 			default:

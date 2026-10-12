@@ -78,9 +78,9 @@ export function DashboardCompletionChecklist({
     },
     {
       key: 'channel',
-      title: fa ? 'اتصال یک برنامه ارتباطی' : 'Connect a customer app',
+      title: fa ? 'افزودن یک اتصال' : 'Connect a customer app',
       description: fa
-        ? (facts.channelPostponed ? 'این مرحله را در آنبوردینگ رد کردید؛ هر زمان آماده بودید یک برنامه را متصل کنید.' : 'یک برنامه را فعال کنید تا پیام واقعی مشتری دریافت شود.')
+        ? (facts.channelPostponed ? 'این مرحله را در آنبوردینگ رد کردید؛ هر وقت آماده بودید یک اتصال اضافه کنید.' : 'یک اتصال اضافه کنید تا پیام واقعی مشتری برسد.')
         : (facts.channelPostponed ? 'You postponed this during onboarding; connect an app whenever you are ready.' : 'Activate an app to receive real customer messages.'),
       cta: fa ? 'مدیریت اتصال‌ها' : 'Manage connections',
       href: facts.agentId ? `${agentBase}/channels` : agentBase,

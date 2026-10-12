@@ -226,7 +226,7 @@ export default async function AnalyticsPage() {
             empty={{
               title: fa ? 'هنوز گفتگویی ثبت نشده' : 'No conversations yet',
               hint: fa ? 'با اولین گفتگو، روند همین‌جا رسم می‌شود.' : 'The trend is drawn here from the first conversation.',
-              action: { href: '/integrations', label: fa ? 'اتصال برنامه' : 'Connect an app' },
+              action: { href: '/integrations', label: fa ? 'افزودن اتصال' : 'Connect an app' },
             }}
           />
           <div className={cn('mt-3 flex flex-wrap items-center gap-4 text-[12px]', totalConversations === 0 && 'text-[var(--text-muted)]')}>
@@ -237,13 +237,13 @@ export default async function AnalyticsPage() {
         </DashboardPanel>
 
         <DashboardPanel
-          title={fa ? 'توزیع برنامه‌ها' : 'Channel distribution'}
-          subtitle={fa ? 'کدام برنامه بیشترین ترافیک را دارد' : 'Where conversations come from'}
+          title={fa ? 'سهم هر اتصال' : 'Channel distribution'}
+          subtitle={fa ? 'کدام اتصال بیشترین ترافیک را دارد' : 'Where conversations come from'}
         >
           {channelData.length > 0 ? (
             <ChannelDonut data={channelData} />
           ) : (
-            <div className="grid h-40 place-items-center px-3 text-center text-sm leading-6 text-[var(--text-muted)]">{fa ? 'سهم هر برنامه بعد از اولین گفتگوها اینجا دیده می‌شود.' : 'Each app’s share appears here after the first conversations.'}</div>
+            <div className="grid h-40 place-items-center px-3 text-center text-sm leading-6 text-[var(--text-muted)]">{fa ? 'سهم هر اتصال بعد از اولین گفتگوها اینجا دیده می‌شود.' : 'Each app’s share appears here after the first conversations.'}</div>
           )}
         </DashboardPanel>
       </section>

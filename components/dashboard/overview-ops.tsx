@@ -23,7 +23,7 @@ const CHANNEL_NAMES: Record<ChannelKey, { fa: string; en: string }> = {
 	BALE: { fa: 'بله', en: 'Bale' },
 	RUBIKA: { fa: 'روبیکا', en: 'Rubika' },
 	WEB_WIDGET: { fa: 'ویجت سایت', en: 'Website' },
-	CHAT_LINK: { fa: 'لینک چت', en: 'Chat link' },
+	CHAT_LINK: { fa: 'چت لینک', en: 'Chat link' },
 	WHATSAPP: { fa: 'واتساپ', en: 'WhatsApp' },
 	API: { fa: 'API', en: 'API' },
 }
@@ -73,8 +73,8 @@ export function OpsCenter({
 						<span className={cn('ui-chip', connectedApps > 0 ? 'ui-chip-ok' : 'ui-chip-warn')}>
 							<span className="ui-chip-dot" />
 							{connectedApps > 0
-								? fa ? `${fmt(locale, connectedApps)} برنامه متصل` : `${fmt(locale, connectedApps)} apps connected`
-								: fa ? 'هنوز برنامه‌ای وصل نیست' : 'No app connected yet'}
+								? fa ? `${fmt(locale, connectedApps)} اتصال` : `${fmt(locale, connectedApps)} apps connected`
+								: fa ? 'هنوز اتصالی ندارید' : 'No app connected yet'}
 						</span>
 					</div>
 
@@ -195,7 +195,7 @@ export function LiveFlow({
 						<li>
 							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
 								<Plug className="h-4 w-4" />
-								{fa ? 'اتصال اولین برنامه' : 'Connect your first app'}
+								{fa ? 'افزودن اولین اتصال' : 'Connect your first app'}
 							</Link>
 						</li>
 					)}
@@ -239,7 +239,7 @@ export function LiveFlow({
 						<li>
 							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
 								<Plug className="h-4 w-4" />
-								{fa ? 'اتصال اولین برنامه' : 'Connect your first app'}
+								{fa ? 'افزودن اولین اتصال' : 'Connect your first app'}
 							</Link>
 						</li>
 					)}

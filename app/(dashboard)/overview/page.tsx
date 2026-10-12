@@ -403,7 +403,7 @@ export default async function OverviewPage() {
           label={fa ? 'مشتری جدید در ۷ روز' : 'New customers, 7d'}
           value={nf.format(contacts7d)}
           delta={contactDelta === null ? undefined : { value: contactDelta, text: deltaText(contactDelta) }}
-          hint={contactDelta === null ? (fa ? 'از همه برنامه‌های متصل' : 'from every connected channel') : deltaHint}
+          hint={contactDelta === null ? (fa ? 'از همهٔ اتصال‌ها' : 'from every connected channel') : deltaHint}
           series={contactsMiniTrend.series}
         />
         <OutcomeCard

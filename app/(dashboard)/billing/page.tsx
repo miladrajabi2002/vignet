@@ -106,7 +106,7 @@ export default async function BillingPage(
 
   const currentDef = defs[plan]
   const capacity = [
-    { label: locale === 'fa' ? 'اتصال برنامهٔ فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels },
+    { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels },
     { label: locale === 'fa' ? 'محصول' : 'Products', used: productsUsed, limit: currentDef.maxProducts },
     { label: locale === 'fa' ? 'سفارش' : 'Orders', used: ordersUsed, limit: currentDef.maxOrders },
     { label: locale === 'fa' ? 'مشتری' : 'Customers', used: customersUsed, limit: currentDef.maxCustomers },
@@ -297,7 +297,7 @@ export default async function BillingPage(
             const isRecommended = requestedPlan === p
             const isCurrent = plan === p && subscriptionLive
             const limits = [
-              { label: locale === 'fa' ? 'اتصال برنامهٔ فعال' : 'Active channel connections', value: nf.format(def.maxChannels) },
+              { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', value: nf.format(def.maxChannels) },
               { label: locale === 'fa' ? 'محصول' : 'Products', value: nf.format(def.maxProducts) },
               { label: locale === 'fa' ? 'سفارش' : 'Orders', value: nf.format(def.maxOrders) },
               { label: locale === 'fa' ? 'مشتری' : 'Customers', value: nf.format(def.maxCustomers) },

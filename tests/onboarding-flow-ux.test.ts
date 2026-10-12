@@ -70,7 +70,7 @@ describe('simplified onboarding flow', () => {
     expect(flow).toContain('فعلاً رد می‌کنم')
     expect(flow).toContain('مشتری از کجا پیام بدهد؟')
     expect(flow).toContain('ساخت لینک')
-    expect(shell).toContain("label: 'اتصال برنامه'")
+    expect(shell).toContain("label: 'افزودن اتصال'")
   })
 
   it('keeps Instagram scenarios out of setup and brings the tab in on connect', () => {
