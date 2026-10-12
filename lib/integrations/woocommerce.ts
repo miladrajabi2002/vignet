@@ -1423,6 +1423,9 @@ export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promi
               ? 'error'
               : 'ok',
           lastSyncError: resourceLimitMessage,
+          // Those products are gone from the plugin's queue; ask for them again
+          // once the plan has room (lib/integrations/woo-resync.ts).
+          ...(resourceLimitMessage?.includes('PRODUCT_LIMIT') ? { productResyncNeededAt: now } : {}),
           ...(job.pluginVersion ? { pluginVersion: job.pluginVersion } : {}),
         },
       }),

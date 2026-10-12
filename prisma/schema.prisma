@@ -1704,6 +1704,9 @@ model StoreIntegration {
   lastSyncAt          DateTime?
   lastSyncStatus      String? // 'ok' | 'error'
   lastSyncError       String?
+  // Set when a plugin push was refused by the plan's product limit; the store
+  // is asked to resend its catalog once there is room (lib/integrations/woo-resync.ts).
+  productResyncNeededAt DateTime?
   connectedAt         DateTime?
   lastWebhookAt       DateTime?
   pluginVersion       String?

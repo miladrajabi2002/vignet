@@ -51,9 +51,12 @@ async function postSigned(url: string, secret: string, body: string, timeoutMs: 
  * without pretty permalinks answer 404 there, so the ?rest_route= form is
  * tried once before giving up.
  */
-export async function callStore<T>(endpoint: StoreEndpoint, route: StoreRoute, payload: unknown, timeoutMs = 8_000): Promise<T> {
+export function callStore<T>(endpoint: StoreEndpoint, route: StoreRoute, payload: unknown, timeoutMs = 8_000): Promise<T> {
+  return callStorePath<T>(endpoint, `/vigent-woo/v1/checkout/${route}`, payload, timeoutMs)
+}
+
+async function callStorePath<T>(endpoint: StoreEndpoint, path: string, payload: unknown, timeoutMs: number): Promise<T> {
   const body = JSON.stringify(payload ?? {})
-  const path = `/vigent-woo/v1/checkout/${route}`
   const urls = [`${base(endpoint.storeUrl)}/wp-json${path}`, `${base(endpoint.storeUrl)}/?rest_route=${encodeURIComponent(path)}`]
   let last: StoreApiError | null = null
   for (const url of urls) {
@@ -122,4 +125,13 @@ export function cancelStoreCheckout(endpoint: StoreEndpoint, code: string): Prom
 
 export function storeCapabilities(endpoint: StoreEndpoint): Promise<Record<string, unknown>> {
   return callStore(endpoint, 'capabilities', {}, 8_000)
+}
+
+/**
+ * Ask the plugin (vigent-woo 5.1+) to push its whole catalog again in the
+ * background. The plugin answers at once and sends the pages through the
+ * normal webhook, so the result arrives like any other sync.
+ */
+export function requestStoreResync(endpoint: StoreEndpoint, kinds: Array<'products'>): Promise<{ ok: boolean; scheduled: boolean }> {
+  return callStorePath(endpoint, '/vigent-woo/v1/sync/resync', { kinds }, 8_000)
 }

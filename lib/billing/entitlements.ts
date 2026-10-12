@@ -316,6 +316,19 @@ async function sendPurchaseConfirmation(
 }
 
 /**
+ * A bigger plan has room for the store products the old one refused. Loaded
+ * lazily: the store modules import this file.
+ */
+async function resendStoreCatalog(workspaceId: string): Promise<void> {
+  try {
+    const { requestWooProductResync } = await import('@/lib/integrations/woo-resync')
+    await requestWooProductResync(workspaceId)
+  } catch (e) {
+    captureError('billing:store-resync', e, { workspaceId })
+  }
+}
+
+/**
  * Atomically claims a verified subscription payment and activates/extends the
  * subscription in the same database transaction. Duplicate gateway callbacks
  * therefore cannot extend the plan twice, and a crash cannot leave a PAID row
@@ -354,6 +367,8 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
   })
 
   if (activation) {
+    // Not awaited: an unreachable store must not hold up the payment callback.
+    void resendStoreCatalog(params.workspaceId)
     await Promise.all([
       sendPurchaseConfirmation(
         params.workspaceId,

@@ -13,4 +13,17 @@ describe('WooCommerce sync feedback', () => {
       msg: 'اتصال افزونه برقرار است، اما ظرفیت پلن تکمیل شده؛ برای ادامه همگام‌سازی پلن را ارتقا دهید.',
     })
   })
+
+  it('says so when the plugin was asked to resend the whole catalog', () => {
+    const result = formatWooSyncResult({
+      resyncRequested: true,
+      products: { count: 0, errors: [], skipped: true },
+      orders: { count: 0, skipped: true },
+    })
+
+    expect(result).toEqual({
+      type: 'ok',
+      msg: 'از افزونه خواسته شد همهٔ محصولات را دوباره بفرستد؛ تا چند دقیقهٔ دیگر کاتالوگ کامل می‌شود.',
+    })
+  })
 })

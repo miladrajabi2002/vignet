@@ -20,6 +20,11 @@ class Vigent_Woo_Sync {
         const TRACKING_BACKFILL_BATCH_SIZE = 200;
         const TRACKING_BACKFILL_STATE_OPTION = 'vigent_woo_tracking_backfill_state';
         const TRACKING_BACKFILL_LOCK_OPTION  = 'vigent_woo_tracking_backfill_lock';
+        const PRODUCT_RESYNC_STATE_OPTION = 'vigent_woo_product_resync_state';
+        const PRODUCT_RESYNC_LOCK_OPTION  = 'vigent_woo_product_resync_lock';
+        /** Ignore repeated resend requests for this long, so a server fault cannot hammer the store. */
+        const PRODUCT_RESYNC_MIN_INTERVAL = 900;
+        const PRODUCT_RESYNC_MAX_ATTEMPTS = 6;
         /**
          * Maximum number of ORDERS to sync during a full push.
          *
@@ -360,6 +365,136 @@ class Vigent_Woo_Sync {
         private function schedule_tracking_backfill( $delay ) {
                 if ( ! wp_next_scheduled( 'vigent_woo_tracking_backfill' ) ) {
                         wp_schedule_single_event( time() + max( 10, absint( $delay ) ), 'vigent_woo_tracking_backfill' );
+                }
+        }
+
+        /**
+         * Queue a background push of every published product.
+         *
+         * Vigent asks for this when products it refused earlier (plan limit) fit
+         * now — typically right after a plan upgrade — so the shop owner no longer
+         * has to reconnect the plugin to get the rest of the catalog across.
+         *
+         * @return bool Whether a resend is running or was just scheduled.
+         */
+        public function request_product_resync( $source = '' ) {
+                if ( ! $this->core()->is_configured() || ! $this->core()->has_wc() || ! $this->core()->sync_products_enabled() ) {
+                        return false;
+                }
+                $state = get_option( self::PRODUCT_RESYNC_STATE_OPTION, array() );
+                if ( ! is_array( $state ) ) {
+                        $state = array();
+                }
+                $status = isset( $state['status'] ) ? $state['status'] : '';
+                if ( in_array( $status, array( 'running', 'retrying' ), true ) ) {
+                        $this->schedule_product_resync( 10 );
+                        return true;
+                }
+                $requested_at = isset( $state['requested_at'] ) ? absint( $state['requested_at'] ) : 0;
+                if ( $requested_at && ( time() - $requested_at ) < self::PRODUCT_RESYNC_MIN_INTERVAL ) {
+                        return false;
+                }
+                update_option(
+                        self::PRODUCT_RESYNC_STATE_OPTION,
+                        array(
+                                'status'       => 'running',
+                                'offset'       => 0,
+                                'sent'         => 0,
+                                'attempts'     => 0,
+                                'announced'    => 0,
+                                'requested_at' => time(),
+                                'source'       => sanitize_key( $source ),
+                                'last_error'   => '',
+                        ),
+                        false
+                );
+                $this->core()->debug_log( 'product_resync REQUESTED', array( 'source' => $source ) );
+                $this->schedule_product_resync( 10 );
+                return true;
+        }
+
+        /**
+         * Send one page (50 products) of a requested resend and schedule the next.
+         * Runs on WP-Cron so it needs no open admin page and resumes where it stopped.
+         */
+        public function run_product_resync() {
+                $state = get_option( self::PRODUCT_RESYNC_STATE_OPTION, array() );
+                if ( ! is_array( $state ) || ! in_array( isset( $state['status'] ) ? $state['status'] : '', array( 'running', 'retrying' ), true ) ) {
+                        return;
+                }
+                if ( ! $this->core()->is_configured() || ! $this->core()->has_wc() || ! $this->core()->sync_products_enabled() ) {
+                        return;
+                }
+                if ( ! $this->acquire_lock( self::PRODUCT_RESYNC_LOCK_OPTION, 180 ) ) {
+                        $this->schedule_product_resync( 60 );
+                        return;
+                }
+                if ( function_exists( 'wp_raise_memory_limit' ) ) {
+                        wp_raise_memory_limit( 'admin' );
+                }
+
+                $offset = isset( $state['offset'] ) ? absint( $state['offset'] ) : 0;
+                $error  = '';
+                $done   = false;
+                // Vigent stops asking once it hears the resend has really begun.
+                if ( empty( $state['announced'] ) ) {
+                        $ack = $this->core()->send_event(
+                                'sync.resync.started',
+                                array( 'site_url' => home_url(), 'kinds' => array( 'products' ) ),
+                                false
+                        );
+                        if ( empty( $ack['success'] ) ) {
+                                $error = isset( $ack['body'] ) ? wp_strip_all_tags( (string) $ack['body'] ) : __( 'خطای نامشخص', 'vigent-woo' );
+                        } else {
+                                $state['announced'] = 1;
+                        }
+                }
+                if ( '' === $error ) {
+                        $result = $this->sync_batch( 'products', $offset, self::MAX_BATCH_SIZE );
+                        if ( ! empty( $result['errors'] ) ) {
+                                $error = (string) $result['errors'][0];
+                        } else {
+                                $state['sent'] = ( isset( $state['sent'] ) ? absint( $state['sent'] ) : 0 ) + absint( $result['sent'] );
+                                $done          = ! empty( $result['done'] );
+                                $offset       += self::MAX_BATCH_SIZE;
+                        }
+                }
+
+                if ( '' !== $error ) {
+                        $attempts            = ( isset( $state['attempts'] ) ? absint( $state['attempts'] ) : 0 ) + 1;
+                        $state['attempts']   = $attempts;
+                        $state['status']     = $attempts >= self::PRODUCT_RESYNC_MAX_ATTEMPTS ? 'failed' : 'retrying';
+                        $state['last_error'] = substr( $error, 0, 500 );
+                } else {
+                        $state['attempts']   = 0;
+                        $state['status']     = $done ? 'complete' : 'running';
+                        $state['offset']     = $offset;
+                        $state['last_error'] = '';
+                        if ( $done ) {
+                                $state['finished_at'] = current_time( 'mysql' );
+                        }
+                }
+                $state['last_attempt'] = current_time( 'mysql' );
+                update_option( self::PRODUCT_RESYNC_STATE_OPTION, $state, false );
+                $this->release_lock( self::PRODUCT_RESYNC_LOCK_OPTION );
+
+                $this->core()->debug_log( 'product_resync PAGE', array(
+                        'status' => $state['status'],
+                        'offset' => $state['offset'],
+                        'sent'   => isset( $state['sent'] ) ? $state['sent'] : 0,
+                        'error'  => $error,
+                ) );
+                if ( 'retrying' === $state['status'] ) {
+                        $this->schedule_product_resync( 300 );
+                } elseif ( 'running' === $state['status'] ) {
+                        $this->schedule_product_resync( 20 );
+                }
+        }
+
+        /** Schedule the next resend page without creating duplicate cron events. */
+        private function schedule_product_resync( $delay ) {
+                if ( ! wp_next_scheduled( 'vigent_woo_product_resync' ) ) {
+                        wp_schedule_single_event( time() + max( 10, absint( $delay ) ), 'vigent_woo_product_resync' );
                 }
         }
 

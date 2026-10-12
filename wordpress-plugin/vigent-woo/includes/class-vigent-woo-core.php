@@ -495,6 +495,7 @@ class Vigent_Woo_Core {
                                         'attempts'    => $attempt + 1,
                                 ) );
                                 $this->update_connection_status( true, $code, null );
+                                $this->handle_resync_hint( $resp_body );
                                 return array( 'code' => $code, 'body' => $resp_body, 'success' => true );
                         }
 
@@ -535,6 +536,21 @@ class Vigent_Woo_Core {
                 $this->update_connection_status( false, $code, $resp_body );
 
                 return array( 'code' => $code, 'body' => $resp_body, 'success' => false );
+        }
+
+        /**
+         * Vigent may answer any webhook with `"resync":["products"]` — for example
+         * after a plan upgrade made room for products it had to refuse earlier.
+         * This is the fallback for hosts that block Vigent's inbound REST call.
+         */
+        private function handle_resync_hint( $resp_body ) {
+                if ( ! is_string( $resp_body ) || false === strpos( $resp_body, '"resync"' ) || ! class_exists( 'Vigent_Woo_Sync' ) ) {
+                        return;
+                }
+                $data = json_decode( $resp_body, true );
+                if ( is_array( $data ) && isset( $data['resync'] ) && is_array( $data['resync'] ) && in_array( 'products', $data['resync'], true ) ) {
+                        Vigent_Woo_Sync::instance()->request_product_resync( 'hint' );
+                }
         }
 
         /**

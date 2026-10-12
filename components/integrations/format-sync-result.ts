@@ -1,4 +1,6 @@
 export interface WooSyncResult {
+  /** The plugin accepted a request to push its whole catalog again. */
+  resyncRequested?: boolean
   products?: {
     count?: number
     errors?: unknown[]
@@ -41,6 +43,13 @@ export function formatWooSyncResult(
     hour: '2-digit',
     minute: '2-digit',
   })
+
+  if (result.resyncRequested) {
+    return {
+      type: 'ok',
+      msg: 'از افزونه خواسته شد همهٔ محصولات را دوباره بفرستد؛ تا چند دقیقهٔ دیگر کاتالوگ کامل می‌شود.',
+    }
+  }
 
   if (skipped) {
     return {

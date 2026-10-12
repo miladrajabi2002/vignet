@@ -58,15 +58,19 @@ export function verifyPayloadSignature(params: {
 }
 
 /** «5.0.0» ≥ «5.0.0», «4.3.11» < «5.0.0». Unknown versions are too old. */
-export function pluginSupportsCheckout(version: string | null | undefined): boolean {
+export function pluginVersionAtLeast(version: string | null | undefined, minimum: string): boolean {
   if (!version) return false
   const parse = (value: string) => value.split(/[.-]/).slice(0, 3).map((part) => Number.parseInt(part, 10) || 0)
   const have = parse(version)
-  const need = parse(MIN_CHECKOUT_PLUGIN_VERSION)
+  const need = parse(minimum)
   for (let index = 0; index < 3; index += 1) {
     if (have[index] !== need[index]) return have[index] > need[index]
   }
   return true
+}
+
+export function pluginSupportsCheckout(version: string | null | undefined): boolean {
+  return pluginVersionAtLeast(version, MIN_CHECKOUT_PLUGIN_VERSION)
 }
 
 

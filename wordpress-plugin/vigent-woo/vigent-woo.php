@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند، محصولات و سفارش‌ها را همگام می‌سازد و خرید داخل گفتگو را روی صفحهٔ پرداخت خود سایت ثبت می‌کند.
- * Version:           5.0.1
+ * Version:           5.1.0
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '5.0.1' );
+define( 'VIGENT_WOO_VERSION', '5.1.0' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
@@ -82,6 +82,7 @@ function vigent_woo_activate() {
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
         wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );
+        wp_clear_scheduled_hook( 'vigent_woo_product_resync' );
 }
 register_activation_hook( __FILE__, 'vigent_woo_activate' );
 
@@ -96,6 +97,7 @@ function vigent_woo_deactivate() {
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
         wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );
+        wp_clear_scheduled_hook( 'vigent_woo_product_resync' );
         wp_clear_scheduled_hook( 'vigent_woo_checkout_expire' );
 }
 register_deactivation_hook( __FILE__, 'vigent_woo_deactivate' );
@@ -142,6 +144,13 @@ function vigent_woo_setup_cron() {
                         && in_array( isset( $tracking_state['status'] ) ? $tracking_state['status'] : '', array( 'running', 'retrying' ), true )
                         && ! wp_next_scheduled( 'vigent_woo_tracking_backfill' ) ) {
                         wp_schedule_single_event( time() + 30, 'vigent_woo_tracking_backfill' );
+                }
+                // A requested catalog resend whose cron event was lost resumes here.
+                $resync_state = get_option( 'vigent_woo_product_resync_state', array() );
+                if ( is_array( $resync_state )
+                        && in_array( isset( $resync_state['status'] ) ? $resync_state['status'] : '', array( 'running', 'retrying' ), true )
+                        && ! wp_next_scheduled( 'vigent_woo_product_resync' ) ) {
+                        wp_schedule_single_event( time() + 30, 'vigent_woo_product_resync' );
                 }
         }
         // بررسی بروزرسانی افزونه — هر ۲۴ ساعت یک‌بار به‌صورت خودکار.
@@ -271,6 +280,7 @@ if ( class_exists( 'Vigent_Woo_Sync' ) ) {
         add_action( 'vigent_woo_retry_cron', array( Vigent_Woo_Sync::instance(), 'process_retry_queue' ) );
         add_action( 'vigent_woo_delta_flush', array( Vigent_Woo_Sync::instance(), 'flush_delta_queue' ) );
         add_action( 'vigent_woo_tracking_backfill', array( Vigent_Woo_Sync::instance(), 'backfill_all_order_tracking' ) );
+        add_action( 'vigent_woo_product_resync', array( Vigent_Woo_Sync::instance(), 'run_product_resync' ) );
 }
 
 if ( class_exists( 'Vigent_Woo_REST' ) ) {

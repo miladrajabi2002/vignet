@@ -9,6 +9,11 @@ import {
   verifyWooWebhookSignature,
   type StoreIntegrationInput,
 } from '@/lib/integrations/woocommerce'
+import {
+  markWooProductResyncStarted,
+  requestWooProductResync,
+  wooResyncHint,
+} from '@/lib/integrations/woo-resync'
 import { prisma } from '@/lib/prisma'
 import {
   dispatchWooWebhook,
@@ -160,6 +165,7 @@ export async function POST(req: Request) {
       storeUrl: true,
       webhookSecret: true,
       active: true,
+      productResyncNeededAt: true,
     },
   })
   if (!integration?.webhookSecret) {
@@ -193,6 +199,12 @@ export async function POST(req: Request) {
   }
   if (topic.startsWith('content.')) {
     return NextResponse.json({ ok: true, ignored: 'content_deprecated' })
+  }
+  // Handled here, not in the queue: the pages that follow may be refused by
+  // the limit again, and that must not be undone by a late acknowledgement.
+  if (topic === 'sync.resync.started') {
+    await markWooProductResyncStarted(integration)
+    return NextResponse.json({ ok: true })
   }
 
   const job = parseDelivery(topic, json, rawBody, integration, req)
@@ -258,7 +270,11 @@ export async function POST(req: Request) {
     }).catch(() => undefined)
     return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 })
   }
-  return NextResponse.json({ ok: true, accepted: job.events.length }, { status: 202 })
+  const resync = await wooResyncHint(integration, job.pluginVersion).catch(() => null)
+  return NextResponse.json(
+    { ok: true, accepted: job.events.length, ...(resync ? { resync } : {}) },
+    { status: 202 },
+  )
 }
 
 async function handleManualSync(req: Request) {
@@ -275,15 +291,25 @@ async function handleManualSync(req: Request) {
   if (!loaded) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
   if (loaded.webhookOnly) {
-    const pending = await prisma.storeWebhookDelivery.count({
-      where: { integrationId, status: { in: ['pending', 'processing', 'error'] } },
-    })
+    // The panel cannot pull from a push-only store, but it can ask the plugin
+    // to push everything again.
+    const [pending, resyncRequested] = await Promise.all([
+      prisma.storeWebhookDelivery.count({
+        where: { integrationId, status: { in: ['pending', 'processing', 'error'] } },
+      }),
+      requestWooProductResync(user.workspaceId, { integrationId, force: true })
+        .then((count) => count > 0)
+        .catch(() => false),
+    ])
     return NextResponse.json({
       ok: true,
       mode: 'webhook-only',
-      message: pending > 0
-        ? `${pending} بسته در صف همگام‌سازی است.`
-        : 'اتصال فعال است؛ تغییرات به‌صورت خودکار همگام می‌شوند.',
+      resyncRequested,
+      message: resyncRequested
+        ? 'از افزونه خواسته شد همهٔ محصولات را دوباره بفرستد.'
+        : pending > 0
+          ? `${pending} بسته در صف همگام‌سازی است.`
+          : 'اتصال فعال است؛ تغییرات به‌صورت خودکار همگام می‌شوند.',
       status: {
         pending,
         lastWebhookAt: loaded.row.lastWebhookAt,
