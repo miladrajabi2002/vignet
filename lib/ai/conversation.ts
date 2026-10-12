@@ -1284,6 +1284,22 @@ export function isNarrowedProductRequest(plan: ProductRequestPlan): boolean {
 }
 
 /** Remove stale product claims when the customer starts a fresh catalog request. */
+/**
+ * The plan that decides how much history the model sees. Dropping the whole
+ * conversation is a hard boundary; a regex reading alone is not enough
+ * evidence for it. When the understanding call failed on this turn, only the
+ * customer's own «از اول / بی‌خیال» keeps the boundary — otherwise the model
+ * would forget what it just told the customer (for example that it has no
+ * registration link) and answer as if the conversation had only begun.
+ */
+export function historyPlanForTurn(
+        plan: ProductRequestPlan,
+        turn: { understandingFailed: boolean; explicitReset: boolean },
+): ProductRequestPlan {
+        if (!plan.resetProductContext || !turn.understandingFailed || turn.explicitReset) return plan
+        return { ...plan, resetProductContext: false }
+}
+
 export function historyForProductTurn(
         history: ChatMessage[],
         plan: ProductRequestPlan,

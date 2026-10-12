@@ -17,6 +17,7 @@ import { buildTurnCandidates } from '@/lib/agent/understand/candidates'
 import { legacyReading, readingDiff, type LegacyReading } from '@/lib/agent/understand/legacy-adapter'
 import { writeUnderstandingLog } from '@/lib/agent/understand/log'
 import {
+  DEFAULT_UNDERSTANDING_CONFIG,
   resolveUnderstandingMode,
   routesFromUnderstanding,
   type ResolvedUnderstandingMode,
@@ -32,6 +33,13 @@ export interface UnderstandingStage {
   route: UnderstoodRoute | null
   candidates: TurnCandidates | null
   legacy: LegacyReading | null
+  /**
+   * The reading was attempted and could not be obtained. Such a turn is not
+   * handed to the regex router: the model answers it as a plain conversation
+   * turn. (An operator who switched the layer off chose the legacy path, so
+   * «off», «shadow» and the DISABLED stop are not failures.)
+   */
+  readingFailed: boolean
   /** Does this domain take the model reading on this turn? */
   routes(domain: UnderstandingDomain): boolean
   /** Write the per-turn log once the engine knows what it routed. */
@@ -90,7 +98,7 @@ export function needsUnderstanding(capabilities: readonly Capability[]): boolean
 }
 
 export async function runUnderstandingStage(input: UnderstandingStageInput): Promise<UnderstandingStage> {
-  const mode = await resolveUnderstandingMode(input.workspaceId).catch(() => ({ mode: 'off' as const, domains: {} as ResolvedUnderstandingMode['domains'], timeoutMs: 6_000 }))
+  const mode = await resolveUnderstandingMode(input.workspaceId).catch(() => ({ mode: 'off' as const, domains: {} as ResolvedUnderstandingMode['domains'], timeoutMs: DEFAULT_UNDERSTANDING_CONFIG.timeoutMs }))
   let outcome: UnderstandOutcome | null = null
   let route: UnderstoodRoute | null = null
   let candidates: TurnCandidates | null = null
@@ -167,6 +175,7 @@ export async function runUnderstandingStage(input: UnderstandingStageInput): Pro
     route,
     candidates,
     legacy,
+    readingFailed: mode.mode === 'on' && outcome !== null && !outcome.ok && outcome.errorCode !== 'DISABLED',
     routes: (domain) => route !== null && routesFromUnderstanding(mode, domain),
     finalize: (routedDomains) => {
       if (logged || mode.mode === 'off') return

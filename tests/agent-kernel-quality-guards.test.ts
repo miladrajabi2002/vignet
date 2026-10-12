@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@/lib/ai/openrouter'
-import { planProductRequest } from '@/lib/ai/conversation'
+import { historyForProductTurn, historyPlanForTurn, planProductRequest } from '@/lib/ai/conversation'
 import { conversationFlowInstruction } from '@/lib/agent-kernel/skills/conversation-flow'
 import { enforceActionCapabilities } from '@/lib/agent-kernel/skills/action-capabilities'
 
@@ -130,5 +130,29 @@ describe('agent kernel quality guards — history-dependent references in the fl
       userMessage: 'لینکش رو بفرست',
     })
     expect(instruction).toContain('مرجع')
+  })
+})
+
+/**
+ * Regression (October 2026): the understanding call timed out, the regex
+ * router read «…ایونت‌های باهمیم…» as a new product subject and dropped the
+ * whole conversation — including three replies in which the agent had said it
+ * has no registration link. With no memory of that, it then invented one.
+ */
+describe('agent kernel quality guards — a failed reading never wipes the conversation', () => {
+  const history = [
+    user('از کجا باید ثبت‌نام کنم؟'),
+    assistant('لینک ثبت‌نام دقیق و مستقیمش رو فعلاً در اطلاعاتم ندارم.'),
+  ]
+  const reset = { ...planProductRequest('میز تلویزیون دارید؟', []), resetProductContext: true }
+
+  it('keeps the history when the reset comes from regex alone', () => {
+    const plan = historyPlanForTurn(reset, { understandingFailed: true, explicitReset: false })
+    expect(historyForProductTurn(history, plan)).toEqual(history)
+  })
+
+  it('still honours the customer’s own «از اول» and a reset read by the model', () => {
+    expect(historyForProductTurn(history, historyPlanForTurn(reset, { understandingFailed: true, explicitReset: true }))).toEqual([])
+    expect(historyForProductTurn(history, historyPlanForTurn(reset, { understandingFailed: false, explicitReset: false }))).toEqual([])
   })
 })

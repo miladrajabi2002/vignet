@@ -264,7 +264,8 @@ function buildCatalogBlock(
     }
     parts.push(`شناسه: ${p.id}`)
     if (p.image) parts.push(`تصویر: ${p.image}`)
-    if (p.url) parts.push(`لینک: ${p.url}`)
+    // An explicit «none» leaves no gap for the model to fill with a guess.
+    parts.push(p.url ? `لینک: ${p.url}` : 'لینک: ثبت نشده')
     // Append the variation block as a separate multi-line section so the
     // agent can read it as "this product has these specific combinations".
     const header = `${i + 1}. ${parts.join(' | ')}`

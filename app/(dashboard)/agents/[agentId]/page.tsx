@@ -32,6 +32,7 @@ import { getDashboardModules } from '@/lib/verticals/registry'
 import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { relativeTime } from '@/lib/format'
 import { summarizeAgentReadiness } from '@/lib/agents/readiness'
+import { buildLinkEvidence } from '@/lib/agent-kernel/skills/link-grounding'
 
 interface SetupStep {
   key: string
@@ -114,6 +115,8 @@ export default async function AgentDetailPage(
     channels,
     conversationCount,
     pendingImprovementCount,
+    linkedKnowledgeCount,
+    linkedProductCount,
   ] =
     await Promise.all([
       prisma.workspace.findUnique({
@@ -163,6 +166,15 @@ export default async function AgentDetailPage(
       prisma.improvementSuggestion.count({
         where: { agentId: agent.id, workspaceId: user.workspaceId, status: 'PENDING' },
       }),
+      // Is there any link the agent could copy into a reply?
+      prisma.knowledgeChunk.count({
+        where: {
+          agentId: agent.id,
+          workspaceId: user.workspaceId,
+          OR: [{ content: { contains: 'http', mode: 'insensitive' } }, { content: { contains: 'www.', mode: 'insensitive' } }],
+        },
+      }),
+      prisma.product.count({ where: { workspaceId: user.workspaceId, active: true, externalUrl: { not: null } } }),
     ])
 
   const modules = getDashboardModules(workspaceCapabilities(workspace))
@@ -353,6 +365,26 @@ export default async function AgentDetailPage(
       href: `/agents/${agent.id}/channels`,
       cta: fa ? 'مدیریت اتصال‌ها' : 'Manage channels',
       badge: fa ? 'پیشنهاد رشد' : 'Growth idea',
+    })
+  }
+
+  // The agent only copies links that are on record; with none, every request
+  // for a link ends in «لینک تأییدشده‌ای ندارم».
+  const linksEnabled = (agent.promptConfig as { format?: { links?: boolean } } | null)?.format?.links !== false
+  const hasLinkOnRecord = linkedKnowledgeCount > 0
+    || linkedProductCount > 0
+    || buildLinkEvidence([agent.systemPrompt, JSON.stringify(agent.promptConfig ?? ''), agent.welcomeMessage]).hosts.size > 0
+  if (linksEnabled && !hasLinkOnRecord) {
+    growthActions.push({
+      key: 'links-on-record',
+      icon: Link2,
+      title: fa ? 'لینکی برای ایجنت ثبت نشده' : 'No link on record for the agent',
+      desc: fa
+        ? 'ایجنت فقط لینکی را می‌دهد که در دانش، محصولات یا دستورهایش ثبت شده باشد و خودش لینک نمی‌سازد. لینک سایت، ثبت‌نام یا خرید را به دانش اضافه کنید.'
+        : 'The agent only shares links found in its knowledge, products or instructions and never makes one up. Add your site, sign-up or purchase link to its knowledge.',
+      href: `/agents/${agent.id}/knowledge`,
+      cta: fa ? 'افزودن لینک' : 'Add a link',
+      badge: fa ? 'بهبود دقت' : 'Improve accuracy',
     })
   }
 

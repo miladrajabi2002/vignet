@@ -1,9 +1,11 @@
 /**
- * One understanding call per customer turn: economical tier, one JSON object
- * as the reply (see schema.ts for why not a tool call), short timeout, no
- * retry. Any failure (no key, budget, timeout,
- * malformed output, circuit open) returns { ok: false } and the turn falls
- * back to the legacy router — a slow provider never stalls a customer.
+ * The understanding reading of one customer turn: economical tier, one JSON
+ * object as the reply (see schema.ts for why not a tool call). A failed
+ * attempt (timeout, provider error, malformed output) is tried again, each
+ * time starting at the next provider of the curated order: waiting a few
+ * seconds longer costs the customer less than a misread message. When every
+ * attempt fails — or there is no key, no budget, or the circuit is open — the
+ * result is { ok: false } and the turn is answered without a reading.
  */
 import { auxCompletion, AuxUnavailableError, type TurnLedger } from '@/lib/ai/llm/aux'
 import type { ChatUsage } from '@/lib/ai/openrouter'
@@ -29,7 +31,10 @@ export type UnderstandOutcome =
       usage?: ChatUsage
     }
 
-// Consecutive failures open a short circuit so an outage costs no latency.
+/** Attempts per turn. Each one is a fresh request, on the next provider, with its own timeout. */
+export const UNDERSTAND_ATTEMPTS = 3
+
+// Consecutive failed turns open a short circuit so an outage costs no latency.
 const CIRCUIT_LIMIT = 4
 const CIRCUIT_COOLDOWN_MS = 2 * 60_000
 let consecutiveFailures = 0
@@ -61,6 +66,21 @@ export async function understandTurn(params: UnderstandTurnParams): Promise<Unde
   if (process.env.AGENT_UNDERSTANDING_DISABLED === '1') return { ok: false, errorCode: 'DISABLED', latencyMs: 0 }
   if (Date.now() < circuitOpenUntil) return { ok: false, errorCode: 'CIRCUIT_OPEN', latencyMs: 0 }
   const startedAt = Date.now()
+  let outcome = await attemptUnderstanding(params, startedAt, 0)
+  for (let attempt = 1; attempt < UNDERSTAND_ATTEMPTS && isRetryable(outcome); attempt += 1) {
+    outcome = await attemptUnderstanding(params, startedAt, attempt)
+  }
+  if (outcome.ok) consecutiveFailures = 0
+  else if (isRetryable(outcome)) failed()
+  return outcome
+}
+
+/** A missing key or an exhausted budget does not change on a second try. */
+function isRetryable(outcome: UnderstandOutcome): boolean {
+  return !outcome.ok && (outcome.errorCode === 'TIMEOUT' || outcome.errorCode === 'PROVIDER' || outcome.errorCode === 'MALFORMED')
+}
+
+async function attemptUnderstanding(params: UnderstandTurnParams, startedAt: number, attempt: number): Promise<UnderstandOutcome> {
   let model: string | undefined
   let usage: ChatUsage | undefined
   try {
@@ -76,15 +96,12 @@ export async function understandTurn(params: UnderstandTurnParams): Promise<Unde
       maxTokens: 450,
       timeoutMs: params.timeoutMs ?? 6_000,
       retries: 0,
+      providerAttempt: attempt,
     })
     model = result.model
     usage = result.usage
     const raw = parseUnderstanding(extractJson(result.content))
-    if (!raw) {
-      failed()
-      return { ok: false, errorCode: 'MALFORMED', model, latencyMs: Date.now() - startedAt, usage }
-    }
-    consecutiveFailures = 0
+    if (!raw) return { ok: false, errorCode: 'MALFORMED', model, latencyMs: Date.now() - startedAt, usage }
     const verified = verifyUnderstanding({
       understanding: raw,
       candidates: params.candidates,
@@ -95,7 +112,6 @@ export async function understandTurn(params: UnderstandTurnParams): Promise<Unde
     return { ok: true, raw, verified, model, latencyMs: Date.now() - startedAt, usage }
   } catch (error) {
     if (error instanceof AuxUnavailableError) return { ok: false, errorCode: error.code, latencyMs: Date.now() - startedAt }
-    failed()
     const timeout = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
     return { ok: false, errorCode: timeout ? 'TIMEOUT' : 'PROVIDER', model, latencyMs: Date.now() - startedAt, usage }
   }

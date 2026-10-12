@@ -71,12 +71,26 @@ describe('understanding stage', () => {
     expect(mocks.log.mock.calls[0][0]).toMatchObject({ mode: 'on', routedDomains: ['products'], legacy: expect.objectContaining({ acts: expect.any(Array) }) })
   })
 
-  it('a failed reading routes nothing (the engine keeps the legacy decision)', async () => {
+  it('a failed reading routes nothing and is not handed to the regex router', async () => {
     mocks.mode.mockResolvedValue({ mode: 'on', domains: DEFAULT_UNDERSTANDING_CONFIG.domains, timeoutMs: 6000 })
     mocks.understand.mockResolvedValue({ ok: false, errorCode: 'TIMEOUT', latencyMs: 6000 })
     const stage = await runUnderstandingStage(input('قیمتش؟'))
     expect(stage.route).toBeNull()
     expect(stage.routes('products')).toBe(false)
+    expect(stage.readingFailed).toBe(true)
+  })
+
+  it('an operator who switched the layer off keeps the legacy path', async () => {
+    mocks.mode.mockResolvedValue({ mode: 'on', domains: DEFAULT_UNDERSTANDING_CONFIG.domains, timeoutMs: 6000 })
+    mocks.understand.mockResolvedValue({ ok: false, errorCode: 'DISABLED', latencyMs: 0 })
+    expect((await runUnderstandingStage(input('قیمتش؟'))).readingFailed).toBe(false)
+    mocks.mode.mockResolvedValue({ mode: 'shadow', domains: DEFAULT_UNDERSTANDING_CONFIG.domains, timeoutMs: 6000 })
+    mocks.understand.mockResolvedValue({ ok: false, errorCode: 'TIMEOUT', latencyMs: 6000 })
+    expect((await runUnderstandingStage(input('قیمتش؟'))).readingFailed).toBe(false)
+    mocks.mode.mockResolvedValue({ mode: 'off', domains: DEFAULT_UNDERSTANDING_CONFIG.domains, timeoutMs: 6000 })
+    expect((await runUnderstandingStage(input('قیمتش؟'))).readingFailed).toBe(false)
+    mocks.mode.mockResolvedValue({ mode: 'on', domains: DEFAULT_UNDERSTANDING_CONFIG.domains, timeoutMs: 6000 })
+    expect((await runUnderstandingStage(input('ممنون', { skip: true }))).readingFailed).toBe(false)
   })
 
   it('shadow mode reads and logs but never routes; off mode makes no call', async () => {

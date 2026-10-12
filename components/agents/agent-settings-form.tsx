@@ -33,6 +33,7 @@ import {
         hasMeaningfulPromptConfig,
         normalizePromptConfig,
         type NormalizedPromptConfig,
+        hasUnfilledPlaceholder,
         type PromptConfig,
         type PromptFormatConfig,
         type PromptQAPair,
@@ -1217,6 +1218,13 @@ function QAEditor({
                                                                                 {item.answer}
                                                                         </p>
                                                                 </div>
+                                                        )}
+                                                        {on && hasUnfilledPlaceholder(item.answer) && (
+                                                                <p role="status" className="mt-2 text-[12px] leading-5 text-[var(--warn-ink)]">
+                                                                        {fa
+                                                                                ? 'این جواب یک جای‌خالی پرنشده دارد (مثل «[لینک]»). تا وقتی مقدار واقعی را به‌جایش ننویسید، ایجنت از این نمونه استفاده نمی‌کند.'
+                                                                                : 'This answer has an unfilled slot (such as “[link]”). The agent does not use this example until you replace it with the real value.'}
+                                                                </p>
                                                         )}
                                                 </div>
                                         )

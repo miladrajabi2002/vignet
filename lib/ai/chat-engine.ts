@@ -43,6 +43,7 @@ import {
         fetchCatalogServices,
         findAssignedCatalogReference,
         historyForProductTurn,
+        historyPlanForTurn,
         isHumanOwnedConversation,
         planProductRequest,
         productRequestFromCatalogReference,
@@ -81,6 +82,8 @@ import { buildTrustedProductReply, parseProductDirectives } from '@/lib/products
 import { compileAgentSkillPlan } from '@/lib/agent-kernel/registry'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
 import { createLivePreviewGuard, runAgentSkillPostprocessors } from '@/lib/agent-kernel/postprocess'
+import { linkEvidenceForTurn, resolveLinkGuardMode } from '@/lib/agent-kernel/skills/link-grounding'
+import { repairUngroundedLinkReply } from '@/lib/agent/turn/link-repair'
 import { hasBookingIntent } from '@/lib/bookings/intent'
 import { hasCourseIntent } from '@/lib/courses/intent'
 import { loadWorkspaceModules } from '@/lib/verticals/workspace-capabilities'
@@ -542,6 +545,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                 })
                 const route = understanding.route
                 const routed = (domain: UnderstandingDomain) => understanding.routes(domain)
+                // A reading that could not be obtained is not replaced by the
+                // regex router: no product, booking or course intent is read
+                // into the message, and the model answers it with the whole
+                // conversation and the retrieved knowledge in front of it.
+                const readingFailed = understanding.readingFailed
+                const legacyPlan = readingFailed ? emptyProductPlan() : rawProductRequest
                 const routedDomains = UNDERSTANDING_DOMAINS.filter((domain) => routed(domain))
                 if (understanding.outcome?.ok) {
                         recordCustomerReading(inbound.id, understanding.outcome.verified)
@@ -553,7 +562,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         message,
                         messageId: inbound.id,
                         createdAt: inbound.createdAt,
-                        productPlan: rawProductRequest,
+                        productPlan: legacyPlan,
                         knownServiceNames: catalogServices.map((service) => service.name),
                         understood: routed('state') && route ? route.stateTurn : null,
                 })
@@ -566,7 +575,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         const plan = route.productPlan ?? emptyProductPlan()
                         productRequest = agent.productAccessEnabled ? plan : { ...plan, isProductTurn: false }
                 } else {
-                        productRequest = contextualizeProductRequest(rawProductRequest, workingState)
+                        productRequest = contextualizeProductRequest(legacyPlan, workingState)
                         // ── Unresolved anaphora guard ──────────────────────────
                         // «این مدل آماده موجود دارید؟» when the conversation never
                         // identified ANY product: a clarification ask answered from
@@ -630,9 +639,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 state: workingState,
                                 historyLoaded: modelHistory.filter((item) => item.role !== 'system').length,
                                 historySent: modelHistory.filter((item) => item.role !== 'system').length,
-                                resetReason: rawProductRequest.requestNewTopic
+                                resetReason: legacyPlan.requestNewTopic
                                         ? 'EXPLICIT_RESET'
-                                        : rawProductRequest.resetProductContext ? 'NEW_PRODUCT_SUBJECT' : null,
+                                        : legacyPlan.resetProductContext ? 'NEW_PRODUCT_SUBJECT' : null,
                                 retrievalQuery: '',
                         })
                         understanding.finalize(routedDomains)
@@ -1200,8 +1209,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                         workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
                 }
 
-                const turnHistory = historyForProductTurn(modelHistory, productRequest)
-                const turnPlanningHistory = historyForProductTurn(planningHistory, productRequest)
+                const historyPlan = historyPlanForTurn(productRequest, {
+                        understandingFailed: understanding.outcome?.ok === false,
+                        explicitReset: legacyPlan.requestNewTopic,
+                })
+                const turnHistory = historyForProductTurn(modelHistory, historyPlan)
+                const turnPlanningHistory = historyForProductTurn(planningHistory, historyPlan)
                 // A booking/course dialog continues on short answers («شنبه ساعت ۵»)
                 // to the agent's own question, even when the answer alone reads
                 // as nothing in particular.
@@ -1209,13 +1222,13 @@ async function prepareTurn(params: StartChatParams): Promise<
                         && ['ANSWER', 'REFINEMENT', 'CORRECTION', 'REFERENCE'].includes(workingState.lastTurn?.relation ?? '')
                 const bookingIntent = routed('bookings') && route
                         ? route.booking !== null || continuesTask('BOOKING')
-                        : hasBookingIntent([
+                        : readingFailed ? continuesTask('BOOKING') : hasBookingIntent([
                                 ...planningHistory,
                                 { role: 'user', content: message },
                         ])
                 const courseIntent = routed('courses') && route
                         ? route.course !== null || continuesTask('SERVICE')
-                        : hasCourseIntent([
+                        : readingFailed ? continuesTask('SERVICE') : hasCourseIntent([
                                 ...planningHistory,
                                 { role: 'user', content: message },
                         ])
@@ -1294,9 +1307,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                         state: workingState,
                         historyLoaded: modelHistory.filter((item) => item.role !== 'system').length,
                         historySent: turnHistory.filter((item) => item.role !== 'system').length,
-                        resetReason: rawProductRequest.requestNewTopic
+                        resetReason: legacyPlan.requestNewTopic
                                 ? 'EXPLICIT_RESET'
-                                : rawProductRequest.resetProductContext || catalogStartedNewGoal
+                                : legacyPlan.resetProductContext || catalogStartedNewGoal
                                         ? 'NEW_PRODUCT_SUBJECT'
                                         : null,
                         retrievalQuery,
@@ -1608,7 +1621,13 @@ export async function completeTurn(
         await io.onGenerationStart?.()
 
         const hasGroundedOrder = orderContext.includes('<verified_order>')
-        const preview = createLivePreviewGuard(skillPlan, { userMessage: message, orderCaptureEnabled, hasGroundedOrder })
+        // The model may only copy a link it was shown on this turn.
+        const linkGuard = {
+                evidence: linkEvidenceForTurn(messages, catalogProducts, [agent.fallbackMessage, agent.handoffMessage]),
+                mode: resolveLinkGuardMode(),
+                handoffEnabled: agent.handoffEnabled,
+        }
+        const preview = createLivePreviewGuard(skillPlan, { userMessage: message, orderCaptureEnabled, hasGroundedOrder, linkGuard })
         const providerStatus: ProviderStatus[] = []
         let reply = ''
         let usage: ChatUsage | null = null
@@ -1719,6 +1738,25 @@ export async function completeTurn(
         // Safety and continuity run before presentation so a deterministic
         // rewrite cannot remove the trusted card/button appended below.
         const continuityGuardCodes: string[] = []
+        // An invented link gets one rewrite so the wording stays natural; the
+        // postprocessors strip whatever a failed rewrite leaves behind.
+        if (!providerFailed && linkGuard.mode === 'enforce') {
+                const repaired = await repairUngroundedLinkReply({
+                        reply,
+                        evidence: linkGuard.evidence,
+                        userMessage: message,
+                        handoffEnabled: agent.handoffEnabled,
+                        workspaceId,
+                        agentId: agent.id,
+                        conversationId,
+                        maxTokens: AGENT_MAX_RESPONSE_TOKENS,
+                        ledger: prep.ledger,
+                })
+                if (repaired) {
+                        reply = repaired
+                        continuityGuardCodes.push('UNGROUNDED_LINK_REPAIRED')
+                }
+        }
         reply = runAgentSkillPostprocessors(reply, skillPlan, {
                 catalogProducts: groundedPostprocessProducts,
                 userMessage: message,
@@ -1733,6 +1771,7 @@ export async function completeTurn(
                 continuityGuardCodes,
                 establishedProductIds: recentCardIds,
                 orderCaptureEnabled,
+                linkGuard,
         })
 
         // Canonicalize markers for every surface before persistence and return.

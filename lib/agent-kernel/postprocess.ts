@@ -4,6 +4,7 @@ import { enforceActionCapabilities, enforceNoFalseFollowUp, livePreviewRisk, saf
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
 import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/conversation-state'
 import { enforceHumanizerPolish } from '@/lib/agent-kernel/skills/humanizer-polish'
+import { findUngroundedLinks, stripUngroundedLinks, type LinkEvidence, type LinkGuardMode } from '@/lib/agent-kernel/skills/link-grounding'
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 
 export interface AgentSkillPostprocessContext {
@@ -25,10 +26,40 @@ export interface AgentSkillPostprocessContext {
   preferStructuredProductLink?: boolean
   /** Structured current-session state used only by conservative continuity guards. */
   conversationState?: ConversationWorkingState | null
-  /** Mutable per-turn trace sink owned by the caller. */
+  /** Mutable per-turn trace sink owned by the caller (continuity and link guards). */
   continuityGuardCodes?: string[]
   /** In-chat pre-orders are enabled for this agent. */
   orderCaptureEnabled?: boolean
+  /** Links the model may copy on this turn. Without it the link guard is off. */
+  linkGuard?: AgentLinkGuardContext
+}
+
+export interface AgentLinkGuardContext {
+  evidence: LinkEvidence
+  mode: LinkGuardMode
+  /** The notice may offer a colleague only when the agent can hand off. */
+  handoffEnabled?: boolean
+}
+
+/**
+ * A link that appears nowhere in this turn's evidence is invented. In shadow
+ * mode the reply is left as written and only the trace code is recorded.
+ */
+function enforceGroundedLinks(reply: string, context: AgentSkillPostprocessContext): string {
+  const guard = context.linkGuard
+  if (!guard || guard.mode === 'off') return reply
+  if (!findUngroundedLinks(reply, guard.evidence).length) return reply
+  if (guard.mode === 'shadow') {
+    context.continuityGuardCodes?.push('UNGROUNDED_LINK_SHADOW')
+    return reply
+  }
+  context.continuityGuardCodes?.push('UNGROUNDED_LINK')
+  return stripUngroundedLinks({
+    reply,
+    evidence: guard.evidence,
+    isFa: context.isFa ?? true,
+    handoffEnabled: guard.handoffEnabled,
+  }).reply
 }
 
 function normalizeIdentity(value: string): string {
@@ -99,6 +130,9 @@ export function runAgentSkillPostprocessors(
     })
     output = enforceNoFalseFollowUp(output, context.isFa ?? true)
   }
+  // After the action guards: they may already have swapped a link placeholder
+  // for the trusted catalog URL, which is grounded by definition.
+  output = enforceGroundedLinks(output, context)
   if (hasAgentSkill(plan, 'visual-reference-grounding') && context.userMessage) {
     output = enforceVisualReferenceGrounding({
       reply: output,
@@ -149,7 +183,7 @@ function lastSentenceEnd(text: string): number {
  */
 export function createLivePreviewGuard(
   plan: AgentSkillPlan,
-  context: Pick<AgentSkillPostprocessContext, 'userMessage' | 'orderCaptureEnabled' | 'hasGroundedOrder'>,
+  context: Pick<AgentSkillPostprocessContext, 'userMessage' | 'orderCaptureEnabled' | 'hasGroundedOrder' | 'linkGuard'>,
 ): (visibleSoFar: string) => string {
   let shown = ''
   let frozen = false
@@ -170,6 +204,11 @@ export function createLivePreviewGuard(
     if (risk) {
       frozen = true
       if (risk === 'withhold') shown = ''
+      return shown
+    }
+    // An invented link never reaches a live draft; the final reply replaces it.
+    if (context.linkGuard?.mode === 'enforce' && findUngroundedLinks(candidate, context.linkGuard.evidence).length) {
+      frozen = true
       return shown
     }
     shown = candidate

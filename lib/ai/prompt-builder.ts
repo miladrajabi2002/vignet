@@ -1322,7 +1322,7 @@ function formatFormatLayer(cfg: PromptFormatConfig, isFa: boolean): string {
     else lines.push('از بولد استفاده نکن.')
     if (cfg.emoji) lines.push('می‌توانی از ایموجی استفاده کنی (کم و هدفمند).')
     else lines.push('از ایموجی استفاده نکن.')
-    if (cfg.links) lines.push('اگر لینک مفید داری، قرار بده.')
+    if (cfg.links) lines.push('لینک فقط وقتی بده که عیناً در دانش، کاتالوگ محصولات، دستورهای بالا یا همین گفتگو آمده باشد؛ همان را بدون تغییر کپی کن. هیچ نشانی، دامنه یا مسیری را خودت نساز و حدس نزن؛ اگر لینکی ثبت نشده، بگو لینک تأییدشده‌ای نداری.')
     else lines.push('لینک قرار نده.')
     if (cfg.bullets) lines.push('برای فهرست از بولت استفاده کن.')
     else lines.push('از بولت استفاده نکن مگر واقعاً لازم باشد.')
@@ -1331,7 +1331,7 @@ function formatFormatLayer(cfg: PromptFormatConfig, isFa: boolean): string {
     else lines.push('Do not use bold.')
     if (cfg.emoji) lines.push('You may use emoji (sparingly and purposefully).')
     else lines.push('Do not use emoji.')
-    if (cfg.links) lines.push('Include helpful links when relevant.')
+    if (cfg.links) lines.push('Share a link only when it appears verbatim in the knowledge, the product catalog, the instructions above or this conversation; copy it unchanged. Never compose or guess an address, a domain or a path; when no link is on record, say you have no confirmed link.')
     else lines.push('Do not include links.')
     if (cfg.bullets) lines.push('Use bullets for lists.')
     else lines.push('Avoid bullets unless truly necessary.')
@@ -1339,8 +1339,20 @@ function formatFormatLayer(cfg: PromptFormatConfig, isFa: boolean): string {
   return `### ${isFa ? 'فرمت پاسخ' : 'Response format'}\n${lines.map((l) => `• ${l}`).join('\n')}`
 }
 
+/**
+ * «[لینک تأییدشده]», «[قیمت]», "[registration link]": a slot the author
+ * meant to fill in. A Markdown link («[label](url)») is not a slot.
+ */
+const UNFILLED_PLACEHOLDER_RE = /\[(?=[^\]\n]*\p{L})[^\[\]\n]{2,40}\](?!\()/u
+
+export function hasUnfilledPlaceholder(text: string): boolean {
+  return UNFILLED_PLACEHOLDER_RE.test(text)
+}
+
 function formatQAPairs(allPairs: PromptQAPair[], isFa: boolean): string {
-  const pairs = allPairs.filter((pair) => pair.enabled !== false)
+  // An ideal answer with an empty slot teaches the model to fill the slot
+  // itself — with a guessed link or price. Such a pair is not shown to it.
+  const pairs = allPairs.filter((pair) => pair.enabled !== false && !hasUnfilledPlaceholder(pair.answer))
   if (!pairs.length) return ''
   const header = isFa ? 'نمونه سؤال و پاسخ' : 'Example Q&A'
   const blocks = pairs.map((p, i) => {

@@ -33,7 +33,9 @@ export interface UnderstandingConfig {
 export const DEFAULT_UNDERSTANDING_CONFIG: UnderstandingConfig = {
   mode: 'on',
   domains: Object.fromEntries(UNDERSTANDING_DOMAINS.map((domain) => [domain, true])) as Record<UnderstandingDomain, boolean>,
-  timeoutMs: 6_000,
+  // Each attempt goes to the next provider of the curated order, where a
+  // reading takes about 1–3 s; the limit only has to catch a stalled one.
+  timeoutMs: 8_000,
   workspaces: {},
 }
 

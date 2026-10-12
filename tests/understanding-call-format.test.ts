@@ -11,7 +11,8 @@ vi.mock('@/lib/ai/llm/aux', () => ({
   AuxUnavailableError: class AuxUnavailableError extends Error {},
 }))
 
-import { resetUnderstandingCircuit, understandTurn } from '@/lib/agent/understand/understand'
+import { AuxUnavailableError } from '@/lib/ai/llm/aux'
+import { resetUnderstandingCircuit, understandTurn, UNDERSTAND_ATTEMPTS } from '@/lib/agent/understand/understand'
 import { UNDERSTAND_SYSTEM_PROMPT } from '@/lib/agent/understand/prompt'
 import type { TurnCandidates } from '@/lib/agent/understand/types'
 
@@ -50,6 +51,43 @@ describe('understanding call format', () => {
   it('a reply that is not the agreed shape falls back (MALFORMED), it is never guessed', async () => {
     mocks.aux.mockResolvedValue(reply('{"intent":"cart_edit","target":"cart:1","field":"variant","value":"مشکی"}'))
     expect(await call('مشکیش کن')).toMatchObject({ ok: false, errorCode: 'MALFORMED' })
+  })
+
+  const timeout = () => Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' })
+  const thanks = '{"language":"fa","relation":"closing","confidence":1,"customer":{"mood":"pos","buy":0,"cues":[]},"acts":[{"type":"thanks"}]}'
+
+  it('tries a slow reading once more instead of routing the turn by regex', async () => {
+    mocks.aux.mockRejectedValueOnce(timeout()).mockResolvedValueOnce(reply(thanks))
+    const outcome = await call('خیلی ممنون')
+    expect(mocks.aux).toHaveBeenCalledTimes(2)
+    expect(outcome.ok && outcome.verified.acts).toEqual([{ type: 'thanks' }])
+  })
+
+  it('retries a malformed reading too, and gives up after the last attempt', async () => {
+    mocks.aux.mockRejectedValue(timeout()).mockResolvedValueOnce(reply('not json'))
+    expect(await call('مشکیش کن')).toMatchObject({ ok: false, errorCode: 'TIMEOUT' })
+    expect(mocks.aux).toHaveBeenCalledTimes(UNDERSTAND_ATTEMPTS)
+  })
+
+  it('starts every retry at the next provider of the curated order', async () => {
+    mocks.aux.mockRejectedValue(timeout())
+    await call('سلام')
+    expect(mocks.aux.mock.calls.map((args) => args[0].providerAttempt)).toEqual(Array.from({ length: UNDERSTAND_ATTEMPTS }, (_, index) => index))
+  })
+
+  it('does not retry what a second request cannot change', async () => {
+    mocks.aux.mockRejectedValue(Object.assign(new AuxUnavailableError('NO_BUDGET'), { code: 'NO_BUDGET' as const }))
+    expect(await call('سلام')).toMatchObject({ ok: false, errorCode: 'NO_BUDGET' })
+    expect(mocks.aux).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the circuit after consecutive failed turns, not failed attempts', async () => {
+    mocks.aux.mockRejectedValue(timeout())
+    for (let turn = 0; turn < 3; turn += 1) expect(await call('سلام')).toMatchObject({ errorCode: 'TIMEOUT' })
+    expect(mocks.aux).toHaveBeenCalledTimes(3 * UNDERSTAND_ATTEMPTS)
+    expect(await call('سلام')).toMatchObject({ errorCode: 'TIMEOUT' })
+    expect(await call('سلام')).toMatchObject({ ok: false, errorCode: 'CIRCUIT_OPEN' })
+    expect(mocks.aux).toHaveBeenCalledTimes(4 * UNDERSTAND_ATTEMPTS)
   })
 
   it('the prompt states the output object and the real-thread definitions', () => {

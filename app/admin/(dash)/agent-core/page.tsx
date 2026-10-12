@@ -104,6 +104,7 @@ const PURPOSE_LABELS: Record<string, string> = {
   summary: 'خلاصهٔ گفتگو',
   memory: 'حافظهٔ گفتگو',
   eval: 'ارزیابی',
+  link_repair: 'بازنویسی لینک بی‌منبع',
 }
 
 const MODE_LABELS: Record<string, string> = { on: 'فعال', shadow: 'سایه', off: 'خاموش' }
