@@ -66,6 +66,7 @@ export interface AgentSettingsData {
         handoffKeywords: string[]
         active: boolean
         voiceInputEnabled: boolean
+        voiceHandoffEnabled: boolean
         imageInputEnabled: boolean
         // ─ F1: layered prompt
         promptConfig: PromptConfig | null
@@ -118,6 +119,7 @@ export function AgentSettingsForm({
                 handoffKeywords: agent.handoffKeywords.join(', '),
                 active: agent.active,
                 voiceInputEnabled: agent.voiceInputEnabled,
+                voiceHandoffEnabled: agent.voiceHandoffEnabled,
                 imageInputEnabled: agent.imageInputEnabled,
         })
 
@@ -477,12 +479,27 @@ export function AgentSettingsForm({
                                                                 price: new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
                                                                         .format(modelPolicy.sttPricePerMinuteIRR / 10),
                                                         })
-                                                        : tf('voiceInputEnabledHint')}
+                                                        : form.voiceHandoffEnabled
+                                                                ? tf('voiceHandoffEnabledActiveHint')
+                                                                : tf('voiceInputEnabledHint')}
                                                 checked={form.voiceInputEnabled}
                                                 onChange={(v) => set('voiceInputEnabled', v)}
                                                 enabledLabel={ta('active')}
                                                 disabledLabel={ta('inactive')}
-                                        />
+                                        >
+                                                {!form.voiceInputEnabled && (
+                                                        <div className="mt-1 flex min-h-11 items-center justify-between gap-4">
+                                                                <span className="text-[12px] leading-6 text-[var(--text-primary)]">
+                                                                        {tf('voiceHandoffEnabled')}
+                                                                </span>
+                                                                <Switch
+                                                                        checked={form.voiceHandoffEnabled}
+                                                                        onChange={(v) => set('voiceHandoffEnabled', v)}
+                                                                        aria-label={tf('voiceHandoffEnabled')}
+                                                                />
+                                                        </div>
+                                                )}
+                                        </SwitchCard>
                                         <SwitchCard
                                                 icon={ImageIcon}
                                                 title={tf('imageInputEnabled')}

@@ -193,6 +193,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
         handoffMessage: null,
         handoffKeywords: [],
         voiceInputEnabled: true,
+        voiceHandoffEnabled: false,
         imageInputEnabled: false,
         active: true,
         promptConfig: null,
@@ -444,6 +445,96 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
       expect.anything(), expect.objectContaining({ result: { outcome: 'VOICE_INPUT_DISABLED' } }),
     )
+  })
+
+  it('hands a voice note to the operator without any reply when the owner chose that', async () => {
+    const channel = await mocks.agentChannelFindFirst()
+    mocks.agentChannelFindFirst.mockResolvedValue({
+      ...channel,
+      agent: { ...channel.agent, voiceInputEnabled: false, voiceHandoffEnabled: true },
+    })
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true, mediaKind: 'audio', mediaUrl: 'https://cdn.example/voice.mp4',
+    }])
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.downloadAudio).not.toHaveBeenCalled()
+    expect(mocks.transcribeAudio).not.toHaveBeenCalled()
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.fixedReply).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.conversationUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: { handedOff: true, status: 'HANDED_OFF' },
+    }))
+    expect(mocks.notifyHandoff).toHaveBeenCalledOnce()
+    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ result: { outcome: 'VOICE_HANDED_OFF' } }),
+    )
+  })
+
+  it.each([
+    { voiceHandoffEnabled: true, waitingAck: false },
+    { voiceHandoffEnabled: false, waitingAck: true },
+  ])(
+    'voice note in an operator-owned thread: waiting message sent = $waitingAck when silent handoff = $voiceHandoffEnabled',
+    async ({ voiceHandoffEnabled, waitingAck }) => {
+      const channel = await mocks.agentChannelFindFirst()
+      mocks.agentChannelFindFirst.mockResolvedValue({
+        ...channel,
+        agent: { ...channel.agent, voiceInputEnabled: false, voiceHandoffEnabled },
+      })
+      mocks.loadAutomationPolicy.mockResolvedValue({
+        ...automationOnlyPolicy, dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+      })
+      const openThread = mocks.transaction.getMockImplementation()!
+      mocks.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
+        openThread(async (tx: any) => fn({
+          ...tx,
+          conversation: {
+            ...tx.conversation,
+            findFirst: vi.fn().mockResolvedValue({ id: 'conversation-1', status: 'HANDED_OFF', handedOff: true }),
+          },
+        })),
+      )
+      mocks.parseUpdate.mockReturnValue([{
+        kind: 'DM', platformMessageId: 'mid-2', senderId: 'sender-1', chatId: 'sender-1',
+        text: '', hasMedia: true, mediaKind: 'audio', mediaUrl: 'https://cdn.example/voice-2.mp4',
+      }])
+
+      await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+      expect(mocks.transcribeAudio).not.toHaveBeenCalled()
+      expect(mocks.generateReply).not.toHaveBeenCalled()
+      if (waitingAck) {
+        expect(mocks.fixedReply).toHaveBeenCalledWith('waitingForOperatorMessage', 'workspace-1')
+        expect(mocks.sendText).toHaveBeenCalledOnce()
+      } else {
+        expect(mocks.fixedReply).not.toHaveBeenCalled()
+        expect(mocks.sendText).not.toHaveBeenCalled()
+      }
+      expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+        expect.anything(), expect.objectContaining({ result: { outcome: 'OPERATOR_OWNED' } }),
+      )
+    },
+  )
+
+  it('keeps answering text normally while voice notes are routed to the operator', async () => {
+    const channel = await mocks.agentChannelFindFirst()
+    mocks.agentChannelFindFirst.mockResolvedValue({
+      ...channel,
+      agent: { ...channel.agent, voiceInputEnabled: false, voiceHandoffEnabled: true },
+    })
+    mocks.loadAutomationPolicy.mockResolvedValue({
+      ...automationOnlyPolicy, dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+    })
+
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+
+    expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+    expect(mocks.conversationUpdateMany).not.toHaveBeenCalled()
+    expect(mocks.shouldAgentReply).toHaveBeenCalled()
   })
 
   it.each(['TELEGRAM', 'BALE'] as const)(

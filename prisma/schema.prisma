@@ -209,6 +209,9 @@ model Agent {
   language                String   @default("fa")
   voiceEnabled            Boolean  @default(false)
   voiceInputEnabled       Boolean  @default(true)
+  // Only read while voiceInputEnabled is off: a voice note gets no reply at
+  //   all and the conversation goes straight to the operator.
+  voiceHandoffEnabled     Boolean  @default(false)
   // ─ A15: inbound photo understanding (machine-vision). Billed per analysed
   //   image; deliberately OFF by default — businesses opt in per agent.
   imageInputEnabled       Boolean  @default(false)

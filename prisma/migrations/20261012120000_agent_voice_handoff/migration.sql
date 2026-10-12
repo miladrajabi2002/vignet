@@ -1,0 +1,2 @@
+ALTER TABLE "Agent"
+ADD COLUMN "voiceHandoffEnabled" BOOLEAN NOT NULL DEFAULT false;

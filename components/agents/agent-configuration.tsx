@@ -56,6 +56,7 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
           handoffKeywords: agent.handoffKeywords,
           active: agent.active,
           voiceInputEnabled: agent.voiceInputEnabled,
+          voiceHandoffEnabled: agent.voiceHandoffEnabled,
           imageInputEnabled: agent.imageInputEnabled,
           // ─ F1: layered prompt
           promptConfig: agent.promptConfig as AgentSettingsData['promptConfig'],

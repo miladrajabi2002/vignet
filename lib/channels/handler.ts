@@ -86,6 +86,7 @@ const AGENT_SELECT = {
         handoffMessage: true,
         handoffKeywords: true,
         voiceInputEnabled: true,
+        voiceHandoffEnabled: true,
         imageInputEnabled: true,
         active: true,
         // ─ F1: layered prompt config
@@ -116,6 +117,7 @@ interface ResolvedChannel {
                 handoffMessage: string | null
                 handoffKeywords: string[]
                 voiceInputEnabled: boolean
+                voiceHandoffEnabled: boolean
                 imageInputEnabled: boolean
                 active: boolean
                 promptConfig: unknown
@@ -961,6 +963,9 @@ async function processChannelInbound(
                                         : instagramPolicy?.dmReplyPolicy
                         const automationOnly = effectiveInstagramPolicy === 'AUTOMATION_ONLY'
                         const voiceInputDisabled = isInboundAudio(msg) && !agent.voiceInputEnabled
+                        // The owner routes voice notes to a human and wants the bot
+                        // to stay completely silent on them.
+                        const voiceSilentHandoff = voiceInputDisabled && agent.voiceHandoffEnabled
                         // A15: photo understanding is a billed, per-agent opt-in
                         // (default off). When disabled the turn keeps the honest
                         // media-handoff behaviour — exactly like voice input off.
@@ -1214,7 +1219,7 @@ async function processChannelInbound(
                                                 select: { id: true },
                                         })
                                         const rateLimitOk = Date.now() - lastWaitingAckAt >= WAITING_MESSAGE_MIN_INTERVAL_MS
-                                        if (!automationOnly && !operatorReplied && rateLimitOk && !isMarketingOptOutMessage(text)) {
+                                        if (!automationOnly && !voiceSilentHandoff && !operatorReplied && rateLimitOk && !isMarketingOptOutMessage(text)) {
                                                 const waitingText = await fixedReplyForWorkspace(
                                                         'waitingForOperatorMessage',
                                                         agent.workspaceId,
@@ -1249,7 +1254,28 @@ async function processChannelInbound(
                         // Per-agent voice-input gate. It runs after persistence and
                         // operator ownership, but before media handoff, automation or
                         // AI. This path has no STT/LLM cost and does not hand the
-                        // conversation off merely because voice understanding is off.
+                        // conversation off merely because voice understanding is off;
+                        // only the explicit per-agent opt-in below does, without a reply.
+                        if (voiceSilentHandoff) {
+                                await prisma.conversation.updateMany({
+                                        where: { id: persistedInbound.conversationId },
+                                        data: { handedOff: true, status: 'HANDED_OFF' },
+                                })
+                                await notifyHandoff({
+                                        workspaceId: agent.workspaceId,
+                                        conversationId: persistedInbound.conversationId,
+                                        agentId: agent.id,
+                                        agentName: agent.name,
+                                        channel: type,
+                                        contactId,
+                                        contactName,
+                                        contactPhone: null,
+                                        reason: 'مشتری پیام صوتی فرستاده و باید اپراتور پاسخ دهد',
+                                        summary: text,
+                                })
+                                outcome = 'VOICE_HANDED_OFF'
+                                return
+                        }
                         if (voiceInputDisabled) {
                                 const disabledText = await fixedReplyForWorkspace(
                                         'voiceInputDisabledMessage',
