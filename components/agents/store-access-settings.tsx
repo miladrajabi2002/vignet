@@ -126,7 +126,7 @@ export function StoreAccessSettings({
         </div>
 
         <div className="mt-5 space-y-5">
-          <AccessGroup title={t('groupKnowledge')}>
+          <AccessGroup title={t('groupMain')} description={t('groupSellingDescription')}>
             <SwitchCard
               icon={Package}
               title={t('productsTitle')}
@@ -151,34 +151,6 @@ export function StoreAccessSettings({
               disabledLabel={t('disabled')}
               onChange={(enabled) => updateAccess('orderTrackingEnabled', enabled)}
             />
-            <SwitchCard
-              icon={Truck}
-              title={t('orderUpdatesTitle')}
-              description={t('orderUpdatesDescription')}
-              badge={t('orderUpdatesBadge')}
-              checked={orderCount > 0 && orderTrackingEnabled && orderUpdatesEnabled}
-              pending={saving === 'orderUpdatesEnabled'}
-              disabled={saving !== null || orderCount === 0 || !orderTrackingEnabled}
-              lockedReason={orderCount > 0 && !orderTrackingEnabled ? t('locked.needsOrders') : undefined}
-              enabledLabel={t('enabled')}
-              disabledLabel={t('disabled')}
-              onChange={(enabled) => updateAccess('orderUpdatesEnabled', enabled)}
-            />
-            <SwitchCard
-              icon={BellRing}
-              title={t('restockTitle')}
-              description={t('restockDescription')}
-              badge={t('restockBadge')}
-              checked={productCount > 0 && productAccessEnabled && restockAlertsEnabled}
-              pending={saving === 'restockAlertsEnabled'}
-              disabled={saving !== null || productCount === 0 || !productAccessEnabled}
-              lockedReason={productCount > 0 && !productAccessEnabled ? t('locked.needsProducts') : undefined}
-              enabledLabel={t('enabled')}
-              disabledLabel={t('disabled')}
-              onChange={(enabled) => updateAccess('restockAlertsEnabled', enabled)}
-            />
-          </AccessGroup>
-          <AccessGroup title={t('groupSelling')} description={t('groupSellingDescription')}>
             <SwitchCard
               icon={ClipboardList}
               title={t('orderCaptureTitle')}
@@ -210,6 +182,34 @@ export function StoreAccessSettings({
               enabledLabel={t('enabled')}
               disabledLabel={t('disabled')}
               onChange={(enabled) => updateAccess('payLinkEnabled', enabled)}
+            />
+          </AccessGroup>
+          <AccessGroup title={t('groupExtra')}>
+            <SwitchCard
+              icon={Truck}
+              title={t('orderUpdatesTitle')}
+              description={t('orderUpdatesDescription')}
+              badge={t('orderUpdatesBadge')}
+              checked={orderCount > 0 && orderTrackingEnabled && orderUpdatesEnabled}
+              pending={saving === 'orderUpdatesEnabled'}
+              disabled={saving !== null || orderCount === 0 || !orderTrackingEnabled}
+              lockedReason={orderCount > 0 && !orderTrackingEnabled ? t('locked.needsOrders') : undefined}
+              enabledLabel={t('enabled')}
+              disabledLabel={t('disabled')}
+              onChange={(enabled) => updateAccess('orderUpdatesEnabled', enabled)}
+            />
+            <SwitchCard
+              icon={BellRing}
+              title={t('restockTitle')}
+              description={t('restockDescription')}
+              badge={t('restockBadge')}
+              checked={productCount > 0 && productAccessEnabled && restockAlertsEnabled}
+              pending={saving === 'restockAlertsEnabled'}
+              disabled={saving !== null || productCount === 0 || !productAccessEnabled}
+              lockedReason={productCount > 0 && !productAccessEnabled ? t('locked.needsProducts') : undefined}
+              enabledLabel={t('enabled')}
+              disabledLabel={t('disabled')}
+              onChange={(enabled) => updateAccess('restockAlertsEnabled', enabled)}
             />
             <SwitchCard
               icon={Hourglass}

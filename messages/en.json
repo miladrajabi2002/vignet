@@ -278,10 +278,10 @@
     "storeAccess": {
       "title": "Agent store access",
       "description": "Choose which store information this agent may use when answering customers.",
-      "productsTitle": "Use products",
+      "productsTitle": "Answer about products",
       "productsDescription": "Recommend and compare synced products, prices and stock.",
       "productsCount": "{count} products ready",
-      "ordersTitle": "Track orders",
+      "ordersTitle": "Track customer orders",
       "ordersDescription": "View synced order statuses to answer customers accurately.",
       "ordersCount": "{count} orders synced",
       "enabled": "Enabled",
@@ -299,8 +299,8 @@
       "restockTitle": "Back-in-stock alerts",
       "restockDescription": "When a product is sold out the agent offers an alert and automatically messages the customer on the same channel once it is available again. The waiting list is under “Chat requests”.",
       "restockBadge": "Auto message on Telegram, Bale, Rubika and Instagram",
-      "groupKnowledge": "Store data",
-      "groupSelling": "Selling in chat",
+      "groupMain": "Main access",
+      "groupExtra": "Extras",
       "scope": {
         "readOnly": {
           "title": "Order access is read-only",

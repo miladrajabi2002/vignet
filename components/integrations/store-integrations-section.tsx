@@ -15,6 +15,7 @@ import {
     Globe,
     Download,
     Package,
+    ShieldCheck,
     ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -63,10 +64,13 @@ export interface StoreIntegrationItem {
 export function StoreIntegrationsSection({
     integrations: initial,
     planLimits = [],
+    storeAccessHref = null,
     locale = 'fa',
 }: {
     integrations: StoreIntegrationItem[]
     planLimits?: PlanLimitInfo[]
+    /** The agent's store-access settings; linked once the plugin is connected. */
+    storeAccessHref?: string | null
     locale?: 'fa' | 'en'
 }) {
     const fa = useLocale() !== 'en'
@@ -282,6 +286,7 @@ export function StoreIntegrationsSection({
                     onToggle={() => toggleActive(integration)}
                     onDelete={() => setDeleteTarget(integration)}
                     planLimits={planLimits}
+                    storeAccessHref={storeAccessHref}
                 />
             ))}
 
@@ -419,6 +424,7 @@ function IntegrationCard({
     onToggle,
     onDelete,
     planLimits,
+    storeAccessHref,
 }: {
     integration: StoreIntegrationItem
     syncing: boolean
@@ -428,6 +434,7 @@ function IntegrationCard({
     onToggle: () => void
     onDelete: () => void
     planLimits: PlanLimitInfo[]
+    storeAccessHref: string | null
 }) {
     const fa = useLocale() !== 'en'
     const limitFromError = planLimitFromError(integration.lastSyncError, planLimits)
@@ -539,6 +546,15 @@ function IntegrationCard({
                         <ShoppingBag className="h-4 w-4" />
                         {fa ? 'مشاهده سفارش‌ها' : 'View orders'}
                     </Link>
+                    {storeAccessHref && (
+                        <Link
+                            href={storeAccessHref}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                        >
+                            <ShieldCheck className="h-4 w-4" />
+                            {fa ? 'دسترسی ایجنت به فروشگاه' : 'Agent store access'}
+                        </Link>
+                    )}
                 </nav>
             )}
 

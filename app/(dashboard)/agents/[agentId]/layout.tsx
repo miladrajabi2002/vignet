@@ -7,6 +7,8 @@ import { AgentTabs, type AgentTabItem } from '@/components/agents/agent-tabs'
 import { BackButton } from '@/components/dashboard/back-button'
 import { cn } from '@/lib/utils'
 import { LearningCountProvider } from '@/components/agents/learning-count'
+import { getDashboardModules } from '@/lib/verticals/registry'
+import { workspaceCapabilities } from '@/lib/verticals/profile'
 
 export default async function AgentLayout(
   props: {
@@ -32,10 +34,13 @@ export default async function AgentLayout(
 
   const learningCount = await prisma.improvementSuggestion.count({ where: { workspaceId: user.workspaceId, agentId: agent.id, status: 'PENDING' } })
 
+  const hasProducts = getDashboardModules(workspaceCapabilities(agent.workspace)).includes('products')
+
   const tabs: AgentTabItem[] = [
     { key: 'overview', href: `/agents/${agent.id}`, label: t('overview') },
     { key: 'improve', href: `/agents/${agent.id}/improve`, label: isFa ? 'بهبود ایجنت' : 'Improve agent', badge: learningCount },
     { key: 'settings', href: `/agents/${agent.id}/settings`, label: t('settings') },
+    ...(hasProducts ? [{ key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('storeAccessTab') }] : []),
     { key: 'channels', href: `/agents/${agent.id}/channels`, label: t('channels') },
     { key: 'analytics', href: `/agents/${agent.id}/analytics`, label: t('analytics') },
   ]

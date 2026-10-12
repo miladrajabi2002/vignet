@@ -1,4 +1,3 @@
-import { AgentStoreAccess } from '@/components/agents/agent-store-access'
 import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -32,7 +31,6 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
       <AgentSettingsForm
         section={section}
         instagramConnected={agent.channels.length > 0}
-        storeAccess={section === 'general' ? <AgentStoreAccess agentId={agentId} /> : undefined}
         modelPolicy={{
           plan: workspace?.plan ?? 'TRIAL',
           enabledModels: platformPolicy.enabledModels,

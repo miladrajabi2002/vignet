@@ -159,6 +159,7 @@ export default async function IntegrationsPage() {
                         <StoreIntegrationsSection
                                 integrations={storeIntegrations}
                                 planLimits={planLimits}
+                                storeAccessHref={primaryAgent ? `/agents/${primaryAgent.id}/catalog` : null}
                                 locale={locale}
                         />
 
