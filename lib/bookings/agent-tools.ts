@@ -11,6 +11,8 @@ import {
   rescheduleAppointment,
 } from '@/lib/bookings/service'
 import { appointmentCreateSchema } from '@/lib/bookings/validation'
+import { recordConfirmedCustomer } from '@/lib/crm/confirmed-customer'
+import { captureError } from '@/lib/errors/capture'
 import { dateKeyInTimeZone, formatMinuteOfDay } from '@/lib/bookings/time'
 import {
   bookingCalendarContext,
@@ -365,6 +367,18 @@ export async function executeBookingAgentTool(params: {
       conversationId: params.conversationId,
     })
     const appointment = result.appointment
+    // The name and phone the customer booked with go to their CRM profile,
+    // and a chat that had no profile yet is attached to it.
+    if (params.conversationId) {
+      await recordConfirmedCustomer({
+        workspaceId: params.workspaceId,
+        conversationId: params.conversationId,
+        contactId: params.contactId ?? null,
+        name: input.customerName,
+        phone: input.customerPhone ?? null,
+        source: 'booking',
+      }).catch((error) => captureError('bookings:customer-profile-sync', error, { workspaceId: params.workspaceId }))
+    }
     return {
       ok: true,
       created: result.created,

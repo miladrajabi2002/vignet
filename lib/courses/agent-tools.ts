@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { phoneSchema } from '@/lib/phone'
+import { recordConfirmedCustomer } from '@/lib/crm/confirmed-customer'
+import { captureError } from '@/lib/errors/capture'
 import {
   CourseError,
   enrollInCourse,
@@ -137,6 +139,16 @@ export async function executeCourseAgentTool(params: {
         idempotencyKey: params.idempotencyKey ?? null,
         requireOpen: true,
       })
+      // The name and phone the customer enrolled with go to their CRM
+      // profile, and a chat that had no profile yet is attached to it.
+      await recordConfirmedCustomer({
+        workspaceId,
+        conversationId: params.conversationId,
+        contactId: params.contactId ?? null,
+        name: args.customerName,
+        phone: args.customerPhone,
+        source: 'course',
+      }).catch((error) => captureError('courses:customer-profile-sync', error, { workspaceId }))
       return {
         ok: true,
         created: result.created,

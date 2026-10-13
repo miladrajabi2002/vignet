@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { readContactAddress } from '@/lib/crm/contact-address'
 
 type Params = { params: Promise<{ contactId: string }> }
 
@@ -38,6 +39,7 @@ export async function GET(_req: Request, props: Params) {
       createdAt: true,
       updatedAt: true,
       lastActivityAt: true,
+      metadata: true,
       telegramId: true,
       telegramUsername: true,
       telegramAvatarUrl: true,
@@ -72,8 +74,11 @@ export async function GET(_req: Request, props: Params) {
   if (!contact)
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
+  // The profile shows the delivery address; the rest of the metadata (agent
+  // memory, sync bookkeeping) stays server-side.
+  const { metadata, ...profile } = contact
   return NextResponse.json(
-    { contact },
+    { contact: { ...profile, address: readContactAddress(metadata) } },
     { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
   )
 }

@@ -30,6 +30,7 @@ import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { contactDisplayName } from '@/lib/crm/display'
 import { relativeTime } from '@/lib/format'
 import { displayPhone } from '@/lib/phone'
+import { formatContactAddress, type ContactAddress } from '@/lib/crm/contact-address'
 import { cn } from '@/lib/utils'
 
 type DetailTab = 'overview' | 'conversations' | 'edit'
@@ -60,6 +61,7 @@ type ContactDetailData = {
   createdAt: string
   updatedAt: string
   lastActivityAt: string | null
+  address: ContactAddress | null
   telegramId: string | null
   telegramUsername: string | null
   telegramAvatarUrl: string | null
@@ -239,6 +241,7 @@ export function ContactDetailSheet({
   const stage = detail?.stage ?? preview?.stage ?? 'lead'
   const stageKey = asContactStage(stage)
   const phone = detail?.phone ?? preview?.phone ?? null
+  const addressLine = detail?.address ? formatContactAddress(detail.address, t('detail.postalCode'), locale) : ''
   const lastActivity = detail
     ? detail.lastActivityAt ??
       detail.conversations[0]?.lastMessageAt ??
@@ -416,6 +419,29 @@ export function ContactDetailSheet({
                         <Copy className="h-4 w-4" aria-hidden="true" />
                       )}
                       {copiedKey === 'phone-overview' ? t('detail.copied') : t('detail.copy')}
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              {detail.address && (
+                <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
+                  <p className="text-xs font-medium text-[var(--text-muted)]">{t('detail.address')}</p>
+                  <div className="mt-2 flex items-start gap-2">
+                    <p className="min-w-0 flex-1 break-words text-sm leading-6 text-[var(--text-primary)]">
+                      {addressLine}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => copyValue(addressLine, 'address-overview')}
+                      className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    >
+                      {copiedKey === 'address-overview' ? (
+                        <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                      ) : (
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      {copiedKey === 'address-overview' ? t('detail.copied') : t('detail.copy')}
                     </button>
                   </div>
                 </section>

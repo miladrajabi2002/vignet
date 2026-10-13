@@ -15,6 +15,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
 import { displayPhone } from '@/lib/phone'
+import { formatContactAddress, readContactAddress } from '@/lib/crm/contact-address'
 
 export default async function ContactDetailPage(
   props: {
@@ -136,6 +137,7 @@ export default async function ContactDetailPage(
       avatarUrl: contact.instagramAvatarUrl,
     })
 
+  const address = readContactAddress(contact.metadata)
   const lastActivity =
     contact.lastActivityAt ??
     contact.conversations[0]?.lastMessageAt ??
@@ -216,6 +218,12 @@ export default async function ContactDetailPage(
             </dd>
             <dt className="text-[var(--text-muted)]">{t('detail.lastActivity')}</dt>
             <dd className="text-[var(--text-primary)]">{relativeTime(lastActivity, locale)}</dd>
+            {address && (
+              <>
+                <dt className="text-[var(--text-muted)]">{t('detail.address')}</dt>
+                <dd className="break-words text-[var(--text-primary)]">{formatContactAddress(address, t('detail.postalCode'), locale)}</dd>
+              </>
+            )}
             {identities.some((id) => id.handle) && (
               <>
                 <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'شناسه‌ها' : 'Handles'}</dt>

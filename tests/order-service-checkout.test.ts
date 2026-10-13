@@ -31,6 +31,8 @@ const svc = vi.hoisted(() => ({
   composeStatusNotice: vi.fn(() => 'پرداخت با موفقیت انجام شد ✅'),
 }))
 vi.mock('@/lib/commerce/checkout-service', () => svc)
+const recordConfirmedCustomer = vi.hoisted(() => vi.fn(async () => null))
+vi.mock('@/lib/crm/confirmed-customer', () => ({ recordConfirmedCustomer }))
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
@@ -131,6 +133,8 @@ describe('in-chat checkout conversation', () => {
     expect(link.kind).toBe('reply')
     expect(link.kind === 'reply' && link.text).toContain('[[checkout:')
     expect(svc.issueCheckoutLink).toHaveBeenCalledTimes(1)
+    // A payment-link order syncs the confirmed details to the profile too.
+    expect(recordConfirmedCustomer).toHaveBeenCalledWith(expect.objectContaining({ source: 'order', conversationId: 'c1' }))
     expect(drafts[0].status).toBe('LINK_SENT')
   })
 

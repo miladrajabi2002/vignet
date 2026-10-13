@@ -1,5 +1,6 @@
 import type { ChannelType, Prisma } from '@prisma/client'
 import { contactPhoneLookupVariants } from '@/lib/phone'
+import { readContactAddress } from '@/lib/crm/contact-address'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/session'
 import { searchVariants } from '@/lib/search/persian'
@@ -83,6 +84,9 @@ export async function GET(request: Request) {
                 'Last activity',
                 'Created at',
                 'Notes',
+                'City',
+                'Address',
+                'Postal code',
               ].map(csvCell).join(',')}\r\n`,
             ),
           )
@@ -105,6 +109,7 @@ export async function GET(request: Request) {
             createdAt: true,
             updatedAt: true,
             lastActivityAt: true,
+            metadata: true,
             telegramId: true,
             whatsappId: true,
             instagramId: true,
@@ -127,6 +132,7 @@ export async function GET(request: Request) {
               contact.rubikaId && 'Rubika',
               contact.baleId && 'Bale',
             ].filter(Boolean)
+            const address = readContactAddress(contact.metadata)
             return [
               contact.id,
               contact.name,
@@ -138,6 +144,9 @@ export async function GET(request: Request) {
               (contact.lastActivityAt ?? contact.updatedAt).toISOString(),
               contact.createdAt.toISOString(),
               contact.notes,
+              address?.city,
+              address?.address,
+              address?.postalCode,
             ].map(csvCell).join(',')
           })
           .join('\r\n')

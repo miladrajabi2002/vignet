@@ -41,7 +41,11 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
+const recordConfirmedCustomer = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/crm/confirmed-customer', () => ({ recordConfirmedCustomer }))
+
 import { resolveOrderCaptureTurn, type OrderCaptureTurnParams } from '@/lib/commerce/order-service'
+import { prisma } from '@/lib/prisma'
 import { regexOrderSignals } from './support/regex-reading'
 
 function params(message: string, overrides: Partial<OrderCaptureTurnParams> = {}): OrderCaptureTurnParams {
@@ -69,6 +73,9 @@ function params(message: string, overrides: Partial<OrderCaptureTurnParams> = {}
 beforeEach(() => {
   drafts.length = 0
   rememberedOffers.length = 0
+  recordConfirmedCustomer.mockReset()
+  recordConfirmedCustomer.mockResolvedValue('contact-1')
+  vi.mocked(prisma.orderDraft.updateMany).mockClear()
 })
 
 describe('pre-order conversation, end to end', () => {
@@ -86,6 +93,8 @@ describe('pre-order conversation, end to end', () => {
     expect(summary.kind === 'reply' && summary.text).toContain('خلاصهٔ سفارشتون')
     expect(summary.kind === 'reply' && summary.text).toContain('۲۵٬۹۷۰٬۰۰۰ تومان')
     expect(drafts[0].status).toBe('AWAITING_CONFIRM')
+    // Nothing reaches the CRM profile before the customer accepts the summary.
+    expect(recordConfirmedCustomer).not.toHaveBeenCalled()
 
     const done = await resolveOrderCaptureTurn(params('بله'))
     expect(done.kind).toBe('submit')
@@ -95,6 +104,33 @@ describe('pre-order conversation, end to end', () => {
       expect(done.operatorSummary).toContain('خیابان آزادی')
     }
     expect(drafts[0].status).toBe('SUBMITTED')
+    // The confirmed name, phone and address go to the customer's profile and
+    // the cart is linked to it (it was opened before the customer was known).
+    expect(recordConfirmedCustomer).toHaveBeenCalledTimes(1)
+    expect(recordConfirmedCustomer).toHaveBeenCalledWith({
+      workspaceId: 'w',
+      conversationId: 'c1',
+      contactId: null,
+      name: 'علی رضایی',
+      phone: drafts[0].customerPhone,
+      address: { city: 'تهران', address: drafts[0].address, postalCode: null },
+      source: 'order',
+    })
+    expect(String(drafts[0].customerPhone)).toContain('9123456789')
+    expect(prisma.orderDraft.updateMany).toHaveBeenCalledWith({
+      where: { id: drafts[0].id, contactId: null },
+      data: { contactId: 'contact-1' },
+    })
+  })
+
+  it('still files the order when the CRM profile write fails', async () => {
+    recordConfirmedCustomer.mockRejectedValue(new Error('db down'))
+    const silenced = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await resolveOrderCaptureTurn(params('ثبت سفارش', { prefill: { name: 'سارا کریمی', phone: '09120000000', city: 'کرج', address: 'کرج گوهردشت بلوار موذن' } }))
+    const done = await resolveOrderCaptureTurn(params('بله'))
+    expect(done.kind).toBe('submit')
+    expect(drafts[0].status).toBe('SUBMITTED')
+    silenced.mockRestore()
   })
 
   it('a correction at the summary step re-summarizes instead of filing', async () => {

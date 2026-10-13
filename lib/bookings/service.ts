@@ -10,6 +10,7 @@ import {
   localDateRangeUtc,
 } from '@/lib/bookings/time'
 import type { AppointmentCreateInput } from '@/lib/bookings/validation'
+import { contactPhoneLookupVariants, normalizeContactPhone } from '@/lib/phone'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import {
   assertWorkspaceResourceCapacity,
@@ -276,8 +277,10 @@ async function bookInTransaction(
     })
     if (!owned) throw new BookingError('CONTACT_NOT_FOUND')
   } else if (input.customerPhone) {
+    // Profiles store the national spelling (09…) while this input is E.164;
+    // an exact match missed the customer and filed a second profile.
     const existing = await tx.contact.findFirst({
-      where: { workspaceId, phone: input.customerPhone },
+      where: { workspaceId, phone: { in: contactPhoneLookupVariants(input.customerPhone) } },
       orderBy: { createdAt: 'asc' },
       select: { id: true, name: true },
     })
@@ -300,7 +303,7 @@ async function bookInTransaction(
         data: {
           workspaceId,
           name: input.customerName,
-          phone: input.customerPhone,
+          phone: normalizeContactPhone(input.customerPhone) ?? input.customerPhone,
           tags: ['appointment'],
         },
         select: { id: true },

@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => {
     appointment: { updateMany: vi.fn() },
     storeOrder: { updateMany: vi.fn() },
     instagramFollowGate: { updateMany: vi.fn() },
+    orderDraft: { updateMany: vi.fn() },
+    courseEnrollment: { updateMany: vi.fn() },
+    restockAlert: { updateMany: vi.fn() },
+    skillFinding: { updateMany: vi.fn() },
     campaignRecipient: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
@@ -95,6 +99,10 @@ describe('cross-channel contact identity merge', () => {
     mocks.tx.appointment.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.storeOrder.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.instagramFollowGate.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.orderDraft.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.courseEnrollment.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.restockAlert.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.skillFinding.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.contact.update.mockResolvedValue({})
     mocks.tx.contact.updateMany.mockResolvedValue({ count: 1 })
   })
@@ -131,6 +139,14 @@ describe('cross-channel contact identity merge', () => {
       where: { contactId: 'contact-new' },
       data: { contactId: 'contact-old' },
     })
+    // Carts, course places and restock requests follow the customer too;
+    // left on the trashed duplicate they dropped out of the buyer score.
+    for (const model of ['orderDraft', 'courseEnrollment', 'restockAlert', 'skillFinding'] as const) {
+      expect(mocks.tx[model].updateMany).toHaveBeenCalledWith({
+        where: { contactId: 'contact-new' },
+        data: { contactId: 'contact-old' },
+      })
+    }
     expect(mocks.tx.contact.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['contact-new'] } },
       data: { deletedAt: expect.any(Date) },
@@ -225,5 +241,76 @@ describe('applyContactIdentity', () => {
 
     expect(result).toBe('contact-1')
     expect(mocks.tx.contact.update).not.toHaveBeenCalled()
+  })
+
+  describe('with an identity to apply', () => {
+    beforeEach(() => {
+      mocks.withLocks.mockImplementation(async (_workspaceId, _identities, operation) => operation(mocks.tx))
+      mocks.getLimit.mockResolvedValue({ plan: 'PRO', limit: 1000 })
+      mocks.assertCapacity.mockResolvedValue(undefined)
+      mocks.tx.contact.update.mockResolvedValue({})
+      mocks.tx.conversation.update.mockResolvedValue({})
+      for (const model of ['orderDraft', 'courseEnrollment', 'restockAlert'] as const) {
+        mocks.tx[model].updateMany.mockResolvedValue({ count: 0 })
+      }
+    })
+
+    it('links what the chat filed before the customer was known', async () => {
+      // A web visitor opened a cart, then gave a phone: the cart was created
+      // with no customer and stayed orphaned (3 paid orders in production).
+      mocks.tx.contact.findMany.mockResolvedValueOnce([])
+      mocks.tx.contact.create.mockResolvedValue({ id: 'contact-new' })
+
+      const result = await applyContactIdentity({
+        workspaceId: 'workspace-1',
+        conversationId: 'conv-1',
+        contactId: null,
+        name: null,
+        phone: '09128352271',
+      })
+
+      expect(result).toBe('contact-new')
+      expect(mocks.tx.conversation.update).toHaveBeenCalledWith({
+        where: { id: 'conv-1' },
+        data: { contactId: 'contact-new' },
+      })
+      for (const model of ['orderDraft', 'courseEnrollment', 'restockAlert'] as const) {
+        expect(mocks.tx[model].updateMany).toHaveBeenCalledWith({
+          where: { conversationId: 'conv-1', contactId: null },
+          data: { contactId: 'contact-new' },
+        })
+      }
+    })
+
+    it('fills an empty name but never replaces one already on the profile', async () => {
+      const named = contact('contact-1', '2026-01-01T00:00:00.000Z', '09128352271', { name: 'سارا' })
+      mocks.tx.contact.findMany
+        .mockResolvedValueOnce([{ id: named.id }])
+        .mockResolvedValueOnce([named])
+
+      await applyContactIdentity({
+        workspaceId: 'workspace-1',
+        conversationId: 'conv-1',
+        contactId: 'contact-1',
+        name: 'علی رضایی',
+        phone: null,
+      })
+      expect(mocks.tx.contact.update.mock.calls.at(-1)?.[0].data).not.toHaveProperty('name')
+
+      // «None» is a channel placeholder, not a name: it is filled.
+      const placeholder = { ...named, name: 'None' }
+      mocks.tx.contact.findMany
+        .mockResolvedValueOnce([{ id: placeholder.id }])
+        .mockResolvedValueOnce([placeholder])
+
+      await applyContactIdentity({
+        workspaceId: 'workspace-1',
+        conversationId: 'conv-1',
+        contactId: 'contact-1',
+        name: 'علی رضایی',
+        phone: null,
+      })
+      expect(mocks.tx.contact.update.mock.calls.at(-1)?.[0].data).toMatchObject({ name: 'علی رضایی' })
+    })
   })
 })

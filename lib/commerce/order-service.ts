@@ -58,6 +58,7 @@ import { isItemAvailable, restockMode, restockOfferLine } from '@/lib/commerce/r
 import { rememberRestockOffer } from '@/lib/commerce/restock-service'
 import { heldByOthers, startCartHold, withHeldStock } from '@/lib/commerce/cart-hold'
 import { type OrderTurnSignals } from '@/lib/commerce/order-signals'
+import { recordConfirmedCustomer } from '@/lib/crm/confirmed-customer'
 import {
   planCartEditDeterministic,
   type CartCandidate,
@@ -507,6 +508,30 @@ async function saveDraft(params: OrderCaptureTurnParams, id: string | null, stat
     }
   }
   throw new Error('ORDER_DRAFT_CREATE_FAILED')
+}
+
+/**
+ * The customer accepted the order summary: the name, phone and address on it
+ * go to their CRM profile and the cart is linked to that profile. Never
+ * throws — the order itself must not depend on the CRM write.
+ */
+async function syncOrderCustomer(params: OrderCaptureTurnParams, draftId: string, state: OrderDraftState): Promise<void> {
+  try {
+    const contactId = await recordConfirmedCustomer({
+      workspaceId: params.workspaceId,
+      conversationId: params.conversationId,
+      contactId: params.contactId,
+      name: state.customerName,
+      phone: state.customerPhone,
+      address: { city: state.city, address: state.address, postalCode: state.postalCode },
+      source: 'order',
+    })
+    if (contactId) {
+      await prisma.orderDraft.updateMany({ where: { id: draftId, contactId: null }, data: { contactId } })
+    }
+  } catch (error) {
+    console.error('[order-service] customer profile sync failed:', error instanceof Error ? error.name : 'UnknownError')
+  }
 }
 
 /** Mark a filed draft with the handoff alert that carries it. */
@@ -1274,6 +1299,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
   // ── Confirmation step ──────────────────────────────────────────────────
   if (row && state.status === 'AWAITING_CONFIRM' && !slotChanged && !edited) {
     if (signals.confirm && missingOrderSlots(state, needsVariant).length === 0) {
+      await syncOrderCustomer(params, row.id, state)
       if (checkout) {
         const svc = await checkoutService()
         let view: DraftQuoteView | null = null

@@ -12,6 +12,7 @@ import type { CourseStatus, EnrollmentStatus, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { captureError } from '@/lib/errors/capture'
+import { contactPhoneLookupVariants, normalizeContactPhone } from '@/lib/phone'
 import { localDateTimeToUtc } from '@/lib/bookings/time'
 import { findNoticeTarget, latestContactConversation, sendCustomerNotice } from '@/lib/conversations/customer-notice'
 import type { CourseInput, CourseSessionInput, EnrollmentInput } from '@/lib/courses/validation'
@@ -247,7 +248,7 @@ export async function enrollInCourse(workspaceId: string, courseId: string, inpu
       const owned = await tx.contact.findFirst({ where: { id: contactId, workspaceId }, select: { id: true } })
       if (!owned) throw new CourseError('CONTACT_NOT_FOUND')
     } else if (input.phone) {
-      const existing = await tx.contact.findFirst({ where: { workspaceId, phone: input.phone }, orderBy: { createdAt: 'asc' }, select: { id: true } })
+      const existing = await tx.contact.findFirst({ where: { workspaceId, phone: { in: contactPhoneLookupVariants(input.phone) } }, orderBy: { createdAt: 'asc' }, select: { id: true } })
       if (existing) {
         contactId = existing.id
       } else {
@@ -257,7 +258,7 @@ export async function enrollInCourse(workspaceId: string, courseId: string, inpu
           if (error instanceof WorkspaceResourceLimitError) throw new CourseError('CUSTOMER_LIMIT')
           throw error
         }
-        contactId = (await tx.contact.create({ data: { workspaceId, name: input.name, phone: input.phone, tags: ['course'] }, select: { id: true } })).id
+        contactId = (await tx.contact.create({ data: { workspaceId, name: input.name, phone: normalizeContactPhone(input.phone) ?? input.phone, tags: ['course'] }, select: { id: true } })).id
       }
     }
 

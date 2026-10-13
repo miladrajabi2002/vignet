@@ -6,6 +6,7 @@ import {
   normalizeContactPhone,
 } from '@/lib/phone'
 import { mergedMetadata } from '@/lib/crm/contact-metadata-merge'
+import { cleanContactName } from '@/lib/crm/display'
 import {
   assertWorkspaceResourceCapacity,
   getWorkspaceResourceLimit,
@@ -158,6 +159,13 @@ async function mergeContacts(
       tx.appointment.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
       tx.storeOrder.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
       tx.instagramFollowGate.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
+      // In-chat carts, course places and restock requests belong to the same
+      // person; left behind they sat on the trashed duplicate and vanished
+      // from the survivor's buyer score.
+      tx.orderDraft.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
+      tx.courseEnrollment.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
+      tx.restockAlert.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
+      tx.skillFinding.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
     ])
   }
 
@@ -346,7 +354,8 @@ export async function applyContactIdentity(params: {
       await tx.contact.update({
         where: { id: contactId },
         data: {
-          ...(!merged.name && params.name ? { name: params.name } : {}),
+          // A placeholder profile name («None») is no name at all.
+          ...(!cleanContactName(merged.name) && params.name ? { name: params.name } : {}),
           ...(canonicalPhone ? { phone: canonicalPhone } : {}),
           lastActivityAt: new Date(),
         },
@@ -357,6 +366,13 @@ export async function applyContactIdentity(params: {
       where: { id: params.conversationId },
       data: { contactId },
     })
+    // A cart, course place or restock request filed in this chat before the
+    // customer was known now belongs to them.
+    await Promise.all([
+      tx.orderDraft.updateMany({ where: { conversationId: params.conversationId, contactId: null }, data: { contactId } }),
+      tx.courseEnrollment.updateMany({ where: { conversationId: params.conversationId, contactId: null }, data: { contactId } }),
+      tx.restockAlert.updateMany({ where: { conversationId: params.conversationId, contactId: null }, data: { contactId } }),
+    ])
     return contactId
     })
   } catch (error) {
