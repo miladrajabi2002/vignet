@@ -179,7 +179,7 @@ export default async function IntegrationsPage() {
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 {/* Chat Link — a Vigent-native channel (public standalone chat page). */}
                                 <Link
-                                        href={primaryAgent ? `/agents/${primaryAgent.id}/channels` : '/agents/new'}
+                                        href={primaryAgent ? `/agents/${primaryAgent.id}/channels?open=CHAT_LINK` : '/agents/new'}
                                         className="spatial-surface group flex flex-col gap-3 rounded-card p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                 >
                                         <div className="flex items-center justify-between">
@@ -206,7 +206,7 @@ export default async function IntegrationsPage() {
                                         return (
                                                 <Link
                                                         key={type}
-                                                        href={primaryAgent ? (type === 'INSTAGRAM' ? `/agents/${primaryAgent.id}/instagram` : `/agents/${primaryAgent.id}/channels`) : '/agents/new'}
+                                                        href={primaryAgent ? (type === 'INSTAGRAM' ? `/agents/${primaryAgent.id}/instagram` : `/agents/${primaryAgent.id}/channels?open=${type}`) : '/agents/new'}
                                                         className="spatial-surface group flex flex-col gap-3 rounded-card p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                                 >
                                                         <div className="flex items-center justify-between">

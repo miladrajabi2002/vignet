@@ -29,7 +29,7 @@ import {
         type WidgetFont,
 } from '@/lib/widget/config'
 import { WidgetPreview, WIDGET_ICON_COMPONENTS } from './widget-preview'
-import { ChannelMark } from '@/components/ui/channel-mark'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 
 /** Curated brand-color presets — one tap instead of fiddling with the picker. */
@@ -70,7 +70,7 @@ export function WebWidgetChannel({
 
         const [busy, setBusy] = useState(false)
         const [copied, setCopied] = useState(false)
-        const [detailsOpen, setDetailsOpen] = useState(false)
+        const [disableOpen, setDisableOpen] = useState(false)
         const [showSettings, setShowSettings] = useState(false)
         const [error, setError] = useState<string | null>(null)
 
@@ -144,6 +144,7 @@ export function WebWidgetChannel({
                                 setError(t('saveError'))
                                 return
                         }
+                        setDisableOpen(false)
                         router.refresh()
                 } catch {
                         setError(t('saveError'))
@@ -172,56 +173,34 @@ export function WebWidgetChannel({
         const unprotected = liveSettings.allowedDomains.length === 0
 
         return (
-                <div className="spatial-surface rounded-card p-4 sm:p-5">
-                        <div className="flex flex-wrap items-center gap-3">
-                                <ChannelMark channel="WEB_WIDGET" />
-                                <div className="flex-1">
-                                        <div className="font-medium text-[var(--text-primary)]">{t('webWidget')}</div>
-                                        <div className="text-sm text-[var(--text-secondary)]">{t('widgetDesc')}</div>
-                                </div>
-                                {enabled ? (
-                                        <div className="ms-auto flex w-full items-center justify-end gap-2 sm:w-auto">
-                                                <button
-                                                        type="button"
-                                                        onClick={disable}
-                                                        disabled={busy}
-                                                        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
-                                                >
-                                                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                                        {t('disable')}
-                                                </button>
-                                                <button
-                                                        type="button"
-                                                        onClick={() => setDetailsOpen((value) => !value)}
-                                                        aria-expanded={detailsOpen}
-                                                        aria-controls="web-widget-details"
-                                                        aria-label={t(detailsOpen ? 'collapseConnection' : 'expandConnection')}
-                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                                                >
-                                                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${detailsOpen ? 'rotate-180' : ''}`} />
-                                                </button>
-                                        </div>
-                                ) : (
-                                        <button
-                                                type="button"
-                                                onClick={enable}
-                                                disabled={busy}
-                                                className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
-                                        >
-                                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                                {t('enable')}
-                                        </button>
-                                )}
-                        </div>
-
+                <div className="space-y-4">
                         {error && (
-                                <p role="alert" className="mt-3 text-sm leading-6 text-danger">
+                                <p role="alert" className="text-sm leading-6 text-danger">
                                         {error}
                                 </p>
                         )}
 
-                        {enabled && detailsOpen && (
-                                <div id="web-widget-details" className="mt-4 space-y-4">
+                        {!enabled && (
+                                <div className="space-y-4">
+                                        <ol className="list-decimal space-y-1.5 ps-5 text-sm leading-7 text-[var(--text-secondary)] marker:text-[var(--text-muted)]">
+                                                <li>{t('widgetStepEnable')}</li>
+                                                <li>{t('widgetStepPaste')}</li>
+                                                <li>{t('widgetStepStyle')}</li>
+                                        </ol>
+                                        <button
+                                                type="button"
+                                                onClick={enable}
+                                                disabled={busy}
+                                                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#111] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#2a2a2e] disabled:opacity-50"
+                                        >
+                                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                                {t('enableWidget')}
+                                        </button>
+                                </div>
+                        )}
+
+                        {enabled && (
+                                <div id="web-widget-details" className="space-y-4">
                                         {/* Embed code */}
                                         <div>
                                                 <div className="mb-2 flex items-center justify-between">
@@ -659,8 +638,31 @@ export function WebWidgetChannel({
                                                         </div>
                                                 </div>
                                         )}
+
+                                        <div className="border-t border-[var(--border-subtle)] pt-4">
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setDisableOpen(true)}
+                                                        disabled={busy}
+                                                        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:text-danger disabled:opacity-50"
+                                                >
+                                                        {t('disable')}
+                                                </button>
+                                        </div>
                                 </div>
                         )}
+
+                        <ConfirmDialog
+                                open={disableOpen}
+                                title={t('disableWidgetTitle')}
+                                description={t('disableWidgetBody')}
+                                confirmLabel={t('disable')}
+                                busy={busy}
+                                onConfirm={() => void disable()}
+                                onClose={() => {
+                                        if (!busy) setDisableOpen(false)
+                                }}
+                        />
                 </div>
         )
 }

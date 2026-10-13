@@ -311,10 +311,25 @@ model ChatLink {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent      Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  dailyStats ChatLinkDailyStat[]
 
   @@index([workspaceId])
+}
+
+// Page opens of a chat link per Tehran day and per tracking source
+// (`/c/slug?src=ig`; '' = the plain link). Written with one raw upsert in
+// lib/chat-link/stats.ts.
+model ChatLinkDailyStat {
+  chatLinkId String
+  day        DateTime @db.Date
+  source     String   @default("")
+  views      Int      @default(0)
+
+  chatLink ChatLink @relation(fields: [chatLinkId], references: [id], onDelete: Cascade)
+
+  @@id([chatLinkId, day, source])
 }
 
 // ─── AGENT VERSION (prompt/config snapshots for rollback) ─────────────

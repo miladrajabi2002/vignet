@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
-  Check,
   Loader2,
   ChevronDown,
   AlertTriangle,
@@ -13,7 +12,7 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
-import { ChannelMark } from '@/components/ui/channel-mark'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
 
@@ -276,7 +275,6 @@ export function MessengerChannel({
   agentId,
   type,
   label,
-  hint,
   enabled,
   channelId,
   botUsername,
@@ -290,7 +288,6 @@ export function MessengerChannel({
   agentId: string
   type: MessengerKind
   label: string
-  hint: string
   enabled: boolean
   channelId: string | null
   botUsername: string | null
@@ -311,7 +308,7 @@ export function MessengerChannel({
   const router = useRouter()
   const fields = FIELD_SETS[type]
   const [busy, setBusy] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [disableOpen, setDisableOpen] = useState(false)
   const [reconnectOpen, setReconnectOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
@@ -348,7 +345,6 @@ export function MessengerChannel({
       }
       if (data.webhookSet === false) setError(t('webhookWarning'))
       setValues({})
-      setOpen(false)
       setReconnectOpen(false)
       router.refresh()
     } finally {
@@ -359,9 +355,20 @@ export function MessengerChannel({
   async function disable() {
     if (!channelId) return
     setBusy(true)
-    await fetch(`/api/agents/${agentId}/channels/${channelId}`, { method: 'DELETE' })
-    setBusy(false)
-    router.refresh()
+    setError(null)
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/${channelId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        setError(t('saveError'))
+        return
+      }
+      setDisableOpen(false)
+      router.refresh()
+    } catch {
+      setError(t('saveError'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   // The same form connects a new channel and reconnects a lost one: every
@@ -374,10 +381,7 @@ export function MessengerChannel({
         // pasting, no webhook configuration, no Meta dashboard visit.
         <InstagramConnectFlow
           agentId={agentId}
-          onClose={() => {
-            setOpen(false)
-            setReconnectOpen(false)
-          }}
+          onClose={() => setReconnectOpen(false)}
         />
       ) : (
         <>
@@ -437,144 +441,111 @@ export function MessengerChannel({
   )
 
   return (
-    <div className="spatial-surface rounded-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-3">
-        {enabled && isInstagram && botAvatar && failedAvatarUrl !== botAvatar ? (
-          // Connected Instagram OAuth channel — show the IG profile avatar
-          // instead of the generic camera icon. Makes it obvious at a glance
-          // which account is wired up.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={botAvatar}
-            alt={botUsername ?? ''}
-            width={40}
-            height={40}
-            loading="lazy"
-            decoding="async"
-            onError={() => setFailedAvatarUrl(botAvatar)}
-            className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
-          />
-        ) : (
-          <ChannelMark channel={type} />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 font-medium text-[var(--text-primary)]">
-            {label}
-            {connectionLost ? (
-              <AlertTriangle className="h-4 w-4 text-danger" aria-label={t('healthDown')} />
-            ) : (
-              enabled && <Check className="h-4 w-4 text-success" />
+    <div className="space-y-4">
+      {enabled && (
+        <div id={`channel-details-${type.toLowerCase()}`} className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-[var(--bg-base)] p-3">
+            {isInstagram && botAvatar && failedAvatarUrl !== botAvatar && (
+              // The connected Instagram account's own photo makes it obvious
+              // which page is wired up.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={botAvatar}
+                alt=""
+                width={40}
+                height={40}
+                loading="lazy"
+                decoding="async"
+                onError={() => setFailedAvatarUrl(botAvatar)}
+                className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
+              />
             )}
-          </div>
-          <div className="truncate text-sm text-[var(--text-secondary)]">
-            {enabled && botUsername ? `@${botUsername}` : hint}
-          </div>
-        </div>
-        {enabled ? (
-          <div className="ms-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-            {/* Connected Instagram: link into the automation management page.
-                This is the entry point to DM/comment triggers, follow-gate, etc. */}
+            <div className="min-w-0 flex-1">
+              <p dir="ltr" className="truncate text-start text-sm font-semibold text-[var(--text-primary)]">
+                {botUsername ? `@${botUsername}` : label}
+              </p>
+              <ChannelHealthBadge type={type} status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
+              <WebhookHealth lastInboundAt={lastInboundAt} />
+            </div>
+            {/* Connected Instagram: the entry point to DM/comment triggers, follow-gate, etc. */}
             {isInstagram && (
               <Link
                 href="/instagram"
-                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-base)]"
+                className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
               >
                 مدیریت اتوماسیون
                 <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
               </Link>
             )}
+          </div>
+
+          {connectionLost && (
+            <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-3">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium text-danger">{t('connectionLostTitle')}</p>
+                  <p className="mt-1 text-[var(--text-secondary)]">
+                    {t(lostReasonKey(type, healthError) ?? 'connectionLostGeneric')} {t('connectionLostImpact')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReconnectOpen((value) => !value)}
+                  aria-expanded={reconnectOpen}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
+                >
+                  {t('reconnect')}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${reconnectOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+              </div>
+              {reconnectOpen && <div className="mt-3 space-y-3">{connectForm}</div>}
+            </div>
+          )}
+
+          {/* Behavior settings for connected channels that support them. */}
+          {channelId && SUPPORTS_QUICK_REPLIES[type] && (
+            <ChannelSettings
+              agentId={agentId}
+              channelId={channelId}
+              type={type}
+              initialQuickReplies={quickReplies}
+            />
+          )}
+
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+
+          <div className="border-t border-[var(--border-subtle)] pt-4">
             <button
               type="button"
-              onClick={disable}
+              onClick={() => setDisableOpen(true)}
               disabled={busy}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:text-danger disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {t('disable')}
             </button>
-            <button
-              type="button"
-              onClick={() => setOpen((value) => !value)}
-              aria-expanded={open}
-              aria-controls={`channel-details-${type.toLowerCase()}`}
-              aria-label={t(open ? 'collapseConnection' : 'expandConnection')}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-            >
-              <ChevronDown
-                className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
-              />
-            </button>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            disabled={busy}
-            aria-expanded={open}
-            aria-controls={`channel-details-${type.toLowerCase()}`}
-            className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
-          >
-            {t('connect')}
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
-            />
-          </button>
-        )}
-      </div>
-
-      {enabled && open && (
-        <div id={`channel-details-${type.toLowerCase()}`}>
-          <ChannelHealthBadge type={type} status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
-          <WebhookHealth lastInboundAt={lastInboundAt} />
-
-      {/* Instagram no longer needs the Development Mode / App Review reminder:
-          the platform app is Live + reviewed, and new connections are OAuth
-          (mode='OAUTH'). Legacy token-paste channels are also covered because
-          the new connections are the dominant path. */}
-
-      {/* Behavior settings for connected channels that support them. */}
-      {enabled && channelId && SUPPORTS_QUICK_REPLIES[type] && (
-        <ChannelSettings
-          agentId={agentId}
-          channelId={channelId}
-          type={type}
-          initialQuickReplies={quickReplies}
-        />
-      )}
-
         </div>
       )}
 
-      {connectionLost && (
-        <div role="alert" className="mt-3 rounded-xl border border-danger/30 bg-danger/5 p-3">
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="min-w-0 flex-1 text-sm">
-              <p className="font-medium text-danger">{t('connectionLostTitle')}</p>
-              <p className="mt-1 text-[var(--text-secondary)]">
-                {t(lostReasonKey(type, healthError) ?? 'connectionLostGeneric')} {t('connectionLostImpact')}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setReconnectOpen((value) => !value)}
-              aria-expanded={reconnectOpen}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
-            >
-              {t('reconnect')}
-              <ChevronDown
-                className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${reconnectOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-          </div>
-          {reconnectOpen && <div className="mt-3 space-y-3">{connectForm}</div>}
-        </div>
-      )}
-
-      {!enabled && open && (
-        <div id={`channel-details-${type.toLowerCase()}`} className="mt-4 space-y-3">
+      {!enabled && (
+        <div id={`channel-details-${type.toLowerCase()}`} className="space-y-3">
           {connectForm}
         </div>
       )}
+
+      <ConfirmDialog
+        open={disableOpen}
+        title={t('disableChannelTitle', { channel: label })}
+        description={t('disableChannelBody')}
+        confirmLabel={t('disable')}
+        busy={busy}
+        onConfirm={() => void disable()}
+        onClose={() => {
+          if (!busy) setDisableOpen(false)
+        }}
+      />
     </div>
   )
 }

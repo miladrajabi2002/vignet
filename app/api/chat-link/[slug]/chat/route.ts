@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { startChat } from '@/lib/ai/chat-engine'
-import { normalizeChatLinkSettings } from '@/lib/chat-link/config'
+import { normalizeChatLinkSettings, normalizeSourceKey } from '@/lib/chat-link/config'
+import { tagConversationSource } from '@/lib/chat-link/stats'
 import { resolveCustomerIdentificationPolicy } from '@/lib/customer-identification-policy'
 import { toEnglishDigits } from '@/lib/phone'
 import { getClientIp } from '@/lib/security/request-ip'
@@ -21,6 +22,8 @@ const bodySchema = z.object({
         // Pre-chat lead form (sent with the first message when lead capture is on).
         visitorName: z.string().max(60).nullish(),
         visitorPhone: z.string().max(30).nullish(),
+        // Tracking link the visitor arrived through (`/c/slug?src=ig`), first message only.
+        source: z.string().max(24).nullish(),
 })
 
 /**
@@ -220,6 +223,9 @@ export async function POST(req: Request, props: Params) {
                                 : 400
                 return NextResponse.json({ error: result.error }, { status })
         }
+
+        const source = normalizeSourceKey(parsed.data.source)
+        if (source && !authorizedConversationId) tagConversationSource(result.conversationId, source)
 
         const nextToken = createPublicConversationToken('chat-link', result.conversationId, params.slug)
         return new Response(result.stream, {

@@ -10,7 +10,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
-import { RotateCcw, Sparkles, User, Phone } from 'lucide-react'
+import { Globe, MapPin, RotateCcw, Sparkles, User, Phone } from 'lucide-react'
+import { InstagramIcon } from '@/components/marketing/social-links'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
@@ -48,6 +49,12 @@ type Props = {
 	avatar: string | null
 	welcomeMessage: string | null
 	settings: ChatLinkSettings
+	/** A few of the agent's products for the intro state (empty = no shelf). */
+	showcase?: ShowcaseProduct[]
+	/** Opening-hours state at render time; null when the link has no hours. */
+	hours?: { open: boolean; until: string } | null
+	/** Tracking link the visitor arrived through (`?src=`). */
+	source?: string | null
 }
 
 // ─── Assistant parsing (mirrors public/widget/loader.js) ────────────────────
@@ -85,7 +92,17 @@ const nextId = () => `m${Date.now()}-${++idCounter}`
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }: Props) {
+export function ChatLinkClient({
+	slug,
+	name,
+	avatar,
+	welcomeMessage,
+	settings,
+	showcase = [],
+	hours = null,
+	source = null,
+}: Props) {
+	const closed = hours?.open === false
 	const accent = settings.primaryColor
 	const onAccent = contrastOn(accent)
 	const reduce = useReducedMotion()
@@ -389,6 +406,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						message,
 						conversationId: convIdRef.current,
 						conversationToken: convTokenRef.current,
+						...(isFirst && source ? { source } : {}),
 						...(isFirst && leadRef.current
 							? {
 									visitorName: leadRef.current.name || undefined,
@@ -459,7 +477,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				scrollDown(true, false)
 			}
 		},
-		[slug, streaming, convKey, scrollDown],
+		[slug, streaming, convKey, scrollDown, source],
 	)
 
 	const submitLead = useCallback(() => {
@@ -572,12 +590,16 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				{/* Header — pt uses safe-area so it clears the notch/Dynamic Island
                                     in standalone or in-app browsers with viewport-fit=cover. */}
 				<header className="flex items-center gap-3 border-b border-black/[0.06] bg-white px-4 pb-3 [padding-top:max(env(safe-area-inset-top),12px)] md:bg-white/82 md:px-5 md:backdrop-blur-2xl">
-					<Avatar avatar={avatar} monogram={monogram} accent={accent} size={42} online />
+					<Avatar avatar={avatar} monogram={monogram} accent={accent} size={42} online={!closed} />
 					<div className="min-w-0 flex-1">
 						<p className="truncate text-[15px] font-bold leading-tight">{name}</p>
 						<p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-neutral-500">
-							<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-							آنلاین — پاسخ فوری
+							<span className={`h-1.5 w-1.5 rounded-full ${closed ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+							{hours
+								? closed
+									? `بسته · از ${faClock(hours.until)} باز می‌شود`
+									: `باز تا ${faClock(hours.until)} · پاسخ فوری`
+								: 'آنلاین — پاسخ فوری'}
 						</p>
 					</div>
 					{!empty && (
@@ -611,6 +633,10 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 							welcomeMessage={welcomeMessage}
 							quickReplies={settings.quickReplies}
 							showAiBadge={settings.showAiBadge}
+							cover={settings.coverUrl}
+							actions={settings}
+							showcase={showcase}
+							closedMessage={closed ? (settings.closedMessage ?? 'الان خارج از ساعت کاری هستیم. پیام بگذارید؛ در اولین فرصت پاسخ می‌دهیم.') : null}
 							leadPending={leadPending}
 							leadName={leadName}
 							leadPhone={leadPhone}
@@ -759,6 +785,11 @@ function Intro(props: {
 	welcomeMessage: string | null
 	quickReplies: string[]
 	showAiBadge: boolean
+	cover: string | null
+	actions: Pick<ChatLinkSettings, 'phone' | 'mapUrl' | 'instagram' | 'website'>
+	showcase: ShowcaseProduct[]
+	/** Out-of-hours note; null while open or when the link has no hours. */
+	closedMessage: string | null
 	leadPending: boolean
 	leadName: string
 	leadPhone: string
@@ -780,6 +811,10 @@ function Intro(props: {
 		welcomeMessage,
 		quickReplies,
 		showAiBadge,
+		cover,
+		actions,
+		showcase,
+		closedMessage,
 		leadPending,
 		leadName,
 		leadPhone,
@@ -796,12 +831,23 @@ function Intro(props: {
 
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center px-1 py-7 text-center">
+			{cover && (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					src={cover}
+					alt=""
+					decoding="async"
+					className="aspect-[16/7] w-full max-w-sm rounded-card object-cover ring-1 ring-black/[0.06]"
+				/>
+			)}
 			<motion.div
 				initial={reduce ? false : { opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ duration: 0.5, ease: 'easeOut' }}
+				// Over a cover the avatar sits on its lower edge, like a profile photo.
+				className={cover ? '-mt-9 rounded-[29px] bg-[#f7f7f5] p-1' : undefined}
 			>
-				<Avatar avatar={avatar} monogram={monogram} accent={accent} size={76} pulse />
+				<Avatar avatar={avatar} monogram={monogram} accent={accent} size={76} pulse={!cover} />
 			</motion.div>
 
 			{showAiBadge && (
@@ -834,6 +880,14 @@ function Intro(props: {
 				>
 					{tagline}
 				</motion.p>
+			)}
+
+			<QuickActions actions={actions} />
+
+			{closedMessage && (
+				<p className="mt-5 w-full max-w-sm rounded-xl bg-amber-50 px-4 py-3 text-start text-[13px] leading-6 text-amber-900">
+					{closedMessage}
+				</p>
 			)}
 
 			{leadPending ? (
@@ -913,6 +967,12 @@ function Intro(props: {
 						</motion.div>
 					)}
 
+					{showcase.length > 0 && (
+						<div className="mt-5 w-full max-w-md text-start">
+							<ProductShowcaseRail products={showcase} locale="fa" accent={accent} onAccent={props.onAccent} compact />
+						</div>
+					)}
+
 					{quickReplies.length > 0 && (
 						<div className="mt-5 flex max-w-md flex-wrap items-center justify-center gap-2">
 							{quickReplies.map((q, i) => (
@@ -933,6 +993,38 @@ function Intro(props: {
 			)}
 		</div>
 	)
+}
+
+/** One-tap ways to reach the business, under its name on the intro state. */
+function QuickActions({ actions }: { actions: Pick<ChatLinkSettings, 'phone' | 'mapUrl' | 'instagram' | 'website'> }) {
+	const items = [
+		actions.phone && { href: `tel:${actions.phone}`, label: 'تماس', icon: Phone },
+		actions.mapUrl && { href: actions.mapUrl, label: 'مسیریابی', icon: MapPin },
+		actions.instagram && { href: `https://instagram.com/${actions.instagram}`, label: 'اینستاگرام', icon: InstagramIcon },
+		actions.website && { href: actions.website, label: 'سایت', icon: Globe },
+	].filter((item): item is { href: string; label: string; icon: typeof Phone } => Boolean(item))
+	if (!items.length) return null
+	return (
+		<div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+			{items.map((item) => (
+				<a
+					key={item.label}
+					href={item.href}
+					{...(item.href.startsWith('http') ? { target: '_blank', rel: 'noreferrer' } : {})}
+					className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white/85 px-3.5 text-[13px] font-semibold text-neutral-800 shadow-sm transition-[border-color,transform] duration-150 hover:border-black/25 active:scale-[0.97]"
+				>
+					<item.icon className="h-4 w-4" />
+					{item.label}
+				</a>
+			))}
+		</div>
+	)
+}
+
+/** '09:30' → '۹:۳۰' */
+function faClock(value: string): string {
+	const [hour, minute] = value.split(':')
+	return `${Number(hour)}:${minute}`.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])
 }
 
 function MessageRow({

@@ -1,40 +1,57 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import QRCode from 'qrcode'
-import {
-        Link2,
-        Check,
-        Copy,
-        Loader2,
-        Sparkles,
-        ExternalLink,
-        QrCode,
-        Download,
-        Plus,
-        X,
-        Palette,
-        User,
-        Phone,
-        ChevronDown,
-} from 'lucide-react'
-import { COMPOSER_GEOMETRY, SendButton } from '@/components/chat/chat-composer'
+import { Check, Download, ExternalLink, Link2, Loader2, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { CopyButton } from '@/components/ui/copy-button'
+import { AutoSaveStatus } from '@/components/ui/auto-save-status'
+import { StatusChip } from '@/components/ui/status-chip'
+import { Switch } from '@/components/ui/switch'
+import { ImageField } from '@/components/menu/menu-design'
+import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import {
         normalizeChatLinkSettings,
         normalizeSlug,
         CHAT_LINK_BACKGROUNDS,
+        MAX_CHAT_LINK_SOURCES,
         type ChatLinkSettings,
+        type ChatLinkSource,
 } from '@/lib/chat-link/config'
-import { contrastOn } from '@/lib/widget/config'
+import {
+        ChatLinkPreview,
+        type ChatLinkPreviewProduct,
+        type ChatLinkPreviewState,
+} from './chat-link-preview'
+import { ChatLinkStatsPanel } from './chat-link-stats'
 
 const COLOR_PRESETS = [
         '#0F0F10', '#2563EB', '#7C3AED', '#DB2777',
         '#E11D48', '#EA580C', '#16A34A', '#0D9488',
+]
+
+const INPUT =
+        'w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] disabled:cursor-not-allowed disabled:opacity-70'
+
+const TABS = ['link', 'look', 'content', 'behavior', 'stats'] as const
+type Tab = (typeof TABS)[number]
+const TAB_LABEL: Record<Tab, string> = {
+        link: 'tabLink',
+        look: 'tabLook',
+        content: 'tabContent',
+        behavior: 'tabBehavior',
+        stats: 'tabStats',
+}
+
+/** Ready-made tracking links for the places a chat link usually goes. */
+const SOURCE_PRESETS: { key: string; labelKey: string }[] = [
+        { key: 'ig', labelKey: 'sourcePresetIg' },
+        { key: 'qr', labelKey: 'sourcePresetQr' },
+        { key: 'sms', labelKey: 'sourcePresetSms' },
+        { key: 'tg', labelKey: 'sourcePresetTg' },
 ]
 
 type LinkState = {
@@ -45,22 +62,37 @@ type LinkState = {
         url: string
 }
 
+/**
+ * Chat Link inside its side sheet. «ساخت لینک» publishes at once; from then on
+ * appearance and behaviour save by themselves. Only the address has its own
+ * confirm step, because changing it breaks the link people already have.
+ */
 export function ChatLinkChannel({
         agentId,
         agentName,
+        agentAvatar,
+        agentWelcome,
         appUrl,
         initialLink,
         suggestedSlug,
         customerIdentificationRequired,
         customerIdentificationMessage,
+        productAccess,
+        showcase,
 }: {
         agentId: string
         agentName: string
+        agentAvatar: string | null
+        agentWelcome: string | null
         appUrl: string
         initialLink: LinkState | null
         suggestedSlug: string
         customerIdentificationRequired: boolean
         customerIdentificationMessage: string | null
+        /** The agent may show products at all (the showcase needs it). */
+        productAccess: boolean
+        /** What the product shelf would show right now. */
+        showcase: ChatLinkPreviewProduct[]
 }) {
         const t = useTranslations('chatLink')
         const tc = useTranslations('channels')
@@ -72,32 +104,44 @@ export function ChatLinkChannel({
         const [settings, setSettings] = useState<ChatLinkSettings>(
                 initialLink?.settings ?? normalizeChatLinkSettings(null),
         )
-        const [showSettings, setShowSettings] = useState(false)
-        const saveState = useSaveState()
-        const [removing, setRemoving] = useState(false)
-        const [creating, setCreating] = useState(false)
-        const [justCreated, setJustCreated] = useState(false)
-        const saving = saveState.saving || removing || creating
-        const [copied, setCopied] = useState(false)
+        const [tab, setTab] = useState<Tab>('look')
+        const [screen, setScreen] = useState<ChatLinkPreviewState>('intro')
+        const [busy, setBusy] = useState<'create' | 'slug' | 'pause' | 'remove' | null>(null)
         const [error, setError] = useState<string | null>(null)
         const [qr, setQr] = useState<string | null>(null)
-        const [showQr, setShowQr] = useState(false)
+        const [slugConfirmOpen, setSlugConfirmOpen] = useState(false)
         const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
 
-        // Copy / open / QR always point at the published address, never at the one
+        const origin = appUrl.replace(/\/+$/, '')
+        const host = origin.replace(/^https?:\/\//, '')
+        // Every share action points at the published address, never at the one
         // still being typed — an unsaved address answers 404.
-        const liveSlug = link?.slug ?? null
-        const publicUrl = useMemo(
-                () => `${appUrl.replace(/\/+$/, '')}/c/${liveSlug ?? ''}`,
-                [appUrl, liveSlug],
-        )
-        const slugValid = normalizeSlug(slug) !== null
-        const slugDirty = !!link && normalizeSlug(slug) !== link.slug
-        const dirty =
-                !!link && (slugDirty || JSON.stringify(settings) !== JSON.stringify(link.settings))
+        const publicUrl = `${origin}/c/${link?.slug ?? ''}`
+        const nextSlug = normalizeSlug(slug)
+        const slugDirty = !!link && nextSlug !== link.slug
 
-        function patch(p: Partial<ChatLinkSettings>) {
+        const linkRef = useRef(link)
+        linkRef.current = link
+        const auto = useAutoSave({
+                value: settings,
+                valid: !!link,
+                save: async (next) => {
+                        const current = linkRef.current
+                        if (!current) return
+                        const res = await fetch(`/api/agents/${agentId}/chat-link`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ slug: current.slug, settings: next }),
+                        })
+                        if (!res.ok) throw new Error('SAVE_FAILED')
+                        // The sheet reads its starting values from the server on every open.
+                        router.refresh()
+                },
+        })
+
+        function patch(p: Partial<ChatLinkSettings>, show?: ChatLinkPreviewState) {
                 setSettings((s) => ({ ...s, ...p }))
+                if (show) setScreen(show)
         }
 
         const effectiveSettings: ChatLinkSettings = {
@@ -109,49 +153,23 @@ export function ChatLinkChannel({
                         : settings.leadCaptureMessage,
         }
 
-        const save = useCallback(async () => {
-                setError(null)
-                if (!slugValid) {
-                        setError(t('slugInvalid'))
-                        return
-                }
-                saveState.start()
-                try {
-                        const res = await fetch(`/api/agents/${agentId}/chat-link`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ slug: normalizeSlug(slug), enabled: true, settings }),
-                        })
-                        const data = await res.json().catch(() => null)
-                        if (!res.ok) {
-                                setError(
-                                        data?.error === 'SLUG_TAKEN'
-                                                ? t('slugTaken')
-                                                : data?.error === 'INVALID_SLUG'
-                                                        ? t('slugInvalid')
-                                                        : data?.error === 'CHANNEL_LIMIT'
-                                                                ? tc('channelLimitError')
-                                                        : t('saveError'),
-                                )
-                                saveState.fail()
-                                return
-                        }
-                        setLink(data.link)
-                        setSlug(data.link.slug)
-                        setSettings(data.link.settings)
-                        saveState.done()
-                        router.refresh()
-                } catch {
-                        saveState.fail()
-                        setError(t('saveError'))
-                }
-        }, [agentId, slug, slugValid, settings, t, tc, router, saveState])
+        const failure = useCallback(
+                (code: unknown) =>
+                        code === 'SLUG_TAKEN'
+                                ? t('slugTaken')
+                                : code === 'INVALID_SLUG'
+                                        ? t('slugInvalid')
+                                        : code === 'CHANNEL_LIMIT'
+                                                ? tc('channelLimitError')
+                                                : t('saveError'),
+                [t, tc],
+        )
 
         // «ساخت لینک» publishes at once with the defaults, so the address works the
-        // moment the panel opens; everything below it is then an edit of a live link.
+        // moment the editor appears; everything after is an edit of a live link.
         const create = useCallback(async () => {
                 setError(null)
-                setCreating(true)
+                setBusy('create')
                 try {
                         const base = normalizeSlug(slug) ?? suggestedSlug
                         // The suggested address can already be taken; a short suffix settles it.
@@ -167,14 +185,11 @@ export function ChatLinkChannel({
                                 if (res.status === 409) continue
                                 const data = await res.json().catch(() => null)
                                 if (!res.ok || !data?.link) {
-                                        setError(data?.error === 'CHANNEL_LIMIT' ? tc('channelLimitError') : t('saveError'))
+                                        setError(failure(data?.error))
                                         return
                                 }
                                 setLink(data.link)
                                 setSlug(data.link.slug)
-                                setSettings(data.link.settings)
-                                setJustCreated(true)
-                                setShowSettings(true)
                                 router.refresh()
                                 return
                         }
@@ -182,13 +197,62 @@ export function ChatLinkChannel({
                 } catch {
                         setError(t('saveError'))
                 } finally {
-                        setCreating(false)
+                        setBusy(null)
                 }
-        }, [agentId, slug, suggestedSlug, settings, t, tc, router])
+        }, [agentId, slug, suggestedSlug, settings, t, failure, router])
+
+        const changeSlug = useCallback(async () => {
+                if (!nextSlug) return
+                setError(null)
+                setBusy('slug')
+                try {
+                        const res = await fetch(`/api/agents/${agentId}/chat-link`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ slug: nextSlug, settings }),
+                        })
+                        const data = await res.json().catch(() => null)
+                        if (!res.ok || !data?.link) {
+                                setError(failure(data?.error))
+                                return
+                        }
+                        setLink(data.link)
+                        setSlug(data.link.slug)
+                        setSlugConfirmOpen(false)
+                        router.refresh()
+                } catch {
+                        setError(t('saveError'))
+                } finally {
+                        setBusy(null)
+                }
+        }, [agentId, nextSlug, settings, t, failure, router])
+
+        const setEnabled = useCallback(async (enabled: boolean) => {
+                setError(null)
+                setBusy('pause')
+                try {
+                        const res = await fetch(`/api/agents/${agentId}/chat-link`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ enabled }),
+                        })
+                        if (!res.ok) {
+                                const data = await res.json().catch(() => null)
+                                setError(failure(data?.error))
+                                return
+                        }
+                        setLink((current) => (current ? { ...current, enabled } : current))
+                        router.refresh()
+                } catch {
+                        setError(t('saveError'))
+                } finally {
+                        setBusy(null)
+                }
+        }, [agentId, t, failure, router])
 
         const remove = useCallback(async () => {
                 setError(null)
-                setRemoving(true)
+                setBusy('remove')
                 try {
                         const res = await fetch(`/api/agents/${agentId}/chat-link`, { method: 'DELETE' })
                         if (!res.ok) {
@@ -196,29 +260,23 @@ export function ChatLinkChannel({
                                 return
                         }
                         setLink(null)
-                        setShowSettings(false)
-                        setJustCreated(false)
                         setRemoveConfirmOpen(false)
                         router.refresh()
                 } catch {
                         setError(t('saveError'))
                 } finally {
-                        setRemoving(false)
+                        setBusy(null)
                 }
         }, [agentId, t, router])
 
-        function copy() {
-                if (!liveSlug) return
-                navigator.clipboard.writeText(publicUrl)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-        }
-
-        // (Re)generate QR whenever the QR panel is open and the URL changes.
+        // A printed code is its own place, so it carries the «qr» tracking link when there is one.
+        const qrTracked = settings.sources.some((source) => source.key === 'qr')
+        const qrUrl = qrTracked ? `${publicUrl}?src=qr` : publicUrl
+        const showQr = !!link && tab === 'link'
         useEffect(() => {
-                if (!showQr || !liveSlug) return
+                if (!showQr) return
                 let cancelled = false
-                QRCode.toDataURL(publicUrl, {
+                QRCode.toDataURL(qrUrl, {
                         width: 480,
                         margin: 1,
                         color: { dark: '#0F0F10', light: '#FFFFFF' },
@@ -231,565 +289,581 @@ export function ChatLinkChannel({
                 return () => {
                         cancelled = true
                 }
-        }, [showQr, publicUrl, liveSlug])
+        }, [showQr, qrUrl])
 
         function downloadQr() {
-                if (!qr) return
+                if (!qr || !link) return
                 const a = document.createElement('a')
                 a.href = qr
-                a.download = `chat-link-${liveSlug ?? slug}.png`
+                a.download = `chat-link-${link.slug}.png`
                 a.click()
         }
 
-        const isLive = !!link?.enabled
+        const sources = settings.sources
+        function setSource(index: number, next: Partial<ChatLinkSource>) {
+                patch({ sources: sources.map((source, i) => (i === index ? { ...source, ...next } : source)) })
+        }
+        const freePresets = useMemo(
+                () => SOURCE_PRESETS.filter((preset) => !sources.some((source) => source.key === preset.key)),
+                [sources],
+        )
+
+        // ── Not created yet ────────────────────────────────────────────────────
+        if (!link) {
+                return (
+                        <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-10 text-center">
+                                <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-default)] text-[var(--text-secondary)]">
+                                        <Link2 className="h-6 w-6" />
+                                </span>
+                                <div>
+                                        <p className="text-base font-bold text-[var(--text-primary)]">{t('emptyTitle')}</p>
+                                        <p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{t('emptyBody')}</p>
+                                </div>
+                                <p dir="ltr" className="rounded-xl bg-[var(--bg-base)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">
+                                        {host}/c/{normalizeSlug(slug) ?? suggestedSlug}
+                                </p>
+                                <Button type="button" onClick={() => void create()} disabled={busy === 'create'} aria-busy={busy === 'create' || undefined}>
+                                        {busy === 'create' && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
+                                        {busy === 'create' ? t('creating') : t('create')}
+                                </Button>
+                                {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+                        </div>
+                )
+        }
 
         return (
-                <div className="spatial-surface rounded-card p-4 sm:p-5">
-                        <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
-                                        <Link2 className="h-5 w-5" />
-                                </div>
-                                <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                                <span className="font-medium text-[var(--text-primary)]">{t('title')}</span>
-                                                {isLive && (
-                                                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--ok-soft)] px-2 py-0.5 text-[12px] text-[var(--ok)]">
-                                                                ● {t('live')}
-                                                        </span>
-                                                )}
-                                        </div>
-                                        <div className="text-sm text-[var(--text-secondary)]">{t('desc')}</div>
-                                </div>
-                                {link ? (
-                                        <div className="ms-auto flex w-full items-center justify-end gap-2 sm:w-auto">
-                                                <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        onClick={() => {
-                                                                setError(null)
-                                                                setRemoveConfirmOpen(true)
-                                                        }}
-                                                        disabled={saving}
-                                                        className="hover:text-danger"
-                                                >
-                                                        {t('remove')}
-                                                </Button>
-                                                <button
-                                                        type="button"
-                                                        onClick={() => setShowSettings((value) => !value)}
-                                                        aria-expanded={showSettings}
-                                                        aria-controls="chat-link-details"
-                                                        aria-label={tc(showSettings ? 'collapseConnection' : 'expandConnection')}
-                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                                                >
-                                                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${showSettings ? 'rotate-180' : ''}`} />
-                                                </button>
-                                        </div>
-                                ) : (
-                                        <Button
-                                                type="button"
-                                                onClick={() => void create()}
-                                                disabled={creating}
-                                                aria-busy={creating || undefined}
-                                                className="ms-auto"
-                                        >
-                                                {creating && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
-                                                {creating ? t('creating') : t('create')}
-                                        </Button>
-                                )}
+                <div className="space-y-5">
+                        {/* ── Link bar: state, address, share actions, save status ── */}
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-2.5">
+                                <StatusChip tone={link.enabled ? 'ok' : 'warn'} dot>
+                                        {link.enabled ? t('live') : t('paused')}
+                                </StatusChip>
+                                <span dir="ltr" className="min-w-[9rem] flex-1 truncate text-start text-sm font-semibold text-[var(--text-primary)]">
+                                        {host}/c/{link.slug}
+                                </span>
+                                <CopyButton value={publicUrl} label={t('copyLink')} copiedLabel={t('copied')} showLabel className="bg-white" />
+                                <a
+                                        href={publicUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                                >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        {t('openLink')}
+                                </a>
+                                <AutoSaveStatus status={auto.status} onRetry={auto.flush} errorLabel={t('saveError')} />
                         </div>
 
-                        {!link && error && (
-                                <p role="alert" className="mt-3 text-sm text-danger">{error}</p>
-                        )}
-
-                        {link && showSettings && (
-                                <div id="chat-link-details" className="mt-5 grid gap-6 lg:grid-cols-2">
-                                        {/* ── Form ── */}
-                                        <div className="space-y-5">
-                                                {/* Slug + link */}
-                                                <section className="space-y-3">
-                                                        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-                                                                {t('yourLink')}
-                                                        </h4>
-                                                        <div>
-                                                                <div
-                                                                        dir="ltr"
-                                                                        className="flex items-stretch overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]"
-                                                                >
-                                                                        <span className="flex items-center whitespace-nowrap border-e border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-xs text-[var(--text-muted)]">
-                                                                                {appUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/c/
-                                                                        </span>
-                                                                        <input
-                                                                                dir="ltr"
-                                                                                value={slug}
-                                                                                onChange={(e) => {
-                                                                                        setSlug(e.target.value.toLowerCase())
-                                                                                        setError(null)
-                                                                                }}
-                                                                                placeholder="my-shop"
-                                                                                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
-                                                                        />
-                                                                </div>
-                                                                <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
-                                                                        {t('slugHint')}
-                                                                </p>
-                                                                {slugDirty && (
-                                                                        <p className="mt-1.5 text-xs text-[var(--text-primary)]">
-                                                                                {t('slugUnsaved')}{' '}
-                                                                                <span dir="ltr" className="text-[var(--text-secondary)]">/c/{link.slug}</span>
-                                                                        </p>
-                                                                )}
-                                                                {justCreated && !slugDirty && (
-                                                                        <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-[var(--ok)]">
-                                                                                <Check className="h-3.5 w-3.5" />
-                                                                                {t('createdNote')}
-                                                                        </p>
-                                                                )}
-                                                        </div>
-
-                                                        {/* Copy / open / QR row */}
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                                <button
-                                                                        onClick={copy}
-                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                                                >
-                                                                        {copied ? (
-                                                                                <Check className="h-3.5 w-3.5 text-success" />
-                                                                        ) : (
-                                                                                <Copy className="h-3.5 w-3.5" />
-                                                                        )}
-                                                                        {copied ? t('copied') : t('copyLink')}
-                                                                </button>
-                                                                <a
-                                                                        href={publicUrl}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                                                >
-                                                                        <ExternalLink className="h-3.5 w-3.5" />
-                                                                        {t('openLink')}
-                                                                </a>
-                                                                <button
-                                                                        onClick={() => setShowQr((v) => !v)}
-                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                                                >
-                                                                        <QrCode className="h-3.5 w-3.5" />
-                                                                        {t('qrCode')}
-                                                                </button>
-                                                        </div>
-
-                                                        {showQr && (
-                                                                <div className="flex items-center gap-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                                                        {qr ? (
-                                                                                // eslint-disable-next-line @next/next/no-img-element
-                                                                                <img
-                                                                                        src={qr}
-                                                                                        alt="QR"
-                                                                                        width={112}
-                                                                                        height={112}
-                                                                                        decoding="async"
-                                                                                        className="h-28 w-28 rounded-lg bg-white p-1"
-                                                                                />
-                                                                        ) : (
-                                                                                <div className="flex h-28 w-28 items-center justify-center rounded-lg bg-[var(--bg-muted)]">
-                                                                                        <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
-                                                                                </div>
-                                                                        )}
-                                                                        <div className="flex-1">
-                                                                                <p className="text-sm text-[var(--text-primary)]">{t('qrHint')}</p>
-                                                                                <button
-                                                                                        onClick={downloadQr}
-                                                                                        disabled={!qr}
-                                                                                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
-                                                                                >
-                                                                                        <Download className="h-3.5 w-3.5" />
-                                                                                        {t('downloadQr')}
-                                                                                </button>
-                                                                        </div>
-                                                                </div>
-                                                        )}
-                                                </section>
-
-                                                {/* Appearance */}
-                                                <section className="space-y-3">
-                                                        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-                                                                <Palette className="h-3.5 w-3.5" />
-                                                                {t('appearance')}
-                                                        </h4>
-
-                                                        <Field label={`${t('displayName')} · ${t('optional')}`}>
-                                                                <input
-                                                                        value={settings.displayName ?? ''}
-                                                                        placeholder={agentName}
-                                                                        onChange={(e) => patch({ displayName: e.target.value || null })}
-                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
-                                                                />
-                                                        </Field>
-
-                                                        <Field label={`${t('tagline')} · ${t('optional')}`}>
-                                                                <input
-                                                                        value={settings.tagline ?? ''}
-                                                                        placeholder={t('taglinePh')}
-                                                                        onChange={(e) => patch({ tagline: e.target.value || null })}
-                                                                        className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
-                                                                />
-                                                        </Field>
-
-                                                        <Field label={t('brandColor')}>
-                                                                <div className="space-y-2">
-                                                                        <div className="flex flex-wrap items-center gap-1.5">
-                                                                                {COLOR_PRESETS.map((hex) => {
-                                                                                        const active =
-                                                                                                settings.primaryColor.toLowerCase() === hex.toLowerCase()
-                                                                                        return (
-                                                                                                <button
-                                                                                                        key={hex}
-                                                                                                        type="button"
-                                                                                                        onClick={() => patch({ primaryColor: hex })}
-                                                                                                        aria-label={hex}
-                                                                                                        className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${
-                                                                                                                active
-                                                                                                                        ? 'ring-2 ring-[var(--white)] ring-offset-2 ring-offset-[var(--bg-surface)]'
-                                                                                                                        : ''
-                                                                                                        }`}
-                                                                                                        style={{ background: hex }}
-                                                                                                />
-                                                                                        )
-                                                                                })}
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2">
-                                                                                <input
-                                                                                        type="color"
-                                                                                        value={settings.primaryColor}
-                                                                                        onChange={(e) => patch({ primaryColor: e.target.value })}
-                                                                                        className="h-9 w-12 cursor-pointer rounded-lg border border-[var(--border-default)] bg-transparent p-1"
-                                                                                />
-                                                                                <input
-                                                                                        type="text"
-                                                                                        dir="ltr"
-                                                                                        value={settings.primaryColor}
-                                                                                        onChange={(e) => patch({ primaryColor: e.target.value })}
-                                                                                        className="w-28 rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
-                                                                                />
-                                                                        </div>
-                                                                </div>
-                                                        </Field>
-
-                                                        <Field label={t('background')}>
-                                                                <div className="grid grid-cols-2 gap-2">
-                                                                        {CHAT_LINK_BACKGROUNDS.map((b) => {
-                                                                                const active = settings.background === b.value
-                                                                                return (
-                                                                                        <button
-                                                                                                key={b.value}
-                                                                                                type="button"
-                                                                                                onClick={() => patch({ background: b.value })}
-                                                                                                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                                                                                                        active
-                                                                                                                ? 'border-[var(--white)] bg-[var(--white)] font-medium text-[var(--bg-base)]'
-                                                                                                                : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                                                                                                }`}
-                                                                                        >
-                                                                                                {b.labelFa}
-                                                                                        </button>
-                                                                                )
-                                                                        })}
-                                                                </div>
-                                                        </Field>
-
-                                                        <Toggle
-                                                                label={t('aiBadge')}
-                                                                hint={t('aiBadgeHint')}
-                                                                checked={settings.showAiBadge}
-                                                                onChange={(v) => patch({ showAiBadge: v })}
-                                                        />
-                                                </section>
-
-                                                {/* Interaction */}
-                                                <section className="space-y-3">
-                                                        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-                                                                <Sparkles className="h-3.5 w-3.5" />
-                                                                {t('interaction')}
-                                                        </h4>
-
-                                                        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
-                                                                <div className="text-sm text-[var(--text-primary)]">
-                                                                        {t('quickReplies')}
-                                                                </div>
-                                                                <div className="text-xs text-[var(--text-secondary)]">
-                                                                        {t('quickRepliesHint')}
-                                                                </div>
-                                                                <div className="mt-3 space-y-2">
-                                                                        {settings.quickReplies.map((q, i) => (
-                                                                                <div key={i} className="flex items-center gap-2">
-                                                                                        <input
-                                                                                                value={q}
-                                                                                                maxLength={80}
-                                                                                                placeholder={t('quickRepliesPh')}
-                                                                                                onChange={(e) => {
-                                                                                                        const next = [...settings.quickReplies]
-                                                                                                        next[i] = e.target.value
-                                                                                                        patch({ quickReplies: next })
-                                                                                                }}
-                                                                                                className="flex-1 rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]"
-                                                                                        />
-                                                                                        <button
-                                                                                                type="button"
-                                                                                                aria-label={t('remove')}
-                                                                                                onClick={() =>
-                                                                                                        patch({
-                                                                                                                quickReplies: settings.quickReplies.filter(
-                                                                                                                        (_, j) => j !== i,
-                                                                                                                ),
-                                                                                                        })
-                                                                                                }
-                                                                                                className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:text-danger"
-                                                                                        >
-                                                                                                <X className="h-4 w-4" />
-                                                                                        </button>
-                                                                                </div>
-                                                                        ))}
-                                                                        {settings.quickReplies.length < 6 && (
-                                                                                <button
-                                                                                        type="button"
-                                                                                        onClick={() =>
-                                                                                                patch({ quickReplies: [...settings.quickReplies, ''] })
-                                                                                        }
-                                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                                                                                >
-                                                                                        <Plus className="h-3.5 w-3.5" />
-                                                                                        {t('quickRepliesAdd')}
-                                                                                </button>
-                                                                        )}
-                                                                </div>
-                                                        </div>
-
-                                                        <Toggle
-                                                                label={t('leadCapture')}
-                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureHint')}
-                                                                checked={effectiveSettings.leadCapture}
-                                                                onChange={(v) => patch({ leadCapture: v })}
-                                                                disabled={customerIdentificationRequired}
-                                                        />
-                                                        {effectiveSettings.leadCapture && (
-                                                                <>
-                                                                        <Field label={`${t('leadCaptureMessage')} · ${t('optional')}`}>
-                                                                                <textarea
-                                                                                        rows={2}
-                                                                                        value={effectiveSettings.leadCaptureMessage ?? ''}
-                                                                                        placeholder={t('leadCaptureMessagePh')}
-                                                                                        disabled={customerIdentificationRequired}
-                                                                                        onChange={(e) =>
-                                                                                                patch({ leadCaptureMessage: e.target.value || null })
-                                                                                        }
-                                                                                        className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] disabled:cursor-not-allowed disabled:opacity-70"
-                                                                                />
-                                                                        </Field>
-                                                                        <Toggle
-                                                                                label={t('leadCaptureRequired')}
-                                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureRequiredHint')}
-                                                                                checked={effectiveSettings.leadCaptureRequired}
-                                                                                onChange={(v) => patch({ leadCaptureRequired: v })}
-                                                                                disabled={customerIdentificationRequired}
-                                                                        />
-                                                                </>
-                                                        )}
-                                                </section>
-
-                                                {/* Save */}
-                                                <div className="flex flex-wrap items-center gap-3">
-                                                        <SaveButton
-                                                                state={saveState.state}
-                                                                onClick={save}
-                                                                disabled={!slugValid}
-                                                                dirty={dirty}
-                                                                label={t('save')}
-                                                                savingLabel={t('saving')}
-                                                                savedLabel={t('saved')}
-                                                        />
-                                                        {error && <span className="text-sm text-danger">{error}</span>}
-                                                        <span className="ms-auto text-xs text-[var(--text-muted)]">
-                                                                {t('views', { count: link.views })}
-                                                        </span>
-                                                </div>
-                                        </div>
-
-                                        {/* ── Live preview ── */}
-                                        <div className="space-y-2">
-                                                <span className="text-xs text-[var(--text-secondary)]">
-                                                        {t('livePreview')}
-                                                </span>
-                                                <ChatLinkPreview
-                                                        name={settings.displayName || agentName}
-                                                        settings={effectiveSettings}
-                                                />
-                                        </div>
+                        {!link.enabled && (
+                                <div className="flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                        <span className="min-w-0 flex-1">{t('pausedNote')}</span>
+                                        <Button type="button" variant="outline" onClick={() => void setEnabled(true)} disabled={busy === 'pause'}>
+                                                {t('resume')}
+                                        </Button>
                                 </div>
                         )}
+
+                        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+
+                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                                <div className="min-w-0">
+                                        <div role="tablist" aria-label={t('title')} className="-mx-1 mb-5 flex gap-1 overflow-x-auto px-1 pb-1">
+                                                {TABS.map((item) => (
+                                                        <button
+                                                                key={item}
+                                                                type="button"
+                                                                role="tab"
+                                                                id={`chat-link-tab-${item}`}
+                                                                aria-selected={tab === item}
+                                                                aria-controls="chat-link-panel"
+                                                                onClick={() => setTab(item)}
+                                                                className={`min-h-10 whitespace-nowrap rounded-xl px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
+                                                                        tab === item
+                                                                                ? 'bg-[#111] text-white'
+                                                                                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                                                                }`}
+                                                        >
+                                                                {t(TAB_LABEL[item])}
+                                                        </button>
+                                                ))}
+                                        </div>
+
+                                        <div id="chat-link-panel" role="tabpanel" aria-labelledby={`chat-link-tab-${tab}`} className="space-y-6" onBlur={auto.flush}>
+                                                {tab === 'link' && (
+                                                        <>
+                                                                <Section title={t('yourLink')}>
+                                                                        <div className="flex flex-wrap items-stretch gap-2">
+                                                                                <div dir="ltr" className="flex min-w-[14rem] flex-1 items-stretch overflow-hidden rounded-xl border border-[var(--border-default)] bg-white">
+                                                                                        <span className="flex items-center whitespace-nowrap border-e border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-xs text-[var(--text-muted)]">
+                                                                                                {host}/c/
+                                                                                        </span>
+                                                                                        <input
+                                                                                                dir="ltr"
+                                                                                                value={slug}
+                                                                                                onChange={(e) => {
+                                                                                                        setSlug(e.target.value.toLowerCase())
+                                                                                                        setError(null)
+                                                                                                }}
+                                                                                                aria-label={t('yourLink')}
+                                                                                                placeholder="my-shop"
+                                                                                                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        />
+                                                                                </div>
+                                                                                <Button type="button" variant="outline" disabled={!slugDirty || !nextSlug || busy === 'slug'} onClick={() => setSlugConfirmOpen(true)}>
+                                                                                        {t('changeSlug')}
+                                                                                </Button>
+                                                                        </div>
+                                                                        <p className="text-xs text-[var(--text-secondary)]">
+                                                                                {slugDirty && !nextSlug ? t('slugInvalid') : slugDirty ? t('slugUnsaved') : t('slugHint')}
+                                                                                {slugDirty && nextSlug && <span dir="ltr"> /c/{link.slug}</span>}
+                                                                        </p>
+                                                                </Section>
+
+                                                                <Section title={t('qrCode')}>
+                                                                        <div className="flex items-center gap-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+                                                                                {qr ? (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img src={qr} alt="QR" width={112} height={112} decoding="async" className="h-28 w-28 rounded-lg bg-white p-1" />
+                                                                                ) : (
+                                                                                        <div className="flex h-28 w-28 items-center justify-center rounded-lg bg-[var(--bg-muted)]">
+                                                                                                <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
+                                                                                        </div>
+                                                                                )}
+                                                                                <div className="min-w-0 flex-1">
+                                                                                        <p className="text-sm text-[var(--text-primary)]">{t('qrHint')}</p>
+                                                                                        {qrTracked && <p className="mt-1 text-xs text-[var(--text-secondary)]">{t('qrTracked')}</p>}
+                                                                                        <button
+                                                                                                type="button"
+                                                                                                onClick={downloadQr}
+                                                                                                disabled={!qr}
+                                                                                                className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+                                                                                        >
+                                                                                                <Download className="h-3.5 w-3.5" />
+                                                                                                {t('downloadQr')}
+                                                                                        </button>
+                                                                                </div>
+                                                                        </div>
+                                                                </Section>
+
+                                                                <Section title={t('sources')} hint={t('sourcesHint')}>
+                                                                        <div className="space-y-2">
+                                                                                {sources.map((source, index) => (
+                                                                                        <div key={index} className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                        <input
+                                                                                                                value={source.label}
+                                                                                                                maxLength={40}
+                                                                                                                placeholder={t('sourceLabelPh')}
+                                                                                                                aria-label={t('sourceLabelPh')}
+                                                                                                                onChange={(e) => setSource(index, { label: e.target.value })}
+                                                                                                                className={INPUT}
+                                                                                                        />
+                                                                                                        <input
+                                                                                                                dir="ltr"
+                                                                                                                value={source.key}
+                                                                                                                maxLength={24}
+                                                                                                                placeholder="key"
+                                                                                                                aria-label={t('sourceKeyPh')}
+                                                                                                                onChange={(e) => setSource(index, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
+                                                                                                                className={`${INPUT} w-24 shrink-0`}
+                                                                                                        />
+                                                                                                        <button
+                                                                                                                type="button"
+                                                                                                                aria-label={t('remove')}
+                                                                                                                onClick={() => patch({ sources: sources.filter((_, i) => i !== index) })}
+                                                                                                                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:text-danger"
+                                                                                                        >
+                                                                                                                <X className="h-4 w-4" />
+                                                                                                        </button>
+                                                                                                </div>
+                                                                                                {source.key && (
+                                                                                                        <div className="flex items-center gap-2">
+                                                                                                                <code dir="ltr" className="min-w-0 flex-1 truncate text-start text-xs text-[var(--text-secondary)]">
+                                                                                                                        {host}/c/{link.slug}?src={source.key}
+                                                                                                                </code>
+                                                                                                                <CopyButton value={`${publicUrl}?src=${source.key}`} label={t('copyLink')} copiedLabel={t('copied')} className="bg-white" />
+                                                                                                        </div>
+                                                                                                )}
+                                                                                        </div>
+                                                                                ))}
+                                                                        </div>
+                                                                        {sources.length < MAX_CHAT_LINK_SOURCES && (
+                                                                                <div className="flex flex-wrap gap-2">
+                                                                                        {freePresets.map((preset) => (
+                                                                                                <AddChip key={preset.key} onClick={() => patch({ sources: [...sources, { key: preset.key, label: t(preset.labelKey) }] })}>
+                                                                                                        {t(preset.labelKey)}
+                                                                                                </AddChip>
+                                                                                        ))}
+                                                                                        <AddChip onClick={() => patch({ sources: [...sources, { key: '', label: '' }] })}>{t('sourceAddCustom')}</AddChip>
+                                                                                </div>
+                                                                        )}
+                                                                </Section>
+
+                                                                <Section title={t('shareCard')} hint={t('shareCardHint')}>
+                                                                        <Field label={`${t('shareTitle')} · ${t('optional')}`}>
+                                                                                <input
+                                                                                        value={settings.shareTitle ?? ''}
+                                                                                        maxLength={70}
+                                                                                        placeholder={`گفتگو با ${settings.displayName || agentName}`}
+                                                                                        onChange={(e) => patch({ shareTitle: e.target.value || null })}
+                                                                                        className={INPUT}
+                                                                                />
+                                                                        </Field>
+                                                                        <Field label={`${t('shareDescription')} · ${t('optional')}`}>
+                                                                                <textarea
+                                                                                        rows={2}
+                                                                                        value={settings.shareDescription ?? ''}
+                                                                                        maxLength={160}
+                                                                                        placeholder={settings.tagline ?? t('taglinePh')}
+                                                                                        onChange={(e) => patch({ shareDescription: e.target.value || null })}
+                                                                                        className={`${INPUT} resize-none`}
+                                                                                />
+                                                                        </Field>
+                                                                        {/* How the link looks once pasted into a messenger. */}
+                                                                        <div className="max-w-xs overflow-hidden rounded-xl border border-[var(--border-default)] bg-white">
+                                                                                {(settings.coverUrl ?? settings.logoUrl) && (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img src={settings.coverUrl ?? settings.logoUrl ?? ''} alt="" className="aspect-[16/8] w-full object-cover" />
+                                                                                )}
+                                                                                <div className="border-s-2 border-[var(--text-primary)] px-3 py-2">
+                                                                                        <p className="truncate text-sm font-bold text-[var(--text-primary)]">
+                                                                                                {settings.shareTitle ?? `گفتگو با ${settings.displayName || agentName}`}
+                                                                                        </p>
+                                                                                        <p className="line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">
+                                                                                                {settings.shareDescription ?? settings.tagline ?? t('taglinePh')}
+                                                                                        </p>
+                                                                                        <p dir="ltr" className="mt-1 text-start text-[11px] text-[var(--text-muted)]">{host}</p>
+                                                                                </div>
+                                                                        </div>
+                                                                </Section>
+
+                                                                <Section title={t('manage')}>
+                                                                        <Toggle
+                                                                                label={t('pauseLabel')}
+                                                                                hint={t('pauseHint')}
+                                                                                checked={!link.enabled}
+                                                                                pending={busy === 'pause'}
+                                                                                onChange={(paused) => void setEnabled(!paused)}
+                                                                        />
+                                                                        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border-default)] p-3">
+                                                                                <p className="min-w-0 flex-1 text-xs leading-6 text-[var(--text-secondary)]">{t('removeHint')}</p>
+                                                                                <Button type="button" variant="outline" className="hover:text-danger" onClick={() => setRemoveConfirmOpen(true)}>
+                                                                                        {t('remove')}
+                                                                                </Button>
+                                                                        </div>
+                                                                </Section>
+                                                        </>
+                                                )}
+
+                                                {tab === 'look' && (
+                                                        <>
+                                                                <Section title={t('identity')}>
+                                                                        <Field label={`${t('displayName')} · ${t('optional')}`}>
+                                                                                <input
+                                                                                        value={settings.displayName ?? ''}
+                                                                                        maxLength={60}
+                                                                                        placeholder={agentName}
+                                                                                        onChange={(e) => patch({ displayName: e.target.value || null }, 'intro')}
+                                                                                        className={INPUT}
+                                                                                />
+                                                                        </Field>
+                                                                        <Field label={`${t('tagline')} · ${t('optional')}`}>
+                                                                                <input
+                                                                                        value={settings.tagline ?? ''}
+                                                                                        maxLength={90}
+                                                                                        placeholder={t('taglinePh')}
+                                                                                        onChange={(e) => patch({ tagline: e.target.value || null }, 'intro')}
+                                                                                        className={INPUT}
+                                                                                />
+                                                                        </Field>
+                                                                        <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+                                                                                <ImageField label={t('cover')} value={settings.coverUrl ?? ''} onChange={(value) => patch({ coverUrl: value || null }, 'intro')} wide />
+                                                                                <ImageField label={t('logo')} value={settings.logoUrl ?? ''} onChange={(value) => patch({ logoUrl: value || null }, 'intro')} />
+                                                                        </div>
+                                                                </Section>
+
+                                                                <Section title={t('appearance')}>
+                                                                        <Field label={t('brandColor')}>
+                                                                                <div className="space-y-2">
+                                                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                                                                {COLOR_PRESETS.map((hex) => {
+                                                                                                        const active = settings.primaryColor.toLowerCase() === hex.toLowerCase()
+                                                                                                        return (
+                                                                                                                <button
+                                                                                                                        key={hex}
+                                                                                                                        type="button"
+                                                                                                                        onClick={() => patch({ primaryColor: hex })}
+                                                                                                                        aria-label={hex}
+                                                                                                                        aria-pressed={active}
+                                                                                                                        className={`h-8 w-8 rounded-full transition-transform hover:scale-110 ${
+                                                                                                                                active ? 'ring-2 ring-[var(--white)] ring-offset-2 ring-offset-white' : ''
+                                                                                                                        }`}
+                                                                                                                        style={{ background: hex }}
+                                                                                                                />
+                                                                                                        )
+                                                                                                })}
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-2">
+                                                                                                <input
+                                                                                                        type="color"
+                                                                                                        value={settings.primaryColor}
+                                                                                                        onChange={(e) => patch({ primaryColor: e.target.value })}
+                                                                                                        aria-label={t('brandColor')}
+                                                                                                        className="h-10 w-12 cursor-pointer rounded-lg border border-[var(--border-default)] bg-transparent p-1"
+                                                                                                />
+                                                                                                <input
+                                                                                                        type="text"
+                                                                                                        dir="ltr"
+                                                                                                        value={settings.primaryColor}
+                                                                                                        onChange={(e) => patch({ primaryColor: e.target.value })}
+                                                                                                        aria-label={t('brandColor')}
+                                                                                                        className={`${INPUT} w-28`}
+                                                                                                />
+                                                                                        </div>
+                                                                                </div>
+                                                                        </Field>
+                                                                        <Field label={t('background')}>
+                                                                                <div className="grid grid-cols-2 gap-2">
+                                                                                        {CHAT_LINK_BACKGROUNDS.map((b) => {
+                                                                                                const active = settings.background === b.value
+                                                                                                return (
+                                                                                                        <button
+                                                                                                                key={b.value}
+                                                                                                                type="button"
+                                                                                                                onClick={() => patch({ background: b.value })}
+                                                                                                                aria-pressed={active}
+                                                                                                                className={`min-h-10 rounded-lg border px-3 text-sm transition-colors ${
+                                                                                                                        active
+                                                                                                                                ? 'border-[var(--white)] bg-[var(--white)] font-medium text-[var(--bg-base)]'
+                                                                                                                                : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                                                                                                }`}
+                                                                                                        >
+                                                                                                                {b.labelFa}
+                                                                                                        </button>
+                                                                                                )
+                                                                                        })}
+                                                                                </div>
+                                                                        </Field>
+                                                                        <Toggle
+                                                                                label={t('aiBadge')}
+                                                                                hint={t('aiBadgeHint')}
+                                                                                checked={settings.showAiBadge}
+                                                                                onChange={(v) => patch({ showAiBadge: v }, 'intro')}
+                                                                        />
+                                                                </Section>
+                                                        </>
+                                                )}
+
+                                                {tab === 'content' && (
+                                                        <>
+                                                                <Section title={t('welcome')} hint={t('welcomeHint')}>
+                                                                        <textarea
+                                                                                rows={3}
+                                                                                value={settings.welcomeMessage ?? ''}
+                                                                                maxLength={500}
+                                                                                placeholder={agentWelcome ?? ''}
+                                                                                aria-label={t('welcome')}
+                                                                                onChange={(e) => patch({ welcomeMessage: e.target.value || null }, 'intro')}
+                                                                                className={`${INPUT} resize-none`}
+                                                                        />
+                                                                </Section>
+
+                                                                <Section title={t('quickReplies')} hint={t('quickRepliesHint')}>
+                                                                        <div className="space-y-2">
+                                                                                {settings.quickReplies.map((q, i) => (
+                                                                                        <div key={i} className="flex items-center gap-2">
+                                                                                                <input
+                                                                                                        value={q}
+                                                                                                        maxLength={80}
+                                                                                                        placeholder={t('quickRepliesPh')}
+                                                                                                        aria-label={t('quickRepliesPh')}
+                                                                                                        onChange={(e) => {
+                                                                                                                const next = [...settings.quickReplies]
+                                                                                                                next[i] = e.target.value
+                                                                                                                patch({ quickReplies: next }, 'intro')
+                                                                                                        }}
+                                                                                                        className={INPUT}
+                                                                                                />
+                                                                                                <button
+                                                                                                        type="button"
+                                                                                                        aria-label={t('remove')}
+                                                                                                        onClick={() => patch({ quickReplies: settings.quickReplies.filter((_, j) => j !== i) })}
+                                                                                                        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:text-danger"
+                                                                                                >
+                                                                                                        <X className="h-4 w-4" />
+                                                                                                </button>
+                                                                                        </div>
+                                                                                ))}
+                                                                        </div>
+                                                                        {settings.quickReplies.length < 6 && (
+                                                                                <AddChip onClick={() => patch({ quickReplies: [...settings.quickReplies, ''] }, 'intro')}>{t('quickRepliesAdd')}</AddChip>
+                                                                        )}
+                                                                </Section>
+
+                                                                <Section title={t('actionsTitle')} hint={t('actionsHint')}>
+                                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                                                <Field label={t('phone')}>
+                                                                                        <input dir="ltr" inputMode="tel" value={settings.phone ?? ''} maxLength={24} placeholder="021 1234 5678" onChange={(e) => patch({ phone: e.target.value || null }, 'intro')} className={INPUT} />
+                                                                                </Field>
+                                                                                <Field label={t('instagram')}>
+                                                                                        <input dir="ltr" value={settings.instagram ?? ''} maxLength={41} placeholder="@yourpage" onChange={(e) => patch({ instagram: e.target.value || null }, 'intro')} className={INPUT} />
+                                                                                </Field>
+                                                                                <Field label={t('mapUrl')}>
+                                                                                        <input dir="ltr" inputMode="url" value={settings.mapUrl ?? ''} maxLength={600} placeholder="https://…" onChange={(e) => patch({ mapUrl: e.target.value || null }, 'intro')} className={INPUT} />
+                                                                                </Field>
+                                                                                <Field label={t('website')}>
+                                                                                        <input dir="ltr" inputMode="url" value={settings.website ?? ''} maxLength={600} placeholder="https://…" onChange={(e) => patch({ website: e.target.value || null }, 'intro')} className={INPUT} />
+                                                                                </Field>
+                                                                        </div>
+                                                                        {[settings.mapUrl, settings.website].some((url) => url && !/^https:\/\//.test(url)) && (
+                                                                                <p className="text-xs text-danger">{t('httpsOnly')}</p>
+                                                                        )}
+                                                                </Section>
+
+                                                                <Section title={t('showcase')}>
+                                                                        <Toggle
+                                                                                label={t('showcase')}
+                                                                                hint={!productAccess ? t('showcaseNoAccess') : showcase.length === 0 ? t('showcaseEmpty') : t('showcaseHint')}
+                                                                                checked={productAccess && settings.showcase}
+                                                                                disabled={!productAccess}
+                                                                                onChange={(v) => patch({ showcase: v }, 'intro')}
+                                                                        />
+                                                                </Section>
+                                                        </>
+                                                )}
+
+                                                {tab === 'behavior' && (
+                                                        <>
+                                                                <Section title={t('leadCapture')}>
+                                                                        <Toggle
+                                                                                label={t('leadCapture')}
+                                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureHint')}
+                                                                                checked={effectiveSettings.leadCapture}
+                                                                                onChange={(v) => patch({ leadCapture: v }, v ? 'lead' : 'intro')}
+                                                                                disabled={customerIdentificationRequired}
+                                                                        />
+                                                                        {effectiveSettings.leadCapture && (
+                                                                                <>
+                                                                                        <Field label={`${t('leadCaptureMessage')} · ${t('optional')}`}>
+                                                                                                <textarea
+                                                                                                        rows={2}
+                                                                                                        value={effectiveSettings.leadCaptureMessage ?? ''}
+                                                                                                        maxLength={200}
+                                                                                                        placeholder={t('leadCaptureMessagePh')}
+                                                                                                        disabled={customerIdentificationRequired}
+                                                                                                        onChange={(e) => patch({ leadCaptureMessage: e.target.value || null }, 'lead')}
+                                                                                                        className={`${INPUT} resize-none`}
+                                                                                                />
+                                                                                        </Field>
+                                                                                        <Toggle
+                                                                                                label={t('leadCaptureRequired')}
+                                                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureRequiredHint')}
+                                                                                                checked={effectiveSettings.leadCaptureRequired}
+                                                                                                onChange={(v) => patch({ leadCaptureRequired: v }, 'lead')}
+                                                                                                disabled={customerIdentificationRequired}
+                                                                                        />
+                                                                                </>
+                                                                        )}
+                                                                </Section>
+
+                                                                <Section title={t('hours')}>
+                                                                        <Toggle
+                                                                                label={t('hours')}
+                                                                                hint={t('hoursHint')}
+                                                                                checked={settings.hoursEnabled}
+                                                                                onChange={(v) => patch({ hoursEnabled: v }, v ? 'closed' : 'intro')}
+                                                                        />
+                                                                        {settings.hoursEnabled && (
+                                                                                <>
+                                                                                        <div className="grid grid-cols-2 gap-3">
+                                                                                                <Field label={t('openAt')}>
+                                                                                                        <input type="time" value={settings.openAt} onChange={(e) => patch({ openAt: e.target.value }, 'closed')} className={INPUT} />
+                                                                                                </Field>
+                                                                                                <Field label={t('closeAt')}>
+                                                                                                        <input type="time" value={settings.closeAt} onChange={(e) => patch({ closeAt: e.target.value }, 'closed')} className={INPUT} />
+                                                                                                </Field>
+                                                                                        </div>
+                                                                                        {(!settings.openAt || !settings.closeAt) && (
+                                                                                                <p className="text-xs text-[var(--text-secondary)]">{t('hoursIncomplete')}</p>
+                                                                                        )}
+                                                                                        <Field label={`${t('closedMessage')} · ${t('optional')}`}>
+                                                                                                <textarea
+                                                                                                        rows={2}
+                                                                                                        value={settings.closedMessage ?? ''}
+                                                                                                        maxLength={200}
+                                                                                                        placeholder={t('closedMessagePh')}
+                                                                                                        onChange={(e) => patch({ closedMessage: e.target.value || null }, 'closed')}
+                                                                                                        className={`${INPUT} resize-none`}
+                                                                                                />
+                                                                                        </Field>
+                                                                                </>
+                                                                        )}
+                                                                </Section>
+                                                        </>
+                                                )}
+
+                                                {tab === 'stats' && <ChatLinkStatsPanel agentId={agentId} />}
+                                        </div>
+                                </div>
+
+                                <div className="lg:sticky lg:top-0 lg:self-start">
+                                        <ChatLinkPreview
+                                                name={settings.displayName || agentName}
+                                                avatar={settings.logoUrl ?? agentAvatar}
+                                                welcomeMessage={settings.welcomeMessage ?? agentWelcome}
+                                                settings={effectiveSettings}
+                                                showcase={productAccess ? showcase : []}
+                                                state={screen}
+                                                onState={setScreen}
+                                        />
+                                </div>
+                        </div>
+
+                        <ConfirmDialog
+                                open={slugConfirmOpen}
+                                title={t('changeSlugTitle')}
+                                description={t('changeSlugBody', { old: `/c/${link.slug}`, next: `/c/${nextSlug ?? ''}` })}
+                                confirmLabel={t('changeSlug')}
+                                cancelLabel={common('cancel')}
+                                tone="primary"
+                                icon={<Check className="h-5 w-5" />}
+                                busy={busy === 'slug'}
+                                error={error}
+                                onConfirm={() => void changeSlug()}
+                                onClose={() => {
+                                        if (busy !== 'slug') setSlugConfirmOpen(false)
+                                }}
+                        />
                         <ConfirmDialog
                                 open={removeConfirmOpen}
                                 title={t('remove')}
                                 description={t('confirmRemove')}
                                 confirmLabel={t('remove')}
                                 cancelLabel={common('cancel')}
-                                busy={saving}
+                                busy={busy === 'remove'}
                                 error={error}
                                 onConfirm={() => void remove()}
                                 onClose={() => {
-                                        if (!saving) setRemoveConfirmOpen(false)
+                                        if (busy !== 'remove') setRemoveConfirmOpen(false)
                                 }}
                         />
                 </div>
         )
 }
 
-// ─── Mini phone preview ──────────────────────────────────────────────────────
+// ─── Local primitives ────────────────────────────────────────────────────────
 
-function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkSettings }) {
-        // The send label is the only translated string in this mock (the public page
-        // it mirrors is Persian-only); reuse the shared one instead of a new key.
-        const tConv = useTranslations('conversations')
-        const accent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(settings.primaryColor)
-                ? settings.primaryColor
-                : '#0F0F10'
-        const onAccent = contrastOn(accent)
-        const monogram = (name || '؟').trim().charAt(0)
-
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
         return (
-                <div className="mx-auto w-full max-w-[300px]">
-                        <div className="relative overflow-hidden rounded-sheet border-[6px] border-neutral-800 bg-[#f2f2f0] shadow-xl">
-                                {/* Ambient background blurs — match the actual /c/[slug] page */}
-                                {settings.background !== 'minimal' && (
-                                        <>
-                                                <span
-                                                        className="pointer-events-none absolute -start-10 -top-10 h-36 w-36 rounded-full blur-3xl"
-                                                        style={{
-                                                                backgroundColor: settings.background === 'mesh' ? accent : '#94a3b8',
-                                                                opacity: 0.18,
-                                                        }}
-                                                />
-                                                <span
-                                                        className="pointer-events-none absolute -end-10 bottom-20 h-32 w-32 rounded-full blur-3xl"
-                                                        style={{ backgroundColor: accent, opacity: 0.14 }}
-                                                />
-                                        </>
-                                )}
-
-                                {/* App column — mirrors the actual page's white/55 backdrop-blur container */}
-                                <div className="relative flex h-[460px] flex-col bg-white/55 backdrop-blur-sm">
-                                        {/* Header — matches actual: larger avatar, "آنلاین — پاسخ فوری" with ping dot */}
-                                        <div className="flex items-center gap-3 border-b border-black/[0.06] bg-white/82 px-3.5 py-3 backdrop-blur-2xl">
-                                                <span
-                                                        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-1 ring-black/10"
-                                                        style={{ backgroundColor: accent, color: onAccent }}
-                                                >
-                                                        {monogram}
-                                                        <span className="absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                        <div className="truncate text-xs font-semibold leading-tight text-neutral-900">
-                                                                {name}
-                                                        </div>
-                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-neutral-500">
-                                                                <span className="relative flex h-1.5 w-1.5">
-                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
-                                                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                                                </span>
-                                                                آنلاین — پاسخ فوری
-                                                        </div>
-                                                </div>
-                                        </div>
-
-                                        {/* Intro — matches actual: large avatar with ring, AI badge with shadow, semibold name */}
-                                        <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-                                                <span
-                                                        className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold ring-1 ring-black/10"
-                                                        style={{ backgroundColor: accent, color: onAccent }}
-                                                >
-                                                        {monogram}
-                                                </span>
-                                                {settings.showAiBadge && (
-                                                        <span className="mt-4 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3 text-[12px] tracking-wide text-neutral-600 shadow-[var(--elev-1)] backdrop-blur">
-                                                                <Sparkles className="h-2.5 w-2.5" style={{ color: accent }} />
-                                                                پاسخ فوری با هوش مصنوعی
-                                                        </span>
-                                                )}
-                                                <div className="mt-2.5 text-lg font-bold tracking-tight text-neutral-900">{name}</div>
-                                                {settings.tagline && (
-                                                        <div className="mt-1 max-w-[220px] text-[12px] leading-relaxed text-neutral-500">
-                                                                {settings.tagline}
-                                                        </div>
-                                                )}
-                                                {settings.quickReplies.filter(Boolean).length > 0 && (
-                                                        <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-                                                                {settings.quickReplies
-                                                                        .filter(Boolean)
-                                                                        .slice(0, 3)
-                                                                        .map((q, i) => (
-                                                                                <span
-                                                                                        key={i}
-                                                                                        className="rounded-full border border-black/10 bg-white/85 px-2.5 py-1 text-[12px] text-neutral-700 shadow-sm backdrop-blur"
-                                                                                >
-                                                                                        {q}
-                                                                                </span>
-                                                                        ))}
-                                                        </div>
-                                                )}
-                                        </div>
-
-                                        {/* Composer — matches actual lead-capture card or message input */}
-                                        <div className="border-t border-black/[0.06] bg-white/82 px-3 py-2.5 backdrop-blur-2xl">
-                                                {settings.leadCapture ? (
-                                                        <div className="space-y-2 rounded-card border border-black/[0.08] bg-white/90 p-2.5 shadow-[var(--elev-1)]">
-                                                                <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-2">
-                                                                        <User className="h-3 w-3 shrink-0 text-neutral-400" />
-                                                                        <span className="text-[12px] text-neutral-400">نام شما</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-2">
-                                                                        <Phone className="h-3 w-3 shrink-0 text-neutral-400" />
-                                                                        <span className="text-[12px] text-neutral-400">شماره موبایل</span>
-                                                                </div>
-                                                                <div
-                                                                        className="flex items-center justify-center rounded-xl py-2 text-[12px] font-medium"
-                                                                        style={{ backgroundColor: accent, color: onAccent }}
-                                                                >
-                                                                        شروع گفتگو
-                                                                </div>
-                                                        </div>
-                                                ) : (
-                                                        /* Same pill as the shared composer: dir=ltr so the send button is
-                                                           on the visual right, radius/min-height from COMPOSER_GEOMETRY. */
-                                                        <div
-                                                                dir="ltr"
-                                                                className="flex items-end gap-2 border border-black/[0.09] bg-white px-2 py-1.5 shadow-[var(--shadow-xs)]"
-                                                                style={{ borderRadius: COMPOSER_GEOMETRY.pillRadius }}
-                                                        >
-                                                                <span
-                                                                        dir="rtl"
-                                                                        className="flex flex-1 items-center px-2 text-[12px] text-neutral-400"
-                                                                        style={{ minHeight: COMPOSER_GEOMETRY.textareaMinHeight }}
-                                                                >
-                                                                        پیام خود را بنویسید…
-                                                                </span>
-                                                                {/* Inert by design — a preview has nothing to send. The opacity
-                                                                    override keeps the brand color readable while disabled. */}
-                                                                <SendButton
-                                                                        disabled
-                                                                        label={tConv('send')}
-                                                                        className="disabled:cursor-default disabled:opacity-100"
-                                                                        style={{ backgroundColor: accent, color: onAccent }}
-                                                                />
-                                                        </div>
-                                                )}
-                                        </div>
-                                </div>
+                <section className="space-y-3">
+                        <div>
+                                <h4 className="text-sm font-bold text-[var(--text-primary)]">{title}</h4>
+                                {hint && <p className="mt-0.5 text-xs leading-6 text-[var(--text-secondary)]">{hint}</p>}
                         </div>
-                </div>
+                        {children}
+                </section>
         )
 }
-
-// ─── Shared field primitives (local copies to keep this component standalone) ──
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
         return (
@@ -800,45 +874,41 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         )
 }
 
+function AddChip({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+        return (
+                <button
+                        type="button"
+                        onClick={onClick}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                        <Plus className="h-3.5 w-3.5" />
+                        {children}
+                </button>
+        )
+}
+
 function Toggle({
         label,
         hint,
         checked,
         onChange,
         disabled = false,
+        pending = false,
 }: {
         label: string
         hint: string
         checked: boolean
         onChange: (v: boolean) => void
         disabled?: boolean
+        pending?: boolean
 }) {
         return (
-                <button
-                        type="button"
-                        onClick={() => onChange(!checked)}
-                        disabled={disabled}
-                        className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-start disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                        <div className="flex-1">
-                                <div className="text-sm text-[var(--text-primary)]">{label}</div>
-                                <div className="text-xs text-[var(--text-secondary)]">{hint}</div>
+                <div className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
+                        <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-[var(--text-primary)]">{label}</div>
+                                <div className="text-xs leading-6 text-[var(--text-secondary)]">{hint}</div>
                         </div>
-                        <span
-                                className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
-                                        checked
-                                                ? 'border-[var(--white)] bg-[var(--white)]'
-                                                : 'border-[var(--border-hover)] bg-[var(--bg-muted)]'
-                                }`}
-                        >
-                                <span
-                                        className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full shadow-sm transition-all ${
-                                                checked
-                                                        ? 'start-[18px] bg-[var(--bg-base)]'
-                                                        : 'start-0.5 border border-[var(--border-hover)] bg-[var(--bg-base)]'
-                                        }`}
-                                />
-                        </span>
-                </button>
+                        <Switch checked={checked} onChange={onChange} disabled={disabled || pending} pending={pending} aria-label={label} />
+                </div>
         )
 }

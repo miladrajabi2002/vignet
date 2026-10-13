@@ -23,7 +23,9 @@ import {
 } from '@/lib/chat-link/config'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
-import { ChannelMobileSections, type ChannelMobileSection } from '@/components/channels/channel-mobile-sections'
+import { ChannelBoard, type ChannelBoardItem } from '@/components/channels/channel-board'
+import { ChannelMark } from '@/components/ui/channel-mark'
+import { loadChatLinkShowcase } from '@/lib/chat-link/showcase'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 
 export default async function AgentChannelsPage(
@@ -45,6 +47,9 @@ export default async function AgentChannelsPage(
       select: {
         id: true,
         name: true,
+        avatar: true,
+        welcomeMessage: true,
+        productAccessEnabled: true,
         requireCustomerInfo: true,
         customerInfoPrompt: true,
         channels: {
@@ -78,6 +83,10 @@ export default async function AgentChannelsPage(
   }
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
+  // What the chat link's product shelf would show, for its live preview.
+  const showcase = agent.productAccessEnabled
+    ? await loadChatLinkShowcase(agent.id).catch(() => [])
+    : []
 
   // Chat Link: existing config, or a sensible suggested slug for first-time setup.
   const chatLink = agent.chatLink
@@ -113,27 +122,40 @@ export default async function AgentChannelsPage(
     { type: 'INSTAGRAM', label: t('instagram'), hint: t('instagramHint') },
   ]
 
-  const channelSections: ChannelMobileSection[] = [
+  const host = appUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+  const initialOpen = typeof searchParams.open === 'string' ? searchParams.open.toUpperCase() : null
+
+  const channelItems: ChannelBoardItem[] = [
     {
       key: 'CHAT_LINK',
       label: t('chatLink'),
-      hint: t('chatLinkHint'),
+      hint: chatLink ? `${host}/c/${chatLink.slug}` : t('chatLinkHint'),
+      status: chatLink ? (chatLink.enabled ? 'on' : 'paused') : 'off',
+      mark: <ChannelMark channel="CHAT_LINK" />,
+      wide: true,
       content: (
         <ChatLinkChannel
           agentId={agent.id}
           agentName={agent.name}
+          agentAvatar={agent.avatar}
+          agentWelcome={agent.welcomeMessage}
           appUrl={appUrl}
           initialLink={chatLink}
           suggestedSlug={suggestedSlug}
           customerIdentificationRequired={agent.requireCustomerInfo}
           customerIdentificationMessage={agent.customerInfoPrompt}
+          productAccess={agent.productAccessEnabled}
+          showcase={showcase.map((product) => ({ name: product.name, price: product.price, imageUrl: product.imageUrl }))}
         />
       ),
     },
     {
       key: 'WEB_WIDGET',
       label: t('webWidget'),
-      hint: t('widgetDesc'),
+      hint: t('widgetHint'),
+      status: widget ? 'on' : 'off',
+      mark: <ChannelMark channel="WEB_WIDGET" />,
+      wide: true,
       content: (
         <WebWidgetChannel
           agentId={agent.id}
@@ -147,7 +169,7 @@ export default async function AgentChannelsPage(
         />
       ),
     },
-    ...messengers.map((messenger) => {
+    ...messengers.map((messenger): ChannelBoardItem => {
       const channel = agent.channels.find((item) => item.type === messenger.type)
       const config = channel?.config && typeof channel.config === 'object'
         ? channel.config as Record<string, unknown>
@@ -161,30 +183,30 @@ export default async function AgentChannelsPage(
         : channel
           ? normalizeMessengerSettings(channel.config).quickReplies
           : []
-      const content = (
-        <MessengerChannel
-          agentId={agent.id}
-          type={messenger.type}
-          label={messenger.label}
-          hint={messenger.hint}
-          enabled={!!channel}
-          channelId={channel?.id ?? null}
-          botUsername={botUsername || null}
-          lastInboundAt={channel?.lastInboundAt ? channel.lastInboundAt.toISOString() : null}
-          healthStatus={channel?.healthStatus ?? 'unknown'}
-          healthCheckedAt={channel?.healthCheckedAt ? channel.healthCheckedAt.toISOString() : null}
-          healthError={channel?.healthError ?? null}
-          quickReplies={quickReplies}
-          botAvatar={botAvatar || null}
-        />
-      )
       return {
         key: messenger.type,
         label: messenger.label,
-        hint: messenger.hint,
-        content: messenger.type === 'INSTAGRAM'
-          ? <div id="instagram-connection" className="scroll-mt-24">{content}</div>
-          : content,
+        hint: channel && botUsername ? `@${botUsername}` : messenger.hint,
+        // Connected on paper, but the periodic check says the provider no
+        // longer accepts the stored credentials.
+        status: channel ? (channel.healthStatus === 'down' ? 'attention' : 'on') : 'off',
+        mark: <ChannelMark channel={messenger.type} />,
+        content: (
+          <MessengerChannel
+            agentId={agent.id}
+            type={messenger.type}
+            label={messenger.label}
+            enabled={!!channel}
+            channelId={channel?.id ?? null}
+            botUsername={botUsername || null}
+            lastInboundAt={channel?.lastInboundAt ? channel.lastInboundAt.toISOString() : null}
+            healthStatus={channel?.healthStatus ?? 'unknown'}
+            healthCheckedAt={channel?.healthCheckedAt ? channel.healthCheckedAt.toISOString() : null}
+            healthError={channel?.healthError ?? null}
+            quickReplies={quickReplies}
+            botAvatar={botAvatar || null}
+          />
+        ),
       }
     }),
   ]
@@ -284,7 +306,7 @@ export default async function AgentChannelsPage(
         </div>
       )}
 
-      <ChannelMobileSections sections={channelSections} navigationLabel={t('mobileChannelList')} />
+      <ChannelBoard items={channelItems} initialOpen={initialOpen} />
 
       {/* Not a chat channel — a data source. Point users to Store Integrations
           without cluttering the channel list with a toggle that doesn't belong. */}

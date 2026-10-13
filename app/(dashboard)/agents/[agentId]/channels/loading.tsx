@@ -1,15 +1,13 @@
 import {
-  ChannelAccordionSkeleton,
-  ChannelCardSkeleton,
+  ChannelBoardSkeleton,
   DashedStoreLinkSkeleton,
   QuotaCardSkeleton,
 } from '@/components/dashboard/agent-detail-skeletons'
 
 /**
  * Route-level skeleton for /agents/[agentId]/channels — mirrors the page
- * below the agent tabs: quota card with progress bar, the 6 channel
- * sections (accordion on mobile, stacked cards on desktop) and the dashed
- * store-integrations link card.
+ * below the agent tabs: quota card with progress bar, the board of 6
+ * connection cards and the dashed store-integrations link card.
  */
 export default function AgentChannelsLoading() {
   return (
@@ -17,13 +15,8 @@ export default function AgentChannelsLoading() {
       {/* Channel quota */}
       <QuotaCardSkeleton />
 
-      {/* Channel sections — mobile accordion + desktop cards */}
-      <ChannelAccordionSkeleton delay={-80} />
-      <div className="hidden space-y-6 md:block">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <ChannelCardSkeleton key={index} delay={-120 - index * 90} />
-        ))}
-      </div>
+      {/* Connection cards */}
+      <ChannelBoardSkeleton delay={-80} />
 
       {/* Store integrations link */}
       <DashedStoreLinkSkeleton delay={-300} />

@@ -150,53 +150,21 @@ export function QuotaCardSkeleton({ delay = 0 }: { delay?: number }) {
   )
 }
 
-/** Mirrors a channel card (WebWidget/ChatLink/Messenger): icon + label + actions. */
-export function ChannelCardSkeleton({ delay = 0 }: { delay?: number }) {
+/** Mirrors ChannelBoard: one short card per connection (mark, status chip, name, hint). */
+export function ChannelBoardSkeleton({ delay = 0, cards = 6 }: { delay?: number; cards?: number }) {
   return (
-    <div className="spatial-surface rounded-card p-5 sm:p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Skeleton delay={delay} className="h-10 w-10 shrink-0 rounded-xl" />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Skeleton delay={delay} className="h-5 w-24 max-w-full rounded-md" />
-            <Skeleton delay={delay} className="h-4 w-4 shrink-0 rounded-full" />
+    <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+      {Array.from({ length: cards }).map((_, index) => (
+        <div key={index} className="spatial-surface flex flex-col gap-3 rounded-card p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton delay={delay - index * 80} className="h-10 w-10 shrink-0 rounded-xl" />
+            <Skeleton delay={delay - index * 80} className="h-6 w-20 rounded-full" />
           </div>
-          <Skeleton delay={delay} className="h-4 w-40 max-w-full rounded-md" />
+          <div className="space-y-1.5">
+            <Skeleton delay={delay - index * 80} className="h-4 w-24 max-w-full rounded-md" />
+            <Skeleton delay={delay - index * 80} className="h-3.5 w-36 max-w-full rounded-md" />
+          </div>
         </div>
-        <Skeleton delay={delay} className="h-11 w-36 rounded-xl" />
-      </div>
-    </div>
-  )
-}
-
-/** Mirrors ChannelMobileSections: 6 accordion rows (first open) on mobile. */
-export function ChannelAccordionSkeleton({ delay = 0, sections = 6 }: { delay?: number; sections?: number }) {
-  return (
-    <div className="space-y-2 md:hidden" aria-hidden="true">
-      {Array.from({ length: sections }).map((_, index) => (
-        <section key={index} className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
-          <div className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3">
-            <span className="min-w-0">
-              <Skeleton delay={delay - index * 80} className="block h-4 w-28 max-w-full rounded-md" />
-              <Skeleton delay={delay - index * 80} className="mt-1.5 block h-3 w-36 max-w-full rounded-md" />
-            </span>
-            <Skeleton delay={delay - index * 80} className="h-5 w-5 shrink-0 rounded-md" />
-          </div>
-          {index === 0 && (
-            <div className="space-y-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-              <div className="spatial-surface rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <Skeleton delay={delay} className="h-9 w-9 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Skeleton delay={delay} className="h-4 w-24 rounded-md" />
-                    <Skeleton delay={delay} className="h-3.5 w-36 rounded-md" />
-                  </div>
-                </div>
-                <Skeleton delay={delay - 80} className="mt-3 h-11 w-full rounded-xl" />
-              </div>
-            </div>
-          )}
-        </section>
       ))}
     </div>
   )

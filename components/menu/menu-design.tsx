@@ -254,7 +254,7 @@ function ToggleRow({ title, description, checked, disabled, onChange }: { title:
   )
 }
 
-function ImageField({ label, value, onChange, wide = false }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean }) {
+export function ImageField({ label, value, onChange, wide = false }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean }) {
   const input = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState('')

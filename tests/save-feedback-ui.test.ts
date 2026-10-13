@@ -8,7 +8,6 @@ function source(path: string) {
 // Forms whose changes go live only on an explicit "save".
 const SAVE_FORMS = [
   'components/agents/agent-settings-form.tsx',
-  'components/channels/chat-link-channel.tsx',
   'components/settings/business-settings.tsx',
   'components/products/product-form.tsx',
   'components/instagram/automation-form.tsx',
@@ -19,6 +18,7 @@ const SAVE_FORMS = [
 // Settings that save by themselves, with a status where the button used to be.
 const AUTO_SAVE_FORMS = [
   'components/agents/agent-settings-form.tsx',
+  'components/channels/chat-link-channel.tsx',
   'components/channels/messenger-channel.tsx',
   'components/channels/web-widget-channel.tsx',
   'components/settings/weekly-report-card.tsx',

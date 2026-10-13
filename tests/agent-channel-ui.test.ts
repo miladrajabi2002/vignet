@@ -50,11 +50,35 @@ describe('agent channel UI', () => {
     expect(instagram).toContain('href={`sms:${SUPPORT_PHONE_E164}`}')
   })
 
-  it('keeps large connection editors collapsed by default', () => {
-    const widget = source('components/channels/web-widget-channel.tsx')
+  it('shows connections as cards that open in a side sheet', () => {
+    const page = source('app/(dashboard)/agents/[agentId]/channels/page.tsx')
+    const board = source('components/channels/channel-board.tsx')
+
+    expect(page).toContain('<ChannelBoard items={channelItems} initialOpen={initialOpen} />')
+    expect(board).toContain('<SideSheet')
+    // One state vocabulary for every connection.
+    for (const key of ['statusOn', 'statusOff', 'statusAttention', 'statusPaused']) expect(board).toContain(key)
+    expect(existsSync(path.join(root, 'components/channels/channel-mobile-sections.tsx'))).toBe(false)
+  })
+
+  it('asks before disconnecting any connection', () => {
+    for (const file of [
+      'components/channels/web-widget-channel.tsx',
+      'components/channels/messenger-channel.tsx',
+      'components/channels/chat-link-channel.tsx',
+    ]) {
+      expect(source(file)).toContain('<ConfirmDialog')
+    }
+  })
+
+  it('publishes a chat link on create and never shares an unsaved address', () => {
     const chatLink = source('components/channels/chat-link-channel.tsx')
 
-    expect(widget).toContain('const [detailsOpen, setDetailsOpen] = useState(false)')
-    expect(chatLink).toContain('const [showSettings, setShowSettings] = useState(false)')
+    // «ساخت لینک» is the publish step; there is no second one to forget.
+    expect(chatLink).not.toContain("t('publish')")
+    expect(chatLink).toContain("body: JSON.stringify({ slug: candidate, enabled: true, settings })")
+    // Copy / open / QR are built from the saved slug, not the draft input.
+    expect(chatLink).toContain('const publicUrl = `${origin}/c/${link?.slug ?? \'\'}`')
+    expect(chatLink).toContain('useAutoSave({')
   })
 })

@@ -30,9 +30,11 @@ export async function GET(_req: Request, props: Params) {
 
 	const settings = normalizeChatLinkSettings(link.settings)
 	return NextResponse.json({
-		name: settings.displayName ?? link.agent.name,
-		avatar: link.agent.avatar,
-		welcomeMessage: link.agent.welcomeMessage,
 		...settings,
+		// The tracking links are the owner's own bookkeeping, not page config.
+		sources: undefined,
+		name: settings.displayName ?? link.agent.name,
+		avatar: settings.logoUrl ?? link.agent.avatar,
+		welcomeMessage: settings.welcomeMessage ?? link.agent.welcomeMessage,
 	})
 }

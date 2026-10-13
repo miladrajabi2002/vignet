@@ -71,8 +71,14 @@ export async function PUT(req: Request, props: Params) {
 		return NextResponse.json({ error: 'SLUG_TAKEN' }, { status: 409 })
 	}
 
-	const settings = normalizeChatLinkSettings(parsed.data.settings)
-	const enabled = parsed.data.enabled ?? true
+	// A save that says nothing about `enabled` keeps the link as it is, so
+	// editing a paused link does not quietly switch it back on.
+	const existing = await prisma.chatLink.findUnique({
+		where: { agentId: params.agentId },
+		select: { enabled: true, settings: true },
+	})
+	const settings = normalizeChatLinkSettings(parsed.data.settings ?? existing?.settings)
+	const enabled = parsed.data.enabled ?? existing?.enabled ?? true
 	if (enabled) {
 		const gate = await checkChannelConnectAllowed(user.workspaceId, {
 			kind: 'CHAT_LINK',
@@ -105,6 +111,35 @@ export async function PUT(req: Request, props: Params) {
 			url: chatLinkUrl(link.slug),
 		},
 	})
+}
+
+const patchSchema = z.object({ enabled: z.boolean() })
+
+/** Pause or resume the link; the address, settings and stats stay. */
+export async function PATCH(req: Request, props: Params) {
+        const params = await props.params
+        const user = await getCurrentUser()
+        if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!(await ownAgent(user.workspaceId, params.agentId)))
+                return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+        const parsed = patchSchema.safeParse(await req.json().catch(() => null))
+        if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
+
+        if (parsed.data.enabled) {
+                const gate = await checkChannelConnectAllowed(user.workspaceId, {
+                        kind: 'CHAT_LINK',
+                        agentId: params.agentId,
+                })
+                if (!gate.allowed) return NextResponse.json({ error: gate.reason }, { status: 402 })
+        }
+
+        const { count } = await prisma.chatLink.updateMany({
+                where: { agentId: params.agentId },
+                data: { enabled: parsed.data.enabled },
+        })
+        if (!count) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+        return NextResponse.json({ enabled: parsed.data.enabled })
 }
 
 export async function DELETE(_req: Request, props: Params) {
