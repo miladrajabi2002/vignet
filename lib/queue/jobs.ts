@@ -109,10 +109,14 @@ export async function dispatchWooWebhook(data: WooWebhookBatchJobData): Promise<
     }
     await q.add('sync-batch', data, {
       jobId,
-      removeOnComplete: 1000,
+      // A delivery carries the full product/order payload (80 KB on average,
+      // up to ~450 KB), so retained jobs are the largest thing in Redis after
+      // the embedding cache. StoreWebhookDelivery in Postgres is the durable
+      // dedupe record; the completed job only needs to outlive a quick retry.
+      removeOnComplete: { age: 60 * 60, count: 100 },
       // Retain failed jobs (including their event payload) for inspection and
       // manual retry. WordPress has already removed locally accepted events.
-      removeOnFail: 1000,
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
       attempts: 5,
       backoff: { type: 'exponential', delay: 2_000 },
     })

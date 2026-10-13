@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { sweepImprovement } from '@/lib/improvement/automation'
 import { sweepSkills } from '@/lib/skills/sweep'
 import { getRedis } from '@/lib/redis'
+import { REDIS_ALERT_RATIO, readRedisMemoryUsage } from '@/lib/redis-memory'
+import { notifyOps } from '@/lib/email/resend'
 import { dispatchProductEmbed, dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
@@ -399,6 +401,50 @@ async function runCleanup(): Promise<void> {
                 }
         } catch (e) {
                 console.error('[scheduler] retention cleanup failed:', e)
+        }
+}
+
+// ─── Redis memory watchdog ──────────────────────────────────────────────────
+
+const REDIS_MEMORY_CHECK_MS = 5 * 60_000
+const REDIS_MEMORY_ALERT_REPEAT_SEC = 6 * 60 * 60
+// Fallback dedupe: a Redis that is already full cannot store its own marker.
+let redisMemoryAlertedAt = 0
+
+/**
+ * Redis runs `noeviction`, so once it fills up every enqueue is refused and
+ * inbound customer messages are dropped until someone frees memory. Alert ops
+ * while there is still headroom instead of finding out from a customer.
+ */
+async function runRedisMemoryCheck(): Promise<void> {
+        try {
+                const usage = await readRedisMemoryUsage()
+                if (!usage || usage.ratio < REDIS_ALERT_RATIO) return
+
+                let firstAlert: boolean
+                try {
+                        firstAlert =
+                                (await getRedis().set('redis-memory-alert', '1', 'EX', REDIS_MEMORY_ALERT_REPEAT_SEC, 'NX')) === 'OK'
+                } catch {
+                        firstAlert = Date.now() - redisMemoryAlertedAt >= REDIS_MEMORY_ALERT_REPEAT_SEC * 1000
+                }
+                if (!firstAlert) return
+                redisMemoryAlertedAt = Date.now()
+
+                const usedMb = Math.round(usage.usedBytes / 1024 / 1024)
+                const maxMb = Math.round(usage.maxBytes / 1024 / 1024)
+                const percent = Math.round(usage.ratio * 100)
+                await persistLog('error', 'scheduler:redis-memory', `Redis memory at ${percent}% (${usedMb} MB of ${maxMb} MB)`, {
+                        metadata: { usedMb, maxMb, percent },
+                })
+                await notifyOps(
+                        `Redis memory at ${percent}%`,
+                        `Redis is using ${usedMb} MB of ${maxMb} MB and runs with noeviction.\n` +
+                                'When it reaches 100% every queue write is refused and inbound messages are dropped.\n' +
+                                'Raise maxmemory or free memory now.',
+                )
+        } catch (e) {
+                console.error('[scheduler] redis memory check failed:', e)
         }
 }
 
@@ -853,6 +899,9 @@ export function startScheduler(): () => void {
         const initialCleanup = setTimeout(runCleanup, 5 * 60_000)
         const cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
 
+        const initialRedisMemory = setTimeout(runRedisMemoryCheck, 45_000)
+        const redisMemoryInterval = setInterval(runRedisMemoryCheck, REDIS_MEMORY_CHECK_MS)
+
         const initialSubExpiry = setTimeout(runSubscriptionExpirySweep, 90_000)
         const subExpiryInterval = setInterval(
                 runSubscriptionExpirySweep,
@@ -1069,6 +1118,8 @@ export function startScheduler(): () => void {
                 clearInterval(appointmentInterval)
                 clearTimeout(initialCleanup)
                 clearInterval(cleanupInterval)
+                clearTimeout(initialRedisMemory)
+                clearInterval(redisMemoryInterval)
                 clearTimeout(initialSubExpiry)
                 clearInterval(subExpiryInterval)
                 clearTimeout(initialTrialLifecycle)

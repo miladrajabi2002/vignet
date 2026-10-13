@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { getRedis } from '@/lib/redis'
+import { redisUnderMemoryPressure } from '@/lib/redis-memory'
 
 /** Fixed embedding dimension — must match the vector(1536) schema column. */
 export const EMBED_DIM = 1536
@@ -16,30 +17,57 @@ export const EMBED_DIM = 1536
 // errors on the woo-webhook queue (HTTP 503 QUEUE_UNAVAILABLE). 24h retains
 // the high-value query cache (questions recur within a day) while keeping
 // Redis memory bounded.
+//
+// The cache shares the `noeviction` Redis that BullMQ lives on, so it must
+// never be what fills it: a full Redis refuses the webhook enqueue and inbound
+// customer messages are dropped. Two guards keep it bounded:
+//   - entries are stored as base64 float32 (~8 KB) instead of JSON (~32 KB).
+//     pgvector stores float4 anyway, so no precision the search uses is lost.
+//   - writes are skipped while Redis is under memory pressure.
 const EMBED_CACHE_TTL = 24 * 60 * 60 // 24 hours
+const F32_PREFIX = 'f32:'
 
 function embedCacheKey(model: string, text: string): string {
   const hash = crypto.createHash('sha1').update(text).digest('hex')
   return `emb:${model}:${hash}`
 }
 
+export function encodeCachedEmbedding(vec: number[]): string {
+  const bytes = Buffer.allocUnsafe(vec.length * 4)
+  for (let i = 0; i < vec.length; i++) bytes.writeFloatLE(vec[i], i * 4)
+  return F32_PREFIX + bytes.toString('base64')
+}
+
+export function decodeCachedEmbedding(raw: string): number[] | null {
+  if (!raw.startsWith(F32_PREFIX)) {
+    // Entries written before the compact encoding are plain JSON arrays.
+    const vec = JSON.parse(raw)
+    return Array.isArray(vec) ? vec : null
+  }
+  const bytes = Buffer.from(raw.slice(F32_PREFIX.length), 'base64')
+  if (bytes.length === 0 || bytes.length % 4 !== 0) return null
+  const vec = new Array<number>(bytes.length / 4)
+  for (let i = 0; i < vec.length; i++) vec[i] = bytes.readFloatLE(i * 4)
+  return vec
+}
+
 async function getCachedEmbedding(key: string): Promise<number[] | null> {
   try {
     const raw = await getRedis().get(key)
     if (!raw) return null
-    const vec = JSON.parse(raw)
-    return Array.isArray(vec) ? vec : null
+    return decodeCachedEmbedding(raw)
   } catch {
     return null
   }
 }
 
 function setCachedEmbedding(key: string, vec: number[]): void {
-  try {
-    void getRedis().set(key, JSON.stringify(vec), 'EX', EMBED_CACHE_TTL)
-  } catch {
+  void (async () => {
+    if (await redisUnderMemoryPressure()) return
+    await getRedis().set(key, encodeCachedEmbedding(vec), 'EX', EMBED_CACHE_TTL)
+  })().catch(() => {
     // ignore — caching is best-effort
-  }
+  })
 }
 
 interface EmbedContext {
