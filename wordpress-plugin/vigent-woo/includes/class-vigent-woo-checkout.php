@@ -57,6 +57,13 @@ class Vigent_Woo_Checkout {
 
 	private function __construct() {
 		add_action( 'template_redirect', array( $this, 'maybe_handle_link' ), 1 );
+		// The same link on WooCommerce's own callback endpoint
+		// (?wc-api=vigent_checkout&vigent_checkout=<slug>). Payment gateways return
+		// through wc-api, so no page cache can serve it; a cache that ignores
+		// unknown query strings answers the plain ?vigent_checkout= link with the
+		// cached homepage and this plugin never runs.
+		add_action( 'woocommerce_api_' . self::QUERY_VAR, array( $this, 'maybe_handle_link' ) );
+		add_action( 'wp_head', array( $this, 'print_link_rescue' ), 1 );
 		add_action( 'template_redirect', array( $this, 'maybe_resume_after_failed_payment' ), 5 );
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 		add_action( 'woocommerce_order_status_changed', array( $this, 'on_status_changed' ), 20, 4 );
@@ -102,8 +109,17 @@ class Vigent_Woo_Checkout {
 		if ( empty( $_GET[ self::QUERY_VAR ] ) ) {
 			return;
 		}
-		nocache_headers();
+		$this->never_cache();
 		$slug = sanitize_text_field( wp_unslash( $_GET[ self::QUERY_VAR ] ) );
+		// A link on an ordinary page address is answered on the callback
+		// endpoint instead. Nothing but a redirect is ever written under the
+		// shop's own address, so no cache can keep this plugin's answer as one
+		// of the shop's pages (a cold cache once stored «این لینک پرداخت معتبر
+		// نیست» as a shop's homepage).
+		if ( empty( $_GET['wc-api'] ) && ! doing_action( 'woocommerce_api_' . self::QUERY_VAR ) ) {
+			wp_safe_redirect( add_query_arg( array( 'wc-api' => self::QUERY_VAR, self::QUERY_VAR => rawurlencode( $slug ) ), home_url( '/' ) ) );
+			exit;
+		}
 		if ( ! preg_match( '/^[A-Za-z0-9_-]{16,64}$/', $slug ) ) {
 			$this->fail_page( __( 'این لینک پرداخت معتبر نیست.', 'vigent-woo' ) );
 		}
@@ -175,6 +191,29 @@ class Vigent_Woo_Checkout {
 		$this->remember_order_in_session( $order );
 		wp_safe_redirect( $order->get_checkout_payment_url() );
 		exit;
+	}
+
+	/** Tell every page cache this response is one visitor's and must not be stored. */
+	private function never_cache() {
+		foreach ( array( 'DONOTCACHEPAGE', 'DONOTCACHEOBJECT', 'DONOTCACHEDB' ) as $constant ) {
+			if ( ! defined( $constant ) ) {
+				define( $constant, true );
+			}
+		}
+		nocache_headers();
+	}
+
+	/**
+	 * A plain ?vigent_checkout= link that a page cache answered with a cached
+	 * shop page: this script is part of that page and sends the visitor to the
+	 * callback endpoint, where the link is really handled.
+	 */
+	public function print_link_rescue() {
+		if ( ! $this->enabled() ) {
+			return;
+		}
+		$target = add_query_arg( 'wc-api', self::QUERY_VAR, home_url( '/' ) );
+		echo '<script>(function(){var m=/[?&]' . self::QUERY_VAR . '=([A-Za-z0-9_-]{16,64})/.exec(location.search);if(m&&!/[?&]wc-api=/.test(location.search)){location.replace(' . wp_json_encode( $target ) . '+"&' . self::QUERY_VAR . '="+m[1]);}})();</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
@@ -1211,6 +1250,7 @@ class Vigent_Woo_Checkout {
 				'hpos'           => class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' ) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled(),
 				'flow_setting'   => isset( $s['checkout_flow'] ) ? $s['checkout_flow'] : 'auto',
 				'custom_fields'  => $this->custom_required_fields(),
+				'link_entry'     => 'wc-api',
 			)
 		);
 	}
