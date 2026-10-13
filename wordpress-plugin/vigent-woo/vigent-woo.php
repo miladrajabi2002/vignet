@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند، محصولات و سفارش‌ها را همگام می‌سازد و خرید داخل گفتگو را روی صفحهٔ پرداخت خود سایت ثبت می‌کند.
- * Version:           5.1.1
+ * Version:           5.1.2
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '5.1.1' );
+define( 'VIGENT_WOO_VERSION', '5.1.2' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );

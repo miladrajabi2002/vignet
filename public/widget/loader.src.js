@@ -369,10 +369,10 @@
                         // launcher
                         '.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
                         'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
-                        'color:var(--vgt-on-accent);box-shadow:0 12px 32px -8px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);' +
+                        'color:var(--vgt-on-accent);box-shadow:0 10px 24px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);' +
                         'font-family:var(--vgt-font);' +
                         'transition:transform var(--vgt-motion-control) var(--vgt-ease),box-shadow var(--vgt-motion-control) var(--vgt-ease);}' +
-                        '.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 18px 42px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);}' +
+                        '.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 14px 30px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);}' +
                         '.vgt-launcher:active{transform:scale(.95);}' +
                         '.vgt-launcher-ico{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;position:relative;}' +
                         '.vgt-launcher-ico svg{width:25px;height:25px;position:absolute;transition:transform .35s cubic-bezier(.34,1.5,.64,1),opacity .25s ease;}' +
@@ -389,7 +389,7 @@
                         '.vgt-panel{position:absolute;bottom:74px;width:392px;max-width:calc(100vw - 32px);height:620px;' +
                         'max-height:calc(100dvh - 96px);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;border-radius:var(--vgt-r-panel);' +
                         'background:var(--vgt-bg);color:var(--vgt-text);border:1px solid var(--vgt-border);' +
-                        'box-shadow:0 24px 64px -28px rgba(0,0,0,.38),0 8px 20px -14px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.02);' +
+                        'box-shadow:0 1px 2px rgba(17,17,17,.06),0 12px 32px -12px rgba(17,17,17,.22),0 28px 56px -24px rgba(17,17,17,.28);' +
                         'opacity:0;transform:translateY(14px) scale(.97);transform-origin:bottom right;pointer-events:none;' +
                         'transition:opacity var(--vgt-motion-surface) ease,transform var(--vgt-motion-surface) var(--vgt-ease);}' +
                         '.vgt-root.vgt-left .vgt-panel{transform-origin:bottom left;right:auto;left:0;}' +
@@ -496,7 +496,7 @@
                         '.vgt-rail-btn svg{width:16px;height:16px;}' +
                         '.vgt-rail-btn:hover:not(:disabled){border-color:var(--vgt-accent);color:var(--vgt-accent-ink);}' +
                         '.vgt-rail-btn:disabled{opacity:.32;cursor:default;}' +
-                        '.vgt-rail-btn:focus-visible,.vgt-rail-toggle:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-rail-btn:focus-visible,.vgt-rail-toggle:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         '.vgt-rail-toggle{display:inline-flex;align-items:center;gap:5px;min-height:34px;flex:0 0 auto;padding:0 11px;cursor:pointer;' +
                         'border:1px solid var(--vgt-border);border-radius:999px;background:var(--vgt-bg);color:var(--vgt-text);' +
                         'font-family:inherit;font-size:11px;font-weight:700;transition:border-color .18s,background .18s;}' +
@@ -545,7 +545,7 @@
                         'transition:opacity .18s,transform .15s;}' +
                         '.vgt-card-no-link{display:flex;align-items:center;min-height:44px;margin:auto 14px 10px;color:var(--vgt-muted);font-size:11px;}' +
                         '.vgt-card-link:hover{opacity:.9;transform:translateY(-1px);}' +
-                        '.vgt-card-link:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-card-link:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         '.vgt-card-actions{display:flex;gap:8px;margin:auto 14px 14px;}' +
                         '.vgt-card-actions .vgt-card-link{margin:0;flex:1 1 0;min-width:0;padding:0 8px;text-align:center;}' +
                         '.vgt-card-cart{flex-grow:1.6 !important;border:0;font-family:inherit;cursor:pointer;}' +
@@ -566,7 +566,7 @@
                         '.vgt-co-pay{display:flex;align-items:center;justify-content:center;min-height:46px;margin-top:10px;border-radius:12px;' +
                         'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:13px;font-weight:800;text-decoration:none;transition:opacity .18s,transform .15s;}' +
                         '.vgt-co-pay:hover{opacity:.92;transform:translateY(-1px);}' +
-                        '.vgt-co-pay:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-co-pay:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         // action chips under a bot reply — ≥44px touch height (11px*2 + ~22px line)
                         '.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
                         '.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
@@ -634,7 +634,7 @@
                         '.vgt-inputwrap{position:relative;display:flex;align-items:flex-end;gap:8px;background:var(--vgt-surface);' +
                         'border:1.5px solid var(--vgt-border);border-radius:var(--vgt-r-pill);padding:6px 8px;' +
                         'transition:border-color .18s,box-shadow .18s,background .18s;}' +
-                        '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
+                        '.vgt-inputwrap:focus-within{border-color:var(--vgt-focus);box-shadow:0 0 0 4px rgba(10,132,255,.14);background:var(--vgt-bg);}' +
                         // row-reverse inside the RTL panel lays the children out
                         // left-to-right, which keeps the send button on the visual RIGHT
                         // in every language — the same guarantee the React composer gets
@@ -662,7 +662,7 @@
                         'transition:transform .15s ease,opacity .15s,background .15s;}' +
                         '.vgt-root .vgt-send:hover:not(:disabled){border-radius:50%!important;background:var(--vgt-accent-deep);}' +
                         '.vgt-root .vgt-send:active:not(:disabled){transform:scale(.94);}' +
-                        '.vgt-root .vgt-send:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-root .vgt-send:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         // Disabled covers both "nothing typed yet" and "reply streaming".
                         // Do not fade the entire button: that blends the white arrow into
                         // the panel background and makes the send affordance disappear.
@@ -791,6 +791,8 @@
                         'padding-top:20px!important;}' +
                         // On very short viewports (keyboard open), shrink the
                         // avatar so it takes less space.
+                        // Send control reaches the 44px touch target on phones and small tablets.
+                        '.vgt-root .vgt-send{flex:0 0 44px;width:44px;height:44px;min-width:44px;max-width:44px;}' +
                         '.vgt-lead-ava{width:44px!important;height:44px!important;}' +
                         '.vgt-lead-ava svg{width:22px!important;height:22px!important;}' +
                         '.vgt-intro-ava{width:52px!important;height:52px!important;}' +
@@ -923,6 +925,9 @@
                         dark ? (accentIsLight ? accent : '#f3f4f6') : accentIsLight ? '#1a1a1e' : accent,
                 )
                 s.setProperty('--vgt-accent-shadow', soft(accent, dark ? 0.5 : 0.4))
+                // Focus ring colour is the app's own focus token (#0a84ff), so it stays
+                // visible on dark themes where a black accent would disappear.
+                s.setProperty('--vgt-focus', '#0a84ff')
                 s.setProperty('--vgt-bg', dark ? '#111111' : '#ffffff')
                 s.setProperty('--vgt-head-bg', dark ? '#171717' : '#f8f8f7')
                 s.setProperty('--vgt-surface', dark ? '#202020' : '#f5f5f3')

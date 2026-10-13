@@ -237,7 +237,7 @@ class Vigent_Woo_Admin {
                         .vg-connected-copy p { margin: 0; }
                         .vg-sync-note { color: #059669 !important; font-size: 12px !important; margin-top: 4px !important; }
                         .vg-connected-actions { margin: 0; justify-content: flex-end; }
-                        .vg-btn:focus-visible, .vg-btn-center:focus-visible, .vg-btn-update:focus-visible, .vg-btn-disconnect:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
+                        .vg-btn:focus-visible, .vg-btn-center:focus-visible, .vg-btn-update:focus-visible, .vg-btn-disconnect:focus-visible { outline: 3px solid #0a84ff; outline-offset: 2px; }
                         @media (max-width: 680px) {
                                 .vg-wrap { padding-inline: 10px; }
                                 .vg-header, .vg-connected-summary { flex-wrap: wrap; }

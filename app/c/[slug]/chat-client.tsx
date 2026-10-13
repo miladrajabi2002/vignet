@@ -612,6 +612,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								disabled={leadPending || !hydrated}
 								dir="rtl"
 								sendLabel="ارسال"
+								sendButtonSize={44}
 								placeholder="پیام خود را بنویسید…"
 								className="[&_button]:!text-[color:var(--vgt-on-accent)] [&_button:hover:enabled]:!bg-[color:color-mix(in_srgb,var(--accent-strong)_86%,black)]"
 								footer={
@@ -1040,7 +1041,7 @@ function Background({
 	const blobA = kind === 'mesh' ? accent : '#94a3b8'
 	const blobB = kind === 'mesh' ? '#f59e0b' : accent
 	return (
-		<div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+		<div aria-hidden className="pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
 			<motion.div
 				className="absolute -top-32 start-[-15%] h-[420px] w-[420px] rounded-full blur-[110px]"
 				style={{ backgroundColor: blobA, opacity: 0.14 }}

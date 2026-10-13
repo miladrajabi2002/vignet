@@ -69,6 +69,8 @@ export interface ChatComposerProps {
 	dir?: 'rtl' | 'ltr' | 'auto'
 	/** Accessible label for the send button. */
 	sendLabel: string
+	/** Send button diameter in px. Defaults to the shared composer size. */
+	sendButtonSize?: number
 	/**
 	 * Accessible name for the textarea. Pass this when the placeholder alone
 	 * would not identify the field (a placeholder is not a reliable label).
@@ -97,6 +99,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 			maxLength,
 			dir = 'auto',
 			sendLabel,
+			sendButtonSize = COMPOSER_GEOMETRY.sendButtonSize,
 			inputLabel,
 			leading,
 			footer,
@@ -188,7 +191,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 						}}
 					/>
 					{leading}
-					<SendButton onClick={submit} busy={busy} disabled={!canSend} label={sendLabel} />
+					<SendButton onClick={submit} busy={busy} disabled={!canSend} label={sendLabel} size={sendButtonSize} />
 				</div>
 				{footer}
 			</div>
