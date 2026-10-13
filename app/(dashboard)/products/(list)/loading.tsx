@@ -9,8 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 /**
  * Route-level skeleton for /products — an exact mirror of the page:
- * PageHeader (3 compact actions), commerce tabs, setup card, the desktop
- * stock tabs, the search/sort toolbar with view toggle, the product grid,
+ * PageHeader (3 compact actions), commerce tabs, setup card, the toolbar
+ * card (desktop stock tabs on its top edge, search/sort, view toggle), the product grid,
  * pagination, and the trend + top-products panels *under* the list.
  */
 export default function ProductsLoading() {
@@ -29,22 +29,18 @@ export default function ProductsLoading() {
       {/* WooSetupCard */}
       <SetupCardSkeleton delay={-160} />
 
-      {/* Stock tabs (desktop only, underlined tab strip) */}
-      <nav className="-mb-2 hidden gap-1 overflow-x-auto border-b border-[var(--border-subtle)] md:flex [scrollbar-width:none]" aria-label="stock filter">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <span
-            key={index}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2.5"
-          >
-            <Skeleton delay={-200 - index * 70} className="h-3.5 w-14 rounded-full" />
-            <Skeleton delay={-230 - index * 70} className="h-5 w-8 rounded-full" />
-          </span>
-        ))}
-      </nav>
-
       {/* Toolbar: compact search + filters on phones, search + selects + view toggle on md+ */}
       <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
         <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:p-4 md:shadow-[var(--shadow-card)]">
+          {/* Stock filter tabs on the card's top edge (desktop only) */}
+          <div className="-mx-4 -mt-4 mb-4 hidden items-center gap-0.5 border-b border-[var(--border-subtle)] pe-4 ps-1 md:flex">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span key={index} className="inline-flex min-h-12 shrink-0 items-center gap-2 px-3">
+                <Skeleton delay={-200 - index * 70} className="h-3.5 w-14 rounded-full" />
+                <Skeleton delay={-230 - index * 70} className="h-3 w-6 rounded-full" />
+              </span>
+            ))}
+          </div>
           <div className="flex items-center gap-2 md:hidden">
             <Skeleton className="h-11 min-w-[12rem] flex-1 rounded-xl" />
             <Skeleton delay={-90} className="h-11 w-11 shrink-0 rounded-xl" />

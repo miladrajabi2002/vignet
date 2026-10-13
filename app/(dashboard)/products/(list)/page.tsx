@@ -226,6 +226,37 @@ export default async function ProductsPage(
     { key: 'hidden', label: fa ? 'پنهان' : 'Hidden', count: hiddenCount, dot: 'bg-[var(--text-hint)]', hint: fa ? 'در فروشگاه نمایش داده نمی‌شوند' : 'Not shown in the store', separated: true },
   ]
   const activeTab = statusTabs.find((tab) => tab.key === stock) ?? statusTabs[0]
+  // Stock state is the first cut of a catalog, so the counts are the tabs. They sit on
+  // the top edge of the toolbar card: a filter of this list, not another section switch.
+  const statusTabsNode = (
+    <>
+      <nav aria-label={t('stockFilter')} className="ui-ftabs">
+        {statusTabs.map((tab) => {
+          const active = stock === tab.key
+          // No hidden products means nothing to filter; the tab only stays while it is the open one.
+          if (tab.key === 'hidden' && tab.count === 0 && !active) return null
+          return (
+            <Fragment key={tab.key || 'all'}>
+              {tab.separated && <span aria-hidden className="mx-1.5 my-3.5 w-px shrink-0 bg-[rgba(17,17,17,0.12)]" />}
+              <Link
+                href={tabHref(tab.key)}
+                scroll={false}
+                aria-current={active ? 'page' : undefined}
+                title={tab.hint}
+                className="ui-ftab"
+              >
+                {tab.dot && <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', tab.dot)} />}
+                {tab.label}
+                <span className="ui-tab-count">{nf(tab.count)}</span>
+              </Link>
+            </Fragment>
+          )
+        })}
+      </nav>
+      {/* The hint gives way first; the tabs only start to scroll once it is gone. */}
+      <p className="ms-auto hidden min-w-0 shrink-[100] truncate text-[13px] text-[var(--text-muted)] xl:block">{activeTab.hint}</p>
+    </>
+  )
   const storeLabel = !wooIntegration
     ? (fa ? 'اتصال فروشگاه' : 'Connect a store')
     : wooIntegration.active
@@ -301,32 +332,6 @@ export default async function ProductsPage(
         </>
       ) : (
         <>
-          {/* Stock state is the first cut of a catalog, so the counts are the tabs.
-              Phones pick stock in the filter sheet instead, so the tabs are desktop only. */}
-          <div className="-mb-2 hidden flex-wrap items-center gap-x-4 gap-y-2 md:flex">
-            <nav aria-label={t('stockFilter')} className="ui-seg grid-flow-col auto-cols-max max-w-full overflow-x-auto [scrollbar-width:none]">
-              {statusTabs.map((tab) => {
-                const active = stock === tab.key
-                return (
-                  <Fragment key={tab.key || 'all'}>
-                    {tab.separated && <span aria-hidden className="mx-1 my-2.5 w-px bg-[rgba(17,17,17,0.12)]" />}
-                    <Link
-                      href={tabHref(tab.key)}
-                      scroll={false}
-                      aria-current={active ? 'page' : undefined}
-                      className="ui-seg-tab shrink-0 gap-2 whitespace-nowrap px-3 text-[13px] font-medium"
-                    >
-                      {tab.dot && <span aria-hidden className={cn('size-1.5 rounded-full', tab.dot)} />}
-                      {tab.label}
-                      <span className={cn('ui-tab-count', active && 'text-[var(--text-secondary)]')}>{nf(tab.count)}</span>
-                    </Link>
-                  </Fragment>
-                )
-              })}
-            </nav>
-            <p className="text-[13px] text-[var(--text-muted)]">{activeTab.hint}</p>
-          </div>
-
           <ProductsToolbar
             categories={categories}
             defaultQuery={q}
@@ -338,6 +343,7 @@ export default async function ProductsPage(
             storeLabel={storeLabel}
             storeTone={storeTone}
             storeCard={storeCard}
+            statusTabs={statusTabsNode}
           />
 
           {/* The alert level lives with the products it is about. */}

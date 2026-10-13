@@ -304,6 +304,7 @@ export function ProductsToolbar({
   storeLabel,
   storeTone = 'neutral',
   storeCard,
+  statusTabs,
 }: {
   categories: { id: string; name: string }[]
   defaultQuery: string
@@ -317,6 +318,8 @@ export function ProductsToolbar({
   storeLabel?: string
   storeTone?: 'ok' | 'warn' | 'neutral'
   storeCard?: React.ReactNode
+  /** Status filter tabs for the card's top edge. Desktop only: phones pick stock in the filter sheet. */
+  statusTabs?: React.ReactNode
 }) {
   const t = useTranslations('products')
   const router = useRouter()
@@ -477,6 +480,11 @@ export function ProductsToolbar({
     <>
       <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
         <div className="spatial-surface rounded-card p-2.5 shadow-[var(--elev-1)] md:rounded-card md:p-4 md:shadow-[var(--shadow-card)]">
+          {statusTabs && (
+            <div className="-mx-4 -mt-4 mb-4 hidden items-center gap-4 border-b border-[var(--border-subtle)] pe-4 ps-1 md:flex">
+              {statusTabs}
+            </div>
+          )}
           <div className="flex items-center gap-2 md:hidden">
             {searchField()}
             <button

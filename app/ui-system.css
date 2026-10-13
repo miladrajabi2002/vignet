@@ -7,6 +7,7 @@
  * one easing curve and a calm type scale. This file carries those rules
  * into the app without touching page logic:
  *   ط۱  .ui-seg / .ui-seg-tab      segmented tabs (grey track, white pill)
+ *       .ui-ftabs / .ui-ftab       a list's status filter, on the card it filters
  *   ط۲  --focus-ring, press timing  one focus ring and one press feel
  *   ط۳  --signal*                   iris violet reserved for live / AI states
  *       --notif*                    gold reserved for notifications
