@@ -83,6 +83,12 @@ export type Act =
       display: 'showcase' | 'consult' | 'browse'
       /** A product code the customer typed («0788», «کد 1420»). */
       code?: string
+      /**
+       * What the product is for, when the customer named a need and no product
+       * type («یه چیزی برای پوست چرب می‌خوام» → «پوست چرب»). Never a search
+       * term: it only tells the reply what to recommend for.
+       */
+      need?: string
     }
   | { type: 'product_question'; target: CandidateRef; field: ProductField; question?: string }
   | { type: 'variants'; target: CandidateRef; variant?: string }

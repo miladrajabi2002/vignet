@@ -8,7 +8,7 @@
  * only when that domain routes from understanding (mode.ts); otherwise the
  * legacy decision for that domain stands.
  */
-import { extractProductTerms, type ProductRequestPlan } from '@/lib/ai/conversation'
+import { extractProductTerms, normalizePersianText, type ProductRequestPlan } from '@/lib/ai/conversation'
 import type { ConversationIntent, ConversationTurnRelation, ConversationWorkingState, UnderstoodTurnState } from '@/lib/ai/conversation-state'
 import type { CatalogToolReason } from '@/lib/ai/catalog-tools'
 import type { CartEditCue, CartEditOp } from '@/lib/commerce/cart-edit'
@@ -223,8 +223,8 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
           }
         }
         brief.push({ act: act.type, ask: fa
-          ? `دنبال محصول${terms.length ? `: ${terms.join(' ')}` : ''}${act.maxPrice ? ` (بودجه تا ${act.maxPrice.toLocaleString('fa-IR')} تومان)` : ''}`
-          : `Looking for products${terms.length ? `: ${terms.join(' ')}` : ''}` })
+          ? `دنبال محصول${terms.length ? `: ${terms.join(' ')}` : ''}${act.need ? ` برای «${act.need}»` : ''}${act.maxPrice ? ` (بودجه تا ${act.maxPrice.toLocaleString('fa-IR')} تومان)` : ''}`
+          : `Looking for products${terms.length ? `: ${terms.join(' ')}` : ''}${act.need ? ` for “${act.need}”` : ''}` })
         break
       }
       case 'product_question': {
@@ -288,8 +288,17 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
       }
       case 'order_start': {
         signals.orderIntent = true
+        // «اسفنج شیگلم هم می‌خوام، ۲ تا»: the model searches for the sponge
+        // and points the order at «active», the product discussed BEFORE this
+        // message. A pick that shares no word with the search is not the pick;
+        // the order flow takes the product the search finds.
+        const namedWords = acts.flatMap((other) => other.type === 'product_search' ? extractProductTerms(other.terms.join(' ')) : [])
         const items: OrderStartItem[] = act.items.flatMap((item) => {
           const target = productTarget(item.target, refs)
+          if (target && namedWords.length) {
+            const name = normalizePersianText(target.name).toLocaleLowerCase('fa')
+            if (namedWords.filter((word) => name.includes(word)).length * 2 < namedWords.length) return []
+          }
           return target ? [{ productId: parentOf(target.id), variationId: variationIdOf(target.id), variant: item.variant ?? null, quantity: item.quantity ?? null }] : []
         })
         signals.startItems = items
@@ -298,9 +307,22 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
       }
       case 'cart_edit': {
         const ops: CartEditOp[] = []
+        // «یه شامپو بیوکسین هم اضافه کن»: the model searches for the shampoo
+        // and writes the add against «active», which is the product discussed
+        // BEFORE this message. The add belongs to what the search finds; the
+        // order flow puts that product in the cart.
+        const searchedWords = acts.flatMap((other) => other.type === 'product_search' ? extractProductTerms(other.terms.join(' ')) : [])
         for (const op of act.ops) {
           if (op.op === 'add') {
             const target = productTarget(op.target, refs)
+            if (target && searchedWords.length) {
+              const name = normalizePersianText(target.name).toLocaleLowerCase('fa')
+              const shared = searchedWords.filter((word) => name.includes(word)).length
+              if (shared * 2 < searchedWords.length) {
+                signals.orderIntent = true
+                continue
+              }
+            }
             if (target) ops.push({ op: 'add', productId: parentOf(target.id), variationId: variationIdOf(target.id), variant: op.variant ?? null, quantity: op.quantity ?? 1 })
             continue
           }
@@ -413,6 +435,10 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
     ? acts.some((act) => act.type === 'defer') ? 'defer' : acts.some((act) => act.type === 'goodbye') ? 'goodbye' : 'thanks'
     : null
   const resetTopic = acts.some((act) => act.type === 'reset_topic')
+  signals.abandon = resetTopic && !orderTouch
+  // For the order flow a «بیخیال فعلا» stays a closing even when the model
+  // marks it as the answer to «کدوم محصول رو می‌خواید؟».
+  signals.closing = nonClosing.length === 0 && acts.some((act) => CLOSING_ACTS.has(act.type))
   if (resetTopic && !productPlan && nonClosing.every((act) => act.type === 'reset_topic')) {
     productPlan = { ...emptyProductPlan(), requestNewTopic: true, resetProductContext: true }
   }

@@ -40,6 +40,10 @@ export interface OrderTurnSignals {
   cancel: boolean
   /** The message asks something (answered by the reply model mid-order). */
   question: boolean
+  /** «بی‌خیال، یه چیز دیگه»: the customer drops what they were doing. */
+  abandon: boolean
+  /** A thanks, a goodbye or «بعداً خبر می‌دم» and nothing else. */
+  closing: boolean
   linkRequest: boolean
   paymentClaim: boolean
   /** Verified customer details; null = parse the message (legacy). */
@@ -64,6 +68,8 @@ export function emptyOrderSignals(source: OrderTurnSignals['source'] = 'understa
     decline: false,
     cancel: false,
     question: false,
+    abandon: false,
+    closing: false,
     linkRequest: false,
     paymentClaim: false,
     slots: null,

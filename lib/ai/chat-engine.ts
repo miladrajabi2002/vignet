@@ -610,6 +610,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 spellingNote = composeSpellingNote(spelled.corrections, turnLang === 'en' ? 'en' : 'fa')
                         }
                 }
+                // Two requests in one message («ریمل ضد آب دارید؟ ارسال به مشهد چند
+                // روزه؟»): a vitrine built without the model answers only the
+                // first. The model writes this reply and the cards follow it.
+                if (route?.multiIntent && productRequest.explicitShowcase) {
+                        productRequest = { ...productRequest, explicitShowcase: false, includeProductCards: true }
+                }
                 const searchingCatalog = agent.productAccessEnabled && productRequest.isProductTurn && referencedIds.length === 0
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length && referencedIds.length === 0
                         ? productRequest.searchTerms.join(' ')
@@ -840,6 +846,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                         restockEnabled,
                                         cartHold: agent.cartHoldEnabled === true,
                                         signals: route?.orderSignals ?? emptyOrderSignals(),
+                                        searched: productRequest.isProductTurn && productRequest.searchTerms.length > 0 && referencedIds.length === 0,
                                 })
                                 if (order.kind === 'reply') commerceTurn = { kind: 'reply', text: order.text }
                                 else if (order.kind === 'submit') commerceTurn = order
@@ -851,6 +858,17 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 workspaceId,
                                 metadata: { agentId: agent.id, conversationId },
                         })
+                }
+                // Rows that cover only part of the request are close alternatives.
+                // A forced vitrine would announce them as the requested product
+                // («۱۰ مدل کرم زیر موجود داریم» over foundations), so the model
+                // presents them, told plainly what they are.
+                if (!catalogToolReason && catalogProducts.some((product) => product.nearMatch)) {
+                        productRequest = { ...productRequest, explicitShowcase: false, includeProductCards: true }
+                        const soldOut = catalogProducts.every((product) => product.unavailable)
+                        catalogSearchInstruction = turnLang !== 'en'
+                                ? `\n\n=== نتیجهٔ جست‌وجوی کاتالوگ ===\nهیچ محصولی همهٔ مشخصاتی را که مشتری گفت ندارد؛ ردیف‌های کاتالوگ این نوبت فقط نزدیک‌ترین موارد هستند. اگر یکی از آن‌ها همان چیزی است که مشتری با نام دیگری گفته (مثل «زیر چشم» و «دور چشم») همان را معرفی کن؛ وگرنه صادقانه بگو دقیقاً همین را نداریم و حداکثر دو مورد نزدیک را پیشنهاد بده. تعداد اعلام نکن و محصولی که ربطی به خواستهٔ مشتری ندارد معرفی نکن.${soldOut ? ' این ردیف‌ها الان ناموجودند؛ همین را صریح بگو.' : ''}`
+                                : `\n\n=== Catalog search ===\nNo product carries everything the customer named; this turn's catalog rows are only the closest ones. If one of them is what the customer means under another name, present it; otherwise say honestly we do not have exactly that and suggest at most two close options. Announce no count and present nothing unrelated to the request.${soldOut ? ' These rows are out of stock right now; say so plainly.' : ''}`
                 }
                 // A sold-out answer may offer a back-in-stock alert only where the
                 // channel can really deliver it; the offered items are remembered
@@ -872,6 +890,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 includeProductCards: true,
                         }
                         workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
+                } else if (productsRouted && catalogToolReason && catalogSearchInstruction) {
+                        // Nothing fits the stated budget. The search instruction
+                        // carries the honest answer (nothing in this range, the
+                        // real entry price, one question); a forced empty vitrine
+                        // used to replace it with «پیدا نکردم».
+                        productRequest = { ...productRequest, explicitShowcase: false, includeProductCards: false }
                 }
 
                 const turnHistory = historyForProductTurn(modelHistory, productRequest)

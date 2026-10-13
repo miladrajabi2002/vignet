@@ -75,18 +75,26 @@ export function ChatLinkChannel({
         const [showSettings, setShowSettings] = useState(false)
         const saveState = useSaveState()
         const [removing, setRemoving] = useState(false)
-        const saving = saveState.saving || removing
+        const [creating, setCreating] = useState(false)
+        const [justCreated, setJustCreated] = useState(false)
+        const saving = saveState.saving || removing || creating
         const [copied, setCopied] = useState(false)
         const [error, setError] = useState<string | null>(null)
         const [qr, setQr] = useState<string | null>(null)
         const [showQr, setShowQr] = useState(false)
         const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
 
+        // Copy / open / QR always point at the published address, never at the one
+        // still being typed — an unsaved address answers 404.
+        const liveSlug = link?.slug ?? null
         const publicUrl = useMemo(
-                () => `${appUrl.replace(/\/+$/, '')}/c/${slug}`,
-                [appUrl, slug],
+                () => `${appUrl.replace(/\/+$/, '')}/c/${liveSlug ?? ''}`,
+                [appUrl, liveSlug],
         )
         const slugValid = normalizeSlug(slug) !== null
+        const slugDirty = !!link && normalizeSlug(slug) !== link.slug
+        const dirty =
+                !!link && (slugDirty || JSON.stringify(settings) !== JSON.stringify(link.settings))
 
         function patch(p: Partial<ChatLinkSettings>) {
                 setSettings((s) => ({ ...s, ...p }))
@@ -139,6 +147,45 @@ export function ChatLinkChannel({
                 }
         }, [agentId, slug, slugValid, settings, t, tc, router, saveState])
 
+        // «ساخت لینک» publishes at once with the defaults, so the address works the
+        // moment the panel opens; everything below it is then an edit of a live link.
+        const create = useCallback(async () => {
+                setError(null)
+                setCreating(true)
+                try {
+                        const base = normalizeSlug(slug) ?? suggestedSlug
+                        // The suggested address can already be taken; a short suffix settles it.
+                        for (let attempt = 0; attempt < 4; attempt++) {
+                                const candidate = attempt === 0
+                                        ? base
+                                        : `${base.slice(0, 27)}-${Math.random().toString(36).slice(2, 6)}`
+                                const res = await fetch(`/api/agents/${agentId}/chat-link`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ slug: candidate, enabled: true, settings }),
+                                })
+                                if (res.status === 409) continue
+                                const data = await res.json().catch(() => null)
+                                if (!res.ok || !data?.link) {
+                                        setError(data?.error === 'CHANNEL_LIMIT' ? tc('channelLimitError') : t('saveError'))
+                                        return
+                                }
+                                setLink(data.link)
+                                setSlug(data.link.slug)
+                                setSettings(data.link.settings)
+                                setJustCreated(true)
+                                setShowSettings(true)
+                                router.refresh()
+                                return
+                        }
+                        setError(t('slugTaken'))
+                } catch {
+                        setError(t('saveError'))
+                } finally {
+                        setCreating(false)
+                }
+        }, [agentId, slug, suggestedSlug, settings, t, tc, router])
+
         const remove = useCallback(async () => {
                 setError(null)
                 setRemoving(true)
@@ -150,6 +197,7 @@ export function ChatLinkChannel({
                         }
                         setLink(null)
                         setShowSettings(false)
+                        setJustCreated(false)
                         setRemoveConfirmOpen(false)
                         router.refresh()
                 } catch {
@@ -160,6 +208,7 @@ export function ChatLinkChannel({
         }, [agentId, t, router])
 
         function copy() {
+                if (!liveSlug) return
                 navigator.clipboard.writeText(publicUrl)
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
@@ -167,7 +216,7 @@ export function ChatLinkChannel({
 
         // (Re)generate QR whenever the QR panel is open and the URL changes.
         useEffect(() => {
-                if (!showQr) return
+                if (!showQr || !liveSlug) return
                 let cancelled = false
                 QRCode.toDataURL(publicUrl, {
                         width: 480,
@@ -182,13 +231,13 @@ export function ChatLinkChannel({
                 return () => {
                         cancelled = true
                 }
-        }, [showQr, publicUrl])
+        }, [showQr, publicUrl, liveSlug])
 
         function downloadQr() {
                 if (!qr) return
                 const a = document.createElement('a')
                 a.href = qr
-                a.download = `chat-link-${slug}.png`
+                a.download = `chat-link-${liveSlug ?? slug}.png`
                 a.click()
         }
 
@@ -239,18 +288,22 @@ export function ChatLinkChannel({
                                 ) : (
                                         <Button
                                                 type="button"
-                                                onClick={() => setShowSettings((value) => !value)}
-                                                aria-expanded={showSettings}
-                                                aria-controls="chat-link-details"
+                                                onClick={() => void create()}
+                                                disabled={creating}
+                                                aria-busy={creating || undefined}
                                                 className="ms-auto"
                                         >
-                                                {t('create')}
-                                                <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${showSettings ? 'rotate-180' : ''}`} />
+                                                {creating && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
+                                                {creating ? t('creating') : t('create')}
                                         </Button>
                                 )}
                         </div>
 
-                        {showSettings && (
+                        {!link && error && (
+                                <p role="alert" className="mt-3 text-sm text-danger">{error}</p>
+                        )}
+
+                        {link && showSettings && (
                                 <div id="chat-link-details" className="mt-5 grid gap-6 lg:grid-cols-2">
                                         {/* ── Form ── */}
                                         <div className="space-y-5">
@@ -281,6 +334,18 @@ export function ChatLinkChannel({
                                                                 <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
                                                                         {t('slugHint')}
                                                                 </p>
+                                                                {slugDirty && (
+                                                                        <p className="mt-1.5 text-xs text-[var(--text-primary)]">
+                                                                                {t('slugUnsaved')}{' '}
+                                                                                <span dir="ltr" className="text-[var(--text-secondary)]">/c/{link.slug}</span>
+                                                                        </p>
+                                                                )}
+                                                                {justCreated && !slugDirty && (
+                                                                        <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-[var(--ok)]">
+                                                                                <Check className="h-3.5 w-3.5" />
+                                                                                {t('createdNote')}
+                                                                        </p>
+                                                                )}
                                                         </div>
 
                                                         {/* Copy / open / QR row */}
@@ -538,16 +603,15 @@ export function ChatLinkChannel({
                                                                 state={saveState.state}
                                                                 onClick={save}
                                                                 disabled={!slugValid}
-                                                                label={link ? t('save') : t('publish')}
+                                                                dirty={dirty}
+                                                                label={t('save')}
                                                                 savingLabel={t('saving')}
                                                                 savedLabel={t('saved')}
                                                         />
                                                         {error && <span className="text-sm text-danger">{error}</span>}
-                                                        {link && (
-                                                                <span className="ms-auto text-xs text-[var(--text-muted)]">
-                                                                        {t('views', { count: link.views })}
-                                                                </span>
-                                                        )}
+                                                        <span className="ms-auto text-xs text-[var(--text-muted)]">
+                                                                {t('views', { count: link.views })}
+                                                        </span>
                                                 </div>
                                         </div>
 

@@ -231,7 +231,10 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 		if (!convId || !convToken) return
 		let cancelled = false
 		const interval = setInterval(async () => {
-			if (cancelled || streaming) return
+			// «شروع گفتگوی جدید» clears the conversation; this timer still held
+			// the old id and, with the screen now empty, brought every old
+			// message back a few seconds later.
+			if (cancelled || streaming || convIdRef.current !== convId) return
 			try {
 				const res = await fetch(
 					`/api/chat-link/${encodeURIComponent(slug)}/chat?conversationId=${encodeURIComponent(convId)}`,
@@ -239,7 +242,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				)
 				if (!res.ok) return
 				const data = await res.json()
-				if (cancelled || !Array.isArray(data.messages)) return
+				if (cancelled || convIdRef.current !== convId || !Array.isArray(data.messages)) return
 				setMessages((prev) => {
 					// Build a set of ids+texts we already have so we only
 					// append genuinely new server messages. We key on the

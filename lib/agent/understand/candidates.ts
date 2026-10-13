@@ -63,15 +63,23 @@ export function recentShownCardIds(history: ChatMessage[], lookback = 4): string
   return []
 }
 
-/** Deterministic, short vocabulary sample: distinctive catalog tokens first. */
+/**
+ * Deterministic, short vocabulary sample: distinctive catalog tokens first.
+ * Customers write in Persian, so Persian-script words come before Latin ones;
+ * a cosmetics catalog full of English shade names used to fill the whole
+ * sample with «acachonados, adulting, …» and anchor no spelling at all.
+ */
 export function vocabularySample(vocabulary: ReadonlySet<string> | null | undefined, limit = 40): string[] {
   if (!vocabulary?.size) return []
-  return [...vocabulary]
-    .filter((token) => token.length >= 3 && !/^[0-9\u06F0-\u06F9\u0660-\u0669]+$/.test(token))
+  const words = [...vocabulary].filter((token) => token.length >= 3 && !/^[0-9\u06F0-\u06F9\u0660-\u0669]+$/.test(token))
+  const pick = (tokens: string[], count: number) => tokens
     .sort((a, b) => b.length - a.length || a.localeCompare(b))
-    .slice(0, limit * 2)
+    .slice(0, count * 2)
     .sort((a, b) => a.localeCompare(b))
-    .slice(0, limit)
+    .slice(0, count)
+  const persian = pick(words.filter((token) => /[\u0600-\u06FF]/.test(token)), limit)
+  const latin = pick(words.filter((token) => !/[\u0600-\u06FF]/.test(token)), limit - persian.length)
+  return [...persian, ...latin].sort((a, b) => a.localeCompare(b))
 }
 
 function pendingFrom(input: BuildCandidatesInput): PendingQuestion | null {

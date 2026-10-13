@@ -71,6 +71,20 @@ describe('understanding schema: tolerant parsing of the model reading', () => {
     expect(parsed?.acts).toEqual([{ type: 'product_search', terms: ['شومیز'], display: 'showcase' }])
   })
 
+  // «یه چیزی برای پوست چرب می‌خوام»: the model invents an attribute key for the
+  // need. Dropped, the act was empty and the whole reading was thrown away.
+  it('keeps a search that names a need and no product type', () => {
+    const invented = parseUnderstanding({ relation: 'new_goal', customer: { mood: 'neu', buy: 1 }, acts: [{ type: 'product_search', terms: [], attributes: { skin_type: 'چرب' }, display: 'consult' }] })
+    expect(invented?.acts).toEqual([{ type: 'product_search', terms: [], display: 'consult', need: 'چرب' }])
+    const written = parseUnderstanding({ relation: 'new_goal', customer: { mood: 'neu', buy: 1 }, acts: [{ type: 'product_search', terms: [], need: 'هدیه برای مامانم', display: 'consult' }] })
+    expect(written?.acts).toEqual([{ type: 'product_search', terms: [], display: 'consult', need: 'هدیه برای مامانم' }])
+  })
+
+  it('reads a brand written as an attribute as a search word', () => {
+    const parsed = parseUnderstanding({ relation: 'new_goal', customer: { mood: 'neu', buy: 1 }, acts: [{ type: 'product_search', terms: [], need: 'برای هدیه', attributes: { brand: 'شیگلم' }, display: 'consult' }] })
+    expect(parsed?.acts).toEqual([{ type: 'product_search', terms: ['شیگلم'], display: 'consult', need: 'برای هدیه' }])
+  })
+
   it('reads one cart change written flat, but never guesses it from a borrowed `action`', () => {
     const flat = parseUnderstanding({ relation: 'reference', customer: { mood: 'neu', buy: 3 }, acts: [{ type: 'cart_edit', op: 'set_quantity', line: 'cart:1', quantity: 3 }] })
     expect(flat?.acts).toEqual([{ type: 'cart_edit', ops: [{ op: 'set_quantity', line: 'cart:1', quantity: 3 }] }])
@@ -121,6 +135,23 @@ describe('verification against the closed candidate world', () => {
     expect(search).toMatchObject({ type: 'product_search', terms: ['مبل'] })
     expect('maxPrice' in search).toBe(false)
     expect(verified.notes.map((note) => note.code)).toEqual(expect.arrayContaining(['TERM_NOT_IN_EVIDENCE', 'NUMBER_NOT_IN_MESSAGE']))
+  })
+
+  it('keeps a need only in the customer’s own words', () => {
+    const kept = verifyUnderstanding({
+      understanding: reading({ acts: [{ type: 'product_search', terms: [], display: 'consult', need: 'پوست چرب' }] }),
+      candidates: candidates(),
+      message: 'یه چیزی برای پوست چرب می‌خوام که جوش نزنه',
+      recentText: '',
+    })
+    expect(kept.acts[0]).toMatchObject({ type: 'product_search', terms: [], need: 'پوست چرب' })
+    const invented = verifyUnderstanding({
+      understanding: reading({ acts: [{ type: 'product_search', terms: [], display: 'consult', need: 'ضد چروک' }] }),
+      candidates: candidates(),
+      message: 'یه چیزی می‌خوام',
+      recentText: '',
+    })
+    expect(invented.acts).toEqual([{ type: 'other' }])
   })
 
   it('keeps a vocabulary spelling fix («پوف» → «پاف»)', () => {
@@ -278,6 +309,8 @@ describe('candidates and payload', () => {
       { role: 'assistant', content: 'جواب بدون کارت' },
     ])).toEqual(['a', 'b#v3'])
     expect(vocabularySample(new Set(['میز', 'تلویزیون', '۱۶۰', 'ab', 'مراکشی']), 10)).toEqual(['تلویزیون', 'مراکشی', 'میز'])
+    // English shade names must not push the Persian product words out.
+    expect(vocabularySample(new Set(['acachonados', 'bachelorette', 'buttercream', 'ریمل', 'رژگونه', 'کانسیلر']), 4)).toEqual(expect.arrayContaining(['رژگونه', 'ریمل', 'کانسیلر']))
   })
 
   it('the payload carries refs and strips product markers from history', () => {

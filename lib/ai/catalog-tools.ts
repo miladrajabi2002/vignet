@@ -48,6 +48,19 @@ function isVariableSoldOut(row: ProductRow): boolean {
     variation.manageStock ? (variation.stockQuantity ?? 0) <= 0 : variation.inStock === false)
 }
 
+/**
+ * The price a customer can pay today. A variable product's own price is its
+ * lowest variation price, sold-out variations included, so budgets and
+ * «ارزون‌ترین» are judged on the cheapest variation still in stock.
+ */
+function buyablePrice(row: ProductRow): number | null {
+  const prices = extractTypedVariations(row.attributes)
+    .filter((variation) => (variation.manageStock ? (variation.stockQuantity ?? 0) > 0 : variation.inStock !== false))
+    .map((variation) => variation.price)
+    .filter((price): price is number => typeof price === 'number' && price > 0)
+  return prices.length ? Math.min(...prices) : row.price
+}
+
 function isAvailable(row: ProductRow): boolean {
   return row.stock !== 0 && !isVariableSoldOut(row)
 }
@@ -84,8 +97,35 @@ function hasWord(text: string, token: string): boolean {
   })
 }
 
-function queryTokens(query: string): string[] {
-  const tokens = tokenizeCatalogText(query).filter((token) => !PRODUCT_STOP_WORDS.has(token))
+// Budget and ranking words belong to the max_price / sort arguments. Left in
+// the keywords they are required matches no product carries («جلومبلی زیر ۱۰
+// میلیون» → زیر + ۱۰), so the search came back empty. They are dropped only as
+// part of a price phrase: «کرم زیر چشم» and «عطر هزار و یک شب» keep every word.
+const BUDGET_UNITS = new Set(['میلیون', 'میلیونی', 'تومن', 'تومان', 'تومنی'])
+const BUDGET_DIRECTIONS = new Set(['زیر', 'بالای', 'تا', 'از', 'حدود', 'حدودا', 'حداکثر', 'حداقل', 'کمتر', 'بیشتر', 'سقف', 'نهایتا', 'بودجه'])
+const PRICE_ADJECTIVES = new Set(['ارزون', 'ارزان', 'گرون', 'گران', 'اقتصادی'])
+const COMPARATIVE_SUFFIXES = new Set(['تر', 'ترین', 'تره', 'ترش', 'تری', 'ترینش'])
+
+function dropPriceLanguage(tokens: string[]): string[] {
+  const drop = new Set<number>()
+  tokens.forEach((token, index) => {
+    const afterNumber = index > 0 && /^\d+$/.test(tokens[index - 1])
+    if (BUDGET_UNITS.has(token) || (token === 'هزار' && afterNumber)) {
+      drop.add(index)
+      let cursor = index - 1
+      while (cursor >= 0 && (/^\d+$/.test(tokens[cursor]) || BUDGET_UNITS.has(tokens[cursor]) || tokens[cursor] === 'هزار')) drop.add(cursor--)
+      while (cursor >= 0 && BUDGET_DIRECTIONS.has(tokens[cursor])) drop.add(cursor--)
+    }
+    if (PRICE_ADJECTIVES.has(token)) {
+      drop.add(index)
+      if (COMPARATIVE_SUFFIXES.has(tokens[index + 1] ?? '')) drop.add(index + 1)
+    }
+  })
+  return tokens.filter((_, index) => !drop.has(index))
+}
+
+export function queryTokens(query: string): string[] {
+  const tokens = dropPriceLanguage(tokenizeCatalogText(query)).filter((token) => !PRODUCT_STOP_WORDS.has(token))
   return [...new Set(tokens)].slice(0, 6)
 }
 
@@ -131,6 +171,10 @@ export async function searchCatalogTool(agentId: string, args: Record<string, un
   const rows = await prisma.product.findMany({ where, select: productSelect, take: 200, orderBy: { queryCount: 'desc' } })
   const scored = rows
     .filter((row) => !inStockOnly || !isVariableSoldOut(row))
+    .filter((row) => {
+      const price = buyablePrice(row)
+      return (!maxPrice || (price != null && price <= maxPrice)) && (!minPrice || (price != null && price >= minPrice))
+    })
     .map((row) => {
       const name = normalizePersianText(row.name).toLocaleLowerCase('fa')
       const meta = normalizePersianText(`${row.category?.name ?? ''} ${row.tags.join(' ')} ${row.sku ?? ''}`).toLocaleLowerCase('fa')
@@ -149,8 +193,8 @@ export async function searchCatalogTool(agentId: string, args: Record<string, un
       return { row, score }
     })
   scored.sort((left, right) => {
-    if (sort === 'price_asc') return (left.row.price ?? Infinity) - (right.row.price ?? Infinity) || right.score - left.score
-    if (sort === 'price_desc') return (right.row.price ?? 0) - (left.row.price ?? 0) || right.score - left.score
+    if (sort === 'price_asc') return (buyablePrice(left.row) ?? Infinity) - (buyablePrice(right.row) ?? Infinity) || right.score - left.score
+    if (sort === 'price_desc') return (buyablePrice(right.row) ?? 0) - (buyablePrice(left.row) ?? 0) || right.score - left.score
     if (sort === 'popular') return right.row.queryCount - left.row.queryCount || right.score - left.score
     return right.score - left.score || right.row.queryCount - left.row.queryCount
   })
@@ -292,10 +336,10 @@ export async function runCatalogSearches(params: {
   } else if (plannedQueries.length) {
     rows = rows.filter((row) => plannedQueries.some((tokens) => tokens.every((token) => hasWord(rowText(row), token))))
   }
-  if (budget.maxPrice) rows = rows.filter((row) => row.price != null && row.price <= budget.maxPrice!)
-  if (budget.minPrice) rows = rows.filter((row) => row.price != null && row.price >= budget.minPrice!)
-  if (sort === 'price_asc') rows.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))
-  if (sort === 'price_desc') rows.sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
+  if (budget.maxPrice) rows = rows.filter((row) => { const price = buyablePrice(row); return price != null && price <= budget.maxPrice! })
+  if (budget.minPrice) rows = rows.filter((row) => { const price = buyablePrice(row); return price != null && price >= budget.minPrice! })
+  if (sort === 'price_asc') rows.sort((a, b) => (buyablePrice(a) ?? Infinity) - (buyablePrice(b) ?? Infinity))
+  if (sort === 'price_desc') rows.sort((a, b) => (buyablePrice(b) ?? 0) - (buyablePrice(a) ?? 0))
   rows = rows.slice(0, 6)
 
   const isFa = params.isFa
@@ -336,12 +380,24 @@ export async function runCatalogSearches(params: {
   // as text only (a card for an over-budget item reads like a bait offer).
   if (budget.maxPrice || budget.minPrice) {
     const query = typeof calls[0]?.query === 'string' ? calls[0].query : extractProductTerms(params.message).join(' ')
-    const { rows: reference } = await searchCatalogTool(params.agentId, { query, sort: 'price_asc', in_stock_only: true, limit: 1 })
-    const cheapest = reference[0]
+    // The entry price must be of the product the customer named: a primer
+    // whose description mentions «ضد آفتاب» is not the cheapest sunscreen.
+    const { rows: reference } = await searchCatalogTool(params.agentId, { query, sort: 'price_asc', in_stock_only: true, limit: MAX_RESULTS })
+    const named = queryTokens(query)
+    const cheapest = reference.find((row) => named.every((token) => hasWord(rowText(row), token)))
+    const cheapestPrice = cheapest ? buyablePrice(cheapest) : null
     const limit = budget.maxPrice ? toman(budget.maxPrice, isFa) : toman(budget.minPrice!, isFa)
     const instruction = isFa
-      ? `\n\n=== نتیجهٔ جست‌وجوی دقیق کاتالوگ ===\nدر بودجهٔ مشتری (${limit}) هیچ محصول موجودِ مطابقی در کاتالوگ نیست. کوتاه و صادقانه همین را بگو${cheapest?.price != null ? `؛ برای راهنمایی بگو ارزان‌ترین مورد مرتبطِ موجود «${cheapest.name}» با قیمت ${toman(cheapest.price, true)} است (فقط در متن؛ برایش کارت محصول نساز)` : ''} و فقط یک سؤال بپرس: بودجه کمی قابل تغییر است یا دنبال محصول دیگری است؟ هیچ محصولی بیرون از این اطلاعات نام نبر.`
-      : `\n\n=== Exact catalog search ===\nNo available product matching the request fits the customer's budget (${limit}). Say so briefly and honestly${cheapest?.price != null ? `; for orientation mention that the cheapest available related item is “${cheapest.name}” at ${toman(cheapest.price, false)} (text only; no product card)` : ''}, and ask one question: is the budget flexible, or are they after something else? Name no other product.`
+      ? `\n\n=== نتیجهٔ جست‌وجوی دقیق کاتالوگ ===\nدر بودجهٔ مشتری (${limit}) هیچ محصول موجودِ مطابقی در کاتالوگ نیست. کوتاه و صادقانه همین را بگو${cheapestPrice != null ? `؛ برای راهنمایی بگو ارزان‌ترین مورد مرتبطِ موجود «${cheapest!.name}» با قیمت ${toman(cheapestPrice, true)} است (فقط در متن؛ برایش کارت محصول نساز)` : ''} و فقط یک سؤال بپرس: بودجه کمی قابل تغییر است یا دنبال محصول دیگری است؟ هیچ محصولی بیرون از این اطلاعات نام نبر.`
+      : `\n\n=== Exact catalog search ===\nNo available product matching the request fits the customer's budget (${limit}). Say so briefly and honestly${cheapestPrice != null ? `; for orientation mention that the cheapest available related item is “${cheapest!.name}” at ${toman(cheapestPrice, false)} (text only; no product card)` : ''}, and ask one question: is the budget flexible, or are they after something else? Name no other product.`
+    return { products: [], instruction, usage, modelPlanned }
+  }
+  // «ارزون‌ترین آیفون»: the store has no such product at all. Without this
+  // the turn fell through to a forced empty vitrine.
+  if (params.reason === 'SUPERLATIVE' && subject.length) {
+    const instruction = isFa
+      ? '\n\n=== نتیجهٔ جست‌وجوی دقیق کاتالوگ ===\nجست‌وجو انجام شد: این فروشگاه محصولی با مشخصاتی که مشتری گفت ندارد. در یک جملهٔ کوتاه بگو این مورد را نداریم؛ نگو «چک می‌کنم» یا «در دسترسم نیست» و محصول دیگری را به‌جایش معرفی نکن.'
+      : '\n\n=== Exact catalog search ===\nThe search has run: this store carries no product matching what the customer named. Say in one short sentence that we do not carry it; never say you will check, and present no other product in its place.'
     return { products: [], instruction, usage, modelPlanned }
   }
   return null

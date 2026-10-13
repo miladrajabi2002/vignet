@@ -480,11 +480,17 @@ function buildShowcaseCards(directives: ProductDirective[], rows: ShowcaseProduc
         const value = cleanSpecPart(item.value, 38)
         return label && value ? `${label}: ${value}` : label
       }).filter(Boolean))].slice(0, 4)
+      // A variable product's own price is its lowest variation price, sold-out
+      // variations included: the card showed ۵۵۸٬۰۰۰ for a palette whose only
+      // colour in stock costs ۸۰۰٬۰۰۰. The card shows what can be bought.
+      const buyable = variations.filter(isVariationAvailable)
+        .map((row) => row.price)
+        .filter((price): price is number => typeof price === 'number' && price > 0)
       output.push({
         id: product.id,
         name: product.name,
         description: product.description,
-        price: product.price,
+        price: buyable.length ? Math.min(...buyable) : product.price,
         // v3.1: prefer JPG/PNG/GIF over webp and percent-encode Persian paths —
         // Instagram's Generic Template silently drops webp images, which showed
         // up as product cards without photos. Web renderers handle the picked

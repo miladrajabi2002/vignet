@@ -79,6 +79,17 @@ describe('draft state', () => {
     expect(state.items[0].quantity).toBe(3)
   })
 
+  // The store picks its shipping zone from the city field; an address that
+  // names the city inline used to leave it empty and no rate came back.
+  it('reads the city out of the address when none was given', () => {
+    const state = draft()
+    applyOrderSlots(state, { address: 'تهران، خیابان ولیعصر، پلاک ۱۰، واحد ۳' })
+    expect(state.city).toBe('تهران')
+    const explicit = draft()
+    applyOrderSlots(explicit, { city: 'شیراز', address: 'بلوار چمران، کوچه ۴' })
+    expect(explicit.city).toBe('شیراز')
+  })
+
   it('codes avoid look-alike characters', () => {
     const code = newDraftCode()
     expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/)
@@ -156,7 +167,7 @@ describe('shipping method choice', () => {
     const text = composeShippingQuestion(options, 'fa')
     expect(text).toContain('روش ارسال رو انتخاب کنید')
     expect(text).toContain('۱. پست پیشتاز — ۶۵٬۰۰۰ تومان')
-    expect(text).toContain('۳. تیپاکس (پس‌کرایه) — رایگان')
+    expect(text).toContain('۳. تیپاکس (پس‌کرایه) — بدون هزینه در این پرداخت')
   })
 
   it('picks by number, ordinal, name, «ارزون‌ترین» and «رایگان»', () => {

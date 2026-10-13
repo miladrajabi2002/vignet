@@ -1692,7 +1692,7 @@
                 }
                 if (c.shipping && typeof c.shipping.label === 'string') {
                         var cost = Number(c.shipping.cost) || 0
-                        row((fa ? 'ارسال — ' : 'Shipping — ') + compactProductText(c.shipping.label, 60), cost > 0 ? money(cost, c.lang) : (fa ? 'رایگان' : 'Free'), 'vgt-co-muted')
+                        row((fa ? 'ارسال — ' : 'Shipping — ') + compactProductText(c.shipping.label, 60), cost > 0 ? money(cost, c.lang) : (fa ? 'بدون هزینه در این پرداخت' : 'nothing added to this payment'), 'vgt-co-muted')
                 }
                 if (c.discount) row(fa ? 'تخفیف' : 'Discount', '−' + money(c.discount, c.lang), 'vgt-co-muted')
                 if (c.total != null) row(fa ? 'قابل پرداخت' : 'To pay', money(c.total, c.lang), 'vgt-co-total')

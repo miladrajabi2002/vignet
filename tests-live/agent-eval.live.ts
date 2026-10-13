@@ -465,21 +465,36 @@ describe(`live agent eval [${LABEL}]`, () => {
   it.skipIf(!COMMERCE || (ONLY && !'D1'.startsWith(ONLY)))('D1 full in-chat pre-order', async () => {
     const s = scenario('D1', 'commerce', 'Customer picks a TV stand and orders it in chat: the agent collects name, mobile and address, shows a summary, and files the pre-order only after "بله".')
     await turn(s, 'میز تلویزیون نقش طرح آپادانا سایز ۱۶۰ موجوده؟')
-    const ask = await turn(s, 'عالیه، میخوام همینو بخرم')
+    let ask = await turn(s, 'عالیه، میخوام همینو بخرم')
     check(s, 'askNamesProduct', /آپادانا/u.test(ask))
+    // The product is sold in several wood colours: the agent asks which one
+    // (by its readable name, never the store's «pa_…» slug) before the details.
+    if (/کدوم/u.test(ask) && !/نام/u.test(ask)) {
+      check(s, 'variantAskIsReadable', !/pa_/u.test(ask))
+      ask = await turn(s, 'بلوط')
+    }
     check(s, 'askListsFields', /نام/u.test(ask) && /موبایل/u.test(ask) && /آدرس/u.test(ask))
     check(s, 'noPrematureFiling', !/ثبت شد/u.test(ask))
-    const summary = await turn(s, 'علی رضایی\n۰۹۱۲ ۳۴۵ ۶۷۸۹\nتهران، خیابان آزادی، کوچه ۵، پلاک ۱۲')
+    let summary = await turn(s, 'علی رضایی\n۰۹۱۲ ۳۴۵ ۶۷۸۹\nتهران، خیابان آزادی، کوچه ۵، پلاک ۱۲')
+    // A store with several shipping methods asks which one before the summary.
+    if (/روش ارسال/u.test(summary) && !/خلاصه/u.test(summary)) summary = await turn(s, '۱')
     check(s, 'summaryHasPhone', digits(summary).includes('09123456789'))
     check(s, 'summaryHasAddress', /خیابان آزادی/u.test(summary))
     check(s, 'summaryAsksConfirm', /تأیید|تایید/u.test(summary))
     const done = await turn(s, 'بله')
-    check(s, 'filedWithCode', /ثبت شد/u.test(done) && /[A-Z2-9]{6}/.test(done))
     const conversation = await conversationFor(s)
     const draft = conversation ? await prisma.orderDraft.findFirst({ where: { conversationId: conversation.id }, orderBy: { createdAt: 'desc' } }) : null
-    s.notes.push(`draft=${JSON.stringify(draft && { status: draft.status, name: draft.customerName, phone: draft.customerPhone, city: draft.city, total: draft.total })}`)
-    check(s, 'draftSubmitted', draft?.status === 'SUBMITTED' && draft.customerPhone === '09123456789' && draft.city === 'تهران')
-    check(s, 'handedToOperator', conversation?.handedOff === true)
+    s.notes.push(`draft=${JSON.stringify(draft && { status: draft.status, mode: draft.checkoutMode, name: draft.customerName, phone: draft.customerPhone, city: draft.city, total: draft.total })}`)
+    // Two honest endings: a payment link on the store (in-chat checkout) or a
+    // pre-order filed for the operator.
+    if (draft?.checkoutMode === 'PAY_LINK') {
+      check(s, 'linkWithCode', /لینک پرداخت/u.test(done) && /[A-Z2-9]{6}/.test(done) && /\[\[checkout:/.test(done))
+      check(s, 'draftHasLink', draft.status === 'LINK_SENT' && draft.customerPhone === '09123456789' && draft.city === 'تهران' && Boolean(draft.linkSlug))
+    } else {
+      check(s, 'filedWithCode', /ثبت شد/u.test(done) && /[A-Z2-9]{6}/.test(done))
+      check(s, 'draftSubmitted', draft?.status === 'SUBMITTED' && draft.customerPhone === '09123456789' && draft.city === 'تهران')
+      check(s, 'handedToOperator', conversation?.handedOff === true)
+    }
     styleChecks(s)
   })
 
@@ -491,7 +506,11 @@ describe(`live agent eval [${LABEL}]`, () => {
     check(s, 'answersAndReminds', /(?:نام|موبایل|آدرس|کدوم|مدل)/u.test(mid))
     check(s, 'noFalseFiling', !/سفارش(?:تون)? ثبت شد/u.test(mid))
     const cancel = await turn(s, 'بیخیال فعلا')
-    check(s, 'cancelled', /لغو/u.test(cancel))
+    // Nothing was chosen yet: the open question is dropped, not asked again.
+    const conversation = await conversationFor(s)
+    const open = conversation ? await prisma.orderDraft.count({ where: { conversationId: conversation.id, status: { in: ['COLLECTING', 'AWAITING_CONFIRM'] } } }) : -1
+    s.notes.push(`openDrafts=${open}`)
+    check(s, 'cancelled', open === 0 && !/کدوم (?:رو|محصول)|ثبت شد/u.test(cancel))
     styleChecks(s)
   })
 
@@ -532,6 +551,59 @@ describe(`live agent eval [${LABEL}]`, () => {
     const r = await turn(s, 'ارزون‌ترین میز تلویزیونتون کدومه؟')
     s.notes.push(`cheapest=${cheapest}`)
     check(s, 'quotesCheapest', cheapest > 0 && digits(r).includes(String(cheapest)))
+    styleChecks(s)
+  })
+
+  // ── E. Hard: off-catalog pivots, objections and budget phrasing ─────
+  it.skipIf(Boolean(ONLY) && !'E1'.startsWith(ONLY))('E1 off-catalog item is never shown as a related card', async () => {
+    const s = scenario('E1', 'hard', 'Customer asks for a washing machine (not sold). No product card may be attached and the reply must not claim a matching product exists.')
+    const r = await turn(s, 'ماشین لباسشویی دارید؟')
+    check(s, 'noCards', markers(r).length === 0)
+    check(s, 'noRelatedClaim', !/مرتبط|موجود و/u.test(prose(r)))
+    check(s, 'saysNotFound', FALSE_NOT_FOUND.test(prose(r)) || /ندارم|نداریم|نیست/u.test(prose(r)))
+    styleChecks(s)
+  })
+
+  it.skipIf(Boolean(ONLY) && !'E2'.startsWith(ONLY))('E2 vague objection returns to the product in focus, no invented discount', async () => {
+    const s = scenario('E2', 'hard', 'After a product is shown, a bare objection ("too expensive, give a discount") must not reopen the earlier off-catalog topic and must not promise any discount.')
+    await turn(s, 'پاف نیمکتی دارید؟')
+    const r = await turn(s, 'خیلی گرونه، یه تخفیف ویژه بهم بدید که بخرم')
+    check(s, 'noCards', markers(r).length === 0)
+    check(s, 'noOffCatalogTopic', !/آیفون|لباسشویی|گوشی/u.test(prose(r)))
+    check(s, 'noPromisedDiscount', !/\d+\s*(?:٪|%|درصد)\s*(?:تخفیف|off)?/u.test(norm(prose(r))) || /ندار|نیست|ثبت نشده/u.test(prose(r)))
+    styleChecks(s)
+  })
+
+  it.skipIf(Boolean(ONLY) && !'E3'.startsWith(ONLY))('E3 budget below every price: honest answer with the real entry price', async () => {
+    const s = scenario('E3', 'hard', 'Customer asks for a coffee table under 10 million toman (Latin digits). No card may cost more; when nothing fits, the reply says so and quotes the real cheapest available coffee table instead of «پیدا نکردم».')
+    const rows = await prisma.product.findMany({
+      where: { active: true, catalogItems: { some: { agentId: AGENT_ID } }, name: { contains: 'جلومبلی' }, price: { not: null }, OR: [{ stock: null }, { stock: { gt: 0 } }] },
+      select: { price: true },
+      orderBy: { price: 'asc' },
+      take: 1,
+    })
+    const cheapest = rows[0]?.price ?? 0
+    const r = await turn(s, 'جلومبلی زیر 10 میلیون تومن دارید؟')
+    const prices = cardPrices(r)
+    s.notes.push(`cardPrices=${prices.join(',')} cheapest=${cheapest}`)
+    check(s, 'allWithinBudget', prices.every((price) => price <= 10_000_000))
+    check(s, 'answersTheBudget', prices.length > 0 || (cheapest > 10_000_000 && digits(prose(r)).includes(String(cheapest))))
+    styleChecks(s)
+  })
+
+  it.skipIf(Boolean(ONLY) && !'E4'.startsWith(ONLY))('E4 a need with no product type still gets a reading', async () => {
+    const s = scenario('E4', 'hard', 'Customer names what the product is for and no product type. The agent must recommend or ask one question, never stall with «بگذارید چک کنم».')
+    const r = await turn(s, 'یه چیزی برای هدیه می‌خوام که خیلی گرون نباشه')
+    check(s, 'noStall', !/بگذارید|بذارید|چک (?:می‌?کنم|کنم)|بررسی می‌?کنم/u.test(prose(r)))
+    check(s, 'helps', markers(r).length > 0 || questionMarks(r) === 1)
+    styleChecks(s)
+  })
+
+  it.skipIf(Boolean(ONLY) && !'E5'.startsWith(ONLY))('E5 two requests in one message are both answered', async () => {
+    const s = scenario('E5', 'hard', 'One message asks for a product and for the delivery time. The reply must present the product AND address the delivery question (an answer or an honest «ثبت نشده»), not only a vitrine.')
+    const r = await turn(s, 'پاف نیمکتی دارید؟ ارسال به مشهد چند روزه؟')
+    check(s, 'presentsProduct', markers(r).length > 0 || /پاف/u.test(prose(r)))
+    check(s, 'addressesDelivery', /ارسال|تحویل|روز|مشهد/u.test(prose(r)))
     styleChecks(s)
   })
 })

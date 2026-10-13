@@ -36,6 +36,8 @@ export function regexOrderSignals(message: string, lastAssistantText: string | n
     decline: isOrderDecline(message),
     cancel: isOrderCancellation(message),
     question: isQuestion(message),
+    abandon: false,
+    closing: false,
     linkRequest: isLinkRequest(message),
     paymentClaim: isPaymentClaim(message),
     slots: null,

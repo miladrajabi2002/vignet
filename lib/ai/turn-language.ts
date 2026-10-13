@@ -112,11 +112,34 @@ function classifyLetteredText(text: string): TurnLanguage {
  * Detect the reply language for THIS turn from the customer's message.
  * Pure and synchronous — safe to call on every inbound turn.
  */
+/** Words that make a short Latin message a sentence, not just a name. */
+const ENGLISH_FUNCTION_WORDS = new Set([
+  'i', 'you', 'we', 'the', 'a', 'an', 'is', 'are', 'do', 'does', 'have', 'has', 'want', 'need', 'please',
+  'hi', 'hello', 'hey', 'how', 'what', 'which', 'where', 'when', 'why', 'can', 'could', 'would', 'my', 'me',
+  'it', 'this', 'that', 'yes', 'no', 'thanks', 'thank', 'buy', 'order', 'price', 'and', 'or', 'for', 'to',
+  'of', 'in', 'on', 'with', 'any', 'much', 'many',
+])
+
+/**
+ * «Pink Flamingo», «Get Started», «NC25»: a shade, a model or a brand typed in
+ * Latin letters inside a Persian conversation. It is a name, not a switch to
+ * English; the order flow once answered it with «Thanks Pink! Just your
+ * mobile number…».
+ */
+function isBareLatinName(text: string): boolean {
+  const words = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  return words.length > 0 && words.length <= 3 && !words.some((word) => ENGLISH_FUNCTION_WORDS.has(word))
+}
+
 export function detectTurnLanguage(message: string, history: ChatMessage[] = []): TurnLanguage {
   const current = (message ?? '').trim()
   if (current) {
     const letters = current.replace(/[^\p{L}]/gu, '')
-    if (letters.length >= 2) return classifyLetteredText(current)
+    if (letters.length >= 2) {
+      const language = classifyLetteredText(current)
+      const earlier = language === 'en' && isBareLatinName(current) ? previousCustomerLanguage(history) : null
+      return earlier ?? language
+    }
   }
 
   // No usable letters in the current message («0788», «❤», «۰۷۰۶»): inherit
@@ -132,6 +155,16 @@ export function detectTurnLanguage(message: string, history: ChatMessage[] = [])
   }
 
   return 'fa'
+}
+
+function previousCustomerLanguage(history: ChatMessage[]): TurnLanguage | null {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const item = history[index]
+    if (item.role !== 'user') continue
+    const content = (item.content ?? '').trim()
+    if (content.replace(/[^\p{L}]/gu, '').length >= 2) return classifyLetteredText(content)
+  }
+  return null
 }
 
 /**

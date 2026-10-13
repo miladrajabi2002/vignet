@@ -50,6 +50,7 @@ import {
   type OrderDraftState,
   type OrderLang,
   type OrderSlot,
+  type OrderSlotValues,
   type ShippingOption,
   type SummaryQuote,
 } from '@/lib/commerce/order-capture'
@@ -113,6 +114,8 @@ export interface OrderCaptureTurnParams {
    * turn (emptyOrderSignals() when the turn has none).
    */
   signals: OrderTurnSignals
+  /** The reading searched the catalog for a product the customer named. */
+  searched?: boolean
 }
 
 type DraftRow = {
@@ -653,7 +656,9 @@ async function applyCartEdits(params: OrderCaptureTurnParams, state: OrderDraftS
     })
     state.items = kept
   }
-  return { change, notes }
+  // Two changes to one line («همون Get Started، ۲۰ تا») are one updated line.
+  change.updated = [...new Set(change.updated)].filter((item) => state.items.includes(item))
+  return { change, notes: [...new Set(notes)] }
 }
 
 // ─── Variants ───────────────────────────────────────────────────────────────
@@ -795,7 +800,7 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
   // normal turn.
   if (closed && !signals.linkRequest && !signals.orderIntent && !cue) return null
   const expired = closed || Boolean(open.linkExpiresAt && open.linkExpiresAt.getTime() <= Date.now())
-  const card = () => svc.buildCheckoutCard(open, ctx.storeUrl, lang)
+  const card = () => svc.buildCheckoutCard(open, ctx.storeUrl, lang, ctx.entry)
 
   if (signals.paymentClaim) {
     const fresh = await svc.refreshCheckoutStatus(open.id, { notify: false })
@@ -957,10 +962,25 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
         return { kind: 'reply', text: `${composeCancelKept(lang)}\n${next}`, draftId }
       }
     }
+    // «بیخیال فعلا» while the agent is still asking which product: there is
+    // no cart to keep, so the question is simply dropped (it used to be asked
+    // again, with «اطلاعاتتون ثبت شد ✅» in front).
+    if ((signals.abandon || signals.cancel || signals.decline || signals.closing) && !state.items.length && !cue && !signals.orderIntent) {
+      await prisma.orderDraft.update({ where: { id: row.id }, data: { status: 'CANCELLED', expecting: null, resolvedAt: new Date() } })
+      return signals.cancel
+        ? { kind: 'reply', text: composeOrderCancelled(lang), draftId: row.id }
+        : { kind: 'none' }
+    }
+    // A thanks, a goodbye or «بعداً خبر می‌دم» in the middle of an order is
+    // answered as what it is; the cart waits. It used to get «برای تکمیل
+    // سفارش فقط … لازمه» back.
+    if (signals.closing && !cue) return { kind: 'none' }
     // «پاف رو نمی‌خوام» in a multi-line cart removes that line. A whole-order
     // cancellation is never applied on one reading: ask once, cancel on yes.
+    // Walking away from a cart with items («بیخیال، یه چیز دیگه») is the same
+    // question.
     const removesOneLine = cue === 'remove' && state.items.length > 1
-    if (!removesOneLine && cue !== 'add' && cue !== 'change' && signals.cancel) {
+    if (!removesOneLine && cue !== 'add' && cue !== 'change' && (signals.cancel || (signals.abandon && !cue && !signals.question))) {
       state.expecting = 'confirm_cancel'
       draftId = await saveDraft(params, row.id, state)
       return { kind: 'reply', text: composeCancelConfirmQuestion(state, lang), draftId }
@@ -981,6 +1001,67 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
       const prefix = composeCartChange(change, lang)
       return { kind: 'reply', text: `${prefix}\n${lang === 'en' ? 'Your cart is empty now. What would you like instead?' : 'سبدتون الان خالیه؛ چه محصولی رو جاش بذارم؟'}`, draftId }
     }
+  }
+  // ── A product joining a cart that already has lines ───────────────────
+  // «یه شامپو بیوکسین هم اضافه کن» names a product the customer was never
+  // shown, so the reading carries a search and an order intent instead of a
+  // cart operation; «همون Get Started، ۲۰ تا» comes as a fresh pick of a
+  // product already in the cart. Both used to change nothing.
+  if (row && state.items.length && !cue && (signals.startItems.length || (signals.orderIntent && params.searched))) {
+    const picks: Array<{ product: ProductRow; variationId: number | null; variant: string | null; quantity: number | null }> = []
+    if (signals.startItems.length) {
+      const rows = await loadProducts(params, signals.startItems.map((item) => item.productId))
+      for (const item of signals.startItems) {
+        const product = rows.find((candidate) => candidate.id === parentId(item.productId))
+        if (product) picks.push({ product, variationId: item.variationId, variant: item.variant, quantity: item.quantity })
+      }
+    } else {
+      const named = await productNamedInMessage(params)
+      const found = [...new Set(params.catalogProducts.filter((candidate) => !candidate.unavailable).map((candidate) => parentId(candidate.id)))]
+      const product = named ?? (found.length === 1 ? (await loadProducts(params, found))[0] ?? null : null)
+      // «… هم می‌خوام، ۲ تا»: a counted quantity is certain from its shape.
+      if (product) picks.push({ product, variationId: null, variant: null, quantity: extractOrderSlots(params.message, null, []).quantity ?? null })
+    }
+    for (const pick of picks) {
+      const { product } = pick
+      const byId = pick.variationId != null
+        ? extractTypedVariations(product.attributes).find((variation) => variation.id === pick.variationId) ?? null
+        : null
+      const match: VariantMatch = byId ? { kind: 'full', variation: byId } : pick.variant ? variantFromMessage(product, pick.variant, null) : { kind: 'none' }
+      const variation = match.kind === 'full' ? match.variation : null
+      const wanted = pick.quantity && pick.quantity > 0 ? Math.min(50, pick.quantity) : null
+      const lineIndex = state.items.findIndex((item) => item.productId === product.id && (variation == null || item.variationId == null || item.variationId === variation.id))
+      if (lineIndex >= 0) {
+        let item = state.items[lineIndex]
+        if (variation && item.variationId !== variation.id && isItemAvailable(product, variation.id)) {
+          item = buildItem(product, variation, item.quantity)
+          state.items[lineIndex] = item
+          change.updated.push(item)
+        }
+        if (wanted != null) {
+          const quantity = item.maxQuantity != null && item.maxQuantity > 0 ? Math.min(wanted, item.maxQuantity) : wanted
+          if (quantity !== item.quantity) {
+            item.quantity = quantity
+            change.updated.push(item)
+          }
+          if (quantity < wanted) {
+            notes.push(lang === 'en'
+              ? `Only ${quantity} of “${item.name}” are in stock.`
+              : `از «${item.name}» فقط ${quantity.toLocaleString('fa-IR')} عدد موجوده.`)
+          }
+        }
+        continue
+      }
+      if (state.items.length >= MAX_CART_LINES) continue
+      if (!isItemAvailable(product, variation?.id ?? null)) {
+        notes.push(composeItemUnavailable(buildItem(product, variation), lang, null))
+        continue
+      }
+      const item = variation ? buildItem(product, variation, wanted ?? 1) : partialItem(product, match, wanted ?? 1)
+      state.items.push(item)
+      change.added.push(item)
+    }
+    change.updated = [...new Set(change.updated)].filter((item) => state.items.includes(item))
   }
   const edited = changed(change)
 
@@ -1039,7 +1120,9 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
         }
       }
       // Several products named at once: every available one joins the cart.
-      if (opening && signals.source === 'message') {
+      // (A full catalog name inside the message is certain whoever read the
+      // turn; «اسفنج … و پد … رو می‌خوام» once kept only one of the two.)
+      if (opening && signals.startItems.length <= 1) {
         for (const extra of await productsNamedInMessage(params)) {
           if (extra.id === product.id || state.items.length >= MAX_CART_LINES) continue
           const extraMatch = variantFromMessage(extra, params.message, null)
@@ -1051,9 +1134,20 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
           state.items.push(variation ? buildItem(extra, variation) : partialItem(extra, extraMatch))
         }
       }
+    } else if (choice.kind === 'unknown' && params.searched && !signals.startItems.length) {
+      // The customer named a product and the search found several, or none
+      // («I want to buy the Old Spice shampoo»): the product turn shows what
+      // was found, or says it is not in the catalog. «کدوم محصول رو
+      // می‌خواید؟» on top of a name they just gave answered neither.
+      return { kind: 'none' }
     } else if (choice.kind === 'ambiguous') {
       state.expecting = 'product'
       draftId = await saveDraft(params, draftId, state)
+      // «ارسالش به شیراز چند روزه؟» while choosing: the model answers it and
+      // reminds the choice; repeating the list answered nothing.
+      if (!opening && signals.question && !signals.orderIntent) {
+        return { kind: 'instruct', instruction: orderInProgressInstruction(state, ['product'], lang), draftId }
+      }
       return { kind: 'reply', text: composeProductQuestion(choice.candidates, lang), draftId }
     }
   }
@@ -1089,13 +1183,44 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
   // parsed deterministically; names and addresses come from the verified
   // understanding when it read this turn.
   const parsedSlots = extractOrderSlots(params.message, state.expecting, missingBefore)
-  const slots = signals.slots
-    ? {
-        ...signals.slots,
-        ...(parsedSlots.phone ? { phone: parsedSlots.phone } : {}),
-        ...(parsedSlots.postalCode ? { postalCode: parsedSlots.postalCode } : {}),
+  const certain = {
+    ...(parsedSlots.phone ? { phone: parsedSlots.phone } : {}),
+    ...(parsedSlots.postalCode ? { postalCode: parsedSlots.postalCode } : {}),
+  }
+  // A reading that found no customer details in this message is believed:
+  // only the shape-certain values ride along. Guessing a name or an address
+  // from the words turned «Pink Flamingo» (a lip gloss shade) and «بیخیال
+  // فعلا» into the customer's name, and «یه شامپو هم اضافه کن» into an address.
+  const slots: OrderSlotValues = signals.slots
+    ? { ...signals.slots, ...certain }
+    : signals.source === 'understanding' ? certain : parsedSlots
+  // A «name» that is a variant of a product in the cart («Pink Flamingo», a
+  // lip gloss shade) is a variant request. Sold out, it gets that answer
+  // instead of «ممنون Pink 🙏».
+  // The same words with no reading at all («Pink Flamingo» read as «other»)
+  // are checked too, as long as the message is only a few words.
+  const shortMessage = normalizeOrderText(params.message).split(/\s+/u).length <= 4
+  const variantWords = slots.name ?? (!opening && !edited && !productChanged && shortMessage && !signals.slots && !signals.confirm && !signals.decline && !signals.cancel ? params.message : null)
+  if (variantWords && !slots.phone && !slots.address && state.items.length) {
+    const cartProducts = await loadProducts(params, state.items.map((item) => item.productId))
+    for (const product of cartProducts) {
+      const match = variantFromMessage(product, variantWords, null)
+      if (match.kind === 'none') continue
+      const label = match.kind === 'full' ? variationLabel(match.variation) : fixedLabel(match.fixed)
+      const line = state.items.find((item) => item.productId === product.id)
+      const stillOpen = match.kind === 'full' ? isItemAvailable(product, match.variation.id) : match.candidates.some(isVariationAvailable)
+      if (!stillOpen) {
+        const alternatives = availableVariations(product).map(variationLabel).filter(Boolean).slice(0, 8)
+        notes.push(`${composeItemUnavailable({ name: product.name, variant: label }, lang, null).split('\n')[0]}${alternatives.length ? (lang === 'en' ? `\nAvailable: ${alternatives.join(', ')}` : `\nمدل‌های موجود: ${alternatives.join('، ')}`) : ''}`)
+      } else if (match.kind === 'full' && line && line.variationId !== match.variation.id) {
+        const rebuilt = buildItem(product, match.variation, line.quantity)
+        state.items[state.items.indexOf(line)] = rebuilt
+        productChanged = true
       }
-    : parsedSlots
+      delete slots.name
+      break
+    }
+  }
   // The purchase-intent message itself («میخوام بخرمش») and a product /
   // variant pick («آبی»، «دومی») are never the customer's name.
   if ((opening || productChanged || edited) && slots.name && !slots.phone && !slots.address) delete slots.name
@@ -1220,7 +1345,9 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
   if (missing.includes('variant') && state.items[variantLine]) {
     state.expecting = 'variant'
     draftId = await saveDraft(params, draftId, state)
-    return { kind: 'reply', text: withPrefix(composeVariantQuestion(state.items[variantLine], variantOptions, lang, variantAttribute)), draftId }
+    const noted = slotChanged ? (lang === 'en' ? 'Got your details ✅\n' : 'اطلاعاتتون ثبت شد ✅\n') : ''
+    const retry = !opening && !anyChange && !notes.length
+    return { kind: 'reply', text: withPrefix(`${noted}${composeVariantQuestion(state.items[variantLine], variantOptions, lang, variantAttribute, retry)}`), draftId }
   }
   if (missing.length === 0) {
     const corrected = state.status === 'AWAITING_CONFIRM' && (slotChanged || edited)

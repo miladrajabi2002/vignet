@@ -291,6 +291,14 @@ export const PRODUCT_STOP_WORDS = new Set([
         'کد', 'شناسه', 'sku',
         'بفرستی', 'بفرستم', 'بفرستن', 'بفرستیم',
         'قبلی', 'قبل', 'بیخیال', 'فراموش', 'اطلاعات',
+        // Price words are carried by the sort/budget arguments, never by a
+        // product name («ارزون‌ترین میز تلویزیون» must search «میز تلویزیون»).
+        // Words that also name products («زیر» in «کرم زیر چشم», «ترش», «کم»)
+        // stay out of this list; catalog-tools drops them only inside a
+        // price phrase.
+        'ارزون', 'ارزان', 'ارزونتر', 'ارزانتر', 'ارزونترین', 'ارزانترین',
+        'گرون', 'گران', 'گرونتر', 'گرانتر', 'گرونترین', 'گرانترین', 'ترین',
+        'میلیون', 'میلیونی', 'تومن', 'تومان',
         // Shopping scaffolding and generic attribute labels should not outrank
         // the actual requested value («بابوس», «مشکی», «۴۸», ...).
         'دنبال', 'دنبالش', 'هستم', 'هستیم', 'گردم', 'میگردم', 'نیاز', 'لازم', 'قصد', 'تهیه',
@@ -535,7 +543,8 @@ export function showcaseSubjectPhrase(plan: ProductRequestPlan): string {
         const corpus = new Set(plan.corpusSubjectTerms ?? [])
         const nouns = plan.searchTerms
                 .filter((term) => !/^\d+$/u.test(term) && (PRODUCT_SUBJECT_RE.test(term) || corpus.has(term)))
-                .slice(0, 2)
+                // Three words: «ریمل ضد آب» cut at two read «ریمل ضد».
+                .slice(0, 3)
         // «پاف نیمکتی 120»: a size the customer asked for belongs in the intro,
         // so a narrowed vitrine does not read like the generic one before it.
         const size = nouns.length ? plan.searchTerms.find((term) => /^[1-9]\d{1,3}$/u.test(term)) : undefined
@@ -818,6 +827,13 @@ export async function fetchCatalogProducts(
                 corpusTokens,
                 priorCandidateIds,
         )
+        // «کرم زیر چشم» when every eye cream is sold out: the in-stock search
+        // keeps only «کرم» (foundations, hair creams), the any-stock search
+        // keeps «کرم» + «چشم». The rows nearer to what the customer named win,
+        // flagged sold out, over in-stock rows of another product family.
+        if (anyStock.products.length && anyStock.relaxed && anyStock.keptTerms > primary.keptTerms) {
+                return anyStock.products.map((product) => ({ ...product, unavailable: true }))
+        }
         if (!anyStock.products.length || anyStock.relaxed) return primary.products
         return anyStock.products.map((product) => ({ ...product, unavailable: true }))
 }
@@ -828,7 +844,7 @@ async function searchCatalogProducts(
         plan: ProductRequestPlan,
         corpusTokens: ReadonlySet<string> | undefined,
         priorCandidateIds: string[],
-): Promise<{ products: CatalogProduct[]; relaxed: boolean }> {
+): Promise<{ products: CatalogProduct[]; relaxed: boolean; keptTerms: number }> {
 
         const rankedIds = [...new Set(productIds)].slice(0, 40)
         const terms = plan.searchTerms.slice(0, 6)
@@ -1185,7 +1201,7 @@ async function searchCatalogProducts(
                                         return true
                                 }).slice(0, 4)
                                 if (comparisonRows.length >= 2) {
-                                        return { relaxed: false, products: comparisonRows.map(({ product }) => ({
+                                        return { relaxed: false, keptTerms: terms.length, products: comparisonRows.map(({ product }) => ({
                                                 id: product.id,
                                                 name: product.name,
                                                 description: product.description,
@@ -1234,6 +1250,7 @@ async function searchCatalogProducts(
         // Subsets without any subject/corpus anchor are rejected, so a lone
         // description word can never stand in for the requested product.
         let relaxedRows: typeof ranked | null = null
+        let keptTerms = terms.length
         if (requiresGroundedMatch && eligible.length === 0 && ranked.length > 0 && terms.length > 1) {
                 const subjectCount = (subset: number[]) =>
                         subset.filter((i) => subjectTerms.includes(terms[i])).length
@@ -1242,6 +1259,22 @@ async function searchCatalogProducts(
                 const rowCoversSubset = (item: (typeof ranked)[number], subset: number[]) =>
                         subset.every((i) => item.matchedTerms[i]) &&
                         subset.every((i) => !subjectTerms.includes(terms[i]) || item.subjectMatchedTerms[i])
+                const headIndex = terms.findIndex((term) => !/^\d+$/.test(term))
+                const headUnknown = headIndex >= 0
+                        && !(corpusTokens?.has(terms[headIndex]) ?? false)
+                        && !ranked.some((item) => item.matchedTerms[headIndex])
+                const anchorTokens = new Map<string, Set<string>>()
+                const rowIsAnchoredBy = (item: (typeof ranked)[number], subset: number[]) => {
+                        let anchors = anchorTokens.get(item.product.id)
+                        if (!anchors) {
+                                anchors = new Set([
+                                        ...tokenizeCatalogText(item.product.name).filter((token) => !PRODUCT_STOP_WORDS.has(token)).slice(0, 3),
+                                        ...tokenizeCatalogText(item.product.category?.name ?? ''),
+                                ])
+                                anchorTokens.set(item.product.id, anchors)
+                        }
+                        return subset.some((i) => anchors!.has(terms[i]))
+                }
                 function keyComparison(a: number[], b: number[]): number {
                         for (let i = 0; i < Math.max(a.length, b.length); i++) {
                                 const av = a[i] ?? 0
@@ -1257,13 +1290,21 @@ async function searchCatalogProducts(
                 // recall pointing at the RIGHT product family («رومیزی میز
                 // غذاخوری» must answer with رومیزی rows, not dining sets that
                 // merely mention میز+غذاخوری in their category/description).
-                let bestSubset: { rows: typeof ranked; key: number[] } | null = null
+                let bestSubset: { rows: typeof ranked; key: number[]; size: number } | null = null
                 const total = 1 << terms.length
                 for (let mask = 1; mask < total - 1; mask++) {
                         const subset: number[] = []
                         for (let i = 0; i < terms.length; i++) if (mask & (1 << i)) subset.push(i)
                         if (subjectCount(subset) === 0 && corpusCount(subset) === 0) continue
-                        const covering = ranked.filter((item) => rowCoversSubset(item, subset))
+                        // The customer named something this catalog does not
+                        // carry at all («آیفون ۱۶ پرو» in a cosmetics store):
+                        // rows that only share a trailing word with the request
+                        // («… ایر فلو پرو») are not near matches, and the reply
+                        // once read «۲ مدل پرو موجود داریم». With the head of
+                        // the request unknown, the kept words must name what the
+                        // row IS: its category or the start of its name
+                        // («میبلین رژ لب» still relaxes to the رژ لب rows).
+                        const covering = ranked.filter((item) => rowCoversSubset(item, subset) && (!headUnknown || rowIsAnchoredBy(item, subset)))
                         if (covering.length === 0) continue
                         // Semantic endorsement: relaxation is only honest when
                         // the turn's own recall evidence (vector chunks / the
@@ -1279,10 +1320,13 @@ async function searchCatalogProducts(
                                 subset.length,
                         ]
                         if (!bestSubset || keyComparison(key, bestSubset.key) > 0) {
-                                bestSubset = { rows: covering, key }
+                                bestSubset = { rows: covering, key, size: subset.length }
                         }
                 }
-                if (bestSubset) relaxedRows = bestSubset.rows
+                if (bestSubset) {
+                        relaxedRows = bestSubset.rows
+                        keptTerms = bestSubset.size
+                }
         }
         const relaxed = relaxedRows != null
         const finalEligible = relaxedRows ?? eligible
@@ -1299,7 +1343,7 @@ async function searchCatalogProducts(
         // as the exact product the customer meant.
         const uniquelyIdentified = !relaxed && finalEligible.length === 1 && terms.length > 1
 
-        return { relaxed, products: selected.map(({ product, coverage, subjectCoverage }) => ({
+        return { relaxed, keptTerms, products: selected.map(({ product, coverage, subjectCoverage }) => ({
                 id: product.id,
                 name: product.name,
                 description: product.description,
@@ -1314,6 +1358,7 @@ async function searchCatalogProducts(
                         coverage === terms.length &&
                         subjectCoverage === subjectTerms.length &&
                         (identifyByFullCoverage || uniquelyIdentified),
+                ...(relaxed ? { nearMatch: true } : {}),
         })) }
 }
 

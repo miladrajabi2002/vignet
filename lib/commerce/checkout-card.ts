@@ -128,6 +128,16 @@ export function itemLine(item: Pick<OrderDraftItem, 'name' | 'variant' | 'quanti
   return `${label} × ${lang === 'en' ? item.quantity : item.quantity.toLocaleString('fa-IR')}`
 }
 
+/**
+ * What a shipping method adds to this payment. A method the store prices at
+ * zero is not always free delivery («ارسال با پیک پس‌کرایه» is paid to the
+ * courier at the door), so the wording never says «رایگان» in the store's name.
+ */
+export function shippingCostText(cost: number, lang: 'fa' | 'en'): string {
+  if (cost > 0) return formatToman(cost, lang)
+  return lang === 'en' ? 'nothing added to this payment' : 'بدون هزینه در این پرداخت'
+}
+
 /** Text shown where a channel cannot render the card (and in the widget above it). */
 export function composeCheckoutFallback(card: CheckoutCard): string {
   const lang = card.lang
@@ -135,8 +145,8 @@ export function composeCheckoutFallback(card: CheckoutCard): string {
   for (const item of card.items) lines.push(`• ${itemLine(item, lang)}`)
   if (card.shipping) {
     lines.push(lang === 'en'
-      ? `Shipping (${card.shipping.label}): ${card.shipping.cost > 0 ? formatToman(card.shipping.cost, lang) : 'free'}`
-      : `ارسال (${card.shipping.label}): ${card.shipping.cost > 0 ? formatToman(card.shipping.cost, lang) : 'رایگان'}`)
+      ? `Shipping (${card.shipping.label}): ${shippingCostText(card.shipping.cost, lang)}`
+      : `ارسال (${card.shipping.label}): ${shippingCostText(card.shipping.cost, lang)}`)
   }
   if (card.total != null) lines.push(lang === 'en' ? `Total: ${formatToman(card.total, lang)}` : `مبلغ قابل پرداخت: ${formatToman(card.total, lang)}`)
   lines.push(lang === 'en' ? `Pay here: ${card.url}` : `👈 پرداخت: ${card.url}`)
@@ -152,8 +162,8 @@ export function checkoutCardText(card: CheckoutCard): string {
   }
   if (card.shipping) {
     lines.push(lang === 'en'
-      ? `🚚 ${card.shipping.label}: ${card.shipping.cost > 0 ? formatToman(card.shipping.cost, lang) : 'free'}`
-      : `🚚 ${card.shipping.label}: ${card.shipping.cost > 0 ? formatToman(card.shipping.cost, lang) : 'رایگان'}`)
+      ? `🚚 ${card.shipping.label}: ${shippingCostText(card.shipping.cost, lang)}`
+      : `🚚 ${card.shipping.label}: ${shippingCostText(card.shipping.cost, lang)}`)
   }
   if (card.discount) lines.push(lang === 'en' ? `🏷 Discount: −${formatToman(card.discount, lang)}` : `🏷 تخفیف: −${formatToman(card.discount, lang)}`)
   if (card.total != null) lines.push(lang === 'en' ? `💰 Total: ${formatToman(card.total, lang)}` : `💰 قابل پرداخت: ${formatToman(card.total, lang)}`)

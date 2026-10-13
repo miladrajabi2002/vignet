@@ -1,6 +1,6 @@
 'use client'
 
-import type { CheckoutCard } from '@/lib/commerce/checkout-card'
+import { shippingCostText, type CheckoutCard } from '@/lib/commerce/checkout-card'
 
 function money(value: number, lang: 'fa' | 'en'): string {
 	return lang === 'en'
@@ -21,7 +21,7 @@ export function CheckoutCardView({ card, accent, onAccent }: { card: CheckoutCar
 	if (card.shipping) {
 		rows.push({
 			label: `${fa ? 'ارسال' : 'Shipping'} — ${card.shipping.label}`,
-			value: card.shipping.cost > 0 ? money(card.shipping.cost, card.lang) : fa ? 'رایگان' : 'Free',
+			value: card.shipping.cost > 0 ? money(card.shipping.cost, card.lang) : shippingCostText(0, fa ? 'fa' : 'en'),
 			tone: 'muted',
 		})
 	}

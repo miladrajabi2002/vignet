@@ -118,7 +118,9 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
         const minPrice = act.minPrice != null && priceAppearsIn(act.minPrice, message) ? act.minPrice : undefined
         if (act.maxPrice != null && maxPrice == null) notes.push({ code: 'NUMBER_NOT_IN_MESSAGE', act: act.type, detail: String(act.maxPrice) })
         if (act.minPrice != null && minPrice == null) notes.push({ code: 'NUMBER_NOT_IN_MESSAGE', act: act.type, detail: String(act.minPrice) })
-        if (!terms.length && !attributes && !code && act.display !== 'browse' && maxPrice == null && minPrice == null && !act.sort) {
+        // The need is kept only in the customer's own words.
+        const need = act.need && act.need.split(/\s+/u).some((word) => word.length > 1 && phraseAppearsIn(word, message, input.recentText)) ? act.need : undefined
+        if (!terms.length && !attributes && !code && !need && act.display !== 'browse' && maxPrice == null && minPrice == null && !act.sort) {
           notes.push({ code: 'EMPTY_ACT', act: act.type })
           return null
         }
@@ -126,6 +128,7 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
           type: act.type,
           terms,
           display: act.display,
+          ...(need ? { need } : {}),
           ...(attributes ? { attributes } : {}),
           ...(code ? { code } : {}),
           ...(maxPrice != null ? { maxPrice } : {}),
@@ -156,7 +159,12 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
         const ops = act.ops.filter((op: CartOpInput) => op.op === 'add'
           ? productRef(op.target, act.type)
           : resolve(op.line, act.type, ['cart']))
-        return ops.length ? { ...act, ops } : null
+        if (ops.length) return { ...act, ops }
+        // «یه پد ایپک هم اضافه کن»: the model searched for the pad and wrote
+        // the add against a product that is not a candidate yet. The wish to
+        // add it is real; the order flow adds what the search finds.
+        const searched = understanding.acts.some((other) => other.type === 'product_search' && other.terms.length > 0)
+        return searched && act.ops.some((op: CartOpInput) => op.op === 'add') ? { type: 'order_start', items: [] } : null
       }
       case 'order_details': {
         if (!has('order_capture')) { unavailable.add('order_capture'); return null }

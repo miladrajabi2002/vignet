@@ -27,12 +27,13 @@ import {
   newLinkSlug,
   parseCheckoutDirective,
   pluginSupportsCheckout,
-  storeCheckoutUrl,
   storeHost,
   verifyPayloadSignature,
   type CheckoutCard,
   type StoreQuote,
 } from '@/lib/commerce/checkout-link'
+import { checkoutEntryUrl, entryFromIntegration, resolveCheckoutEntry, type CheckoutEntry } from '@/lib/commerce/checkout-entry'
+import { findIranianCity } from '@/lib/ai/fact-capture'
 import { cancelStoreCheckout, quoteStore, STORE_CHECKOUT_DISABLED, StoreApiError, storeCheckoutStatus, type StoreEndpoint } from '@/lib/commerce/store-api'
 import type { OrderDraftItem, OrderDraftState, OrderLang, ShippingOption } from '@/lib/commerce/order-capture'
 
@@ -45,6 +46,8 @@ export interface CheckoutContext {
   webhookSecret: string
   flow: string
   ttlHours: number
+  /** Where payment links enter the store (see checkout-entry.ts). */
+  entry?: CheckoutEntry
   /** Set when the store answered that in-chat checkout is switched off (or its
    *  WooCommerce is too old): the conversation falls back to a pre-order. */
   storeDisabled?: boolean
@@ -63,7 +66,7 @@ export async function findCheckoutIntegration(workspaceId: string) {
     where: { workspaceId, type: 'WOOCOMMERCE', active: true, webhookSecret: { not: null } },
     // Postgres sorts NULLs first on DESC; a store that never sent a webhook must not win.
     orderBy: [{ lastWebhookAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
-    select: { id: true, storeUrl: true, webhookSecret: true, pluginVersion: true, checkoutFlow: true },
+    select: { id: true, storeUrl: true, webhookSecret: true, pluginVersion: true, checkoutFlow: true, capabilities: true },
     take: 5,
   })
   const integration = integrations.find((row) => pluginSupportsCheckout(row.pluginVersion)) ?? null
@@ -119,6 +122,7 @@ export async function loadCheckoutContext(workspaceId: string, agentId: string):
     webhookSecret: integration.webhookSecret,
     flow: integration.checkoutFlow || 'AUTO',
     ttlHours,
+    entry: entryFromIntegration(integration),
   }
 }
 
@@ -176,7 +180,8 @@ export function customerBlock(state: Pick<OrderDraftState, 'customerName' | 'cus
     phone: state.customerPhone ?? '',
     email: '',
     province: province ?? '',
-    city: state.city ?? '',
+    // Drafts saved before the city was read out of the address.
+    city: state.city ?? findIranianCity(state.address ?? '') ?? '',
     address: state.address ?? '',
     postcode: state.postalCode ?? '',
   }
@@ -200,11 +205,19 @@ export interface DraftQuoteView {
   needsShipping?: boolean
 }
 
+/** Stores write whole sentences as a method's name; cut at a word, never inside one. */
+function shortLabel(label: string, max = 80): string {
+  const text = label.replace(/\s+/g, ' ').trim()
+  if (text.length <= max) return text
+  const cut = text.slice(0, max - 1)
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 40)).trim()}…`
+}
+
 function shippingOptions(quote: StoreQuote): ShippingOption[] {
   return (Array.isArray(quote.rates) ? quote.rates : [])
     .filter((rate) => rate && typeof rate.id === 'string' && rate.id)
     .slice(0, 8)
-    .map((rate) => ({ id: rate.id, label: String(rate.label || rate.id).slice(0, 80), cost: Number(rate.cost) || 0 }))
+    .map((rate) => ({ id: rate.id, label: shortLabel(String(rate.label || rate.id)), cost: Number(rate.cost) || 0 }))
 }
 
 /**
@@ -267,6 +280,9 @@ export async function quoteDraft(ctx: CheckoutContext, draftId: string, state: O
     return null
   }
   if (!quote?.ok) return null
+  // The store is reachable: learn now where its payment links must point, so
+  // the confirmation turn does not wait for it.
+  void resolveCheckoutEntry(ctx.integrationId).then((entry) => { ctx.entry = entry }).catch(() => {})
   const view = quoteView(quote, state.shippingRateId)
   const chosenId = view.shippingRateId ?? null
   state.shippingRateId = chosenId
@@ -325,7 +341,7 @@ export function parseDraftItems(value: Prisma.JsonValue): OrderDraftItem[] {
 }
 
 /** The card a channel renders, built from the draft and its last quote. */
-export function buildCheckoutCard(draft: DraftForCard, storeUrl: string, lang: OrderLang): CheckoutCard | null {
+export function buildCheckoutCard(draft: DraftForCard, storeUrl: string, lang: OrderLang, entry?: CheckoutEntry | null): CheckoutCard | null {
   if (!draft.linkSlug) return null
   const items = parseDraftItems(draft.items)
   const quote = draft.quote && typeof draft.quote === 'object' && !Array.isArray(draft.quote) ? draft.quote as unknown as StoreQuote : null
@@ -339,7 +355,7 @@ export function buildCheckoutCard(draft: DraftForCard, storeUrl: string, lang: O
   const total = draft.grandTotal ?? itemsTotal
   return {
     code: draft.code,
-    url: storeCheckoutUrl(storeUrl, draft.linkSlug),
+    url: checkoutEntryUrl(storeUrl, draft.linkSlug, entry),
     storeHost: storeHost(storeUrl),
     items: items.map((item) => ({
       name: item.name,
@@ -363,6 +379,8 @@ export function buildCheckoutCard(draft: DraftForCard, storeUrl: string, lang: O
 export async function issueCheckoutLink(ctx: CheckoutContext, draftId: string, state: OrderDraftState, lang: OrderLang): Promise<{ text: string; card: CheckoutCard } | null> {
   const lines = await storeLinesForItems(ctx.integrationId, state.items)
   if (!lines) return null
+  // Usually already known from the summary step; a first link waits for one probe.
+  ctx.entry = await resolveCheckoutEntry(ctx.integrationId).catch(() => ctx.entry ?? {})
   const now = new Date()
   const draft = await prisma.orderDraft.update({
     where: { id: draftId },
@@ -381,7 +399,7 @@ export async function issueCheckoutLink(ctx: CheckoutContext, draftId: string, s
       discountTotal: true, grandTotal: true, linkSlug: true, linkExpiresAt: true,
     },
   })
-  const card = buildCheckoutCard(draft, ctx.storeUrl, lang)
+  const card = buildCheckoutCard(draft, ctx.storeUrl, lang, ctx.entry)
   if (!card) return null
   return { text: composeLinkMessage(card, now), card }
 }
@@ -659,7 +677,7 @@ export async function applyCheckoutEvent(
   })
   if (!draft || draft.integrationId !== integrationId) return false
   const lang = await lastCustomerLang(draft.conversationId).catch((): OrderLang => 'fa')
-  const integration = await prisma.storeIntegration.findUnique({ where: { id: integrationId }, select: { storeUrl: true } })
+  const integration = await prisma.storeIntegration.findUnique({ where: { id: integrationId }, select: { storeUrl: true, pluginVersion: true, capabilities: true } })
 
   if (topic === 'checkout.failed') {
     return reopenAfterStoreRejection(draft, data, lang)
@@ -700,7 +718,7 @@ export async function applyCheckoutEvent(
   let text = composeStatusNotice({ status: next, code: draft.code, orderNumber, total: total ?? draft.grandTotal, paymentTitle, lang })
   if (!text) return true
   if (next === 'PAYMENT_FAILED' && integration) {
-    const card = buildCheckoutCard({ ...draft, grandTotal: total ?? draft.grandTotal }, integration.storeUrl, lang)
+    const card = buildCheckoutCard({ ...draft, grandTotal: total ?? draft.grandTotal }, integration.storeUrl, lang, entryFromIntegration(integration))
     if (card) text = `${text}\n${checkoutMarker(card)}`
   }
   // A live status check inside the customer's own turn answers in that turn.
@@ -868,11 +886,11 @@ export async function sweepCheckoutLinks(now = new Date()): Promise<CheckoutSwee
     // Instagram only allows business messages within 24h of the customer's last one.
     if (draft.channel === 'INSTAGRAM' && draft.conversation.lastMessageAt && now.getTime() - draft.conversation.lastMessageAt.getTime() > 23 * 3_600_000) continue
     const integration = draft.integrationId
-      ? await prisma.storeIntegration.findUnique({ where: { id: draft.integrationId }, select: { storeUrl: true } })
+      ? await prisma.storeIntegration.findUnique({ where: { id: draft.integrationId }, select: { storeUrl: true, pluginVersion: true, capabilities: true } })
       : null
     if (!integration) continue
     const lang = await lastCustomerLang(draft.conversationId).catch((): OrderLang => 'fa')
-    const card = buildCheckoutCard(draft, integration.storeUrl, lang)
+    const card = buildCheckoutCard(draft, integration.storeUrl, lang, entryFromIntegration(integration))
     if (!card) continue
     const text = lang === 'en'
       ? `Your cart is still waiting 🛒 The payment link for order ${draft.code} is still valid.\n${checkoutMarker(card)}`

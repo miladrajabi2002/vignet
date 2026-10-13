@@ -44,6 +44,13 @@ export interface CatalogProduct {
    * «ناموجوده», never «پیدا نکردم».
    */
   unavailable?: boolean
+  /**
+   * The row covers only part of what the customer named (some word matched no
+   * product): a close alternative, never «the» requested item. Such rows are
+   * presented by the model as «دقیقاً همین را نداریم، نزدیک‌ترینش …», not by a
+   * vitrine that says «N مدل … موجود داریم».
+   */
+  nearMatch?: boolean
 }
 
 export interface CatalogService {
@@ -116,6 +123,14 @@ export async function retrieveContext(params: {
 
 function formatPrice(price: number): string {
   return price.toLocaleString('en-US').replace(/,/g, '،') + ' تومان'
+}
+
+/** Prices of the variations that can be bought right now. */
+function availableVariationPrices(attributes: unknown): number[] {
+  return extractTypedVariations(attributes)
+    .filter((variation) => (variation.manageStock ? (variation.stockQuantity ?? 0) > 0 : variation.inStock !== false))
+    .map((variation) => variation.price)
+    .filter((price): price is number => typeof price === 'number' && price > 0)
 }
 
 function variationStock(variation: VariationRow): string {
@@ -195,7 +210,15 @@ function buildCatalogBlock(
   const attributeBudget = products.length <= 2 ? 900 : 220
   const lines = products.map((p, i) => {
     const parts: string[] = [`نام: ${p.name}`]
-    if (p.price != null) parts.push(`قیمت: ${formatPrice(p.price)}`)
+    // A variable product's own price is its lowest variation price, sold-out
+    // ones included: the reply once quoted ۵۵۸٬۰۰۰ for a palette whose only
+    // available colour costs ۸۰۰٬۰۰۰. The header shows what can be bought.
+    const buyable = availableVariationPrices(p.attributes)
+    if (buyable.length) {
+      const low = Math.min(...buyable)
+      const high = Math.max(...buyable)
+      parts.push(low === high ? `قیمت: ${formatPrice(low)}` : `قیمت: از ${formatPrice(low)} تا ${formatPrice(high)} (بسته به تنوع)`)
+    } else if (p.price != null) parts.push(`قیمت: ${formatPrice(p.price)}`)
     if (p.category) parts.push(`دسته‌بندی: ${p.category}`)
     if (p.description) {
       const description = sanitizeUntrusted(cleanDescriptionForChat(p.description, descriptionBudget), descriptionBudget)

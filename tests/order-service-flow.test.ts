@@ -104,7 +104,7 @@ describe('pre-order conversation, end to end', () => {
     expect(corrected.kind === 'reply' && corrected.text).toContain('اصلاح شد')
     expect(corrected.kind === 'reply' && corrected.text).toContain('مهرشهر')
     const no = await resolveOrderCaptureTurn(params('نه'))
-    expect(no.kind === 'reply' && no.text).toContain('کدوم مورد')
+    expect(no.kind === 'reply' && no.text).toContain('اگه چیزی باید عوض بشه')
   })
 
   it('a question mid-order goes to the model with a reminder', async () => {

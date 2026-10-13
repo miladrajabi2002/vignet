@@ -1813,7 +1813,10 @@
     "views": "{count} views",
     "leadCaptureRequired": "Make the lead form mandatory",
     "leadCaptureRequiredHint": "When on, the \"skip\" button is hidden and the visitor must fill the form (name + phone) to start chatting. When off, they can skip and the agent will try to extract name/phone from the conversation itself.",
-    "customerIdentificationManaged": "Enabled in agent settings; name and mobile are required on the chat link."
+    "customerIdentificationManaged": "Enabled in agent settings; name and mobile are required on the chat link.",
+    "creating": "Creating…",
+    "createdNote": "Your link is created and already works.",
+    "slugUnsaved": "The new address is not saved yet. Until you save, the current one keeps working:"
   },
   "instagram": {
     "types": {

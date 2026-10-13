@@ -19,13 +19,15 @@ import { buildTrustedProductReply, buildVariantPickReply, buildVariantShowcaseRe
 /** A catalog miss is resolved before the model can invent a product, price or
  * link. This wording is deliberately reusable across retail verticals. */
 export function catalogNoMatchReply(lang: TurnLanguage): string {
+        // Short and plain: the customer asked «آیفون دارید؟», not for a
+        // statement about what cannot be confirmed.
         if (lang === 'ar') {
-                return 'لم أجد منتجًا يطابق هذه المواصفات في الكتالوج الحالي، لذلك لا أستطيع تأكيد السعر أو التوفر أو رابط الشراء. أرسل اسم المنتج أو رمزه لأتحقق بدقة أكبر.'
+                return 'لم أجد هذا المنتج في الكتالوج الحالي. إن كان له اسم أو طراز آخر فأخبرني لأبحث مرة أخرى.'
         }
         if (lang === 'en') {
-                return 'I could not find a product matching those details in the current catalog, so I cannot confirm a price, availability, or purchase link. Send the product name or code and I will check more precisely.'
+                return 'I could not find that in our current catalog. If it goes by another name or model, tell me and I will look again.'
         }
-        return 'محصولی مطابق این مشخصات در کاتالوگ فعلی پیدا نکردم؛ بنابراین نمی‌توانم قیمت، موجودی یا لینک خریدی را تأیید کنم. نام یا کد محصول را بفرستید تا دقیق‌تر بررسی کنم.'
+        return 'این مورد را در کاتالوگ فعلی‌مان پیدا نکردم. اگر با اسم یا مدل دیگری می‌شناسیدش بگویید تا دوباره بگردم.'
 }
 
 /**

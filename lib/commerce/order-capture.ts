@@ -284,6 +284,16 @@ export function applyOrderSlots(draft: OrderDraftState, slots: OrderSlotValues):
   set('city', slots.city)
   set('address', slots.address)
   set('postalCode', slots.postalCode)
+  // «تهران، خیابان ولیعصر، پلاک ۱۰» names the city inside the address. The
+  // store resolves its shipping zone from the city field, and an empty one
+  // came back with no shipping rate at all.
+  if (!draft.city && draft.address) {
+    const city = findIranianCity(draft.address)
+    if (city) {
+      draft.city = city
+      changed = true
+    }
+  }
   // A bare quantity («دوتا») refers to the line added last.
   const last = draft.items[draft.items.length - 1]
   if (slots.quantity && last && last.quantity !== slots.quantity) {
@@ -343,10 +353,23 @@ export function composeProductQuestion(candidates: Array<{ name: string }>, lang
     : 'حتماً 🙂 کدوم محصول رو می‌خواید؟ اسم یا کدش رو بفرستید تا ثبتش کنم'
 }
 
-export function composeVariantQuestion(item: OrderDraftItem, options: string[], lang: OrderLang, attribute: string | null = null): string {
+/** «pa_رنگ-چوب» is how WooCommerce stores the attribute «رنگ چوب». */
+export function attributeDisplayName(attribute: string): string {
+  return attribute.replace(/^pa_/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+export function composeVariantQuestion(item: OrderDraftItem, options: string[], lang: OrderLang, rawAttribute: string | null = null, retry = false): string {
   const list = options.slice(0, 10)
   // A partly chosen line («کت گرامی — مشکی») names what is already settled.
   const name = item.variant ? `${item.name} — ${item.variant}` : item.name
+  const attribute = rawAttribute ? attributeDisplayName(rawAttribute) || null : null
+  // The same question a second time, word for word, reads like a broken bot.
+  if (retry) {
+    const what = attribute ?? (lang === 'en' ? 'option' : 'مدل')
+    return lang === 'en'
+      ? `To continue I just need the ${what} for “${name}”: ${list.join(', ')}.`
+      : `برای ادامه فقط ${what} «${name}» رو لازم دارم؛ یکی از این‌ها رو بفرستید: ${list.join('، ')}`
+  }
   if (attribute) {
     return lang === 'en'
       ? `“${name}” is available in these ${attribute} options: ${list.join(', ')}. Which ${attribute} would you like?`
@@ -417,9 +440,14 @@ export function composeOrderSummary(
     lines.push(corrected ? 'Updated 👌 Here is your order:' : 'Here is your order:')
     for (const item of draft.items) lines.push(`🛍 ${itemLabel(item)} × ${item.quantity}${priceSuffix(item)}`)
     if (total != null) lines.push(`💰 Items total: ${total.toLocaleString('en-US')} Toman`)
-    if (quote?.shipping) lines.push(quote.shipping.cost > 0 ? `🚚 Shipping (${quote.shipping.label}): ${quote.shipping.cost.toLocaleString('en-US')} Toman` : '🚚 Shipping: free')
+    if (quote?.shipping) lines.push(`🚚 Shipping (${quote.shipping.label}): ${shippingCost(quote.shipping.cost, 'en')}`)
     if (quote?.discount) lines.push(`🏷 Discount: −${quote.discount.toLocaleString('en-US')} Toman`)
-    if (quote?.couponErrors.length) lines.push(`⚠️ Coupon not applied: ${quote.couponErrors[0]}`)
+    // Many stores calculate shipping only for a complete address: without a
+    // postal code the store answers with no method at all.
+    if (payLink && quote && !quote.shipping && quote.total != null) lines.push(draft.postalCode
+      ? '🚚 Shipping: the store lists no method for this address; the store will arrange delivery with you.'
+      : '🚚 Shipping: the store did not calculate it without a postal code; send your postal code and I’ll give you the exact method and cost.')
+    if (quote?.couponErrors.length) lines.push(`⚠️ Coupon not applied: ${couponErrorText(quote.couponErrors[0], 'en')}`)
     if (quote?.total != null) lines.push(`💳 To pay: ${quote.total.toLocaleString('en-US')} Toman`)
     lines.push(`👤 ${draft.customerName} · ${displayPhone(draft.customerPhone) ?? draft.customerPhone}`)
     lines.push(`📍 ${[draft.city, draft.address].filter(Boolean).join(', ')}${draft.postalCode ? ` · postal code ${draft.postalCode}` : ''}`)
@@ -433,9 +461,12 @@ export function composeOrderSummary(
   lines.push(corrected ? 'اصلاح شد 👌 خلاصهٔ سفارشتون:' : 'خلاصهٔ سفارشتون:')
   for (const item of draft.items) lines.push(`🛍 ${itemLabel(item)} × ${faNumber(item.quantity)}${priceSuffix(item)}`)
   if (total != null) lines.push(`💰 مبلغ کالا: ${faNumber(total)} تومان`)
-  if (quote?.shipping) lines.push(quote.shipping.cost > 0 ? `🚚 ارسال (${quote.shipping.label}): ${faNumber(quote.shipping.cost)} تومان` : '🚚 ارسال: رایگان')
+  if (quote?.shipping) lines.push(`🚚 ارسال (${quote.shipping.label}): ${shippingCost(quote.shipping.cost, 'fa')}`)
   if (quote?.discount) lines.push(`🏷 تخفیف: −${faNumber(quote.discount)} تومان`)
-  if (quote?.couponErrors.length) lines.push(`⚠️ کد تخفیف اعمال نشد: ${quote.couponErrors[0]}`)
+  if (payLink && quote && !quote.shipping && quote.total != null) lines.push(draft.postalCode
+    ? '🚚 ارسال: برای این آدرس روشی روی سایت فروشگاه ثبت نشده؛ هماهنگی ارسال با خود فروشگاه است'
+    : '🚚 ارسال: سایت فروشگاه بدون کد پستی روش و هزینهٔ ارسال رو حساب نکرد؛ کد پستی رو بفرستید تا دقیقش رو بگم')
+  if (quote?.couponErrors.length) lines.push(`⚠️ کد تخفیف اعمال نشد: ${couponErrorText(quote.couponErrors[0], 'fa')}`)
   if (quote?.total != null) lines.push(`💳 قابل پرداخت: ${faNumber(quote.total)} تومان`)
   lines.push(`👤 ${draft.customerName} · ${displayPhone(draft.customerPhone) ?? draft.customerPhone}`)
   const address = draft.address && draft.city && normalizeOrderText(draft.address).includes(normalizeOrderText(draft.city))
@@ -450,6 +481,23 @@ export function composeOrderSummary(
   return lines.join('\n')
 }
 
+/**
+ * The store's own words about a rejected coupon, readable in the chat. Stores
+ * answer signed requests in English with HTML entities («Coupon &quot;test10&quot;
+ * cannot be applied…»); a Persian conversation gets a plain Persian line.
+ */
+export function couponErrorText(raw: string, lang: OrderLang): string {
+  const text = raw
+    .replace(/&quot;|&#0?34;|&ldquo;|&rdquo;/g, '"')
+    .replace(/&#0?39;|&apos;|&lsquo;|&rsquo;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;|&gt;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (lang === 'fa' && !/[\u0600-\u06FF]/.test(text)) return 'این کد روی سایت فروشگاه معتبر نیست یا برای این سبد قابل استفاده نیست'
+  return text
+}
+
 /** A shipping method the store offers for this cart and address. */
 export interface ShippingOption {
   id: string
@@ -457,8 +505,10 @@ export interface ShippingOption {
   cost: number
 }
 
+// A method the store prices at zero is not always free delivery («پس‌کرایه»
+// is paid to the courier), so it is never called «رایگان» here.
 function shippingCost(cost: number, lang: OrderLang): string {
-  if (cost <= 0) return lang === 'en' ? 'free' : 'رایگان'
+  if (cost <= 0) return lang === 'en' ? 'nothing added to this payment' : 'بدون هزینه در این پرداخت'
   return lang === 'en' ? `${cost.toLocaleString('en-US')} Toman` : `${faNumber(cost)} تومان`
 }
 
@@ -548,10 +598,12 @@ export function composeOrderSubmitted(draft: OrderDraftState, lang: OrderLang): 
     : `پیش‌سفارشتون ثبت شد ✅\nکد پیگیری: ${draft.code}\nهمکارم برای هماهنگی پرداخت و ارسال همین‌جا بهتون پیام می‌ده`
 }
 
+// «نه نمی‌خوام دیگه» to the summary may mean «change something» or «I am
+// out»; asking only what to change left the second customer stuck.
 export function composeOrderDeclined(lang: OrderLang): string {
   return lang === 'en'
-    ? 'No problem. Which part should I change? Just send the correct value.'
-    : 'باشه؛ کدوم مورد رو اصلاح کنم؟ همون رو با مقدار درست بفرستید'
+    ? 'No problem. If something needs changing, send the correct value; if you would rather not order at all, say “cancel” and I’ll close it.'
+    : 'باشه. اگه چیزی باید عوض بشه همون رو با مقدار درست بفرستید؛ اگه کلاً منصرف شدید بگید «لغو» تا سفارش رو ببندم'
 }
 
 /**

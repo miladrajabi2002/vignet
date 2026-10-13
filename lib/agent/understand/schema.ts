@@ -76,15 +76,35 @@ function strings(value: unknown, maxItems: number, maxLen = 60): string[] {
   return [...new Set(value.map((item) => str(item, maxLen)).filter((item): item is string => Boolean(item)))].slice(0, maxItems)
 }
 
+const ATTRIBUTE_KEYS = ['color', 'size', 'material', 'style', 'design'] as const
+
 function attributes(value: unknown): ProductAttributes | undefined {
   const raw = rec(value)
   if (!raw) return undefined
   const out: ProductAttributes = {}
-  for (const key of ['color', 'size', 'material', 'style', 'design'] as const) {
+  for (const key of ATTRIBUTE_KEYS) {
     const item = str(raw[key], 40)
     if (item) out[key] = item
   }
   return Object.keys(out).length ? out : undefined
+}
+
+/**
+ * The need behind a search with no product type. The model writes it in
+ * `need`, or invents an attribute key for it ({"skin_type":"چرب"}); both say
+ * the same thing, and dropping it used to leave an empty act, so the whole
+ * reading was thrown away and the turn answered without one.
+ */
+function need(item: Rec): string | undefined {
+  const direct = str(item.need ?? item.use ?? item.purpose, 80)
+  if (direct) return direct
+  const raw = rec(item.attributes)
+  if (!raw) return undefined
+  const extra = Object.entries(raw)
+    .filter(([key]) => key !== 'brand' && !(ATTRIBUTE_KEYS as readonly string[]).includes(key))
+    .map(([, value]) => str(value, 40))
+    .filter((value): value is string => Boolean(value))
+  return extra.length ? extra.join(' ').slice(0, 80) : undefined
 }
 
 function cartOps(value: unknown): CartOpInput[] {
@@ -135,7 +155,11 @@ function parseAct(raw: unknown): Act | null {
       // The search words belong in `terms`; a model that wrote them in
       // `query` still named what the customer is looking for.
       const listed = strings(item.terms, 6, 40)
-      const terms = listed.length ? listed : strings(typeof item.query === 'string' ? [item.query] : [], 1, 40)
+      const named = listed.length ? listed : strings(typeof item.query === 'string' ? [item.query] : [], 1, 40)
+      // A brand is product identity. Written as an attribute («از شیگلم چی
+      // دارید؟» → {"brand":"شیگلم"}) it used to be dropped with the key.
+      const brand = str(item.brand ?? rec(item.attributes)?.brand, 40)
+      const terms = brand && !named.some((term) => term.includes(brand)) ? [...named, brand].slice(0, 6) : named
       const attrs = attributes(item.attributes)
       const code = str(item.code, 24)
       const display = oneOf(item.display, ['showcase', 'consult', 'browse'] as const) ?? 'consult'
@@ -143,9 +167,11 @@ function parseAct(raw: unknown): Act | null {
       const minPrice = num(item.min_price)
       const sort = oneOf(item.sort, ['price_asc', 'price_desc', 'popular'] as const)
       const count = int(item.count, 1, 10)
-      if (!terms.length && !attrs && !code && display !== 'browse' && maxPrice == null && minPrice == null && !sort) return null
+      const wanted = need(item)
+      if (!terms.length && !attrs && !code && !wanted && display !== 'browse' && maxPrice == null && minPrice == null && !sort) return null
       return {
         type, terms, display,
+        ...(wanted ? { need: wanted } : {}),
         ...(attrs ? { attributes: attrs } : {}),
         ...(code ? { code } : {}),
         ...(maxPrice != null && maxPrice > 0 ? { maxPrice } : {}),
