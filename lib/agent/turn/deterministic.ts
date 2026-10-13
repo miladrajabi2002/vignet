@@ -127,7 +127,10 @@ export async function buildDeterministicTurnReply(params: {
         // knowledge docs that belongs to another product family). Rows with
         // internal variations or without «طرح …» names return null here and
         // keep the variant-vitrine / consult flow below.
-        if (params.productRequest.variantBrowse) {
+        // «اولی چه رنگایی داره؟» is about the product the customer pointed
+        // at; the design list of its whole family is no answer to it.
+        const asksOwnVariants = params.productRequest.variantAxis === 'color' || params.productRequest.variantAxis === 'size'
+        if (params.productRequest.variantBrowse && !asksOwnVariants) {
                 try {
                         const enumReply = await buildFamilyEnumerationReply({
                                 workspaceId: params.workspaceId,

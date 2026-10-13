@@ -13,6 +13,7 @@ import { findIranianCity } from '@/lib/ai/fact-capture'
 import { looksLikePersonName } from '@/lib/ai/customer-identification'
 import {
   digitsAppearIn,
+  mentionsPerson,
   normalizeEvidenceText,
   phraseAppearsIn,
   priceAppearsIn,
@@ -103,10 +104,17 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
     switch (act.type) {
       case 'product_search': {
         if (!has('products')) { unavailable.add('products'); notes.push({ code: 'CAPABILITY_OFF', act: act.type }); return null }
-        const terms = act.terms.filter((term) => {
-          if (termEvidence(term)) return true
+        // «ضدآفتاب بی رنک SPF 50» for «ضدافتاب بی رنک اس پی اف ۵۰»: the
+        // words the customer did write stay, only the rewritten ones go.
+        const terms = act.terms.flatMap((term) => {
+          if (termEvidence(term)) return [term]
           notes.push({ code: 'TERM_NOT_IN_EVIDENCE', act: act.type, detail: term })
-          return false
+          // A short leftover names something only when it is the store's
+          // own word («ضد»); a hanging «بی» or «50» at the end names nothing.
+          const backed = term.split(/\s+/u).filter((word) => termEvidence(word)
+            && (word.length > 2 || input.vocabulary?.has(normalizeEvidenceText(word)) === true))
+          while (backed.length && backed[backed.length - 1].length <= 2) backed.pop()
+          return backed.length ? [backed.join(' ')] : []
         })
         let attributes: ProductAttributes | undefined
         if (act.attributes) {
@@ -198,8 +206,12 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
       }
       case 'order_confirm': case 'order_decline': case 'order_cancel':
       case 'payment_claim': case 'payment_link_request': case 'shipping_change':
-        if (!has('order_capture')) { unavailable.add('order_capture'); return null }
-        return act
+        if (has('order_capture')) return act
+        // No order is taken in this chat, so the customer talks about one made
+        // elsewhere (the store's site): «پرداخت کردم ولی سفارشم ثبت نشده» is a
+        // question for the business, not a request to place an order here.
+        if (act.type === 'order_confirm' || act.type === 'order_decline') return null
+        return { type: 'knowledge_question', query: message.replace(/\s+/g, ' ').trim().slice(0, 200) }
       case 'order_status': {
         if (!has('order_tracking')) unavailable.add('order_tracking')
         if (act.orderRef && !digitsAppearIn(act.orderRef, message) && !phraseAppearsIn(act.orderRef, message)) {
@@ -237,15 +249,29 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
         }
         return act
       }
-      case 'human_request':
+      case 'human_request': {
+        // The customer's own word for a person («اپراتور», «یه آدم»), or a
+        // bare yes to the agent's offer of one. «یعنی هیچی نمی‌دونی؟ حدودی
+        // بگو» next to another act is a customer pushing for an answer.
+        const asked = mentionsPerson(message)
+          || (understanding.acts.length === 1 && mentionsPerson(input.recentText))
+        if (!asked) { notes.push({ code: 'PERSON_NOT_IN_EVIDENCE', act: act.type }); return null }
         if (!has('handoff')) unavailable.add('handoff')
         return act
+      }
       default:
         return act
     }
   }
 
-  let acts = verifiedActs
+  // «شامپو مو چرب کوانتوم بیوکسین چنده؟»: the model searches for the product
+  // and asks its question against a ref that does not exist yet. The search is
+  // for that one product and the customer wants an answer, not a vitrine.
+  const asksAboutNamed = understanding.acts.some((act) =>
+    (act.type === 'product_question' || act.type === 'variants') && !refs[act.target === 'entity' ? 'active' : act.target])
+  let acts = asksAboutNamed
+    ? verifiedActs.map((act) => act.type === 'product_search' && act.display === 'showcase' ? { ...act, display: 'consult' as const } : act)
+    : verifiedActs
   if (understanding.confidence < ACTION_CONFIDENCE_FLOOR) {
     const informational = acts.filter((act) => {
       const changes = STATE_CHANGING.has(act.type)

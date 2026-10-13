@@ -288,7 +288,7 @@ describe('router: verified acts → decisions for the existing executors', () =>
   it('restock «yes» to the offer is an accept; human request and severe complaint raise the handoff signal', () => {
     const accepted = route(reading({ answersPending: true, acts: [{ type: 'restock_subscribe' }] }), { pending: { kind: 'restock_offer' } })
     expect(accepted.route.restock).toEqual({ request: 'accept', targetId: null })
-    expect(route(reading({ acts: [{ type: 'human_request' }] })).route.handoff.human).toBe(true)
+    expect(route(reading({ acts: [{ type: 'human_request' }] }), {}, 'وصلم کن به اپراتور').route.handoff.human).toBe(true)
     expect(route(reading({ acts: [{ type: 'complaint', severity: 'high' }] })).route.handoff.complaintHigh).toBe(true)
   })
 

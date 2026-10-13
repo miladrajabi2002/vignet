@@ -24,6 +24,8 @@ import type {
 } from '@/lib/agent/understand/types'
 
 export const MAX_SHOWCASE = 10
+/** Words that join a need to its product and name nothing themselves. */
+const NEED_JOINERS: ReadonlySet<string> = new Set(['برای', 'مناسب', 'مخصوص', 'جهت'])
 
 export interface BriefItem {
   act: ActType
@@ -47,6 +49,18 @@ export interface UnderstoodRoute {
   } | null
   /** The item cheaper alternatives are measured against. */
   cheaperReferenceId: string | null
+  /**
+   * Words of the customer's need that the catalog itself uses («ضد آب» of
+   * «ریمل برای چشم حساس، ضد آب»). They narrow the search only when product
+   * names carry them; otherwise the need stays advice for the reply.
+   */
+  needTerms: string[]
+  /** One term list per product the customer named («X با Y چه فرقی داره؟»). */
+  productSearches: string[][]
+  /** What to look up in the knowledge base for this turn; '' = the message itself. */
+  knowledgeQuery: string
+  /** The request has nothing to do with this business (a poem, code, politics). */
+  offTopic: boolean
   orderSignals: OrderTurnSignals
   /** The turn means something for the order flow. */
   orderTouch: boolean
@@ -177,9 +191,13 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
   let booking: UnderstoodRoute['booking'] = null
   let course: UnderstoodRoute['course'] = null
   let orderTracking: UnderstoodRoute['orderTracking'] = null
+  let offTopic = false
   const handoff = { human: false, complaintHigh: false }
   const slots: Record<string, string> = {}
   const searchTerms: string[] = []
+  const needTerms: string[] = []
+  const productSearches: string[][] = []
+  const knowledgeAsks: string[] = []
   const pendingKind = verified.answersPending ? candidates.pending?.kind ?? null : null
 
   const plan = () => (productPlan ??= { ...emptyProductPlan(), isProductTurn: true })
@@ -191,11 +209,36 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
         const terms = extractProductTerms([...act.terms, ...attributeValues, act.code ?? ''].join(' '))
         const identity = extractProductTerms([...act.terms, act.code ?? ''].join(' '))
         const p = plan()
-        p.searchTerms = [...new Set([...p.searchTerms, ...terms])].slice(0, 6)
-        p.explicitShowcase = act.display === 'showcase'
+        p.searchTerms = [...new Set([...p.searchTerms, ...terms])].slice(0, 8)
+        // A vitrine needs something to be a vitrine OF: a product word, a
+        // budget or a sort. «یه چیزی برای پوست چرب» is a consultation. A brand
+        // or type the customer asks to browse («از کیکو چی دارید؟») is a
+        // vitrine of what can be bought now, like any other listing.
+        const filtered = act.maxPrice != null || act.minPrice != null || Boolean(act.sort)
+        const listing = (act.display === 'showcase' || act.display === 'browse') && (terms.length > 0 || (act.display === 'showcase' && filtered))
+        p.explicitShowcase = listing
         p.discoveryBrowse = act.display === 'browse' && terms.length === 0
-        p.requestedCount = act.count ?? (act.display === 'showcase' ? MAX_SHOWCASE : act.display === 'browse' ? 6 : 5)
-        p.inventoryMode = act.display === 'showcase' ? 'AVAILABLE' : 'ANY'
+        // A consultation for a need picks from the rows it is shown: a few
+        // more of them, so the one that fits is among them.
+        p.requestedCount = act.count ?? (listing ? MAX_SHOWCASE : act.display === 'browse' ? 6 : act.need ? 8 : 5)
+        p.inventoryMode = listing ? 'AVAILABLE' : 'ANY'
+        if (terms.length) productSearches.push(terms)
+        if (act.need && terms.length) {
+          // Only a need the catalog itself spells out, word for word: «ضد آب»
+          // narrows, «رنگی نباشه» (an exclusion) and «موهای رنگ‌شده» do not.
+          // Every word counts, «بدون» included: «بدون عطر» may only match a
+          // name that itself says «بدون عطر».
+          const corpus = input.corpusTokens
+          // «موهای چرب» is «مو چرب» in a product name.
+          const singular = (word: string) => {
+            if (!corpus || corpus.has(word)) return word
+            const stem = word.endsWith('های') ? word.slice(0, -3) : word.endsWith('ها') ? word.slice(0, -2) : word
+            return stem.length > 1 && corpus.has(stem) ? stem : word
+          }
+          const words = normalizePersianText(act.need).toLocaleLowerCase('fa').split(/\s+/u)
+            .filter((word) => word.length > 1 && !NEED_JOINERS.has(word)).map(singular).filter((word) => !terms.includes(word))
+          if (corpus && words.length && words.every((term) => corpus.has(term))) needTerms.push(...words)
+        }
         p.codeIdentified = Boolean(act.code)
         p.variantHint = act.attributes?.design ?? act.attributes?.color ?? null
         p.codeVariantVitrine = Boolean(act.code) && !p.variantHint
@@ -238,6 +281,11 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
         p.requestedCount = Math.max(1, productIds.length)
         p.searchTerms = p.searchTerms.length ? p.searchTerms : extractProductTerms(target.name).slice(0, 6)
         brief.push({ act: act.type, ask: fa ? `${FIELD_FA[act.field]} «${target.name}»` : `${act.field} of “${target.name}”` })
+        // «ابعادش؟» finds nothing in the knowledge base; «ابعاد میز تلویزیون
+        // آپادانا ۱۶۰» does.
+        if (act.field !== 'price' && act.field !== 'stock' && act.field !== 'link' && act.field !== 'photo') {
+          knowledgeAsks.push(`${FIELD_FA[act.field]} ${target.name}${act.question ? ` ${act.question}` : ''}`)
+        }
         break
       }
       case 'variants': {
@@ -254,6 +302,7 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
           slots.variant = act.variant
         } else {
           p.variantBrowse = true
+          p.variantAxis = act.about ?? null
           p.inventoryMode = 'AVAILABLE'
           p.requestedCount = MAX_SHOWCASE
         }
@@ -280,6 +329,8 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
         const p = plan()
         p.cheaperAlternative = true
         p.explicitShowcase = false
+        // Cheaper and buyable now: a cheaper model that is sold out is no answer.
+        p.inventoryMode = 'AVAILABLE'
         p.requestedCount = MAX_SHOWCASE
         p.searchTerms = familyTerms(target.name)
         cheaperReferenceId = target.id
@@ -412,9 +463,14 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
       }
       case 'policy_question':
         brief.push({ act: act.type, ask: fa ? `${TOPIC_FA[act.topic]}${act.detail ? ` (${act.detail})` : ''}` : `${act.topic}${act.detail ? ` (${act.detail})` : ''}` })
+        knowledgeAsks.push(`${TOPIC_FA[act.topic]} ${act.detail ?? ''}`.trim())
         break
       case 'knowledge_question':
         brief.push({ act: act.type, ask: act.query || (fa ? 'سؤال دربارهٔ کسب‌وکار' : 'business question') })
+        if (act.query) knowledgeAsks.push(act.query)
+        break
+      case 'off_topic':
+        offTopic = true
         break
       case 'complaint':
         if (act.severity === 'high') handoff.complaintHigh = true
@@ -426,6 +482,15 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
       default:
         break
     }
+  }
+
+  // «X با Y چه فرقی داره؟»: each named product is searched on its own and
+  // the reply compares what was found, so no vitrine and no merged search.
+  if (productSearches.length > 1 && productPlan && !catalogSearch) {
+    const named: ProductRequestPlan = productPlan
+    named.explicitShowcase = false
+    named.comparisonConsult = true
+    named.inventoryMode = 'ANY'
   }
 
   signals.question = acts.some((act) => QUESTION_ACTS.has(act.type))
@@ -449,6 +514,10 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
     productsIdentified,
     catalogSearch,
     cheaperReferenceId,
+    needTerms: [...new Set(needTerms)].slice(0, 4),
+    productSearches: productSearches.length > 1 ? productSearches.slice(0, 3) : [],
+    knowledgeQuery: [...new Set(knowledgeAsks)].join(' ؛ ').slice(0, 300),
+    offTopic: offTopic && !productPlan && !orderTouch,
     orderSignals: signals,
     orderTouch,
     restock,

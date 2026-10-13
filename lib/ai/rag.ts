@@ -122,7 +122,9 @@ export async function retrieveContext(params: {
 }
 
 function formatPrice(price: number): string {
-  return price.toLocaleString('en-US').replace(/,/g, '،') + ' تومان'
+  // «٬» groups the digits. The Persian comma «،» separates list items, and a
+  // price written with it reads as three numbers in the reply.
+  return price.toLocaleString('en-US').replace(/,/g, '\u066C') + ' تومان'
 }
 
 /** Prices of the variations that can be bought right now. */
@@ -311,7 +313,9 @@ ${lines.join('\n')}
 • موجودی null یعنی محصول موجود است و فقط تعداد دقیق آن ثبت نشده؛ هرگز آن را ناموجود اعلام نکن
 • موجودی صفر را صادقانه ناموجود اعلام کن
 • اگر محصول «تنوع‌ها» دارد، موجودی و قیمت واقعی برای هر ترکیب (مثل طرح/رنگ/سایز) در آن لیست است؛ موجودی کل محصول را اعلام نکن، بلکه بگو کدام تنوع موجود و کدام ناموجود است
-• اگر مشتری تنوع خاصی خواست (مثلاً «طرح 02» یا «رنگ آبی») و آن تنوع در لیست نبود، صادقانه بگو آن ترکیب فعلاً موجود نیست و نزدیک‌ترین تنوع موجود را پیشنهاد بده`
+• اگر مشتری تنوع خاصی خواست (مثلاً «طرح 02» یا «رنگ آبی») و آن تنوع در لیست نبود، صادقانه بگو آن ترکیب فعلاً موجود نیست و نزدیک‌ترین تنوع موجود را پیشنهاد بده
+• ردیف‌های بالا نتیجهٔ جست‌وجوی همین نوبت‌اند، نه همهٔ کاتالوگ: دربارهٔ محصولاتی که در این ردیف‌ها نیستند حکم کلی نده («بقیه ناموجودند»، «فقط همین‌ها را داریم»)
+• عدد دقیق موجودی را فقط وقتی بگو که مشتری تعداد پرسیده، تعداد درخواستی‌اش از موجودی بیشتر است یا فقط ۱ یا ۲ عدد مانده؛ در غیر این صورت «موجود است» کافی است`
   } else {
     return `
 
@@ -324,7 +328,9 @@ Mandatory rules:
 • A null stock value means available/unlimited, not sold out
 • Report stock=0 as out of stock honestly
 • If a product lists "Variants", per-combination stock and price live in that list — never quote the parent stock for a specific variant; say which variant is in/out of stock
-• If a customer asks for a specific variant (e.g. "color blue", "size L") that isn't in the list, say so honestly and offer the closest available variant`
+• If a customer asks for a specific variant (e.g. "color blue", "size L") that isn't in the list, say so honestly and offer the closest available variant
+• The rows above are this turn's search result, not the whole catalog: make no blanket statement about products outside them ("the rest are sold out", "these are all we have")
+• Give the exact stock count only when the customer asks how many, asks for more than there are, or only 1 or 2 are left; otherwise "in stock" is enough`
   }
 }
 

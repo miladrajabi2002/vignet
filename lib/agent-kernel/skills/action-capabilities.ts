@@ -1,4 +1,4 @@
-export const ACTION_CAPABILITY_SKILL_VERSION = '1.5.0'
+export const ACTION_CAPABILITY_SKILL_VERSION = '1.6.0'
 
 function normalize(value: string): string {
   return value
@@ -32,6 +32,20 @@ const FALSE_COMPLETED_ORDER_CLAIM_RE =
   /(?:سفارش|خرید|رزرو|مرسوله)(?:\s*(?:شما|رو|را|تون|تان|مون|براتون|برایتان|اش|ش))?.{0,80}?(?:ثبت|نهایی|تکمیل|رزرو|لغو|ارسال|پست)\s*(?:شد|شده|کردم|کردیم)|از\s*انبار\s*(?:ارسال|فرستاده)\s*(?:می\s*شود|خواهد\s*شد)|(?:لینک\s*(?:پرداخت|سفارش)).{0,40}(?:ارسال\s*کنم|بفرستم|می\s*سازم|ساخت\s*کنم)|(?:order|purchase|reservation)(?:\s+\w+){0,12}?(?:placed|registered|completed|reserved|cancelled|shipped)|(?:i|we)\s+(?:placed|registered|completed|reserved|cancelled)\s+(?:the\s+)?(?:order|purchase)|payment\s+link.{0,40}(?:i\s+will|i'll|let\s+me)/iu
 
 /**
+ * «خرید اقساطی در اطلاعات ثبت‌شدهٔ من نیست», «قیمت ثبت‌شده در کاتالوگ»:
+ * «ثبت‌شده» that describes recorded information is not a claim that an order
+ * was placed. The guard once removed that sentence and answered a question
+ * about instalments with «ثبت سفارش از داخل همین چت فعال نیست».
+ */
+const RECORDED_INFO_HEADS = ['اطلاعات', 'شرایط', 'داده های', 'قیمت های', 'قیمت', 'موارد', 'سیاست های', 'سیاست', 'قوانین', 'مشخصات']
+
+function claimsCompletedOrder(normalized: string): boolean {
+  let text = normalized
+  for (const head of RECORDED_INFO_HEADS) text = text.split(`${head} ثبت شده`).join(head)
+  return FALSE_COMPLETED_ORDER_CLAIM_RE.test(text)
+}
+
+/**
  * «به همکارم منتقل می‌کنم و نتیجه رو خبر می‌دم» / "let me check with my
  * colleagues and get back to you" — a promise of a transfer or a later
  * follow-up that no tool performs in a normal model reply (real transfers go
@@ -40,12 +54,14 @@ const FALSE_COMPLETED_ORDER_CLAIM_RE =
  * («اگه بخواید به همکارم می‌سپارم») are honest and stay untouched.
  */
 const FALSE_FOLLOW_UP_RE =
-  /(?:(?:به|برای|با)\s*(?:همکار|همکاران|اپراتور|کارشناس|تیم|پشتیبانی)(?:م|ام|انم|مون|ها)?[^.!؟?\n]{0,40}(?:منتقل|ارجاع|می\s*سپار|چک|بررسی|هماهنگ)[^.!؟?\n]{0,20}(?:می\s*کنم|می\s*کنیم|کردم|کردیم|میکنم|می\s*دم|میدم|می\s*سپارم|میسپارم)|(?:نتیجه|جواب|خبر)(?:ش|ش\s*رو|ش\s*را|و|رو|را)?[^.!؟?\n]{0,25}(?:اطلاع|خبر)\s*(?:می\s*دم|میدم|می\s*دهم|می\s*دیم|خواهم\s*داد)|(?:let\s+me|i(?:'ll|\s+will))\s+(?:check|confirm|ask|verify)\s+with\s+(?:my\s+|the\s+|our\s+)?(?:colleague|team|staff|support)s?[^.!?\n]*|i(?:'ll|\s+will)\s+(?:get\s+back\s+to\s+you|let\s+you\s+know|follow\s+up)|i(?:'ve|\s+have)\s+(?:forwarded|transferred|escalated)\b[^.!?\n]*)/iu
+  /(?:(?:به|برای|با)\s*(?:همکار|همکاران|اپراتور|کارشناس|تیم|پشتیبانی)(?:م|ام|انم|مون|ها)?[^.!؟?\n]{0,40}(?:منتقل|ارجاع|می\s*سپار|چک|بررسی|هماهنگ|خلاصه)[^.!؟?\n]{0,20}(?:می\s*کنم|می\s*کنیم|کردم|کردیم|میکنم|می\s*دم|میدم|می\s*سپارم|میسپارم)|(?:نتیجه|جواب|خبر)(?:ش|ش\s*رو|ش\s*را|و|رو|را)?[^.!؟?\n]{0,25}(?:اطلاع|خبر)\s*(?:می\s*دم|میدم|می\s*دهم|می\s*دیم|خواهم\s*داد)|(?:let\s+me|i(?:'ll|\s+will))\s+(?:check|confirm|ask|verify)\s+with\s+(?:my\s+|the\s+|our\s+)?(?:colleague|team|staff|support)s?[^.!?\n]*|i(?:'ll|\s+will)\s+(?:get\s+back\s+to\s+you|let\s+you\s+know|follow\s+up)|i(?:'ve|\s+have)\s+(?:forwarded|transferred|escalated)\b[^.!?\n]*)/iu
 const CONDITIONAL_OFFER_RE = /(?:اگر|اگه|در\s*صورت|چنانچه|\bif\b|would\s+you\s+like|do\s+you\s+want)/iu
 
 export function enforceNoFalseFollowUp(reply: string, isFa: boolean): string {
   if (!FALSE_FOLLOW_UP_RE.test(normalize(reply))) return reply
-  const parts = reply.split(/(?<=[.!؟?])\s+|\n+/u).map((part) => part.trim()).filter(Boolean)
+  // «؛» ends a clause too: «اطلاعات قطعی ندارم؛ برای اپراتور خلاصه می‌کنم»
+  // loses only its second half.
+  const parts = reply.split(/(?<=[.!؟?؛])\s+|\n+/u).map((part) => part.trim()).filter(Boolean)
   let replaced = false
   const kept = parts.filter((part) => {
     const normalized = normalize(part)
@@ -239,6 +255,11 @@ export function enforceActionCapabilities(params: {
   /** In-chat pre-orders are enabled for this agent: offering to set up the
    *  order here is honest, only claims of a COMPLETED order stay forbidden. */
   orderCaptureEnabled?: boolean
+  /** The understanding layer read the turn: the customer's words are not
+   *  pattern-matched for an order request, only the reply's claims are judged. */
+  turnWasRead?: boolean
+  /** The reading found a request to order here that this agent cannot take. */
+  orderAsked?: boolean
 }): string {
   const orderUrl = safeOrderUrl(params.orderUrl)
   const reply = enforceTrustedLinkPresentation({
@@ -247,7 +268,7 @@ export function enforceActionCapabilities(params: {
     trustedUrl: orderUrl,
     preferStructuredProductLink: params.preferStructuredProductLink,
   })
-  if (!params.orderCaptureEnabled && isUnsupportedOrderCreationRequest(params.userMessage)) {
+  if (!params.turnWasRead && !params.orderCaptureEnabled && isUnsupportedOrderCreationRequest(params.userMessage)) {
     return unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
   }
 
@@ -261,10 +282,13 @@ export function enforceActionCapabilities(params: {
   // when the request itself looked innocent — the model may "confirm" an
   // order after a bare «بله» acceptance. Verified order-tracking turns are
   // exempt: their status statements are grounded in store data.
-  if (!params.hasGroundedOrder && FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalize(reply))) {
+  if (!params.hasGroundedOrder && claimsCompletedOrder(normalize(reply))) {
     const safeParts = splitReply(reply).filter(
-      (part) => !FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalize(part)),
+      (part) => !claimsCompletedOrder(normalize(part)),
     )
+    // «سفارشی با این شماره ثبت نشده»: on a turn the reading says is not an
+    // order request, the sentence goes and what else was said stays as it is.
+    if (params.turnWasRead && !params.orderAsked && !params.orderCaptureEnabled && safeParts.length) return safeParts.join('\n\n')
     const notice = params.orderCaptureEnabled
       ? (params.isFa ? 'اگه بخواید، همین‌جا براتون ثبتش می‌کنم' : 'If you like, I can set up the order for you right here.')
       : unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
@@ -277,6 +301,7 @@ export function enforceActionCapabilities(params: {
   const safeParts = splitReply(reply).filter(
     (part) => !UNSUPPORTED_ACTION_CLAIM_RE.test(normalize(part)),
   )
+  if (params.turnWasRead && !params.orderAsked && safeParts.length) return safeParts.join('\n\n')
 
   const notice = unavailableReply(params.isFa, orderUrl, params.preferStructuredProductLink)
   return [...safeParts, notice].filter((part, index, all) => all.indexOf(part) === index).join('\n\n')
@@ -300,15 +325,16 @@ export function livePreviewRisk(params: {
   actionGuards: boolean
   orderCaptureEnabled: boolean
   hasGroundedOrder: boolean
+  turnWasRead?: boolean
 }): 'withhold' | 'stop' | null {
-  if (params.actionGuards && !params.orderCaptureEnabled && isUnsupportedOrderCreationRequest(params.userMessage)) {
+  if (params.actionGuards && !params.turnWasRead && !params.orderCaptureEnabled && isUnsupportedOrderCreationRequest(params.userMessage)) {
     return 'withhold'
   }
   if (FABRICATED_PAYMENT_RE.test(params.text)) return 'stop'
   if (params.orderCaptureEnabled && DISCOUNT_OFFER_RES.some((re) => re.test(params.text))) return 'stop'
   if (!params.actionGuards) return null
   const normalized = normalize(params.text)
-  if (!params.hasGroundedOrder && FALSE_COMPLETED_ORDER_CLAIM_RE.test(normalized)) return 'stop'
+  if (!params.hasGroundedOrder && claimsCompletedOrder(normalized)) return 'stop'
   if (!params.orderCaptureEnabled && UNSUPPORTED_ACTION_CLAIM_RE.test(normalized)) return 'stop'
   if (FALSE_FOLLOW_UP_RE.test(normalized)) {
     const parts = params.text.split(/(?<=[.!؟?])\s+|\n+/u).map((part) => normalize(part)).filter(Boolean)

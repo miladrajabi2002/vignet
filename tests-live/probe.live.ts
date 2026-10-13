@@ -11,6 +11,9 @@
  *
  * scenarios.json: [{ "id": "s1", "turns": ["سلام", "رژگونه زیر ۲ میلیون"] }]
  * Optional per scenario: "channel" (default TELEGRAM).
+ * PROBE_DEBUG=1 also saves the system message each reply call was sent.
+ * Several probes at once: give each a small pool (DATABASE_URL with
+ * connection_limit=3); the database has few connection slots.
  * Output: PROBE_OUT (default tests-live/results/probe.json) and the console.
  */
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -39,6 +42,23 @@ vi.mock('@/lib/ai/handoff', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   notifyHandoff: vi.fn(async () => {}),
 }))
+// PROBE_DEBUG=1 keeps what the reply model was sent (the system message of
+// every reply call of a turn) next to the reply, to see why it answered so.
+const sentToModel: string[] = []
+vi.mock('@/lib/ai/openrouter', async (orig) => {
+  const real = await orig<Record<string, unknown>>()
+  if (process.env.PROBE_DEBUG !== '1') return real
+  const record = (opts: unknown) => {
+    const messages = (opts as { messages?: Array<{ role: string; content?: string | null }> } | null)?.messages ?? []
+    const system = messages.find((item) => item.role === 'system')
+    if (system?.content) sentToModel.push(system.content)
+  }
+  const wrap = (name: string) => (...args: unknown[]) => {
+    record(args[0])
+    return (real[name] as (...inner: unknown[]) => unknown)(...args)
+  }
+  return { ...real, chatCompletion: wrap('chatCompletion'), streamChat: wrap('streamChat'), streamChatWithRetry: wrap('streamChatWithRetry') }
+})
 
 import { prisma } from '@/lib/prisma'
 import { generateReply } from '@/lib/ai/chat-engine'
@@ -51,7 +71,7 @@ const OUT = process.env.PROBE_OUT ?? path.join(__dirname, 'results', 'probe.json
 const RUN = `vprobe-${Date.now().toString(36)}`
 
 type Scenario = { id: string; turns: string[]; channel?: ChannelType }
-type TurnOut = { user: string; reply: string; ms: number; understanding?: unknown; error?: string }
+type TurnOut = { user: string; reply: string; ms: number; understanding?: unknown; error?: string; prompts?: string[] }
 
 const display = (reply: string) => reply
   .replace(/\[\[product:(\{[^\n]*?\})\]\]/g, (_, json: string) => {
@@ -88,6 +108,7 @@ describe.skipIf(!PROBE_FILE || !AGENT_ID)('live probe', () => {
         const started = Date.now()
         const turnOut: TurnOut = { user: message, reply: '', ms: 0 }
         record.turns.push(turnOut)
+        sentToModel.length = 0
         try {
           const result = await generateReply({
             workspaceId: agent.workspaceId,
@@ -111,6 +132,7 @@ describe.skipIf(!PROBE_FILE || !AGENT_ID)('live probe', () => {
           turnOut.error = error instanceof Error ? error.message : String(error)
         }
         turnOut.ms = Date.now() - started
+        if (sentToModel.length) turnOut.prompts = [...sentToModel]
         console.log(`>>> ${message}\n    [${JSON.stringify(turnOut.understanding)}]\n<<< (${turnOut.ms}ms) ${turnOut.error ?? display(turnOut.reply)}\n`)
         // Fire-and-forget side effects (state persist, fact capture) settle here.
         await new Promise((resolve) => setTimeout(resolve, 900))

@@ -73,6 +73,12 @@ export interface ProductRequestPlan {
          */
         variantBrowse: boolean
         /**
+         * The kind of variant the customer asked about («چه رنگایی داره؟» →
+         * color). A design list answers a question about designs, never one
+         * about the colors or sizes of the product they pointed at.
+         */
+        variantAxis?: 'color' | 'size' | 'design' | null
+        /**
          * A SINGULAR variant reference in the current message («0788 طرح 05»,
          * «رنگ کرم») — the noun plus the value token right after it. Attached to
          * identified product directives so the trusted card deterministically
@@ -1492,7 +1498,7 @@ export async function buildFamilyEnumerationReply(params: {
         const formatToman = (price: number) =>
                 price.toLocaleString('en-US')
                         .replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])
-                        .replace(/,/g, '،')
+                        .replace(/,/g, '\u066C')
         const distinctPrices = [...new Set(prices)]
         const priceLine = distinctPrices.length === 1
                 ? `قیمت هر کدوم ${formatToman(distinctPrices[0])} تومان است`

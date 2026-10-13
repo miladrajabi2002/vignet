@@ -53,14 +53,26 @@ export function composeTurnBrief(params: {
   const products = Object.values(params.refs).filter((ref) => ref.kind === 'product' || ref.kind === 'cart')
   if (params.showRefs !== false && products.length) {
     const named = products.slice(0, 4).map((ref) => `«${ref.name}»`).join(fa ? '، ' : ', ')
+    // Said as a settled fact: the model otherwise asks «منظورتان از دومی
+    // کدام است؟» about a reference the system has already resolved.
     lines.push(fa
-      ? `محصولی که مشتری به آن اشاره می‌کند (از کاتالوگ، قطعی): ${named}. دربارهٔ همین جواب بده و محصول دیگری را جایش نگذار.`
-      : `The product the customer refers to (from the catalog, certain): ${named}. Answer about it; never substitute another product.`)
+      ? `سیستم مرجع پیام مشتری («دومی»، «اولی و سومی»، «همون»، «این») را از کارت‌های فرستاده‌شده پیدا کرده؛ منظورش ${products.length > 1 ? 'به همین ترتیب این محصول‌هاست' : 'این محصول است'}: ${named}. ردیف${products.length > 1 ? '‌های' : ''} کاتالوگ همین نوبت همین${products.length > 1 ? '‌ها هستند' : ' است'}. از مشتری نپرس منظورش کدام است و نام یا عکس نخواه؛ مستقیم دربارهٔ همین جواب بده و محصول دیگری را جایش نگذار.`
+      : `The system has resolved what the customer points at (“the second one”, “that one”, “this”) from the cards that were sent; they mean ${products.length > 1 ? 'these products, in this order' : 'this product'}: ${named}. This turn's catalog row${products.length > 1 ? 's are these' : ' is this one'}. Do not ask which one they mean and do not ask for a name or photo; answer about ${products.length > 1 ? 'them' : 'it'} directly and never substitute another product.`)
   }
   for (const capability of route.unavailable) {
     lines.push(fa
       ? `مشتری چیزی خواسته که این ایجنت امکانش را ندارد (${CAPABILITY_FA[capability]}). صادقانه و کوتاه بگو و قول انجامش را نده؛ اگر راه دیگری در دانش هست همان را بگو.`
       : `The customer asked for something this agent cannot do (${CAPABILITY_EN[capability]}). Say so briefly and honestly; never promise it. Offer another way only if the knowledge base has one.`)
+  }
+  if (route.brief.some((item) => item.act === 'complaint')) {
+    lines.push(fa
+      ? 'مشتری ناراضی است، حتی اگر با کنایه یا تعریفِ طعنه‌آمیز گفته باشد («عجب قیمتای خوبی!»). حرفش را تعریف واقعی حساب نکن؛ در یک جملهٔ کوتاه نگرانی‌اش را بپذیر، از خودت دفاع نکن و فقط اگر راهی واقعی در داده‌ها هست همان را بگو.'
+      : 'The customer is unhappy, even when they say it with sarcasm or mock praise (“great prices!”). Do not take it as real praise; acknowledge the concern in one short sentence, do not defend yourself, and offer a way forward only when the data has one.')
+  }
+  if (route.offTopic) {
+    lines.push(fa
+      ? 'این درخواست به این کسب‌وکار ربطی ندارد (مثل شعر، کد، ترجمه، تکلیف، اطلاعات عمومی یا سیاست). انجامش نده و چیزی از آن ننویس؛ در یک جملهٔ کوتاه و مؤدبانه بگو اینجا فقط دربارهٔ محصولات و خدمات همین کسب‌وکار کمک می‌کنی. سؤال نپرس و پیشنهاد دیگری اضافه نکن.'
+      : 'This request has nothing to do with this business (a poem, code, a translation, homework, general knowledge, politics). Do not do it and write none of it; say in one short polite sentence that here you only help with this business\'s products and services. Ask nothing and add no other offer.')
   }
   if (route.clarify && !route.productIds.length && !route.orderTouch) {
     const question = route.clarify.question?.trim()

@@ -22,7 +22,7 @@ function resolveReplyLang(lang: ReplyLanguage | undefined, isFa: boolean | undef
 /** Locale-aware price line for deterministic replies. */
 function priceLine(value: number, lang: ReplyLanguage): string {
   const amount = value.toLocaleString(numberLocale(lang))
-  return lang === 'en' ? amount : `${amount} تومان`
+  return lang === 'en' ? `${amount} Toman` : `${amount} تومان`
 }
 
 const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
@@ -110,8 +110,8 @@ export function showcaseIntroText(params: {
       return [
         hasSubject
           ? `لم أجد حاليًا أي ${subject} متوفر يطابق هذا الطلب في الكتالوج.`
-          : 'لم يتم العثور حاليًا على منتج متوفر ومطابق لهذا الطلب في الكتالوج.',
-        'هل لديك طراز أو لون معين في ذهنك؟ أخبرني لأبحث مرة أخرى بدقة أكبر.',
+          : 'لم أجد هذا المنتج في الكتالوج الحالي.',
+        'إن كان له اسم أو طراز آخر فأخبرني لأبحث مرة أخرى.',
       ].join('\n')
     }
     if (params.count === 1) {
@@ -135,8 +135,8 @@ export function showcaseIntroText(params: {
       return [
         hasSubject
           ? `فعلاً هیچ ${subject} موجودی مطابق این درخواست در کاتالوگ پیدا نکردم.`
-          : 'فعلاً محصول موجود و منطبقی برای این درخواست در کاتالوگ پیدا نشد.',
-        'مدل یا رنگ خاصی مدنظرتان است؟ بگویید تا دوباره دقیق‌تر جست‌وجو کنم.',
+          : 'این مورد را در کاتالوگ فعلی‌مان پیدا نکردم.',
+        'اگر با اسم یا مدل دیگری می‌شناسیدش بگویید تا دوباره بگردم.',
       ].join('\n')
     }
     if (params.count === 1) {
@@ -151,15 +151,15 @@ export function showcaseIntroText(params: {
       hasSubject
         ? `${count} مدل ${subject} موجود داریم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`
         : `${count} محصول موجود و مرتبط داریم؛ عکس، قیمت و مشخصات هر کدام را در ادامه می‌بینید.`,
-      'اگر رنگ یا سایز خاصی مدنظرتان است بگویید تا از بین همین‌ها دقیق‌تر نشانتان بدهم.',
+      'اگر مدل یا ویژگی خاصی مدنظرتان است بگویید تا از بین همین‌ها دقیق‌تر نشانتان بدهم.',
     ].join('\n')
   }
   if (params.count === 0) {
     return [
       hasSubject
         ? `I could not find an available ${subject} matching that request in the catalog right now.`
-        : 'No available matching product was found in the catalog right now.',
-      'Got a specific model or color in mind? Tell me and I will search again more precisely.',
+        : 'I could not find that in our current catalog.',
+      'If it goes by another name or model, tell me and I will look again.',
     ].join('\n')
   }
   if (params.count === 1) {

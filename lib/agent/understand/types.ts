@@ -84,14 +84,14 @@ export type Act =
       /** A product code the customer typed («0788», «کد 1420»). */
       code?: string
       /**
-       * What the product is for, when the customer named a need and no product
-       * type («یه چیزی برای پوست چرب می‌خوام» → «پوست چرب»). Never a search
-       * term: it only tells the reply what to recommend for.
+       * What the product is for or who it is for («برای پوست چرب», «کادو
+       * برای مامانم»). It tells the reply what to recommend for; its words
+       * narrow the search only when a product's own name carries them.
        */
       need?: string
     }
   | { type: 'product_question'; target: CandidateRef; field: ProductField; question?: string }
-  | { type: 'variants'; target: CandidateRef; variant?: string }
+  | { type: 'variants'; target: CandidateRef; variant?: string; /** Which kind of variant the customer asks about. */ about?: 'color' | 'size' | 'design' }
   | { type: 'compare'; targets: CandidateRef[]; criterion?: string }
   | { type: 'cheaper_alternative'; target: CandidateRef }
   | { type: 'order_start'; items: Array<{ target: CandidateRef; variant?: string; quantity?: number }> }
@@ -120,6 +120,8 @@ export type Act =
   | { type: 'knowledge_question'; query: string }
   | { type: 'complaint'; severity: 'low' | 'high' }
   | { type: 'human_request' }
+  /** A request that has nothing to do with this business (a poem, code, homework, politics). */
+  | { type: 'off_topic' }
   | { type: 'other' }
 
 export type ActType = Act['type']
@@ -240,6 +242,7 @@ export interface VerificationNote {
     | 'NO_PENDING'
     | 'EMPTY_ACT'
     | 'DATE_NOT_IN_EVIDENCE'
+    | 'PERSON_NOT_IN_EVIDENCE'
   act: ActType
   detail?: string
 }

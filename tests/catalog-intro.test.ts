@@ -48,7 +48,7 @@ describe('showcase introduction — the message sent before the catalog', () => 
     expect(lines[0]).toContain('۱۰ مدل شومیز')
     expect(lines[0]).toContain('موجود')
     expect(lines[0]).toContain('در ادامه')
-    expect(lines[1]).toContain('رنگ یا سایز')
+    expect(lines[1]).toContain('مدل یا ویژگی خاصی')
     expect(intro.endsWith(':')).toBe(false)
   })
 
@@ -66,9 +66,9 @@ describe('showcase introduction — the message sent before the catalog', () => 
   it('keeps the zero-result reply honest and still offers one next step', () => {
     const withSubject = showcaseIntroText({ count: 0, subject: 'شومیز', isFa: true })
     expect(withSubject.split('\n')[0]).toContain('هیچ شومیز موجودی')
-    expect(withSubject.split('\n')[1]).toContain('مدل یا رنگ خاصی')
+    expect(withSubject.split('\n')[1]).toContain('اسم یا مدل دیگری')
     const withoutSubject = showcaseIntroText({ count: 0, isFa: true })
-    expect(withoutSubject.split('\n')[0]).toContain('پیدا نشد')
+    expect(withoutSubject.split('\n')[0]).toContain('پیدا نکردم')
   })
 
   it('renders the English variants with the same structure', () => {
@@ -97,7 +97,7 @@ describe('buildTrustedProductReply — showcase replies open with the introducti
     })
     const [intro, markerBlock] = reply.split('\n\n')
     expect(intro.split('\n')[0]).toContain('۲ مدل شومیز')
-    expect(intro.split('\n')[1]).toContain('رنگ یا سایز')
+    expect(intro.split('\n')[1]).toContain('مدل یا ویژگی خاصی')
     expect((markerBlock.match(/\[\[product:/gu) ?? []).length).toBe(2)
     expect(markerBlock).toContain('شومیز مروارید 0372')
   })
@@ -130,7 +130,7 @@ describe('buildTrustedProductReply — showcase replies open with the introducti
     })
     expect(reply).not.toContain('[[product:')
     expect(reply.split('\n')[0]).toContain('هیچ کیف موجودی')
-    expect(reply.split('\n')[1]).toContain('مدل یا رنگ خاصی')
+    expect(reply.split('\n')[1]).toContain('اسم یا مدل دیگری')
   })
 
   it('answers an empty catalog selection the same way', async () => {

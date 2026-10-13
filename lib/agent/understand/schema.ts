@@ -33,7 +33,7 @@ export const ACT_TYPES: readonly ActType[] = [
   'product_search', 'product_question', 'variants', 'compare', 'cheaper_alternative',
   'order_start', 'cart_edit', 'order_details', 'order_confirm', 'order_decline', 'order_cancel',
   'payment_claim', 'payment_link_request', 'shipping_change', 'order_status', 'restock_subscribe',
-  'booking', 'course', 'policy_question', 'knowledge_question', 'complaint', 'human_request', 'other',
+  'booking', 'course', 'policy_question', 'knowledge_question', 'complaint', 'human_request', 'off_topic', 'other',
 ]
 
 const RELATIONS: readonly Relation[] = ['new_goal', 'refinement', 'answer', 'reference', 'correction', 'side_question', 'reset', 'greeting', 'closing', 'other']
@@ -149,13 +149,13 @@ function parseAct(raw: unknown): Act | null {
   switch (type) {
     case 'greeting': case 'thanks': case 'goodbye': case 'defer': case 'smalltalk': case 'reset_topic':
     case 'order_confirm': case 'order_decline': case 'order_cancel': case 'payment_claim':
-    case 'payment_link_request': case 'shipping_change': case 'human_request': case 'other':
+    case 'payment_link_request': case 'shipping_change': case 'human_request': case 'off_topic': case 'other':
       return { type }
     case 'product_search': {
       // The search words belong in `terms`; a model that wrote them in
       // `query` still named what the customer is looking for.
-      const listed = strings(item.terms, 6, 40)
-      const named = listed.length ? listed : strings(typeof item.query === 'string' ? [item.query] : [], 1, 40)
+      const listed = strings(item.terms, 6, 60)
+      const named = listed.length ? listed : strings(typeof item.query === 'string' ? [item.query] : [], 1, 60)
       // A brand is product identity. Written as an attribute («از شیگلم چی
       // دارید؟» → {"brand":"شیگلم"}) it used to be dropped with the key.
       const brand = str(item.brand ?? rec(item.attributes)?.brand, 40)
@@ -191,7 +191,8 @@ function parseAct(raw: unknown): Act | null {
       const target = str(item.target, 20)
       if (!target) return null
       const variant = str(item.variant, 60)
-      return { type, target, ...(variant ? { variant } : {}) }
+      const about = oneOf(item.about, ['color', 'size', 'design'] as const)
+      return { type, target, ...(variant ? { variant } : {}), ...(about ? { about } : {}) }
     }
     case 'compare': {
       const targets = strings(item.targets, 4, 20)

@@ -1,4 +1,4 @@
-import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
+import { normalizePriceGrouping, restoreHalfSpaces, stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
 import { hasAgentSkill, type AgentSkillPlan } from '@/lib/agent-kernel/contracts'
 import { enforceActionCapabilities, enforceNoFalseFollowUp, livePreviewRisk, safeOrderUrl, stripAgentDiscountOffers, stripFabricatedPaymentLinks } from '@/lib/agent-kernel/skills/action-capabilities'
 import { enforceVisualReferenceGrounding } from '@/lib/agent-kernel/skills/visual-reference'
@@ -14,6 +14,15 @@ export interface AgentSkillPostprocessContext {
   establishedProductIds?: string[]
   /** Current customer text is required for deterministic capability guards. */
   userMessage?: string
+  /**
+   * The understanding layer read this turn. What the customer asked for is
+   * then known from that reading, and the guards judge only what the REPLY
+   * claims: «اگه تخفیف ندی نمی‌خرم» is not an order request because it
+   * contains «می‌خرم».
+   */
+  turnWasRead?: boolean
+  /** The reading found a request to order in chat that this agent cannot take. */
+  orderAsked?: boolean
   isFa?: boolean
   /** Verified channel media on this turn, when the platform payload proves one. */
   inboundMediaKind?: string
@@ -127,6 +136,8 @@ export function runAgentSkillPostprocessors(
       hasGroundedOrder: context.hasGroundedOrder ?? false,
       preferStructuredProductLink: context.preferStructuredProductLink ?? false,
       orderCaptureEnabled: context.orderCaptureEnabled ?? false,
+      turnWasRead: context.turnWasRead ?? false,
+      orderAsked: context.orderAsked ?? false,
     })
     output = enforceNoFalseFollowUp(output, context.isFa ?? true)
   }
@@ -157,7 +168,7 @@ export function runAgentSkillPostprocessors(
     output = enforceHumanizerPolish({ reply: output, isFa: context.isFa ?? true }).reply
   }
   if (hasAgentSkill(plan, 'persian-response-polish')) {
-    output = stripTrailingPersianPeriod(output)
+    output = stripTrailingPersianPeriod(restoreHalfSpaces(normalizePriceGrouping(output)))
   }
   return output
 }
@@ -183,7 +194,7 @@ function lastSentenceEnd(text: string): number {
  */
 export function createLivePreviewGuard(
   plan: AgentSkillPlan,
-  context: Pick<AgentSkillPostprocessContext, 'userMessage' | 'orderCaptureEnabled' | 'hasGroundedOrder' | 'linkGuard'>,
+  context: Pick<AgentSkillPostprocessContext, 'userMessage' | 'orderCaptureEnabled' | 'hasGroundedOrder' | 'linkGuard' | 'turnWasRead'>,
 ): (visibleSoFar: string) => string {
   let shown = ''
   let frozen = false
@@ -200,6 +211,7 @@ export function createLivePreviewGuard(
       actionGuards,
       orderCaptureEnabled: context.orderCaptureEnabled ?? false,
       hasGroundedOrder: context.hasGroundedOrder ?? false,
+      turnWasRead: context.turnWasRead ?? false,
     })
     if (risk) {
       frozen = true

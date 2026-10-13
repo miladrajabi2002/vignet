@@ -18,7 +18,7 @@
  * registry when the skill plan is compiled, so both layers turn off).
  */
 
-export const HUMANIZER_SKILL_VERSION = '1.0.0'
+export const HUMANIZER_SKILL_VERSION = '1.0.1'
 
 /** Fenced code content is data — never reformat it. */
 const FENCE_RE = /```|~~~/
@@ -131,7 +131,7 @@ export function enforceHumanizerPolish(params: { reply: string; isFa?: boolean }
 }
 
 const CLOSING_FILLER_RE =
-  /^(?:و\s*)?(?:اگر|اگه)[^.!؟?\n]{0,50}?(?:سؤال|سوال|درخواست|کمکی|نیازی)[^.!؟?\n]{0,90}(?:در\s*خدمت(?:م|یم|تون|تان|\s*شما\s*هستم)|خوشحال\s*می\s*شم|بپرسید|بپرسین|بپرس|بفرمایید)[.!؟?]*$|^(?:if\s+you\s+have\s+any\s+(?:other\s+|more\s+|further\s+)?(?:questions?|requests?)|feel\s+free\s+to\s+(?:ask|reach\s+out)|let\s+me\s+know\s+if\s+you\s+(?:have|need)\s+any(?:thing)?\s+(?:else|other))[^.!?\n]*[.!?]*$/iu
+  /^(?:و\s*)?(?:اگر|اگه)[^.!؟?\n]{0,110}?(?:سؤال|سوال|درخواست|کمکی|نیازی)[^.!؟?\n]{0,90}(?:در\s*خدمت(?:م|یم|تون|تان|\s*شما\s*هستم)|خوشحال\s*می\s*شم|بپرسید|بپرسین|بپرس|بفرمایید)[.!؟?]*$|^(?:if\s+you\s+have\s+any\s+(?:other\s+|more\s+|further\s+)?(?:questions?|requests?)|feel\s+free\s+to\s+(?:ask|reach\s+out)|let\s+me\s+know\s+if\s+you\s+(?:have|need)\s+any(?:thing)?\s+(?:else|other))[^.!?\n]*[.!?]*$/iu
 
 function dropClosingFiller(text: string): string {
   const lines = text.split('\n')

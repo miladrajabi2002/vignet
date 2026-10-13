@@ -23,7 +23,8 @@ export function normalizeEvidenceText(value: string): string {
 
 /** Same text without spaces: «میزتلویزیون» and «میز تلویزیون» compare equal. */
 export function compactEvidenceText(value: string): string {
-  return normalizeEvidenceText(value).replace(/[\s\-_.،,]/g, '')
+  // «ضدافتاب» is «ضد آفتاب»: customers type the plain alef.
+  return normalizeEvidenceText(value).replace(/[\s\-_.،,]/g, '').replace(/[آأإ]/g, 'ا')
 }
 
 /** Every digit run in the text, ASCII. */
@@ -89,6 +90,19 @@ export function tokensMostlyIn(value: string, message: string, ratio = 0.7): boo
   const haystack = compactEvidenceText(message)
   const found = tokens.filter((token) => haystack.includes(token.replace(/\s/g, ''))).length
   return found / tokens.length >= ratio
+}
+
+/** Word stems a customer uses for a person to talk to (suffixes follow: «اپراتورتون», «همکارت»). */
+const PERSON_STEMS = [
+  'اپراتور', 'انسان', 'ادم', 'پشتیبان', 'کارشناس', 'ادمین', 'مدیر', 'مسئول', 'مسوول', 'همکار', 'کارمند', 'مشاور', 'فروشنده',
+  'نفر', 'کسی', 'یکی', 'شخص', 'تماس', 'زنگ', 'تلفن', 'صحبت', 'حرف',
+  'operator', 'human', 'person', 'agent', 'support', 'admin', 'someone', 'somebody', 'representative', 'staff', 'manager', 'call',
+]
+
+/** The text names a person, a role or a call: the evidence behind a request for a human. */
+export function mentionsPerson(...texts: string[]): boolean {
+  return texts.some((text) => normalizeEvidenceText(text).replace(/[آأإ]/g, 'ا').split(/[^\p{L}]+/u)
+    .some((word) => word.length > 1 && PERSON_STEMS.some((stem) => word.startsWith(stem))))
 }
 
 /** A leading-zero product code shape («0788») — never a phone number. */

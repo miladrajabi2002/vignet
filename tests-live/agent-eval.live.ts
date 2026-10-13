@@ -606,6 +606,95 @@ describe(`live agent eval [${LABEL}]`, () => {
     check(s, 'addressesDelivery', /ارسال|تحویل|روز|مشهد/u.test(prose(r)))
     styleChecks(s)
   })
+
+  // ── F. Core under pressure (hard test of 2026-10-13) ────────────────
+  const coreIt = (name: string, fn: () => Promise<void>) => it.skipIf(Boolean(ONLY) && !name.startsWith(ONLY))(name, fn)
+  const HANDOFF_REPLY = /منتقل می‌?کنم|متصل می‌?کنم|OPERATOR_ACTIVE/u
+
+  coreIt('F1 a request unrelated to the business is declined, not done', async () => {
+    const s = scenario('F1', 'core', 'Customer asks for a poem, then for Python code. The agent must decline in one short sentence each time and write none of it.')
+    const poem = await turn(s, 'یه شعر درباره پاییز بگو')
+    const code = await turn(s, 'یه کد پایتون برای مرتب سازی لیست بنویس')
+    check(s, 'noPoem', prose(poem).length < 200 && !/برگ|خزان|باد/u.test(prose(poem)))
+    check(s, 'noCode', !/```|def |print\(|sort\(/u.test(code))
+    check(s, 'staysShort', sentences(poem) <= 2 && sentences(code) <= 2)
+  })
+
+  coreIt('F2 a question about a named product is answered, not turned into a vitrine', async () => {
+    const s = scenario('F2', 'core', 'Customer asks the price of one product by its full name. The reply states that price; at most one product card.')
+    const row = await prisma.product.findFirst({ where: { active: true, catalogItems: { some: { agentId: AGENT_ID } }, AND: [{ name: { contains: 'تلویزیون' } }, { name: { contains: 'آپادانا' } }, { name: { contains: '160' } }] }, select: { price: true } })
+    const r = await turn(s, 'میز تلویزیون آپادانا ۱۶۰ چنده؟')
+    s.notes.push(`price=${row?.price}`)
+    check(s, 'statesThePrice', Boolean(row?.price) && digits(prose(r)).includes(String(row!.price)))
+    check(s, 'noVitrine', markers(r).length <= 1)
+    styleChecks(s)
+  })
+
+  coreIt('F3 two named products are both found and compared', async () => {
+    const s = scenario('F3', 'core', 'Customer names two real products and asks the difference. Both must be recognised; neither may be called missing.')
+    const r = await turn(s, 'میز تلویزیون آپادانا ۱۶۰ با میز تلویزیون ایوان ۱۴۰ چه فرقی داره؟')
+    check(s, 'namesBoth', /آپادانا/u.test(prose(r)) && /ایوان/u.test(prose(r)))
+    check(s, 'noFalseNotFound', !FALSE_NOT_FOUND.test(prose(r)) && !/در کاتالوگ نیست|نداریم/u.test(prose(r)))
+  })
+
+  coreIt('F4 a product question with two policy questions gets all three answers', async () => {
+    const s = scenario('F4', 'core', 'One message asks a price, a delivery time and whether instalments exist. The knowledge base covers both policies; the reply answers all three and promises no later message.')
+    const r = await turn(s, 'سلام قیمت میز تلویزیون آپادانا ۱۶۰ چنده، ارسال به تبریز چند روزه و قسطی هم میدید؟')
+    check(s, 'price', priceNumbers(prose(r)).length > 0)
+    check(s, 'delivery', /روز/u.test(prose(r)))
+    check(s, 'instalments', /اسنپ|دیجی|قسط|اقساط/u.test(prose(r)))
+    check(s, 'noLaterMessage', !/اطلاع می‌?دم|خبر می‌?دم|می‌?پرسم/u.test(prose(r)))
+  })
+
+  coreIt('F5 pushing for an answer is not a request for a person', async () => {
+    const s = scenario('F5', 'core', 'Customer asks an exact shipping cost, then pushes («یعنی نمی‌دونی؟ حدودی بگو»). The agent answers or says it is not recorded; it must not transfer the chat.')
+    await turn(s, 'هزینه ارسال یه پاف به زاهدان دقیقا چند تومنه؟')
+    const r = await turn(s, 'یعنی نمیدونی؟ حدودی بگو')
+    const last = s.turns[s.turns.length - 1]
+    check(s, 'noTransfer', !last.error && !HANDOFF_REPLY.test(r))
+  })
+
+  coreIt('F6 «اولی و سومی رو مقایسه کن» compares the cards that were shown', async () => {
+    const s = scenario('F6', 'core', 'After a vitrine the customer asks to compare the first and third card. The reply compares those two products and does not ask which ones they mean.')
+    const shown = markers(await turn(s, 'میز تلویزیون چی دارید؟'))
+    const r = await turn(s, 'اولی و سومی رو مقایسه کن')
+    const design = (name?: string) => /طرح\s+(\S+)/u.exec(name ?? '')?.[1] ?? '###'
+    s.notes.push(`first=${shown[0]?.name} third=${shown[2]?.name}`)
+    check(s, 'comparesThoseTwo', shown.length >= 3 && prose(r).includes(design(shown[0].name)) && prose(r).includes(design(shown[2].name)))
+    check(s, 'doesNotAskWhich', !/منظورتان|منظورتون|کدام (?:دو|مدل)|اسم(?:شان|شون)? را/u.test(prose(r)))
+  })
+
+  coreIt('F7 a colloquial care question finds its knowledge', async () => {
+    const s = scenario('F7', 'core', 'Customer asks how to wash the pouf fabric and whether bleach is fine. The care knowledge exists; the reply gives the method and rules out bleach.')
+    const r = await turn(s, 'پارچه پاف رو چطوری بشورم؟ با وایتکس میشه؟')
+    check(s, 'givesTheMethod', /شامپو فرش|اسفنج|آب (?:خیلی |بسیار )?کم/u.test(prose(r)))
+    check(s, 'noBleach', /وایتکس/u.test(prose(r)) && /نکنید|نه|توصیه نمی|آسیب/u.test(prose(r)))
+    check(s, 'notUnknown', !/ثبت نشده|اطلاعات(?:ی)? ندارم/u.test(prose(r)))
+  })
+
+  coreIt('F8 a follow-up about a pointed-at product reads that product’s specs', async () => {
+    const s = scenario('F8', 'core', 'After a vitrine the customer asks the dimensions of the first card with a bare «ابعاد اولی؟». The reply gives dimensions in centimetres.')
+    await turn(s, 'میز تلویزیون چی دارید؟')
+    const r = await turn(s, 'ابعاد اولی؟')
+    check(s, 'givesDimensions', /سانت/u.test(prose(r)) && /\d{2,3}/u.test(digits(prose(r))))
+    check(s, 'doesNotAskWhich', !/منظورتان|منظورتون|کدام (?:مدل|میز)/u.test(prose(r)))
+  })
+
+  coreIt('F9 Persian typed in Latin letters is answered in Persian', async () => {
+    const s = scenario('F9', 'core', 'Customer writes Finglish. The reply is Persian in Persian script.')
+    const r = await turn(s, 'salam miz televizion darid? gheymatesh chande?')
+    const letters = prose(r).replace(/[^\p{L}]/gu, '')
+    const persian = (letters.match(/[\u0600-\u06FF]/g) ?? []).length
+    check(s, 'repliesInPersian', letters.length > 0 && persian / letters.length > 0.7)
+  })
+
+  coreIt('F10 «چه رنگایی داره؟» about a card answers with that product’s colours', async () => {
+    const s = scenario('F10', 'core', 'After a vitrine the customer asks the colours of the first card. The reply is about that product’s wood colours, not the design list of the whole family.')
+    await turn(s, 'میز تلویزیون چی دارید؟')
+    const r = await turn(s, 'اولی چه رنگایی داره؟')
+    check(s, 'aboutColours', /افرا|بلوط|گردویی|رنگ/u.test(r))
+    check(s, 'notTheDesignList', !/طرح‌های موجود/u.test(prose(r)))
+  })
 })
 
 function summarize() {

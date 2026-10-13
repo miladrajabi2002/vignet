@@ -46,6 +46,7 @@ import {
   isNarrowedProductRequest,
   assistantCardIds,
   GLOBAL_PRODUCT_WORDS,
+  normalizePersianText,
   type ProductRequestPlan,
 } from '@/lib/ai/conversation'
 import { catalogSearchVocabulary, getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
@@ -204,6 +205,8 @@ export interface PreparedTurnData {
         ledger?: TurnLedger
         /** Domains that routed from the understanding layer on this turn. */
         understoodDomains?: string[]
+        /** The reading found a request to order in chat that this agent cannot take. */
+        orderAsked?: boolean
         bookingHint?: string
         bookingConfirmed?: boolean
         bookingIntentKnown?: boolean
@@ -443,17 +446,18 @@ async function prepareTurn(params: StartChatParams): Promise<
         const modelHistory = [...crossChannelContext.modelHistory, ...history]
         // Language mirroring: the reply locale comes from what the customer
         // actually wrote THIS turn — never from a pinned agent locale.
-        const turnLang = detectTurnLanguage(message, planningHistory)
-        const finalSystemPrompt = buildSystemPrompt({
+        let turnLang = detectTurnLanguage(message, planningHistory)
+        const systemPromptFor = (language: TurnLanguage) => buildSystemPrompt({
                 agent,
                 customerInfoState: freshState,
                 contactName: resolvedContactName,
                 customerPreferences,
                 evidenceMemory,
-                turnLanguage: turnLang,
+                turnLanguage: language,
                 channel: params.channel,
                 inboundSource: params.inboundMetadata ?? null,
         })
+        let finalSystemPrompt = systemPromptFor(turnLang)
 
         const reserved = await reserveChatCredit({
                 workspaceId,
@@ -516,6 +520,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                         turnLang,
                 })
                 const route = understanding.route
+                // «salam rimel zed ab darid?» is Persian typed in Latin letters.
+                // The letter count reads it as English; the reading knows better.
+                if (turnLang === 'en' && understanding.outcome?.ok && understanding.outcome.verified.language === 'fa') {
+                        turnLang = 'fa'
+                        finalSystemPrompt = systemPromptFor(turnLang)
+                }
                 // Every routing decision below comes from the verified reading.
                 // A turn whose reading could not be obtained has no route: nothing
                 // is read into the message, and the model answers it as a plain
@@ -620,17 +630,41 @@ async function prepareTurn(params: StartChatParams): Promise<
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length && referencedIds.length === 0
                         ? productRequest.searchTerms.join(' ')
                         : message
-                const { contextText, chunks } = await retrieveContext({
-                        workspaceId,
-                        agentId: agent.id,
-                        query: retrievalQuery,
-                        limit: searchingCatalog
-                                ? Math.min(24, Math.max(12, productRequest.requestedCount * 2))
-                                : 3,
-                        includeProductCatalog: searchingCatalog,
-                        excludeProductContentFromText: true,
-                        contextTextLimit: 4,
-                })
+                // What the knowledge base is asked: the verified question with its
+                // subject named («ابعادش؟» → «ابعاد میز تلویزیون آپادانا ۱۶۰»), next to
+                // the customer's own words.
+                const knowledgeQuery = route?.knowledgeQuery
+                        ? `${route.knowledgeQuery} ${message.length <= 200 ? message : ''}`.trim()
+                        : ''
+                const [primaryContext, knowledgeContext] = await Promise.all([
+                        retrieveContext({
+                                workspaceId,
+                                agentId: agent.id,
+                                query: searchingCatalog || !knowledgeQuery ? retrievalQuery : knowledgeQuery,
+                                limit: searchingCatalog
+                                        ? Math.min(24, Math.max(12, productRequest.requestedCount * 2))
+                                        : 5,
+                                includeProductCatalog: searchingCatalog,
+                                excludeProductContentFromText: true,
+                                contextTextLimit: searchingCatalog ? 4 : 5,
+                        }),
+                        // «قیمت آپادانا ۱۶۰ چنده، ارسال به تبریز چند روزه و قسطی هم
+                        // می‌دید؟»: the product words find the product, not the
+                        // shipping and instalment rules. Those are looked up on their own.
+                        searchingCatalog && knowledgeQuery
+                                ? retrieveContext({
+                                        workspaceId,
+                                        agentId: agent.id,
+                                        query: knowledgeQuery,
+                                        limit: 5,
+                                        includeProductCatalog: false,
+                                        excludeProductContentFromText: true,
+                                        contextTextLimit: 5,
+                                })
+                                : Promise.resolve(null),
+                ])
+                const chunks = primaryContext.chunks
+                const contextText = knowledgeContext?.contextText || primaryContext.contextText
                 bumpProductQueries(workspaceId, chunks)
 
                 // An explicit human request or a high-severity complaint in the
@@ -697,6 +731,54 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 catalogToolReason = route.catalogSearch.reason
                                 catalogSearchInstruction = search?.instruction ?? ''
                                 return search?.products ?? []
+                        }
+                        // «X با Y چه فرقی داره؟»: one search per named product. A
+                        // single search for both names finds neither, or one of them,
+                        // and the reply then denies a product the store sells.
+                        if (productsRouted && route.productSearches.length > 1) {
+                                const sides = await Promise.all(route.productSearches.map((terms) => fetchCatalogProducts(agent.id, [], {
+                                        ...productRequest,
+                                        searchTerms: terms,
+                                        corpusSubjectTerms: corpusTokens ? terms.filter((term) => corpusTokens.has(term)) : [],
+                                        explicitShowcase: false,
+                                        comparisonConsult: false,
+                                        inventoryMode: 'ANY',
+                                        requestedCount: 3,
+                                }, corpusTokens).catch(() => [] as CatalogProduct[])))
+                                const isFaTurn = turnLang !== 'en'
+                                const found = sides.map((rows) => {
+                                        const exact = rows.filter((row) => row.fullTermMatch)
+                                        return (exact.length ? exact : rows.filter((row) => !row.nearMatch)).slice(0, 2)
+                                })
+                                const lines = found.map((rows, index) => {
+                                        const asked = route.productSearches[index].join(' ')
+                                        if (isFaTurn) return rows.length ? `«${asked}» ← ${rows.map((row) => `«${row.name}»`).join('، ')}` : `«${asked}» ← در کاتالوگ پیدا نشد`
+                                        return rows.length ? `“${asked}” → ${rows.map((row) => `“${row.name}”`).join(', ')}` : `“${asked}” → not found in the catalog`
+                                })
+                                catalogSearchInstruction = isFaTurn
+                                        ? `\n\n=== نتیجهٔ جست‌وجوی دقیق کاتالوگ ===\nمشتری چند محصول را نام برده و هر کدام جدا جست‌وجو شد:\n${lines.join('\n')}\nدربارهٔ هر محصول فقط از ردیف خودش در کاتالوگ همین نوبت جواب بده. تفاوت‌ها را فقط از نام، دسته، توضیحات و قیمت همین ردیف‌ها بگو؛ اگر مشخصه‌ای ثبت نشده، بگو ثبت نشده. فقط دربارهٔ محصولی که «پیدا نشد» بگو در کاتالوگ نیست.`
+                                        : `\n\n=== Exact catalog search ===\nThe customer named several products; each was searched on its own:\n${lines.join('\n')}\nAnswer about each product only from its own row in this turn's catalog. State differences only from the name, category, description and price of these rows; say so when a spec is not recorded. Only a product marked not found may be called missing.`
+                                const seen = new Set<string>()
+                                return found.flat().filter((row) => !seen.has(row.id) && seen.add(row.id)).slice(0, 6)
+                        }
+                        // The words of a need narrow the search only when product
+                        // NAMES carry them: «ریمل» + «ضد آب» is the waterproof mascaras,
+                        // «ضد آفتاب» + «پوست چرب» stays every sunscreen and the reply
+                        // picks from their descriptions.
+                        if (productsRouted && route.needTerms.length && productRequest.searchTerms.length) {
+                                const narrowed = await fetchCatalogProducts(agent.id, productIds, {
+                                        ...productRequest,
+                                        searchTerms: [...new Set([...productRequest.searchTerms, ...route.needTerms])].slice(0, 8),
+                                        inventoryMode: 'ANY',
+                                        requestedCount: Math.max(productRequest.requestedCount, 6),
+                                }, corpusTokens, workingState.candidateEntityIds).catch(() => [] as CatalogProduct[])
+                                const named = narrowed.filter((row) => {
+                                        const name = normalizePersianText(row.name).toLocaleLowerCase('fa')
+                                        return !row.nearMatch && route.needTerms.every((term) => name.includes(term))
+                                })
+                                const buyable = named.filter((row) => row.stock !== 0 && !row.unavailable)
+                                if (buyable.length) return buyable
+                                if (named.length) return named.map((row) => ({ ...row, unavailable: true }))
                         }
                         return fetchCatalogProducts(agent.id, productIds, productRequest, corpusTokens, workingState.candidateEntityIds)
                 }
@@ -775,6 +857,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                         }
                 }
                 workingState = enrichConversationStateWithCatalog(workingState, catalogProducts)
+                // «اولی و سومی رو مقایسه کن»: the turn is about the rows the
+                // customer pointed at. The product discussed before them must not
+                // stand in the state as «the» subject, or the reply answers about it.
+                if (productsRouted && referencedIds.length > 1 && workingState.activeEntity) {
+                        workingState = { ...workingState, activeEntity: null }
+                }
                 if (productsRouted && route.productsIdentified && catalogProducts.length === 1) {
                         // The referenced product is the active entity from now on.
                         workingState = promoteConversationStateToProduct(
@@ -1017,6 +1105,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         orderCaptureEnabled: agent.orderCaptureEnabled === true,
                         ledger,
                         understoodDomains: routedDomains,
+                        orderAsked: route?.unavailable.includes('order_capture') ?? false,
                         bookingHint: route?.booking ? route.booking.hint : undefined,
                         bookingConfirmed: route?.booking
                                 ? understanding.outcome?.ok === true && understanding.outcome.verified.answersPending
@@ -1152,6 +1241,8 @@ export async function completeTurn(
                 restockOffer,
                 orderCaptureEnabled,
         } = prep
+        // The understanding layer read this turn (see AgentSkillPostprocessContext).
+        const turnWasRead = (prep.understoodDomains?.length ?? 0) > 0
 
         // Smart handoff: check before calling AI. A database/policy failure
         // here must not leave wallet credit reserved forever.
@@ -1300,7 +1391,7 @@ export async function completeTurn(
                 mode: resolveLinkGuardMode(),
                 handoffEnabled: agent.handoffEnabled,
         }
-        const preview = createLivePreviewGuard(skillPlan, { userMessage: message, orderCaptureEnabled, hasGroundedOrder, linkGuard })
+        const preview = createLivePreviewGuard(skillPlan, { userMessage: message, orderCaptureEnabled, hasGroundedOrder, linkGuard, turnWasRead })
         const providerStatus: ProviderStatus[] = []
         let reply = ''
         let usage: ChatUsage | null = null
@@ -1445,6 +1536,8 @@ export async function completeTurn(
                 establishedProductIds: recentCardIds,
                 orderCaptureEnabled,
                 linkGuard,
+                turnWasRead,
+                orderAsked: prep.orderAsked ?? false,
         })
 
         // Canonicalize markers for every surface before persistence and return.

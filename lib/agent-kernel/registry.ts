@@ -8,7 +8,7 @@ import { ACTION_CAPABILITY_SKILL_VERSION, actionCapabilityInstruction, bookingUn
 import { needsVisualReferenceSkill, VISUAL_REFERENCE_SKILL_VERSION, visualReferenceInstruction } from '@/lib/agent-kernel/skills/visual-reference'
 import { HUMANIZER_SKILL_VERSION, humanizerPolishInstruction } from '@/lib/agent-kernel/skills/humanizer-polish'
 
-export const AGENT_KERNEL_VERSION = '2026.09.16-product-links.1'
+export const AGENT_KERNEL_VERSION = '2026.10.13-core-hard.1'
 
 const manifests = {
   security: { key: 'security-boundaries', version: '1.0.0', phase: 'policy', priority: 1000, description: 'Immutable safety and instruction hierarchy.' },
@@ -29,7 +29,7 @@ const manifests = {
   course: { key: 'course-enrollment', version: '1.0.0', phase: 'action', priority: 645, description: 'Run the bounded course enrollment workflow and emit receipts.' },
   sales: { key: 'sales-intelligence', version: '1.0.0', phase: 'context', priority: 400, description: 'Apply grounded sales guidance without overriding safety.' },
   cards: { key: 'product-card-hydration', version: '1.0.0', phase: 'postprocess', priority: 300, description: 'Hydrate product cards from trusted database rows.' },
-  persian: { key: 'persian-response-polish', version: '1.0.0', phase: 'postprocess', priority: 200, description: 'Apply conservative Persian chat punctuation.' },
+  persian: { key: 'persian-response-polish', version: '1.1.0', phase: 'postprocess', priority: 200, description: 'Apply conservative Persian chat punctuation.' },
   humanizer: { key: 'humanizer-polish', version: HUMANIZER_SKILL_VERSION, phase: 'postprocess', priority: 190, description: 'Remove AI-writing tells without changing meaning (prompt rules + deterministic polish).' },
 } satisfies Record<string, AgentSkillManifest>
 
