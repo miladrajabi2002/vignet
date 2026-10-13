@@ -150,14 +150,26 @@
         function isRtl() {
                 return config.language === 'fa'
         }
-        // Single source of truth for the mobile breakpoint. MUST stay in sync
-        // with the @media (max-width:768px) rule in injectStyles(). matchMedia
-        // keeps JS and CSS agreeing even at exactly 768px (the old
-        // `innerWidth < 768` check disagreed with the CSS at that width).
+        // Three layout tiers, each MUST stay in sync with its @media rule in
+        // injectStyles(). matchMedia keeps JS and CSS agreeing at the exact
+        // boundary widths (an `innerWidth <` check does not).
+        //   isMobile()  ≤768px        touch sizing (phones and small tablets)
+        //   isSheet()   ≤600px        the panel is a full-screen sheet
+        //   isDocked()  601–1024px    the panel is docked beside the page
         function isMobile() {
                 return window.matchMedia
                         ? window.matchMedia('(max-width: 768px)').matches
                         : window.innerWidth <= 768
+        }
+        function isSheet() {
+                return window.matchMedia
+                        ? window.matchMedia('(max-width: 600px)').matches
+                        : window.innerWidth <= 600
+        }
+        function isDocked() {
+                return window.matchMedia
+                        ? window.matchMedia('(min-width: 601px) and (max-width: 1024px)').matches
+                        : window.innerWidth > 600 && window.innerWidth <= 1024
         }
         function t(fa, en) {
                 return isRtl() ? fa : en
@@ -369,10 +381,10 @@
                         // launcher
                         '.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
                         'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
-                        'color:var(--vgt-on-accent);box-shadow:0 10px 24px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);' +
+                        'color:var(--vgt-on-accent);box-shadow:0 1px 2px rgba(17,17,17,.16),0 10px 24px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);' +
                         'font-family:var(--vgt-font);' +
                         'transition:transform var(--vgt-motion-control) var(--vgt-ease),box-shadow var(--vgt-motion-control) var(--vgt-ease);}' +
-                        '.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 14px 30px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);}' +
+                        '.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 1px 2px rgba(17,17,17,.16),0 14px 30px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);}' +
                         '.vgt-launcher:active{transform:scale(.95);}' +
                         '.vgt-launcher-ico{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;position:relative;}' +
                         '.vgt-launcher-ico svg{width:25px;height:25px;position:absolute;transition:transform .35s cubic-bezier(.34,1.5,.64,1),opacity .25s ease;}' +
@@ -383,7 +395,7 @@
                         '.vgt-launcher:not(.vgt-open)::after{content:"";position:absolute;top:6px;' +
                         'inset-inline-end:6px;width:10px;height:10px;border-radius:50%;background:#22c55e;' +
                         'border:2px solid var(--vgt-accent);box-shadow:0 0 0 0 rgba(34,197,94,.55);' +
-                        'animation:vgt-ping 2.4s cubic-bezier(.66,0,.34,1) infinite;}' +
+                        'animation:vgt-ping 2.4s cubic-bezier(.66,0,.34,1) 3;}' +
                         // panel — 100dvh avoids the iOS Safari URL-bar jump that 100vh causes;
                         // box-sizing:border-box so padding/border don't blow out the height.
                         '.vgt-panel{position:absolute;bottom:74px;width:392px;max-width:calc(100vw - 32px);height:620px;' +
@@ -403,8 +415,7 @@
                         '.vgt-ava img{width:100%;height:100%;object-fit:cover;border-radius:14px;}' +
                         '.vgt-ava svg{width:22px;height:22px;}' +
                         '.vgt-ava-dot{position:absolute;bottom:-2px;inset-inline-end:-2px;width:11px;height:11px;border-radius:50%;' +
-                        'background:#22c55e;border:2px solid var(--vgt-head-bg);box-shadow:0 0 0 2px rgba(34,197,94,.3);' +
-                        'animation:vgt-pulse 2.4s ease-in-out infinite;}' +
+                        'background:#22c55e;border:2px solid var(--vgt-head-bg);}' +
                         '.vgt-head-meta{flex:1;min-width:0;}' +
                         '.vgt-head-title{font-weight:700;font-size:15px;line-height:1.25;color:var(--vgt-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         '.vgt-head-sub{font-size:12.5px;color:var(--vgt-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
@@ -415,8 +426,6 @@
                         '.vgt-close svg{width:18px;height:18px;}' +
                         // header (gradient / branded)
                         '.vgt-head.vgt-head-grad{background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);border-bottom:none;}' +
-                        '.vgt-head.vgt-head-grad::after{content:"";position:absolute;inset:0;pointer-events:none;' +
-                        'background:radial-gradient(120% 140% at 85% -20%,rgba(255,255,255,.22),transparent 55%);}' +
                         '.vgt-head.vgt-head-grad .vgt-head-title{color:var(--vgt-on-accent);}' +
                         '.vgt-head.vgt-head-grad .vgt-head-sub{color:var(--vgt-on-accent);opacity:.72;}' +
                         '.vgt-head.vgt-head-grad .vgt-ava{background:rgba(255,255,255,.16);color:var(--vgt-on-accent);' +
@@ -425,7 +434,7 @@
                         '.vgt-head.vgt-head-grad .vgt-close{color:var(--vgt-on-accent);opacity:.75;z-index:1;}' +
                         '.vgt-head.vgt-head-grad .vgt-close:hover{background:rgba(255,255,255,.15);opacity:1;}' +
                         // body
-                        '.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;background:var(--vgt-bg);' +
+                        '.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;background:var(--vgt-bg);' +
                         // Contain scroll so reaching the top/bottom of the thread never
                         // scroll-chains into the host page (iOS rubber-band / Android glow).
                         'overscroll-behavior:contain;-webkit-overflow-scrolling:touch;' +
@@ -455,26 +464,27 @@
                         // the LTR-positioned bubble container.
                         'unicode-bidi:plaintext;text-align:start;' +
                         'border-radius:var(--vgt-r-bubble);animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
-                        // User bubble: solid accent, 6px tail (rounded-br-md), subtle shadow.
+                        // User bubble: solid accent, 6px tail (rounded-br-md), no shadow.
                         '.vgt-msg.vgt-user{align-self:flex-end;background:var(--vgt-accent);' +
-                        'color:var(--vgt-on-accent);border-bottom-right-radius:6px;box-shadow:0 1px 3px 0 rgba(0,0,0,.08);}' +
-                        // Bot bubble: white bg (light theme) with subtle border + shadow,
-                        // matching the chat link's clean bg-white border-black/[0.07] shadow-sm.
-                        '.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-bg);color:var(--vgt-text);' +
-                        'border:1px solid var(--vgt-border);border-bottom-left-radius:6px;box-shadow:0 1px 3px 0 rgba(0,0,0,.05);}' +
-                        '.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#b91c1c;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}' +
-                        '.vgt-retry{min-height:36px;border:1px solid rgba(185,28,28,.22);border-radius:12px;background:var(--vgt-surface);color:#b91c1c;padding:6px 10px;font:inherit;font-weight:700;cursor:pointer;}' +
-                        '.vgt-retry:focus-visible{outline:2px solid #b91c1c;outline-offset:2px;}' +
+                        'color:var(--vgt-on-accent);border-bottom-right-radius:6px;}' +
+                        // Bot bubble: filled with the surface tone, so it reads against the
+                        // panel without a border or shadow. Product cards stay the only framed
+                        // objects in the thread. The transparent 1px border keeps the box size.
+                        '.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-surface);color:var(--vgt-text);' +
+                        'border:1px solid transparent;border-bottom-left-radius:6px;}' +
+                        '.vgt-msg.vgt-err{background:var(--vgt-danger-soft);color:var(--vgt-danger);border:1px solid var(--vgt-danger-line);align-self:stretch;max-width:100%;text-align:center;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}' +
+                        '.vgt-retry{min-height:36px;border:1px solid var(--vgt-danger-line);border-radius:var(--vgt-r-ctl);background:var(--vgt-surface);color:var(--vgt-danger);padding:6px 10px;font:inherit;font-weight:700;cursor:pointer;}' +
+                        '.vgt-retry:focus-visible{outline:2px solid var(--vgt-danger);outline-offset:2px;}' +
                         // assistant group (chip + bubble + cards + actions)
                         // width:fit-content + max-width:100% lets the group size to content
                         // (same fix as .vgt-bubble-wrap — prevents mid-word breaks).
-                        '.vgt-group{display:flex;flex-direction:column;align-items:flex-start;gap:7px;max-width:100%;width:fit-content;}' +
+                        '.vgt-group{display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:100%;width:fit-content;}' +
                         '.vgt-group.vgt-has-cards{width:100%;}' +
                         '.vgt-group .vgt-msg{animation:none;max-width:84%;}' +
                         '.vgt-group:empty{display:none;}' +
                         // source chip ("از کاتالوگ محصول")
                         '.vgt-source{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;' +
-                        'border:1px solid var(--vgt-border);background:var(--vgt-bg);color:var(--vgt-muted);font-size:11px;font-weight:600;' +
+                        'border:1px solid var(--vgt-border);background:var(--vgt-bg);color:var(--vgt-muted);font-size:12px;font-weight:600;' +
                         'animation:vgt-in .3s ease both;}' +
                         '.vgt-source svg{width:12px;height:12px;}' +
                         // product card
@@ -484,9 +494,14 @@
                         // progress bar and a "see all" grid toggle. Mirrors
                         // components/products/product-showcase-rail.tsx.
                         '.vgt-rail-shell{display:flex;flex-direction:column;gap:6px;width:min(660px,calc(100vw - 88px));max-width:100%;}' +
+                        // .vgt-body is LTR only to pin the two bubble sides. The rail must
+                        // follow the language again: its JS (step, progress thumb, chevrons)
+                        // already assumes an RTL scroller for Persian, and card text would
+                        // otherwise be left-aligned.
+                        '.vgt-root.vgt-rtl .vgt-rail-shell{direction:rtl;}' +
                         '.vgt-rail-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 2px;}' +
                         // The label truncates so the controls survive a 320px screen.
-                        '.vgt-rail-count{display:inline-flex;align-items:center;gap:5px;min-width:0;color:var(--vgt-muted);font-size:11px;font-weight:600;' +
+                        '.vgt-rail-count{display:inline-flex;align-items:center;gap:5px;min-width:0;color:var(--vgt-muted);font-size:12px;font-weight:600;' +
                         'overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}' +
                         '.vgt-rail-count svg{width:12px;height:12px;flex:0 0 auto;}' +
                         '.vgt-rail-nav{display:flex;align-items:center;gap:4px;margin-inline-start:auto;}' +
@@ -499,10 +514,10 @@
                         '.vgt-rail-btn:focus-visible,.vgt-rail-toggle:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         '.vgt-rail-toggle{display:inline-flex;align-items:center;gap:5px;min-height:34px;flex:0 0 auto;padding:0 11px;cursor:pointer;' +
                         'border:1px solid var(--vgt-border);border-radius:999px;background:var(--vgt-bg);color:var(--vgt-text);' +
-                        'font-family:inherit;font-size:11px;font-weight:700;transition:border-color .18s,background .18s;}' +
+                        'font-family:inherit;font-size:12px;font-weight:700;transition:border-color .18s,background .18s;}' +
                         '.vgt-rail-toggle:hover{border-color:var(--vgt-accent);color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);}' +
                         '.vgt-rail-toggle svg{width:13px;height:13px;flex:0 0 auto;}' +
-                        '.vgt-rail-progress{height:4px;margin:0 2px;border-radius:999px;background:rgba(0,0,0,.07);overflow:hidden;}' +
+                        '.vgt-rail-progress{height:4px;margin:0 2px;border-radius:999px;background:var(--vgt-border);overflow:hidden;}' +
                         // No transition: the thumb tracks the live scroll offset and easing
                         // it would visibly lag behind a finger swipe.
                         '.vgt-rail-thumb{height:100%;border-radius:999px;background:var(--vgt-accent);opacity:.7;}' +
@@ -519,31 +534,31 @@
                         'overflow:visible;scroll-snap-type:none;padding-bottom:2px;}' +
                         '.vgt-card-rail.vgt-grid .vgt-card{width:auto!important;flex-basis:auto!important;min-width:0;}' +
                         '.vgt-card{width:min(250px,78vw);flex:0 0 min(250px,78vw);display:flex;flex-direction:column;overflow:hidden;scroll-snap-align:start;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
-                        'background:var(--vgt-bg);box-shadow:0 12px 32px -20px rgba(0,0,0,.34);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
+                        'background:var(--vgt-bg);box-shadow:var(--vgt-elev-1);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
                         'transition:transform .2s ease,box-shadow .2s ease;}' +
-                        '.vgt-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px -14px rgba(0,0,0,.3);}' +
-                        '.vgt-card-image{display:block;width:100%;height:156px;object-fit:cover;background:var(--vgt-surface);}' +
+                        '.vgt-card:hover{transform:translateY(-2px);box-shadow:var(--vgt-elev-2);}' +
+                        '.vgt-card-image{display:block;width:100%;height:132px;object-fit:cover;background:var(--vgt-surface);}' +
                         '.vgt-card-placeholder{display:flex;align-items:center;justify-content:center;color:var(--vgt-muted);}' +
                         '.vgt-card-placeholder svg{width:30px;height:30px;opacity:.5;}' +
                         // No photo: a short strip, so the name and price stay in view.
                         '.vgt-card-image.vgt-card-placeholder{height:64px;}' +
-                        '.vgt-card-row{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 10px;}' +
+                        '.vgt-card-row{display:flex;align-items:flex-start;gap:12px;padding:12px 14px 10px;}' +
                         '.vgt-card-thumb{width:58px;height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;' +
                         'border-radius:14px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);font-size:24px;font-weight:700;box-shadow:0 6px 16px -6px var(--vgt-accent-shadow);}' +
                         '.vgt-card-main{display:flex;flex:1;min-width:0;flex-direction:column;}' +
                         '.vgt-card-top{display:flex;align-items:flex-start;gap:6px;min-width:0;}' +
                         '.vgt-card-name{display:-webkit-box;font-size:13.5px;font-weight:750;line-height:1.55;color:var(--vgt-text);overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
-                        '.vgt-card-badge{flex:0 0 auto;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;' +
+                        '.vgt-card-badge{flex:0 0 auto;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;' +
                         'color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);border:1px solid var(--vgt-accent-line);}' +
-                        '.vgt-card-desc{display:-webkit-box;margin-top:5px;font-size:11.5px;line-height:1.75;color:var(--vgt-muted);overflow:hidden;-webkit-line-clamp:3;-webkit-box-orient:vertical;}' +
+                        '.vgt-card-desc{display:-webkit-box;margin-top:5px;font-size:12.5px;line-height:1.7;color:var(--vgt-muted);overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
                         '.vgt-card-specs{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;}' +
-                        '.vgt-card-spec{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 7px;border-radius:6px;background:var(--vgt-surface);color:var(--vgt-muted);font-size:10px;}' +
-                        '.vgt-card-price{margin-top:8px;font-size:14px;font-weight:800;color:var(--vgt-text);font-variant-numeric:tabular-nums;}' +
-                        '.vgt-card-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin:auto 14px 14px;border-radius:12px;' +
-                        'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:12px;font-weight:700;text-decoration:none;' +
+                        '.vgt-card-spec{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 7px;border-radius:6px;background:var(--vgt-surface);color:var(--vgt-muted);font-size:12px;}' +
+                        '.vgt-card-price{margin-top:10px;font-size:15px;font-weight:800;color:var(--vgt-text);font-variant-numeric:tabular-nums;}' +
+                        '.vgt-card-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin:auto 14px 14px;border-radius:var(--vgt-r-ctl);' +
+                        'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:13px;font-weight:700;text-decoration:none;' +
                         'transition:opacity .18s,transform .15s;}' +
-                        '.vgt-card-no-link{display:flex;align-items:center;min-height:44px;margin:auto 14px 10px;color:var(--vgt-muted);font-size:11px;}' +
+                        '.vgt-card-no-link{display:flex;align-items:center;min-height:44px;margin:auto 14px 10px;color:var(--vgt-muted);font-size:12px;}' +
                         '.vgt-card-link:hover{opacity:.9;transform:translateY(-1px);}' +
                         '.vgt-card-link:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         '.vgt-card-actions{display:flex;gap:8px;margin:auto 14px 14px;}' +
@@ -554,16 +569,16 @@
                         '.vgt-card-ghost{background:transparent;color:var(--vgt-text);box-shadow:inset 0 0 0 1px var(--vgt-border);}' +
                         // in-chat checkout card
                         '.vgt-checkout{max-width:min(320px,86vw);border:1px solid var(--vgt-border);border-radius:var(--vgt-r-bubble);background:var(--vgt-bg);' +
-                        'box-shadow:0 12px 32px -20px rgba(0,0,0,.34);padding:12px 14px 14px;animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;}' +
+                        'box-shadow:var(--vgt-elev-1);padding:12px 14px 14px;animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;}' +
                         '.vgt-co-head{display:flex;flex-direction:column;gap:2px;margin-bottom:8px;}' +
                         '.vgt-co-title{font-size:13.5px;font-weight:800;color:var(--vgt-text);}' +
-                        '.vgt-co-host{font-size:11px;color:var(--vgt-muted);}' +
-                        '.vgt-co-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--vgt-border);font-size:12px;line-height:1.6;color:var(--vgt-text);}' +
+                        '.vgt-co-host{font-size:12px;color:var(--vgt-muted);}' +
+                        '.vgt-co-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--vgt-border);font-size:13px;line-height:1.6;color:var(--vgt-text);}' +
                         '.vgt-co-label{min-width:0;overflow-wrap:anywhere;}' +
                         '.vgt-co-value{flex:0 0 auto;font-variant-numeric:tabular-nums;white-space:nowrap;}' +
                         '.vgt-co-muted{color:var(--vgt-muted);}' +
-                        '.vgt-co-total{font-weight:800;font-size:13px;}' +
-                        '.vgt-co-pay{display:flex;align-items:center;justify-content:center;min-height:46px;margin-top:10px;border-radius:12px;' +
+                        '.vgt-co-total{font-weight:800;font-size:14px;}' +
+                        '.vgt-co-pay{display:flex;align-items:center;justify-content:center;min-height:46px;margin-top:10px;border-radius:var(--vgt-r-ctl);' +
                         'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:13px;font-weight:800;text-decoration:none;transition:opacity .18s,transform .15s;}' +
                         '.vgt-co-pay:hover{opacity:.92;transform:translateY(-1px);}' +
                         '.vgt-co-pay:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
@@ -571,7 +586,7 @@
                         '.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
                         '.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
                         'background:var(--vgt-bg);color:var(--vgt-text);border-radius:999px;padding:11px 16px;font-family:inherit;' +
-                        'font-size:12px;font-weight:600;transition:border-color .18s,background .18s,transform .15s;}' +
+                        'font-size:13px;font-weight:600;transition:border-color .18s,background .18s,transform .15s;}' +
                         '.vgt-action:hover{border-color:var(--vgt-accent);color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);transform:translateY(-1px);}' +
                         '.vgt-action svg{width:12px;height:12px;}' +
                         '.vgt-root.vgt-rtl .vgt-action svg{transform:scaleX(-1);}' +
@@ -581,7 +596,7 @@
                         'background:linear-gradient(135deg,var(--vgt-accent-soft) 0%,transparent 140%);color:var(--vgt-accent);' +
                         'box-shadow:inset 0 0 0 1px var(--vgt-accent-line);}' +
                         '.vgt-intro-ava svg{width:32px;height:32px;}' +
-                        '.vgt-intro-text{font-size:15.5px;font-weight:500;line-height:1.6;color:var(--vgt-text);max-width:290px;}' +
+                        '.vgt-intro-text{font-size:15.5px;font-weight:500;line-height:1.6;color:var(--vgt-text);max-width:290px;unicode-bidi:plaintext;}' +
                         // quick replies
                         '.vgt-qr{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:300px;}' +
                         '.vgt-qr .vgt-action{animation:vgt-in .35s ease both;}' +
@@ -593,18 +608,21 @@
                         '.vgt-lead-ava{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;' +
                         'background:var(--vgt-accent-soft);color:var(--vgt-accent);}' +
                         '.vgt-lead-ava svg{width:28px;height:28px;}' +
-                        '.vgt-lead-text{font-size:14px;line-height:1.7;color:var(--vgt-text);max-width:280px;}' +
-                        '.vgt-lead-form{width:100%;display:flex;flex-direction:column;gap:8px;}' +
+                        '.vgt-lead-text{font-size:14px;line-height:1.7;color:var(--vgt-text);max-width:280px;unicode-bidi:plaintext;}' +
+                        '.vgt-lead-form{width:100%;display:flex;flex-direction:column;gap:6px;text-align:start;}' +
+                        '.vgt-root.vgt-rtl .vgt-lead-form{direction:rtl;}' +
+                        // A visible label per field: a placeholder disappears with the first keystroke.
+                        '.vgt-lead-label{display:block;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--vgt-text);}' +
                         // font-size:16px prevents iOS Safari auto-zoom on focus (inputs <16px trigger it).
-                        '.vgt-lead-input{width:100%;border:1.5px solid var(--vgt-border);background:var(--vgt-surface);color:var(--vgt-text);' +
-                        'border-radius:var(--vgt-r-input);padding:11px 14px;font-family:inherit;font-size:16px;outline:none;transition:border-color .18s,box-shadow .18s;' +
-                        'text-align:right;direction:rtl;}' +
-                        '.vgt-lead-input:focus{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);}' +
-                        '.vgt-lead-btn{border:none;cursor:pointer;border-radius:var(--vgt-r-input);padding:11px;' +
-                        'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
-                        'color:var(--vgt-on-accent);font-family:inherit;font-size:14px;font-weight:600;transition:transform .15s,opacity .15s;' +
-                        'box-shadow:0 6px 18px -6px var(--vgt-accent-shadow);}' +
-                        '.vgt-lead-btn:hover{transform:translateY(-1px);}.vgt-lead-btn:active{transform:translateY(0);}' +
+                        '.vgt-lead-input{width:100%;min-height:48px;border:1px solid var(--vgt-border);background:var(--vgt-bg);color:var(--vgt-text);' +
+                        'border-radius:var(--vgt-r-input);padding:0 14px;font-family:inherit;font-size:16px;outline:none;transition:border-color .18s,box-shadow .18s;' +
+                        'text-align:start;}' +
+                        '.vgt-lead-input:focus{border-color:var(--vgt-focus-line);box-shadow:0 0 0 3px var(--vgt-accent-soft);}' +
+                        // Flat accent like the send button; 48px clears the 44px touch target.
+                        '.vgt-lead-btn{min-height:48px;margin-top:8px;border:none;cursor:pointer;border-radius:var(--vgt-r-input);padding:0 11px;' +
+                        'background:var(--vgt-accent);' +
+                        'color:var(--vgt-on-accent);font-family:inherit;font-size:15px;font-weight:600;transition:background .15s,transform .15s,opacity .15s;}' +
+                        '.vgt-lead-btn:hover:not(:disabled){background:var(--vgt-accent-deep);}.vgt-lead-btn:active{transform:scale(.99);}' +
                         '.vgt-lead-btn:disabled{opacity:.5;cursor:default;}' +
                         '.vgt-lead-skip{margin-top:4px;border:none;background:transparent;cursor:pointer;color:var(--vgt-muted);' +
                         'font-family:inherit;font-size:12px;padding:6px;transition:color .15s;}' +
@@ -612,7 +630,7 @@
                         // markdown rendering inside bot bubbles
                         '.vgt-msg strong,.vgt-msg b{font-weight:700;}' +
                         '.vgt-msg em,.vgt-msg i{font-style:italic;}' +
-                        '.vgt-msg code{background:var(--vgt-surface);border:1px solid var(--vgt-border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:.88em;}' +
+                        '.vgt-msg code{background:var(--vgt-bg);border:1px solid var(--vgt-border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:.88em;}' +
                         '.vgt-msg ul,.vgt-msg ol{margin:4px 0;padding-inline-start:20px;}' +
                         '.vgt-msg li{margin:2px 0;}' +
                         '.vgt-msg.vgt-bot ul,.vgt-msg.vgt-bot ol{white-space:normal;}' +
@@ -622,9 +640,9 @@
                         '.vgt-typing-dots{display:flex;direction:ltr;align-items:center;gap:4px;flex-shrink:0;}' +
                         '.vgt-typing-dot{width:6px;height:6px;border-radius:50%;background:var(--vgt-accent);opacity:.38;animation:vgt-typing-pulse 1.25s cubic-bezier(.45,0,.2,1) infinite;}' +
                         '.vgt-typing-dot:nth-child(2){animation-delay:.14s;}.vgt-typing-dot:nth-child(3){animation-delay:.28s;}' +
-                        '.vgt-typing-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--vgt-muted);font-size:11px;font-weight:500;line-height:20px;}' +
+                        '.vgt-typing-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--vgt-muted);font-size:12px;font-weight:500;line-height:20px;}' +
                         // input
-                        '.vgt-foot{padding:10px 12px 8px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
+                        '.vgt-foot{padding:10px 12px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
                         // Composer pill. The geometry MUST stay in sync with
                         // COMPOSER_GEOMETRY in components/chat/chat-composer.tsx — the
                         // React composer every in-app surface uses. This file can't
@@ -634,7 +652,7 @@
                         '.vgt-inputwrap{position:relative;display:flex;align-items:flex-end;gap:8px;background:var(--vgt-surface);' +
                         'border:1.5px solid var(--vgt-border);border-radius:var(--vgt-r-pill);padding:6px 8px;' +
                         'transition:border-color .18s,box-shadow .18s,background .18s;}' +
-                        '.vgt-inputwrap:focus-within{border-color:var(--vgt-focus);box-shadow:0 0 0 4px rgba(10,132,255,.14);background:var(--vgt-bg);}' +
+                        '.vgt-inputwrap:focus-within{border-color:var(--vgt-focus-line);box-shadow:0 0 0 3px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
                         // row-reverse inside the RTL panel lays the children out
                         // left-to-right, which keeps the send button on the visual RIGHT
                         // in every language — the same guarantee the React composer gets
@@ -681,20 +699,21 @@
                         // direction:ltr forces "Powered by Vigent" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "Vigent by Powered".
-                        '.vgt-brand{text-align:center;font-size:11px;color:var(--vgt-muted);padding-top:9px;direction:ltr;}' +
+                        '.vgt-brand{text-align:center;font-size:12px;color:var(--vgt-muted);padding-top:8px;direction:ltr;}' +
                         '.vgt-brand a{color:var(--vgt-muted);text-decoration:none;font-weight:600;letter-spacing:.2px;}' +
                         // teaser (auto-greet)
                         '.vgt-teaser{position:absolute;bottom:76px;width:max-content;max-width:260px;background:var(--vgt-bg);color:var(--vgt-text);' +
-                        'border:1px solid var(--vgt-border);border-radius:16px;padding:13px 32px 13px 15px;font-size:13.5px;line-height:1.6;cursor:pointer;' +
-                        'box-shadow:0 16px 40px -20px rgba(0,0,0,.34);animation:vgt-teaser-in var(--vgt-motion-surface) var(--vgt-ease) both;' +
+                        'border:1px solid var(--vgt-border);border-radius:16px;padding:13px 15px;padding-inline-end:36px;font-size:13.5px;line-height:1.6;text-align:start;cursor:pointer;' +
+                        'box-shadow:var(--vgt-elev-2);animation:vgt-teaser-in var(--vgt-motion-surface) var(--vgt-ease) both;' +
                         'transition:transform var(--vgt-motion-control) var(--vgt-ease);}' +
                         '.vgt-teaser:hover{transform:translateY(-2px);}' +
                         '.vgt-root.vgt-right .vgt-teaser{right:4px;}.vgt-root.vgt-left .vgt-teaser{left:4px;}' +
+                        '.vgt-root.vgt-rtl .vgt-teaser{direction:rtl;}' +
                         // 32px touch target (was 20px) — teaser close is a frequent tap on mobile.
                         '.vgt-teaser-x{position:absolute;top:4px;inset-inline-end:4px;width:32px;height:32px;border-radius:50%;border:none;' +
-                        'background:var(--vgt-surface);color:var(--vgt-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;' +
-                        'box-shadow:0 2px 8px rgba(0,0,0,.2);transition:background .15s,color .15s;}' +
-                        '.vgt-teaser-x:hover{background:var(--vgt-border);color:var(--vgt-text);}' +
+                        'background:transparent;color:var(--vgt-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;' +
+                        'transition:background .15s,color .15s;}' +
+                        '.vgt-teaser-x:hover{background:var(--vgt-surface);color:var(--vgt-text);}' +
                         '.vgt-teaser-x svg{width:11px;height:11px;}' +
                         // keyframes
                         '@keyframes vgt-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}' +
@@ -704,7 +723,6 @@
                         '@keyframes vgt-typing-in{from{opacity:0;transform:translateY(5px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}' +
                         '@keyframes vgt-typing-pulse{0%,60%,100%{transform:translateY(0) scale(.92);opacity:.32;}30%{transform:translateY(-2px) scale(1);opacity:.92;}}' +
                         '@keyframes vgt-ping{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}' +
-                        '@keyframes vgt-pulse{0%,100%{box-shadow:0 0 0 2px rgba(34,197,94,.3);}50%{box-shadow:0 0 0 5px rgba(34,197,94,.1);}}' +
                         '@keyframes vgt-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}' +
                         '@keyframes vgt-spin{to{transform:rotate(360deg);}}' +
                         // ---- Reply-to (quote) UI ----
@@ -716,25 +734,62 @@
                         '.vgt-bubble-wrap .vgt-msg{max-width:100%;animation:none;}' +
                         '.vgt-backdrop{position:fixed;inset:0;background:var(--vgt-bg);display:none;z-index:0;touch-action:none;}' +
                         '@media (max-width:768px){' +
+                        // Phones and small tablets: touch sizing. Whether the panel is the
+                        // full-screen sheet or the docked tablet panel is decided by the two
+                        // narrower blocks below.
                         // Let each host site clear its own fixed bottom navigation.
                         // The extra offset applies only to the closed launcher; the
                         // open panel/backdrop remain fixed to the full viewport.
                         '.vgt-root{bottom:calc(max(16px,env(safe-area-inset-bottom)) + var(--vgt-mobile-bottom-offset,0px));}' +
-                        // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
-                        // On phones & small tablets the chat panel becomes a true
-                        // full-screen sheet. We use position:fixed with ALL FOUR
-                        // sides pinned to 0 (top/left/right/bottom) and NO explicit
-                        // height. This makes the panel stretch to fill whatever
-                        // space is between top and bottom — the full viewport when
-                        // the keyboard is closed, and the visible area (above the
-                        // keyboard) when applyViewportHeight() adjusts `bottom`.
-                        // We deliberately do NOT use height:100vh/100dvh here
-                        // because an explicit height + top:0 + bottom:0 creates a
-                        // conflict (height wins, bottom is ignored) which leaves
-                        // the bottom of the screen empty — showing the host site
-                        // underneath. The top+bottom stretch approach is the only
-                        // reliable way to keep the panel filling the visible area
-                        // when the soft keyboard opens on iOS/Android.
+                        // Make the close button bigger and always visible.
+                        '.vgt-close{padding:10px!important;min-width:44px!important;min-height:44px!important;' +
+                        'display:flex!important;align-items:center!important;justify-content:center!important;}' +
+                        '.vgt-close svg{width:22px!important;height:22px!important;}' +
+                        // Slightly larger touch targets for action chips.
+                        '.vgt-action{padding:12px 18px!important;font-size:13px!important;}' +
+                        // Product-rail controls follow the same touch-target rule.
+                        '.vgt-rail-btn{width:40px!important;height:40px!important;}' +
+                        '.vgt-rail-toggle{min-height:40px!important;padding:0 13px!important;font-size:12px!important;}' +
+                        '.vgt-rail-shell{width:100%!important;}' +
+                        // Messages use a bit more of the width.
+                        '.vgt-msg,.vgt-bubble-wrap,.vgt-group .vgt-msg{max-width:88%!important;}' +
+                        // Cards can stretch wider on narrow screens.
+                        '.vgt-card{width:min(76vw,252px)!important;flex-basis:min(76vw,252px)!important;}' +
+                        // ── LEAD FORM & INTRO: prevent disappearing when keyboard opens ──
+                        // When the soft keyboard opens the body shrinks (e.g. from 673px
+                        // to 271px). The lead form and intro no longer fit, and
+                        // `margin:auto` centering pushes the top part (welcome message +
+                        // name field) above the visible area where the user can't see or
+                        // reach it. Fix: make lead/intro fill the body (flex:1) and scroll
+                        // internally, with content pinned to the top.
+                        '.vgt-lead,.vgt-intro{flex:1 1 auto!important;margin:0!important;' +
+                        'justify-content:flex-start!important;overflow-y:auto!important;' +
+                        'padding-top:20px!important;}' +
+                        // Send control reaches the 44px touch target on phones and small tablets.
+                        '.vgt-root .vgt-send{flex:0 0 44px;width:44px;height:44px;min-width:44px;max-width:44px;}' +
+                        // Smaller avatars leave room for the form when the keyboard is open.
+                        '.vgt-lead-ava{width:44px!important;height:44px!important;}' +
+                        '.vgt-lead-ava svg{width:22px!important;height:22px!important;}' +
+                        '.vgt-intro-ava{width:52px!important;height:52px!important;}' +
+                        '.vgt-intro-ava svg{width:26px!important;height:26px!important;}' +
+                        // Instant (non-smooth) scrolling — smooth-scrolling on every SSE
+                        // delta while streaming feels laggy on phone browsers.
+                        '.vgt-body{scroll-behavior:auto!important;}' +
+                        // Teaser: never wider than the screen; bigger close target.
+                        '.vgt-teaser{max-width:calc(100vw - 40px)!important;padding-inline-end:44px!important;}' +
+                        '.vgt-teaser-x{width:38px!important;height:38px!important;}' +
+                        '}' +
+                        // ── PHONES: FULL-SCREEN SHEET ─────────────────────────────
+                        // Up to 600px the chat panel becomes a true full-screen sheet.
+                        // MUST stay in sync with isSheet(). We use position:fixed with ALL
+                        // FOUR sides pinned to 0 and NO explicit height, so the panel fills
+                        // whatever is between top and bottom — the full viewport when the
+                        // keyboard is closed, and the visible area above the keyboard when
+                        // applyViewportHeight() adjusts `bottom`. We deliberately do NOT
+                        // use height:100vh/100dvh here: an explicit height + top:0 +
+                        // bottom:0 conflicts (height wins, bottom is ignored) and leaves
+                        // the host site showing under the panel.
+                        '@media (max-width:600px){' +
                         '.vgt-panel{position:fixed!important;' +
                         'top:0!important;left:0!important;right:0!important;bottom:0!important;' +
                         'width:100vw!important;max-width:100vw!important;' +
@@ -747,17 +802,11 @@
                         'padding-left:max(16px,env(safe-area-inset-left))!important;' +
                         'padding-right:max(16px,env(safe-area-inset-right))!important;' +
                         'min-height:56px!important;}' +
-                        // Make the close button bigger and always visible on mobile.
-                        '.vgt-close{padding:10px!important;min-width:44px!important;min-height:44px!important;' +
-                        'display:flex!important;align-items:center!important;justify-content:center!important;}' +
-                        '.vgt-close svg{width:22px!important;height:22px!important;}' +
                         // Body fills the available space; respect side safe-areas.
                         '.vgt-body{flex:1!important;min-height:0!important;' +
                         'padding-left:max(16px,env(safe-area-inset-left))!important;' +
                         'padding-right:max(16px,env(safe-area-inset-right))!important;}' +
                         // Footer clears the home indicator and side safe-areas.
-                        // (Fixed bug: old selector was .vgt-input-bar which matched
-                        //  nothing — the real class is .vgt-foot.)
                         '.vgt-foot{padding-bottom:max(10px,env(safe-area-inset-bottom))!important;' +
                         'padding-left:max(14px,env(safe-area-inset-left))!important;' +
                         'padding-right:max(14px,env(safe-area-inset-right))!important;}' +
@@ -765,44 +814,24 @@
                         // doesn't float over the conversation.
                         '.vgt-root.vgt-open .vgt-launcher{display:none!important;}' +
                         '.vgt-root.vgt-open .vgt-backdrop{display:block!important;}' +
-                        // Slightly larger touch targets for action chips on mobile.
-                        '.vgt-action{padding:12px 18px!important;font-size:13px!important;}' +
-                        // Product-rail controls follow the same touch-target rule.
-                        '.vgt-rail-btn{width:40px!important;height:40px!important;}' +
-                        '.vgt-rail-toggle{min-height:40px!important;padding:0 13px!important;font-size:12px!important;}' +
-                        '.vgt-rail-shell{width:100%!important;}' +
-                        // Messages use a bit more screen width on mobile.
-                        '.vgt-msg,.vgt-bubble-wrap,.vgt-group .vgt-msg{max-width:88%!important;}' +
-                        // Cards can stretch wider on narrow screens.
-                        '.vgt-card{width:min(76vw,252px)!important;flex-basis:min(76vw,252px)!important;}' +
-                        // ── LEAD FORM & INTRO: prevent disappearing when keyboard opens ──
-                        // On mobile, when the soft keyboard opens the body shrinks
-                        // (e.g. from 673px to 271px). The lead form (~406px) and
-                        // intro no longer fit, and `margin:auto` centering pushes
-                        // the top part (welcome message + name field) above the
-                        // visible area where the user can't see or reach it.
-                        // Fix: make lead/intro fill the body (flex:1) and scroll
-                        // internally, with content pinned to the top
-                        // (justify-content:flex-start) so the welcome message and
-                        // first field are always visible at the top. Padding-top
-                        // gives breathing room below the header.
-                        '.vgt-lead,.vgt-intro{flex:1 1 auto!important;margin:0!important;' +
-                        'justify-content:flex-start!important;overflow-y:auto!important;' +
-                        'padding-top:20px!important;}' +
-                        // On very short viewports (keyboard open), shrink the
-                        // avatar so it takes less space.
-                        // Send control reaches the 44px touch target on phones and small tablets.
-                        '.vgt-root .vgt-send{flex:0 0 44px;width:44px;height:44px;min-width:44px;max-width:44px;}' +
-                        '.vgt-lead-ava{width:44px!important;height:44px!important;}' +
-                        '.vgt-lead-ava svg{width:22px!important;height:22px!important;}' +
-                        '.vgt-intro-ava{width:52px!important;height:52px!important;}' +
-                        '.vgt-intro-ava svg{width:26px!important;height:26px!important;}' +
-                        // Instant (non-smooth) scrolling on mobile — smooth-scrolling on
-                        // every SSE delta while streaming feels laggy on phone browsers.
-                        '.vgt-body{scroll-behavior:auto!important;}' +
-                        // Teaser: never wider than the phone screen; bigger close target.
-                        '.vgt-teaser{max-width:calc(100vw - 40px)!important;}' +
-                        '.vgt-teaser-x{width:38px!important;height:38px!important;}' +
+                        '}' +
+                        // ── TABLETS: DOCKED PANEL ─────────────────────────────────
+                        // From 601px to 1024px a full-screen sheet wastes the screen (675px
+                        // bubbles on a portrait iPad) and the 620px desktop panel floats in
+                        // a corner. The panel is docked instead: 420px wide, full height
+                        // above the launcher, which stays visible as the close control.
+                        // MUST stay in sync with isDocked().
+                        '@media (min-width:601px) and (max-width:1024px){' +
+                        '.vgt-panel{position:fixed;top:max(16px,env(safe-area-inset-top));' +
+                        'bottom:calc(max(16px,env(safe-area-inset-bottom)) + 74px);' +
+                        'width:420px;max-width:calc(100vw - 40px);height:auto;max-height:none;}' +
+                        '.vgt-root.vgt-right .vgt-panel{right:max(20px,env(safe-area-inset-right));left:auto;}' +
+                        '.vgt-root.vgt-left .vgt-panel{left:max(20px,env(safe-area-inset-left));right:auto;}' +
+                        '}' +
+                        // Below 769px the launcher also clears the host's bottom navigation,
+                        // so the docked panel has to sit above that same offset.
+                        '@media (min-width:601px) and (max-width:768px){' +
+                        '.vgt-panel{bottom:calc(max(16px,env(safe-area-inset-bottom)) + 74px + var(--vgt-mobile-bottom-offset,0px));}' +
                         '}' +
                         '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}.vgt-typing-dot{opacity:.45!important;}.vgt-typing-dot:nth-child(2){opacity:.7!important;}}'
                 var st = document.createElement('style')
@@ -928,6 +957,18 @@
                 // Focus ring colour is the app's own focus token (#0a84ff), so it stays
                 // visible on dark themes where a black accent would disappear.
                 s.setProperty('--vgt-focus', '#0a84ff')
+                // The composer and lead fields mark "typing here" in the brand's
+                // own ink instead: the same resolved ink as --vgt-accent-ink, so it
+                // stays visible when a black accent meets the dark theme.
+                var inkHex = dark ? (accentIsLight ? accent : '#f3f4f6') : accentIsLight ? '#1a1a1e' : accent
+                s.setProperty('--vgt-focus-line', soft(inkHex, 0.6))
+                // Error colours per theme: the light-theme red is ~3:1 on dark panels.
+                s.setProperty('--vgt-danger', dark ? '#fecaca' : '#b91c1c')
+                s.setProperty('--vgt-danger-soft', dark ? 'rgba(239,68,68,.16)' : 'rgba(239,68,68,.12)')
+                s.setProperty('--vgt-danger-line', dark ? 'rgba(248,113,113,.36)' : 'rgba(239,68,68,.3)')
+                // Elevation: resting cards / floating surfaces, one neutral tint.
+                s.setProperty('--vgt-elev-1', '0 1px 2px rgba(17,17,17,.06)')
+                s.setProperty('--vgt-elev-2', '0 2px 4px -1px rgba(17,17,17,.06),0 12px 28px -10px rgba(17,17,17,.18)')
                 s.setProperty('--vgt-bg', dark ? '#111111' : '#ffffff')
                 s.setProperty('--vgt-head-bg', dark ? '#171717' : '#f8f8f7')
                 s.setProperty('--vgt-surface', dark ? '#202020' : '#f5f5f3')
@@ -943,6 +984,9 @@
                 s.setProperty('--vgt-r-panel', r[0])
                 s.setProperty('--vgt-r-bubble', r[1])
                 s.setProperty('--vgt-r-input', r[2])
+                // Buttons inside cards sit one step inside the bubble radius, so they
+                // follow the owner's corner setting instead of a fixed 12px.
+                s.setProperty('--vgt-r-ctl', Math.max(6, parseInt(r[1], 10) - 5) + 'px')
                 // The composer pill keeps the shared composer's 1.5rem radius
                 // (COMPOSER_GEOMETRY.pillRadius) by default; once the owner picks
                 // their own corner style it follows the theme like every other
@@ -1089,14 +1133,24 @@
                         lead.appendChild(badge)
                 }
                 var form = el('form', 'vgt-lead-form')
+                var nameLabel = el('label', 'vgt-lead-label')
+                nameLabel.htmlFor = 'vgt-lead-name'
+                nameLabel.textContent = t('نام و نام خانوادگی', 'Full name')
                 var nameInput = el('input', 'vgt-lead-input')
+                nameInput.id = 'vgt-lead-name'
                 nameInput.type = 'text'
-                nameInput.placeholder = t('نام و نام خانوادگی', 'Full name')
+                nameInput.placeholder = t('مثلاً سارا احمدی', 'e.g. Sara Ahmadi')
                 nameInput.autocomplete = 'name'
                 nameInput.maxLength = 60
+                var phoneLabel = el('label', 'vgt-lead-label')
+                phoneLabel.htmlFor = 'vgt-lead-phone'
+                phoneLabel.textContent = t('شماره موبایل', 'Mobile number')
                 var phoneInput = el('input', 'vgt-lead-input')
+                phoneInput.id = 'vgt-lead-phone'
                 phoneInput.type = 'tel'
-                phoneInput.placeholder = t('شماره موبایل — ۰۹۱۲ ۳۴۵ ۶۷۸۹', 'Mobile — 0912 345 6789')
+                // The isolate marks keep the sample number left-to-right inside the
+                // right-to-left field (otherwise its three groups read backwards).
+                phoneInput.placeholder = t('\u2066۰۹۱۲ ۳۴۵ ۶۷۸۹\u2069', '0912 345 6789')
                 phoneInput.inputMode = 'tel'
                 phoneInput.autocomplete = 'tel'
                 // Live-convert Persian/Arabic digits → ASCII so the permissive
@@ -1107,7 +1161,9 @@
                 })
                 var submit = el('button', 'vgt-lead-btn', t('شروع گفتگو', 'Start chat'))
                 submit.type = 'submit'
+                form.appendChild(nameLabel)
                 form.appendChild(nameInput)
+                form.appendChild(phoneLabel)
                 form.appendChild(phoneInput)
                 form.appendChild(submit)
                 lead.appendChild(form)
@@ -2549,10 +2605,11 @@
                         // one render at a virtual 980px, so the mobile breakpoint would
                         // never match). Scoped to the open sheet; restored on close.
                         if (isPhoneScreen()) applyWidgetViewport()
-                        // Lock body scroll on mobile so the host page can't scroll/peek
-                        // behind the full-screen chat (iOS needs position:fixed — see
-                        // lockBodyScroll). Also arm the Android Back-button close.
-                        if (isMobile()) {
+                        // Lock body scroll under the full-screen sheet so the host page
+                        // can't scroll/peek behind it (iOS needs position:fixed — see
+                        // lockBodyScroll). Also arm the Android Back-button close. The
+                        // docked tablet panel leaves the page beside it usable.
+                        if (isSheet()) {
                                 lockBodyScroll()
                                 pushCloseHistory()
                         }
@@ -2635,9 +2692,9 @@
         // the panel stretches naturally, and here we only adjust `bottom`
         // (and `top` when needed) so the panel's bottom edge sits right
         // above the keyboard. This keeps the panel filling the ENTIRE
-        // visible area at all times. Desktop/tablets (>=768px) are a no-op.
-        // The breakpoint MUST stay in sync with the @media(max-width:768px)
-        // rule in injectStyles.
+        // visible area at all times. The docked tablet panel only lifts its
+        // bottom edge above the keyboard; desktop is a no-op. The breakpoints
+        // MUST stay in sync with isSheet()/isDocked() and their @media rules.
         function applyViewportHeight() {
                 // Always clear inline overrides first so CSS takes over by default.
                 panel.style.height = ''
@@ -2645,8 +2702,9 @@
                 panel.style.bottom = ''
                 panel.style.top = ''
 
-                if (!isOpen || !isMobile() || !window.visualViewport) {
-                        // Desktop/tablet or closed — CSS-defined size takes over.
+                var sheet = isSheet()
+                if (!isOpen || !(sheet || isDocked()) || !window.visualViewport) {
+                        // Desktop or closed — CSS-defined size takes over.
                         return
                 }
 
@@ -2662,11 +2720,12 @@
                 if (kbHeight > 20) {
                         // Keyboard is open — lift the panel's bottom edge so it
                         // sits just above the keyboard. With top:0 still set,
-                        // the panel stretches from the top of the screen to the
-                        // top of the keyboard = exactly the visible area.
-                        panel.style.setProperty('bottom', kbHeight + 'px', 'important')
+                        // the sheet stretches from the top of the screen to the
+                        // top of the keyboard = exactly the visible area. The
+                        // docked panel keeps a small gap above the keyboard.
+                        panel.style.setProperty('bottom', kbHeight + (sheet ? 0 : 12) + 'px', 'important')
                 }
-                if (vv.offsetTop > 0) {
+                if (sheet && vv.offsetTop > 0) {
                         // The visual viewport is scrolled down (e.g. browser
                         // chrome). Adjust top to match.
                         panel.style.setProperty('top', vv.offsetTop + 'px', 'important')

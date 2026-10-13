@@ -493,7 +493,12 @@ function ShowcaseCard({
                                         {product.name}
                                 </h3>
                                 {description && (
-                                        <p className="mt-1.5 line-clamp-3 text-[12px] leading-5 text-neutral-500">
+                                        <p
+                                                className={cn(
+                                                        'mt-1.5 text-[12px] leading-5 text-neutral-500',
+                                                        compact ? 'line-clamp-3' : 'line-clamp-2',
+                                                )}
+                                        >
                                                 {description}
                                         </p>
                                 )}
@@ -516,7 +521,10 @@ function ShowcaseCard({
                                 <div className="mt-auto pt-3">
                                         {product.price && (
                                                 <p
-                                                        className="mb-2 text-[13px] font-bold tabular-nums text-neutral-950"
+                                                        className={cn(
+                                                                'mb-2 tabular-nums text-neutral-950',
+                                                                compact ? 'text-[13px] font-bold' : 'text-[15px] font-extrabold',
+                                                        )}
                                                         dir="auto"
                                                 >
                                                         {product.price}
@@ -527,7 +535,10 @@ function ShowcaseCard({
                                                         href={productUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--showcase-accent)] px-3 text-xs font-bold text-[var(--showcase-on-accent)] transition-opacity duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)] focus-visible:ring-offset-2"
+                                                        className={cn(
+                                                                'inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--showcase-accent)] px-3 font-bold text-[var(--showcase-on-accent)] transition-opacity duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)] focus-visible:ring-offset-2',
+                                                                compact ? 'text-xs' : 'text-[13px]',
+                                                        )}
                                                 >
                                                         {isFa ? 'مشاهده محصول' : 'View product'}
                                                         <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />

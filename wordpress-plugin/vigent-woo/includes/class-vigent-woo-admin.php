@@ -71,6 +71,15 @@ class Vigent_Woo_Admin {
                 if ( false === strpos( $hook, 'vigent-woo' ) ) {
                         return;
                 }
+                // Vazirmatn for the plugin page only; the same pinned build the web
+                // widget loads. If the CDN is unreachable the stack falls back to the
+                // system font, exactly as before.
+                wp_enqueue_style(
+                        'vigent-woo-font',
+                        'https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css',
+                        array(),
+                        null
+                );
                 $this->output_inline_styles();
                 $this->output_inline_scripts();
         }
@@ -78,33 +87,32 @@ class Vigent_Woo_Admin {
         private function output_inline_styles() {
                 ?>
                 <style>
-                        .vg-wrap { max-width: 760px; margin: 0 auto; padding: 20px 0 40px; font-family: -apple-system, "IRANSansWeb", "Vazirmatn", Tahoma, sans-serif; }
+                        /* `margin: 0 auto` replaces WordPress's own .wrap margin, which is what normally
+                           keeps the page off the far edge; padding-inline-end puts that gutter back. */
+                        .vg-wrap { max-width: 760px; margin: 0 auto; padding: 20px 0 40px; padding-inline-end: 20px; font-family: "Vazirmatn", -apple-system, "IRANSansWeb", Tahoma, sans-serif; }
                         .vg-wrap * { box-sizing: border-box; }
 
                         /* Header — black, minimal */
-                        .vg-header { display: flex; align-items: center; gap: 14px; padding: 20px 24px; background: #111; border-radius: 16px; color: #fff; margin-bottom: 20px; }
+                        .vg-header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: #111; border-radius: 16px; color: #fff; margin-bottom: 20px; }
                         .vg-logo { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
                         .vg-logo svg { width: 24px; height: 24px; }
-                        .vg-header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+                        /* padding: 0 cancels the 9px that WordPress gives every `.wrap h1`. */
+                        .vg-header h1 { margin: 0; padding: 0; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; color: #fff; }
                         .vg-header .sub { margin: 3px 0 0; font-size: 12px; opacity: .6; color: #fff; }
                         .vg-header .last-check { margin: 2px 0 0; font-size: 12px; opacity: .6; color: #fff; }
                         .vg-header .pill { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-                        /* Disconnect button in header — red tint, sits next to the status pill */
-                        .vg-header .vg-btn-disconnect { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(239,68,68,.15); color: #fca5a5; transition: all .12s; min-height: 44px; }
-                        .vg-header .vg-btn-disconnect:hover { background: rgba(239,68,68,.3); color: #fff; border-color: rgba(239,68,68,.5); }
-                        .vg-header .vg-btn-disconnect:disabled { opacity: .4; cursor: not-allowed; }
-                        /* Update button in header — subtle blue tint, sits next to the disconnect button */
-                        .vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.15); color: #d9d2fb; transition: all .12s; min-height: 44px; }
+                        /* Update button in header — quiet, sits next to the status pill */
+                        .vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.1); color: #fff; transition: all .12s; min-height: 44px; }
                         .vg-header .vg-btn-update:hover { background: rgba(255,255,255,.2); color: #fff; border-color: rgba(255,255,255,.35); }
                         .vg-header .vg-btn-update:disabled { opacity: .4; cursor: not-allowed; }
                         .vg-header .vg-btn-update.has-update { background: rgba(16,185,129,.25); color: #6ee7b7; border-color: rgba(16,185,129,.5); animation: vg-pulse 1.8s ease-in-out infinite; }
                         @keyframes vg-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,.4); } 50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } }
-                        .vg-update-banner { background: #f3f1ff; border: 1px solid #d9d2fb; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
-                        .vg-update-banner .icon { width: 38px; height: 38px; border-radius: 10px; background: #5b3de8; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-                        .vg-update-banner .text { flex: 1; font-size: 13px; color: #3a2c8f; line-height: 1.6; }
-                        .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #3a2c8f; }
-                        .vg-update-banner .vg-btn-install { background: #5b3de8; color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 36px; }
-                        .vg-update-banner .vg-btn-install:hover { background: #4c2fd0; color: #fff; }
+                        .vg-update-banner { background: #fff; border: 1px solid #e4e3df; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+                        .vg-update-banner .icon { width: 38px; height: 38px; border-radius: 10px; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                        .vg-update-banner .text { flex: 1; font-size: 13px; color: #55524c; line-height: 1.6; }
+                        .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #111; }
+                        .vg-update-banner .vg-btn-install { background: #111; color: #fff; padding: 9px 18px; border-radius: 12px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 44px; }
+                        .vg-update-banner .vg-btn-install:hover { background: #2a2a2a; color: #fff; }
                         .vg-header .pill.ok { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
                         .vg-header .pill.warn { background: rgba(245, 158, 11, .2); color: #fcd34d; }
                         .vg-header .pill.err { background: rgba(239, 68, 68, .2); color: #fca5a5; }
@@ -142,34 +150,52 @@ class Vigent_Woo_Admin {
                         .vg-field { margin-bottom: 14px; }
                         .vg-field label { display: block; font-size: 12px; font-weight: 600; color: #55524c; margin-bottom: 5px; }
                         .vg-field input, .vg-field select { width: 100%; padding: 11px 13px; border: 1px solid #d6d4cf; border-radius: 10px; font-size: 13px; font-family: "SF Mono", "Vazirmatn", monospace; direction: ltr; text-align: left; transition: border-color .12s; }
-                        .vg-field input:focus, .vg-field select:focus { outline: none; border-color: #111; }
+                        .vg-field input:focus, .vg-field select:focus { outline: none; border-color: #111; box-shadow: 0 0 0 3px rgba(17,17,17,.08); }
                         .vg-field .hint { font-size: 12px; color: #6f6a64; margin-top: 4px; }
 
                         /* Minimal select — used for the category filter, RTL-friendly */
-                        .vg-select-minimal { width: 100%; padding: 10px 36px 10px 12px; border: 1px solid #e4e3df; border-radius: 10px; font-size: 13px; font-family: inherit; background-color: #fff; color: #111; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3e%3cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: left 10px center; background-size: 16px; transition: border-color .12s, box-shadow .12s; direction: rtl; text-align: right; }
-                        .vg-select-minimal:focus { outline: none; border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
-                        .vg-select-minimal:hover { border-color: #6f6a64; }
+                        .vg-label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 600; color: #55524c; }
+                        /* `.vg-wrap select` outranks the WordPress select rules (line-height, max-width, arrow). */
+                        .vg-wrap select.vg-select-minimal { width: 100%; max-width: 420px; min-height: 44px; padding: 10px 36px 10px 12px; border: 1px solid #d6d4cf; border-radius: 10px; font-size: 13px; line-height: 1.6; font-family: inherit; background-color: #fff; color: #111; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3e%3cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: left 10px center; background-size: 16px; transition: border-color .12s, box-shadow .12s; direction: rtl; text-align: right; }
+                        .vg-wrap select.vg-select-minimal:focus { outline: none; border-color: #111; box-shadow: 0 0 0 3px rgba(17,17,17,.08); }
+                        .vg-wrap select.vg-select-minimal:hover { border-color: #6f6a64; }
 
                         /* Toggle */
                         .vg-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid #e4e3df; border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: background-color .12s; }
                         .vg-toggle:hover { background: #f5f5f3; }
-                        .vg-toggle input { margin-top: 2px; width: 18px; height: 18px; accent-color: #111; }
+                        /* A real switch. WordPress draws its own checkbox (so accent-color never applied);
+                           these rules replace that drawing, including its checked tick. */
+                        .vg-wrap .vg-toggle input[type="checkbox"] { -webkit-appearance: none; appearance: none; position: relative; flex-shrink: 0; width: 42px; min-width: 42px; height: 24px; margin: 2px 0 0; border: 0; border-radius: 999px; background: #cfccc4; box-shadow: none; cursor: pointer; transition: background-color .15s; }
+                        .vg-wrap .vg-toggle input[type="checkbox"]::before,
+                        .vg-wrap .vg-toggle input[type="checkbox"]:checked::before { content: ""; position: absolute; top: 3px; inset-inline-start: 3px; float: none; width: 18px; height: 18px; margin: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(17,17,17,.25); transition: inset-inline-start .15s; }
+                        .vg-wrap .vg-toggle input[type="checkbox"]:checked { background: #111; }
+                        .vg-wrap .vg-toggle input[type="checkbox"]:checked::before { inset-inline-start: 21px; }
+                        .vg-wrap .vg-toggle input[type="checkbox"]:focus-visible { outline: 3px solid #0a84ff; outline-offset: 2px; }
+                        .vg-wrap .vg-toggle input[type="checkbox"]:disabled { cursor: not-allowed; }
+                        /* Inside a settings card the options are rows of one list, not boxes in a box. */
+                        .vg-card:not(.vg-center-card) > .vg-toggle { flex-direction: row-reverse; align-items: center; gap: 14px; margin: 0; padding: 14px 0; border: 0; border-bottom: 1px solid #eeeeec; border-radius: 0; }
+                        .vg-card:not(.vg-center-card) > .vg-toggle:hover { background: none; }
+                        .vg-card:not(.vg-center-card) > .vg-toggle > div { flex: 1; }
+                        .vg-card:not(.vg-center-card) > .vg-toggle input[type="checkbox"] { margin: 0; }
                         .vg-toggle .label { font-size: 13px; font-weight: 600; color: #111; }
                         .vg-toggle .sub { font-size: 12px; color: #6f6a64; margin-top: 2px; }
                         .vg-toggle.off { opacity: .5; }
 
                         /* Progress */
                         .vg-progress { margin: 16px 0; }
-                        .vg-progress-bar-wrap { background: #eeeeec; border-radius: 999px; height: 24px; overflow: hidden; position: relative; }
+                        /* The percentage sits above the bar: centred on it, white text was unreadable
+                           on the empty track until the bar passed the middle. */
+                        .vg-progress-bar-wrap { background: #eeeeec; border-radius: 999px; height: 8px; margin-top: 26px; position: relative; }
                         .vg-progress-bar { background: #111; height: 100%; border-radius: 999px; transition: width .4s ease; width: 0%; }
-                        .vg-progress-text { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+                        .vg-progress-text { position: absolute; top: -26px; inset-inline-start: 0; font-size: 13px; font-weight: 700; color: #111; font-variant-numeric: tabular-nums; }
                         .vg-progress-info { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #6f6a64; }
 
                         /* Stats — compact, used in management section after first push */
-                        .vg-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-                        .vg-stat { background: #fff; border: 1px solid #e4e3df; border-radius: 12px; padding: 18px; text-align: center; }
-                        .vg-stat .num { font-size: 26px; font-weight: 800; color: #111; line-height: 1; }
-                        .vg-stat .lbl { font-size: 12px; color: #6f6a64; margin-top: 5px; }
+                        .vg-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+                        .vg-stat { display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid #e4e3df; border-radius: 12px; padding: 16px 18px; text-align: start; }
+                        .vg-stat .num { font-size: 24px; font-weight: 800; color: #111; line-height: 1; font-variant-numeric: tabular-nums; }
+                        .vg-stat .lbl { order: -1; font-size: 12px; color: #6f6a64; }
+                        .vg-stat .sub { font-size: 12px; line-height: 1.6; color: #6f6a64; }
                         /* Highlighted stat for "paying customers" — distinct accent so it stands out. */
                         .vg-stat.vg-stat-payers { background: #f0fdf4; border-color: #bbf7d0; }
                         .vg-stat.vg-stat-payers .num { color: #15803d; }
@@ -200,16 +226,16 @@ class Vigent_Woo_Admin {
                         .vg-center-icon { display: flex; justify-content: center; margin-bottom: 20px; }
                         .vg-center-icon svg { opacity: .8; }
                         .vg-center-title { font-size: 22px; font-weight: 800; color: #111; margin: 0 0 8px; }
-                        .vg-center-sub { font-size: 14px; color: #6f6a64; max-width: 460px; margin: 0 auto 32px; line-height: 1.7; }
-                        .vg-center-btn-wrap { display: flex; justify-content: center; margin-bottom: 32px; }
+                        .vg-center-sub { font-size: 14px; color: #6f6a64; max-width: 460px; margin: 0 auto 24px; line-height: 1.7; }
+                        .vg-center-btn-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
                         .vg-btn-center { background: #111; color: #fff; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 14px; min-height: 56px; display: inline-flex; align-items: center; gap: 10px; transition: all .15s; text-decoration: none; border: none; cursor: pointer; }
                         .vg-btn-center:hover { background: #2a2a2a; color: #fff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
                         .vg-btn-center:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
-                        .vg-center-steps { max-width: 420px; margin: 0 auto; text-align: center; }
-                        .vg-center-steps li { flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 0; }
-                        .vg-center-steps li .num { width: 32px; height: 32px; font-size: 13px; margin: 0; }
-                        .vg-center-steps li .txt { text-align: center; }
-                        .vg-center-steps li .txt strong { text-align: center; margin-bottom: 4px; }
+                        .vg-center-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 560px; margin: 0 auto 24px; }
+                        .vg-center-steps li { align-items: flex-start; gap: 10px; padding: 14px; border: 1px solid #e4e3df; border-radius: 12px; text-align: start; }
+                        .vg-center-steps li .num { margin-top: 1px; }
+                        .vg-center-steps li .txt { text-align: start; }
+                        .vg-center-steps li .txt strong { margin-bottom: 4px; }
                         .vg-center-info { background: #f5f5f3; border: 1px solid #eeeeec; border-radius: 12px; padding: 18px 22px; max-width: 420px; margin: 24px auto 0; text-align: center; }
                         .vg-center-info p { font-size: 12px; font-weight: 600; color: #55524c; margin: 0 0 8px; text-align: center; }
                         .vg-center-info ul { list-style: none; padding: 0; margin: 0; text-align: center; }
@@ -226,8 +252,8 @@ class Vigent_Woo_Admin {
                         .vg-wizard-step .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e4e3df; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #6f6a64; background: #fff; flex-shrink: 0; }
                         .vg-wizard-step.active { color: #111; background: #eeeeec; }
                         .vg-wizard-step.active .dot { background: #111; border-color: #111; color: #fff; }
-                        .vg-wizard-step.done { color: #10b981; background: #ecfdf5; }
-                        .vg-wizard-step.done .dot { background: #10b981; border-color: #10b981; color: #fff; }
+                        .vg-wizard-step.done { color: #15803d; background: #f0fdf4; }
+                        .vg-wizard-step.done .dot { background: #15803d; border-color: #15803d; color: #fff; }
                         .vg-wizard-line { width: 20px; height: 2px; background: #e4e3df; flex-shrink: 0; }
 
                         .vg-connected-summary { display: flex; align-items: center; gap: 14px; padding: 20px; }
@@ -235,16 +261,40 @@ class Vigent_Woo_Admin {
                         .vg-connected-copy { flex: 1; min-width: 180px; }
                         .vg-connected-copy h2 { margin-bottom: 4px; }
                         .vg-connected-copy p { margin: 0; }
-                        .vg-sync-note { color: #059669 !important; font-size: 12px !important; margin-top: 4px !important; }
+                        .vg-sync-note { color: #15803d !important; font-size: 12px !important; margin-top: 4px !important; }
                         .vg-connected-actions { margin: 0; justify-content: flex-end; }
+                        .vg-danger { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 0 4px; font-size: 12px; color: #6f6a64; }
+                        .vg-danger .vg-btn-disconnect { min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: none; color: #b42318; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+                        .vg-danger .vg-btn-disconnect:hover { background: #fef2f2; }
+                        .vg-danger .vg-btn-disconnect:disabled { opacity: .4; cursor: not-allowed; }
                         .vg-btn:focus-visible, .vg-btn-center:focus-visible, .vg-btn-update:focus-visible, .vg-btn-disconnect:focus-visible { outline: 3px solid #0a84ff; outline-offset: 2px; }
+                        /* WordPress drops the admin menu and narrows its own gutter at 782px. */
+                        @media (max-width: 782px) {
+                                .vg-wrap { padding-inline: 2px 12px; }
+                        }
                         @media (max-width: 680px) {
-                                .vg-wrap { padding-inline: 10px; }
                                 .vg-header, .vg-connected-summary { flex-wrap: wrap; }
-                                .vg-header .vg-btn-disconnect { margin-inline-start: 0; }
+                                /* One-row header: the tagline goes, the update check becomes an icon button
+                                   (font-size: 0 hides its label and the "checking…" text, not the icon). */
+                                .vg-header { flex-wrap: nowrap; gap: 10px; padding: 14px; }
+                                .vg-header .sub { display: none; }
+                                .vg-header .vg-btn-update { width: 44px; padding: 0; gap: 0; justify-content: center; font-size: 0; }
+                                .vg-update-banner { flex-wrap: wrap; }
+                                .vg-update-banner .text { flex: 1 1 200px; }
+                                .vg-update-banner .vg-btn-install { width: 100%; justify-content: center; }
+                                .vg-card { padding: 18px 16px; }
+                                .vg-btns .vg-btn { flex: 1; justify-content: center; }
                                 .vg-connected-actions { width: 100%; justify-content: stretch; }
-                                .vg-connected-actions .vg-btn { flex: 1; justify-content: center; }
-                                .vg-stats { grid-template-columns: repeat(2, 1fr); }
+                                .vg-wrap select.vg-select-minimal { max-width: none; }
+                                /* Three stats become one list instead of two tiles and an orphan. */
+                                .vg-stats { grid-template-columns: 1fr; gap: 0; border: 1px solid #e4e3df; border-radius: 16px; background: #fff; overflow: hidden; }
+                                .vg-stat { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 12px; row-gap: 2px; padding: 14px 16px; border: 0; border-bottom: 1px solid #eeeeec; border-radius: 0; }
+                                .vg-stat:last-child { border-bottom: 0; }
+                                .vg-stat .lbl { order: 0; grid-column: 1; font-size: 13px; font-weight: 600; color: #111; }
+                                .vg-stat .num { grid-column: 2; grid-row: 1; font-size: 20px; }
+                                .vg-stat .sub { grid-column: 1 / -1; }
+                                .vg-center-steps { grid-template-columns: 1fr; }
+                                .vg-center-btn-wrap, .vg-btn-center { width: 100%; justify-content: center; }
                         }
                         @media (prefers-reduced-motion: reduce) {
                                 .vg-wrap *, .vg-wrap *::before, .vg-wrap *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
@@ -1157,19 +1207,16 @@ class Vigent_Woo_Admin {
                                         echo '<span id="vg-status-pill" class="pill warn">' . esc_html__( 'در انتظار', 'vigent-woo' ) . '</span>';
                                 }
 
-                                // Disconnect button — only when configured.
+                                // Update check — only when configured. Disconnect lives at the
+                                // bottom of the page (see the .vg-danger row in render_page).
                                 if ( $configured ) :
                                         ?>
                                         <button class="vg-btn-update" id="vg-btn-update" onclick="vgCheckUpdate(this)" title="<?php esc_attr_e( 'بررسی بروزرسانی افزونه', 'vigent-woo' ); ?>">
                                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                                                <?php
+                                                <span><?php
                                                 /* translators: %s: current plugin version */
                                                 printf( esc_html__( 'بروزرسانی (%s)', 'vigent-woo' ), esc_html( VIGENT_WOO_VERSION ) );
-                                                ?>
-                                        </button>
-                                        <button class="vg-btn-disconnect" onclick="vgDisconnect(this)">
-                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                                                <?php esc_html_e( 'قطع اتصال', 'vigent-woo' ); ?>
+                                                ?></span>
                                         </button>
                                         <?php
                                 endif;
@@ -1197,6 +1244,17 @@ class Vigent_Woo_Admin {
                         // here so the JS functions (vgViewLog, vgClearLog, vgCloseLogModal)
                         // always find their DOM targets.
                         $this->render_debug_log_card();
+
+                        // Disconnect is destructive and rare, so it sits here at the end of
+                        // the page as a quiet text button instead of in the header.
+                        if ( $configured ) :
+                                ?>
+                                <div class="vg-danger">
+                                        <span><?php esc_html_e( 'با قطع اتصال، هم‌گام‌سازی متوقف می‌شود.', 'vigent-woo' ); ?></span>
+                                        <button type="button" class="vg-btn-disconnect" onclick="vgDisconnect(this)"><?php esc_html_e( 'قطع اتصال این سایت', 'vigent-woo' ); ?></button>
+                                </div>
+                                <?php
+                        endif;
                         ?>
                 </div>
                 <?php
@@ -1275,14 +1333,7 @@ class Vigent_Woo_Admin {
                                 <svg viewBox="0 0 24 24" width="48" height="48"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
                         <h2 class="vg-center-title"><?php esc_html_e( 'اتصال به ویجنت', 'vigent-woo' ); ?></h2>
-                        <p class="vg-center-sub"><?php esc_html_e( 'برای اتصال، ابتدا در پنل ویجنت یک اتصال سایت بسازید، سپس دکمه زیر را بزنید. همه چیز خودکار است.', 'vigent-woo' ); ?></p>
-
-                        <div class="vg-center-btn-wrap">
-                                <button class="vg-btn-center" onclick="vgConnect(this)">
-                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                        <?php esc_html_e( 'اتصال', 'vigent-woo' ); ?>
-                                </button>
-                        </div>
+                        <p class="vg-center-sub"><?php esc_html_e( 'برای اتصال، ابتدا در پنل ویجنت یک اتصال سایت بسازید، سپس دکمهٔ اتصال را بزنید. همه چیز خودکار است.', 'vigent-woo' ); ?></p>
 
                         <ol class="vg-steps vg-center-steps">
                                 <li>
@@ -1300,6 +1351,13 @@ class Vigent_Woo_Admin {
                                         </span>
                                 </li>
                         </ol>
+
+                        <div class="vg-center-btn-wrap">
+                                <button class="vg-btn-center" onclick="vgConnect(this)">
+                                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                        <?php esc_html_e( 'اتصال', 'vigent-woo' ); ?>
+                                </button>
+                        </div>
                 </div>
 
                 <?php if ( ! $has_wc ) : ?>
@@ -1317,7 +1375,7 @@ class Vigent_Woo_Admin {
                 ?>
                 <div class="vg-card vg-center-card">
                         <div class="vg-center-icon">
-                                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         </div>
                         <h2 class="vg-center-title"><?php esc_html_e( 'ارسال محصولات به ویجنت', 'vigent-woo' ); ?></h2>
                         <p class="vg-center-sub"><?php esc_html_e( 'اتصال برقرار شد. محصولات را یک‌بار بفرستید؛ پس از آن فقط تغییرات جدید به‌صورت تجمیعی ارسال می‌شوند.', 'vigent-woo' ); ?></p>
@@ -1453,7 +1511,7 @@ class Vigent_Woo_Admin {
                 ?>
                 <div class="vg-card vg-connected-summary">
                         <div class="vg-connected-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#10b981"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#15803d"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
                         <div class="vg-connected-copy">
                                 <h2><?php esc_html_e( 'اتصال فعال است', 'vigent-woo' ); ?></h2>
@@ -1518,7 +1576,7 @@ class Vigent_Woo_Admin {
                                 <div class="num"><?php echo $has_wc ? esc_html( number_format_i18n( $total_orders ) ) : '—'; ?></div>
                                 <div class="lbl"><?php esc_html_e( 'سفارش‌های قابل پیگیری', 'vigent-woo' ); ?></div>
                                 <?php if ( $has_wc ) : ?>
-                                        <div class="sub" style="margin-top:4px;font-size:11px;color:#6b7280;">
+                                        <div class="sub">
                                                 <?php
                                                 if ( $total_orders > $syncable_orders ) {
                                                         // More orders than the cap — only the most recent N will be sent.
@@ -1539,7 +1597,7 @@ class Vigent_Woo_Admin {
                                                 ?>
                                         </div>
                                         <?php if ( $cancelled_orders > 0 ) : ?>
-                                                <div class="sub" style="margin-top:2px;font-size:10px;color:#9ca3af;">
+                                                <div class="sub">
                                                         <?php
                                                         printf(
                                                                 /* translators: %s: cancelled orders count */
@@ -1614,8 +1672,8 @@ class Vigent_Woo_Admin {
                                 </div>
                         </label>
 
-                        <label for="checkout_flow" style="display:block;margin:14px 0 6px;font-weight:600"><?php esc_html_e( 'مسیر پرداخت', 'vigent-woo' ); ?></label>
-                        <select id="checkout_flow" <?php disabled( ! $checkout_ok ); ?> style="min-width:280px">
+                        <label for="checkout_flow" class="vg-label"><?php esc_html_e( 'مسیر پرداخت', 'vigent-woo' ); ?></label>
+                        <select id="checkout_flow" class="vg-select-minimal" <?php disabled( ! $checkout_ok ); ?>>
                                 <option value="auto" <?php selected( $settings['checkout_flow'], 'auto' ); ?>><?php esc_html_e( 'خودکار (پیشنهادی)', 'vigent-woo' ); ?></option>
                                 <option value="order_pay" <?php selected( $settings['checkout_flow'], 'order_pay' ); ?>><?php esc_html_e( 'لینک پرداخت مستقیم (صفحهٔ پرداخت سفارش)', 'vigent-woo' ); ?></option>
                                 <option value="cart" <?php selected( $settings['checkout_flow'], 'cart' ); ?>><?php esc_html_e( 'انتقال سبد به صفحهٔ تسویه‌حساب سایت', 'vigent-woo' ); ?></option>

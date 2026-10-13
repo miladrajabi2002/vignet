@@ -201,16 +201,6 @@ export function WidgetPreview({
                                                                 : { background: c.head, borderBottom: `1px solid ${c.border}` }
                                                 }
                                         >
-                                                {gradientHead && (
-                                                        <span
-                                                                aria-hidden
-                                                                className="pointer-events-none absolute inset-0"
-                                                                style={{
-                                                                        background:
-                                                                                'radial-gradient(120% 140% at 85% -20%, rgba(255,255,255,.22), transparent 55%)',
-                                                                }}
-                                                        />
-                                                )}
                                                 <div
                                                         className="relative flex h-9 w-9 items-center justify-center rounded-xl"
                                                         style={
@@ -229,8 +219,6 @@ export function WidgetPreview({
                                                                 style={{
                                                                         insetInlineEnd: -2,
                                                                         border: `2px solid ${gradientHead ? accent : c.head}`,
-                                                                        boxShadow: '0 0 0 2px rgba(34,197,94,0.35)',
-                                                                        animation: 'vgt-preview-pulse 2s ease-in-out infinite',
                                                                 }}
                                                         />
                                                 </div>
@@ -474,15 +462,6 @@ export function WidgetPreview({
                                         to {
                                                 opacity: 1;
                                                 transform: translateY(0) scale(1);
-                                        }
-                                }
-                                @keyframes vgt-preview-pulse {
-                                        0%,
-                                        100% {
-                                                box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35);
-                                        }
-                                        50% {
-                                                box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.15);
                                         }
                                 }
                         `}</style>

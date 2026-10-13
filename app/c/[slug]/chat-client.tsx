@@ -494,7 +494,68 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 	const composerAccent = {
 		'--accent-strong': accent,
 		'--vgt-on-accent': onAccent,
+		// Accent as ink on a light surface; a very light accent falls back to text ink.
+		'--vgt-accent-ink': onAccent === '#000000' ? '#1a1a1e' : accent,
 	} as CSSProperties
+
+	// One "Powered by" line, shown under the composer and, while the lead form
+	// is up, on its own.
+	const poweredBy = (
+		<p dir="ltr" className="mt-2 text-center text-[12px] text-neutral-500">
+			Powered by{' '}
+			<Link
+				href="/"
+				className="inline-flex items-center align-middle font-medium text-neutral-700 transition-colors hover:text-neutral-900"
+			>
+				<svg
+					viewBox="174 298 692 126"
+					height="11"
+					className="inline-block fill-current"
+					xmlns="http://www.w3.org/2000/svg"
+				aria-label="Vigento AI by Vigent"
+				>
+					<g transform="matrix(2.4635 0 0 2.4635 512 360.934)">
+						<g transform="translate(-111.996 0)">
+							<path
+								transform="translate(-100 -95.9747)"
+								d="M 120.484 70.7747 L 104.14 107.2787 L 106.156 111.3827 L 124.3 70.7747 Z M 100.108 116.4227 L 99.1 114.3347 L 96.364 108.0707 L 79.732 70.7747 L 75.7 70.7747 L 98.164 121.1747 L 102.196 121.1747 L 102.052 120.8147 Z"
+							/>
+						</g>
+						<g transform="translate(-76.644 0)">
+							<path
+								transform="translate(-100 -95.9747)"
+								d="M 101.836 78.5507 L 101.836 70.7747 L 98.164 70.7747 L 98.164 78.5507 Z M 101.836 121.1747 L 101.836 86.7587 L 98.164 86.7587 L 98.164 121.1747 Z"
+							/>
+						</g>
+						<g transform="translate(-40.14 0)">
+							<path
+								transform="translate(-98.236 -95.9747)"
+								d="M 116.776 117.7187 C 118.072 116.9987 119.224 116.0627 120.304 115.0547 L 120.304 96.1907 L 116.776 96.1907 Z M 90.784 76.6787 C 94.24 74.7347 98.128 73.7987 102.448 73.7987 C 105.616 73.7987 108.496 74.3027 111.16 75.2387 C 113.752 76.1747 116.128 77.6867 118.216 79.7747 L 120.52 77.3267 C 118.288 75.0947 115.624 73.3667 112.6 72.2147 C 109.504 70.9907 106.048 70.4147 102.376 70.4147 C 97.336 70.4147 92.8 71.4947 88.84 73.7267 C 84.808 75.9587 81.64 78.9827 79.408 82.8707 C 77.104 86.7587 75.952 91.1507 75.952 95.9747 C 75.952 100.7987 77.104 105.1907 79.408 109.0787 C 81.64 112.9667 84.808 115.9907 88.84 118.2227 C 92.8 120.4547 97.336 121.5347 102.304 121.5347 C 104.68 121.5347 106.912 121.1747 109.072 120.6707 L 109.072 117.2867 C 107.056 117.8627 104.824 118.1507 102.448 118.1507 C 98.128 118.1507 94.24 117.2147 90.784 115.2707 C 87.328 113.3267 84.592 110.6627 82.648 107.2787 C 80.632 103.8947 79.624 100.0787 79.624 95.9747 C 79.624 91.7987 80.632 88.0547 82.576 84.6707 C 84.52 81.2147 87.256 78.6227 90.784 76.6787 Z"
+							/>
+						</g>
+						<g transform="translate(14.364 0)">
+							<path
+								transform="translate(-101.008 -95.9747)"
+								d="M 117.316 74.0867 L 117.316 70.7747 L 84.7 70.7747 L 84.7 74.0867 Z M 117.316 121.1747 L 117.316 117.8627 L 84.7 117.8627 L 84.7 121.1747 Z M 117.316 97.1987 L 117.316 93.9587 L 95.5 93.9587 L 95.5 97.1987 Z M 88.084 81.2147 L 84.7 81.2147 L 84.7 109.9427 L 88.084 109.9427 Z"
+							/>
+						</g>
+						<g transform="translate(66.744 0)">
+							<path
+								transform="translate(-100 -95.9747)"
+								d="M 79.48 121.1747 L 83.152 121.1747 L 83.152 86.1827 L 79.48 81.2147 Z M 116.848 70.7747 L 116.848 114.5507 L 82.576 70.7747 L 79.48 70.7747 L 79.48 72.5027 L 83.152 77.3987 L 117.496 121.1747 L 120.52 121.1747 L 120.52 70.7747 Z"
+							/>
+						</g>
+						<g transform="translate(116.316 0)">
+							<path
+								transform="translate(-100 -95.9747)"
+								d="M 80.02 70.7747 L 80.02 74.0867 L 119.98 74.0867 L 119.98 70.7747 Z M 101.836 121.1747 L 101.836 81.1427 L 98.164 81.1427 L 98.164 121.1747 Z"
+							/>
+						</g>
+					</g>
+				</svg>
+			</Link>
+		</p>
+	)
 
 	return (
 		<div
@@ -504,18 +565,15 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 			<Background kind={settings.background} accent={accent} reduce={Boolean(reduce)} />
 
 			{/* App column */}
-			<div className="relative z-10 mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white/55 backdrop-blur-sm md:my-3 md:h-[calc(100%-1.5rem)] md:rounded-sheet md:border md:border-white/70 md:shadow-[var(--elev-2)]">
+			<div className="relative z-10 mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden bg-[#f7f7f5] md:my-4 md:h-[calc(100%-2rem)] md:max-w-[min(45rem,calc(100%-2rem))] md:rounded-[24px] md:border md:border-black/[0.08] md:bg-white/55 md:shadow-[var(--elev-2)] md:backdrop-blur-sm">
 				{/* Header — pt uses safe-area so it clears the notch/Dynamic Island
                                     in standalone or in-app browsers with viewport-fit=cover. */}
-				<header className="flex items-center gap-3 border-b border-black/[0.06] bg-white/82 px-4 pb-3 backdrop-blur-2xl [padding-top:max(env(safe-area-inset-top),12px)] md:px-5">
-					<Avatar avatar={avatar} monogram={monogram} accent={accent} size={40} online />
+				<header className="flex items-center gap-3 border-b border-black/[0.06] bg-white px-4 pb-3 [padding-top:max(env(safe-area-inset-top),12px)] md:bg-white/82 md:px-5 md:backdrop-blur-2xl">
+					<Avatar avatar={avatar} monogram={monogram} accent={accent} size={42} online />
 					<div className="min-w-0 flex-1">
-						<p className="truncate text-sm font-semibold leading-tight">{name}</p>
+						<p className="truncate text-[15px] font-bold leading-tight">{name}</p>
 						<p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-neutral-500">
-							<span className="relative flex h-1.5 w-1.5">
-								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-								<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-							</span>
+							<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
 							آنلاین — پاسخ فوری
 						</p>
 					</div>
@@ -523,7 +581,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						<button
 							onClick={reset}
 							aria-label="شروع گفتگوی جدید"
-						className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+						className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-black/5 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
 						>
 							<RotateCcw className="h-4 w-4" />
 						</button>
@@ -595,13 +653,15 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				</div>
 
 				{/* Composer */}
-				<div className="border-t border-black/[0.06] bg-white/88 px-3 pt-3 backdrop-blur-2xl [padding-bottom:max(env(safe-area-inset-bottom),12px)] md:px-4">
+				<div
+					className={
+						leadPending
+							? 'px-3 [padding-bottom:max(env(safe-area-inset-bottom),12px)] md:px-4'
+							: 'border-t border-black/[0.06] bg-white px-3 pt-3 [padding-bottom:max(env(safe-area-inset-bottom),12px)] md:bg-white/88 md:px-4 md:backdrop-blur-2xl'
+					}
+				>
 					{leadPending ? (
-						<div className="px-4 py-5 text-center">
-							<p className="text-[13px] text-neutral-400">
-								برای شروع گفتگو، اطلاعات زیر را وارد کنید
-							</p>
-						</div>
+						poweredBy
 					) : (
 						<div style={composerAccent}>
 							<ChatComposer
@@ -614,63 +674,8 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								sendLabel="ارسال"
 								sendButtonSize={44}
 								placeholder="پیام خود را بنویسید…"
-								className="[&_button]:!text-[color:var(--vgt-on-accent)] [&_button:hover:enabled]:!bg-[color:color-mix(in_srgb,var(--accent-strong)_86%,black)]"
-								footer={
-									<p dir="ltr" className="mt-2 text-center text-[12px] text-neutral-400">
-										Powered by{' '}
-										<Link
-											href="/"
-											className="inline-flex items-center align-middle font-medium text-neutral-500 transition-colors hover:text-neutral-800"
-										>
-											<svg
-												viewBox="174 298 692 126"
-												height="11"
-												className="inline-block fill-current"
-												xmlns="http://www.w3.org/2000/svg"
-											aria-label="Vigento AI by Vigent"
-											>
-												<g transform="matrix(2.4635 0 0 2.4635 512 360.934)">
-													<g transform="translate(-111.996 0)">
-														<path
-															transform="translate(-100 -95.9747)"
-															d="M 120.484 70.7747 L 104.14 107.2787 L 106.156 111.3827 L 124.3 70.7747 Z M 100.108 116.4227 L 99.1 114.3347 L 96.364 108.0707 L 79.732 70.7747 L 75.7 70.7747 L 98.164 121.1747 L 102.196 121.1747 L 102.052 120.8147 Z"
-														/>
-													</g>
-													<g transform="translate(-76.644 0)">
-														<path
-															transform="translate(-100 -95.9747)"
-															d="M 101.836 78.5507 L 101.836 70.7747 L 98.164 70.7747 L 98.164 78.5507 Z M 101.836 121.1747 L 101.836 86.7587 L 98.164 86.7587 L 98.164 121.1747 Z"
-														/>
-													</g>
-													<g transform="translate(-40.14 0)">
-														<path
-															transform="translate(-98.236 -95.9747)"
-															d="M 116.776 117.7187 C 118.072 116.9987 119.224 116.0627 120.304 115.0547 L 120.304 96.1907 L 116.776 96.1907 Z M 90.784 76.6787 C 94.24 74.7347 98.128 73.7987 102.448 73.7987 C 105.616 73.7987 108.496 74.3027 111.16 75.2387 C 113.752 76.1747 116.128 77.6867 118.216 79.7747 L 120.52 77.3267 C 118.288 75.0947 115.624 73.3667 112.6 72.2147 C 109.504 70.9907 106.048 70.4147 102.376 70.4147 C 97.336 70.4147 92.8 71.4947 88.84 73.7267 C 84.808 75.9587 81.64 78.9827 79.408 82.8707 C 77.104 86.7587 75.952 91.1507 75.952 95.9747 C 75.952 100.7987 77.104 105.1907 79.408 109.0787 C 81.64 112.9667 84.808 115.9907 88.84 118.2227 C 92.8 120.4547 97.336 121.5347 102.304 121.5347 C 104.68 121.5347 106.912 121.1747 109.072 120.6707 L 109.072 117.2867 C 107.056 117.8627 104.824 118.1507 102.448 118.1507 C 98.128 118.1507 94.24 117.2147 90.784 115.2707 C 87.328 113.3267 84.592 110.6627 82.648 107.2787 C 80.632 103.8947 79.624 100.0787 79.624 95.9747 C 79.624 91.7987 80.632 88.0547 82.576 84.6707 C 84.52 81.2147 87.256 78.6227 90.784 76.6787 Z"
-														/>
-													</g>
-													<g transform="translate(14.364 0)">
-														<path
-															transform="translate(-101.008 -95.9747)"
-															d="M 117.316 74.0867 L 117.316 70.7747 L 84.7 70.7747 L 84.7 74.0867 Z M 117.316 121.1747 L 117.316 117.8627 L 84.7 117.8627 L 84.7 121.1747 Z M 117.316 97.1987 L 117.316 93.9587 L 95.5 93.9587 L 95.5 97.1987 Z M 88.084 81.2147 L 84.7 81.2147 L 84.7 109.9427 L 88.084 109.9427 Z"
-														/>
-													</g>
-													<g transform="translate(66.744 0)">
-														<path
-															transform="translate(-100 -95.9747)"
-															d="M 79.48 121.1747 L 83.152 121.1747 L 83.152 86.1827 L 79.48 81.2147 Z M 116.848 70.7747 L 116.848 114.5507 L 82.576 70.7747 L 79.48 70.7747 L 79.48 72.5027 L 83.152 77.3987 L 117.496 121.1747 L 120.52 121.1747 L 120.52 70.7747 Z"
-														/>
-													</g>
-													<g transform="translate(116.316 0)">
-														<path
-															transform="translate(-100 -95.9747)"
-															d="M 80.02 70.7747 L 80.02 74.0867 L 119.98 74.0867 L 119.98 70.7747 Z M 101.836 121.1747 L 101.836 81.1427 L 98.164 81.1427 L 98.164 121.1747 Z"
-														/>
-													</g>
-												</g>
-											</svg>
-										</Link>
-									</p>
-								}
+								className="[&_button]:!text-[color:var(--vgt-on-accent)] [&_button:hover:enabled]:!bg-[color:color-mix(in_srgb,var(--accent-strong)_86%,black)] [&_button:disabled]:!bg-[color:color-mix(in_srgb,var(--accent-strong)_13%,white)] [&_button:disabled]:!text-[color:var(--vgt-accent-ink)] [&_button:disabled]:!opacity-100"
+								footer={poweredBy}
 							/>
 						</div>
 					)}
@@ -697,12 +702,15 @@ function Avatar({
 	online?: boolean
 	pulse?: boolean
 }) {
+	// Same rounded square as the widget header, so one assistant looks the
+	// same on both channels.
+	const radius = Math.round(size / 3)
 	return (
 		<span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
 			{pulse && (
 				<span
-					className="absolute -inset-2 animate-ping rounded-full opacity-10 [animation-duration:2.4s]"
-					style={{ backgroundColor: accent }}
+					className="absolute -inset-2 animate-ping opacity-10 [animation-duration:2.4s] [animation-fill-mode:forwards] [animation-iteration-count:2]"
+					style={{ backgroundColor: accent, borderRadius: radius + 8 }}
 				/>
 			)}
 			{avatar ? (
@@ -713,15 +721,16 @@ function Avatar({
 					width={size}
 					height={size}
 					decoding="async"
-					className="relative rounded-full object-cover ring-1 ring-black/10"
-					style={{ width: size, height: size }}
+					className="relative object-cover ring-1 ring-black/10"
+					style={{ width: size, height: size, borderRadius: radius }}
 				/>
 			) : (
 				<span
-					className="relative flex items-center justify-center rounded-full text-sm font-semibold ring-1 ring-black/10"
+					className="relative flex items-center justify-center text-sm font-semibold ring-1 ring-black/10"
 					style={{
 						width: size,
 						height: size,
+						borderRadius: radius,
 						backgroundColor: accent,
 						color: contrastOn(accent),
 						fontSize: size * 0.4,
@@ -731,7 +740,7 @@ function Avatar({
 				</span>
 			)}
 			{online && (
-				<span className="absolute bottom-0 end-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+				<span className="absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
 			)}
 		</span>
 	)
@@ -779,6 +788,8 @@ function Intro(props: {
 		onSkip,
 		onPick,
 	} = props
+	const leadReady =
+		Boolean(leadName.trim()) && toEnglishDigits(leadPhone).replace(/\D/g, '').length >= 10
 
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center px-1 py-7 text-center">
@@ -795,7 +806,7 @@ function Intro(props: {
 					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.15, duration: 0.45 }}
-					className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3.5 text-[12px] tracking-wide text-neutral-600 shadow-[var(--elev-1)] backdrop-blur"
+					className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3.5 text-[12px] tracking-wide text-neutral-600 shadow-[var(--elev-1)] md:backdrop-blur"
 				>
 					<Sparkles className="h-3 w-3" style={{ color: accent }} />
 					پاسخ فوری با هوش مصنوعی
@@ -827,48 +838,59 @@ function Intro(props: {
 					initial={reduce ? false : { opacity: 0, y: 10 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.4, duration: 0.5 }}
-					className="mt-7 w-full max-w-sm rounded-card border border-black/[0.08] bg-white/90 p-5 text-start shadow-[var(--elev-2)] backdrop-blur-xl"
+					className="mt-7 w-full max-w-sm rounded-card border border-black/[0.08] bg-white p-5 text-start shadow-[var(--elev-1)]"
 				>
 					<p className="text-sm text-neutral-700">
 						{leadMessage ?? 'برای شروع گفتگو، یک معرفی کوتاه بنویسید:'}
 					</p>
-					<div className="mt-4 space-y-2.5">
-						<label className="flex items-center gap-2.5 rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 focus-within:border-black/25">
-							<User className="h-4 w-4 shrink-0 text-neutral-400" />
-							<input
-								value={leadName}
-								onChange={(e) => setLeadName(e.target.value)}
-								placeholder="نام شما"
-								dir="rtl"
-								className="w-full bg-transparent text-start text-[16px] outline-none placeholder:text-neutral-400"
-							/>
-						</label>
-						<label className="flex items-center gap-2.5 rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 focus-within:border-black/25">
-							<Phone className="h-4 w-4 shrink-0 text-neutral-400" />
-							<input
-								value={leadPhone}
-								onChange={(e) => setLeadPhone(toEnglishDigits(e.target.value))}
-								placeholder="شماره موبایل"
-								inputMode="tel"
-								dir="rtl"
-								className="w-full bg-transparent text-start text-[16px] outline-none placeholder:text-neutral-400"
-							/>
-						</label>
+					<div className="mt-4 space-y-3.5">
+						<div>
+							<label htmlFor="cl-lead-name" className="mb-1.5 block px-0.5 text-[12.5px] font-semibold text-neutral-600">
+								نام شما
+							</label>
+							<div className="flex min-h-12 items-center gap-2.5 rounded-xl border border-black/[0.14] bg-white px-3.5 transition-[border-color,box-shadow] duration-150 focus-within:border-neutral-900 focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
+								<User className="h-4 w-4 shrink-0 text-neutral-500" />
+								<input
+									id="cl-lead-name"
+									autoComplete="name"
+									value={leadName}
+									onChange={(e) => setLeadName(e.target.value)}
+									placeholder="مثلاً سارا احمدی"
+									dir="rtl"
+									className="w-full bg-transparent text-start text-[16px] outline-none placeholder:text-neutral-500"
+								/>
+							</div>
+						</div>
+						<div>
+							<label htmlFor="cl-lead-phone" className="mb-1.5 block px-0.5 text-[12.5px] font-semibold text-neutral-600">
+								شماره موبایل
+							</label>
+							<div className="flex min-h-12 items-center gap-2.5 rounded-xl border border-black/[0.14] bg-white px-3.5 transition-[border-color,box-shadow] duration-150 focus-within:border-neutral-900 focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
+								<Phone className="h-4 w-4 shrink-0 text-neutral-500" />
+								<input
+									id="cl-lead-phone"
+									autoComplete="tel"
+									value={leadPhone}
+									onChange={(e) => setLeadPhone(toEnglishDigits(e.target.value))}
+									placeholder={'\u2066۰۹۱۲ ۳۴۵ ۶۷۸۹\u2069'}
+									inputMode="tel"
+									dir="rtl"
+									className="w-full bg-transparent text-start text-[16px] outline-none placeholder:text-neutral-500"
+								/>
+							</div>
+						</div>
 						<button
 							onClick={submitLead}
-							disabled={
-								!leadName.trim() ||
-								toEnglishDigits(leadPhone).replace(/\D/g, '').length < 10
-							}
-							className="w-full rounded-2xl py-2.5 text-sm font-medium shadow-sm transition-[transform,opacity,box-shadow] duration-150 active:scale-[0.98] disabled:opacity-40"
-							style={{ backgroundColor: accent, color: props.onAccent }}
+							disabled={!leadReady}
+							className="min-h-12 w-full rounded-xl text-[15px] font-semibold transition-[transform,background-color,color] duration-150 active:scale-[0.98] disabled:bg-[#e9e8e4] disabled:text-[#7a756e]"
+							style={leadReady ? { backgroundColor: accent, color: props.onAccent } : undefined}
 						>
 							شروع گفتگو
 						</button>
 						{!leadRequired && (
 							<button
 								onClick={onSkip}
-								className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
+								className="min-h-11 w-full text-[13px] text-neutral-500 transition-colors hover:text-neutral-800"
 							>
 								رد کردن و شروع گفتگو
 							</button>
@@ -882,7 +904,7 @@ function Intro(props: {
 							initial={reduce ? false : { opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ delay: 0.4, duration: 0.5 }}
-							className="mt-7 max-w-sm rounded-card rounded-ss-lg border border-black/[0.07] bg-white/92 px-4 py-3.5 text-start text-sm leading-7 text-neutral-800 shadow-[var(--elev-1)] backdrop-blur"
+							className="mt-7 max-w-sm rounded-card rounded-es-[6px] border border-black/[0.07] bg-white/92 px-4 py-3.5 text-start text-sm leading-7 text-neutral-800 shadow-[var(--elev-1)] md:backdrop-blur"
 						>
 							{welcomeMessage}
 						</motion.div>
@@ -897,7 +919,7 @@ function Intro(props: {
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ delay: 0.5 + i * 0.07, duration: 0.4 }}
 									onClick={() => onPick(q)}
-									className="min-h-11 rounded-full border border-black/10 bg-white/85 px-4 py-2 text-[13px] text-neutral-700 shadow-sm backdrop-blur transition-[border-color,box-shadow,transform] duration-150 hover:border-black/25 hover:shadow active:scale-[0.97]"
+									className="min-h-11 rounded-full border border-black/10 bg-white/85 px-4 py-2 text-[13px] text-neutral-700 shadow-sm transition-[border-color,box-shadow,transform] duration-150 hover:border-black/25 hover:shadow active:scale-[0.97]"
 								>
 									{q}
 								</motion.button>
@@ -954,15 +976,17 @@ function MessageRow({
 			<div
 				className={
 					isUser
-						? 'max-w-[85%]'
-						: `space-y-2 ${msg.cards.length ? 'w-full max-w-[min(92vw,680px)]' : 'max-w-[85%]'}`
+						? 'max-w-[min(85%,35rem)]'
+						: `space-y-2 ${msg.cards.length ? 'w-full max-w-[min(92vw,680px)]' : 'max-w-[min(85%,35rem)]'}`
 				}
 			>
 				{(isUser || msg.text) && (
 					<ConversationBubble
 						side={isUser ? 'end' : 'start'}
 						tone={isUser ? 'accent' : 'light'}
-						className="rounded-3xl px-4 text-[15px] leading-7"
+						// The tail has to come after the radius: tailwind-merge drops any
+						// per-corner class that precedes a full `rounded-*`.
+						className={`rounded-[20px] px-4 text-[15px] leading-7 ${isUser ? 'rounded-ee-[6px]' : 'rounded-es-[6px]'}`}
 						style={isUser ? { backgroundColor: accent, color: onAccent } : undefined}
 					>
 						<ConversationText
