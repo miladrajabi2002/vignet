@@ -1,0 +1,11 @@
+-- AgentCatalog lookups by product (2026-10-13)
+--
+-- The unique index leads with agentId, so "which agents carry this product"
+-- and the cascade that runs when a product is deleted both scanned the whole
+-- table once per product. A store resync that removes N products paid N full
+-- scans.
+--
+-- A single statement, so CONCURRENTLY is accepted by `prisma migrate deploy`
+-- (it is not wrapped in a multi-statement transaction block) and the table is
+-- never write-locked. Re-running is safe.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "AgentCatalog_productId_idx" ON "AgentCatalog" ("productId");

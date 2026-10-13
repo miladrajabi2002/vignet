@@ -539,6 +539,7 @@ model AgentCatalog {
 
   @@unique([agentId, productId])
   @@index([agentId])
+  @@index([productId])
 }
 
 // ─── KNOWLEDGE BASE ───────────────────────────────────────────────
@@ -641,6 +642,7 @@ model KnowledgeChunk {
   kb    KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
   agent Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
+  @@index([kbId])
   @@index([agentId])
   @@index([workspaceId])
 }
