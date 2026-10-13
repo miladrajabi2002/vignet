@@ -79,14 +79,17 @@ export function WidgetPreview({
         agentName,
         welcomeMessage,
         isRtl,
+        initialView = 'chat',
 }: {
         settings: WidgetSettings
         agentName: string
         welcomeMessage?: string | null
         isRtl: boolean
+        /** Which screen the mock opens on. */
+        initialView?: 'chat' | 'intro'
 }) {
         const [panelOpen, setPanelOpen] = useState(true)
-        const [view, setView] = useState<'chat' | 'intro'>('chat')
+        const [view, setView] = useState<'chat' | 'intro'>(initialView)
         const dark = settings.theme !== 'light'
         const accent = settings.primaryColor
         const accentDeep = shade(accent, -0.22)
@@ -145,7 +148,7 @@ export function WidgetPreview({
         return (
                 <div
                         dir={isRtl ? 'rtl' : 'ltr'}
-                        className="relative h-[500px] overflow-hidden rounded-card border border-[var(--border-default)] bg-[var(--bg-base)]"
+                        className="relative h-[540px] overflow-hidden rounded-card border border-[var(--border-default)] bg-[var(--bg-base)]"
                         style={{
                                 backgroundImage: 'radial-gradient(var(--border-default) 1px, transparent 1px)',
                                 backgroundSize: '16px 16px',

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import QRCode from 'qrcode'
-import { Check, Download, ExternalLink, Link2, Loader2, Plus, X } from 'lucide-react'
+import { BarChart3, Check, Download, ExternalLink, Link2, Loader2, Plus, QrCode, Share2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CopyButton } from '@/components/ui/copy-button'
@@ -27,6 +27,7 @@ import {
         type ChatLinkPreviewState,
 } from './chat-link-preview'
 import { ChatLinkStatsPanel } from './chat-link-stats'
+import { ChannelLayout, ChannelLead } from './channel-stage'
 
 const COLOR_PRESETS = [
         '#0F0F10', '#2563EB', '#7C3AED', '#DB2777',
@@ -309,25 +310,82 @@ export function ChatLinkChannel({
         )
 
         // ── Not created yet ────────────────────────────────────────────────────
+        // The address is chosen here and the page it will open is already on show,
+        // so «ساخت لینک» is a decision about something seen, not a leap.
         if (!link) {
                 return (
-                        <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-10 text-center">
-                                <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-default)] text-[var(--text-secondary)]">
-                                        <Link2 className="h-6 w-6" />
-                                </span>
-                                <div>
-                                        <p className="text-base font-bold text-[var(--text-primary)]">{t('emptyTitle')}</p>
-                                        <p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{t('emptyBody')}</p>
-                                </div>
-                                <p dir="ltr" className="rounded-xl bg-[var(--bg-base)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">
-                                        {host}/c/{normalizeSlug(slug) ?? suggestedSlug}
-                                </p>
-                                <Button type="button" onClick={() => void create()} disabled={busy === 'create'} aria-busy={busy === 'create' || undefined}>
-                                        {busy === 'create' && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
-                                        {busy === 'create' ? t('creating') : t('create')}
-                                </Button>
-                                {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-                        </div>
+                        <ChannelLayout
+                                stage={
+                                        <ChatLinkPreview
+                                                name={settings.displayName || agentName}
+                                                avatar={settings.logoUrl ?? agentAvatar}
+                                                welcomeMessage={settings.welcomeMessage ?? agentWelcome}
+                                                settings={effectiveSettings}
+                                                showcase={productAccess ? showcase : []}
+                                                state={screen}
+                                                onState={setScreen}
+                                        />
+                                }
+                        >
+                                <ChannelLead title={t('emptyTitle')} body={t('desc')} />
+
+                                <form
+                                        className="space-y-3"
+                                        onSubmit={(event) => {
+                                                event.preventDefault()
+                                                void create()
+                                        }}
+                                >
+                                        <div>
+                                                <label htmlFor="chat-link-new-slug" className="ui-field-label">{t('yourLink')}</label>
+                                                <div dir="ltr" className="flex items-stretch overflow-hidden rounded-xl border border-[var(--border-default)] bg-white transition-shadow focus-within:border-[var(--border-strong)] focus-within:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]">
+                                                        <span className="flex items-center whitespace-nowrap border-e border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-xs text-[var(--text-muted)]">
+                                                                {host}/c/
+                                                        </span>
+                                                        <input
+                                                                id="chat-link-new-slug"
+                                                                dir="ltr"
+                                                                value={slug}
+                                                                autoComplete="off"
+                                                                autoCapitalize="off"
+                                                                spellCheck={false}
+                                                                onChange={(e) => {
+                                                                        setSlug(e.target.value.toLowerCase())
+                                                                        setError(null)
+                                                                }}
+                                                                placeholder={suggestedSlug}
+                                                                className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
+                                                        />
+                                                </div>
+                                                <p className="mt-1.5 text-xs leading-6 text-[var(--text-muted)]">
+                                                        {slug.trim() && !nextSlug ? t('slugInvalid') : t('slugHint')}
+                                                </p>
+                                        </div>
+
+                                        {error && <p role="alert" className="text-sm leading-6 text-danger">{error}</p>}
+
+                                        <Button type="submit" loading={busy === 'create'} className="w-full sm:w-auto">
+                                                {busy !== 'create' && <Link2 className="h-4 w-4" />}
+                                                {busy === 'create' ? t('creating') : t('create')}
+                                        </Button>
+                                        <p className="text-xs leading-6 text-[var(--text-muted)]">{t('emptyBody')}</p>
+                                </form>
+
+                                <ul className="grid gap-2.5 border-t border-[var(--border-subtle)] pt-5 sm:grid-cols-3">
+                                        {([
+                                                { icon: Share2, text: t('emptyPointShare') },
+                                                { icon: QrCode, text: t('emptyPointQr') },
+                                                { icon: BarChart3, text: t('emptyPointStats') },
+                                        ] as const).map((point) => (
+                                                <li key={point.text} className="flex items-start gap-2.5 text-xs leading-6 text-[var(--text-secondary)] sm:flex-col sm:gap-2">
+                                                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-primary)]">
+                                                                <point.icon className="h-4 w-4" />
+                                                        </span>
+                                                        {point.text}
+                                                </li>
+                                        ))}
+                                </ul>
+                        </ChannelLayout>
                 )
         }
 

@@ -20,6 +20,8 @@ export function SideSheet({
   footer,
   closeLabel = 'بستن',
   className,
+  icon,
+  badge,
 }: {
   title: string
   subtitle?: string
@@ -28,6 +30,10 @@ export function SideSheet({
   footer?: ReactNode
   closeLabel?: string
   className?: string
+  /** A mark before the title — what this sheet is about, at a glance. */
+  icon?: ReactNode
+  /** A state chip beside the title. */
+  badge?: ReactNode
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -122,9 +128,15 @@ export function SideSheet({
       >
         <header className="relative flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border-subtle)] px-5 pb-4 pt-6 md:pt-5">
           <span aria-hidden className="absolute start-1/2 top-2 h-1.5 w-11 -translate-x-1/2 rounded-full bg-black/15 rtl:translate-x-1/2 md:hidden" />
-          <div className="min-w-0">
-            <h2 id={titleId} className="ui-h2">{title}</h2>
-            {subtitle ? <p className="ui-caption mt-0.5">{subtitle}</p> : null}
+          <div className="flex min-w-0 items-center gap-3">
+            {icon}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <h2 id={titleId} className="ui-h2">{title}</h2>
+                {badge}
+              </div>
+              {subtitle ? <p className="ui-caption mt-0.5"><bdi>{subtitle}</bdi></p> : null}
+            </div>
           </div>
           <button
             type="button"

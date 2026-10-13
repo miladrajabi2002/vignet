@@ -61,6 +61,27 @@ describe('agent channel UI', () => {
     expect(existsSync(path.join(root, 'components/channels/channel-mobile-sections.tsx'))).toBe(false)
   })
 
+  it('never opens a connection onto an empty sheet', () => {
+    const board = source('components/channels/channel-board.tsx')
+    const widget = source('components/channels/web-widget-channel.tsx')
+
+    // Every connection shows the thing itself beside its controls — also
+    // before it is connected, when there is nothing else to show.
+    for (const file of [
+      'components/channels/web-widget-channel.tsx',
+      'components/channels/messenger-channel.tsx',
+      'components/channels/chat-link-channel.tsx',
+    ]) {
+      expect(source(file), file).toContain('<ChannelLayout')
+    }
+    // The sheet is as wide as its content, and its header says which
+    // connection this is and how it is doing.
+    expect(board).toContain('SHEET_WIDTH[open.size]')
+    expect(board).toContain('icon={open.mark}')
+    // On a phone the widget preview is a tab, not a scroll past the form.
+    expect(widget).toContain("t('widgetTabPreview')")
+  })
+
   it('asks before disconnecting any connection', () => {
     for (const file of [
       'components/channels/web-widget-channel.tsx',

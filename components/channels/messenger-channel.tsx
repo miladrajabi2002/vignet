@@ -3,15 +3,28 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
-  Loader2,
   ChevronDown,
   AlertTriangle,
-  Settings2,
   ArrowLeft,
+  ClipboardPaste,
+  ExternalLink,
+  Plus,
+  ShieldCheck,
+  X,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
+import {
+  ChannelLayout,
+  ChannelLead,
+  ChannelSection,
+  ChannelStat,
+  ChatMock,
+  StepList,
+} from '@/components/channels/channel-stage'
+import { Button } from '@/components/ui/button'
+import { ChannelMark } from '@/components/ui/channel-mark'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
@@ -27,13 +40,13 @@ type FieldDef = { key: string; labelKey: string; placeholderKey: string }
 
 const FIELD_SETS: Record<MessengerKind, FieldDef[]> = {
   TELEGRAM: [
-    { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'fieldBotTokenPh' },
+    { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'tokenPastePh' },
   ],
   BALE: [
-    { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'fieldBotTokenPh' },
+    { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'tokenPastePh' },
   ],
   RUBIKA: [
-    { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'fieldBotTokenPh' },
+    { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'tokenPastePh' },
   ],
   INSTAGRAM: [
     { key: 'pageToken', labelKey: 'fieldPageToken', placeholderKey: 'fieldPageTokenPh' },
@@ -66,26 +79,44 @@ const SUPPORTS_QUICK_REPLIES: Record<MessengerKind, boolean> = {
   INSTAGRAM: false,
 }
 
+/** Where the platform's bot-maker lives, so step one is a tap, not a search. */
+const BOT_MAKER_URL: Partial<Record<MessengerKind, string>> = {
+  TELEGRAM: 'https://t.me/BotFather',
+  BALE: 'https://ble.ir/botfather',
+  RUBIKA: 'https://rubika.ir/BotFather',
+}
+
+/** The connected account's public address. */
+function accountUrl(type: MessengerKind, username: string): string {
+  const handle = encodeURIComponent(username.replace(/^@/, ''))
+  if (type === 'TELEGRAM') return `https://t.me/${handle}`
+  if (type === 'BALE') return `https://ble.ir/${handle}`
+  if (type === 'RUBIKA') return `https://rubika.ir/${handle}`
+  return `https://instagram.com/${handle}`
+}
+
+const INPUT =
+  'w-full rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm text-[var(--text-primary)] outline-none transition-shadow focus:border-[var(--border-strong)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)]'
+
 /**
- * Behavior settings editor for a connected messenger channel. Currently:
- * quick-reply suggestion buttons shown under every agent reply.
+ * Behavior settings for a connected messenger channel. Currently: the
+ * quick-reply buttons shown under every agent reply. The rows live in the
+ * parent so the preview beside the form changes as they are typed.
  */
-function ChannelSettings({
+function QuickRepliesEditor({
   agentId,
   channelId,
   type,
-  initialQuickReplies,
+  items,
+  onChange,
 }: {
   agentId: string
   channelId: string
   type: MessengerKind
-  initialQuickReplies: string[]
+  items: string[]
+  onChange: (next: string[]) => void
 }) {
   const t = useTranslations('channels')
-  const [open, setOpen] = useState(false)
-  const [items, setItems] = useState<string[]>(
-    initialQuickReplies.length ? initialQuickReplies : [''],
-  )
   // Blank rows are only placeholders; what is stored is the filled-in buttons.
   const auto = useAutoSave({
     value: items.map((s) => s.trim()).filter(Boolean).slice(0, 4),
@@ -100,99 +131,50 @@ function ChannelSettings({
   })
 
   return (
-    <div className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={`channel-quick-replies-${type.toLowerCase()}`}
-        className="flex min-h-11 w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
-      >
-        <span className="inline-flex items-center gap-1.5">
-          <Settings2 className="h-3.5 w-3.5" />
-          {t('channelSettings')}
-        </span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div id={`channel-quick-replies-${type.toLowerCase()}`} className="space-y-3 px-3 pb-3">
-          <div>
-            <p className="text-xs font-medium text-[var(--text-primary)]">
-              {t('msgrQuickRepliesLabel')}
-            </p>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
-              {t('msgrQuickRepliesHint')}
-            </p>
+    <ChannelSection
+      title={t('msgrQuickRepliesLabel')}
+      hint={t('msgrQuickRepliesHint')}
+      action={<AutoSaveStatus status={auto.status} onRetry={auto.flush} idleLabel={null} errorLabel={t('saveError')} className="-me-2.5" />}
+    >
+      <div id={`channel-quick-replies-${type.toLowerCase()}`} className="space-y-2" onBlur={auto.flush}>
+        {items.map((val, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <input
+              value={val}
+              maxLength={type === 'TELEGRAM' || type === 'BALE' ? 40 : 20}
+              placeholder={t('msgrQuickRepliesPh')}
+              aria-label={`${t('msgrQuickRepliesLabel')} ${i + 1}`}
+              onChange={(e) => onChange(items.map((v, j) => (j === i ? e.target.value : v)))}
+              className={`${INPUT} min-h-11`}
+            />
+            {items.length > 1 && (
+              <button
+                type="button"
+                aria-label={t('remove')}
+                onClick={() => onChange(items.filter((_, j) => j !== i))}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <div className="space-y-2" onBlur={auto.flush}>
-            {items.map((val, i) => (
-              <input
-                key={i}
-                value={val}
-                maxLength={type === 'TELEGRAM' || type === 'BALE' ? 40 : 20}
-                placeholder={t('msgrQuickRepliesPh')}
-                onChange={(e) =>
-                  setItems((arr) => arr.map((v, j) => (j === i ? e.target.value : v)))
-                }
-                className="w-full rounded-lg border border-[var(--border-default)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus:border-[var(--border-strong)]"
-              />
-            ))}
-          </div>
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              disabled={items.length >= 4}
-              onClick={() => setItems((arr) => [...arr, ''])}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
-            >
-              + {t('msgrQuickRepliesAdd')}
-            </button>
-            <AutoSaveStatus status={auto.status} onRetry={auto.flush} errorLabel={t('saveError')} className="-me-2.5" />
-          </div>
-        </div>
-      )}
-    </div>
+        ))}
+        {items.length < 4 && (
+          <button
+            type="button"
+            onClick={() => onChange([...items, ''])}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t('msgrQuickRepliesAdd')}
+          </button>
+        )}
+      </div>
+    </ChannelSection>
   )
 }
 
 const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000 // 3 days with no inbound = likely broken
-
-/**
- * Webhook health badge for a connected channel: how long since the last inbound
- * message arrived. A long silence usually means the webhook or token is broken.
- */
-function WebhookHealth({ lastInboundAt }: { lastInboundAt?: string | null }) {
-  const t = useTranslations('channels')
-
-  if (!lastInboundAt) {
-    return (
-      <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-tertiary)]" />
-        {t('webhookNoInbound')}
-      </div>
-    )
-  }
-
-  const ts = new Date(lastInboundAt).getTime()
-  const ageMs = Date.now() - ts
-  const stale = ageMs > STALE_AFTER_MS
-  const rel = formatRelative(ageMs, t)
-
-  return (
-    <div
-      className={`mt-3 flex items-center gap-1.5 text-xs ${
-        stale ? 'text-danger' : 'text-[var(--text-secondary)]'
-      }`}
-    >
-      {stale ? (
-        <AlertTriangle className="h-3.5 w-3.5" />
-      ) : (
-        <span className="h-1.5 w-1.5 rounded-full bg-success" />
-      )}
-      {t('webhookLastInbound', { time: rel })}
-    </div>
-  )
-}
 
 /**
  * Map the stored health error (a reason code from lib/channels/health.ts, or
@@ -221,13 +203,14 @@ function ChannelHealthBadge({
   error?: string | null
 }) {
   const t = useTranslations('channels')
+  const locale = useLocale()
   const [expanded, setExpanded] = useState(false)
 
   if (!status || status === 'unknown') return null
 
   const down = status === 'down'
   const degraded = status === 'degraded'
-  const rel = checkedAt ? formatRelative(Date.now() - new Date(checkedAt).getTime(), t) : null
+  const rel = checkedAt ? formatRelative(Date.now() - new Date(checkedAt).getTime(), t, locale) : null
   const reasonKey = lostReasonKey(type, error)
 
   return (
@@ -235,7 +218,7 @@ function ChannelHealthBadge({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={`flex items-center gap-1.5 text-xs ${
+        className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-start text-xs ${
           down ? 'text-danger' : degraded ? 'text-warning' : 'text-success'
         }`}
       >
@@ -244,12 +227,14 @@ function ChannelHealthBadge({
         ) : (
           <span className="h-1.5 w-1.5 rounded-full bg-success" />
         )}
-        {down
-          ? t('healthDown')
-          : degraded
-            ? t('healthDegraded')
-            : t('healthOk')}
-        {rel ? <span className="text-[var(--text-tertiary)]">— {t('healthChecked', { time: rel })}</span> : null}
+        <span className="whitespace-nowrap">
+          {down
+            ? t('healthDown')
+            : degraded
+              ? t('healthDegraded')
+              : t('healthOk')}
+        </span>
+        {rel ? <span className="whitespace-nowrap text-[var(--text-tertiary)]">— {t('healthChecked', { time: rel })}</span> : null}
       </button>
       {expanded && error ? (
         <div className="mt-1 break-words text-[12px] leading-4 text-[var(--text-tertiary)]">
@@ -261,18 +246,22 @@ function ChannelHealthBadge({
 }
 
 /** Coarse Persian/intl relative time ("۲ دقیقه پیش") from an age in ms. */
-function formatRelative(ageMs: number, t: ReturnType<typeof useTranslations>): string {
+function formatRelative(ageMs: number, t: ReturnType<typeof useTranslations>, locale: string): string {
+  // The count is written in the reader's own digits, like every other number here.
+  const nf = new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fa-IR')
   const min = Math.floor(ageMs / 60000)
   if (min < 1) return t('timeJustNow')
-  if (min < 60) return t('timeMinutes', { n: min })
+  if (min < 60) return t('timeMinutes', { n: nf.format(min) })
   const hours = Math.floor(min / 60)
-  if (hours < 24) return t('timeHours', { n: hours })
+  if (hours < 24) return t('timeHours', { n: nf.format(hours) })
   const days = Math.floor(hours / 24)
-  return t('timeDays', { n: days })
+  return t('timeDays', { n: nf.format(days) })
 }
 
 export function MessengerChannel({
   agentId,
+  agentName,
+  agentWelcome,
   type,
   label,
   enabled,
@@ -284,8 +273,12 @@ export function MessengerChannel({
   healthError,
   quickReplies = [],
   botAvatar,
+  weekConversations = 0,
 }: {
   agentId: string
+  agentName: string
+  /** The agent's own welcome message — what the preview answers with. */
+  agentWelcome?: string | null
   type: MessengerKind
   label: string
   enabled: boolean
@@ -303,17 +296,20 @@ export function MessengerChannel({
   quickReplies?: string[]
   /** For Instagram OAuth channels: the IG profile picture URL (display). */
   botAvatar?: string | null
+  /** Conversations on this channel that had a message in the last 7 days. */
+  weekConversations?: number
 }) {
   const t = useTranslations('channels')
+  const locale = useLocale()
   const router = useRouter()
   const fields = FIELD_SETS[type]
   const [busy, setBusy] = useState(false)
   const [disableOpen, setDisableOpen] = useState(false)
   const [reconnectOpen, setReconnectOpen] = useState(false)
-  const [showGuide, setShowGuide] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
+  const [replies, setReplies] = useState<string[]>(quickReplies.length ? quickReplies : [''])
 
   const isInstagram = type === 'INSTAGRAM'
   // Connected on paper, but the periodic check says the provider no longer
@@ -321,6 +317,8 @@ export function MessengerChannel({
   const connectionLost = enabled && healthStatus === 'down'
   const guideSteps = t.raw(`guide.${type}`) as unknown
   const steps = Array.isArray(guideSteps) ? (guideSteps as string[]) : []
+  const complete = isComplete(type, values)
+  const nf = new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fa-IR')
 
   async function connect() {
     if (!isComplete(type, values)) return
@@ -347,6 +345,8 @@ export function MessengerChannel({
       setValues({})
       setReconnectOpen(false)
       router.refresh()
+    } catch {
+      setError(t('connectError'))
     } finally {
       setBusy(false)
     }
@@ -371,181 +371,279 @@ export function MessengerChannel({
     }
   }
 
-  // The same form connects a new channel and reconnects a lost one: every
-  // connect route upserts the existing row back to active.
-  const connectForm = (
-    <>
-      {type === 'INSTAGRAM' ? (
-        // Instagram uses the platform-managed OAuth flow (one click →
-        // Facebook Login dialog → callback → channel persisted). No token
-        // pasting, no webhook configuration, no Meta dashboard visit.
-        <InstagramConnectFlow
-          agentId={agentId}
-          onClose={() => setReconnectOpen(false)}
-        />
-      ) : (
-        <>
-          {steps.length > 0 && (
-            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
-              <button
-                type="button"
-                onClick={() => setShowGuide((v) => !v)}
-                className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
-              >
-                {t('setupGuide')}
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${showGuide ? 'rotate-180' : ''}`}
-                />
-              </button>
-              {showGuide && (
-                <ol className="list-decimal space-y-1.5 px-6 pb-3 text-xs text-[var(--text-secondary)] marker:text-[var(--text-tertiary)]">
-                  {steps.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ol>
-              )}
-            </div>
-          )}
+  // Reading the clipboard needs a permission some browsers never grant; the
+  // field still takes a normal paste, so a refusal is not worth a message.
+  async function pasteInto(key: string) {
+    try {
+      const text = (await navigator.clipboard.readText()).trim()
+      if (text) setValues((v) => ({ ...v, [key]: text }))
+    } catch {}
+  }
 
-          {fields.map((f) => (
-            <div key={f.key} className="space-y-1">
-              <label className="text-xs text-[var(--text-secondary)]">{t(f.labelKey)}</label>
-              <input
-                dir="ltr"
-                value={values[f.key] ?? ''}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [f.key]: e.target.value }))
-                }
-                placeholder={t(f.placeholderKey)}
-                className="w-full rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--text-primary)] focus:shadow-[0_0_0_3px_rgba(91,61,232,0.22)] focus:border-[var(--border-strong)]"
-              />
-            </div>
-          ))}
-
-          {error && <p className="text-xs text-danger">{error}</p>}
-          <div className="flex justify-end">
-            <button
-              onClick={connect}
-              disabled={busy || !isComplete(type, values)}
-              aria-busy={busy || undefined}
-              title={!isComplete(type, values) ? t('incompleteFormHint') : undefined}
-              className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {busy ? t('connecting') : t('connectConfirm')}
-            </button>
-          </div>
-        </>
-      )}
-    </>
-  )
-
-  return (
-    <div className="space-y-4">
-      {enabled && (
-        <div id={`channel-details-${type.toLowerCase()}`} className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-[var(--bg-base)] p-3">
-            {isInstagram && botAvatar && failedAvatarUrl !== botAvatar && (
-              // The connected Instagram account's own photo makes it obvious
-              // which page is wired up.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={botAvatar}
-                alt=""
-                width={40}
-                height={40}
-                loading="lazy"
-                decoding="async"
-                onError={() => setFailedAvatarUrl(botAvatar)}
-                className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <p dir="ltr" className="truncate text-start text-sm font-semibold text-[var(--text-primary)]">
-                {botUsername ? `@${botUsername}` : label}
-              </p>
-              <ChannelHealthBadge type={type} status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
-              <WebhookHealth lastInboundAt={lastInboundAt} />
-            </div>
-            {/* Connected Instagram: the entry point to DM/comment triggers, follow-gate, etc. */}
-            {isInstagram && (
-              <Link
-                href="/instagram"
-                className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
-              >
-                مدیریت اتوماسیون
-                <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
-              </Link>
-            )}
-          </div>
-
-          {connectionLost && (
-            <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-3">
-              <div className="flex flex-wrap items-start gap-3">
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="font-medium text-danger">{t('connectionLostTitle')}</p>
-                  <p className="mt-1 text-[var(--text-secondary)]">
-                    {t(lostReasonKey(type, healthError) ?? 'connectionLostGeneric')} {t('connectionLostImpact')}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setReconnectOpen((value) => !value)}
-                  aria-expanded={reconnectOpen}
-                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
-                >
-                  {t('reconnect')}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${reconnectOpen ? 'rotate-180' : ''}`}
-                  />
-                </button>
-              </div>
-              {reconnectOpen && <div className="mt-3 space-y-3">{connectForm}</div>}
-            </div>
-          )}
-
-          {/* Behavior settings for connected channels that support them. */}
-          {channelId && SUPPORTS_QUICK_REPLIES[type] && (
-            <ChannelSettings
-              agentId={agentId}
-              channelId={channelId}
-              type={type}
-              initialQuickReplies={quickReplies}
+  // The token field and its button: the last step of connecting, and the whole
+  // of reconnecting — every connect route upserts the existing row back to active.
+  const tokenForm = (
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault()
+        void connect()
+      }}
+    >
+      {fields.map((f) => (
+        <div key={f.key}>
+          <label htmlFor={`${type}-${f.key}`} className="ui-field-label">{t(f.labelKey)}</label>
+          <div className="flex items-stretch gap-1.5">
+            <input
+              id={`${type}-${f.key}`}
+              dir="ltr"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              value={values[f.key] ?? ''}
+              onChange={(e) => {
+                setValues((v) => ({ ...v, [f.key]: e.target.value }))
+                setError(null)
+              }}
+              placeholder={t(f.placeholderKey)}
+              className={`${INPUT} min-h-11 min-w-0 flex-1 font-mono text-[13px] placeholder:font-sans`}
             />
-          )}
-
-          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-
-          <div className="border-t border-[var(--border-subtle)] pt-4">
             <button
               type="button"
-              onClick={() => setDisableOpen(true)}
-              disabled={busy}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:text-danger disabled:opacity-50"
+              onClick={() => void pasteInto(f.key)}
+              aria-label={t('paste')}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
-              {t('disable')}
+              <ClipboardPaste className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('paste')}</span>
             </button>
           </div>
         </div>
-      )}
+      ))}
 
-      {!enabled && (
-        <div id={`channel-details-${type.toLowerCase()}`} className="space-y-3">
-          {connectForm}
-        </div>
+      {error && <p role="alert" className="text-sm leading-6 text-danger">{error}</p>}
+
+      <Button
+        type="submit"
+        loading={busy}
+        disabled={!complete}
+        title={!complete ? t('incompleteFormHint') : undefined}
+        className="w-full sm:w-auto"
+      >
+        {busy ? t('connecting') : t('connectConfirm')}
+      </Button>
+      <p className="flex items-start gap-1.5 text-xs leading-6 text-[var(--text-muted)]">
+        <ShieldCheck className="mt-1 h-3.5 w-3.5 shrink-0" />
+        {t('tokenPrivacy')}
+      </p>
+    </form>
+  )
+
+  const botMaker = BOT_MAKER_URL[type]
+  const connectForm = isInstagram ? (
+    // Instagram uses the platform-managed OAuth flow (one click → Instagram's
+    // own login → callback → channel persisted). No token pasting, no webhook
+    // configuration, no Meta dashboard visit.
+    // Reconnecting keeps the flow's own «back», which folds the panel away.
+    <InstagramConnectFlow
+      agentId={agentId}
+      embedded={!enabled}
+      onClose={enabled ? () => setReconnectOpen(false) : undefined}
+    />
+  ) : (
+    <StepList
+      label={t('setupGuide')}
+      steps={steps.map((text, index) => ({
+        text,
+        extra:
+          index === 0 && botMaker ? (
+            <a
+              href={botMaker}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t('openBotFather')}
+            </a>
+          ) : index === steps.length - 1 ? (
+            tokenForm
+          ) : undefined,
+      }))}
+    />
+  )
+
+  const liveReplies = replies.map((item) => item.trim()).filter(Boolean)
+  const stage = (
+    <ChatMock
+      channel={type}
+      name={agentName}
+      handle={enabled ? botUsername : null}
+      avatar={enabled && isInstagram ? botAvatar : null}
+      greeting={t('mockGreeting')}
+      welcome={agentWelcome?.trim() || t('mockWelcomeFallback')}
+      buttons={
+        !SUPPORTS_QUICK_REPLIES[type]
+          ? []
+          : enabled
+            ? liveReplies
+            : [t('mockSampleReply1'), t('mockSampleReply2')]
+      }
+      botLabel={isInstagram ? t('instagram') : t('mockBot')}
+      composerLabel={t('mockComposer')}
+      caption={enabled ? t('mockCaptionLive', { channel: label }) : t('mockCaptionDemo', { channel: label })}
+    />
+  )
+
+  const lastInboundAge = lastInboundAt ? Date.now() - new Date(lastInboundAt).getTime() : null
+  const conversationsHref = `/conversations?channel=${type}&agent=${encodeURIComponent(agentId)}`
+
+  return (
+    <>
+      {enabled ? (
+        <ChannelLayout stage={stage} stageOnMobile={SUPPORTS_QUICK_REPLIES[type] ? 'last' : 'hidden'}>
+          <div id={`channel-details-${type.toLowerCase()}`} className="space-y-6">
+            {/* Which account is wired up, and whether it is still alive. */}
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3.5">
+              {isInstagram && botAvatar && failedAvatarUrl !== botAvatar ? (
+                // The connected Instagram account's own photo makes it obvious
+                // which page is wired up.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={botAvatar}
+                  alt=""
+                  width={48}
+                  height={48}
+                  loading="lazy"
+                  decoding="async"
+                  onError={() => setFailedAvatarUrl(botAvatar)}
+                  className="h-12 w-12 shrink-0 rounded-2xl border border-[var(--border-default)] object-cover"
+                />
+              ) : (
+                <ChannelMark channel={type} size="lg" />
+              )}
+              <div className="min-w-0 flex-1 basis-44">
+                <p className="truncate text-sm font-bold text-[var(--text-primary)]">
+                  <bdi>{botUsername ? `@${botUsername}` : label}</bdi>
+                </p>
+                <ChannelHealthBadge type={type} status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
+              </div>
+              {/* Connected Instagram: the entry point to DM/comment triggers, follow-gate, etc. */}
+              {isInstagram ? (
+                <Link
+                  href="/instagram"
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] sm:flex-none"
+                >
+                  {t('manageAutomation')}
+                  <ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" />
+                </Link>
+              ) : botUsername ? (
+                <a
+                  href={accountUrl(type, botUsername)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3.5 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] sm:flex-none"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {t('openBot')}
+                </a>
+              ) : null}
+            </div>
+
+            {connectionLost && (
+              <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-3.5">
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="font-semibold text-danger">{t('connectionLostTitle')}</p>
+                    <p className="mt-1 leading-7 text-[var(--text-secondary)]">
+                      {t(lostReasonKey(type, healthError) ?? 'connectionLostGeneric')} {t('connectionLostImpact')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReconnectOpen((value) => !value)}
+                    aria-expanded={reconnectOpen}
+                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
+                  >
+                    {t('reconnect')}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${reconnectOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                </div>
+                {reconnectOpen && <div className={isInstagram ? undefined : 'mt-4'}>{isInstagram ? connectForm : tokenForm}</div>}
+              </div>
+            )}
+
+            {/* Is anyone actually writing here? */}
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <ChannelStat label={t('statWeek')} value={nf.format(weekConversations)} />
+                <ChannelStat
+                  label={t('statLastInbound')}
+                  value={lastInboundAge === null ? t('statNone') : formatRelative(lastInboundAge, t, locale)}
+                  tone={lastInboundAge !== null && lastInboundAge > STALE_AFTER_MS ? 'danger' : undefined}
+                />
+              </div>
+              {lastInboundAge === null ? (
+                <p className="text-xs leading-6 text-[var(--text-muted)]">{t('webhookNoInbound')}</p>
+              ) : (
+                <Link
+                  href={conversationsHref}
+                  className="inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                >
+                  {t('viewConversations')}
+                  <ArrowLeft className="h-3.5 w-3.5 ltr:rotate-180" />
+                </Link>
+              )}
+            </div>
+
+            {/* Behavior settings for connected channels that support them. */}
+            {channelId && SUPPORTS_QUICK_REPLIES[type] && (
+              <QuickRepliesEditor
+                agentId={agentId}
+                channelId={channelId}
+                type={type}
+                items={replies}
+                onChange={setReplies}
+              />
+            )}
+
+            {error && !reconnectOpen && <p role="alert" className="text-sm leading-6 text-danger">{error}</p>}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-5">
+              <p className="min-w-0 flex-1 basis-56 text-xs leading-6 text-[var(--text-muted)]">{t('disableChannelBody')}</p>
+              <button
+                type="button"
+                onClick={() => setDisableOpen(true)}
+                disabled={busy}
+                className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+              >
+                {t('disconnect')}
+              </button>
+            </div>
+          </div>
+        </ChannelLayout>
+      ) : (
+        <ChannelLayout stage={stage} stageOnMobile="first">
+          <div id={`channel-details-${type.toLowerCase()}`} className="space-y-5">
+            {!isInstagram && <ChannelLead title={t('connectLeadTitle', { channel: label })} body={t('connectLeadBody')} />}
+            {connectForm}
+          </div>
+        </ChannelLayout>
       )}
 
       <ConfirmDialog
         open={disableOpen}
         title={t('disableChannelTitle', { channel: label })}
         description={t('disableChannelBody')}
-        confirmLabel={t('disable')}
+        confirmLabel={t('disconnect')}
         busy={busy}
         onConfirm={() => void disable()}
         onClose={() => {
           if (!busy) setDisableOpen(false)
         }}
       />
-    </div>
+    </>
   )
 }

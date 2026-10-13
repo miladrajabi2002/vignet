@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
+import { cn } from '@/lib/utils'
 
 /** One state vocabulary for every connection, whatever it is made of. */
 export type ChannelStatus = 'on' | 'off' | 'attention' | 'paused'
@@ -15,9 +16,16 @@ export interface ChannelBoardItem {
   hint: string
   status: ChannelStatus
   mark: ReactNode
-  /** Editors with a live preview need the wide sheet. */
-  wide?: boolean
+  /** How much room the sheet needs: a form beside its preview, or a full editor. */
+  size?: 'lg' | 'xl'
   content: ReactNode
+}
+
+// The sheet is only as wide as what it holds, so a short form never opens
+// onto an empty canvas.
+const SHEET_WIDTH: Record<NonNullable<ChannelBoardItem['size']>, string> = {
+  lg: 'md:w-[min(58rem,calc(100vw-1.5rem))]',
+  xl: 'md:w-[min(68rem,calc(100vw-1.5rem))]',
 }
 
 const TONE: Record<ChannelStatus, ChipTone> = {
@@ -80,7 +88,7 @@ export function ChannelBoard({
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-bold text-[var(--text-primary)]">{item.label}</span>
-                <span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{item.hint}</span>
+                <span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]"><bdi>{item.hint}</bdi></span>
               </span>
             </button>
           </li>
@@ -90,9 +98,18 @@ export function ChannelBoard({
       {open && (
         <SideSheet
           title={open.label}
-          subtitle={t(STATUS_KEY[open.status])}
+          subtitle={open.hint}
+          icon={open.mark}
+          badge={
+            <StatusChip tone={TONE[open.status]} dot={open.status !== 'off'}>
+              {t(STATUS_KEY[open.status])}
+            </StatusChip>
+          }
           onClose={() => setOpenKey(null)}
-          className={open.wide ? 'md:w-[min(66rem,calc(100vw-1.5rem))]' : undefined}
+          className={cn(
+            'md:transition-[width] md:duration-300 md:ease-out motion-reduce:transition-none',
+            open.size && SHEET_WIDTH[open.size],
+          )}
         >
           {open.content}
         </SideSheet>

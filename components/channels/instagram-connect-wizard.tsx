@@ -60,9 +60,15 @@ export function InstagramConnectFlow({
   agentId,
   onClose,
   returnTo,
+  embedded = false,
 }: {
   agentId: string
   onClose?: () => void
+  /**
+   * Shown inside a surface that already has its own way out (a connection
+   * sheet): no outer gap and no «back» link of its own.
+   */
+  embedded?: boolean
   /**
    * Internal path the OAuth callback should send the user back to after
    * connecting (e.g. "/instagram" when the flow starts from the Instagram
@@ -197,7 +203,7 @@ export function InstagramConnectFlow({
   }
 
   return (
-    <div className="mt-4 space-y-3">
+    <div className={embedded ? 'space-y-3' : 'mt-4 space-y-3'}>
       <div className="overflow-hidden rounded-card border border-[var(--border-default)] bg-white shadow-[var(--shadow-card)]">
         <div className="border-b border-[var(--border-subtle)] bg-[linear-gradient(135deg,#fff_0%,#fff_58%,rgba(221,42,123,0.06)_100%)] p-5 sm:p-6">
           <div className="flex items-start gap-3">
@@ -296,15 +302,17 @@ export function InstagramConnectFlow({
             رمز عبور را فقط در صفحه Instagram وارد می‌کنید؛ ویجنت آن را دریافت یا ذخیره نمی‌کند.
           </p>
 
-          <button
-            type="button"
-            onClick={back}
-            disabled={busy}
-            className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
-          >
-            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-            بازگشت به اتصال‌ها
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              onClick={back}
+              disabled={busy}
+              className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+            >
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+              بازگشت به اتصال‌ها
+            </button>
+          )}
         </div>
       </div>
 

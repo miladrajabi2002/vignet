@@ -41,7 +41,8 @@ export default async function AgentChannelsPage(
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const nf = new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fa-IR')
 
-  const [agent, workspace, planDefs, usedChannels] = await Promise.all([
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const [agent, workspace, planDefs, usedChannels, weekGroups] = await Promise.all([
     prisma.agent.findFirst({
       where: { id: params.agentId, workspaceId: user.workspaceId },
       select: {
@@ -66,8 +67,21 @@ export default async function AgentChannelsPage(
     }),
     getEffectivePlanDefs(),
     getActiveChannelConnectionCount(user.workspaceId),
+    // How busy each connection has been lately — a connected channel's sheet
+    // answers «is anyone writing here?» before anything else.
+    prisma.conversation.groupBy({
+      by: ['channel'],
+      where: {
+        agentId: params.agentId,
+        workspaceId: user.workspaceId,
+        deletedAt: null,
+        lastMessageAt: { gte: weekAgo },
+      },
+      _count: { _all: true },
+    }),
   ])
   if (!agent) notFound()
+  const weekConversations = new Map(weekGroups.map((group) => [group.channel, group._count._all]))
 
   const currentPlan = workspace?.plan ?? 'TRIAL'
   const maxChannels = planDefs[currentPlan].maxChannels
@@ -132,7 +146,7 @@ export default async function AgentChannelsPage(
       hint: chatLink ? `${host}/c/${chatLink.slug}` : t('chatLinkHint'),
       status: chatLink ? (chatLink.enabled ? 'on' : 'paused') : 'off',
       mark: <ChannelMark channel="CHAT_LINK" />,
-      wide: true,
+      size: chatLink ? 'xl' : 'lg',
       content: (
         <ChatLinkChannel
           agentId={agent.id}
@@ -155,11 +169,13 @@ export default async function AgentChannelsPage(
       hint: t('widgetHint'),
       status: widget ? 'on' : 'off',
       mark: <ChannelMark channel="WEB_WIDGET" />,
-      wide: true,
+      size: widget ? 'xl' : 'lg',
       content: (
         <WebWidgetChannel
           agentId={agent.id}
           agentName={agent.name}
+          agentWelcome={agent.welcomeMessage}
+          weekConversations={weekConversations.get('WEB_WIDGET') ?? 0}
           baseUrl={baseUrl}
           enabled={!!widget}
           channelId={widget?.id ?? null}
@@ -191,9 +207,13 @@ export default async function AgentChannelsPage(
         // longer accepts the stored credentials.
         status: channel ? (channel.healthStatus === 'down' ? 'attention' : 'on') : 'off',
         mark: <ChannelMark channel={messenger.type} />,
+        size: 'lg',
         content: (
           <MessengerChannel
             agentId={agent.id}
+            agentName={agent.name}
+            agentWelcome={agent.welcomeMessage}
+            weekConversations={weekConversations.get(messenger.type) ?? 0}
             type={messenger.type}
             label={messenger.label}
             enabled={!!channel}
