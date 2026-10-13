@@ -10,10 +10,11 @@
 - PostgreSQL 16.14
 - `pg_stat_statements` 1.10 فعال
 - `shared_preload_libraries = pg_stat_statements`
-- `pg_stat_statements.track = top` (اینگنه‌سازی nested statements نادیده گرفته می‌شود)
+- `pg_stat_statements.track = top` (کوئری‌های تودرتو داخل functionها جدا شمرده نمی‌شوند)
 - `pg_stat_statements.max = 10000` (حداکثر ۱۰٬۰۰۰ شکل کوئری منحصر)
 - `pg_stat_statements.track_utility = on` (DDL مثل CREATE INDEX هم ضبط می‌شود)
-- `track_io_timing = on` (زمان I/O دیسک قابل اندازه‌گیری است)
+- `pg_stat_statements.save = on` (آمار با restart از بین نمی‌رود)
+- `track_io_timing = on` (زمان I/O دیسک جداگانه هم اندازه‌گیری می‌شود)
 - کانفیگ نصب‌شده در: `/etc/postgresql/16/main/conf.d/00-pg_stat_statements.conf`
 
 ## چطور از آن استفاده کنیم
@@ -28,13 +29,27 @@ bash /var/www/vigent.ir/public/vignet/scripts/pg-slow-queries.sh
 
 # گزارش متفاوت: top 50 با حداقل 2 فراخوانی
 bash /var/www/vigent.ir/public/vignet/scripts/pg-slow-queries.sh 50 2
+
+# متن کامل و اعداد یک کوئری (queryid از ستون اول گزارش)
+bash /var/www/vigent.ir/public/vignet/scripts/pg-slow-queries.sh --query 5831092145799257361
 ```
 
+اسکریپت آدرس اتصال را از `.env` می‌خواند (اول `DIRECT_URL`، بعد
+`DATABASE_URL`)؛ هیچ رمزی داخل خود اسکریپت نیست.
+
 این اسکریپت ۴ بخش تولید می‌کند:
-1. **کندترین کوئری‌ها بر اساس TOTAL exec time** — مجموع زمان مصرفی (با cache hit %)
-2. **کندترین کوئری‌ها بر اساس MEAN exec time** — میانگین هر فراخوانی
-3. **بیشترین DISK READS** — کوئری‌هایی که از کش عبور می‌کنند (کاندید ایندکس)
+1. **بیشترین TOTAL exec time** — مجموع زمان مصرفی، همراه با `bufs_per_call`
+2. **بیشترین MEAN exec time** — میانگین هر فراخوانی
+3. **بیشترین DISK READS** — کوئری‌هایی که داده‌شان در کش نبوده (داده سرد)
 4. **بیشترین ROWS RETURNED** — کوئری‌هایی که داده سنگین برمی‌گردانند
+
+و در انتها پنجره آمار (`stats_since` و `stats_window`) را چاپ می‌کند تا معلوم
+باشد اعداد مربوط به چه بازه‌ای است.
+
+هر ردیف یک `queryid` دارد. متن کوئری در گزارش کوتاه شده (فهرست ستون‌های
+Prisma با `…` جایگزین می‌شود)، پس برای دیدن متن کامل از `--query` استفاده
+کنید. کوئری‌های `pg_dump` بک‌آپ شبانه (`COPY … TO stdout` و خواندن کاتالوگ)
+و کوئری‌های مانیتورینگ در گزارش نمی‌آیند، چون ترافیک برنامه نیستند.
 
 ### ۲. ریست baseline قبل از اندازه‌گیری
 
@@ -66,7 +81,8 @@ sudo -u postgres psql -d vigent -c "SELECT pg_stat_statements_reset();"
 
 | نشانه | معنی | اقدام |
 |------|------|------|
-| `cache_hit_pct < 90%` + `disk_reads > 100` | داده روی دیسک خوانده می‌شود | ایندکس ترکیبی اضافه کنید |
+| `bufs_per_call` بالا با `rows` کم (مثلاً صدها page برای چند ردیف) | برای پیدا کردن چند ردیف کل جدول خوانده می‌شود | `EXPLAIN (ANALYZE, BUFFERS)` بگیرید؛ معمولاً ایندکس روی ستون فیلتر |
+| `cache_hit_pct < 90%` + `disk_reads` بالا | داده در کش نبوده (داده سرد یا `shared_buffers` کم) | به‌تنهایی نشانه نبودِ ایندکس نیست؛ `bufs_per_call` را هم ببینید |
 | `rows_per_call > 1000` | کوئری خیلی زیاد برمی‌گرداند | `LIMIT` یا pagination اضافه کنید |
 | `mean_ms > 50` با `calls > 100` | کوئری پرتکرار و کند | `EXPLAIN ANALYZE` بگیرید |
 | `Seq Scan` در `EXPLAIN` | اسکن کامل جدول | ایندکس روی ستون فیلتر |
@@ -75,13 +91,19 @@ sudo -u postgres psql -d vigent -c "SELECT pg_stat_statements_reset();"
 
 - `pg_stat_statements` query shape normalization انجام می‌دهد: `WHERE id = 'abc'`
   و `WHERE id = 'xyz'` به‌عنوان یک کوئری شمرده می‌شوند. این برای aggregate
-  آماری بهتر است اما برای دیدن query واقعی باید `queryid` را با یک نمونه واقعی
-  تطبیق دهید.
-- Restart PostgreSQL آمار را reset نمی‌کند؛ فقط `pg_stat_statements_reset()`.
-- اگر `track_io_timing = on` نباشد، `total_exec_time` فقط شامل CPU+wait است،
-  نه I/O. ما این را فعال کرده‌ایم.
-- آمار روی Disk ذخیره می‌شود؛ اگر PostgreSQL restart شود، آمار از آخرین
-  state ادامه می‌یابد مگر اینکه reset کنید.
+  آماری بهتر است اما مقادیر واقعی پارامترها را نشان نمی‌دهد؛ برای `EXPLAIN`
+  باید خودتان یک نمونه واقعی جای `$1`, `$2` … بگذارید.
+- Restart PostgreSQL آمار را reset نمی‌کند؛ آمار روی دیسک ذخیره می‌شود و فقط
+  `pg_stat_statements_reset()` آن را پاک می‌کند.
+- `total_exec_time` زمان واقعی اجرا است و همیشه I/O دیسک را هم شامل می‌شود.
+  `track_io_timing` فقط سهم I/O را جداگانه (در ستون `blk_read_time`) ثبت
+  می‌کند. زمان planning حساب نمی‌شود چون `track_planning` خاموش است.
+- پنجره طولانی، کد قدیم و جدید را با هم جمع می‌زند. برای سنجیدن اثر یک
+  تغییر، قبلش reset کنید؛ ولی کوئری‌های نادر (مثل حذف یک کانال) فقط در
+  پنجره‌های طولانی دیده می‌شوند.
+- کلید خارجی با `onDelete: Cascade` روی ستونی که ایندکس ندارد یعنی هر حذفِ
+  والد یک اسکن کامل جدول فرزند. این در گزارش زیر نام `DELETE` والد دیده
+  می‌شود، نه جدول فرزند.
 
 ## Rollback (در صورت نیاز)
 
