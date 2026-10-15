@@ -390,7 +390,18 @@ export function tokenizeCatalogText(value: string): string[] {
 
 export function extractProductTerms(
         value: string,
-        options?: { sizeNumbersAllowed?: boolean },
+        options?: {
+                sizeNumbersAllowed?: boolean
+                /**
+                 * The text is the product words the understanding layer read out
+                 * of the message, not the message itself: counts, budgets and
+                 * phone numbers are already elsewhere, so a number of three
+                 * digits or more left in it names the product («مدل ۴۳۱» for
+                 * BCO431, «فیلیپس ۳۵۰»). Shorter numbers keep the rules above:
+                 * «آیفون ۱۶» must not find «اسپری فیکس ۱۶ ساعته».
+                 */
+                productWordsOnly?: boolean
+        },
 ): string[] {
         const normalized = normalizePersianText(value)
         // Plain counts ("۵ تا محصول") are not search terms, but measurements
@@ -438,6 +449,11 @@ export function extractProductTerms(
                         // proved that context, a bare size-like number is
                         // essential catalog evidence, not a count.
                         if (options?.sizeNumbersAllowed && /^\d{2,4}$/.test(token)) return true
+                        if (
+                                options?.productWordsOnly
+                                && /^\d{3,8}$/.test(token)
+                                && !counterNouns.has(rawTokens[index + 1] ?? '')
+                        ) return true
                         return false
                 })
 
@@ -782,6 +798,58 @@ export function allVariationsSoldOut(attributes: unknown): boolean {
                 variation.manageStock ? (variation.stockQuantity ?? 0) <= 0 : variation.inStock === false)
 }
 
+/**
+ * A number the customer gives for a model: «۴۳۱» for «BCO431», «۶۸۵» for
+ * «EC685.B», «۲۷۱» for «MTM-271». It names a row when it stands in the text as
+ * a whole number, with no digit before or after it. 'word' = it stands alone,
+ * 'model' = letters are attached to it. Digits inside a longer number («0706»
+ * in the SKU 1070611) are never a match.
+ */
+export function modelNumberIn(text: string, digits: string): 'word' | 'model' | null {
+        const isDigit = (char: string | undefined) => char != null && char >= '0' && char <= '9'
+        const isLetter = (char: string | undefined) => char != null && /\p{L}/u.test(char)
+        let found: 'model' | null = null
+        for (let at = text.indexOf(digits); at !== -1; at = text.indexOf(digits, at + 1)) {
+                const before = text[at - 1]
+                const after = text[at + digits.length]
+                if (isDigit(before) || isDigit(after)) continue
+                if (!isLetter(before) && !isLetter(after)) return 'word'
+                found = 'model'
+        }
+        return found
+}
+
+/** Words of a name or category, in order. */
+function catalogWords(text: string): string[] {
+        return text.replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter(Boolean)
+}
+
+/** Every two or three neighbouring words written as one («اسپرسو ساز» → «اسپرسوساز»). */
+function joinedNeighbours(words: string[]): Set<string> {
+        const joined = new Set<string>()
+        for (let start = 0; start < words.length - 1; start++) {
+                joined.add(words[start] + words[start + 1])
+                if (start < words.length - 2) joined.add(words[start] + words[start + 1] + words[start + 2])
+        }
+        return joined
+}
+
+/**
+ * The same word written in two pieces, when the catalog itself uses both
+ * pieces: one store lists «اسپرسوساز دلونگی EC685» next to «اسپرسو ساز دلونگی
+ * BCO431», and a search for either spelling must reach both rows.
+ */
+function spacedSpellings(term: string, corpusTokens: ReadonlySet<string> | undefined): string[] {
+        if (!corpusTokens?.size || term.length < 5 || /\d/.test(term)) return []
+        const spellings: string[] = []
+        for (let cut = 2; cut <= term.length - 2 && spellings.length < 2; cut++) {
+                const head = term.slice(0, cut)
+                const tail = term.slice(cut)
+                if (corpusTokens.has(head) && corpusTokens.has(tail)) spellings.push(`${head} ${tail}`)
+        }
+        return spellings
+}
+
 /** Match measurements regardless of whether the source used 48, ۴۸ or ٤٨. */
 function catalogTermVariants(term: string): string[] {
         if (!/\d/.test(term)) return [term]
@@ -854,15 +922,21 @@ async function searchCatalogProducts(
 
         const rankedIds = [...new Set(productIds)].slice(0, 40)
         const terms = plan.searchTerms.slice(0, 6)
-        const lexicalFilters: Prisma.ProductWhereInput[] = terms.flatMap((term) =>
-                catalogTermVariants(term).flatMap((variant) => [
+        // Rows whose name writes a term in two pieces («اسپرسوساز» → «اسپرسو ساز»).
+        const spacedNameFilters = (term: string): Prisma.ProductWhereInput[] =>
+                spacedSpellings(term, corpusTokens).map((spelling) => ({
+                        name: { contains: spelling, mode: 'insensitive' as const },
+                }))
+        const lexicalFilters: Prisma.ProductWhereInput[] = terms.flatMap((term) => [
+                ...catalogTermVariants(term).flatMap((variant) => [
                         { name: { contains: variant, mode: 'insensitive' as const } },
                         { description: { contains: variant, mode: 'insensitive' as const } },
                         { sku: { contains: variant, mode: 'insensitive' as const } },
                         { tags: { has: variant } },
                         { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
                 ]),
-        )
+                ...spacedNameFilters(term),
+        ])
         // The broadest term in a multi-term request can match hundreds of
         // rows (for example «پیراهن» in a fashion catalog). A fixed
         // candidate cap ordered by popularity can then discard the exact,
@@ -870,15 +944,16 @@ async function searchCatalogProducts(
         // sees it. Fetch semantic IDs and non-subject identity terms in a
         // small priority lane, then merge them with the broad pool.
         const identityTerms = terms.filter((term) => !PRODUCT_SUBJECT_RE.test(term))
-        const identityLexicalFilters: Prisma.ProductWhereInput[] = identityTerms.flatMap((term) =>
-                catalogTermVariants(term).flatMap((variant) => [
+        const identityLexicalFilters: Prisma.ProductWhereInput[] = identityTerms.flatMap((term) => [
+                ...catalogTermVariants(term).flatMap((variant) => [
                         { name: { contains: variant, mode: 'insensitive' as const } },
                         { description: { contains: variant, mode: 'insensitive' as const } },
                         { sku: { contains: variant, mode: 'insensitive' as const } },
                         { tags: { has: variant } },
                         { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
                 ]),
-        )
+                ...spacedNameFilters(term),
+        ])
         // A broad request with no meaningful term must search the whole active
         // assigned catalog. Restricting it to the handful of semantic chunks
         // would recreate the "only one product" failure.
@@ -928,12 +1003,15 @@ async function searchCatalogProducts(
         // before the one exact row («… آپادانا – سایز ۱۹۰») is ever ranked.
         const strictFilters: Prisma.ProductWhereInput[] = terms.length > 1
                 ? terms.map((term) => ({
-                        OR: catalogTermVariants(term).flatMap((variant) => [
-                                { name: { contains: variant, mode: 'insensitive' as const } },
-                                { sku: { contains: variant, mode: 'insensitive' as const } },
-                                { tags: { has: variant } },
-                                { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
-                        ]),
+                        OR: [
+                                ...catalogTermVariants(term).flatMap((variant) => [
+                                        { name: { contains: variant, mode: 'insensitive' as const } },
+                                        { sku: { contains: variant, mode: 'insensitive' as const } },
+                                        { tags: { has: variant } },
+                                        { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+                                ]),
+                                ...spacedNameFilters(term),
+                        ],
                 }))
                 : []
         // Attribute lane: rows whose colour/size/design lives only in the
@@ -1015,8 +1093,21 @@ async function searchCatalogProducts(
                 // hyphenated code «ak-71» must match the name token «AK-71».
                 return ` ${spaced(field)} `.includes(` ${spaced(term)} `)
         }
+        // «اسپرسو» + «ساز» in the request is the «اسپرسوساز» of a row's name.
+        const joinedTerms = terms.map((term, index) => /^\d+$/.test(term) ? [] : [
+                terms[index - 1] && !/^\d+$/.test(terms[index - 1]) ? terms[index - 1] + term : '',
+                terms[index + 1] && !/^\d+$/.test(terms[index + 1]) ? term + terms[index + 1] : '',
+        ].filter(Boolean))
         const ranked = rows.map((product) => {
                 const searchable = searchableProductText(product)
+                const identityWords = [catalogWords(searchable.name), catalogWords(searchable.category)]
+                const writtenApart = new Set(identityWords.flatMap((words) => [...joinedNeighbours(words)]))
+                const writtenTogether = new Set(identityWords.flat())
+                // One word here, two there: the request and the row spell the
+                // same compound differently.
+                const sameCompound = (termIndex: number) =>
+                        writtenApart.has(terms[termIndex])
+                        || joinedTerms[termIndex].some((joined) => writtenTogether.has(joined))
                 let coverage = 0
                 let subjectCoverage = 0
                 let score = 0
@@ -1036,12 +1127,13 @@ async function searchCatalogProducts(
                         // vitrine silently degraded into a consultation.
                         const digitTerm = /^\d{3,8}$/.test(term)
                         if (digitTerm) {
-                                const nameToken = new RegExp(
-                                        `(?:^|[^\\p{L}\\p{N}])${term}(?=$|[^\\p{L}\\p{N}])`,
-                                        'u',
-                                )
-                                if (nameToken.test(searchable.name)) {
-                                        score += 40
+                                // «۴۳۱» is the model «BCO431»: the number of a
+                                // model name counts whether or not letters are
+                                // attached to it, never as a slice of a longer
+                                // number.
+                                const inName = modelNumberIn(searchable.name, term)
+                                if (inName) {
+                                        score += inName === 'word' ? 40 : 36
                                         matched = true
                                 }
                                 if (searchable.sku === term || searchable.sku.endsWith(term)) {
@@ -1077,11 +1169,15 @@ async function searchCatalogProducts(
                                         score += 7
                                         matched = true
                                 }
+                                if (!searchable.name.includes(term) && sameCompound(termIndex)) {
+                                        score += 40
+                                        matched = true
+                                }
                         }
                         const isSubjectTerm = subjectTerms.includes(term)
                         if (
                                 isSubjectTerm &&
-                                (canonicalTokenMatch(searchable.name, term) || canonicalTokenMatch(searchable.category, term))
+                                (canonicalTokenMatch(searchable.name, term) || canonicalTokenMatch(searchable.category, term) || sameCompound(termIndex))
                         ) {
                                 subjectCoverage += 1
                                 subjectMatchedTerms[termIndex] = true
@@ -1262,6 +1358,11 @@ async function searchCatalogProducts(
                         subset.filter((i) => subjectTerms.includes(terms[i])).length
                 const corpusCount = (subset: number[]) =>
                         subset.filter((i) => corpusTokens?.has(terms[i])).length
+                // A model number or code the customer gave («۴۳۱», «۰۷۸۸») names
+                // a row as surely as a catalog word does: «بی سی او ۴۳۱» keeps
+                // the «BCO431» row although nothing else of it is spelled alike.
+                const numberCount = (subset: number[]) =>
+                        subset.filter((i) => /^\d{3,8}$/.test(terms[i])).length
                 const rowCoversSubset = (item: (typeof ranked)[number], subset: number[]) =>
                         subset.every((i) => item.matchedTerms[i]) &&
                         subset.every((i) => !subjectTerms.includes(terms[i]) || item.subjectMatchedTerms[i])
@@ -1290,7 +1391,9 @@ async function searchCatalogProducts(
                         return 0
                 }
                 // Pick the covering subset that keeps the strongest anchors:
-                // subject/corpus terms first, then the best row evidence (row
+                // subject terms first, then a model number (a typed code
+                // comes before the subject), then corpus terms, then the
+                // best row evidence (row
                 // score already blends name-match weight, vector rank and
                 // popularity), then sheer subset size. This keeps semantic
                 // recall pointing at the RIGHT product family («رومیزی میز
@@ -1301,7 +1404,7 @@ async function searchCatalogProducts(
                 for (let mask = 1; mask < total - 1; mask++) {
                         const subset: number[] = []
                         for (let i = 0; i < terms.length; i++) if (mask & (1 << i)) subset.push(i)
-                        if (subjectCount(subset) === 0 && corpusCount(subset) === 0) continue
+                        if (subjectCount(subset) === 0 && corpusCount(subset) === 0 && numberCount(subset) === 0) continue
                         // The customer named something this catalog does not
                         // carry at all («آیفون ۱۶ پرو» in a cosmetics store):
                         // rows that only share a trailing word with the request
@@ -1318,9 +1421,15 @@ async function searchCatalogProducts(
                         // about to keep. Without it, dropping a real catalog
                         // attribute («شلوار پلنگی» → showing plain شلوار rows)
                         // would present a variant the customer never asked for.
-                        if (rankedIds.length > 0 && !covering.some((item) => semanticRank.has(item.product.id))) continue
+                        // A model number found in the row's own name is that
+                        // evidence already.
+                        if (rankedIds.length > 0 && numberCount(subset) === 0 && !covering.some((item) => semanticRank.has(item.product.id))) continue
+                        // A number the reader took for a product code leads:
+                        // «۶۸۵ مشکی» is the EC685 rows, not whatever is black.
                         const key = [
-                                subjectCount(subset),
+                                ...(plan.codeIdentified
+                                        ? [numberCount(subset), subjectCount(subset)]
+                                        : [subjectCount(subset), numberCount(subset)]),
                                 corpusCount(subset),
                                 Math.max(...covering.map((item) => item.score)),
                                 subset.length,

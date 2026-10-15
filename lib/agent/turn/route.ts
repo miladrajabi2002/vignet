@@ -8,7 +8,7 @@
  * only when that domain routes from understanding (mode.ts); otherwise the
  * legacy decision for that domain stands.
  */
-import { extractProductTerms, normalizePersianText, type ProductRequestPlan } from '@/lib/ai/conversation'
+import { extractProductTerms, normalizePersianText, tokenizeCatalogText, type ProductRequestPlan } from '@/lib/ai/conversation'
 import type { ConversationIntent, ConversationTurnRelation, ConversationWorkingState, UnderstoodTurnState } from '@/lib/ai/conversation-state'
 import type { CatalogToolReason } from '@/lib/ai/catalog-tools'
 import type { CartEditCue, CartEditOp } from '@/lib/commerce/cart-edit'
@@ -206,8 +206,13 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
     switch (act.type) {
       case 'product_search': {
         const attributeValues = Object.values(act.attributes ?? {}).filter(Boolean) as string[]
-        const terms = extractProductTerms([...act.terms, ...attributeValues, act.code ?? ''].join(' '))
-        const identity = extractProductTerms([...act.terms, act.code ?? ''].join(' '))
+        // These are the reader's product words, so a number among them names
+        // the product: «مدل ۴۳۱» is BCO431, and a typed code is always a term.
+        const codeTerms = act.code ? tokenizeCatalogText(act.code).filter((token) => /\d/.test(token)) : []
+        const productTerms = (text: string) =>
+          [...new Set([...extractProductTerms(text, { productWordsOnly: true }), ...codeTerms])].slice(0, 6)
+        const terms = productTerms([...act.terms, ...attributeValues].join(' '))
+        const identity = productTerms(act.terms.join(' '))
         const p = plan()
         p.searchTerms = [...new Set([...p.searchTerms, ...terms])].slice(0, 8)
         // A vitrine needs something to be a vitrine OF: a product word, a

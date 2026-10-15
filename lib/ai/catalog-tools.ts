@@ -14,7 +14,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { ChatUsage } from '@/lib/ai/openrouter'
 import type { CatalogProduct } from '@/lib/ai/rag'
-import { extractProductTerms, GLOBAL_PRODUCT_WORDS, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText } from '@/lib/ai/conversation'
+import { extractProductTerms, GLOBAL_PRODUCT_WORDS, modelNumberIn, normalizePersianText, PRODUCT_STOP_WORDS, tokenizeCatalogText } from '@/lib/ai/conversation'
 import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
 import { attributeLaneIds } from '@/lib/search/attribute-lane'
 import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
@@ -91,6 +91,8 @@ function digitVariants(term: string): string[] {
  * «میز» matches «میزهای» and Persian plural/suffix forms.
  */
 function hasWord(text: string, token: string): boolean {
+  // «۴۳۱» is the model «BCO431»: a model number counts with letters attached.
+  if (/^\d{3,8}$/.test(token) && modelNumberIn(text, token)) return true
   return digitVariants(token).some((variant) => {
     const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}`, 'u').test(text)
