@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند، محصولات و سفارش‌ها را همگام می‌سازد و خرید داخل گفتگو را روی صفحهٔ پرداخت خود سایت ثبت می‌کند.
- * Version:           5.1.3
+ * Version:           5.1.4
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '5.1.3' );
+define( 'VIGENT_WOO_VERSION', '5.1.4' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
@@ -78,6 +78,7 @@ function vigent_woo_activate() {
         wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
         wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
         wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+        wp_clear_scheduled_hook( 'vigent_woo_delta_flush_more' );
         wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
@@ -93,6 +94,7 @@ function vigent_woo_deactivate() {
         wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
         wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
         wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+        wp_clear_scheduled_hook( 'vigent_woo_delta_flush_more' );
         wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
@@ -278,7 +280,8 @@ if ( class_exists( 'Vigent_Woo_Sync' ) ) {
         Vigent_Woo_Sync::instance();
         // Cron hooks.
         add_action( 'vigent_woo_retry_cron', array( Vigent_Woo_Sync::instance(), 'process_retry_queue' ) );
-        add_action( 'vigent_woo_delta_flush', array( Vigent_Woo_Sync::instance(), 'flush_delta_queue' ) );
+        add_action( 'vigent_woo_delta_flush', array( Vigent_Woo_Sync::instance(), 'run_scheduled_flush' ) );
+        add_action( Vigent_Woo_Sync::FLUSH_MORE_HOOK, array( Vigent_Woo_Sync::instance(), 'run_scheduled_flush' ) );
         add_action( 'vigent_woo_tracking_backfill', array( Vigent_Woo_Sync::instance(), 'backfill_all_order_tracking' ) );
         add_action( 'vigent_woo_product_resync', array( Vigent_Woo_Sync::instance(), 'run_product_resync' ) );
 }

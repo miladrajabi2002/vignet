@@ -181,6 +181,7 @@ class Vigent_Woo_Ajax {
                 // via vigent_woo_setup_cron().
                 wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
                 wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+                wp_clear_scheduled_hook( Vigent_Woo_Sync::FLUSH_MORE_HOOK );
                 wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
                 wp_clear_scheduled_hook( 'vigent_woo_product_resync' );
                 delete_option( Vigent_Woo_Sync::PRODUCT_RESYNC_STATE_OPTION );

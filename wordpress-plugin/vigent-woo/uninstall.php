@@ -30,11 +30,13 @@ $wpdb->query(
          WHERE option_name LIKE '\_transient\_vigent\_woo\_rl\_%'
             OR option_name LIKE '\_transient\_timeout\_vigent\_woo\_rl\_%'"
 );
+delete_post_meta_by_key( '_vigent_woo_sync_hash' );
 delete_transient( 'vigent_woo_status' );
 delete_transient( 'vigent_woo_pairing_challenge' );
 wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
 wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
 wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+wp_clear_scheduled_hook( 'vigent_woo_delta_flush_more' );
 wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
 wp_clear_scheduled_hook( 'vigent_woo_status_check' );
 wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );

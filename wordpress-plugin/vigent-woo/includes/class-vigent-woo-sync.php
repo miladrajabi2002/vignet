@@ -53,6 +53,18 @@ class Vigent_Woo_Sync {
          * dead-lettered and reported on the settings screen; a full push recovers it.
          */
         const MAX_DELTA_ATTEMPTS = 12;
+        /** Post meta holding a fingerprint of the product payload Vigent last accepted. */
+        const PRODUCT_HASH_META = '_vigent_woo_sync_hash';
+        /**
+         * Some hosts run WP-Cron only about once an hour, and one 50-event batch per
+         * run never catches up with a store whose tools re-save thousands of products
+         * an hour. A scheduled flush keeps sending batches for this many seconds.
+         */
+        const FLUSH_TIME_BUDGET = 20;
+        /** How long a single (manual) flush may spend looking past unchanged products. */
+        const FLUSH_SINGLE_BUDGET = 10;
+        /** One-off cron event that continues a scheduled flush which ran out of time. */
+        const FLUSH_MORE_HOOK = 'vigent_woo_delta_flush_more';
         /**
          * Order statuses that count as "successful" (paid) for the
          * customer-filter. A customer is synced to Vigent only if they
@@ -114,6 +126,13 @@ class Vigent_Woo_Sync {
         const CUSTOMERS_WITH_ORDERS_CACHE_TTL = 21600; // 6 hours — paying customers rarely change, and recomputing requires fetching every paid order
 
         private static $instance = null;
+
+        /** Products updated during this request, checked once when it ends. */
+        private $pending_products = array();
+        /** Set once the end-of-request check has run; later updates are checked at once. */
+        private $pending_drained = false;
+        /** Seconds this PHP process already spent in scheduled flushes. */
+        private $flush_seconds_spent = 0.0;
 
         public static function instance() {
                 if ( null === self::$instance ) {
@@ -193,7 +212,98 @@ class Vigent_Woo_Sync {
                 if ( wp_is_post_revision( $product_id ) || wp_is_post_autosave( $product_id ) ) {
                         return;
                 }
+                // Stock and price tools re-save thousands of products an hour without
+                // changing anything, and every queued no-op pushed real changes further
+                // back. An update is checked once, when the request ends (after WooCommerce
+                // has saved every variation and any late meta), and queued only when what
+                // Vigent would receive differs from what it last accepted.
+                if ( 'product.updated' === $topic ) {
+                        if ( $this->pending_drained ) {
+                                $this->queue_product_if_changed( $product_id );
+                                return;
+                        }
+                        if ( empty( $this->pending_products ) ) {
+                                // After WooCommerce's own deferred parent sync (priority 10).
+                                add_action( 'shutdown', array( $this, 'queue_pending_products' ), 20 );
+                        }
+                        $this->pending_products[ $product_id ] = true;
+                        return;
+                }
                 $this->enqueue_delta( 'product', $product_id, $topic );
+        }
+
+        /** End-of-request half of queue_product(). */
+        public function queue_pending_products() {
+                while ( ! empty( $this->pending_products ) ) {
+                        reset( $this->pending_products );
+                        $product_id = (int) key( $this->pending_products );
+                        unset( $this->pending_products[ $product_id ] );
+                        $this->queue_product_if_changed( $product_id );
+                }
+                $this->pending_drained = true;
+        }
+
+        private function queue_product_if_changed( $product_id ) {
+                if ( ! $this->core()->sync_products_enabled() ) {
+                        return false;
+                }
+                try {
+                        $product = function_exists( 'wc_get_product' ) ? wc_get_product( $product_id ) : null;
+                        if ( $product && $this->product_matches_last_sync( $product_id, $this->product_payload_hash( $this->core()->product_to_payload( $product ) ) ) ) {
+                                return false;
+                        }
+                } catch ( \Throwable $e ) {
+                        // Unsure means send: the flush builds the payload again anyway.
+                        $this->core()->debug_log( 'queue_product HASH_FAIL', array( 'id' => $product_id, 'error' => $e->getMessage() ) );
+                }
+                return $this->enqueue_delta( 'product', $product_id, 'product.updated' );
+        }
+
+        /**
+         * Fingerprint of a product payload. The modified date moves on every save,
+         * even one that changes nothing, so it is left out. The connection URL is
+         * mixed in so that connecting to another workspace sends everything again.
+         */
+        private function product_payload_hash( $payload ) {
+                if ( ! is_array( $payload ) || empty( $payload ) ) {
+                        return '';
+                }
+                unset( $payload['date_modified'], $payload['date_modified_gmt'] );
+                $encoded = wp_json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+                if ( false === $encoded ) {
+                        return '';
+                }
+                $settings = get_option( VIGENT_WOO_OPTION, array() );
+                $url      = is_array( $settings ) && isset( $settings['webhook_url'] ) ? (string) $settings['webhook_url'] : '';
+                return md5( $url . '|' . $encoded );
+        }
+
+        /** Whether Vigent already holds exactly this product payload. */
+        private function product_matches_last_sync( $product_id, $hash ) {
+                if ( '' === $hash ) {
+                        return false;
+                }
+                $stored = get_post_meta( $product_id, self::PRODUCT_HASH_META, true );
+                return is_string( $stored ) && '' !== $stored && hash_equals( $stored, $hash );
+        }
+
+        /** Record what Vigent accepted, so a later save that changes nothing is not sent again. */
+        private function remember_product_hashes( $events, $hashes ) {
+                foreach ( $events as $key => $event ) {
+                        if ( 0 !== strpos( (string) $key, 'product:' ) ) {
+                                continue;
+                        }
+                        $product_id = absint( substr( (string) $key, 8 ) );
+                        if ( ! $product_id ) {
+                                continue;
+                        }
+                        if ( isset( $event['topic'] ) && 'product.deleted' === $event['topic'] ) {
+                                // A restored product is sent again on its next save.
+                                delete_post_meta( $product_id, self::PRODUCT_HASH_META );
+                        } elseif ( ! empty( $hashes[ $key ] ) ) {
+                                update_post_meta( $product_id, self::PRODUCT_HASH_META, $hashes[ $key ] );
+                        }
+                }
         }
 
         public function on_product_delete( $post_id ) {
@@ -746,11 +856,46 @@ class Vigent_Woo_Sync {
                 );
 
                 while ( count( $queue ) > self::MAX_QUEUE_SIZE ) {
-                        array_shift( $queue );
+                        unset( $queue[ $this->oldest_droppable_key( $queue ) ] );
                 }
                 $this->save_delta_queue( $queue );
                 $this->release_lock( self::QUEUE_LOCK_OPTION );
                 return true;
+        }
+
+        /** Creates and deletes go out before updates. */
+        private function is_priority_entry( $entry ) {
+                $topic = is_array( $entry ) && isset( $entry['topic'] ) ? (string) $entry['topic'] : '';
+                return false !== strpos( $topic, '.created' ) || false !== strpos( $topic, '.deleted' );
+        }
+
+        /** A full queue drops its oldest update before any create or delete. */
+        private function oldest_droppable_key( $queue ) {
+                foreach ( $queue as $key => $entry ) {
+                        if ( ! $this->is_priority_entry( $entry ) ) {
+                                return $key;
+                        }
+                }
+                reset( $queue );
+                return key( $queue );
+        }
+
+        /**
+         * Queue keys in send order: creates and deletes first, then updates, each
+         * group oldest first. A key keeps its place when it is queued again, so a new
+         * product used to wait behind every product some tool had re-saved.
+         */
+        private function delta_send_order( $queue ) {
+                $first = array();
+                $rest  = array();
+                foreach ( $queue as $key => $entry ) {
+                        if ( $this->is_priority_entry( $entry ) ) {
+                                $first[] = $key;
+                        } else {
+                                $rest[] = $key;
+                        }
+                }
+                return array_merge( $first, $rest );
         }
 
         public function get_delta_queue() {
@@ -786,51 +931,210 @@ class Vigent_Woo_Sync {
         }
 
         /**
-         * Flush up to 50 coalesced changes in one signed `sync.batch` request.
+         * WP-Cron entry point. Keeps sending batches for FLUSH_TIME_BUDGET seconds
+         * and, when changes are still queued after that, asks for one more run a
+         * minute later (a single event, never a duplicate).
          */
-        public function flush_delta_queue( $limit = self::MAX_BATCH_SIZE ) {
-                $limit = max( 1, min( self::MAX_BATCH_SIZE, absint( $limit ) ) );
+        public function run_scheduled_flush() {
+                // The recurring event and the follow-up can both be due in one cron
+                // request; together they stay inside one budget.
+                $budget = self::FLUSH_TIME_BUDGET - $this->flush_seconds_spent;
+                if ( $budget < 2 ) {
+                        $this->schedule_flush_follow_up();
+                        return;
+                }
+                if ( function_exists( 'wp_raise_memory_limit' ) ) {
+                        wp_raise_memory_limit( 'admin' );
+                }
+                $started = microtime( true );
+                $result  = $this->flush_delta_queue( self::MAX_BATCH_SIZE, $budget, 0 );
+                $seconds = microtime( true ) - $started;
+                $this->flush_seconds_spent += $seconds;
+
+                if ( ! empty( $result['success'] ) && ! empty( $result['remaining'] ) && in_array( $result['stopped'], array( 'time', 'memory' ), true ) ) {
+                        $this->schedule_flush_follow_up();
+                }
+                $this->core()->debug_log( 'delta_flush RUN', array(
+                        'batches'   => $result['batches'],
+                        'sent'      => $result['sent'],
+                        'unchanged' => $result['unchanged'],
+                        'remaining' => $result['remaining'],
+                        'stopped'   => $result['stopped'],
+                        'seconds'   => round( $seconds, 1 ),
+                ) );
+        }
+
+        private function schedule_flush_follow_up() {
+                if ( ! wp_next_scheduled( self::FLUSH_MORE_HOOK ) ) {
+                        wp_schedule_single_event( time() + 60, self::FLUSH_MORE_HOOK );
+                }
+        }
+
+        /**
+         * Send coalesced changes in signed `sync.batch` requests of up to 50 events.
+         *
+         * Creates and deletes go before updates, and a product update whose payload
+         * matches what Vigent last accepted leaves the queue without being sent.
+         * Up to $max_batches requests are made (0 = until the queue is empty), and
+         * none is started that would likely end after $time_budget seconds.
+         */
+        public function flush_delta_queue( $limit = self::MAX_BATCH_SIZE, $time_budget = self::FLUSH_SINGLE_BUDGET, $max_batches = 1 ) {
+                $limit       = max( 1, min( self::MAX_BATCH_SIZE, absint( $limit ) ) );
+                $max_batches = absint( $max_batches );
+                $started     = microtime( true );
+                $deadline    = $started + max( 1, (float) $time_budget );
+                $summary     = array( 'batches' => 0, 'unchanged' => 0 );
                 if ( ! $this->core()->is_configured() || ! $this->core()->has_wc() ) {
-                        return array( 'success' => false, 'sent' => 0, 'remaining' => count( $this->get_delta_queue() ), 'message' => __( 'اتصال یا ووکامرس آماده نیست.', 'vigent-woo' ) );
+                        return array_merge( $summary, array( 'success' => false, 'sent' => 0, 'remaining' => count( $this->get_delta_queue() ), 'stopped' => 'error', 'message' => __( 'اتصال یا ووکامرس آماده نیست.', 'vigent-woo' ) ) );
                 }
                 if ( ! $this->acquire_lock( self::FLUSH_LOCK_OPTION, 120 ) ) {
-                        return array( 'success' => true, 'sent' => 0, 'remaining' => count( $this->get_delta_queue() ), 'message' => __( 'ارسال دیگری در حال انجام است.', 'vigent-woo' ) );
+                        return array_merge( $summary, array( 'success' => true, 'sent' => 0, 'remaining' => count( $this->get_delta_queue() ), 'stopped' => 'busy', 'message' => __( 'ارسال دیگری در حال انجام است.', 'vigent-woo' ) ) );
                 }
 
-                $queue = $this->get_delta_queue();
-                $slice = array_slice( $queue, 0, $limit, true );
-                if ( empty( $slice ) ) {
-                        $this->release_lock( self::FLUSH_LOCK_OPTION );
-                        return array( 'success' => true, 'sent' => 0, 'remaining' => 0, 'message' => __( 'تغییری برای ارسال نیست.', 'vigent-woo' ) );
+                $was_empty = 0 === count( $this->get_delta_queue() );
+                $sent      = 0;
+                $success   = true;
+                $error     = '';
+                $stopped   = 'empty';
+                // Entries already sent or dropped in this run, by key and event_id, so
+                // one that could not be removed from the queue is not sent twice.
+                $handled   = array();
+                while ( true ) {
+                        $round_started = microtime( true );
+                        $batch         = $this->collect_delta_batch( $limit, $deadline, $handled );
+                        $summary['unchanged'] += $batch['unchanged'];
+                        if ( empty( $batch['events'] ) ) {
+                                if ( $batch['stopped'] ) {
+                                        $stopped = $batch['stopped'];
+                                }
+                                break;
+                        }
+                        $result = $this->send_delta_batch( $batch['events'], $batch['entries'], $batch['hashes'] );
+                        $summary['batches']++;
+                        if ( empty( $result['success'] ) ) {
+                                $success = false;
+                                $error   = $result['error'];
+                                $stopped = 'error';
+                                break;
+                        }
+                        $sent += count( $batch['events'] );
+                        if ( $batch['stopped'] ) {
+                                $stopped = $batch['stopped'];
+                                break;
+                        }
+                        if ( $max_batches && $summary['batches'] >= $max_batches ) {
+                                $stopped = 'limit';
+                                break;
+                        }
+                        // Do not start a batch that would likely finish past the budget.
+                        $now = microtime( true );
+                        if ( $now + ( $now - $round_started ) > $deadline ) {
+                                $stopped = 'time';
+                                break;
+                        }
+                        if ( $this->memory_nearly_full() ) {
+                                $stopped = 'memory';
+                                break;
+                        }
                 }
+                $this->release_lock( self::FLUSH_LOCK_OPTION );
 
-                $events = array();
-                $stale  = array();
-                foreach ( $slice as $key => $entry ) {
+                if ( ! $success ) {
+                        $message = $error;
+                } elseif ( $sent > 0 ) {
+                        $message = __( 'تغییرات با موفقیت ارسال شد.', 'vigent-woo' );
+                } elseif ( $was_empty ) {
+                        $message = __( 'تغییری برای ارسال نیست.', 'vigent-woo' );
+                } else {
+                        $message = __( 'مورد معتبری برای ارسال نبود.', 'vigent-woo' );
+                }
+                return array_merge(
+                        $summary,
+                        array(
+                                'success'   => $success,
+                                'sent'      => $sent,
+                                'remaining' => count( $this->get_delta_queue() ),
+                                'stopped'   => $stopped,
+                                'message'   => $message,
+                        )
+                );
+        }
+
+        /**
+         * Build the next batch: walk the queue in send order, materialize entries
+         * until $limit events are ready, and drop the ones with nothing to send.
+         *
+         * @return array{events:array, entries:array, hashes:array, unchanged:int, stopped:string}
+         *         `stopped` is 'time' or 'memory' when the walk ended early, else ''.
+         */
+        private function collect_delta_batch( $limit, $deadline, &$handled ) {
+                $queue     = $this->get_delta_queue();
+                $events    = array();
+                $hashes    = array();
+                $stale     = array();
+                $unchanged = 0;
+                $stopped   = '';
+                foreach ( $this->delta_send_order( $queue ) as $key ) {
+                        if ( count( $events ) >= $limit ) {
+                                break;
+                        }
+                        if ( microtime( true ) >= $deadline ) {
+                                $stopped = 'time';
+                                break;
+                        }
+                        if ( $this->memory_nearly_full() ) {
+                                $stopped = 'memory';
+                                break;
+                        }
+                        $entry  = $queue[ $key ];
+                        $run_id = $key . '|' . ( isset( $entry['event_id'] ) ? (string) $entry['event_id'] : '' );
+                        if ( isset( $handled[ $run_id ] ) ) {
+                                continue;
+                        }
                         $event = $this->materialize_delta( $entry );
-                        if ( $event ) {
-                                $events[ $key ] = $event;
-                        } else {
+                        if ( ! $event ) {
                                 // Nothing left to send (sync switched off, order deleted): these
                                 // leave the queue immediately instead of riding along with a batch.
-                                $stale[ $key ] = $entry;
+                                $stale[ $key ]      = $entry;
+                                $handled[ $run_id ] = true;
+                                continue;
                         }
+                        $hash = '';
+                        if ( 0 === strpos( (string) $key, 'product:' ) && 'product.deleted' !== $event['topic'] ) {
+                                $hash = $this->product_payload_hash( $event['data'] );
+                                if ( 'product.updated' === $event['topic'] && $this->product_matches_last_sync( absint( substr( (string) $key, 8 ) ), $hash ) ) {
+                                        $stale[ $key ]      = $entry;
+                                        $handled[ $run_id ] = true;
+                                        $unchanged++;
+                                        continue;
+                                }
+                        }
+                        $events[ $key ] = $event;
+                        $hashes[ $key ] = $hash;
                 }
                 if ( ! empty( $stale ) ) {
                         $this->remove_unchanged_entries( $stale );
                 }
 
-                if ( empty( $events ) ) {
-                        $this->release_lock( self::FLUSH_LOCK_OPTION );
-                        return array( 'success' => true, 'sent' => 0, 'remaining' => count( $this->get_delta_queue() ), 'message' => __( 'مورد معتبری برای ارسال نبود.', 'vigent-woo' ) );
-                }
-
                 // Send only as much as fits the server body limit; the rest keeps its place
-                // in the queue and goes out on the next flush.
-                $chunks = $this->chunk_events_by_budget( $events );
-                $events = empty( $chunks ) ? array() : $chunks[0];
-                $slice  = array_intersect_key( $slice, $events );
+                // in the queue and goes out with the next batch.
+                $chunks  = $this->chunk_events_by_budget( $events );
+                $events  = empty( $chunks ) ? array() : $chunks[0];
+                $entries = array_intersect_key( $queue, $events );
+                foreach ( $entries as $key => $entry ) {
+                        $handled[ $key . '|' . ( isset( $entry['event_id'] ) ? (string) $entry['event_id'] : '' ) ] = true;
+                }
+                return array(
+                        'events'    => $events,
+                        'entries'   => $entries,
+                        'hashes'    => array_intersect_key( $hashes, $events ),
+                        'unchanged' => $unchanged,
+                        'stopped'   => $stopped,
+                );
+        }
 
+        /** Send one batch and settle its entries: removed on success, counted against on failure. */
+        private function send_delta_batch( $events, $entries, $hashes ) {
                 $result   = $this->core()->send_batch_events( array_values( $events ), false );
                 $previous = get_option( self::SYNC_STATE_OPTION, array() );
                 if ( ! is_array( $previous ) ) {
@@ -848,14 +1152,15 @@ class Vigent_Woo_Sync {
                 );
 
                 if ( ! empty( $result['success'] ) ) {
-                        $this->remove_unchanged_entries( $slice );
+                        $this->remove_unchanged_entries( $entries );
+                        $this->remember_product_hashes( $events, $hashes );
                         $state['last_success'] = current_time( 'mysql' );
                         if ( ! empty( $previous['last_success'] ) ) {
                                 $state['previous_success'] = $previous['last_success'];
                         }
                 } else {
                         $state['last_error'] = isset( $result['body'] ) ? wp_strip_all_tags( (string) $result['body'] ) : __( 'خطای نامشخص', 'vigent-woo' );
-                        $dropped             = $this->mark_failed_entries( $slice, $state['last_error'] );
+                        $dropped             = $this->mark_failed_entries( $entries, $state['last_error'] );
                         if ( $dropped > 0 ) {
                                 $state['dropped_total']     += $dropped;
                                 $state['last_dropped']       = current_time( 'mysql' );
@@ -867,14 +1172,16 @@ class Vigent_Woo_Sync {
                 }
 
                 update_option( self::SYNC_STATE_OPTION, $state, false );
-                $this->release_lock( self::FLUSH_LOCK_OPTION );
-                $remaining = count( $this->get_delta_queue() );
                 return array(
-                        'success'   => ! empty( $result['success'] ),
-                        'sent'      => ! empty( $result['success'] ) ? count( $events ) : 0,
-                        'remaining' => $remaining,
-                        'message'   => ! empty( $result['success'] ) ? __( 'تغییرات با موفقیت ارسال شد.', 'vigent-woo' ) : $state['last_error'],
+                        'success' => ! empty( $result['success'] ),
+                        'error'   => $state['last_error'],
                 );
+        }
+
+        /** Stop a long flush before WooCommerce objects exhaust PHP's memory. */
+        private function memory_nearly_full() {
+                $limit = function_exists( 'wp_convert_hr_to_bytes' ) ? wp_convert_hr_to_bytes( (string) ini_get( 'memory_limit' ) ) : 0;
+                return $limit > 0 && memory_get_usage( true ) > $limit * 0.8;
         }
 
         private function materialize_delta( $entry ) {
