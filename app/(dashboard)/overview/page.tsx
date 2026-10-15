@@ -375,7 +375,7 @@ export default async function OverviewPage() {
             inputs={flowInputs}
             outputs={flowOutputs}
             // Once the payment gateway is live, its cards take the flow on.
-            gateway={gatewayWeek ? <GatewayDock locale={lang} data={gatewayWeek} conversations={conversations7d} /> : null}
+            gateway={gatewayWeek ? <GatewayDock locale={lang} data={gatewayWeek} /> : null}
           />
         }
       />
