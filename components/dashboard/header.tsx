@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import type { Plan } from '@prisma/client'
+import type { NavStatusMap } from '@/lib/dashboard/nav-status'
 import { Building2, ChevronRight, Gem, Hourglass, LogOut, Rocket, type LucideIcon } from 'lucide-react'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
@@ -207,6 +208,7 @@ export async function Header({
   handedOffCount = 0,
   instagramConnected = false,
   storeConnected = false,
+  navStatus,
   userSwitcher,
 }: {
   name?: string | null
@@ -218,6 +220,7 @@ export async function Header({
   handedOffCount?: number
   instagramConnected?: boolean
   storeConnected?: boolean
+  navStatus?: NavStatusMap
   /** Platform owner only: replaces the plan card with the account switcher. */
   userSwitcher?: { currentUserId: string; currentName: string; impersonating: boolean }
 }) {
@@ -282,7 +285,7 @@ export async function Header({
               />
             )}
           </div>
-          <MobileNav businessType={businessType} capabilities={capabilities} handedOffCount={handedOffCount} instagramConnected={instagramConnected} storeConnected={storeConnected} />
+          <MobileNav businessType={businessType} capabilities={capabilities} handedOffCount={handedOffCount} instagramConnected={instagramConnected} storeConnected={storeConnected} navStatus={navStatus} />
           <div className="hidden min-w-0 sm:block">
             <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)] xl:text-[15px] xl:leading-6">
               {name ? t('greeting', { name }) : t('welcome')}

@@ -3,11 +3,10 @@ import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { PAY_TTL_RANGE, readPayGatewaySettings } from '@/lib/payments/card/settings'
+import { readPayGatewaySettings } from '@/lib/payments/card/settings'
 
 const schema = z.object({
   enabled: z.boolean().optional(),
-  ttlMinutes: z.number().int().min(PAY_TTL_RANGE.min).max(PAY_TTL_RANGE.max).optional(),
   manualClaim: z.boolean().optional(),
   showHolderName: z.boolean().optional(),
   // How one agent takes payment for a chat order: both false = the operator arranges it.

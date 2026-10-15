@@ -112,3 +112,26 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     counts: { review, unmatched, pending },
   }
 }
+
+export type GatewayNavState = 'off' | 'setup' | 'live' | 'suspended'
+
+/**
+ * The gateway's state for the main menu, in four cheap queries: live once
+ * it is on with a card and a connected phone, «setup» once the owner has
+ * started, and how many payments wait for the owner's decision.
+ */
+export async function loadGatewayNavState(workspaceId: string): Promise<{ state: GatewayNavState; attention: number }> {
+  const [workspace, platform, cards, devices, review, unmatched] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: workspaceId }, select: { payGatewayEnabled: true, payGatewaySuspendedAt: true } }),
+    getPlatformGatewaySettings(),
+    prisma.payCard.count({ where: { workspaceId, active: true, deletedAt: null } }),
+    prisma.payDevice.count({ where: { workspaceId, active: true, connectedAt: { not: null } } }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED' } }),
+    prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
+  ])
+  const attention = review + unmatched
+  if (!platform.enabled) return { state: 'off', attention }
+  if (workspace?.payGatewaySuspendedAt) return { state: 'suspended', attention }
+  if (workspace?.payGatewayEnabled && cards > 0 && devices > 0) return { state: 'live', attention }
+  return { state: cards > 0 || devices > 0 ? 'setup' : 'off', attention }
+}

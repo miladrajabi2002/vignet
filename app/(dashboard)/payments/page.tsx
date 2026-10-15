@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { ArrowLeft, Check, MessageSquareText } from 'lucide-react'
+import { ArrowLeft, Bot, Link2, MessageSquareText, TrendingUp, WalletCards, Zap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,8 @@ import { BankMark } from '@/components/payments/bank-card'
 import { PaymentsShell } from '@/components/payments/payments-shell'
 import { PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
 import { NewLinkForm } from '@/components/payments/new-link-form'
+import { GatewaySetup } from '@/components/payments/gateway-setup'
+import { gatewaySetupState } from '@/lib/payments/card/setup'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
 import { suggestPaymentsForSms } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
@@ -52,50 +54,48 @@ export default async function PaymentsPage() {
   const review = payments.filter((payment) => payment.status === 'CLAIMED')
   const rest = payments.filter((payment) => payment.status !== 'CLAIMED')
   const hasCard = overview.cards.some((card) => card.active)
-  const hasDevice = overview.devices.some((device) => device.active && device.connectedAt)
-  const verified = overview.devices.some((device) => device.verifiedAt)
-  const steps = [
-    { done: hasCard, href: '/payments/cards', title: fa ? 'کارت مقصد را اضافه کنید' : 'Add the destination card', body: fa ? 'شماره کارتی که مشتری‌ها به آن واریز می‌کنند.' : 'The card your customers transfer to.' },
-    { done: hasDevice, href: '/payments/devices', title: fa ? 'گوشی دریافت پیامک را وصل کنید' : 'Connect the phone that gets the bank SMS', body: fa ? 'پیامک واریز بانک باید خودکار به ویجنت برسد تا پرداخت بدون شما تأیید شود.' : 'The bank’s deposit SMS must reach Vigent so payments confirm without you.' },
-    { done: verified, href: '/payments/devices', title: fa ? 'یک واریز آزمایشی بزنید' : 'Make one test transfer', body: fa ? 'با اولین پیامکی که تطبیق بخورد، درگاه آماده است.' : 'The first SMS that matches makes the gateway ready.' },
+  const setup = gatewaySetupState(overview)
+  const cap = overview.usage.cap
+  const tiles = [
+    { label: fa ? 'دریافتی ۲۴ ساعت اخیر' : 'Received in 24 hours', icon: TrendingUp, tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300', value: (paidToday._sum.baseAmount ?? 0).toLocaleString(numbers), unit: fa ? 'تومان' : 'Toman', hint: paidToday._count ? (fa ? `${paidToday._count.toLocaleString(numbers)} پرداخت` : `${paidToday._count} payments`) : (fa ? 'هنوز پرداختی نیامده' : 'No payment yet'), bar: null },
+    { label: fa ? 'تأیید خودکار' : 'Confirmed automatically', icon: Zap, tint: 'bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]', value: (paidCount ? Math.round((autoCount / paidCount) * 100) : 0).toLocaleString(numbers), unit: fa ? '٪' : '%', hint: paidCount ? (fa ? `${autoCount.toLocaleString(numbers)} از ${paidCount.toLocaleString(numbers)} بدون شما` : `${autoCount} of ${paidCount} without you`) : (fa ? 'بعد از اولین پرداخت' : 'After the first payment'), bar: null },
+    { label: fa ? 'پرداخت این ماه' : 'Payments this month', icon: WalletCards, tint: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', value: overview.usage.used.toLocaleString(numbers), unit: cap == null ? '' : (fa ? `از ${cap.toLocaleString(numbers)}` : `of ${cap}`), hint: cap == null ? (fa ? 'بدون سقف در پلن شما' : 'No limit on your plan') : (fa ? 'سقف پلن شما' : 'Your plan’s limit'), bar: cap ? Math.min(100, Math.round((overview.usage.used / cap) * 100)) : null },
   ]
 
   return (
     <PaymentsShell active="payments" overview={overview} locale={locale}>
-      {!verified && (
-        <section className="spatial-surface rounded-card p-4 sm:p-5">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">{fa ? 'راه‌اندازی در سه قدم' : 'Set up in three steps'}</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">{fa ? 'بعد از این سه قدم، ایجنت بعد از تأیید هر سفارش کارت و مبلغ دقیق را برای مشتری می‌فرستد و واریز را خودش تأیید می‌کند.' : 'After these three steps the agent sends your card and the exact amount for every confirmed order and confirms the transfer by itself.'}</p>
-          <ol className="mt-4 grid gap-2.5 md:grid-cols-3">
-            {steps.map((step, index) => (
-              <li key={step.title}>
-                <Link href={step.href} className={cn('spatial-press flex h-full items-start gap-3 rounded-2xl border p-3.5', step.done ? 'border-emerald-200 bg-emerald-50/60' : 'border-[var(--border-default)] bg-[var(--bg-surface)]')}>
-                  <span className={cn('grid size-8 shrink-0 place-items-center rounded-full text-sm font-bold', step.done ? 'bg-emerald-600 text-white' : 'bg-[var(--text-primary)] text-white')}>
-                    {step.done ? <Check className="size-4" aria-hidden /> : (index + 1).toLocaleString(numbers)}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold text-[var(--text-primary)]">{step.title}</span>
-                    <span className="mt-0.5 block text-[13px] leading-6 text-[var(--text-secondary)]">{step.body}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
+      {setup.current ? (
+        <GatewaySetup
+          done={setup.done}
+          current={setup.current}
+          cards={overview.cards}
+          devices={overview.devices}
+          inboundLines={overview.inboundLines}
+          platformEnabled={overview.platformEnabled}
+        />
+      ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: fa ? 'دریافتی ۲۴ ساعت اخیر' : 'Received in 24 hours', value: money(paidToday._sum.baseAmount ?? 0), hint: fa ? `${paidToday._count.toLocaleString(numbers)} پرداخت` : `${paidToday._count} payments` },
-          { label: fa ? 'تأیید خودکار' : 'Confirmed automatically', value: `${(paidCount ? Math.round((autoCount / paidCount) * 100) : 0).toLocaleString(numbers)}${fa ? '٪' : '%'}`, hint: fa ? `از ${paidCount.toLocaleString(numbers)} پرداخت` : `of ${paidCount} payments` },
-          { label: fa ? 'پرداخت این ماه' : 'Payments this month', value: overview.usage.used.toLocaleString(numbers), hint: overview.usage.cap == null ? (fa ? 'بدون سقف در پلن شما' : 'No limit on your plan') : (fa ? `از سقف ${overview.usage.cap.toLocaleString(numbers)} در پلن شما` : `of ${overview.usage.cap} on your plan`) },
-        ].map((tile) => (
-          <div key={tile.label} className="spatial-surface rounded-card p-4">
-            <p className="text-[13px] text-[var(--text-muted)]">{tile.label}</p>
-            <p className="ui-num mt-1 text-[22px] font-bold text-[var(--text-primary)]">{tile.value}</p>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{tile.hint}</p>
-          </div>
-        ))}
+      {/* Three tiles side by side on every width; phones get the compact type. */}
+      <section className="grid grid-cols-3 gap-2 sm:gap-3">
+        {tiles.map((tile) => {
+          const Icon = tile.icon
+          return (
+            <div key={tile.label} className="spatial-surface flex min-w-0 flex-col rounded-card p-3 shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)] sm:p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11.5px] leading-5 text-[var(--text-muted)] sm:text-[13px]">{tile.label}</p>
+                <span className={cn('hidden size-8 shrink-0 place-items-center rounded-xl sm:grid', tile.tint)}><Icon className="size-4" aria-hidden /></span>
+              </div>
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-1 sm:mt-2">
+                <span className="text-[18px] font-extrabold tabular-nums leading-7 text-[var(--text-primary)] sm:text-[26px] sm:leading-9">{tile.value}</span>
+                {tile.unit ? <span className="text-[11px] text-[var(--text-muted)] sm:text-[12.5px]">{tile.unit}</span> : null}
+              </p>
+              {tile.bar != null ? (
+                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]"><span className="block h-full rounded-full bg-[#5b3de8]" style={{ width: `${tile.bar}%` }} /></span>
+              ) : null}
+              <p className="mt-1 text-[10.5px] leading-5 text-[var(--text-muted)] sm:text-xs">{tile.hint}</p>
+            </div>
+          )
+        })}
       </section>
 
       {overview.usage.reached && (
@@ -143,12 +143,20 @@ export default async function PaymentsPage() {
         </section>
       )}
 
-      <NewLinkForm disabled={!hasCard || !overview.platformEnabled} />
+      <NewLinkForm locked={!overview.platformEnabled ? 'platform' : !hasCard ? 'card' : null} />
 
-      <section className="spatial-surface rounded-card p-4 sm:p-5">
+      <section className="spatial-surface rounded-card p-4 shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)] sm:p-5">
         <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پرداخت‌ها' : 'Payments'}</h2>
         {rest.length === 0 ? (
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">{fa ? 'هنوز پرداختی ثبت نشده. اولین سفارشی که در گفتگو تأیید شود یا اولین لینکی که بسازید این‌جا می‌آید.' : 'No payments yet. The first order confirmed in a conversation, or the first link you create, appears here.'}</p>
+          <div className="grid justify-items-center gap-1.5 px-3 py-7 text-center">
+            <span className="mb-1 grid size-14 place-items-center rounded-2xl bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><WalletCards className="size-6" aria-hidden /></span>
+            <p className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'هنوز پرداختی نیامده' : 'No payments yet'}</p>
+            <p className="max-w-md text-[13px] leading-7 text-[var(--text-secondary)]">{fa ? 'اولین سفارشی که در گفتگو تأیید شود یا اولین لینکی که بسازید این‌جا می‌آید.' : 'The first order confirmed in a conversation, or the first link you create, appears here.'}</p>
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <a href="#pay-link" className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Link2 className="size-4" aria-hidden />{fa ? 'ساخت لینک پرداخت' : 'Create a payment link'}</a>
+              <Link href="/payments/settings" className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Bot className="size-4" aria-hidden />{fa ? 'روش پرداخت ایجنت‌ها' : 'How agents take payment'}</Link>
+            </div>
+          </div>
         ) : (
           <ul className="mt-2 divide-y divide-[var(--border-subtle)]">
             {rest.map((payment) => {

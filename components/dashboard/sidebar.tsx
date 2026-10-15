@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
 import { getDashboardNavForProfile, getDashboardNavFromModules, groupDashboardNav, withStoreNav, type DashboardNavGroup } from '@/components/dashboard/nav-items'
 import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
+import { NavStatusMark } from '@/components/dashboard/nav-status-mark'
+import type { NavStatusMap } from '@/lib/dashboard/nav-status'
 import { logout } from '@/app/actions/auth'
 import type { BusinessTypeValue, CapabilityKey, DashboardModuleKey } from '@/lib/verticals/registry'
 import { getDashboardModuleLabel, getVerticalPack } from '@/lib/verticals/registry'
@@ -25,7 +27,7 @@ const GROUP_LABEL_KEY: Record<DashboardNavGroup, 'navGroupDaily' | 'navGroupBusi
 	setup: 'navGroupSetup',
 }
 
-export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOffCount = 0, storeConnected = false, userName }: { storeConnected?: boolean; businessType?: BusinessTypeValue | null; capabilities?: readonly CapabilityKey[]; handedOffCount?: number; userName?: string | null }) {
+export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOffCount = 0, storeConnected = false, navStatus, userName }: { storeConnected?: boolean; navStatus?: NavStatusMap; businessType?: BusinessTypeValue | null; capabilities?: readonly CapabilityKey[]; handedOffCount?: number; userName?: string | null }) {
         const t = useTranslations('dashboard')
         const locale = useLocale()
         const pathname = usePathname()
@@ -102,11 +104,12 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                                                 {section.items.map(({ key, href, icon: Icon }) => {
                                                         const active = pathname === href || pathname.startsWith(`${href}/`)
                                                         const label = getDashboardModuleLabel(key, businessType, locale, t(key))
+                                                        const status = navStatus?.[key]
                                                         return (
                                                                 <Link
                                                                         key={key}
                                                                         href={href}
-                                                                        title={label}
+                                                                        title={status ? `${label} · ${status.label}` : label}
                                                                         aria-current={active ? 'page' : undefined}
                                                                         className={cn(
                                                                                 'group relative flex min-h-10 items-center justify-center gap-2.5 rounded-control text-[13px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] lg:min-h-9 lg:justify-start lg:px-3 lg:py-1',
@@ -129,6 +132,12 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                                                                                                 className="hidden lg:inline-flex"
                                                                                         />
                                                                                         {handedOffCount > 0 && <span aria-hidden className="absolute end-2.5 top-2 h-2 w-2 rounded-full bg-[var(--text-primary)] ring-2 ring-white lg:hidden" />}
+                                                                                </>
+                                                                        )}
+                                                                        {status && (
+                                                                                <>
+                                                                                        <NavStatusMark status={status} locale={locale} className="hidden lg:inline-flex" />
+                                                                                        <NavStatusMark status={{ ...status, count: undefined }} locale={locale} className="absolute end-2 top-2 lg:hidden" />
                                                                                 </>
                                                                         )}
                                                                         {newModules.includes(key) && !active && (

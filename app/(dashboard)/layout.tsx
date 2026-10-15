@@ -19,6 +19,8 @@ import { ScrollRestoration } from '@/components/dashboard/scroll-restoration'
 import { DashboardPageEffects } from '@/components/dashboard/dashboard-page-effects'
 import { ModuleAccessBanner } from '@/components/dashboard/module-access-banner'
 import { MotionPauser } from '@/components/marketing/site/motion-pauser'
+import { loadGatewayNavState } from '@/lib/payments/card/dashboard'
+import type { NavStatusMap } from '@/lib/dashboard/nav-status'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -93,7 +95,7 @@ export default async function DashboardLayout({
   // Conversations handed to a human — shown as a count on the Conversations
   // nav item (desktop rail + phone bar). Served by @@index([workspaceId, status]).
   // A live Instagram channel promotes Instagram into the phone bar.
-  const [handedOffCount, instagramChannel, connectedStore] = await Promise.all([
+  const [handedOffCount, instagramChannel, connectedStore, gateway] = await Promise.all([
     prisma.conversation.count({
       where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' },
     }),
@@ -104,9 +106,25 @@ export default async function DashboardLayout({
     // A connected WooCommerce store gets its own tab in the navigation.
     prisma.storeIntegration.findFirst({
       where: { workspaceId: user.workspaceId, type: 'WOOCOMMERCE', active: true },
-      select: { id: true },
+      select: { id: true, lastSyncStatus: true },
     }),
+    // The gateway's live state for its menu mark; silent on a database without its tables.
+    loadGatewayNavState(user.workspaceId).catch(() => null),
   ])
+  const fa = (await getLocale()) !== 'en'
+  // Marks beside menu items whose connection is live, half set up or needs the owner.
+  const navStatus: NavStatusMap = {}
+  if (gateway) {
+    if (gateway.attention > 0) navStatus.payments = { tone: 'alert', count: gateway.attention, label: fa ? `${gateway.attention.toLocaleString('fa-IR')} پرداخت منتظر تصمیم شماست` : `${gateway.attention} payments wait for you` }
+    else if (gateway.state === 'live') navStatus.payments = { tone: 'live', label: fa ? 'درگاه روشن و وصل است' : 'The gateway is on and connected' }
+    else if (gateway.state === 'setup') navStatus.payments = { tone: 'setup', label: fa ? 'راه‌اندازی درگاه ناتمام است' : 'Gateway setup is unfinished' }
+    else if (gateway.state === 'suspended') navStatus.payments = { tone: 'alert', label: fa ? 'درگاه از طرف ویجنت متوقف شده' : 'Vigent has paused the gateway' }
+  }
+  if (connectedStore) {
+    navStatus.store = connectedStore.lastSyncStatus === 'error'
+      ? { tone: 'alert', label: fa ? 'آخرین همگام‌سازی فروشگاه خطا داشت' : 'The last store sync failed' }
+      : { tone: 'live', label: fa ? 'فروشگاه ووکامرس وصل است' : 'The WooCommerce store is connected' }
+  }
 
   const plan = workspace?.plan ?? 'TRIAL'
   const planEnd = plan === 'TRIAL'
@@ -130,7 +148,7 @@ export default async function DashboardLayout({
       >
         {t('skipToContent')}
       </a>
-      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} storeConnected={Boolean(connectedStore)} userName={user.name ?? user.phone} />
+      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} storeConnected={Boolean(connectedStore)} navStatus={navStatus} userName={user.name ?? user.phone} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           name={user.name}
@@ -142,6 +160,7 @@ export default async function DashboardLayout({
           handedOffCount={handedOffCount}
           instagramConnected={Boolean(instagramChannel)}
           storeConnected={Boolean(connectedStore)}
+          navStatus={navStatus}
           userSwitcher={userSwitcher}
         />
         {accessExpired && (

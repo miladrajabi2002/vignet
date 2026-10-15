@@ -4,6 +4,7 @@ import { PaymentsShell } from '@/components/payments/payments-shell'
 import { GatewaySettings } from '@/components/payments/gateway-settings'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
 import { loadCheckoutStore } from '@/lib/payments/card/store'
+import { gatewaySetupState } from '@/lib/payments/card/setup'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,7 @@ export default async function PaymentSettingsPage() {
         platformEnabled={overview.platformEnabled}
         agents={overview.agents}
         store={store}
+        setupDone={gatewaySetupState(overview).done}
       />
     </PaymentsShell>
   )

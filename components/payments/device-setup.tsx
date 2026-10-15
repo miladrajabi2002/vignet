@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { CheckCircle2, ChevronDown, Radio, RefreshCw, Smartphone, Trash2 } from 'lucide-react'
+import { Apple, CheckCircle2, ChevronDown, Globe, MessageSquareText, Radio, RefreshCw, ShieldCheck, Smartphone, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -25,26 +25,45 @@ const ERRORS: Record<string, [string, string]> = {
 	NO_CARD: ['اول از تب «کارت‌ها» یک کارت فعال اضافه کنید.', 'Add an active card in the Cards tab first.'],
 }
 
-function Choice<T extends string>({ value, onChange, options, label }: { value: T; onChange: (next: T) => void; options: Array<{ value: T; title: string; body: string; disabled?: boolean }>; label: string }) {
+function Choice<T extends string>({ value, onChange, options, label }: { value: T | null; onChange: (next: T) => void; options: Array<{ value: T; icon: typeof Smartphone; title: string; body: string; recommended?: boolean; disabled?: boolean }>; label: string }) {
+	const fa = useLocale() !== 'en'
 	return (
-		<div role="radiogroup" aria-label={label} className="grid gap-2 sm:grid-cols-2">
-			{options.map((option) => (
-				<button
-					key={option.value}
-					type="button"
-					role="radio"
-					aria-checked={value === option.value}
-					disabled={option.disabled}
-					onClick={() => onChange(option.value)}
-					className={cn('rounded-2xl border p-3.5 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-55', value === option.value ? 'border-[var(--text-primary)] bg-white shadow-[var(--elev-1)]' : 'border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]')}
-				>
-					<span className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
-						<span aria-hidden className={cn('grid size-4 place-items-center rounded-full border-2', value === option.value ? 'border-[var(--text-primary)]' : 'border-[var(--border-strong)]')}>{value === option.value && <span className="size-2 rounded-full bg-[var(--text-primary)]" />}</span>
-						{option.title}
-					</span>
-					<span className="mt-1 block text-[13px] leading-6 text-[var(--text-secondary)]">{option.body}</span>
-				</button>
-			))}
+		<div role="radiogroup" aria-label={label} className="grid gap-2.5 sm:grid-cols-2">
+			{options.map((option) => {
+				const Icon = option.icon
+				const selected = value === option.value
+				return (
+					<button
+						key={option.value}
+						type="button"
+						role="radio"
+						aria-checked={selected}
+						disabled={option.disabled}
+						onClick={() => onChange(option.value)}
+						className={cn(
+							'relative grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-0.5 rounded-2xl border-[1.5px] bg-white p-3.5 text-start transition-[border-color,box-shadow,transform] duration-150 disabled:cursor-not-allowed disabled:opacity-50 sm:grid-cols-1 sm:gap-y-2 sm:p-4 dark:bg-neutral-900',
+							selected ? 'border-[#5b3de8] shadow-[0_0_0_4px_#f1eeff] dark:shadow-[0_0_0_4px_rgba(91,61,232,.25)]' : 'border-[var(--border-default)] enabled:hover:-translate-y-px enabled:hover:border-[var(--border-hover)] enabled:hover:shadow-[var(--elev-2)]',
+						)}
+					>
+						{option.recommended && !option.disabled ? <span className="absolute end-3 top-3 rounded-full bg-[#f1eeff] px-2 text-[11px] font-bold leading-5 text-[#5b3de8]">{fa ? 'پیشنهادی' : 'Recommended'}</span> : null}
+						<span className="row-span-2 grid size-11 place-items-center rounded-xl bg-[var(--bg-surface)] sm:row-span-1"><Icon className="size-5" aria-hidden /></span>
+						<span className="text-[14.5px] font-bold text-[var(--text-primary)]">{option.title}</span>
+						<span className="text-[12.5px] leading-6 text-[var(--text-secondary)]">{option.body}</span>
+					</button>
+				)
+			})}
+		</div>
+	)
+}
+
+function Question({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+	return (
+		<div className="grid gap-3">
+			<div>
+				<h2 className="text-[19px] font-extrabold leading-8 text-[var(--text-primary)]">{title}</h2>
+				<p className="text-[13px] leading-6 text-[var(--text-secondary)]">{body}</p>
+			</div>
+			{children}
 		</div>
 	)
 }
@@ -59,8 +78,10 @@ export function DeviceSetup({ devices, inboundLines, hasCard, cardBanks }: { dev
 	const lineReady = inboundLines.length > 0
 	const [adding, setAdding] = useState(devices.length === 0)
 	const [phone, setPhone] = useState('')
-	const [platform, setPlatform] = useState<Platform>('ANDROID')
-	const [method, setMethod] = useState<Method>(lineReady ? 'SMS' : 'URL')
+	const [platform, setPlatform] = useState<Platform | null>(null)
+	const [method, setMethod] = useState<Method | null>(null)
+	// One question at a time: phone type, delivery, the SIM's number, then a summary.
+	const [question, setQuestion] = useState(0)
 	const [busy, setBusy] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [openGuide, setOpenGuide] = useState<string | null>(devices.find((device) => !device.verifiedAt)?.id ?? null)
@@ -69,6 +90,7 @@ export function DeviceSetup({ devices, inboundLines, hasCard, cardBanks }: { dev
 
 	async function create(event: React.FormEvent) {
 		event.preventDefault()
+		if (!platform || !method || !normalizeIranianMobile(phone)) return
 		setBusy(true)
 		setError(null)
 		try {
@@ -85,6 +107,9 @@ export function DeviceSetup({ devices, inboundLines, hasCard, cardBanks }: { dev
 			}
 			setAdding(false)
 			setPhone('')
+			setPlatform(null)
+			setMethod(null)
+			setQuestion(0)
 			setOpenGuide(data.id)
 			router.refresh()
 		} finally {
@@ -94,48 +119,74 @@ export function DeviceSetup({ devices, inboundLines, hasCard, cardBanks }: { dev
 
 	return (
 		<div className="space-y-4">
-			<section className="rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-sm leading-7 text-[var(--text-secondary)] sm:p-5">
-				<h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'چرا پیامک بانک لازم است؟' : 'Why the bank SMS is needed'}</h2>
-				<p className="mt-1 max-w-3xl">
+			<details className="group rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] sm:px-5">
+				<summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
+					<ShieldCheck className="size-4 text-emerald-600" aria-hidden />
+					{fa ? 'چرا پیامک بانک لازم است و چه چیزی خوانده می‌شود؟' : 'Why the bank SMS is needed, and what is read'}
+					<ChevronDown className="ms-auto size-4 transition-transform group-open:rotate-180" aria-hidden />
+				</summary>
+				<p className="mt-2 max-w-3xl">
 					{fa
 						? 'ویجنت به عکس رسید مشتری اعتماد نمی‌کند. یک پرداخت فقط وقتی خودکار تأیید می‌شود که پیامک واریز بانک، از گوشی خود شما، به ویجنت برسد. فقط پیامک‌هایی خوانده می‌شوند که از شماره‌ای که این‌جا ثبت می‌کنید آمده باشند؛ پیامک از هر شمارهٔ دیگری نادیده گرفته می‌شود.'
 						: 'Vigent does not trust a receipt photo. A payment is confirmed automatically only when your bank’s deposit SMS reaches Vigent from your own phone. Only messages coming from the number you register here are read; a message from any other number is ignored.'}
 				</p>
-			</section>
+			</details>
 
 			{devices.map((device) => (
 				<DeviceCard key={device.id} device={device} fa={fa} line={inboundLines[0] ?? null} keyword={keyword} setKeyword={setKeyword} open={openGuide === device.id} onToggle={() => setOpenGuide(openGuide === device.id ? null : device.id)} hasCard={hasCard} />
 			))}
 
 			{adding ? (
-				<form onSubmit={create} className="spatial-surface grid gap-5 rounded-card p-4 sm:p-5">
-					<div>
-						<h2 className="text-lg font-bold text-[var(--text-primary)]">{fa ? 'پیامک واریز بانک به کدام گوشی می‌آید؟' : 'Which phone receives the bank’s deposit SMS?'}</h2>
-						<p className="mt-1 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">{fa ? 'شمارهٔ همان سیم‌کارتی را بدهید که بانک پیامک واریز کارت شما را به آن می‌فرستد.' : 'Give the number of the SIM your bank sends the card’s deposit SMS to.'}</p>
-					</div>
-					<label className="block max-w-xs">
-						<span className="ui-field-label">{fa ? 'شمارهٔ موبایل آن گوشی' : 'That phone’s mobile number'}</span>
-						<input id="pay-device-phone" dir="ltr" inputMode="tel" autoComplete="tel" className="input mt-1.5 font-mono" placeholder="09121234567" value={phone} onChange={(event) => setPhone(event.target.value)} required />
-						{phone && !normalizeIranianMobile(phone) ? <span className="ui-field-hint">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</span> : null}
-					</label>
-					<div>
-						<p className="ui-field-label mb-1.5">{fa ? 'نوع گوشی' : 'Phone type'}</p>
-						<Choice<Platform> label={fa ? 'نوع گوشی' : 'Phone type'} value={platform} onChange={setPlatform} options={[
-							{ value: 'ANDROID', title: fa ? 'اندروید' : 'Android', body: fa ? 'با یک اپ فوروارد پیامک. مطمئن‌ترین روش؛ یک گوشی ارزان که همیشه روشن است هم کافی است.' : 'With an SMS forwarder app. The most reliable way; a cheap always-on phone is enough.' },
-							{ value: 'IOS', title: fa ? 'آیفون' : 'iPhone', body: fa ? 'با اپ Shortcuts خود اپل؛ نصب چیزی لازم نیست.' : 'With Apple’s own Shortcuts app; nothing to install.' },
-						]} />
-					</div>
-					<div>
-						<p className="ui-field-label mb-1.5">{fa ? 'پیامک چطور به ویجنت برسد؟' : 'How should the SMS reach Vigent?'}</p>
-						<Choice<Method> label={fa ? 'روش ارسال' : 'Delivery'} value={method} onChange={setMethod} options={[
-							{ value: 'SMS', title: fa ? 'فوروارد پیامکی' : 'Forward as SMS', body: lineReady ? (fa ? `گوشی پیامک بانک را به سامانهٔ پیامکی ویجنت (${inboundLines[0]}) فوروارد می‌کند. اینترنت لازم ندارد؛ هزینهٔ یک پیامک دارد.` : `The phone forwards the bank SMS to Vigent’s SMS line (${inboundLines[0]}). Needs no internet; costs one SMS.`) : (fa ? 'سامانهٔ پیامکی هنوز فعال نشده؛ فعلاً روش اینترنتی را انتخاب کنید.' : 'The SMS line is not active yet; choose the internet method for now.'), disabled: !lineReady },
-							{ value: 'URL', title: fa ? 'ارسال با اینترنت' : 'Send over the internet', body: fa ? 'برای اپ‌هایی که پیامک نمی‌فرستند و آن را داخل یک لینک می‌گذارند. رایگان است؛ گوشی باید اینترنت داشته باشد.' : 'For apps that cannot send SMS and put it inside a link instead. Free; the phone needs internet.' },
-						]} />
-					</div>
-					{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
-					<div className="flex flex-wrap gap-2">
-						<Button type="submit" loading={busy} disabled={!normalizeIranianMobile(phone)}>{fa ? 'ثبت گوشی و دیدن راهنما' : 'Register phone and open the guide'}</Button>
-						{devices.length > 0 && <Button variant="ghost" onClick={() => setAdding(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>}
+				<form onSubmit={create} className="spatial-surface rounded-card p-4 sm:p-6">
+					<div className="mx-auto grid max-w-xl gap-4">
+						<div className="flex items-center justify-between text-[12.5px] text-[var(--text-muted)]">
+							<span>{question < 3 ? (fa ? `سؤال ${(question + 1).toLocaleString('fa-IR')} از ۳` : `Question ${question + 1} of 3`) : (fa ? 'آماده برای ثبت' : 'Ready to register')}</span>
+							<span aria-hidden className="flex gap-1.5">{[0, 1, 2].map((index) => <span key={index} className={cn('h-1 w-6 rounded-full transition-colors', index <= question ? 'bg-[#5b3de8]' : 'bg-[var(--bg-muted)]')} />)}</span>
+						</div>
+						{question === 0 && (
+							<Question title={fa ? 'پیامک واریز بانک روی کدام گوشی می‌آید؟' : 'Which phone gets the bank’s deposit SMS?'} body={fa ? 'همان گوشی‌ای که سیم‌کارتِ ثبت‌شده در بانک داخلش است.' : 'The one with the SIM registered at your bank.'}>
+								<Choice<Platform> label={fa ? 'نوع گوشی' : 'Phone type'} value={platform} onChange={(next) => { setPlatform(next); setQuestion(1) }} options={[
+									{ value: 'ANDROID', icon: Smartphone, title: fa ? 'اندروید' : 'Android', body: fa ? 'با یک اپ فوروارد پیامک' : 'With an SMS forwarder app' },
+									{ value: 'IOS', icon: Apple, title: fa ? 'آیفون' : 'iPhone', body: fa ? 'با اپ Shortcuts خود اپل' : 'With Apple’s Shortcuts app' },
+								]} />
+							</Question>
+						)}
+						{question === 1 && (
+							<Question title={fa ? 'پیامک چطور به ویجنت برسد؟' : 'How should the SMS reach Vigent?'} body={fa ? 'اگر مطمئن نیستید، گزینهٔ پیشنهادی را بزنید.' : 'Not sure? Take the recommended one.'}>
+								<Choice<Method> label={fa ? 'روش ارسال' : 'Delivery'} value={method} onChange={(next) => { setMethod(next); setQuestion(2) }} options={[
+									{ value: 'SMS', icon: MessageSquareText, recommended: lineReady, disabled: !lineReady, title: fa ? 'فوروارد پیامکی' : 'Forward as SMS', body: lineReady ? (fa ? 'اینترنت لازم ندارد · هزینهٔ یک پیامک' : 'No internet needed · costs one SMS') : (fa ? 'سامانهٔ پیامکی هنوز فعال نشده' : 'The SMS line is not active yet') },
+									{ value: 'URL', icon: Globe, recommended: !lineReady, title: fa ? 'با اینترنت' : 'Over the internet', body: fa ? 'رایگان · گوشی باید آنلاین بماند' : 'Free · the phone must stay online' },
+								]} />
+							</Question>
+						)}
+						{question === 2 && (
+							<Question title={fa ? 'شمارهٔ همان سیم‌کارت' : 'That SIM’s number'} body={fa ? 'فقط پیامک‌هایی که از این شماره بیایند خوانده می‌شوند.' : 'Only messages from this number are read.'}>
+								<label className="block">
+									<span className="sr-only">{fa ? 'شمارهٔ موبایل' : 'Mobile number'}</span>
+									<input id="pay-device-phone" dir="ltr" inputMode="tel" autoComplete="tel" autoFocus className="input font-mono text-[17px] tracking-wider" placeholder="0912 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
+								</label>
+								{phone ? (normalizeIranianMobile(phone)
+									? <p className="flex items-center gap-1.5 text-[12.5px] text-emerald-700"><CheckCircle2 className="size-4" aria-hidden />{fa ? 'شمارهٔ موبایل درست است' : 'A valid mobile number'}</p>
+									: <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</p>) : null}
+								<div><Button type="button" disabled={!normalizeIranianMobile(phone)} onClick={() => setQuestion(3)}>{fa ? 'ادامه' : 'Continue'}</Button></div>
+							</Question>
+						)}
+						{question === 3 && (
+							<Question title={fa ? 'همین؟ ثبت کنیم' : 'All set? Register it'} body={fa ? 'بعد از ثبت، راهنمای همین گوشی قدم‌به‌قدم باز می‌شود.' : 'Once registered, the step-by-step guide for this phone opens.'}>
+								<div className="flex flex-wrap gap-1.5 text-[12.5px]">
+									{[platform === 'IOS' ? (fa ? 'آیفون' : 'iPhone') : (fa ? 'اندروید' : 'Android'), method === 'SMS' ? (fa ? 'فوروارد پیامکی' : 'Forward as SMS') : (fa ? 'با اینترنت' : 'Over the internet')].map((item) => <span key={item} className="rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 leading-7">{item}</span>)}
+									<span dir="ltr" className="rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 font-mono leading-7">{displayPhone(normalizeIranianMobile(phone) ?? phone)}</span>
+								</div>
+								{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+								<div><Button type="submit" loading={busy}>{fa ? 'ثبت گوشی و رفتن به راهنما' : 'Register phone and open the guide'}</Button></div>
+							</Question>
+						)}
+						{question > 0 || devices.length > 0 ? (
+							<div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-3">
+								{question > 0 && <Button type="button" variant="ghost" onClick={() => setQuestion(question - 1)}>{fa ? 'قبلی' : 'Back'}</Button>}
+								{devices.length > 0 && <Button type="button" variant="ghost" onClick={() => setAdding(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>}
+							</div>
+						) : null}
 					</div>
 				</form>
 			) : (
@@ -152,8 +203,6 @@ function DeviceCard({ device, fa, line, keyword, setKeyword, open, onToggle, has
 	const [busy, setBusy] = useState<string | null>(null)
 	const [confirmDelete, setConfirmDelete] = useState(false)
 	const [sample, setSample] = useState('')
-	const [test, setTest] = useState<CardPayView | null>(null)
-	const [testError, setTestError] = useState<string | null>(null)
 
 	// While the guide is open, watch for the first forwarded message and the first matched deposit.
 	useEffect(() => {
@@ -194,23 +243,6 @@ function DeviceCard({ device, fa, line, keyword, setKeyword, open, onToggle, has
 			setBusy(null)
 		}
 	}
-	async function startTest() {
-		setBusy('test')
-		setTestError(null)
-		try {
-			const response = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: 1000, test: true }) })
-			const data = (await response.json().catch(() => null)) as { card?: CardPayView; error?: string } | null
-			if (!response.ok || !data?.card) {
-				const copy = ERRORS[data?.error ?? '']
-				setTestError(copy ? copy[fa ? 0 : 1] : (fa ? 'واریز آزمایشی ساخته نشد.' : 'The test transfer could not be created.'))
-				return
-			}
-			setTest(data.card)
-		} finally {
-			setBusy(null)
-		}
-	}
-
 	const state = live.verifiedAt
 		? { tone: 'ok' as const, text: fa ? 'فعال · واریز واقعی تطبیق خورده' : 'Active · a real deposit has matched' }
 		: live.connectedAt
@@ -312,20 +344,7 @@ function DeviceCard({ device, fa, line, keyword, setKeyword, open, onToggle, has
 									: (fa ? 'این صفحه منتظر اولین پیام از این گوشی است. دکمهٔ «تست» اپ را بزنید یا واریز آزمایشی پایین را انجام دهید؛ همین‌جا خودش سبز می‌شود.' : 'This page is waiting for the first message from this phone. Tap the app’s Test button or make the test transfer below; it turns green by itself.')}
 							</p>
 						</div>
-						{live.verifiedAt ? (
-							<p className="flex max-w-2xl items-center gap-2 rounded-control bg-emerald-50 p-3.5 text-[13.5px] font-medium text-emerald-800"><CheckCircle2 className="size-5" aria-hidden />{fa ? 'یک واریز واقعی از روی پیامک این گوشی تطبیق خورده است. درگاه آماده است.' : 'A real deposit has matched from this phone’s SMS. The gateway is ready.'}</p>
-						) : test ? (
-							<div className="grid gap-2">
-								<p className="max-w-2xl text-[13.5px] leading-7 text-[var(--text-secondary)]">{fa ? 'همین مبلغ را از کارت دیگری (یا از حساب دیگر خودتان) به این کارت واریز کنید. وقتی پیامکش برسد، کارت پایین سبز می‌شود.' : 'Transfer exactly this amount from another card to this card. When its SMS arrives the card below turns green.'}</p>
-								<CardPayCardView card={test} accent="#111111" onAccent="#ffffff" canClaim={false} onStatus={(status) => { if (status === 'PAID') router.refresh() }} />
-							</div>
-						) : (
-							<div className="flex flex-wrap items-center gap-3">
-								<Button loading={busy === 'test'} disabled={!hasCard} onClick={startTest}>{fa ? 'شروع واریز آزمایشی (حدود ۱٬۰۰۰ تومان)' : 'Start the test transfer (about 1,000 Toman)'}</Button>
-								{!hasCard && <span className="text-[13px] text-[var(--text-muted)]">{fa ? 'اول یک کارت اضافه کنید.' : 'Add a card first.'}</span>}
-								{testError && <span role="alert" className="text-[13px] text-red-600">{testError}</span>}
-							</div>
-						)}
+						<TestTransfer verified={Boolean(live.verifiedAt)} hasCard={hasCard} />
 					</div>
 
 					{/* settings of this phone */}
@@ -345,5 +364,53 @@ function DeviceCard({ device, fa, line, keyword, setKeyword, open, onToggle, has
 				</div>
 			)}
 		</section>
+	)
+}
+
+/**
+ * The one real transfer that proves the chain: a small test payment to the
+ * owner's card; the card turns green when its deposit SMS matches.
+ */
+export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard: boolean }) {
+	const fa = useLocale() !== 'en'
+	const router = useRouter()
+	const [busy, setBusy] = useState(false)
+	const [test, setTest] = useState<CardPayView | null>(null)
+	const [testError, setTestError] = useState<string | null>(null)
+
+	async function startTest() {
+		setBusy(true)
+		setTestError(null)
+		try {
+			const response = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: 1000, test: true }) })
+			const data = (await response.json().catch(() => null)) as { card?: CardPayView; error?: string } | null
+			if (!response.ok || !data?.card) {
+				const copy = ERRORS[data?.error ?? '']
+				setTestError(copy ? copy[fa ? 0 : 1] : (fa ? 'واریز آزمایشی ساخته نشد.' : 'The test transfer could not be created.'))
+				return
+			}
+			setTest(data.card)
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	if (verified) {
+		return <p className="flex max-w-2xl items-center gap-2 rounded-control bg-emerald-50 p-3.5 text-[13.5px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><CheckCircle2 className="size-5" aria-hidden />{fa ? 'یک واریز واقعی از روی پیامک گوشی شما تطبیق خورده است.' : 'A real deposit has matched from your phone’s SMS.'}</p>
+	}
+	if (test) {
+		return (
+			<div className="grid max-w-sm gap-2">
+				<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">{fa ? 'همین مبلغ را از کارت دیگری (یا از حساب دیگر خودتان) به این کارت واریز کنید. وقتی پیامکش برسد، کارت پایین سبز می‌شود.' : 'Transfer exactly this amount from another card to this card. When its SMS arrives the card below turns green.'}</p>
+				<CardPayCardView card={test} accent="#111111" onAccent="#ffffff" canClaim={false} onStatus={(status) => { if (status === 'PAID') router.refresh() }} />
+			</div>
+		)
+	}
+	return (
+		<div className="flex flex-wrap items-center gap-3">
+			<Button loading={busy} disabled={!hasCard} onClick={startTest}>{fa ? 'شروع واریز آزمایشی (حدود ۱٬۰۰۰ تومان)' : 'Start the test transfer (about 1,000 Toman)'}</Button>
+			{!hasCard && <span className="text-[13px] text-[var(--text-muted)]">{fa ? 'اول یک کارت اضافه کنید.' : 'Add a card first.'}</span>}
+			{testError && <span role="alert" className="text-[13px] text-red-600">{testError}</span>}
+		</div>
 	)
 }

@@ -9,6 +9,8 @@ import { ChevronLeft, LogOut, Menu, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getDashboardNavForProfile, getDashboardNavFromModules, groupDashboardNav, withStoreNav } from '@/components/dashboard/nav-items'
 import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
+import { NavStatusMark } from '@/components/dashboard/nav-status-mark'
+import type { NavStatusMap } from '@/lib/dashboard/nav-status'
 import type { BusinessTypeValue, CapabilityKey, DashboardModuleKey } from '@/lib/verticals/registry'
 import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 import { logout } from '@/app/actions/auth'
@@ -42,6 +44,7 @@ export function MobileNav({
 	handedOffCount = 0,
 	instagramConnected = false,
 	storeConnected = false,
+	navStatus,
 }: {
 	businessType?: BusinessTypeValue | null
 	capabilities?: readonly CapabilityKey[]
@@ -50,6 +53,8 @@ export function MobileNav({
 	instagramConnected?: boolean
 	/** A connected WooCommerce store adds its tab. */
 	storeConnected?: boolean
+	/** Live / setup / attention marks beside the items. */
+	navStatus?: NavStatusMap
 }) {
 	const t = useTranslations('dashboard')
 	const locale = useLocale()
@@ -89,6 +94,8 @@ export function MobileNav({
 	// "More" reads as the current tab when the open page lives inside the sheet.
 	const moreActive = sheetNav.some(({ href }) => isActivePath(pathname, href))
 	const hasNewInSheet = sheetNav.some(({ key }) => newModules.includes(key))
+	// Something inside the sheet needs the owner: the «More» item says so.
+	const alertInSheet = sheetNav.some(({ key }) => navStatus?.[key]?.tone === 'alert')
 	const numberLocale = locale === 'en' ? 'en-US' : 'fa-IR'
 
 	function showDrawer(trigger: HTMLElement) {
@@ -289,7 +296,9 @@ export function MobileNav({
 						>
 							<span className={cn('relative grid h-8 w-12 place-items-center rounded-full transition-colors duration-200', moreActive ? 'bg-black/[0.07]' : 'group-hover:bg-black/[0.045]')}>
 								<Menu className="h-[1.1rem] w-[1.1rem]" aria-hidden="true" strokeWidth={moreActive ? 2.2 : 1.9} />
-								{hasNewInSheet && (
+								{alertInSheet ? (
+									<span aria-hidden="true" className="absolute end-2.5 top-1 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white" />
+								) : hasNewInSheet && (
 									<span aria-hidden="true" className="absolute end-2.5 top-1 h-2 w-2 rounded-full bg-[var(--text-primary)] ring-2 ring-white" />
 								)}
 							</span>
@@ -369,6 +378,9 @@ export function MobileNav({
 															)}
 														>
 															<Icon className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" strokeWidth={active ? 2.1 : 1.8} />
+															{navStatus?.[key] && (
+																<NavStatusMark status={navStatus[key]!} locale={locale} className="absolute -start-1 -top-1 rounded-full bg-white p-[3px] shadow-[var(--elev-1)]" />
+															)}
 															{newModules.includes(key) && (
 																<span className="absolute -end-1 -top-1 rounded-full bg-[#111] px-1.5 py-px text-[10.5px] font-bold text-white ring-2 ring-[var(--bg-base)]">{t('newLabel')}</span>
 															)}

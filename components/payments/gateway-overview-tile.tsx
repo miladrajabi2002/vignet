@@ -51,7 +51,7 @@ export async function GatewayOverviewTile({ workspaceId, locale }: { workspaceId
 							: 'The agent sends your card with an exact amount in the chat; when the bank’s deposit SMS arrives, the order, booking or sign-up is confirmed by itself. No bank gateway or Enamad needed.'}
 					</p>
 					<Link href="/payments" className="spatial-press mt-3.5 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-4 text-sm font-bold text-white dark:text-neutral-900">
-						{fa ? 'راه‌اندازی در سه قدم' : 'Set up in three steps'}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
+						{fa ? 'راه‌اندازی قدم‌به‌قدم' : 'Set it up step by step'}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
 					</Link>
 				</div>
 				<GatewayFlowMotion bankKey="mellat" pan="6104 33•• •••• 5675" holder={fa ? 'نام شما' : 'Your name'} amount={SAMPLE_AMOUNT} lang={locale} />
@@ -82,7 +82,7 @@ export async function GatewayOverviewTile({ workspaceId, locale }: { workspaceId
 						].map((item) => (
 							<div key={item.label} className={item.alert ? 'rounded-control bg-red-50 p-2.5 text-red-800 dark:bg-red-950/40 dark:text-red-200' : 'rounded-control bg-[var(--bg-surface)] p-2.5'}>
 								<dt className="text-[12px] text-[var(--text-muted)]">{item.label}</dt>
-								<dd className="ui-num mt-0.5 text-[17px] font-bold">{item.value} <span className="text-[11.5px] font-normal">{item.unit}</span></dd>
+								<dd className="mt-0.5 text-[17px] font-bold tabular-nums">{item.value} <span className="text-[11.5px] font-normal">{item.unit}</span></dd>
 							</div>
 						))}
 					</dl>
