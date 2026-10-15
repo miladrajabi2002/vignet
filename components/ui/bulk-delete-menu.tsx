@@ -6,6 +6,10 @@
  * categorized cleanups («حذف محصولات ناموجود», «حذف گفتگوهای حل‌شده», …)
  * with «حذف همه» kept last, set apart in red.
  *
+ * Phones get a bottom sheet with thumb-sized rows (the header action rail
+ * scrolls sideways there and would clip a dropdown); from `md` up it is an
+ * anchored dropdown.
+ *
  * Opening the menu asks the bulk route (GET) for `{ counts }` — one number per
  * preset, so every option shows how many rows it would remove and a preset
  * with nothing to remove is disabled. Picking one opens the shared confirm
@@ -23,6 +27,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { AlertTriangle, ChevronDown, Loader2, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { queueUndo, type UndoKind } from '@/lib/undo-queue'
 import { cn } from '@/lib/utils'
 
@@ -80,6 +85,7 @@ export function BulkDeleteMenu({
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
   const [countsLoading, setCountsLoading] = useState(false)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -115,14 +121,25 @@ export function BulkDeleteMenu({
     }
   }, [menuOpen, endpoint])
 
+  // Same breakpoint as MobileBottomSheet (md), so the two never overlap.
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktop(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
   const menuItems = useCallback(
     () => Array.from(rootRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])') ?? []),
     [],
   )
 
-  // Outside click / Escape close the menu; focus lands on the first option.
+  // Desktop dropdown only: outside click / Escape close it and focus lands on
+  // the first option. The phone sheet portals out of rootRef and handles
+  // Escape, focus and the backdrop tap itself.
   useEffect(() => {
-    if (!menuOpen) return
+    if (!menuOpen || !isDesktop) return
     const onPointer = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setMenuOpen(false)
     }
@@ -138,11 +155,11 @@ export function BulkDeleteMenu({
       document.removeEventListener('pointerdown', onPointer)
       document.removeEventListener('keydown', onKey)
     }
-  }, [menuOpen])
+  }, [menuOpen, isDesktop])
 
   useEffect(() => {
-    if (menuOpen) menuItems()[0]?.focus()
-  }, [menuOpen, menuItems])
+    if (menuOpen && isDesktop) menuItems()[0]?.focus()
+  }, [menuOpen, isDesktop, menuItems])
 
   function onMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') return
@@ -222,38 +239,96 @@ export function BulkDeleteMenu({
         : 'For a few seconds after deleting, the Undo button at the bottom of the screen brings them all back.')
     : undefined
 
-  function renderItem(option: BulkDeleteOption, danger = false) {
-    const count = counts?.[option.scope]
-    const empty = count === 0
+  // Phones get the app's bottom sheet: the page-header action rail scrolls
+  // sideways there, which would clip a dropdown, and thumb-sized rows read
+  // better than a 20rem popover. From `md` up it is an anchored dropdown.
+  const asSheet = !isDesktop
+
+  function countBadge(count: number | undefined, danger: boolean) {
+    return (
+      <span
+        className={cn(
+          'inline-flex min-w-8 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+          asSheet && 'min-h-7 min-w-9 text-xs',
+          danger ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
+        )}
+      >
+        {countsLoading ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : typeof count === 'number' ? nf(count) : '—'}
+      </span>
+    )
+  }
+
+  function renderRow({
+    key,
+    label,
+    hint,
+    count,
+    danger = false,
+    disabled = false,
+    onSelect,
+  }: {
+    key: string
+    label: string
+    hint?: string
+    count: number | undefined
+    danger?: boolean
+    disabled?: boolean
+    onSelect: () => void
+  }) {
     return (
       <button
-        key={option.scope}
+        key={key}
         type="button"
-        role="menuitem"
-        disabled={empty}
-        onClick={() => choose({ kind: 'scope', option })}
+        role={asSheet ? undefined : 'menuitem'}
+        disabled={disabled}
+        onClick={onSelect}
         className={cn(
-          'flex min-h-12 w-full items-center gap-3 px-3 py-2 text-start transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+          'flex w-full items-center gap-3 text-start transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+          asSheet ? 'min-h-14 px-4 py-3 active:bg-black/[0.04]' : 'min-h-12 px-3 py-2',
           danger
             ? 'text-red-700 hover:bg-red-50 focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 dark:focus-visible:bg-red-950/40'
             : 'text-[var(--text-primary)] hover:bg-black/[0.04] focus-visible:bg-black/[0.04]',
         )}
       >
         <span className="min-w-0 flex-1">
-          <span className={cn('block text-[13px]', danger ? 'font-semibold' : 'font-medium')}>{option.label}</span>
-          {option.hint && <span className="mt-0.5 block text-[11.5px] leading-5 text-[var(--text-muted)]">{option.hint}</span>}
-        </span>
-        <span
-          className={cn(
-            'inline-flex min-w-7 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-            danger ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
+          <span className={cn('block', asSheet ? 'text-sm' : 'text-[13px]', danger ? 'font-bold' : 'font-semibold')}>{label}</span>
+          {hint && (
+            <span className={cn('mt-0.5 block leading-5 text-[var(--text-muted)]', asSheet ? 'text-xs' : 'text-[11.5px]')}>{hint}</span>
           )}
-        >
-          {countsLoading ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : typeof count === 'number' ? nf(count) : '—'}
         </span>
+        {countBadge(count, danger)}
       </button>
     )
   }
+
+  const selectionRow = hasSelection && selection
+    ? renderRow({
+        key: '__selection',
+        label: selection.label,
+        count: selection.ids.length,
+        danger: true,
+        onSelect: () => choose({ kind: 'selection' }),
+      })
+    : null
+  const presetRows = presets.map((option) => renderRow({
+    key: option.scope,
+    label: option.label,
+    hint: option.hint,
+    count: counts?.[option.scope],
+    disabled: counts?.[option.scope] === 0,
+    onSelect: () => choose({ kind: 'scope', option }),
+  }))
+  const allRow = allOption
+    ? renderRow({
+        key: allOption.scope,
+        label: allOption.label,
+        hint: allOption.hint,
+        count: counts?.[allOption.scope],
+        danger: true,
+        disabled: counts?.[allOption.scope] === 0,
+        onSelect: () => choose({ kind: 'scope', option: allOption }),
+      })
+    : null
 
   return (
     <div ref={rootRef} className="relative">
@@ -261,9 +336,9 @@ export function BulkDeleteMenu({
         ref={triggerRef}
         type="button"
         onClick={() => setMenuOpen((value) => !value)}
-        aria-haspopup="menu"
+        aria-haspopup={asSheet ? 'dialog' : 'menu'}
         aria-expanded={menuOpen}
-        aria-controls={menuOpen ? menuId : undefined}
+        aria-controls={menuOpen && !asSheet ? menuId : undefined}
         aria-label={triggerLabel}
         title={triggerLabel}
         className={cn(
@@ -275,43 +350,61 @@ export function BulkDeleteMenu({
         <span className={compactOnMobile ? 'hidden sm:inline' : undefined}>{triggerLabel}</span>
         <ChevronDown
           aria-hidden
-          className={cn('h-3.5 w-3.5 transition-transform', menuOpen && 'rotate-180', compactOnMobile && 'hidden sm:block')}
+          className={cn('h-3.5 w-3.5 transition-transform', menuOpen && !asSheet && 'rotate-180', compactOnMobile && 'hidden sm:block')}
         />
       </button>
 
-      {menuOpen && (
+      {menuOpen && !asSheet && (
         <div
           id={menuId}
           role="menu"
           aria-label={triggerLabel}
           onKeyDown={onMenuKeyDown}
-          className="absolute end-0 top-full z-30 mt-1.5 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[var(--border-default)] bg-white py-1 shadow-[var(--elev-2)] dark:bg-[var(--bg-surface)]"
+          className="absolute end-0 top-full z-30 mt-1.5 w-80 overflow-hidden rounded-xl border border-[var(--border-default)] bg-white py-1 shadow-[var(--elev-2)] dark:bg-[var(--bg-surface)]"
         >
-          {hasSelection && selection && (
+          {selectionRow && (
             <>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => choose({ kind: 'selection' })}
-                className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-start text-[13px] font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:bg-red-50 focus-visible:outline-none dark:text-red-400 dark:hover:bg-red-950/40"
-              >
-                <span className="min-w-0 flex-1">{selection.label}</span>
-                <span className="inline-flex min-w-7 shrink-0 items-center justify-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-red-700 dark:bg-red-950/60 dark:text-red-300">
-                  {nf(selection.ids.length)}
-                </span>
-              </button>
+              {selectionRow}
               <div className="my-1 border-t border-[var(--border-subtle)]" role="separator" />
             </>
           )}
-          {presets.map((option) => renderItem(option))}
-          {allOption && (
+          {presetRows}
+          {allRow && (
             <>
-              {presets.length > 0 && <div className="my-1 border-t border-[var(--border-subtle)]" role="separator" />}
-              {renderItem(allOption, true)}
+              {presetRows.length > 0 && <div className="my-1 border-t border-[var(--border-subtle)]" role="separator" />}
+              {allRow}
             </>
           )}
         </div>
       )}
+
+      <MobileBottomSheet
+        open={menuOpen && asSheet}
+        title={triggerLabel}
+        description={fa ? 'چه چیزی پاک شود؟ تعداد هر گزینه کنارش آمده' : 'What should go? Each option shows how many'}
+        closeLabel={fa ? 'بستن' : 'Close'}
+        triggerRef={triggerRef}
+        onClose={() => setMenuOpen(false)}
+      >
+        <div className="space-y-3">
+          {selectionRow && (
+            <div className="overflow-hidden rounded-2xl border border-red-200 bg-white dark:border-red-900/50">{selectionRow}</div>
+          )}
+          {presetRows.length > 0 && (
+            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white">
+              {presetRows}
+            </div>
+          )}
+          {allRow && (
+            <div className="overflow-hidden rounded-2xl border border-red-200 bg-white dark:border-red-900/50">{allRow}</div>
+          )}
+          {undoKind && (
+            <p className="px-1 text-xs leading-5 text-[var(--text-muted)]">
+              {fa ? 'بعد از هر حذف، چند ثانیه فرصت «بازگردانی» دارید.' : 'After each delete you get a few seconds to undo.'}
+            </p>
+          )}
+        </div>
+      </MobileBottomSheet>
 
       <ConfirmDialog
         open={pending !== null}

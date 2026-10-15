@@ -284,12 +284,7 @@ export function AppointmentsWorkspace({
           : 'Define services and hours; the agent offers real free times in chat, books without conflicts and alerts you.'}
         actions={noServices ? undefined : (
           <>
-            <button type="button" onClick={() => openCreate()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
-              <Plus className="h-4 w-4" />{fa ? 'خدمت جدید' : 'New service'}
-            </button>
-            <button type="button" onClick={() => setBooking({ open: true })} disabled={!activeServices.length} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45">
-              <CalendarCheck2 className="h-4 w-4" />{fa ? 'ثبت نوبت' : 'Book'}
-            </button>
+            {/* First, so the primary «ثبت نوبت» stays last and takes the free width on phones. */}
             <BulkDeleteMenu
               endpoint="/api/appointments/bulk"
               entityLabel={fa ? 'نوبت' : 'bookings'}
@@ -309,6 +304,12 @@ export function AppointmentsWorkspace({
                 void refreshAll()
               }}
             />
+            <button type="button" onClick={() => openCreate()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">
+              <Plus className="h-4 w-4" />{fa ? 'خدمت جدید' : 'New service'}
+            </button>
+            <button type="button" onClick={() => setBooking({ open: true })} disabled={!activeServices.length} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45">
+              <CalendarCheck2 className="h-4 w-4" />{fa ? 'ثبت نوبت' : 'Book'}
+            </button>
           </>
         )}
       />
