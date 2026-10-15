@@ -307,7 +307,7 @@ export function ConversationFilters({
                                                 onValueChange={(sales) => navigate({ sales })}
                                                 ariaLabel={
                                                         isFa
-                                                                ? 'دسته‌بندی هوش فروش'
+                                                                ? 'دستهٔ فروش'
                                                                 : 'Sales intelligence category'
                                                 }
                                                 className="min-w-44"
@@ -364,7 +364,7 @@ export function ConversationFilters({
                                 title={isFa ? 'فیلتر گفتگوها' : 'Conversation filters'}
                                 description={
                                         isFa
-                                                ? 'صندوق گفتگوها را بر اساس وضعیت، اتصال، ایجنت و هوش فروش محدود کنید'
+                                                ? 'گفتگوها را بر اساس وضعیت، اتصال، ایجنت یا دستهٔ فروش فیلتر کنید'
                                                 : 'Narrow the inbox by status, channel, agent, and sales intelligence'
                                 }
                                 closeLabel={isFa ? 'بستن فیلترها' : 'Close filters'}
@@ -448,14 +448,14 @@ export function ConversationFilters({
 
                                         {salesOptions.length > 0 && (
                                                 <FilterField
-                                                        label={isFa ? 'دسته هوش فروش' : 'Sales intelligence'}
+                                                        label={isFa ? 'دستهٔ فروش' : 'Sales intelligence'}
                                                 >
                                                         <MaterialSelect
                                                                 value={activeSales ?? ''}
                                                                 onValueChange={(sales) => navigate({ sales })}
                                                                 ariaLabel={
                                                                         isFa
-                                                                                ? 'دسته‌بندی هوش فروش'
+                                                                                ? 'دستهٔ فروش'
                                                                                 : 'Sales intelligence category'
                                                                 }
                                                                 options={salesOptions.map((option) => ({

@@ -72,7 +72,7 @@ export function ModelSelect({
       {estimatedReplies != null && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-800">
           <span>
-            {isFa ? 'برآورد با موجودی فعلی' : 'Estimate with current balance'}
+            {isFa ? 'با اعتبار فعلی‌تان، حدوداً' : 'Estimate with current balance'}
           </span>
           <strong className="font-semibold tabular-nums">
             ≈ {estimatedReplies.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پاسخ موفق' : 'successful replies'}
@@ -167,14 +167,14 @@ export function ModelSelect({
       {isTrial && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700">
           {isFa
-            ? 'در پلن آزمایشی فقط مدل انتخاب‌شده توسط مدیریت فعال است؛ برای انتخاب مدل‌های دیگر ابتدا پلن را ارتقا دهید.'
+            ? 'در پلن آزمایشی فقط مدلی که ویجنت انتخاب کرده فعال است. برای مدل‌های دیگر، پلن را بالاتر ببرید.'
             : 'The trial plan only enables the model selected by the administrator. Upgrade to choose another model.'}
       </p>
       )}
 
       <p className="text-xs leading-5 text-[var(--text-muted)]">
         {isFa
-          ? 'پاسخ و سایر درخواست‌های موفق AI مثل تحلیل و تست، با قیمت همین مدل از اعتبار کم می‌شوند؛ ویجنت کلید و زیرساخت را مدیریت می‌کند.'
+          ? 'هر جواب، تحلیل یا تست موفق با قیمت همین مدل از اعتبار کم می‌شود. کلید و زیرساخت با ویجنت است.'
           : 'Replies and other successful AI requests such as analysis and testing use this model price; Vigent manages the key and infrastructure.'}
       </p>
     </div>

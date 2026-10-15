@@ -165,7 +165,7 @@ export function InstagramConnectFlow({
       }
       if (!res.ok || !data.url) {
         if (data.error === 'UNAUTHORIZED') {
-          setError('ابتدا وارد شوید.')
+          setError('اول وارد حسابتان شوید.')
         } else if (data.error === 'NOT_FOUND') {
           setError('این ایجنت پیدا نشد.')
         } else if (data.error === 'CHANNEL_LIMIT') {
@@ -173,7 +173,7 @@ export function InstagramConnectFlow({
         } else if (res.status >= 500) {
           setError('سرویس اتصال اینستاگرام موقتاً در دسترس نیست. چند دقیقه دیگر دوباره تلاش کنید.')
         } else {
-          setError('شروع اتصال ناموفق بود. دوباره تلاش کنید.')
+          setError('اتصال شروع نشد. دوباره امتحان کنید.')
         }
         return
       }
@@ -246,7 +246,7 @@ export function InstagramConnectFlow({
             <p className="text-xs font-semibold text-[var(--text-primary)]">قبل از اتصال</p>
             <ul className="mt-3 space-y-2.5">
               <PrereqItem icon={UserRoundPlus} tone="brand">
-                تا پایان بررسی عمومی اپ توسط Meta، نام کاربری پیج باید یک‌بار توسط پشتیبانی در <b>App Roles</b> ثبت شود.
+                تا وقتی Meta بررسی اپ ویجنت را تمام نکرده، پشتیبانی باید یک بار نام کاربری پیج شما را در <b>App Roles</b> ثبت کند.
               </PrereqItem>
               <PrereqItem icon={CheckCircle2} tone="brand">
                 اکانت باید <b>Business یا Creator</b> باشد؛ اکانت شخصی را از بخش Account type and tools حرفه‌ای کنید.
@@ -255,7 +255,7 @@ export function InstagramConnectFlow({
                 اتصال را در <b>مرورگر</b> انجام دهید؛ در موبایل لینک را با Chrome باز کنید.
               </PrereqItem>
               <PrereqItem icon={Monitor}>
-                برای روند پایدارتر، دسکتاپ پیشنهاد می‌شود؛ اتصال در موبایل هم پشتیبانی می‌شود.
+                با کامپیوتر راحت‌تر وصل می‌شود، ولی با موبایل هم می‌شود.
               </PrereqItem>
             </ul>
           </div>
@@ -355,7 +355,7 @@ export function InstagramConnectFlow({
             {/* Body */}
             <div className="px-5 py-5">
               <p id="instagram-vpn-description" className="text-sm leading-7 text-[var(--text-secondary)]">
-                به‌دلیل محدودیت‌های دسترسی منطقه‌ای و تا زمان تکمیل بررسی عمومی اپ ویجنت، Meta فقط به پیج‌هایی اجازه اتصال می‌دهد که موقتاً در بخش <b className="text-[var(--text-primary)]">App Roles / Testers</b> ثبت شده باشند.
+                تا وقتی Meta بررسی اپ ویجنت را تمام نکرده (و به‌خاطر محدودیت‌های منطقه‌ای)، فقط پیج‌هایی وصل می‌شوند که موقتاً در بخش <b className="text-[var(--text-primary)]">App Roles / Testers</b> ثبت شده باشند.
               </p>
 
               <div className="mt-4 rounded-xl border border-emerald-600/20 bg-emerald-50 p-3.5">
@@ -364,7 +364,7 @@ export function InstagramConnectFlow({
                   <div>
                     <p className="text-xs font-bold text-emerald-900">این پیام نشانه مشکل امنیتی پیج شما نیست</p>
                     <p className="mt-1 text-[12px] leading-6 text-emerald-900/75">
-                      این محدودیت مطابق فرایند دسترسی اپ‌های در حال بررسی Meta است. رمز عبور شما در اختیار ویجنت یا پشتیبانی قرار نمی‌گیرد و اتصال همچنان در صفحه رسمی Instagram انجام می‌شود.
+                      Meta با همهٔ اپ‌هایی که در حال بررسی‌اند همین کار را می‌کند. رمز عبورتان دست ویجنت یا پشتیبانی نمی‌رسد و اتصال باز هم در صفحهٔ رسمی Instagram انجام می‌شود.
                     </p>
                   </div>
                 </div>
@@ -506,7 +506,7 @@ export function InstagramConnectFlow({
                   </div>
 
                   <div className="mt-5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[12px] leading-6 text-[var(--text-secondary)]">
-                    مسیر قابل بررسی است: دکمه اتصال شما را به <b className="text-[var(--text-primary)]">api.instagram.com</b> می‌فرستد و پس از تأیید به ویجنت برمی‌گرداند.
+                    خودتان می‌توانید ببینید: دکمهٔ اتصال شما را به <b className="text-[var(--text-primary)]">api.instagram.com</b> می‌برد و بعد از تأیید به ویجنت برمی‌گرداند.
                   </div>
                 </div>
 

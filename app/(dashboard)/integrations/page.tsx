@@ -80,7 +80,7 @@ export default async function IntegrationsPage() {
                                         </span>
                                         <span className="mt-0.5 block text-[13px] leading-6 text-[var(--text-muted)]">
                                                 {store
-                                                        ? (locale === 'fa' ? 'همگام‌سازی، سفارش‌ها و فروش در گفتگو در تب «ووکامرس» مدیریت می‌شود.' : 'Sync, orders and in-chat selling are managed in the WooCommerce tab.')
+                                                        ? (locale === 'fa' ? 'همگام‌سازی، سفارش‌ها و فروش در گفتگو را از تب «ووکامرس» مدیریت کنید.' : 'Sync, orders and in-chat selling are managed in the WooCommerce tab.')
                                                         : (locale === 'fa' ? 'محصولات و سفارش‌های سایت وردپرسی را با افزونهٔ ویجنت وصل کنید.' : 'Connect your WordPress store’s products and orders with the Vigent plugin.')}
                                         </span>
                                 </span>

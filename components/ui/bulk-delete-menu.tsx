@@ -213,7 +213,7 @@ export function BulkDeleteMenu({
         queueUndo(undoKind, body.ids as string[], entityLabel)
       }
     } catch {
-      setError(fa ? 'حذف انجام نشد؛ اتصال را بررسی کنید و دوباره تلاش کنید.' : 'Delete failed. Check your connection and try again.')
+      setError(fa ? 'حذف نشد؛ اینترنت را چک کنید و دوباره امتحان کنید.' : 'Delete failed. Check your connection and try again.')
     } finally {
       setBusy(false)
     }

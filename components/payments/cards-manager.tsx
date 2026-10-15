@@ -66,7 +66,7 @@ export function CardsManager({ cards }: { cards: GatewayCardRow[] }) {
 			setOpen(false)
 			router.refresh()
 		} catch {
-			setError(fa ? 'کارت اضافه نشد؛ اتصال را بررسی کنید.' : 'The card was not added; check the connection.')
+			setError(fa ? 'کارت اضافه نشد؛ اینترنت را چک کنید.' : 'The card was not added; check the connection.')
 		} finally {
 			setAdding(false)
 		}

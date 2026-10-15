@@ -31,11 +31,11 @@ export function ReplyCreditEstimator({
           </span>
           <div>
             <h2 className="text-sm font-bold text-[var(--text-primary)]">
-              {fa ? 'این موجودی چند پاسخ می‌دهد؟' : 'How many replies can this balance cover?'}
+              {fa ? 'با این اعتبار چند جواب می‌شود داد؟' : 'How many replies can this balance cover?'}
             </h2>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
               {fa
-                ? 'بازه بر اساس سطح پاسخ و قیمت دقیق پلن شما.'
+                ? 'از روی سطح پاسخ و قیمت پلن شما حساب شده.'
                 : 'Range based on response tier and your plan price.'}
             </p>
           </div>

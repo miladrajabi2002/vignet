@@ -76,7 +76,7 @@ export function MenuDesign({
         body: JSON.stringify(next),
       }).catch(() => null)
       if (response?.ok) return
-      setNotice(response?.status === 402 ? 'پلن فضای کاری فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'اتصال را بررسی کنید و دوباره تلاش کنید.')
+      setNotice(response?.status === 402 ? 'پلنتان فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'اینترنت را چک کنید و دوباره امتحان کنید.')
       throw new Error('SAVE_FAILED')
     },
   })

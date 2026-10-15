@@ -110,7 +110,7 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
 
   switch (receipt.kind) {
     case 'knowledge_used':
-      return `پاسخ با ${count.toLocaleString('fa-IR')} بخش از پایگاه دانش بررسی شد`
+      return `ایجنت برای جواب، ${count.toLocaleString('fa-IR')} بخش از دانش را نگاه کرد`
     case 'catalog_checked':
       return `${count.toLocaleString('fa-IR')} مورد از کاتالوگ بررسی شد`
     case 'products_presented':
@@ -122,7 +122,7 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
     case 'link_shared':
       return 'لینک مرتبط ارسال شد'
     case 'slots_checked':
-      return 'زمان‌های آزاد به‌صورت زنده بررسی شد'
+      return 'زمان‌های آزاد همان لحظه بررسی شد'
     case 'appointment_booked':
       return 'نوبت تأیید و در تقویم ثبت شد'
     case 'appointment_cancelled':
@@ -134,7 +134,7 @@ function receiptCopy(receipt: Receipt, locale: Locale): string {
     case 'enrollment_cancelled':
       return 'انصراف از دوره ثبت شد'
     case 'model_error':
-      return 'خطای سرویس هوش مصنوعی — پاسخ از پایگاه دانش تولید نشد'
+      return 'سرویس هوش مصنوعی خطا داد و جوابی ساخته نشد'
   }
 }
 
@@ -187,7 +187,7 @@ export function MessageActivityReceipts({
     <div
       className="mt-2 flex max-w-xl flex-wrap justify-end gap-1.5"
       role="list"
-      aria-label={locale === 'fa' ? 'اقدام‌های انجام‌شده توسط ایجنت' : 'Actions completed by the agent'}
+      aria-label={locale === 'fa' ? 'کارهایی که ایجنت انجام داد' : 'Actions completed by the agent'}
     >
       {receipts.map((receipt, index) => {
         const Icon = receiptIcons[receipt.kind]
@@ -284,7 +284,7 @@ function timelineCopy(activity: TimelineActivity, locale: Locale): {
   if (activity.kind === 'handoff_ready') {
     return {
       title: 'گفتگو به اپراتور تحویل شد',
-      detail: activity.summaryReady ? 'خلاصه زمینه گفتگو آماده است' : 'زمینه گفتگو پیوست شد',
+      detail: activity.summaryReady ? 'خلاصهٔ گفتگو آماده است' : 'خلاصهٔ گفتگو ضمیمه شد',
     }
   }
   if (activity.kind === 'operator_reply') return {

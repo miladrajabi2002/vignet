@@ -238,7 +238,7 @@ export default async function AnalyticsPage() {
 
         <DashboardPanel
           title={fa ? 'سهم هر اتصال' : 'Channel distribution'}
-          subtitle={fa ? 'کدام اتصال بیشترین ترافیک را دارد' : 'Where conversations come from'}
+          subtitle={fa ? 'بیشتر پیام‌ها از کدام اتصال می‌آید' : 'Where conversations come from'}
         >
           {channelData.length > 0 ? (
             <ChannelDonut data={channelData} />
@@ -290,7 +290,7 @@ export default async function AnalyticsPage() {
           <div className="space-y-3 py-2">
             {[
               { label: fa ? 'گفتگو دریافت شد' : 'Conversations received', value: totalConversations, color: 'bg-[color-mix(in_srgb,var(--signal)_30%,white)]' },
-              { label: fa ? 'توسط ایجنت پاسخ داده شد' : 'Answered by agent', value: totalConversations - handedOff, color: 'bg-[color-mix(in_srgb,var(--signal)_62%,white)]' },
+              { label: fa ? 'ایجنت جواب داد' : 'Answered by agent', value: totalConversations - handedOff, color: 'bg-[color-mix(in_srgb,var(--signal)_62%,white)]' },
               { label: fa ? 'حل شد' : 'Resolved', value: resolvedConversations, color: 'bg-[var(--signal)]' },
               { label: fa ? 'تحویل اپراتور' : 'Handed to operator', value: handedOff, color: 'bg-amber-600' },
             ].map((step) => {
@@ -388,7 +388,7 @@ export default async function AnalyticsPage() {
 
         <DashboardPanel
           title={fa ? 'وضعیت فعلی' : 'Current status'}
-          subtitle={fa ? 'تصویری لحظه‌ای از گفتگوهای در جریان' : 'Live snapshot of active conversations'}
+          subtitle={fa ? 'گفتگوهایی که همین حالا باز هستند' : 'Live snapshot of active conversations'}
         >
           <div className="grid grid-cols-3 gap-3 py-2">
             <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-center">

@@ -193,14 +193,14 @@ export default async function AgentDetailPage(
       priority: 0,
       icon: SlidersHorizontal,
       title: fa ? 'هویت و رفتار ایجنت' : 'Agent identity and behavior',
-      desc: fa ? 'هویت، مدل و قواعد پاسخ‌گویی را بازبینی کنید تا رفتار ایجنت هماهنگ بماند.' : 'Review identity, model and response rules to keep the agent consistent.',
+      desc: fa ? 'نام، مدل و قانون‌های پاسخ‌گویی ایجنت را یک بار مرور کنید.' : 'Review identity, model and response rules to keep the agent consistent.',
       href: `/agents/${agent.id}/settings`,
       cta: fa ? 'بازبینی' : 'Review',
     },
     ...(hasServices && !hasAppointments ? [{
       key: 'services', done: serviceCount > 0, priority: 15, icon: CalendarDays,
       title: fa ? 'کاتالوگ خدمات' : 'Service catalog',
-      desc: fa ? 'خدمات واقعی را ثبت کنید تا ایجنت فقط از اطلاعات تأییدشده استفاده کند.' : 'Register real services so the agent uses verified information.',
+      desc: fa ? 'خدماتتان را اینجا ثبت کنید تا ایجنت فقط دربارهٔ همین‌ها حرف بزند.' : 'Register real services so the agent uses verified information.',
       href: '/services', cta: fa ? 'افزودن خدمت' : 'Add service',
     }] : []),
     ...(hasProducts ? [{
@@ -266,7 +266,7 @@ export default async function AgentDetailPage(
         ? (fa
             ? `آخرین پیام ${relativeTime(channel.lastInboundAt, 'fa')}`
             : `Last message ${relativeTime(channel.lastInboundAt, 'en')}`)
-        : (fa ? 'در انتظار اولین پیام ورودی' : 'Waiting for the first inbound message')
+        : (fa ? 'هنوز پیامی نیامده' : 'Waiting for the first inbound message')
 
       return {
         key: `channel-${channel.id}`,
@@ -316,9 +316,9 @@ export default async function AgentDetailPage(
     growthActions.push({
       key: 'improvement',
       icon: WandSparkles,
-      title: fa ? 'بررسی فرصت‌های بهبود ایجنت' : 'Review agent improvements',
+      title: fa ? 'پیشنهادهای بهبود ایجنت' : 'Review agent improvements',
       desc: fa
-        ? `${pendingImprovementCount.toLocaleString('fa-IR')} پیشنهاد مبتنی بر گفتگو آمادهٔ بررسی است؛ دانش، رفتار یا روند پاسخ‌گویی را بهتر کنید.`
+        ? `${pendingImprovementCount.toLocaleString('fa-IR')} پیشنهاد از روی گفتگوهای واقعی آماده است تا دانش، رفتار یا روند پاسخ‌گویی ایجنت را بهتر کنید.`
         : `${pendingImprovementCount.toLocaleString('en-US')} conversation-based suggestions are ready to improve knowledge, behavior, or reply flow.`,
       href: `/agents/${agent.id}/improve`,
       cta: fa ? 'رفتن به بهبود ایجنت' : 'Open agent improvements',
@@ -392,7 +392,7 @@ export default async function AgentDetailPage(
     growthActions.push({
       key: 'knowledge-growth',
       icon: Database,
-      title: fa ? 'گسترش پوشش دانش ایجنت' : 'Expand knowledge coverage',
+      title: fa ? 'دانش بیشتری به ایجنت بدهید' : 'Expand knowledge coverage',
       desc: fa
         ? 'FAQ، قوانین ارسال یا راهنمای خدمات را اضافه کنید تا پاسخ‌های خاص‌تر و دقیق‌تری بگیرید.'
         : 'Add FAQs, delivery policies or service guides for more precise answers.',
@@ -408,14 +408,14 @@ export default async function AgentDetailPage(
     title: fa ? 'بررسی عملکرد واقعی ایجنت' : 'Review real agent performance',
     desc: conversationCount > 0
       ? (fa
-          ? `عملکرد ${conversationCount.toLocaleString('fa-IR')} گفتگو را بررسی کنید و نقاط قابل بهبود را پیدا کنید.`
+          ? `${conversationCount.toLocaleString('fa-IR')} گفتگو را مرور کنید و ببینید کجا می‌شود ایجنت را بهتر کرد.`
           : `Review ${conversationCount.toLocaleString('en-US')} conversations and find improvement opportunities.`)
       : (fa
           ? 'بعد از شروع گفتگوها، روند استفاده و کیفیت عملکرد را از این بخش دنبال کنید.'
           : 'Once conversations begin, track usage and quality from analytics.'),
     href: `/agents/${agent.id}/analytics`,
     cta: fa ? 'مشاهده تحلیل' : 'View analytics',
-    badge: fa ? 'پایش مستمر' : 'Ongoing review',
+    badge: fa ? 'پیگیری' : 'Ongoing review',
   })
 
   const suggestedPrompts = [
@@ -599,7 +599,7 @@ function AgentGrowthPanel({
                 {fa ? 'فرصت‌های رشد بعدی' : 'Next growth opportunities'}
               </h3>
               <p className="text-[12px] text-[var(--text-muted)]">
-                {fa ? 'پیشنهادهای پویا براساس وضعیت فعلی' : 'Dynamic suggestions based on current status'}
+                {fa ? 'پیشنهادهایی که با وضعیت فعلی ایجنت جور است' : 'Dynamic suggestions based on current status'}
               </p>
             </div>
           </div>

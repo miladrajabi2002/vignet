@@ -373,7 +373,7 @@ export function InstagramAutomationManager({
                         <details className="group overflow-hidden rounded-card border border-[var(--border-subtle)] bg-white shadow-[var(--elev-1)] lg:hidden">
                                 <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-[13px] [&::-webkit-details-marker]:hidden">
                                         <Settings2 className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-                                        <span className="font-bold text-[var(--text-primary)]">{fa ? 'تنظیمات این ورودی' : 'Settings for this entry'}</span>
+                                        <span className="font-bold text-[var(--text-primary)]">{fa ? 'تنظیمات این بخش' : 'Settings for this entry'}</span>
                                         <span className="truncate text-[var(--text-muted)]">· {t(REPLY_POLICY_LABEL_KEY[settings[POLICY_KEY[activeTab]]])}</span>
                                         <ChevronDown className="ms-auto h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180" />
                                 </summary>
@@ -410,7 +410,7 @@ export function InstagramAutomationManager({
                                                 </div>
                                         )}
                                 </div>
-                                <aside className="spatial-surface hidden rounded-card p-4 lg:sticky lg:top-24 lg:block" aria-label={fa ? 'تنظیمات این ورودی' : 'Settings for this entry'}>
+                                <aside className="spatial-surface hidden rounded-card p-4 lg:sticky lg:top-24 lg:block" aria-label={fa ? 'تنظیمات این بخش' : 'Settings for this entry'}>
                                         {settingsPanel}
                                 </aside>
                         </div>
@@ -602,7 +602,7 @@ function ChannelSettingsRail({
                                         max={50}
                                         placeholder={t('manager.stopWordsPlaceholder')}
                                 />
-                                <p className="ui-field-hint">{fa ? 'با دیدنشان ایجنت در آن گفتگو ساکت می‌شود؛ برای همهٔ ورودی‌ها مشترک است.' : 'On seeing one, the agent goes quiet in that conversation. Shared by all entries.'}</p>
+                                <p className="ui-field-hint">{fa ? 'اگر مشتری یکی از این‌ها را بفرستد، ایجنت در آن گفتگو ساکت می‌شود. برای دایرکت، کامنت و استوری یکسان است.' : 'On seeing one, the agent goes quiet in that conversation. Shared by all entries.'}</p>
                         </div>
                 </div>
         )

@@ -244,7 +244,7 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
 			setKeyword(data.filter)
 			setQuestion(2)
 		} catch {
-			setError(fa ? 'پیامک خوانده نشد؛ اتصال را بررسی کنید.' : 'Could not read it; check the connection.')
+			setError(fa ? 'پیامک خوانده نشد؛ اینترنت را چک کنید.' : 'Could not read it; check the connection.')
 		} finally {
 			setReading(false)
 		}
@@ -284,7 +284,7 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
 			writeDraft(null)
 			router.refresh()
 		} catch {
-			setError(fa ? 'ثبت نشد؛ اتصال را بررسی کنید.' : 'Not saved; check the connection.')
+			setError(fa ? 'ثبت نشد؛ اینترنت را چک کنید.' : 'Not saved; check the connection.')
 		} finally {
 			setBusy(false)
 		}
@@ -317,7 +317,7 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
 					</Question>
 				)}
 				{question === 1 && (
-					<Question title={fa ? 'یک پیامک واریز همین کارت را بچسبانید' : 'Paste one deposit SMS of this card'} body={fa ? 'روی همان گوشی، یکی از پیامک‌های واریز بانک را کپی کنید و این‌جا بچسبانید. ویجنت خودش متن ثابت آن را پیدا می‌کند و به مرحلهٔ بعد می‌رود.' : 'On that phone, copy one of the bank’s deposit messages and paste it here. Vigent finds its fixed text by itself and moves on.'}>
+					<Question title={fa ? 'یک پیامک واریز همین کارت را وارد کنید' : 'Paste one deposit SMS of this card'} body={fa ? 'روی همان گوشی، یکی از پیامک‌های واریز بانک را کپی کنید و این‌جا بچسبانید. ویجنت خودش متن ثابت آن را پیدا می‌کند و به مرحلهٔ بعد می‌رود.' : 'On that phone, copy one of the bank’s deposit messages and paste it here. Vigent finds its fixed text by itself and moves on.'}>
 						<div className={cn('relative rounded-control border-[1.5px] bg-white transition-colors focus-within:border-[#5b3de8] dark:bg-neutral-900', error ? 'border-red-300' : 'border-[var(--border-default)]')}>
 							<label className="block">
 								<span className="sr-only">{fa ? 'متن پیامک واریز' : 'Deposit SMS text'}</span>
@@ -528,7 +528,7 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 			<StepFooter
 				back={busy === 'edit' || done ? null : back}
 				next={next}
-				hint={page === lastPage && inSetup ? (fa ? 'درستیِ تنظیم با واریز آزمایشی قدم بعد مشخص می‌شود.' : 'The next step’s test transfer shows whether it all works.') : null}
+				hint={page === lastPage && inSetup ? (fa ? 'قدم بعد، با یک واریز آزمایشی معلوم می‌شود تنظیم درست است یا نه.' : 'The next step’s test transfer shows whether it all works.') : null}
 			/>
 		</section>
 	)
@@ -575,7 +575,7 @@ export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard
 			}
 			setTest(data.card)
 		} catch {
-			setTestError(fa ? 'تراکنش آزمایشی ساخته نشد؛ اتصال را بررسی کنید.' : 'Not created; check the connection.')
+			setTestError(fa ? 'تراکنش آزمایشی ساخته نشد؛ اینترنت را چک کنید.' : 'Not created; check the connection.')
 		} finally {
 			setBusy(false)
 		}
@@ -697,7 +697,7 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 				</div>
 				<div className="flex w-full flex-wrap gap-2 sm:w-auto">
 					<Link href="/payments/devices" className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)] sm:flex-none"><BookOpen className="size-4" aria-hidden />{fa ? 'راهنمای تنظیم' : 'Setup guide'}</Link>
-					<button type="button" aria-expanded={confirming} onClick={() => setConfirming(!confirming)} className={cn('inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-bold sm:flex-none', confirming ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]' : 'bg-[var(--text-primary)] text-white dark:text-neutral-900')}><RotateCcw className="size-4" aria-hidden />{fa ? 'راه‌اندازی مجدد' : 'Set up again'}</button>
+					<button type="button" aria-expanded={confirming} onClick={() => setConfirming(!confirming)} className={cn('inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-bold sm:flex-none', confirming ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]' : 'bg-[var(--text-primary)] text-white dark:text-neutral-900')}><RotateCcw className="size-4" aria-hidden />{fa ? 'راه‌اندازی دوباره' : 'Set up again'}</button>
 				</div>
 			</div>
 			<dl className="grid grid-cols-1 border-t border-[var(--border-subtle)] sm:grid-cols-3 sm:divide-x sm:divide-[var(--border-subtle)] sm:rtl:divide-x-reverse">
@@ -711,11 +711,11 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 			{confirming && (
 				<div className="grid gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5">
 					<div>
-						<p className="text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'راه‌اندازی مجدد گوشی دریافت پیامک' : 'Set up the SMS phone again'}</p>
+						<p className="text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'راه‌اندازی دوبارهٔ گوشی دریافت پیامک' : 'Set up the SMS phone again'}</p>
 						<p className="mt-1 text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'برای گوشی تازه (اندروید یا آیفون)، سیم‌کارت تازه یا روش ارسال دیگر. همان سؤال‌ها با پاسخ‌های فعلی باز می‌شود و با یک واریز آزمایشی تمام می‌شود؛ تا آن موقع پرداخت‌ها برای تأیید دستی به شما می‌رسند.' : 'For a new phone (Android or iPhone), a new SIM or the other delivery. The same questions open with the current answers and finish with one test transfer; until then payments come to you to confirm by hand.'}</p>
 					</div>
 					<div className="flex flex-wrap gap-2">
-						<Button loading={busy} onClick={replace}><RotateCcw className="size-4" aria-hidden />{fa ? 'شروع راه‌اندازی مجدد' : 'Start again'}</Button>
+						<Button loading={busy} onClick={replace}><RotateCcw className="size-4" aria-hidden />{fa ? 'شروع دوبارهٔ راه‌اندازی' : 'Start again'}</Button>
 						<Button variant="ghost" onClick={() => setConfirming(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>
 					</div>
 				</div>

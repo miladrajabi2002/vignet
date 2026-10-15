@@ -69,7 +69,7 @@ export function DashboardCompletionChecklist({
       key: 'knowledge',
       title: fa ? 'دانش و جزئیات کسب‌وکار' : 'Business knowledge and details',
       description: fa
-        ? (facts.knowledgePostponed ? 'این مرحله را در آنبوردینگ رد کردید؛ حالا اطلاعات، خدمات یا محصولات واقعی را اضافه کنید.' : 'اطلاعات، خدمات یا محصولات واقعی را در اختیار ایجنت بگذارید.')
+        ? (facts.knowledgePostponed ? 'این مرحله را در راه‌اندازی اولیه رد کردید؛ حالا اطلاعات، خدمات یا محصولات واقعی را اضافه کنید.' : 'اطلاعات، خدمات یا محصولات واقعی را در اختیار ایجنت بگذارید.')
         : (facts.knowledgePostponed ? 'You postponed this during onboarding; add real information, services or products now.' : 'Add real business information, services or products.'),
       cta: fa ? 'تکمیل دانش' : 'Complete knowledge',
       href: facts.agentId ? `${agentBase}/knowledge` : agentBase,
@@ -89,7 +89,7 @@ export function DashboardCompletionChecklist({
     },
     {
       key: 'test',
-      title: fa ? 'آزمایش تجربه واقعی' : 'Test the real experience',
+      title: fa ? 'یک گفتگوی واقعی را امتحان کنید' : 'Test the real experience',
       description: fa ? 'یک گفتگوی کامل را بررسی کنید و کیفیت پاسخ را بسنجید.' : 'Review a full conversation and verify response quality.',
       cta: fa ? 'آزمایش پاسخ' : 'Test responses',
       href: facts.agentId ? agentBase : '/agents',
@@ -163,7 +163,7 @@ export function DashboardCompletionChecklist({
             </h2>
             <p className="mt-1.5 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
               {fa
-                ? 'کارهایی که در آنبوردینگ انجام دادید تکمیل شده‌اند؛ موارد باقی‌مانده در ابتدای این مسیر قرار گرفته‌اند.'
+                ? 'کارهایی که در راه‌اندازی اولیه انجام دادید تیک خورده‌اند و کارهای باقی‌مانده اول فهرست آمده‌اند.'
                 : 'Tasks completed during onboarding are marked done; the remaining work appears first.'}
             </p>
           </div>

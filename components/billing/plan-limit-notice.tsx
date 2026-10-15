@@ -44,12 +44,12 @@ export function PlanLimitNotice({
     : '/billing#vigent-plans'
 
   const title = locale === 'fa'
-    ? `ظرفیت ${resource} پلن ${currentPlan} تکمیل شده است`
+    ? `ظرفیت ${resource} در پلن ${currentPlan} پر شده`
     : `Your ${currentPlan} plan ${resource} allowance is full`
   const explanation = locale === 'fa'
     ? syncContext
-      ? `اتصال افزونه برقرار است؛ فقط دریافت ${resource} جدید تا افزایش ظرفیت متوقف می‌ماند.`
-      : `در حال حاضر ${nf.format(limit.used)} از ${nf.format(limit.limit)} ${resource} استفاده شده است.`
+      ? `افزونه وصل است؛ فقط ${resource} جدید تا بیشتر شدن ظرفیت نمی‌آید.`
+      : `الان ${nf.format(limit.used)} از ${nf.format(limit.limit)} ${resource} پر است.`
     : syncContext
       ? `The plugin is connected; only new ${resource} imports are paused until capacity increases.`
       : `You are using ${nf.format(limit.used)} of ${nf.format(limit.limit)} ${resource} slots.`
@@ -93,7 +93,7 @@ export function PlanLimitNotice({
         >
           {limit.recommendedPlan
             ? locale === 'fa' ? `ارتقا به پلن ${nextPlan}` : `Upgrade to ${nextPlan}`
-            : locale === 'fa' ? 'مشاهده گزینه‌های افزایش ظرفیت' : 'View capacity options'}
+            : locale === 'fa' ? 'دیدن پلن‌های بالاتر' : 'View capacity options'}
           <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </Link>
       </div>
@@ -155,7 +155,7 @@ export function PlanLimitsNotice({
           </h2>
           <p className="mt-1 text-xs leading-6 text-amber-900/85">
             {syncContext
-              ? fa ? 'اتصال سایت برقرار است و به‌روزرسانی‌ها ادامه دارد؛ فقط موارد جدید تا افزایش ظرفیت اضافه نمی‌شوند.' : 'The site stays connected and updates continue; only new items wait for more capacity.'
+              ? fa ? 'سایت وصل است و به‌روزرسانی‌ها ادامه دارد؛ فقط مورد تازه‌ای تا بیشتر شدن ظرفیت اضافه نمی‌شود.' : 'The site stays connected and updates continue; only new items wait for more capacity.'
               : fa ? 'موارد جدید تا افزایش ظرفیت اضافه نمی‌شوند.' : 'New items wait until capacity increases.'}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -172,7 +172,7 @@ export function PlanLimitsNotice({
         >
           {nextPlan
             ? fa ? `ارتقا به پلن ${nextPlan}` : `Upgrade to ${nextPlan}`
-            : fa ? 'مشاهده گزینه‌های افزایش ظرفیت' : 'View capacity options'}
+            : fa ? 'دیدن پلن‌های بالاتر' : 'View capacity options'}
           <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </Link>
       </div>

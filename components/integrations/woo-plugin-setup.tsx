@@ -37,15 +37,15 @@ export function normalizeStoreUrlInput(raw: string): string {
 export function wooCreateErrorMessage(code: unknown, fa: boolean): string {
     switch (code) {
         case 'INVALID':
-            return fa ? 'آدرس سایت نامعتبر است. مثال: https://example.com' : 'The site address is not valid. Example: https://example.com'
+            return fa ? 'آدرس سایت درست نیست. مثلاً: https://example.com' : 'The site address is not valid. Example: https://example.com'
         case 'UNSAFE_STORE_URL':
-            return fa ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.' : 'This site address cannot be accepted for security reasons.'
+            return fa ? 'این آدرس را به‌خاطر مسائل امنیتی نمی‌توانیم قبول کنیم.' : 'This site address cannot be accepted for security reasons.'
         case 'PLAN_BLOCKED':
             return fa ? 'پلن شما اجازه اتصال سایت را نمی‌دهد.' : 'Your plan does not include a site connection.'
         case 'UNAUTHORIZED':
-            return fa ? 'نشست شما منقضی شده؛ دوباره وارد شوید.' : 'Your session has expired. Sign in again.'
+            return fa ? 'از حسابتان خارج شده‌اید؛ دوباره وارد شوید.' : 'Your session has expired. Sign in again.'
         default:
-            return fa ? 'خطا در ساخت اتصال؛ دوباره تلاش کنید.' : 'The connection could not be created. Try again.'
+            return fa ? 'اتصال ساخته نشد؛ دوباره امتحان کنید.' : 'The connection could not be created. Try again.'
     }
 }
 

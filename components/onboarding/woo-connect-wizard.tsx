@@ -130,7 +130,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
       pollStoppedRef.current = false
       setPolling(true)
     } catch {
-      setError((fa ? 'خطا در ارتباط با سرور.' : 'Could not reach the server.'))
+      setError((fa ? 'به سرور وصل نشدیم. اینترنت را چک کنید و دوباره امتحان کنید.' : 'Could not reach the server.'))
     } finally {
       setSubmitting(false)
     }

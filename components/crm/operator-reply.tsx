@@ -211,7 +211,7 @@ export function OperatorReply({
   ) : delivery?.status === 'stored' ? (
     <p className="inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
       <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
-      {fa ? 'پیام در گفتگو ثبت شد و برای کاربر قابل مشاهده است.' : 'Message added to the conversation and visible to the customer.'}
+      {fa ? 'پیام در گفتگو ثبت شد و مشتری آن را می‌بیند.' : 'Message added to the conversation and visible to the customer.'}
     </p>
   ) : null
 

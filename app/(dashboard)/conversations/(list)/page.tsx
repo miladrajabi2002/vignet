@@ -459,8 +459,8 @@ export default async function ConversationsPage(props: {
                                                         { key: 'ALL', label: isFa ? 'همه دسته‌های فروش' : 'All sales categories', count: totalCount },
                                                         { key: 'HIGH_INTENT', label: isFa ? 'فرصت‌های گرم (۵۰٪+)' : 'Warm opportunities (50%+)', count: highIntentCount },
                                                         { key: 'DISSATISFIED', label: isFa ? 'مشتری ناراضی' : 'Dissatisfied customer', count: dissatisfiedCount },
-                                                        { key: 'BUYER', label: isFa ? 'خریدار بالقوه' : 'Potential buyer', count: salesCounts.get('BUYER') ?? 0 },
-                                                        { key: 'INFORMATION_SEEKER', label: isFa ? 'در حال کسب اطلاعات' : 'Information seeker', count: salesCounts.get('INFORMATION_SEEKER') ?? 0 },
+                                                        { key: 'BUYER', label: isFa ? 'خریدار احتمالی' : 'Potential buyer', count: salesCounts.get('BUYER') ?? 0 },
+                                                        { key: 'INFORMATION_SEEKER', label: isFa ? 'در حال پرس‌وجو' : 'Information seeker', count: salesCounts.get('INFORMATION_SEEKER') ?? 0 },
                                                         { key: 'EXISTING_CUSTOMER', label: isFa ? 'مشتری فعلی' : 'Existing customer', count: salesCounts.get('EXISTING_CUSTOMER') ?? 0 },
                                                         { key: 'SUPPORT_SEEKER', label: isFa ? 'درخواست پشتیبانی' : 'Support request', count: salesCounts.get('SUPPORT_SEEKER') ?? 0 },
                                                 ]}
@@ -473,7 +473,7 @@ export default async function ConversationsPage(props: {
                                                 {filtered ? (
                                                         <LiveEmptyState
                                                                 icon={MessagesSquare}
-                                                                title={isFa ? 'مکالمه‌ای با این فیلتر یافت نشد' : 'No conversations match these filters'}
+                                                                title={isFa ? 'گفتگویی با این فیلتر پیدا نشد' : 'No conversations match these filters'}
                                                                 description={isFa ? 'فیلترها را کمتر کنید یا عبارت دیگری جستجو کنید.' : 'Loosen the filters or try another search.'}
                                                         />
                                                 ) : (

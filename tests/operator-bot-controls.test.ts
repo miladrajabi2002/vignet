@@ -67,6 +67,6 @@ describe('operator settings connection status', () => {
   it('renders the connected label in only one place', async () => {
     const source = await readFile('components/crm/operator-channel-setup.tsx', 'utf8')
     expect(source.match(/t\('connected'\)/g)).toHaveLength(1)
-    expect(source).toContain('پیام آزمایشی با موفقیت به تلگرام ارسال شد.')
+    expect(source).toContain('پیام آزمایشی به تلگرام رفت.')
   })
 })

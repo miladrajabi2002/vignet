@@ -164,7 +164,7 @@ export function WooCommerceBadge() {
   return (
     <span
       className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-white px-1.5 text-[12px] font-medium leading-none text-[var(--text-secondary)]"
-      title={fa ? 'مشتری از طریق افزونه ووکامرس وارد شده است' : 'This customer came in through the WooCommerce plugin'}
+      title={fa ? 'این مشتری از ووکامرس آمده' : 'This customer came in through the WooCommerce plugin'}
     >
       <WooCommerceIcon className="h-3.5 w-3.5 shrink-0 text-[#7f54b3]" />
       {fa ? WOO_SOURCE_TAG : 'WooCommerce'}

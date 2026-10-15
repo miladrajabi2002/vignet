@@ -570,7 +570,7 @@ export function WebWidgetChannel({
                                                                                         <RotateCw className="h-3 w-3 text-[var(--text-muted)]" />
                                                                                         <span className="text-[12px] text-[var(--text-muted)]">
                                                                                                 {isRtl
-                                                                                                        ? '۰ = استفاده از پیش‌فرض (ملایم). می‌توانید از ۱ تا ۳۰ تنظیم کنید.'
+                                                                                                        ? '۰ یعنی پیش‌فرض (ملایم). از ۱ تا ۳۰ می‌توانید عوضش کنید.'
                                                                                                         : '0 = use preset (soft). Drag 1–30 for a custom radius.'}
                                                                                         </span>
                                                                                 </div>

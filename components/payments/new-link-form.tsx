@@ -63,7 +63,7 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 			setMade({ url: data.url, amount: value, description: description.trim() })
 			router.refresh()
 		} catch {
-			setError(fa ? 'لینک ساخته نشد؛ اتصال را بررسی کنید.' : 'The link was not created; check the connection.')
+			setError(fa ? 'لینک ساخته نشد؛ اینترنت را چک کنید.' : 'The link was not created; check the connection.')
 		} finally {
 			setBusy(false)
 		}

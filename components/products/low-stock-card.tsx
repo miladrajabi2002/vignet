@@ -98,7 +98,7 @@ export function LowStockCard({
               className="input h-9 min-h-9 w-20 text-center tabular-nums"
               autoFocus
             />
-            <span>{fa ? 'عدد یا کمتر رسید خبرم کن (۰ = خاموش)' : 'units or fewer (0 = off)'}</span>
+            <span>{fa ? 'عدد یا کمتر رسید خبرم کن (۰ یعنی خاموش)' : 'units or fewer (0 = off)'}</span>
           </div>
         ) : (
           <p className="mt-0.5 text-[13px] leading-5 text-[var(--text-muted)]">

@@ -232,9 +232,9 @@ export const DEFAULT_SETTINGS: InstagramAutomationSettings = {
 
 /** @deprecated Use MATCH_MODE_DESC_KEY + `t()`. */
 export const MATCH_MODE_DESC: Record<MatchMode, string> = {
-        EXACT: 'دقیقاً برابر با کلمه‌کلیدی',
-        CONTAINS: 'شامل کلمه‌کلیدی در هر جای متن',
-        STARTS_WITH: 'شروع با کلمه‌کلیدی',
+        EXACT: 'پیام دقیقاً همان کلمهٔ کلیدی باشد',
+        CONTAINS: 'کلمهٔ کلیدی هر جای پیام آمده باشد',
+        STARTS_WITH: 'پیام با کلمهٔ کلیدی شروع شود',
 }
 
 export const REPLY_MODE_SHORT_LABEL_KEY: Record<ReplyMode, string> = {

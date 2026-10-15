@@ -47,8 +47,8 @@ const LABELS = {
   leadType: {
     fa: {
       UNCLEAR: 'نیاز به داده بیشتر',
-      INFORMATION_SEEKER: 'در حال کسب اطلاعات',
-      BUYER: 'خریدار بالقوه',
+      INFORMATION_SEEKER: 'در حال پرس‌وجو',
+      BUYER: 'خریدار احتمالی',
       EXISTING_CUSTOMER: 'مشتری فعلی',
       SUPPORT_SEEKER: 'درخواست پشتیبانی',
     },
@@ -67,7 +67,7 @@ const LABELS = {
       INFORMATION_GATHERING: 'جمع‌آوری اطلاعات',
       CONSIDERATION: 'بررسی گزینه‌ها',
       NEGOTIATION: 'مذاکره',
-      PURCHASE_INTENT: 'آماده اقدام',
+      PURCHASE_INTENT: 'آمادهٔ خرید',
       POST_PURCHASE: 'پس از خرید',
     },
     en: {
@@ -85,7 +85,7 @@ const LABELS = {
     en: { COLD: 'Cold', EXPLORING: 'Exploring', WARM: 'Warm', HOT: 'Hot', CUSTOMER: 'Customer' },
   },
   sentiment: {
-    fa: { NEGATIVE: 'منفی', NEUTRAL: 'خنثی', POSITIVE: 'مثبت', MIXED: 'ترکیبی', DISTRESSED: 'ناراضی/تحت فشار' },
+    fa: { NEGATIVE: 'منفی', NEUTRAL: 'خنثی', POSITIVE: 'مثبت', MIXED: 'ترکیبی', DISTRESSED: 'ناراضی یا کلافه' },
     en: { NEGATIVE: 'Negative', NEUTRAL: 'Neutral', POSITIVE: 'Positive', MIXED: 'Mixed', DISTRESSED: 'Distressed' },
   },
   urgency: {
@@ -100,26 +100,26 @@ const LABELS = {
 
 const SIGNAL_LABELS: Record<string, readonly [string, string]> = {
   BUY_COMMITMENT: ['درخواست صریح خرید یا رزرو', 'Explicit purchase or booking request'],
-  TRANSACTIONAL_QUESTION: ['پرسش عملیاتی پیش از خرید', 'Transactional pre-purchase question'],
-  NEGOTIATION: ['ورود به مذاکره', 'Negotiating terms'],
+  TRANSACTIONAL_QUESTION: ['سؤال عملی قبل از خرید', 'Transactional pre-purchase question'],
+  NEGOTIATION: ['چانه‌زنی', 'Negotiating terms'],
   CONSIDERATION: ['مقایسه و ارزیابی گزینه‌ها', 'Comparing and evaluating options'],
   NEED_DISCOVERY: ['بیان نیاز یا درخواست پیشنهاد', 'Stated need or recommendation request'],
   INFORMATION: ['درخواست اطلاعات', 'Information request'],
-  INFORMATION_ONLY: ['تمرکز روی اطلاعات عمومی', 'General information focus'],
+  INFORMATION_ONLY: ['فقط اطلاعات کلی می‌خواهد', 'General information focus'],
   POST_PURCHASE: ['موضوع پس از خرید', 'Post-purchase topic'],
   SUPPORT: ['درخواست پشتیبانی', 'Support request'],
   POSITIVE_SENTIMENT: ['بازخورد مثبت', 'Positive feedback'],
-  NEGATIVE_SENTIMENT: ['نارضایتی یا اصطکاک', 'Dissatisfaction or friction'],
+  NEGATIVE_SENTIMENT: ['نارضایتی یا دلخوری', 'Dissatisfaction or friction'],
   SEVERE_DISTRESS: ['نارضایتی شدید', 'Severe distress'],
   HIGH_URGENCY: ['فوریت بالا', 'High urgency'],
   MEDIUM_URGENCY: ['محدودیت زمانی', 'Time constraint'],
   HUMAN_REQUEST: ['درخواست اپراتور', 'Requested a human operator'],
-  AUTHORITY_REQUIRED: ['نیاز به اختیار انسانی', 'Human authority may be required'],
+  AUTHORITY_REQUIRED: ['تصمیمش باید با اپراتور باشد', 'Human authority may be required'],
   REPEATED_REQUEST: ['تکرار درخواست حل‌نشده', 'Repeated unresolved request'],
   OBJECTION_PRICE: ['مانع قیمت یا بودجه', 'Price or budget objection'],
-  OBJECTION_TRUST: ['ابهام درباره اعتماد', 'Trust objection'],
-  OBJECTION_FIT: ['ابهام درباره تناسب', 'Fit objection'],
-  OBJECTION_TIMING: ['مانع زمان تصمیم', 'Timing objection'],
+  OBJECTION_TRUST: ['هنوز اعتماد نکرده', 'Trust objection'],
+  OBJECTION_FIT: ['مطمئن نیست به کارش بیاید', 'Fit objection'],
+  OBJECTION_TIMING: ['هنوز وقت تصمیمش نرسیده', 'Timing objection'],
   OBJECTION_AUTHORITY: ['نیاز به تأیید تصمیم‌گیرنده', 'Decision-authority objection'],
   OBJECTION_COMPETITOR: ['بررسی رقیب یا جایگزین', 'Considering a competitor'],
   OBJECTION_RISK: ['نگرانی درباره ریسک', 'Risk objection'],
@@ -207,12 +207,12 @@ export function SalesInsightBadge({
         probabilityTone(probability),
         className,
       )}
-      title={locale === 'fa' ? 'برآورد هوشمند احتمال خرید' : 'Estimated purchase probability'}
+      title={locale === 'fa' ? 'احتمال خرید (تخمین هوش مصنوعی)' : 'Estimated purchase probability'}
     >
       <Target className="h-3 w-3" aria-hidden="true" />
       <span className={cn(compactOnMobile && 'hidden sm:inline')}>{LABELS.leadType[locale][insight.leadType]}</span>
       {!converted && <span className={cn(compactOnMobile && 'hidden sm:inline')} aria-hidden="true">·</span>}
-      <span>{converted ? (locale === 'fa' ? 'تبدیل‌شده' : 'Converted') : `${nf.format(probability)}٪`}</span>
+      <span>{converted ? (locale === 'fa' ? 'خرید کرده' : 'Converted') : `${nf.format(probability)}٪`}</span>
     </span>
   )
 }
@@ -252,7 +252,7 @@ export function SalesInsightText({
           : converted || probability >= 75 ? 'text-emerald-700' : 'text-[var(--text-muted)]',
         className,
       )}
-      title={locale === 'fa' ? 'برآورد هوشمند احتمال خرید' : 'Estimated purchase probability'}
+      title={locale === 'fa' ? 'احتمال خرید (تخمین هوش مصنوعی)' : 'Estimated purchase probability'}
     >
       {converted
         ? (locale === 'fa' ? 'مشتری فعلی' : 'Existing customer')
@@ -331,7 +331,7 @@ export function SalesInsightCard({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            <h2 id="sales-insight-title">{locale === 'fa' ? 'هوش فروش گفتگو' : 'Conversation sales intelligence'}</h2>
+            <h2 id="sales-insight-title">{locale === 'fa' ? 'تحلیل فروش این گفتگو' : 'Conversation sales intelligence'}</h2>
           </div>
           <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
             {locale === 'fa'
@@ -346,7 +346,7 @@ export function SalesInsightCard({
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-[12px] text-[var(--text-muted)]">{converted ? (locale === 'fa' ? 'وضعیت خرید' : 'Purchase status') : (locale === 'fa' ? 'احتمال تبدیل به خریدار' : 'Purchase likelihood')}</p>
-            <p className="mt-0.5 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{converted ? (locale === 'fa' ? 'تبدیل‌شده' : 'Converted') : `${nf.format(probability)}٪`}</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{converted ? (locale === 'fa' ? 'خرید کرده' : 'Converted') : `${nf.format(probability)}٪`}</p>
           </div>
           <div className="text-end text-[12px] leading-5 text-[var(--text-secondary)]">
             <p>{LABELS.readiness[locale][insight.buyerReadiness]}</p>
@@ -445,7 +445,7 @@ export function SalesInsightCard({
       )}
 
       <p className="mt-3 text-[12px] leading-5 text-[var(--text-muted)]">
-        {locale === 'fa' ? 'این درصد یک برآورد تصمیم‌یار است، نه تضمین خرید.' : 'This is a decision-support estimate, not a purchase guarantee.'}
+        {locale === 'fa' ? 'این عدد فقط تخمینی برای کمک به تصمیم شماست، نه قول خرید.' : 'This is a decision-support estimate, not a purchase guarantee.'}
       </p>
     </section>
   )

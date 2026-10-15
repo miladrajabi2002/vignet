@@ -91,7 +91,7 @@ export function ConversationHeaderActions({
         ) : (
           <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
         )}
-        {resolved ? (fa ? 'بازگشایی' : 'Reopen') : (fa ? 'حل شد' : 'Resolve')}
+        {resolved ? (fa ? 'باز کردن دوباره' : 'Reopen') : (fa ? 'حل شد' : 'Resolve')}
       </button>
 
       {fullPageHref && (

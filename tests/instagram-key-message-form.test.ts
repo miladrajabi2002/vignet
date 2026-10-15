@@ -68,7 +68,7 @@ describe('key message form', () => {
 
     expect(linkChoices(html)).toBe(0)
     expect(html).not.toContain('value="https://vigent.ir"')
-    expect(html).toContain('تراشه لینک باز نمی‌کند')
+    expect(html).toContain('دکمهٔ پاسخ سریع لینک باز نمی‌کند')
     expect(saveIsClosed(html)).toBe(false)
   })
 

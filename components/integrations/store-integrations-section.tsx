@@ -143,7 +143,7 @@ export function StoreIntegrationsSection({
                 return wooCreateErrorMessage(data.error, fa)
             }
         } catch {
-            return fa ? 'خطا در ارتباط با سرور.' : 'Could not reach the server.'
+            return fa ? 'به سرور وصل نشدیم. اینترنت را چک کنید و دوباره امتحان کنید.' : 'Could not reach the server.'
         }
         setShowForm(false)
         router.refresh()
@@ -164,7 +164,7 @@ export function StoreIntegrationsSection({
             setNotice(formatWooSyncResult(data))
             router.refresh()
         } catch {
-            setNotice({ type: 'err', msg: (fa ? 'خطا در ارتباط با سرور.' : 'Could not reach the server.') })
+            setNotice({ type: 'err', msg: (fa ? 'به سرور وصل نشدیم. اینترنت را چک کنید و دوباره امتحان کنید.' : 'Could not reach the server.') })
         } finally {
             setSyncingId(null)
         }
@@ -278,7 +278,7 @@ export function StoreIntegrationsSection({
                 title={fa ? 'حذف اتصال سایت' : 'Delete site connection'}
                 description={
                     deleteTarget
-                        ? (fa ? `اتصال به ${storeHost(deleteTarget.storeUrl)} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.` : `The connection to ${storeHost(deleteTarget.storeUrl)} will be deleted; its orders and sync settings leave the panel.`)
+                        ? (fa ? `اتصال به ${storeHost(deleteTarget.storeUrl)} حذف می‌شود و سفارش‌ها و تنظیمات همگام‌سازی‌اش هم از پنل برداشته می‌شود.` : `The connection to ${storeHost(deleteTarget.storeUrl)} will be deleted; its orders and sync settings leave the panel.`)
                         : undefined
                 }
                 confirmLabel={fa ? 'حذف اتصال' : 'Delete connection'}

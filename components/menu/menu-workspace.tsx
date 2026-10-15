@@ -163,7 +163,7 @@ export function MenuWorkspace({
     setBusy(null)
     if (!response?.ok) {
       setItems((rows) => rows.map((row) => (row.id === item.id ? item : row)))
-      setError(response?.status === 402 ? 'پلن فضای کاری فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'تغییر ذخیره نشد؛ دوباره تلاش کنید.')
+      setError(response?.status === 402 ? 'پلنتان فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.' : 'تغییر ذخیره نشد؛ دوباره تلاش کنید.')
     }
   }
 

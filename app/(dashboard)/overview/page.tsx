@@ -397,7 +397,7 @@ export default async function OverviewPage() {
           label={fa ? 'گفتگو در ۷ روز' : 'Conversations, 7d'}
           value={nf.format(conversations7d)}
           delta={conversationDelta === null ? undefined : { value: conversationDelta, text: deltaText(conversationDelta) }}
-          hint={conversationDelta === null ? (fa ? 'شروع دوره اندازه‌گیری' : 'measurement started') : deltaHint}
+          hint={conversationDelta === null ? (fa ? 'هنوز هفتهٔ قبلی برای مقایسه نیست' : 'measurement started') : deltaHint}
           series={conversationsMiniTrend.series}
         />
         <OutcomeCard
@@ -428,7 +428,7 @@ export default async function OverviewPage() {
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <DashboardPanel
           title={fa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
-          subtitle={fa ? 'یک روند اصلی؛ جزئیات کامل در بخش گزارش‌ها' : 'One primary trend; deeper analysis stays in Analytics'}
+          subtitle={fa ? 'جزئیات بیشتر در بخش تحلیل‌ها' : 'One primary trend; deeper analysis stays in Analytics'}
           action={<Link href="/analytics" className="ui-link">{fa ? 'گزارش کامل' : 'Full report'}<Arrow aria-hidden /></Link>}
         >
           <ConversationChart
@@ -441,8 +441,8 @@ export default async function OverviewPage() {
         </DashboardPanel>
 
         <DashboardPanel
-          title={fa ? 'آخرین پرونده‌ها' : 'Recent customer cases'}
-          subtitle={fa ? 'آخرین گفتگوها، بدون بازکردن چند صفحه' : 'The latest conversations at a glance'}
+          title={fa ? 'آخرین گفتگوها' : 'Recent customer cases'}
+          subtitle={fa ? 'تازه‌ترین گفتگوها در یک نگاه' : 'The latest conversations at a glance'}
           action={<Link href="/conversations" className="ui-link">{fa ? 'همه گفتگوها' : 'All conversations'}<Arrow aria-hidden /></Link>}
           bodyClassName="divide-y divide-[var(--border-subtle)]"
         >
@@ -519,7 +519,7 @@ export default async function OverviewPage() {
 
         <DashboardPanel
           title={fa ? 'پلن و اعتبار' : 'Plan & credit'}
-          subtitle={fa ? 'خلاصه کوتاه؛ جزئیات در بخش مالی' : 'A compact summary; details stay in Billing'}
+          subtitle={fa ? 'جزئیات در بخش «اشتراک و اعتبار»' : 'A compact summary; details stay in Billing'}
           action={<Link href="/billing" className="ui-link">{fa ? 'مدیریت' : 'Manage'}<Arrow aria-hidden /></Link>}
         >
           <div className="flex items-end justify-between gap-4">

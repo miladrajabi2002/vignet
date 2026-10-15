@@ -153,7 +153,7 @@ export default async function AgentAnalyticsPage(
       {/* ─── Status donut + 14-day conversation trend — side by side ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <DashboardPanel
-          title={locale === 'fa' ? 'وضعیت مکالمات این ایجنت' : 'Conversation Status'}
+          title={locale === 'fa' ? 'وضعیت گفتگوهای این ایجنت' : 'Conversation Status'}
           subtitle={locale === 'fa' ? 'توزیع بر اساس وضعیت فعلی' : 'Distribution by current status'}
         >
           <DashboardDonut
@@ -237,7 +237,7 @@ export default async function AgentAnalyticsPage(
             term: locale === 'fa' ? 'نرخ تکمیل: ' : 'Resolve rate: ',
             body:
               locale === 'fa'
-                ? 'درصد گفتگوهایی که با وضعیت تکمیل‌شده بسته شده‌اند. گفتگوهای باز یا تحویل‌داده‌شده به اپراتور در این درصد حساب نمی‌شوند. بسته‌شدن خودکار پس از ۲۴ ساعت بی‌فعالیتی.'
+                ? 'درصد گفتگوهایی که حل‌شده بسته شده‌اند. گفتگوهای باز یا سپرده‌شده به اپراتور حساب نمی‌شوند. گفتگویی که ۲۴ ساعت پیامی نگیرد، خودکار بسته می‌شود.'
                 : 'Percentage of conversations closed with status RESOLVED. Open or handed-off conversations are excluded. Auto-close after 24h of inactivity.',
           },
           {
@@ -246,7 +246,7 @@ export default async function AgentAnalyticsPage(
             term: locale === 'fa' ? 'میانگین رضایت: ' : 'Average rating: ',
             body:
               locale === 'fa'
-                ? 'میانگین امتیاز ۱ تا ۵ ستاره‌ای که کاربران به این ایجنت داده‌اند. فقط گفتگوهایی که امتیاز دریافت کرده‌اند وارد محاسبه می‌شوند.'
+                ? 'میانگین امتیاز ۱ تا ۵ ستاره‌ای که مشتری‌ها به این ایجنت داده‌اند. فقط گفتگوهای امتیازدار حساب می‌شوند.'
                 : 'Average 1–5 star rating users gave this agent. Only rated conversations are included.',
           },
           {
@@ -254,7 +254,7 @@ export default async function AgentAnalyticsPage(
             term: locale === 'fa' ? 'هزینه پاسخ‌ها: ' : 'Reply cost: ',
             body:
               locale === 'fa'
-                ? 'مجموع مبلغ کسرشده برای پاسخ‌های موفق این ایجنت. جزئیات در بخش مالی دیده می‌شود.'
+                ? 'جمع مبلغی که برای جواب‌های موفق این ایجنت از اعتبار کم شده. جزئیاتش در «اشتراک و اعتبار» است.'
                 : 'Total amount deducted for successful replies from this agent. Details are shown on the billing page.',
           },
           {
@@ -263,7 +263,7 @@ export default async function AgentAnalyticsPage(
               locale === 'fa' ? 'روند گفتگوها: ' : 'Conversations trend: ',
             body:
               locale === 'fa'
-                ? 'تعداد گفتگوهای جدید در ۱۴ روز گذشته. فقط زمان شروع گفتگو لحاظ می‌شود، نه تعداد پیام‌ها.'
+                ? 'تعداد گفتگوهای تازه در ۱۴ روز گذشته. هر گفتگو یک بار، در روزی که شروع شده، شمرده می‌شود.'
                 : 'New conversations per day over the past 14 days. Counts conversation starts, not message volume.',
           },
           {
@@ -274,7 +274,7 @@ export default async function AgentAnalyticsPage(
                 : 'Channel breakdown: ',
             body:
               locale === 'fa'
-                ? 'تعداد گفتگوها به تفکیک اتصال (تلگرام، بله، روبیکا، واتساپ، اینستاگرام، وب‌ویجت). به شما نشان می‌دهد مشتریان بیشتر از کدام اتصال می‌آیند.'
+                ? 'تعداد گفتگوهای هر اتصال (تلگرام، بله، روبیکا، واتساپ، اینستاگرام، ویجت سایت)؛ اینکه مشتری‌ها بیشتر از کجا می‌آیند.'
                 : 'Conversation count per channel (Telegram, Bale, Rubika, WhatsApp, Instagram, web widget). Shows where your customers reach you most.',
           },
           {
@@ -285,7 +285,7 @@ export default async function AgentAnalyticsPage(
                 : 'Top products: ',
             body:
               locale === 'fa'
-                ? 'محصولاتی که این ایجنت بیشترین بار برای پاسخ بازیابی کرده است. شمارنده هر بار که محصول در زمینه پاسخ قرار می‌گیرد افزایش می‌یابد.'
+                ? 'محصولاتی که ایجنت برای جواب دادن بیشتر از همه سراغشان رفته. هر بار ایجنت محصولی را برای جوابش بیرون بکشد، یکی به شمارش اضافه می‌شود.'
                 : 'This agent\'s products retrieved most often in replies. Counter increments each time the product appears in the prompt context.',
           },
           {
@@ -297,7 +297,7 @@ export default async function AgentAnalyticsPage(
                 : 'Unanswered queries: ',
             body:
               locale === 'fa'
-                ? 'پیام‌هایی که ایجنت نتوانسته پاسخ بدهد و پیام جایگزین داده یا بی‌جواب مانده‌اند. این‌ها فرصت‌های بهبود پایگاه دانش هستند؛ از صفحه یادگیری پاسخ درست را اضافه کنید.'
+                ? 'پیام‌هایی که ایجنت جوابشان را نمی‌دانست و پیام پیش‌فرض فرستاد یا بی‌جواب ماند. جواب درستشان را از صفحهٔ یادگیری اضافه کنید تا دفعهٔ بعد بداند.'
                 : 'User messages the agent could not answer (fallback given or left unanswered). These are knowledge-base improvement opportunities — visit the Learning page to add answers.',
           },
         ]}

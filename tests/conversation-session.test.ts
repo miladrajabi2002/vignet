@@ -44,6 +44,6 @@ describe('conversation session boundaries shared by both inboxes', () => {
     const html = renderToStaticMarkup(createElement(ConversationSessionDivider, { locale }))
     expect(html).toContain('role="note"')
     expect(html).toContain(locale === 'fa' ? 'dir="rtl"' : 'dir="ltr"')
-    expect(html).toContain(locale === 'fa' ? 'قبل از این مرز در پاسخ ایجنت استفاده نمی‌شوند' : 'excludes messages and summaries before this point')
+    expect(html).toContain(locale === 'fa' ? 'قبل از این خط را در جوابش در نظر نمی‌گیرد' : 'excludes messages and summaries before this point')
   })
 })

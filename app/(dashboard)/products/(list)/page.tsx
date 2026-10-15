@@ -272,7 +272,7 @@ export default async function ProductsPage(
         <span className="block text-sm font-bold text-[var(--text-primary)]">{wooIntegration ? storeLabel : (fa ? 'فروشگاه ووکامرس دارید؟' : 'Have a WooCommerce store?')}</span>
         <span className="mt-0.5 block text-[13px] leading-6 text-[var(--text-muted)]">
           {wooIntegration
-            ? (fa ? 'اتصال، همگام‌سازی و فروش در گفتگو در تب «ووکامرس» مدیریت می‌شود.' : 'Connection, sync and in-chat selling are managed in the WooCommerce tab.')
+            ? (fa ? 'اتصال، همگام‌سازی و فروش در گفتگو را از تب «ووکامرس» مدیریت کنید.' : 'Connection, sync and in-chat selling are managed in the WooCommerce tab.')
             : (fa ? 'با افزونهٔ ویجنت وصلش کنید تا محصولات و موجودی خودکار همگام شوند.' : 'Connect it with the Vigent plugin so products and stock sync automatically.')}
         </span>
       </span>
@@ -320,7 +320,7 @@ export default async function ProductsPage(
               compactOnMobile
               options={[
                 { scope: 'out_of_stock', label: fa ? 'حذف محصولات ناموجود' : 'Delete out-of-stock products', hint: fa ? 'موجودی صفر یا کمتر' : 'Stock at zero or below' },
-                { scope: 'hidden', label: fa ? 'حذف محصولات پنهان' : 'Delete hidden products', hint: fa ? 'محصولاتی که غیرفعال شده‌اند و دستیار معرفی‌شان نمی‌کند' : 'Turned off; the assistant does not offer them' },
+                { scope: 'hidden', label: fa ? 'حذف محصولات پنهان' : 'Delete hidden products', hint: fa ? 'محصولاتی که غیرفعال‌اند و ایجنت معرفی‌شان نمی‌کند' : 'Turned off; the assistant does not offer them' },
                 { scope: 'no_price', label: fa ? 'حذف محصولات بدون قیمت' : 'Delete products without a price', hint: fa ? 'قیمت ثبت نشده یا صفر است' : 'No price, or a price of zero' },
                 { scope: 'no_image', label: fa ? 'حذف محصولات بدون عکس' : 'Delete products without a photo', hint: fa ? 'هیچ تصویری ندارند' : 'No image at all' },
                 {
@@ -425,7 +425,7 @@ export default async function ProductsPage(
               })}
             />
           </DashboardPanel>
-          <DashboardPanel title={fa ? 'پربازدیدترین محصولات' : 'Most viewed products'} subtitle={fa ? 'بر اساس تعداد جستجو توسط ایجنت' : 'By agent query count'}>
+          <DashboardPanel title={fa ? 'پرجستجوترین محصولات' : 'Most viewed products'} subtitle={fa ? 'بر اساس دفعاتی که ایجنت دنبالشان گشته' : 'By agent query count'}>
             <DashboardBarList
               data={topProductsByQuery.map((p) => ({ label: p.name, value: p.queryCount }))}
               emptyText={fa ? 'هنوز محصولی جستجو نشده است' : 'No products queried yet'}

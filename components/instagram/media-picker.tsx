@@ -480,7 +480,7 @@ export function InstagramMediaPicker({
                                 setPagesLoaded(pages)
                         } catch {
                                 if (seq !== requestSeq.current) return
-                                setError('ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید.')
+                                setError('به سرور وصل نشدیم؛ دوباره امتحان کنید.')
                         } finally {
                                 if (seq === requestSeq.current) {
                                         setLoading(false)
@@ -633,8 +633,8 @@ export function InstagramMediaPicker({
                                                                 {query.trim()
                                                                         ? 'پستی با این کپشن پیدا نشد.'
                                                                         : showStories
-                                                                                ? 'در ۲۴ ساعت گذشته استوری‌ای منتشر نشده است. ابتدا در اینستاگرام استوری بگذارید، سپس این پنجره را دوباره باز کنید.'
-                                                                                : 'هیچ پست یا ریلزی یافت نشد.'}
+                                                                                ? 'در ۲۴ ساعت گذشته استوری‌ای نگذاشته‌اید. اول در اینستاگرام استوری بگذارید، بعد این پنجره را دوباره باز کنید.'
+                                                                                : 'هیچ پست یا ریلزی پیدا نشد.'}
                                                         </p>
                                                 </div>
                                         ) : (
@@ -645,7 +645,7 @@ export function InstagramMediaPicker({
                                                                         {(loading || anyLiveStory) && (
                                                                                 <p className="flex items-center gap-1.5 rounded-xl bg-[color:color-mix(in_srgb,#dd2a7b_7%,transparent)] px-3 py-2 text-[12px] leading-5 text-[var(--text-secondary)]">
                                                                                         <Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#dd2a7b]" />
-                                                                                        استوری‌ها بعد از ۲۴ ساعت حذف می‌شوند؛ سناریو در پایان عمر استوری خودکار غیرفعال می‌شود.
+                                                                                        استوری‌ها بعد از ۲۴ ساعت حذف می‌شوند و سناریو هم همان موقع خودکار خاموش می‌شود.
                                                                                 </p>
                                                                         )}
                                                                         <h3 className="text-xs font-bold text-[var(--text-secondary)]">

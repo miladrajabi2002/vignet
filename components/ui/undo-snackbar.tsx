@@ -108,7 +108,7 @@ export function UndoSnackbar({
     phase === 'restored'
       ? fa ? 'بازگردانی شد' : 'Restored'
       : phase === 'error'
-        ? fa ? 'بازگردانی ناموفق بود — دوباره تلاش کنید' : 'Restore failed — try again'
+        ? fa ? 'برنگشت؛ دوباره امتحان کنید' : 'Restore failed — try again'
         : count === 1
           ? fa ? `${entityLabel} حذف شد` : `${entityLabel.charAt(0).toUpperCase()}${entityLabel.slice(1)} deleted`
           : fa
@@ -189,7 +189,7 @@ export function UndoSnackbar({
                 >
                   <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                   {phase === 'error'
-                    ? fa ? 'تلاش مجدد' : 'Retry'
+                    ? fa ? 'تلاش دوباره' : 'Retry'
                     : fa ? 'بازگردانی' : 'Undo'}
                 </button>
               )}

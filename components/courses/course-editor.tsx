@@ -241,7 +241,7 @@ export function CourseEditor({
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{fa ? 'قیمت (تومان)' : 'Price (Toman)'}</span>
-            <input inputMode="numeric" value={groupDigits(price, fa)} onChange={(event) => setPrice(toEnglishDigits(event.target.value).replace(/[^\d]/g, ''))} placeholder={fa ? 'خالی = ایجنت قیمت نمی‌گوید · ۰ = رایگان' : 'Blank = not quoted · 0 = free'} className={cn(inputClass, 'tabular-nums')} />
+            <input inputMode="numeric" value={groupDigits(price, fa)} onChange={(event) => setPrice(toEnglishDigits(event.target.value).replace(/[^\d]/g, ''))} placeholder={fa ? 'خالی بماند، ایجنت قیمت نمی‌گوید؛ ۰ یعنی رایگان' : 'Blank = not quoted · 0 = free'} className={cn(inputClass, 'tabular-nums')} />
           </label>
         </div>
 

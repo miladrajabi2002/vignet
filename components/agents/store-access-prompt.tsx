@@ -166,7 +166,7 @@ export function StoreAccessPrompt({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="min-w-[12rem] flex-1 text-[12px] leading-5 text-[var(--text-muted)]">
-          {fa ? 'بعداً از تنظیمات ایجنت، بخش «دسترسی به فروشگاه» قابل تغییر است.' : 'You can change these later in the agent’s store access settings.'}
+          {fa ? 'بعداً هم از تنظیمات ایجنت، بخش «دسترسی فروشگاه» می‌توانید عوضش کنید.' : 'You can change these later in the agent’s store access settings.'}
         </p>
         <div className="flex items-center gap-2">
           {onSkip && (

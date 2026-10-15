@@ -53,7 +53,7 @@ const OPTION_META: Record<CapabilityKey, {
   instagram: { icon: Camera, fa: ['دایرکت و کامنت', 'پاسخ خودکار'], en: ['DMs & comments', 'Automated replies'] },
   'digital-menu': { icon: QrCode, fa: ['QR و لینک عمومی', 'سفارش‌گیری'], en: ['QR & public link', 'Ordering'] },
   courses: { icon: GraduationCap, fa: ['ظرفیت و جلسات', 'ثبت‌نام در گفتگو'], en: ['Capacity & sessions', 'In-chat enrollment'] },
-  support: { icon: Headphones, fa: ['پاسخ دانش‌محور', 'تحویل به اپراتور'], en: ['Knowledge answers', 'Operator handoff'] },
+  support: { icon: Headphones, fa: ['جواب از روی دانش شما', 'تحویل به اپراتور'], en: ['Knowledge answers', 'Operator handoff'] },
 }
 
 function optionLabel(option: BusinessServiceOption, locale: Locale) {

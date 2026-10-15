@@ -292,7 +292,7 @@ export async function Header({
             </div>
             <div className="mt-1 hidden items-center gap-2 text-[12px] leading-4 text-[var(--text-muted)] sm:flex xl:mt-1.5 xl:text-xs">
               <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.08)]" />
-              <span className="sr-only">{fa ? 'سامانه فعال است' : 'System online'}</span>
+              <span className="sr-only">{fa ? 'همه‌چیز کار می‌کند' : 'System online'}</span>
               <span className="truncate">
                 {businessLabel} · {fa ? 'مرکز مدیریت ویجنت' : 'Vigent management center'}
               </span>

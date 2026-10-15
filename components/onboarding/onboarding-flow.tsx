@@ -135,7 +135,7 @@ export function OnboardingFlow({
     hasProfile ? businessType as BusinessTypeValue : null,
   )
   // Set to true when the user just successfully connected WooCommerce via
-  // the in-onboarding wizard. Drives the "با موفقیت سایت شما به ویجنت وصل شد"
+  // the in-onboarding wizard. Drives the "سایتتان به ویجنت وصل شد"
   // success banner shown on the channel step. Reset when the user advances
   // past the channel step.
   const [wooJustConnected, setWooJustConnected] = useState(false)
@@ -271,7 +271,7 @@ export function OnboardingFlow({
                 instagramFirst={businessType === 'SOCIAL'}
                 instagramConnected={instagramConnected}
                 done={hasChannel}
-                successBanner={wooJustConnected ? (fa ? 'با موفقیت سایت شما به ویجنت وصل شد' : 'Your site is now connected to Vigent') : undefined}
+                successBanner={wooJustConnected ? (fa ? 'سایتتان به ویجنت وصل شد' : 'Your site is now connected to Vigent') : undefined}
                 onLinkCreated={() => { router.refresh() }}
                 onSkip={async () => {
                   await skipSetupStep('SKIP_CHANNEL', router)
@@ -348,7 +348,7 @@ function TypeStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <StepHeading
         title={fa ? 'کسب‌وکار شما چیست؟' : 'What is your business?'}
-        subtitle={fa ? 'نوع کسب‌وکار خود را انتخاب کنید تا ویژگی‌های مناسب شما فعال شود' : 'Pick your business type so the right features are turned on'}
+        subtitle={fa ? 'نوع کسب‌وکارتان را انتخاب کنید تا امکانات مناسبش روشن شود' : 'Pick your business type so the right features are turned on'}
       />
 
       {/* Two short columns on phones so all eight fit one screen. */}
@@ -459,7 +459,7 @@ function DetailsStep({
       if (!res.ok) throw new Error()
       onNext()
     } catch {
-      setError((fa ? 'ذخیره ناموفق بود، دوباره تلاش کنید' : 'Could not save. Try again'))
+      setError((fa ? 'ذخیره نشد؛ دوباره امتحان کنید' : 'Could not save. Try again'))
     } finally {
       setSaving(false)
     }
@@ -516,7 +516,7 @@ function DetailsStep({
             >
               <CircleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
               {businessName.trim().length === 0
-                ? (fa ? 'این فیلد خالی است؛ لطفاً نام کسب‌وکار را وارد کنید.' : 'This field is empty. Enter your business name.')
+                ? (fa ? 'نام کسب‌وکار را بنویسید.' : 'This field is empty. Enter your business name.')
                 : (fa ? 'نام کسب‌وکار باید حداقل دو حرف داشته باشد.' : 'The business name needs at least two characters.')}
             </p>
           )}
@@ -740,7 +740,7 @@ function AgentStep({
             <div className="flex items-center justify-between gap-4 px-3.5 py-3">
               <div className="min-w-0">
                 <p className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{fa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'}</p>
-                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'برای شکایت، درخواست مستقیم و موارد حساس.' : 'For complaints, direct requests and sensitive cases.'}</p>
+                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'وقتی مشتری شکایت دارد، خودش اپراتور می‌خواهد یا موضوع حساس است.' : 'For complaints, direct requests and sensitive cases.'}</p>
               </div>
               <Switch checked={handoffEnabled} onChange={setHandoffEnabled} aria-label={fa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'} />
             </div>

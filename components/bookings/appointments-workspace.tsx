@@ -859,7 +859,7 @@ function AgentPanel({ fa, services, onManage, remindersEnabled }: { fa: boolean;
         <p className="ui-h3">{fa ? 'قوانین ایمنی رزرو' : 'Booking safeguards'}</p>
         <ul className="mt-2 space-y-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">
           {(fa
-            ? ['پیش از ثبت، خلاصه را از مشتری تأیید می‌گیرد', 'قفل تراکنشی: دو نفر یک زمان را نمی‌گیرند', 'لغو و جابه‌جایی فقط برای نوبت خود مشتری']
+            ? ['پیش از ثبت، خلاصه را از مشتری تأیید می‌گیرد', 'دو نفر هم‌زمان یک نوبت را نمی‌گیرند', 'لغو و جابه‌جایی فقط برای نوبت خود مشتری']
             : ['Confirms a summary with the customer first', 'Transactional lock: no double booking', 'Cancel/move only the customer’s own booking']
           ).map((item) => <li key={item} className="flex items-start gap-2"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--ok)]" />{item}</li>)}
         </ul>

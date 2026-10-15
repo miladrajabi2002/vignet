@@ -20,7 +20,7 @@ export default function ContactsLoading() {
       aria-busy="true"
       className="mx-auto max-w-none space-y-6"
     >
-      <span className="sr-only">در حال بارگذاری مخاطبان...</span>
+      <span className="sr-only">در حال بارگذاری مشتری‌ها…</span>
       <DashboardHeaderSkeleton actions={4} compactOnMobile />
 
       {/* List / pipeline view toggle — right-aligned segmented control */}

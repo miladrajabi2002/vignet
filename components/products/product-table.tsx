@@ -175,7 +175,7 @@ export function ProductTable({
                     tone={out ? 'danger' : low ? 'warn' : undefined}
                     muted={product.stock === null}
                     label={fa ? `موجودی ${product.name}` : `Stock of ${product.name}`}
-                    hint={fa ? 'خالی = نامحدود' : 'Empty = unlimited'}
+                    hint={fa ? 'خالی یعنی نامحدود' : 'Empty = unlimited'}
                     disabled={locked}
                     disabledTitle={lockedTitle}
                     onSave={(value) => patch(product.id, { stock: value })}

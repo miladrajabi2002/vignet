@@ -278,12 +278,12 @@ const BOOKING_ERRORS: Record<string, { fa: string; en: string }> = {
   CAPACITY_EXCEEDED: { fa: 'این زمان همین حالا پر شد؛ زمان دیگری را انتخاب کنید.', en: 'That time just filled up. Pick another slot.' },
   SLOT_IN_PAST: { fa: 'این زمان گذشته است؛ زمان دیگری را انتخاب کنید.', en: 'That time has already passed.' },
   OUTSIDE_AVAILABILITY: { fa: 'این زمان خارج از ساعات کاری این خدمت است.', en: 'That time is outside this service’s hours.' },
-  SERVICE_INACTIVE: { fa: 'این خدمت غیرفعال است؛ ابتدا آن را فعال کنید.', en: 'This service is inactive.' },
+  SERVICE_INACTIVE: { fa: 'این خدمت غیرفعال است؛ اول روشنش کنید.', en: 'This service is inactive.' },
   CUSTOMER_LIMIT: { fa: 'سقف تعداد مشتریان پلن پر شده است.', en: 'Your plan’s customer limit is reached.' },
   PLAN_BLOCKED: { fa: 'پلن فضای کاری فعال نیست؛ برای ثبت تغییر، پلن را تمدید کنید.', en: 'Your plan is inactive.' },
   APPOINTMENT_NOT_ACTIVE: { fa: 'این نوبت دیگر فعال نیست.', en: 'This appointment is no longer active.' },
   TRANSACTION_CONFLICT: { fa: 'در همین لحظه رزرو دیگری ثبت شد؛ دوباره تلاش کنید.', en: 'Another booking landed at the same moment. Try again.' },
-  INVALID: { fa: 'اطلاعات کامل یا معتبر نیست؛ نام و شماره را بررسی کنید.', en: 'Some details are missing or invalid.' },
+  INVALID: { fa: 'نام یا شماره درست پر نشده؛ دوباره نگاهشان کنید.', en: 'Some details are missing or invalid.' },
 }
 
 export function bookingErrorMessage(code: string | undefined, fa: boolean): string {

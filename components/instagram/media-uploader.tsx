@@ -106,8 +106,8 @@ function uploadErrorMessage(status: number, code: string | undefined, kind: Medi
         if (error === 'RATE_LIMIT') return 'تعداد آپلودها در این ساعت زیاد شده؛ کمی بعد دوباره تلاش کنید.'
         if (error === 'UPLOAD_QUOTA_EXCEEDED') return 'سقف حجم آپلود امروز پر شده؛ فردا دوباره تلاش کنید.'
         if (error === 'UPLOAD_CAPACITY_EXCEEDED') return 'ظرفیت آپلود موقتاً پر است؛ کمی بعد دوباره تلاش کنید.'
-        if (error === 'UNAUTHORIZED') return 'نشست شما منقضی شده؛ دوباره وارد شوید.'
-        return 'آپلود ناموفق بود.'
+        if (error === 'UNAUTHORIZED') return 'از حسابتان خارج شده‌اید؛ دوباره وارد شوید.'
+        return 'آپلود نشد.'
 }
 
 export function MediaUploader({
@@ -177,8 +177,8 @@ export function MediaUploader({
                         if (items.length + next.length >= limit) {
                                 rejection =
                                         tab === 'IMAGE' && maxImages > 1
-                                                ? `حداکثر ${maxImages.toLocaleString('fa-IR')} عکس قابل افزودن است.`
-                                                : 'فقط یک فایل قابل افزودن است.'
+                                                ? `حداکثر ${maxImages.toLocaleString('fa-IR')} عکس می‌شود اضافه کرد.`
+                                                : 'فقط یک فایل می‌شود اضافه کرد.'
                                 break
                         }
                         const item: MediaItem = {
@@ -198,10 +198,10 @@ export function MediaUploader({
                         if (!rejection) {
                                 setError(
                                         tab === 'IMAGE'
-                                                ? 'فقط فایل تصویری قابل آپلود است.'
+                                                ? 'فقط عکس می‌شود آپلود کرد.'
                                                 : tab === 'VIDEO'
-                                                        ? 'فقط فایل ویدیویی قابل آپلود است.'
-                                                        : 'فقط فایل صوتی قابل آپلود است.',
+                                                        ? 'فقط ویدیو می‌شود آپلود کرد.'
+                                                        : 'فقط فایل صوتی می‌شود آپلود کرد.',
                                 )
                         }
                         return
@@ -252,7 +252,7 @@ export function MediaUploader({
                                                 const data = JSON.parse(xhr.responseText) as UploadResponse
                                                 const uploaded = data.files?.[0]
                                                 if (!uploaded?.url) {
-                                                        reject(new Error('پاسخ سرور فاقد URL است.'))
+                                                        reject(new Error('آپلود کامل نشد. دوباره امتحان کنید.'))
                                                         return
                                                 }
                                                 // Store the S3 URL in `remoteUrl` but KEEP `url` as the blob URL so
@@ -275,7 +275,7 @@ export function MediaUploader({
                                                 )
                                                 resolve({ ...item, remoteUrl: uploaded.url, uploaded: true })
                                         } catch {
-                                                reject(new Error('پاسخ سرور نامعتبر بود.'))
+                                                reject(new Error('آپلود کامل نشد. دوباره امتحان کنید.'))
                                         }
                                 } else if (xhr.status === 503 || xhr.status === 501) {
                                         setS3Unavailable(true)
@@ -291,7 +291,7 @@ export function MediaUploader({
                                 }
                         })
                         xhr.addEventListener('error', () => {
-                                reject(new Error('خطای شبکه هنگام آپلود.'))
+                                reject(new Error('اینترنت قطع شد و آپلود نیمه‌کاره ماند. دوباره امتحان کنید.'))
                         })
                         xhr.addEventListener('abort', () => {
                                 reject(new Error('آپلود لغو شد.'))
@@ -308,7 +308,7 @@ export function MediaUploader({
                 try {
                         await promise
                 } catch (e) {
-                        const msg = e instanceof Error ? e.message : 'آپلود ناموفق بود.'
+                        const msg = e instanceof Error ? e.message : 'آپلود نشد.'
                         setItems((arr) =>
                                 arr.map((x) =>
                                         x.id === item.id ? { ...x, progress: 0, error: msg, uploaded: false } : x,

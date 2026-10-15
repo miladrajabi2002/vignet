@@ -338,7 +338,7 @@ export function AgentWizard({
         }
 
 	const stepTitles = locale === 'fa'
-		? ['ایجنت شما', 'مرز پاسخ و ساخت']
+		? ['ایجنت شما', 'محدوده‌ها و ساخت']
 		: ['Your agent', 'Boundaries & create']
 	const isFa = locale === 'fa'
 	const toneSample = TONE_SAMPLES[draft.conversationFormality][locale]
@@ -499,7 +499,7 @@ export function AgentWizard({
 										className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
 									>
 										{showEditor ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-										{isFa ? 'ویرایش شش لایهٔ رفتار (اختیاری؛ بعداً هم از «بهبود ایجنت» می‌شود)' : 'Edit the six behavior layers (optional; also available later in Improve agent)'}
+										{isFa ? 'تنظیم دقیق‌تر رفتار (اختیاری؛ بعداً هم از «بهبود ایجنت» می‌شود)' : 'Edit the six behavior layers (optional; also available later in Improve agent)'}
 									</button>
 									{showEditor && (
 										<div id="wizard-behavior-editor" className="space-y-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
@@ -544,7 +544,7 @@ export function AgentWizard({
                                                                                                                 />
                                                                                                         </div>
                                                                                                 </LayerField>
-                                                                                                <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
+                                                                                                <LayerField n={3} label={locale === 'fa' ? 'دربارهٔ چه حرف بزند و چه نگوید' : 'Response scope & guardrails'}>
                                                                                                         <div className="grid gap-3">
                                                                                                                 <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-emerald-700">{t('layerDoSay')}</span><AutoTextarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm leading-7" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
                                                                                                                 <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-red-700">{t('layerDontSay')}</span><AutoTextarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm leading-7" /><span className="mt-1 block text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? `حداکثر ${PROMPT_SCOPE_RULE_LIMIT.toLocaleString('fa-IR')} مورد` : `Up to ${PROMPT_SCOPE_RULE_LIMIT} items`}</span></label>
@@ -705,14 +705,14 @@ export function AgentWizard({
 									<div className="flex items-center justify-between gap-4">
 										<div>
 											<p className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'}</p>
-											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'برای شکایت، مذاکره، درخواست مستقیم و موارد پرخطر' : 'For complaints, negotiation, direct requests and high-risk cases'}</p>
+											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'وقتی مشتری شکایت دارد، چانه می‌زند، خودش اپراتور می‌خواهد یا موضوع حساس است' : 'For complaints, negotiation, direct requests and high-risk cases'}</p>
 										</div>
 										<Switch checked={form.handoffEnabled} onChange={(v) => set('handoffEnabled', v)} aria-label={isFa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'} />
 									</div>
 									{form.handoffEnabled && (
 										<div className="mt-3 space-y-3">
 											<div>
-												<label htmlFor="wizard-handoff-words" className="ui-field-label">{isFa ? 'کلمه‌هایی که همیشه تحویل می‌دهند' : 'Words that always hand off'}</label>
+												<label htmlFor="wizard-handoff-words" className="ui-field-label">{isFa ? 'کلمه‌هایی که گفتگو را فوراً به اپراتور می‌سپارند' : 'Words that always hand off'}</label>
 												<TagInput
 													id="wizard-handoff-words"
 													value={handoffWords}

@@ -479,8 +479,8 @@ export function AutomationForm({
                                         : data.error === 'MEDIA_NOT_FOUND'
                                         ? 'این پست در پیج متصل پیدا نشد؛ مطمئن شوید لینک متعلق به همین پیج است.'
                                         : data.error === 'IG_RECONNECT_REQUIRED'
-                                                ? 'برای استخراج شناسه، اتصال اینستاگرام را یک‌بار تازه‌سازی کنید.'
-                                                : 'استخراج شناسه از Meta انجام نشد؛ دوباره تلاش کنید یا شناسه عددی را وارد کنید.'
+                                                ? 'برای پیدا کردن شناسهٔ پست، اینستاگرام را یک بار دوباره وصل کنید.'
+                                                : 'شناسهٔ پست از Meta گرفته نشد؛ دوباره امتحان کنید یا شناسهٔ عددی را خودتان وارد کنید.'
                                 setPostReferenceFeedback({ kind: 'error', text })
                                 if (showGlobalError) setError(text)
                                 return null
@@ -496,11 +496,11 @@ export function AutomationForm({
                         set('postIdsText', ids.join(', '))
                         setPostReferenceFeedback({
                                 kind: 'ok',
-                                text: `شناسه عددی ${ids.length.toLocaleString('fa-IR')} پست از Meta استخراج شد.`,
+                                text: `شناسه عددی ${ids.length.toLocaleString('fa-IR')} پست از Meta گرفته شد.`,
                         })
                         return ids
                 } catch {
-                        const text = 'ارتباط با Meta برای استخراج شناسه برقرار نشد؛ دوباره تلاش کنید.'
+                        const text = 'برای گرفتن شناسهٔ پست به Meta وصل نشدیم؛ دوباره امتحان کنید.'
                         setPostReferenceFeedback({ kind: 'error', text })
                         if (showGlobalError) setError(text)
                         return null
@@ -897,7 +897,7 @@ export function AutomationForm({
                 )
                 if (unfinishedMedia) {
                         setError(
-                                'آپلود عکس/ویدیو هنوز کامل نشده است یا ناموفق بوده است. لطفاً تا پایان آپلود (علامت ✓ روی پیش‌نمایش) صبر کنید و سپس ذخیره کنید؛ اگر آپلود خطا داده، روی «تلاش دوباره» بزنید یا فایل را حذف کنید.',
+                                'آپلود عکس یا ویدیو هنوز تمام نشده یا خطا داده. صبر کنید تا علامت ✓ روی پیش‌نمایش بیاید، بعد ذخیره کنید. اگر خطا داده، «تلاش دوباره» را بزنید یا فایل را حذف کنید.',
                         )
                         return
                 }
@@ -953,7 +953,7 @@ export function AutomationForm({
                                                         : data?.error === 'IG_NOT_CONNECTED'
                                                         ? 'اینستاگرام متصل نیست.'
                                                         : data?.details
-                                                                ? 'ذخیره ناموفق بود. ورودی‌ها را بررسی کنید.'
+                                                                ? 'ذخیره نشد. فیلدها را نگاه کنید.'
                                                                 : 'ذخیره ناموفق بود.',
                                         )
                                         return
@@ -1307,7 +1307,7 @@ export function AutomationForm({
                                                                         onInput={setKeywordInput}
                                                                         inputValue={keywordInput}
                                                                         onKeyDown={onKeywordKeyDown}
-                                                                        placeholder="کلمه را بنویس و Enter بزن…"
+                                                                        placeholder="کلمه را بنویسید و Enter بزنید…"
                                                                 />
                                                                 <p className="text-[12px] text-[var(--text-muted)]">
                                                                         زمانی که کاربر کلمات زیر را در {isDm ? 'دایرکت' : isComment ? 'کامنت' : 'استوری'} ارسال کند، این سناریو اجرا می‌شود. با Enter یا کاما اضافه کنید.
@@ -1345,7 +1345,7 @@ export function AutomationForm({
                                                         <div className="flex items-start gap-2 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950" role="note">
                                                                 <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                                                                 <p className="text-xs leading-6">
-                                                                        به‌خاطر یک باگ در سیستم متا، ممکن است پاسخِ اولین ریپلای استوریِ برخی کاربران (کسانی که برای اولین بار به پیج پیام می‌دهند) داده نشود؛ اینستاگرام آن پیام را بدون نشانهٔ استوری به ما می‌رساند. این محدودیت از سمت اینستاگرام است و ریپلای‌های بعدی همان کاربر درست پاسخ داده می‌شود.
+                                                                        یک باگ در اینستاگرام باعث می‌شود اولین ریپلای استوریِ کسی که تا حالا به پیج پیام نداده، گاهی جواب نگیرد؛ چون اینستاگرام آن پیام را بدون نشانهٔ استوری می‌فرستد. ریپلای‌های بعدی همان نفر درست جواب می‌گیرند.
                                                                 </p>
                                                         </div>
                                                 )}
@@ -1603,7 +1603,7 @@ export function AutomationForm({
                                                                                 اگر کاربر فالو داشته باشد، پاسخ ارسال می‌شود. در غیر این‌صورت از او می‌خواهیم اول فالو کند.
                                                                         </p>
                                                                         <p className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-[12px] leading-5 text-amber-900">
-                                                                                برای پیج‌های پرتعاملی پیشنهاد می‌شود؛ تعداد ارسال به افراد غیرفالوور را کمتر می‌کند و ریسک محدودشدن پیج را پایین می‌آورد.
+                                                                                برای پیج‌های پرتعامل خوب است؛ پیام کمتری به غیرفالوورها می‌رود و احتمال محدود شدن پیج کم می‌شود.
                                                                         </p>
                                                                 </div>
                                                         </div>
@@ -1625,7 +1625,7 @@ export function AutomationForm({
                                                                         <textarea
                                                                                 value={form.gatePrompt}
                                                                                 onChange={(e) => set('gatePrompt', e.target.value)}
-                                                                                placeholder="لطفاً ابتدا صفحه ما را دنبال کنید&#10;بعد از دنبال کردن، بر روی دکمه زیر کلیک کنید"
+                                                                                placeholder="لطفاً اول پیج ما را فالو کنید&#10;بعد از فالو، دکمهٔ زیر را بزنید"
                                                                                 rows={3}
                                                                                 // Sent as a button message — Instagram cuts its body at 640.
                                                                                 maxLength={IG_BUTTON_TEXT_LIMIT}
@@ -2440,7 +2440,7 @@ function MatchModeSelector({
         ]
         // Single choice → the same segmented control as "which words?" above it.
         return (
-                <div className="ui-seg w-full grid-flow-col [grid-auto-columns:minmax(0,1fr)]" role="radiogroup" aria-label="نحوه تطبیق کلمه‌کلیدی">
+                <div className="ui-seg w-full grid-flow-col [grid-auto-columns:minmax(0,1fr)]" role="radiogroup" aria-label="کلمهٔ کلیدی چطور پیدا شود؟">
                         {opts.map(({ value: v, label, desc }) => (
                                 <button
                                         key={v}
@@ -2476,8 +2476,8 @@ function DmActionSelector({
                 },
                 {
                         value: 'SILENT',
-                        label: 'پاسخ داده‌نشود',
-                        desc: 'پیام رها می‌شود',
+                        label: 'جواب نده',
+                        desc: 'پیام بی‌جواب می‌ماند',
                         Icon: Circle,
                 },
                 {
@@ -3068,7 +3068,7 @@ function MessageCard({
                         {message.type === 'PRODUCT_LIST' && (
                                 <div className="space-y-3">
                                         <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
-                                                یک محصول = کارت محصول تکی، دو یا بیشتر = ویترین افقی قابل‌scroll. ترتیب با فلش‌های بالا/پایین قابل تغییره. حداکثر ۱۰ محصول.
+                                                یک محصول به‌شکل یک کارت می‌رود؛ دو تا یا بیشتر، ویترینی که افقی ورق می‌خورد. ترتیب را با فلش‌های بالا و پایین عوض کنید. حداکثر ۱۰ محصول.
                                         </p>
                                         <MultiProductPicker
                                                 selectedIds={message.productIds ?? []}
@@ -3121,7 +3121,7 @@ function KeyMessageFields({
         const unsentLinks = chips ? buttons.filter((b) => b.url?.trim()).length : 0
         const places: Array<{ value: 'button' | 'quick_reply'; title: string; note: string }> = [
                 { value: 'button', title: 'داخل حباب پیام', note: 'می‌ماند · متن یا لینک' },
-                { value: 'quick_reply', title: 'تراشهٔ پاسخ سریع', note: 'محو می‌شود · فقط متن' },
+                { value: 'quick_reply', title: 'دکمهٔ پاسخ سریع', note: 'محو می‌شود · فقط متن' },
         ]
 
         return (
@@ -3172,13 +3172,13 @@ function KeyMessageFields({
                                 </div>
                                 <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
                                         {chips
-                                                ? 'تراشه‌ها بالای کادر نوشتن می‌آیند و با اولین لمس یا پیام بعدی محو می‌شوند.'
+                                                ? 'دکمه‌های پاسخ سریع بالای کادر نوشتن می‌آیند و با اولین لمس یا پیام بعدی محو می‌شوند.'
                                                 : 'کلیدها زیر متن، داخل همان حباب می‌مانند و در «درخواست‌های پیام» هم دیده می‌شوند.'}
                                 </p>
                                 {unsentLinks > 0 && (
                                         <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-[var(--amber)]">
                                                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                                تراشه لینک باز نمی‌کند؛ لینک {unsentLinks.toLocaleString('fa-IR')} کلید ذخیره نمی‌شود. برای کلید لینک‌دار «داخل حباب پیام» را انتخاب کنید.
+                                                دکمهٔ پاسخ سریع لینک باز نمی‌کند؛ لینک {unsentLinks.toLocaleString('fa-IR')} کلید ذخیره نمی‌شود. برای کلید لینک‌دار «داخل حباب پیام» را انتخاب کنید.
                                         </p>
                                 )}
                         </div>

@@ -270,7 +270,7 @@ export function OperatorChannelSetup({
       setOperatorChatId(data.operatorChannel.operatorChatId ?? '')
       setBotToken('')
       setShowTokenRotation(false)
-      setFeedback({ tone: 'success', message: copy('تنظیمات بات با موفقیت ذخیره شد.', 'Bot settings were saved successfully.') })
+      setFeedback({ tone: 'success', message: copy('تنظیمات ربات ذخیره شد.', 'Bot settings were saved successfully.') })
       router.refresh()
     } catch {
       setFeedback({ tone: 'error', message: t('saveFailed') })
@@ -351,7 +351,7 @@ export function OperatorChannelSetup({
       setInfo((value) => (value ? { ...value, lastError: null } : value))
       setFeedback({
         tone: 'success',
-        message: copy('پیام آزمایشی با موفقیت به تلگرام ارسال شد.', 'The test message was delivered to Telegram.'),
+        message: copy('پیام آزمایشی به تلگرام رفت.', 'The test message was delivered to Telegram.'),
       })
       router.refresh()
       void refreshHealth()
@@ -360,7 +360,7 @@ export function OperatorChannelSetup({
       setFeedback({
         tone: 'error',
         message: reason === 'NO_CHAT_ID'
-          ? copy('ابتدا شناسه چت اپراتور را ثبت کنید.', 'Add the operator chat id first.')
+          ? copy('اول شناسهٔ چت اپراتور را وارد کنید.', 'Add the operator chat id first.')
           : copy('پیام آزمایشی ارسال نشد؛ وضعیت سلامت را بررسی کنید.', 'The test message failed; check connection health.'),
       })
     } finally {
@@ -465,13 +465,13 @@ export function OperatorChannelSetup({
               icon={<UserRoundCheck className="h-4 w-4" />}
               value={localeNumber(stats.claimed, fa)}
               label={copy('در حال پیگیری', 'In progress')}
-              detail={copy('گفتگوهای قبول‌شده توسط اپراتور', 'Conversations claimed by an operator')}
+              detail={copy('گفتگوهایی که اپراتور قبول کرده', 'Conversations claimed by an operator')}
             />
             <MetricCard
               icon={<CheckCheck className="h-4 w-4" />}
               value={localeNumber(stats.resolved7d, fa)}
               label={copy('حل‌شده در ۷ روز', 'Resolved in 7 days')}
-              detail={copy('موارد تکمیل‌شده در هفته اخیر', 'Completed handoffs in the last week')}
+              detail={copy('گفتگوهایی که این هفته حل شد', 'Completed handoffs in the last week')}
             />
             <MetricCard
               icon={<Activity className="h-4 w-4" />}
@@ -479,7 +479,7 @@ export function OperatorChannelSetup({
               label={copy('نرخ تحویل تلگرام', 'Telegram delivery rate')}
               detail={stats.total7d > 0
                 ? copy(`${localeNumber(stats.delivered7d, fa)} از ${localeNumber(stats.total7d, fa)} ارجاع هفته`, `${stats.delivered7d} of ${stats.total7d} weekly handoffs`)
-                : copy('پس از اولین ارجاع محاسبه می‌شود', 'Calculated after the first handoff')}
+                : copy('بعد از اولین گفتگوی سپرده‌شده حساب می‌شود', 'Calculated after the first handoff')}
             />
           </div>
 
@@ -529,7 +529,7 @@ export function OperatorChannelSetup({
                 <HealthRow
                   icon={<Webhook className="h-4 w-4" />}
                   label="Webhook"
-                  value={health?.webhookMatches ? copy('آدرس امن ویجنت ثبت شده است', 'Secure Vigent endpoint is registered') : healthLoading ? copy('در حال تطبیق آدرس…', 'Verifying endpoint…') : copy('آدرس webhook نیازمند بازبینی است', 'Webhook endpoint needs review')}
+                  value={health?.webhookMatches ? copy('آدرس امن ویجنت ثبت شده است', 'Secure Vigent endpoint is registered') : healthLoading ? copy('در حال تطبیق آدرس…', 'Verifying endpoint…') : copy('آدرس webhook درست تنظیم نشده', 'Webhook endpoint needs review')}
                   ok={health?.webhookMatches ?? !info.lastError}
                 />
                 <HealthRow
@@ -541,7 +541,7 @@ export function OperatorChannelSetup({
                 <HealthRow
                   icon={<Command className="h-4 w-4" />}
                   label={copy('دکمه‌های مدیریتی تلگرام', 'Telegram management controls')}
-                  value={health?.callbackControlsEnabled ? copy('Callbackها فعال و همگام هستند', 'Callbacks are enabled and in sync') : healthLoading ? copy('در حال بررسی تنظیمات…', 'Checking configuration…') : copy('یک‌بار «تست و همگام‌سازی» را اجرا کنید', 'Run Test & sync once')}
+                  value={health?.callbackControlsEnabled ? copy('دکمه‌های ربات کار می‌کنند', 'Callbacks are enabled and in sync') : healthLoading ? copy('در حال بررسی تنظیمات…', 'Checking configuration…') : copy('یک‌بار «تست و همگام‌سازی» را اجرا کنید', 'Run Test & sync once')}
                   ok={health?.callbackControlsEnabled ?? false}
                 />
                 <HealthRow
@@ -573,7 +573,7 @@ export function OperatorChannelSetup({
                 <Settings2 className="h-4 w-4 text-[var(--text-secondary)]" />
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('کنترل‌های مدیریتی', 'Management controls')}</h3>
               </div>
-              <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('اتصال، دسترسی مدیر و ارسال هشدار را از یک نقطه مدیریت کنید.', 'Manage connection, manager access and alerts from one place.')}</p>
+              <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('اتصال، دسترسی مدیر و ارسال هشدار را از همین‌جا مدیریت کنید.', 'Manage connection, manager access and alerts from one place.')}</p>
 
               <div className="mt-4 space-y-3">
                 <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-black/[0.06] bg-white/75 px-3.5">
@@ -633,8 +633,8 @@ export function OperatorChannelSetup({
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Command className="h-4 w-4" /></span>
                 <div>
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('مرکز فرمان داخل تلگرام', 'Telegram command center')}</h3>
-                  <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('دکمه‌های شیشه‌ای بات بدون نیاز به تایپ دستور، عملیات اصلی را اجرا می‌کنند.', 'Inline Telegram controls run key operations without typing commands.')}</p>
+                  <h3 className="text-sm font-bold text-[var(--text-primary)]">{copy('مدیریت از داخل تلگرام', 'Telegram command center')}</h3>
+                  <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{copy('کارهای اصلی را با دکمه‌های زیر پیام ربات انجام دهید؛ لازم نیست دستوری تایپ کنید.', 'Inline Telegram controls run key operations without typing commands.')}</p>
                 </div>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -674,7 +674,7 @@ export function OperatorChannelSetup({
                   aria-expanded={showTokenRotation}
                 >
                   <RotateCw className="h-4 w-4" />
-                  {copy('تعویض امن توکن بات', 'Securely rotate bot token')}
+                  {copy('عوض کردن توکن ربات', 'Securely rotate bot token')}
                 </button>
                 {showTokenRotation && (
                   <div className="mt-2 rounded-2xl border border-black/[0.07] bg-white p-3">
@@ -752,7 +752,7 @@ export function OperatorChannelSetup({
                   copy('دکمه‌های شیشه‌ای مدیریتی داخل تلگرام', 'Inline management buttons in Telegram'),
                   copy('صف گفتگوها و گزارش عملکرد ۲۴ ساعته', 'Conversation queue and 24-hour report'),
                   copy('قبول، پیگیری و حل گفتگو با یک لمس', 'One-tap claim, follow-up and resolution'),
-                  copy('کنترل زنده webhook و خطاهای اتصال', 'Live webhook and connection diagnostics'),
+                  copy('بررسی لحظه‌ای اتصال و خطاها', 'Live webhook and connection diagnostics'),
                   copy('توقف یا فعال‌سازی هشدارها از داخل بات', 'Pause or resume alerts from the bot'),
                 ].map((item) => (
                   <div key={item} className="flex min-h-11 items-center gap-2.5 rounded-xl border border-black/[0.055] bg-white/65 px-3 text-[12px] font-semibold text-[var(--text-secondary)]">
@@ -769,11 +769,11 @@ export function OperatorChannelSetup({
       {removeOpen && typeof document !== 'undefined' && createPortal(
         <DialogShell
           title={copy('حذف اتصال ربات مدیریت', 'Remove manager bot connection')}
-          subtitle={copy('Webhook تلگرام غیرفعال و تنظیمات اتصال از فضای کاری حذف می‌شود.', 'The Telegram webhook and workspace connection will be removed.')}
+          subtitle={copy('ربات از ویجنت جدا می‌شود و تنظیماتش پاک می‌شود.', 'The Telegram webhook and workspace connection will be removed.')}
           onClose={() => { if (busy !== 'remove') setRemoveOpen(false) }}
         >
           <div className="rounded-2xl border border-red-200 bg-red-50/70 p-4 text-xs leading-6 text-red-900">
-            <div className="flex items-start gap-2.5"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>{copy('پس از حذف، هشدار جدیدی به این بات ارسال نمی‌شود. تاریخچه گفتگوها و ارجاع‌های قبلی حذف نخواهد شد.', 'No new alerts will be sent to this bot. Existing conversations and handoff history will remain.')}</p></div>
+            <div className="flex items-start gap-2.5"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>{copy('بعد از حذف، هشداری به این ربات نمی‌آید. سابقهٔ گفتگوها و ارجاع‌های قبلی می‌ماند.', 'No new alerts will be sent to this bot. Existing conversations and handoff history will remain.')}</p></div>
           </div>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button type="button" data-dialog-initial-focus onClick={() => setRemoveOpen(false)} disabled={busy === 'remove'} className="spatial-press inline-flex min-h-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white px-4 text-xs font-bold text-[var(--text-secondary)] disabled:opacity-50">{copy('انصراف', 'Cancel')}</button>

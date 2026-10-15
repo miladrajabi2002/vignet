@@ -213,7 +213,7 @@ export function BusinessSettings({
   }
 
   async function save() {
-    if (name.trim().length < 2) { setError(fa ? 'نام کسب‌وکار را وارد کنید (حداقل ۲ نویسه).' : 'Enter a business name (2+ characters).'); return }
+    if (name.trim().length < 2) { setError(fa ? 'نام کسب‌وکار خودتون را بنویسید (حداقل ۲ حرف).' : 'Enter a business name (2+ characters).'); return }
     saveState.start()
     setError('')
     try {
@@ -269,7 +269,7 @@ export function BusinessSettings({
           </div>
           <p className="mt-2 text-[13px] leading-5 text-[var(--text-muted)]">
             {fa
-              ? 'به‌علاوه بخش‌های پایه که همیشه هست: پیشخوان، ایجنت‌ها، گفتگوها، مشتریان، تحلیل، اتصال‌ها، اشتراک و تنظیمات.'
+              ? 'به‌علاوهٔ بخش‌های پایه که همیشه هست: نمای کلی، ایجنت‌ها، گفتگوها، مشتریان، تحلیل‌ها، اتصال‌ها، اشتراک و اعتبار، تنظیمات.'
               : 'Plus the core sections every workspace has: overview, agents, conversations, contacts, analytics, integrations, billing and settings.'}
           </p>
         </div>

@@ -137,7 +137,7 @@ export function CampaignComposer({
             <div className="py-10 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-[var(--ok)]" />
               <h3 className="mt-4 text-lg font-bold text-[var(--text-primary)]">{isFa ? 'کمپین وارد صف شد' : 'Campaign queued'}</h3>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-[var(--text-secondary)]">{isFa ? 'رضایت و فعال‌بودن اتصال برای هر مشتری دوباره بررسی می‌شود. نتیجه هر ارسال جداگانه ثبت خواهد شد.' : 'Consent and channel availability are rechecked per recipient. Each delivery result is recorded separately.'}</p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-[var(--text-secondary)]">{isFa ? 'قبل از ارسال، اجازهٔ پیام و وصل بودن اتصالِ هر مشتری دوباره چک می‌شود. نتیجهٔ هر پیام جدا ثبت می‌شود.' : 'Consent and channel availability are rechecked per recipient. Each delivery result is recorded separately.'}</p>
               <button type="button" onClick={onClose} className="mt-6 min-h-11 rounded-xl bg-[var(--white)] px-5 text-sm font-medium text-[var(--bg-base)]">{isFa ? 'بستن' : 'Close'}</button>
             </div>
           ) : (
@@ -148,7 +148,7 @@ export function CampaignComposer({
                   <div className="mt-4">
                     <div className="grid grid-cols-3 gap-2 text-center"><AudienceStat label={isFa ? 'مجاز برای ارسال' : 'Eligible'} value={preview.eligibleCount} tone="success" /><AudienceStat label={isFa ? 'بدون رضایت' : 'No consent'} value={preview.excludedNoConsent} tone="warning" /><AudienceStat label={isFa ? 'بدون اتصال فعال' : 'No active channel'} value={preview.excludedNoChannel} tone="muted" /></div>
                     {preview.sample.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{preview.sample.map((item) => <span key={item.id} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[12px] text-[var(--text-secondary)]">{item.label} · {item.channel}</span>)}</div>}
-                    {preview.capped && <p className="mt-3 text-[12px] text-amber-500">{isFa ? 'این کمپین برای ایمنی به ۵۰۰ مخاطب اول محدود شده است.' : 'For safety, this campaign is capped at the first 500 contacts.'}</p>}
+                    {preview.capped && <p className="mt-3 text-[12px] text-amber-500">{isFa ? 'برای احتیاط، این کمپین فقط برای ۵۰۰ نفر اول فرستاده می‌شود.' : 'For safety, this campaign is capped at the first 500 contacts.'}</p>}
                   </div>
                 )}
               </section>
@@ -165,9 +165,9 @@ export function CampaignComposer({
               ) : (
                 <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
                   <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]"><AlertTriangle className="h-4 w-4 text-amber-500" />{isFa ? '۳. تأیید نهایی ارسال' : '3. Final delivery confirmation'}</h3>
-                  <p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{isFa ? `این اقدام پیام را برای ${campaign.expectedRecipientCount.toLocaleString('fa-IR')} مخاطب واجد شرایط وارد صف می‌کند و قابل بازگردانی نیست.` : `This queues the message for ${campaign.expectedRecipientCount} eligible recipients and cannot be undone.`}</p>
+                  <p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{isFa ? `پیام برای ${campaign.expectedRecipientCount.toLocaleString('fa-IR')} نفر به صف ارسال می‌رود و دیگر نمی‌شود برش گرداند.` : `This queues the message for ${campaign.expectedRecipientCount} eligible recipients and cannot be undone.`}</p>
                   <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-500/20 bg-[var(--bg-surface)] p-3"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-amber-500" /><span className="text-xs leading-6 text-[var(--text-secondary)]">{isFa ? 'مخاطبان، متن و رضایت ثبت‌شده را بازبینی کردم و ارسال را تأیید می‌کنم.' : 'I reviewed the audience, message, and recorded consent and confirm delivery.'}</span></label>
-                  <button type="button" onClick={confirmAndQueue} disabled={!confirmed || queueing} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-semibold text-zinc-950 disabled:opacity-50">{queueing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}{isFa ? 'تأیید نهایی و ورود به صف' : 'Final confirm and queue'}</button>
+                  <button type="button" onClick={confirmAndQueue} disabled={!confirmed || queueing} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-semibold text-zinc-950 disabled:opacity-50">{queueing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}{isFa ? 'تأیید و ارسال' : 'Final confirm and queue'}</button>
                 </section>
               )}
               {error && <p className="text-xs text-danger" role="alert">{error}</p>}

@@ -109,7 +109,7 @@ export function MenuItemSheet({
       saveState.fail()
       setError(
         response?.status === 402
-          ? { text: 'پلن فضای کاری فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.', upgrade: true }
+          ? { text: 'پلنتان فعال نیست؛ برای تغییر منو، پلن را تمدید کنید.', upgrade: true }
           : response?.status === 409
             ? { text: 'به سقف تعداد آیتم پلن رسیده‌اید.', upgrade: true }
             : { text: 'ذخیره نشد؛ دوباره تلاش کنید.' },

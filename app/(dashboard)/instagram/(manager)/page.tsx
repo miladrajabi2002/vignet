@@ -48,7 +48,7 @@ export default async function InstagramWorkspacePage({
         <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center text-sm text-[var(--text-secondary)]">
           <p>
             {locale === 'fa'
-              ? 'برای اتصال اینستاگرام ابتدا یک ایجنت بسازید.'
+              ? 'برای وصل کردن اینستاگرام، اول یک ایجنت بسازید.'
               : 'Create an agent before connecting Instagram.'}
           </p>
           <Link

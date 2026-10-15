@@ -90,14 +90,14 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
 
       {error && (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
-          {fa ? 'ساخت لینک پرداخت ناموفق بود.' : 'Could not create the payment link.'}
+          {fa ? 'لینک پرداخت ساخته نشد.' : 'Could not create the payment link.'}
         </div>
       )}
 
       {/* Trust note */}
       <p className="mt-3 text-center text-[12px] text-[var(--text-muted)]">
         {fa
-          ? 'پرداخت با زرین‌پی · کارت‌به‌کارت خودکار و کاملاً امن'
+          ? 'پرداخت با زرین‌پی · کارت‌به‌کارت خودکار'
           : 'Paid through ZarinPay · automatic card-to-card, fully secure'}
       </p>
     </div>

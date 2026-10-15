@@ -307,8 +307,8 @@ export function ServiceEditor({
       return saved
     } catch (reason) {
       setError(reason instanceof Error && reason.message === 'PLAN_BLOCKED'
-        ? (fa ? 'پلن فضای کاری فعال نیست؛ برای ذخیره، پلن را تمدید کنید.' : 'Your plan is inactive.')
-        : (fa ? 'ذخیره نشد؛ اتصال را بررسی کنید و دوباره تلاش کنید.' : 'Could not save. Check your connection and retry.'))
+        ? (fa ? 'پلنتان فعال نیست؛ برای ذخیره، پلن را تمدید کنید.' : 'Your plan is inactive.')
+        : (fa ? 'ذخیره نشد؛ اینترنت را چک کنید و دوباره امتحان کنید.' : 'Could not save. Check your connection and retry.'))
     } finally {
       setSaving(false)
     }
@@ -466,7 +466,7 @@ export function ServiceEditor({
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3.5">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'ظرفیت هم‌ زمان' : 'Concurrent capacity'}</p>
+                <p className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'ظرفیت هم‌زمان' : 'Concurrent capacity'}</p>
                 <p className="ui-caption">{fa ? 'چند مشتری می‌توانند در یک زمان رزرو کنند (صندلی، اتاق، نفر).' : 'How many customers can book the same time.'}</p>
               </div>
               <Stepper value={capacity} min={1} max={100} onChange={setCapacity} fa={fa} />
@@ -578,7 +578,7 @@ export function ServiceEditor({
           </div>
           {touched && issues.noDays && <InlineError text={fa ? 'حداقل یک روز کاری را باز کنید.' : 'Open at least one day.'} />}
           {issues.tooLong && !issues.noDays && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />{fa ? 'مدت نوبت از طولانی‌ترین بازه کاری بیشتر است؛ هیچ زمانی ساخته نمی‌شود.' : 'Length exceeds every open range, so no slots can be offered.'}</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />{fa ? 'مدت نوبت از طولانی‌ترین بازهٔ کاری بیشتر است، پس هیچ نوبتی جا نمی‌شود.' : 'Length exceeds every open range, so no slots can be offered.'}</p>
           )}
         </Section>
 
@@ -653,7 +653,7 @@ export function ServiceEditor({
 
         {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
         {touched && invalid && !error && (
-          <p role="alert" className="rounded-xl bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-800">{fa ? 'چند مورد نیاز به اصلاح دارد؛ موارد قرمز را بررسی کنید.' : 'A few fields need attention.'}</p>
+          <p role="alert" className="rounded-xl bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-800">{fa ? 'چند فیلد درست پر نشده؛ قسمت‌های قرمز را نگاه کنید.' : 'A few fields need attention.'}</p>
         )}
       </div>
     </SideSheet>

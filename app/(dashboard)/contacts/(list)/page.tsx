@@ -38,7 +38,7 @@ const CHANNEL_FILTER_WHERE: Partial<Record<ChannelType, Prisma.ContactWhereInput
 
 const STAGE_LABELS_FA: Record<string, string> = {
   lead: 'مشتری احتمالی',
-  qualified: 'واجد شرایط',
+  qualified: 'مشتری جدی',
   customer: 'مشتری',
   lost: 'از دست‌رفته',
 }
@@ -346,7 +346,7 @@ export default async function ContactsPage(
                 // One stage holds everyone: a ring with a single slice says nothing a sentence can't.
                 <p className="py-6 text-sm leading-7 text-[var(--text-secondary)]">
                   {isFa
-                    ? `هر ${totalCount.toLocaleString('fa-IR')} مشتری در مرحلهٔ «${activeStages[0].label}» هستند. با جابه‌جا کردن مشتری‌ها بین مرحله‌ها، قیف فروش اینجا شکل می‌گیرد.`
+                    ? `همهٔ ${totalCount.toLocaleString('fa-IR')} مشتری در مرحلهٔ «${activeStages[0].label}» هستند. مشتری‌ها را بین مرحله‌ها جابه‌جا کنید تا قیف فروش اینجا شکل بگیرد.`
                     : `All ${totalCount} customers are in the “${activeStages[0].label}” stage. Move customers between stages and the pipeline takes shape here.`}
                 </p>
               ) : (
@@ -399,7 +399,7 @@ export default async function ContactsPage(
               locale === 'fa' ? 'ایجاد خودکار: ' : 'Auto-created: ',
             body:
               locale === 'fa'
-                ? 'در پیام‌رسان‌ها مشتری با شناسهٔ همان پیام‌رسان ساخته می‌شود؛ در ویجت سایت و چت لینک نیز به‌محض دریافت نام یا شماره، پروفایل مشتری به‌صورت خودکار ایجاد و به گفتگو متصل می‌شود.'
+                ? 'در پیام‌رسان‌ها، مشتری با شناسهٔ همان پیام‌رسان ساخته می‌شود. در ویجت سایت و چت لینک هم همین که نام یا شماره را بدهد، پروفایلش خودکار ساخته و به گفتگو وصل می‌شود.'
                 : 'Messenger customers are created from their channel identity. In web widget and chat-link conversations, the customer profile is created and attached as soon as a name or phone is available.',
           },
           {
@@ -410,7 +410,7 @@ export default async function ContactsPage(
                 : 'Cross-channel unification: ',
             body:
               locale === 'fa'
-                ? 'اگر یک شخص از چند اتصال با یک شماره پیام بدهد، گفتگوها و سوابق او روی یک مشتری ادغام می‌شوند. قالب‌های +989…، 09… و 989… یک شماره واحد محسوب می‌شوند.'
+                ? 'اگر یک نفر با یک شماره از چند اتصال پیام بدهد، همهٔ گفتگوها و سابقه‌اش زیر یک مشتری جمع می‌شود. +989…، 09… و 989… یک شماره حساب می‌شوند.'
                 : 'When the same person uses multiple channels with one phone number, conversations and history merge into one customer. +989…, 09…, and 989… formats are treated as the same number.',
           },
           {
@@ -419,7 +419,7 @@ export default async function ContactsPage(
               locale === 'fa' ? 'مرحله (Stage): ' : 'Pipeline stage: ',
             body:
               locale === 'fa'
-                ? 'هر مشتری یک مرحله فروش دارد: مشتری احتمالی، واجد شرایط، مشتری، یا از دست رفته. می‌توانید در نمای pipeline مرحله را با drag-and-drop تغییر دهید. مراحل به‌صورت پیش‌فرض روی «لید» هستند.'
+                ? 'هر مشتری یک مرحلهٔ فروش دارد: مشتری احتمالی، مشتری جدی، مشتری یا از دست‌رفته. در نمای «قیف فروش» می‌توانید کارت مشتری را بکشید و در مرحلهٔ دیگری رها کنید. مشتری تازه اول در مرحلهٔ «مشتری احتمالی» است.'
                 : 'Each customer has a sales stage: lead, qualified, customer, or lost. Drag-and-drop in the pipeline view to change it. New customers default to "lead".',
           },
           {
@@ -427,7 +427,7 @@ export default async function ContactsPage(
             term: locale === 'fa' ? 'تگ‌ها: ' : 'Tags: ',
             body:
               locale === 'fa'
-                ? 'تگ‌ها برچسب‌های دلخواه هستند که می‌توانید به مشتری اضافه کنید (مثلاً «VIP»، «خرید عمده»). در صفحه جزئیات مشتری قابل ویرایش هستند و برای فیلتر کردن و دسته‌بندی استفاده می‌شوند.'
+                ? 'برچسب‌ها اسم‌های دلخواهی‌اند که به مشتری می‌دهید (مثلاً «VIP» یا «خرید عمده»). از صفحهٔ جزئیات مشتری عوضشان کنید و با آن‌ها مشتری‌ها را فیلتر کنید.'
                 : 'Tags are custom labels you can add to a customer (e.g. "VIP", "wholesale"). Edit them on the customer detail page; use them for filtering and segmentation.',
           },
         ]}

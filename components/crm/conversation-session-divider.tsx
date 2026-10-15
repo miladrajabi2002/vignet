@@ -8,7 +8,7 @@ export function ConversationSessionDivider({ locale = 'fa' }: { locale?: 'fa' | 
       </p>
       <p className="mt-1 text-xs leading-5 text-amber-900">
         {locale === 'fa'
-          ? `مشتری پس از حداقل ${CONVERSATION_IDLE_HOURS.toLocaleString('fa-IR')} ساعت بی‌فعالیتی برگشته است. پیام‌ها و خلاصهٔ قبل از این مرز در پاسخ ایجنت استفاده نمی‌شوند؛ سابقه برای مشاهده محفوظ است.`
+          ? `مشتری بعد از دست‌کم ${CONVERSATION_IDLE_HOURS.toLocaleString('fa-IR')} ساعت دوباره پیام داده. ایجنت پیام‌ها و خلاصهٔ قبل از این خط را در جوابش در نظر نمی‌گیرد، ولی همه‌شان اینجا می‌مانند.`
           : `The customer returned after at least ${CONVERSATION_IDLE_HOURS} hours of inactivity. The agent excludes messages and summaries before this point from its replies. Earlier messages remain available to view.`}
       </p>
     </div>

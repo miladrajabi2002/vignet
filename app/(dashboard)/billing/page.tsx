@@ -139,7 +139,7 @@ export default async function BillingPage(
       icon: Sparkles,
       title: locale === 'fa' ? 'پاسخ موفق هوش مصنوعی' : 'Successful AI request',
       desc: locale === 'fa' ? 'پاسخ، تحلیل گفتگو یا تست پاسخ' : 'Reply, conversation analysis, or response test',
-      result: locale === 'fa' ? 'کسر به قیمت مدل انتخابی' : 'Charged at the selected model price',
+      result: locale === 'fa' ? 'به قیمت مدلی که انتخاب کرده‌اید کم می‌شود' : 'Charged at the selected model price',
       tone: 'neutral' as Tone,
     },
     {
@@ -319,7 +319,7 @@ export default async function BillingPage(
                   </h3>
                   {isCurrent && <StatusPill tone="ok">{t('currentPlanBadge')}</StatusPill>}
                   {isRecommended && !isCurrent && (
-                    <StatusPill tone="warn">{locale === 'fa' ? 'پیشنهاد متناسب با ظرفیت شما' : 'Recommended for your capacity'}</StatusPill>
+                    <StatusPill tone="warn">{locale === 'fa' ? 'پیشنهاد ما برای حجم کار شما' : 'Recommended for your capacity'}</StatusPill>
                   )}
                 </div>
                 <div className="mt-2">
