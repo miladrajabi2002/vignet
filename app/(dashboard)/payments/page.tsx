@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { ArrowLeft, Bot, Link2, MessageSquareText, TrendingUp, WalletCards, Zap } from 'lucide-react'
+import { ArrowLeft, Bot, Link2, MessageSquareText, PackageCheck, PackageX, TrendingUp, WalletCards, Zap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
@@ -52,6 +52,14 @@ export default async function PaymentsPage() {
     prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID' } }),
   ])
   const suggestions = await Promise.all(unmatched.map((sms) => suggestPaymentsForSms(user.workspaceId, sms.amount)))
+  // Chat orders paid by card: whether they reached the WooCommerce store.
+  const draftIds = payments.flatMap((payment) => (payment.status === 'PAID' && payment.orderDraftId ? [payment.orderDraftId] : []))
+  const storeOrders = new Map(
+    (draftIds.length
+      ? await prisma.orderDraft.findMany({ where: { id: { in: draftIds }, checkoutMode: 'CARD_TRANSFER' }, select: { id: true, externalOrderNumber: true, storeSyncAt: true, storeSyncError: true } })
+      : []
+    ).map((draft) => [draft.id, draft]),
+  )
   const review = payments.filter((payment) => payment.status === 'CLAIMED')
   const rest = payments.filter((payment) => payment.status !== 'CLAIMED')
   const hasCard = overview.cards.some((card) => card.active)
@@ -157,6 +165,7 @@ export default async function PaymentsPage() {
                       <span dir="ltr" className="font-mono text-sm font-bold text-[var(--text-primary)]">#{payment.reference}</span>
                       <span className="text-sm font-medium text-[var(--text-primary)]">{money(payment.baseAmount)}</span>
                       <StatusChip tone={status.tone} dot>{fa ? status.fa : status.en}{payment.status === 'PAID' && payment.confirmedBy !== 'AUTO' ? (fa ? ' · دستی' : ' · by hand') : ''}</StatusChip>
+                      <StoreOrderChip draft={payment.orderDraftId ? storeOrders.get(payment.orderDraftId) : undefined} fa={fa} />
                     </div>
                     <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
                       {payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]}{payment.site ? ` · ${payment.site.name}` : ''}{payment.customerName ? ` · ${payment.customerName}` : ''}{payment.description ? ` · ${payment.description}` : ''} · {time.format(payment.createdAt)}
@@ -179,4 +188,19 @@ export default async function PaymentsPage() {
       </section>
     </PaymentsShell>
   )
+}
+
+/** Where a paid chat order stands on the WooCommerce store. */
+function StoreOrderChip({ draft, fa }: { draft?: { externalOrderNumber: string | null; storeSyncAt: Date | null; storeSyncError: string | null }; fa: boolean }) {
+  if (!draft) return null
+  if (draft.externalOrderNumber) {
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[#f1eeff] px-2 py-0.5 text-[11.5px] font-medium text-[#4c2fd0] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><PackageCheck className="size-3.5" aria-hidden />{fa ? 'ووکامرس' : 'WooCommerce'} #{draft.externalOrderNumber}</span>
+  }
+  if (draft.storeSyncAt) {
+    return <span title={draft.storeSyncError ?? undefined} className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11.5px] text-[var(--text-secondary)]"><PackageCheck className="size-3.5" aria-hidden />{fa ? 'در صف ثبت در ووکامرس' : 'Queued for WooCommerce'}</span>
+  }
+  if (draft.storeSyncError) {
+    return <span title={draft.storeSyncError} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11.5px] font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300"><PackageX className="size-3.5" aria-hidden />{fa ? 'در ووکامرس ثبت نشد' : 'Not placed on WooCommerce'}</span>
+  }
+  return null
 }

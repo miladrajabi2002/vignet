@@ -14,7 +14,7 @@ export interface StoreEndpoint {
   webhookSecret: string
 }
 
-export type StoreRoute = 'quote' | 'status' | 'cancel' | 'capabilities'
+export type StoreRoute = 'quote' | 'status' | 'cancel' | 'capabilities' | 'place'
 
 export class StoreApiError extends Error {
   constructor(message: string, readonly status: number) {

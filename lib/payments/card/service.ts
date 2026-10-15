@@ -319,7 +319,16 @@ export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now
   if (!changed.count || !payment) return { changed: false, payment }
 
   await prisma.payCard.updateMany({ where: { id: payment.cardId, verifiedAt: null }, data: { verifiedAt: now } }).catch(() => {})
-  await syncDraft(payment, 'PAID', { paidAt: now, resolvedAt: now, grandTotal: payment.baseAmount, paymentMethodTitle: 'کارت‌به‌کارت' })
+  // storeSyncAt: the paid cart is placed on the connected WooCommerce store.
+  await syncDraft(payment, 'PAID', { paidAt: now, resolvedAt: now, grandTotal: payment.baseAmount, paymentMethodTitle: 'کارت‌به‌کارت', storeSyncAt: now, storeSyncTries: 0, storeSyncError: null })
+  if (payment.orderDraftId) {
+    // Not awaited: a slow store must not hold up the SMS that confirmed it.
+    // The worker's sweep retries whatever this attempt leaves behind.
+    const draftId = payment.orderDraftId
+    void import('@/lib/payments/card/store-order')
+      .then((store) => store.placeCardOrderOnStore(draftId, now))
+      .catch((error) => captureError('cardpay:store-order', error, { workspaceId: payment.workspaceId }))
+  }
   await settlePaymentPurpose(payment, 'PAID', now)
   await tellCustomer(payment, 'PAID')
   await notifyWorkspace({

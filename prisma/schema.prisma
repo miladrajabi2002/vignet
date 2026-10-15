@@ -1641,6 +1641,13 @@ model OrderDraft {
   remindedAt          DateTime?
   // Last status the customer was told about (idempotent notifications).
   notifiedStatus      String?
+  // ── Card-to-card order → WooCommerce ─────────────────────────────────
+  //   A chat order paid by the card gateway is placed on the connected
+  //   store (vigent-woo 5.2+). storeSyncAt = next attempt (null = nothing
+  //   to do); storeSyncError = why the last attempt or the final one failed.
+  storeSyncAt         DateTime?
+  storeSyncTries      Int         @default(0)
+  storeSyncError      String?
   // ── Cart hold (agent.cartHoldEnabled) ─────────────────────────────────
   //   heldUntil = end of the one-hour hold; holdState HELD → REMINDED →
   //   RELEASED (the worker sweep owns the last two steps).
@@ -1658,6 +1665,7 @@ model OrderDraft {
   @@index([status, linkExpiresAt])
   @@index([integrationId])
   @@index([holdState, heldUntil])
+  @@index([storeSyncAt])
 }
 
 /// A conversation that asked about a store order and should hear about its

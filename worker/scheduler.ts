@@ -31,6 +31,7 @@ import { purgeSoftDeleted } from '@/lib/maintenance/soft-delete-purge'
 import { sweepRestockAlerts } from '@/lib/commerce/restock-service'
 import { sweepCheckoutLinks } from '@/lib/commerce/checkout-service'
 import { sweepCardPayments } from '@/lib/payments/card/service'
+import { sweepStoreOrders } from '@/lib/payments/card/store-order'
 import { sweepCartHolds } from '@/lib/commerce/cart-hold'
 import { purgeExpiredOrderWatches } from '@/lib/commerce/order-updates'
 import { sweepOperatorDailyReports } from '@/lib/channels/operator-daily-report'
@@ -1029,6 +1030,11 @@ export function startScheduler(): () => void {
                         const stats = await sweepCardPayments()
                         if (stats.expired || stats.reminded || stats.callbacks) {
                                 console.log(`[scheduler] card payments: ${stats.expired} expired, ${stats.reminded} reminded, ${stats.callbacks} callbacks`)
+                        }
+                        // Paid card-to-card carts still waiting to reach the WooCommerce store.
+                        const store = await sweepStoreOrders()
+                        if (store.placed || store.failed) {
+                                console.log(`[scheduler] card orders → store: ${store.placed} placed, ${store.failed} given up`)
                         }
                 } catch (e) {
                         // Before the migration the gateway tables do not exist: nothing to sweep yet.

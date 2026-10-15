@@ -1112,12 +1112,34 @@ class Vigent_Woo_Checkout {
 				)
 			);
 		}
+		// Orders already paid by Vigent's card-to-card gateway are recorded even
+		// when the store switched payment links off: the money is already in.
+		register_rest_route(
+			'vigent-woo/v1',
+			'/checkout/place',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'rest_place' ),
+				'permission_callback' => array( $this, 'verify_place_signature' ),
+			)
+		);
+	}
+
+	public function verify_place_signature( WP_REST_Request $request ) {
+		if ( ! $this->core()->is_configured() || ! self::wc_supported() ) {
+			return new WP_Error( 'vigent_checkout_disabled', 'Checkout is disabled.', array( 'status' => 403 ) );
+		}
+		return $this->check_signature( $request );
 	}
 
 	public function verify_signature( WP_REST_Request $request ) {
 		if ( ! $this->enabled() ) {
 			return new WP_Error( 'vigent_checkout_disabled', 'Checkout is disabled.', array( 'status' => 403 ) );
 		}
+		return $this->check_signature( $request );
+	}
+
+	private function check_signature( WP_REST_Request $request ) {
 		$ts  = (string) $request->get_header( 'x_vigent_timestamp' );
 		$sig = (string) $request->get_header( 'x_vigent_signature' );
 		if ( ! ctype_digit( $ts ) || abs( time() - (int) $ts ) > self::REST_SKEW || '' === $sig ) {
@@ -1192,6 +1214,138 @@ class Vigent_Woo_Checkout {
 				'gateways'        => $quote['gateways'],
 			)
 		);
+	}
+
+	/**
+	 * Record a chat order that Vigent's card-to-card gateway has already been
+	 * paid for: a real WooCommerce order with the products, the customer and
+	 * the price the customer paid, marked paid (payment_complete: stock is
+	 * reduced, the usual emails go out, «در حال انجام» for physical goods).
+	 *
+	 * Idempotent on the chat code: a retry returns the order made before.
+	 * A line that sold out meanwhile is still added (the money is in) and the
+	 * owner gets a note on the order.
+	 */
+	public function rest_place( WP_REST_Request $request ) {
+		$body = $request->get_json_params();
+		$body = is_array( $body ) ? $body : array();
+		$cart = $this->normalize_cart( $body );
+		if ( '' === $cart['code'] || empty( $cart['items'] ) ) {
+			return new WP_Error( 'vigent_bad_request', 'Missing code or items.', array( 'status' => 400 ) );
+		}
+		$existing = $this->find_order( self::META_CODE, $cart['code'] );
+		if ( $existing ) {
+			return rest_ensure_response( array_merge( array( 'ok' => true, 'found' => true, 'created' => false ), $this->checkout_payload( $existing ) ) );
+		}
+		$lock = 'vigent_place_' . md5( $cart['code'] );
+		if ( ! $this->acquire_lock( $lock, 60 ) ) {
+			return new WP_Error( 'vigent_busy', 'This order is being placed.', array( 'status' => 409 ) );
+		}
+		try {
+			$order = $this->place_paid_order( $cart, $body );
+		} finally {
+			$this->release_lock( $lock );
+		}
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+		return rest_ensure_response( array_merge( array( 'ok' => true, 'found' => true, 'created' => true ), $this->checkout_payload( $order ) ) );
+	}
+
+	/** @return WC_Order|WP_Error */
+	private function place_paid_order( $cart, $body ) {
+		$prices = array();
+		foreach ( (array) ( $body['items'] ?? array() ) as $raw ) {
+			if ( is_array( $raw ) ) {
+				$key            = absint( $raw['product_id'] ?? 0 ) . ':' . absint( $raw['variation_id'] ?? 0 );
+				$prices[ $key ] = isset( $raw['unit_price'] ) && is_numeric( $raw['unit_price'] ) ? max( 0, (float) $raw['unit_price'] ) : 0;
+			}
+		}
+		$payment     = is_array( $body['payment'] ?? null ) ? $body['payment'] : array();
+		$paid_total  = isset( $payment['amount'] ) && is_numeric( $payment['amount'] ) ? (float) $payment['amount'] : 0;
+		$reference   = sanitize_text_field( (string) ( $payment['reference'] ?? $cart['code'] ) );
+		$title       = sanitize_text_field( (string) ( $payment['title'] ?? '' ) );
+		$card        = sanitize_text_field( (string) ( $payment['card'] ?? '' ) );
+		$confirmed   = sanitize_text_field( (string) ( $payment['confirmed_by'] ?? '' ) );
+		$shipping    = is_array( $body['shipping'] ?? null ) ? $body['shipping'] : array();
+		$address     = $this->address_from_cart( $cart['customer'] );
+		$missing     = array();
+
+		try {
+			$order = wc_create_order( array( 'created_via' => self::CREATED_VIA ) );
+			if ( is_wp_error( $order ) ) {
+				return $order;
+			}
+			foreach ( $cart['items'] as $item ) {
+				$product = wc_get_product( $item['variation_id'] ? $item['variation_id'] : $item['product_id'] );
+				if ( ! $product || 'trash' === $product->get_status() || $product->is_type( 'variable' ) ) {
+					$missing[] = $item['name'] ? $item['name'] : '#' . $item['product_id'];
+					continue;
+				}
+				if ( ! $product->is_in_stock() || ! $product->has_enough_stock( $item['quantity'] ) ) {
+					$missing[] = ( $item['name'] ? $item['name'] : $product->get_name() ) . ' ' . __( '(موجودی کافی نبود؛ با این حال ثبت شد)', 'vigent-woo' );
+				}
+				$args  = array();
+				$price = $prices[ $item['product_id'] . ':' . $item['variation_id'] ] ?? 0;
+				if ( $price > 0 ) {
+					// The price the customer was quoted and paid, not today's.
+					$args = array( 'subtotal' => $price * $item['quantity'], 'total' => $price * $item['quantity'] );
+				}
+				$order->add_product( $product, $item['quantity'], $args );
+			}
+			if ( ! $order->get_items() ) {
+				$order->delete( true );
+				return new WP_Error( 'vigent_no_products', 'None of the products exist on the store.', array( 'status' => 422 ) );
+			}
+			$order->set_address( $address, 'billing' );
+			$shipping_address = $address;
+			unset( $shipping_address['email'] );
+			$order->set_address( $shipping_address, 'shipping' );
+			if ( ! empty( $shipping['label'] ) || ( isset( $shipping['cost'] ) && (float) $shipping['cost'] > 0 ) ) {
+				$ship = new WC_Order_Item_Shipping();
+				$ship->set_method_title( sanitize_text_field( (string) ( $shipping['label'] ?? __( 'ارسال', 'vigent-woo' ) ) ) );
+				$ship->set_method_id( 'vigent_chat' );
+				$ship->set_total( max( 0, (float) ( $shipping['cost'] ?? 0 ) ) );
+				$order->add_item( $ship );
+			}
+			if ( $cart['note'] ) {
+				$order->set_customer_note( $cart['note'] );
+			}
+			$this->tag_order( $order, $cart, '', 'card_transfer' );
+			$order->set_payment_method( 'vigent_card' );
+			$order->set_payment_method_title( $title ? $title : __( 'کارت‌به‌کارت (ویجنت)', 'vigent-woo' ) );
+			$order->calculate_totals();
+			$order->save();
+			$order->add_order_note(
+				sprintf(
+					/* translators: 1: channel label 2: cart code 3: card ending 4: how it was confirmed */
+					__( 'سفارش از گفتگوی %1$s در ویجنت (کد %2$s). مشتری کارت‌به‌کارت کرد%3$s و واریز %4$s تأیید شد.', 'vigent-woo' ),
+					$this->channel_label( $cart['channel'] ),
+					$cart['code'],
+					$card ? sprintf( __( ' به کارت %s', 'vigent-woo' ), $card ) : '',
+					'AUTO' === $confirmed ? __( 'خودکار از روی پیامک بانک', 'vigent-woo' ) : __( 'به‌صورت دستی', 'vigent-woo' )
+				)
+			);
+			if ( $missing ) {
+				$order->add_order_note( __( 'این اقلام موقع ثبت در فروشگاه مشکل داشتند: ', 'vigent-woo' ) . implode( '، ', $missing ) );
+			}
+			if ( $paid_total > 0 && abs( (float) $order->get_total() - $paid_total ) >= 1 ) {
+				$order->add_order_note(
+					sprintf(
+						/* translators: 1: amount paid 2: order total */
+						__( 'مبلغ واریزی مشتری %1$s بود و جمع این سفارش در فروشگاه %2$s است؛ لطفاً بررسی کنید.', 'vigent-woo' ),
+						wc_format_decimal( $paid_total, 0 ),
+						wc_format_decimal( $order->get_total(), 0 )
+					)
+				);
+			}
+			// Paid: stock goes down, emails go out, the order turns «processing».
+			$order->payment_complete( $reference );
+		} catch ( Exception $e ) {
+			$this->core()->debug_log( 'checkout PLACE_ORDER_FAILED', array( 'error' => $e->getMessage(), 'code' => $cart['code'] ) );
+			return new WP_Error( 'vigent_place_failed', 'The order could not be created.', array( 'status' => 500 ) );
+		}
+		return $order;
 	}
 
 	public function rest_status( WP_REST_Request $request ) {
