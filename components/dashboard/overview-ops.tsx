@@ -29,7 +29,7 @@ const CHANNEL_NAMES: Record<ChannelKey, { fa: string; en: string }> = {
 }
 
 export type FlowInput = { channel: ChannelKey; count: number; connected: boolean }
-export type FlowOutput = { key: string; label: string; value: number; href: string; icon: LucideIcon; tone: 'ok' | 'warn' | 'signal' | 'ink' | 'pay'; sub?: string }
+export type FlowOutput = { key: string; label: string; value: number; href: string; icon: LucideIcon; tone: 'ok' | 'warn' | 'signal' | 'ink' }
 export type AttentionTile = { key: string; label: string; hint: string; value: number; href: string; icon: LucideIcon; urgent: boolean }
 
 function fmt(locale: Locale, value: number) {
@@ -143,12 +143,15 @@ export function LiveFlow({
 	inputs,
 	outputs,
 	automationRate,
+	gateway,
 }: {
 	locale: Locale
 	agentName: string
 	inputs: FlowInput[]
 	outputs: FlowOutput[]
 	automationRate: number | null
+	/** The live payment gateway's cards, flowing on under the agent. */
+	gateway?: ReactNode
 }) {
 	const fa = locale === 'fa'
 	const connected = inputs.filter((input) => input.connected)
@@ -159,7 +162,6 @@ export function LiveFlow({
 		warn: 'bg-[var(--warn-soft)] text-[var(--warn-ink)]',
 		signal: 'bg-[var(--signal-soft)] text-[var(--signal-strong)]',
 		ink: 'bg-[var(--text-primary)] text-white',
-		pay: 'bg-[#5b3de8] text-white',
 	}
 
 	return (
@@ -202,7 +204,16 @@ export function LiveFlow({
 					)}
 				</ul>
 
-				<AgentNode locale={locale} agentName={agentName} automationRate={automationRate} />
+				{gateway ? (
+					// The node stays centred; a line below it runs on into the gateway's cards.
+					<div className="flex flex-col items-center self-stretch">
+						<span className="flex-1" />
+						<AgentNode locale={locale} agentName={agentName} automationRate={automationRate} />
+						<span aria-hidden className="lf-vline min-h-0 flex-1"><span className="lf-vrun" style={{ animationDelay: '1.6s' }}><i /></span></span>
+					</div>
+				) : (
+					<AgentNode locale={locale} agentName={agentName} automationRate={automationRate} />
+				)}
 
 				<ul className="flex flex-col gap-2">
 					{outputs.map((output, index) => {
@@ -217,7 +228,6 @@ export function LiveFlow({
 									<span className="shrink-0">
 										<b className={cn('block text-[15px] font-bold leading-5 tabular-nums', output.value === 0 ? 'text-[var(--text-hint)]' : 'text-[var(--text-primary)]')}>{fmt(locale, output.value)}</b>
 										<span className="block whitespace-nowrap text-[12px] text-[var(--text-muted)]">{output.label}</span>
-										{output.sub ? <span className="block whitespace-nowrap text-[11.5px] font-semibold tabular-nums text-[#5b3de8] dark:text-[#b9adff]">{output.sub}</span> : null}
 									</span>
 								</Link>
 							</li>
@@ -252,15 +262,15 @@ export function LiveFlow({
 				<ul className="grid grid-cols-2 gap-2">
 					{outputs.map((output, index) => {
 						const Icon = output.icon
-						// An odd one out (the gateway's line) takes the whole row.
+						// An odd one out takes the whole row.
 						const wide = outputs.length % 2 === 1 && index === outputs.length - 1
 						return (
 							<li key={output.key} className={cn(wide && 'col-span-2')}>
-								<Link href={output.href} className={cn('flex min-h-14 items-center gap-2 rounded-xl border bg-white p-2', output.tone === 'pay' ? 'border-[#5b3de8]/30' : 'border-[var(--border-default)]')}>
+								<Link href={output.href} className={'flex min-h-14 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white p-2'}>
 									<span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', outputTone[output.tone])}><Icon className="h-4 w-4" /></span>
 									<span className="min-w-0">
 										<b className="block text-[15px] font-bold leading-5 tabular-nums">{fmt(locale, output.value)}</b>
-										<span className="block truncate text-[12px] text-[var(--text-muted)]">{output.label}{output.sub ? <span className="font-semibold text-[#5b3de8]"> · {output.sub}</span> : null}</span>
+										<span className="block truncate text-[12px] text-[var(--text-muted)]">{output.label}</span>
 									</span>
 								</Link>
 							</li>
@@ -268,6 +278,8 @@ export function LiveFlow({
 					})}
 				</ul>
 			</div>
+
+			{gateway ? <div className="mt-4 sm:mt-0">{gateway}</div> : null}
 		</div>
 	)
 }

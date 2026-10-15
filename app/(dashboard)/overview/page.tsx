@@ -1,5 +1,6 @@
 import { GatewayOverviewTile } from '@/components/payments/gateway-overview-tile'
 import { loadGatewayWeek } from '@/lib/payments/card/dashboard'
+import { GatewayDock } from '@/components/dashboard/gateway-dock'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getLocale } from 'next-intl/server'
@@ -18,7 +19,6 @@ import {
   UserPlus,
   Package,
   Sparkles,
-  WalletCards,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -319,10 +319,6 @@ export default async function OverviewPage() {
       : isCommerce
         ? { key: 'orders', label: fa ? 'سفارش فروشگاه' : 'Store orders', value: orders7d, href: `${catalogHref}/orders`, icon: Package, tone: 'ink' }
         : { key: 'open', label: fa ? 'گفتگوی باز' : 'Open chats', value: openConversations, href: '/conversations?status=OPEN', icon: MessagesSquare, tone: 'ink' },
-    // Once the payment gateway is live, what it brought in joins the flow.
-    ...(gatewayWeek
-      ? [{ key: 'payments', label: fa ? 'پرداخت تأییدشده' : 'Confirmed payments', value: gatewayWeek.paid, sub: gatewayWeek.amount > 0 ? `${nf.format(gatewayWeek.amount)} ${fa ? 'تومان' : 'Toman'}` : undefined, href: '/payments', icon: WalletCards, tone: 'pay' as const }]
-      : []),
   ]
   const vigentoAnswer = fa
     ? `امروز ${nf.format(conversationsToday)} گفتگوی تازه داشتید؛ ${handedOff > 0 ? `${nf.format(handedOff)} گفتگو منتظر شماست` : 'هیچ گفتگویی منتظر شما نیست'}${pendingImprovements > 0 ? ` و ${nf.format(pendingImprovements)} پیشنهاد بهبود آمادهٔ تأیید است` : ''}.`
@@ -378,6 +374,8 @@ export default async function OverviewPage() {
             automationRate={conversations7d > 0 ? Math.round((resolved7d / conversations7d) * 100) : null}
             inputs={flowInputs}
             outputs={flowOutputs}
+            // Once the payment gateway is live, its cards take the flow on.
+            gateway={gatewayWeek ? <GatewayDock locale={lang} data={gatewayWeek} conversations={conversations7d} /> : null}
           />
         }
       />
@@ -423,7 +421,8 @@ export default async function OverviewPage() {
         />
       </section>
 
-      <GatewayOverviewTile workspaceId={user.workspaceId} locale={fa ? 'fa' : 'en'} />
+      {/* Until the gateway is live: what it does and the way to set it up. */}
+      {gatewayWeek ? null : <GatewayOverviewTile workspaceId={user.workspaceId} locale={fa ? 'fa' : 'en'} />}
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <DashboardPanel

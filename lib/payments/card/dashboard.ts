@@ -175,22 +175,91 @@ export async function loadGatewayNavState(workspaceId: string): Promise<{ state:
   return { state: cards > 0 || devices > 0 ? 'setup' : 'off', attention }
 }
 
+export interface GatewayWeekCard {
+  id: string
+  bankKey: string
+  /** Masked for display: «6104 33•• •••• 4218». */
+  pan: string
+  holder: string
+  /** Paid into this card in the last seven days / today (tomans). */
+  week: number
+  today: number
+  dailyCap: number | null
+}
+
+export interface GatewayWeek {
+  paid: number
+  amount: number
+  /** Payments and deposits waiting for the owner's decision. */
+  review: number
+  /** Tomans paid per Tehran day, oldest first; the last one is today. */
+  daily: number[]
+  /** The latest paid payments, newest first. */
+  recent: { amount: number; reference: string; purpose: string; cardId: string; paidAt: string }[]
+  /** Active cards, in the owner's order. */
+  cards: GatewayWeekCard[]
+}
+
+const TEHRAN_OFFSET_MS = 3.5 * 3_600_000
+const DAY_MS = 86_400_000
+
 /**
- * The gateway's last seven days for the overview's flow: paid payments and
- * what they brought in. Null until the gateway is live (set up once, on,
- * not paused), so the flow shows it only then.
+ * The gateway's last seven days for the overview's flow: what was paid, day
+ * by day and card by card, and the latest payments the flow replays. Null
+ * until the gateway is live (set up once, on, not paused), so the flow shows
+ * it only then and the setup tile shows before.
  */
-export async function loadGatewayWeek(workspaceId: string): Promise<{ paid: number; amount: number } | null> {
+export async function loadGatewayWeek(workspaceId: string, now = new Date()): Promise<GatewayWeek | null> {
   const [workspace, platform] = await Promise.all([
     prisma.workspace.findUnique({ where: { id: workspaceId }, select: { payGatewayEnabled: true, payGatewaySuspendedAt: true, payGatewaySettings: true } }),
     getPlatformGatewaySettings(),
   ])
   if (!workspace?.payGatewayEnabled || workspace.payGatewaySuspendedAt || !platform.enabled) return null
   if (!readPayGatewaySettings(workspace.payGatewaySettings).activatedAt) return null
-  const week = await prisma.cardPayment.aggregate({
-    where: { workspaceId, status: 'PAID', paidAt: { gte: new Date(Date.now() - 7 * 86_400_000) }, ...NOT_TEST },
-    _sum: { baseAmount: true },
-    _count: true,
-  })
-  return { paid: week._count, amount: week._sum.baseAmount ?? 0 }
+
+  // Tehran calendar days, so «today» matches the cards' daily caps.
+  const local = new Date(now.getTime() + TEHRAN_OFFSET_MS)
+  const todayStart = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - TEHRAN_OFFSET_MS
+  const weekStart = new Date(todayStart - 6 * DAY_MS)
+  const [cards, payments, review, unmatched] = await Promise.all([
+    prisma.payCard.findMany({ where: { workspaceId, active: true, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
+    prisma.cardPayment.findMany({
+      where: { workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST },
+      orderBy: { paidAt: 'desc' },
+      select: { baseAmount: true, reference: true, purpose: true, cardId: true, paidAt: true },
+    }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED', ...NOT_TEST } }),
+    prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
+  ])
+
+  const daily = Array.from({ length: 7 }, () => 0)
+  const week = new Map<string, number>()
+  const today = new Map<string, number>()
+  for (const payment of payments) {
+    const at = payment.paidAt?.getTime() ?? 0
+    const day = Math.min(6, Math.max(0, Math.floor((at - weekStart.getTime()) / DAY_MS)))
+    daily[day] += payment.baseAmount
+    week.set(payment.cardId, (week.get(payment.cardId) ?? 0) + payment.baseAmount)
+    if (at >= todayStart) today.set(payment.cardId, (today.get(payment.cardId) ?? 0) + payment.baseAmount)
+  }
+  const activeIds = new Set(cards.map((card) => card.id))
+  return {
+    paid: payments.length,
+    amount: daily.reduce((sum, value) => sum + value, 0),
+    review: review + unmatched,
+    daily,
+    recent: payments
+      .filter((payment) => activeIds.has(payment.cardId) && payment.paidAt)
+      .slice(0, 5)
+      .map((payment) => ({ amount: payment.baseAmount, reference: payment.reference, purpose: payment.purpose, cardId: payment.cardId, paidAt: payment.paidAt!.toISOString() })),
+    cards: cards.map((card) => ({
+      id: card.id,
+      bankKey: card.bankKey,
+      pan: `${card.bin.slice(0, 4)} ${card.bin.slice(4)}•• •••• ${card.last4}`,
+      holder: card.holderName,
+      week: week.get(card.id) ?? 0,
+      today: today.get(card.id) ?? 0,
+      dailyCap: card.dailyCap,
+    })),
+  }
 }
