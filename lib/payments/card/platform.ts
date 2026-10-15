@@ -84,7 +84,8 @@ export function effectiveMonthlyCap(caps: PlanMonthlyCaps, plan: Plan, override:
 export async function getGatewayUsage(workspaceId: string, plan: Plan, capOverride: number | null = null): Promise<GatewayUsage> {
   const [settings, used] = await Promise.all([
     getPlatformGatewaySettings(),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'PAID', paidAt: { gte: monthStart() } } }),
+    // The setup's own test transfers («TEST-…») never use up the plan.
+    prisma.cardPayment.count({ where: { workspaceId, status: 'PAID', paidAt: { gte: monthStart() }, NOT: { reference: { startsWith: 'TEST-' } } } }),
   ])
   const cap = effectiveMonthlyCap(settings.planMonthlyCaps, plan, capOverride)
   return { used, cap, reached: cap != null && used >= cap }

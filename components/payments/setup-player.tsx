@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, Pause, Play } from 'lucide-react'
+import { useMemo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface SetupPlayerProps {
@@ -16,8 +15,6 @@ export interface SetupPlayerProps {
 	lang?: 'fa' | 'en'
 	className?: string
 }
-
-const STEP_MS = 4600
 
 function Cell({ label, value, on, rtl }: { label: string; value: ReactNode; on?: boolean; rtl?: boolean }) {
 	return (
@@ -35,35 +32,30 @@ function Toggle() {
 	return <span aria-hidden className="relative h-[18px] w-[30px] shrink-0 rounded-full bg-[#34c759]"><span className="absolute end-0.5 top-0.5 size-3.5 rounded-full bg-white" /></span>
 }
 
+export type SetupStepKind = 'install' | 'permissions' | 'condition' | 'destination' | 'save'
+
+export interface SetupStep {
+	kind: SetupStepKind
+	title: string
+	body: string
+	screen: ReactNode
+}
+
 /**
- * The phone-side setup as a short loop: what to tap on the owner's own phone,
- * one screen per step. Shared by the dashboard guide and the public pages.
- * Plays only while on screen; with reduced motion it waits for a tap.
+ * The phone-side setup, one screen per step: what to tap on the owner's own
+ * phone (Android forwarder app or iPhone Shortcuts, by SMS or by URL), with
+ * the filter word and the destination filled in.
  */
-export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa', className }: SetupPlayerProps) {
+export function useSetupSteps({ platform, method, line, url, keyword, lang = 'fa' }: Omit<SetupPlayerProps, 'className'>): SetupStep[] {
 	const fa = lang !== 'en'
 	const shortUrl = url ? url.replace(/^https?:\/\//, '').replace(/(dv_.{4}).+(.{4})$/, '$1…$2') : 'vigent.ir/api/pay/sms/…'
 	const target = method === 'SMS' ? (line ?? '3000…') : shortUrl
 
-	const steps = useMemo(() => {
-		const done = {
-			title: fa ? 'یک واریز آزمایشی' : 'One test transfer',
-			body: fa ? 'مبلغ کوچکی که ویجنت می‌گوید را به کارت خودتان واریز کنید. پیامکش که برسد، درگاه آماده است.' : 'Transfer the small amount Vigent shows to your own card. When its SMS arrives the gateway is ready.',
-			screen: (
-				<>
-					<p className="text-[13px] font-bold">Messages</p>
-					<div dir="rtl" className="w-fit max-w-[92%] whitespace-pre-line rounded-[14px_14px_4px_14px] bg-[#e9e9ee] px-2.5 py-2 text-[11.5px] leading-5">{`${keyword} 13,470\nمانده •••`}</div>
-					<div className="m-auto grid justify-items-center gap-1.5 text-center">
-						<span className="grid size-14 place-items-center rounded-full bg-[#dcfce7] text-[#15803d]"><Check className="size-7" strokeWidth={2.6} aria-hidden /></span>
-						<b className="text-[12.5px]">{method === 'SMS' ? 'Forwarded' : '200 OK'}</b>
-						<span className="text-[10.5px] text-[#777]">matched · gateway ready</span>
-					</div>
-				</>
-			),
-		}
+	return useMemo<SetupStep[]>(() => {
 		if (platform === 'ANDROID') {
 			return [
 				{
+					kind: 'install' as const,
 					title: fa ? 'اپ فوروارد پیامک را نصب کنید' : 'Install an SMS forwarder app',
 					body: method === 'SMS'
 						? (fa ? 'هر اپی که پیامک را خودکار به یک شماره فوروارد کند کافی است.' : 'Any app that forwards an SMS to a number automatically will do.')
@@ -79,6 +71,7 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 					),
 				},
 				{
+					kind: 'permissions' as const,
 					title: fa ? 'دسترسی پیامک و باتری' : 'SMS and battery permissions',
 					body: fa ? 'اجازهٔ خواندن پیامک بدهید و بهینه‌سازی باتری را برای این اپ خاموش کنید تا اندروید آن را نبندد.' : 'Allow reading SMS and turn battery optimisation off for this app so Android does not stop it.',
 					screen: (
@@ -91,6 +84,7 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 					),
 				},
 				{
+					kind: 'condition' as const,
 					title: fa ? `شرط: متن پیام شامل «${keyword}»` : `Condition: text contains “${keyword}”`,
 					body: fa ? 'این کلمه در همهٔ پیامک‌های واریز بانک شما ثابت است. با این شرط فقط پیامک واریز فرستاده می‌شود؛ رمز پویا و پیام‌های شخصی هرگز از گوشی بیرون نمی‌روند.' : 'This word is in every deposit SMS of your bank. With it only deposit messages are sent; one-time passwords and personal texts never leave the phone.',
 					screen: (
@@ -103,6 +97,7 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 					),
 				},
 				{
+					kind: 'destination' as const,
 					title: method === 'SMS' ? (fa ? 'مقصد: شمارهٔ سامانهٔ ویجنت' : 'Destination: Vigent’s SMS line') : (fa ? 'مقصد: نشانی اختصاصی شما' : 'Destination: your own address'),
 					body: method === 'SMS'
 						? (fa ? 'شمارهٔ سامانه را به‌عنوان گیرنده وارد و قانون را روشن کنید. ویجنت پیامک را از روی شمارهٔ همین گوشی می‌شناسد.' : 'Enter the line as the recipient and switch the rule on. Vigent recognises the SMS by this phone’s number.')
@@ -117,13 +112,13 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 						</>
 					),
 				},
-				done,
 			]
 		}
 		return [
 			{
-				title: fa ? 'اتوماسیون تازه در Shortcuts' : 'A new automation in Shortcuts',
-				body: fa ? 'اپ Shortcuts را باز کنید: زبانهٔ Automation، علامت +، و رویداد Message.' : 'Open Shortcuts: the Automation tab, +, then the Message trigger.',
+				kind: 'install' as const,
+				title: fa ? 'یک اتوماسیون تازه بسازید' : 'Make a new automation',
+				body: fa ? 'اپ Shortcuts (میان‌برها) را باز کنید، زبانهٔ Automation و بعد علامت + را بزنید و رویداد Message را انتخاب کنید.' : 'Open the Shortcuts app, tap the Automation tab, then +, and pick the Message trigger.',
 				screen: (
 					<>
 						<p className="text-[13px] font-bold">New Automation</p>
@@ -134,8 +129,9 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 				),
 			},
 			{
-				title: fa ? `شرط: Message Contains «${keyword}»` : `Condition: Message Contains “${keyword}”`,
-				body: fa ? 'این کلمه در همهٔ پیامک‌های واریز بانک شما ثابت است. Run Immediately را انتخاب کنید تا بدون پرسیدن اجرا شود.' : 'This word is in every deposit SMS of your bank. Choose Run Immediately so it runs without asking.',
+				kind: 'condition' as const,
+				title: fa ? 'شرط: پیامک‌هایی که این متن را دارند' : 'Condition: messages with this text',
+				body: fa ? 'در بخش Message Contains متن ثابت زیر را دقیقاً بچسبانید و Run Immediately را روشن کنید تا بدون پرسیدن اجرا شود. فقط پیامک‌هایی که این متن را دارند برای ویجنت فرستاده می‌شوند.' : 'Paste the fixed text below into Message Contains and turn on Run Immediately so it runs without asking. Only messages with this text are sent to Vigent.',
 				screen: (
 					<>
 						<p className="text-[13px] font-bold">When</p>
@@ -146,6 +142,7 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 				),
 			},
 			{
+				kind: 'destination' as const,
 				title: method === 'SMS' ? (fa ? 'کار: Send Message به سامانهٔ ویجنت' : 'Action: Send Message to Vigent’s line') : (fa ? 'کار: Get Contents of URL' : 'Action: Get Contents of URL'),
 				body: method === 'SMS'
 					? (fa ? 'گیرنده را شمارهٔ سامانه بگذارید و متن را روی Shortcut Input (همان پیامک بانک).' : 'Set the recipient to the line and the text to Shortcut Input (the bank’s message).')
@@ -160,7 +157,8 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 				),
 			},
 			{
-				title: fa ? 'ذخیره' : 'Save',
+				kind: 'save' as const,
+				title: fa ? 'ذخیره و تمام' : 'Save and done',
 				body: fa ? 'Done را بزنید. از این به بعد هر پیامک واریز بدون باز شدن چیزی روی صفحه فرستاده می‌شود.' : 'Tap Done. From now on every deposit SMS is sent without anything opening on screen.',
 				screen: (
 					<>
@@ -171,70 +169,22 @@ export function SetupPlayer({ platform, method, line, url, keyword, lang = 'fa',
 					</>
 				),
 			},
-			done,
 		]
 	}, [platform, method, keyword, target, fa])
+}
 
-	const [step, setStep] = useState(0)
-	const [playing, setPlaying] = useState(true)
-	const [visible, setVisible] = useState(false)
-	const root = useRef<HTMLDivElement>(null)
-
-	useEffect(() => setStep(0), [platform, method])
-	useEffect(() => {
-		const node = root.current
-		if (!node || !('IntersectionObserver' in window)) return
-		const observer = new IntersectionObserver((entries) => setVisible(entries[0].isIntersecting), { threshold: 0.25 })
-		observer.observe(node)
-		return () => observer.disconnect()
-	}, [])
-	const running = playing && visible
-	useEffect(() => {
-		if (!running || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-		const timer = window.setInterval(() => setStep((current) => (current + 1) % steps.length), STEP_MS)
-		return () => window.clearInterval(timer)
-	}, [running, steps.length])
-
+/** The phone mock showing one step's screen; the other screens slide out. */
+export function PhoneMock({ steps, step, className }: { steps: SetupStep[]; step: number; className?: string }) {
 	return (
-		<div ref={root} dir={fa ? 'rtl' : 'ltr'} className={cn('grid gap-5 sm:grid-cols-[13.5rem_minmax(0,1fr)] sm:items-center', className)}>
-			<div aria-hidden className="relative mx-auto aspect-[268/520] w-[13.5rem] max-w-full rounded-[2.4rem] bg-[#0f0f10] p-2.5 shadow-[0_36px_60px_-38px_rgba(0,0,0,.6)]">
-				<span className="absolute left-1/2 top-[1.05rem] z-10 h-[1.1rem] w-[4.2rem] -translate-x-1/2 rounded-full bg-[#0f0f10]" />
-				<div dir="ltr" className="relative size-full overflow-hidden rounded-[1.85rem] bg-[#f4f4f6] text-[#111]">
-					{steps.map((item, index) => (
-						<div key={index} className={cn('absolute inset-0 flex flex-col gap-2 px-3 pb-3.5 pt-11 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none', index === step ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-4 opacity-0')}>
-							{item.screen}
-						</div>
-					))}
-				</div>
+		<div aria-hidden className={cn('relative mx-auto aspect-[268/520] w-[12.5rem] max-w-full rounded-[2.3rem] bg-[#0f0f10] p-2.5 shadow-[0_30px_50px_-34px_rgba(0,0,0,.6)]', className)}>
+			<span className="absolute left-1/2 top-[1.05rem] z-10 h-[1.1rem] w-[4.2rem] -translate-x-1/2 rounded-full bg-[#0f0f10]" />
+			<div dir="ltr" className="relative size-full overflow-hidden rounded-[1.8rem] bg-[#f4f4f6] text-[#111]">
+				{steps.map((item, index) => (
+					<div key={index} className={cn('absolute inset-0 flex flex-col gap-2 px-3 pb-3.5 pt-11 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none', index === step ? 'translate-x-0 opacity-100' : index < step ? 'pointer-events-none -translate-x-4 opacity-0' : 'pointer-events-none translate-x-4 opacity-0')}>
+						{item.screen}
+					</div>
+				))}
 			</div>
-			<div className="min-w-0">
-				<ol className="grid gap-1">
-					{steps.map((item, index) => (
-						<li key={index}>
-							<button
-								type="button"
-								onClick={() => { setStep(index); setPlaying(false) }}
-								aria-current={index === step ? 'step' : undefined}
-								className={cn('relative grid w-full grid-cols-[1.9rem_minmax(0,1fr)] items-start gap-2.5 overflow-hidden rounded-control border p-2.5 text-start transition-colors', index === step ? 'border-[var(--border-default)] bg-white shadow-[var(--elev-1)]' : 'border-transparent hover:bg-[var(--bg-hover)]')}
-							>
-								<span className={cn('grid size-[1.9rem] place-items-center rounded-full text-[13px] font-bold', index === step ? 'bg-[#5b3de8] text-white' : index < step ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]')}>
-									{index < step ? <Check className="size-3.5" aria-hidden /> : (index + 1).toLocaleString(fa ? 'fa-IR' : 'en-US')}
-								</span>
-								<span className="min-w-0">
-									<span className="block text-[14px] font-bold leading-7 text-[var(--text-primary)]">{item.title}</span>
-									{index === step && <span className="block text-[13px] leading-6 text-[var(--text-secondary)]">{item.body}</span>}
-								</span>
-								{index === step && running && <span key={`${step}-bar`} aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 origin-[right] bg-[#5b3de8] motion-reduce:hidden ltr:origin-[left]" style={{ animation: `setup-fill ${STEP_MS}ms linear both` }} />}
-							</button>
-						</li>
-					))}
-				</ol>
-				<button type="button" onClick={() => setPlaying((value) => !value)} className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]">
-					{playing ? <Pause className="size-3.5" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
-					{playing ? (fa ? 'توقف' : 'Pause') : (fa ? 'پخش' : 'Play')}
-				</button>
-			</div>
-			<style>{'@keyframes setup-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}'}</style>
 		</div>
 	)
 }

@@ -19,7 +19,8 @@ export interface GatewaySetupState {
 export function gatewaySetupState(overview: Pick<GatewayOverview, 'cards' | 'devices' | 'enabled' | 'platformEnabled'>): GatewaySetupState {
   const done: Record<GatewaySetupStep, boolean> = {
     card: overview.cards.some((card) => card.active),
-    phone: overview.devices.some((device) => device.active && device.connectedAt),
+    // Registered is enough here: the test transfer is what proves the phone works.
+    phone: overview.devices.some((device) => device.active),
     test: overview.devices.some((device) => device.verifiedAt),
     switch: overview.enabled && overview.platformEnabled,
   }

@@ -2496,6 +2496,9 @@ model PayDevice {
   method         String    @default("SMS")
   // National form (09XXXXXXXXX). Only SMS from this number are read.
   phone          String?   @unique
+  // The exact text the forwarding rule filters on («واریز», «انتقال», or the
+  // account number), as the bank prints it; picked from a sample deposit SMS.
+  keyword        String?
   tokenHash      String    @unique
   tokenEncrypted String
   active         Boolean   @default(true)

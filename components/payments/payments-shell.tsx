@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowLeft, CreditCard, ListChecks, PartyPopper, PlugZap, Settings2, Smartphone, WalletCards } from 'lucide-react'
+import { ArrowLeft, CreditCard, ListChecks, PartyPopper, PlugZap, Settings2, WalletCards } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 import { GatewaySetup } from '@/components/payments/gateway-setup'
@@ -10,13 +10,15 @@ import { GATEWAY_SETUP_STEPS, gatewaySetupState } from '@/lib/payments/card/setu
 
 export type PaymentsTab = 'payments' | 'cards' | 'devices' | 'sites' | 'settings'
 
-/** `phone: false` keeps a tab off the phone bar: the four that matter on the go fit without a «more» button. */
-const TABS: Array<{ key: PaymentsTab; href: string; icon: typeof ListChecks; fa: string; en: string; phone: boolean }> = [
-	{ key: 'payments', href: '/payments', icon: ListChecks, fa: 'پرداخت‌ها', en: 'Payments', phone: true },
-	{ key: 'cards', href: '/payments/cards', icon: CreditCard, fa: 'کارت‌ها', en: 'Cards', phone: true },
-	{ key: 'devices', href: '/payments/devices', icon: Smartphone, fa: 'دریافت پیامک', en: 'SMS source', phone: true },
-	{ key: 'sites', href: '/payments/sites', icon: PlugZap, fa: 'سایت و API', en: 'Sites & API', phone: false },
-	{ key: 'settings', href: '/payments/settings', icon: Settings2, fa: 'تنظیمات', en: 'Settings', phone: true },
+/**
+ * The SMS phone has no tab of its own once the gateway is live: it sits in
+ * Settings (with its switch button), and its guide page counts as Settings.
+ */
+const TABS: Array<{ key: PaymentsTab; href: string; icon: typeof ListChecks; fa: string; en: string }> = [
+	{ key: 'payments', href: '/payments', icon: ListChecks, fa: 'پرداخت‌ها', en: 'Payments' },
+	{ key: 'cards', href: '/payments/cards', icon: CreditCard, fa: 'کارت‌ها', en: 'Cards' },
+	{ key: 'sites', href: '/payments/sites', icon: PlugZap, fa: 'سایت و API', en: 'Sites & API' },
+	{ key: 'settings', href: '/payments/settings', icon: Settings2, fa: 'تنظیمات', en: 'Settings' },
 ]
 
 const PILL = {
@@ -40,7 +42,7 @@ const JUST_ACTIVATED_MS = 30 * 60_000
  * page is the setup and nothing else; the other tabs send the owner back
  * to it.
  */
-export function PaymentsShell({ active, overview, locale, children }: { active: PaymentsTab; overview: GatewayOverview; locale: 'fa' | 'en'; children?: ReactNode }) {
+export function PaymentsShell({ active, overview, locale, action, children }: { active: PaymentsTab; overview: GatewayOverview; locale: 'fa' | 'en'; action?: ReactNode; children?: ReactNode }) {
 	const fa = locale !== 'en'
 	const numbers = fa ? 'fa-IR' : 'en-US'
 	const setup = gatewaySetupState(overview)
@@ -62,12 +64,13 @@ export function PaymentsShell({ active, overview, locale, children }: { active: 
 						? { tone: 'setup', light: 'setup', text: fa ? 'روشن · بدون تأیید خودکار' : 'On · no auto-confirm' }
 						: { tone: 'neutral', light: 'off', text: fa ? 'خاموش' : 'Off' }
 	// A part that broke after activation gets an amber dot on its tab.
-	const missing: Partial<Record<PaymentsTab, boolean>> = { cards: !hasCard, devices: !setup.done.phone }
+	const missing: Partial<Record<PaymentsTab, boolean>> = { cards: !hasCard, settings: !setup.done.phone }
+	const shownTab: PaymentsTab = active === 'devices' ? 'settings' : active
 	const justActivated = overview.activatedAt != null && Date.now() - Date.parse(overview.activatedAt) < JUST_ACTIVATED_MS
 
 	function tab(item: (typeof TABS)[number], compact: boolean) {
 		const Icon = item.icon
-		const current = active === item.key
+		const current = shownTab === item.key
 		return (
 			<Link
 				key={item.key}
@@ -122,11 +125,12 @@ export function PaymentsShell({ active, overview, locale, children }: { active: 
 								: 'Customers pay by card-to-card and Vigent confirms the payment from your bank’s deposit SMS.'}
 						</p>
 					</div>
+					{action && !settingUp ? <div className="shrink-0">{action}</div> : null}
 				</div>
 				{settingUp ? null : (
 					<>
 						<nav className="grid grid-cols-4 gap-1 border-t border-black/[0.055] px-1.5 md:hidden dark:border-white/[0.06]" aria-label={fa ? 'بخش‌های درگاه پرداخت' : 'Payment gateway sections'}>
-							{TABS.filter((item) => item.phone).map((item) => tab(item, true))}
+							{TABS.map((item) => tab(item, true))}
 						</nav>
 						<nav className="scrollbar-none hidden gap-1 overflow-x-auto border-t border-black/[0.055] px-2.5 md:flex dark:border-white/[0.06]" aria-label={fa ? 'بخش‌های درگاه پرداخت' : 'Payment gateway sections'}>
 							{TABS.map((item) => tab(item, false))}
@@ -163,7 +167,7 @@ export function PaymentsShell({ active, overview, locale, children }: { active: 
 							</p>
 						</div>
 					) : null}
-					{overview.platformEnabled && !overview.suspended && (!hasCard || !setup.done.phone) && active !== (hasCard ? 'devices' : 'cards') ? (
+					{overview.platformEnabled && !overview.suspended && (!hasCard || !setup.done.phone) && !(hasCard ? ['devices', 'settings'] : ['cards']).includes(active) ? (
 						<Link href={hasCard ? '/payments/devices' : '/payments/cards'} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13.5px] leading-6 text-amber-900 transition-colors hover:bg-amber-100/70 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
 							<span aria-hidden className="size-2 shrink-0 rounded-full bg-amber-500" />
 							<span className="min-w-0 flex-1">

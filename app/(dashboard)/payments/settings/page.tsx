@@ -2,6 +2,7 @@ import { getLocale } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { PaymentsShell } from '@/components/payments/payments-shell'
 import { GatewaySettings } from '@/components/payments/gateway-settings'
+import { PhoneCard } from '@/components/payments/device-setup'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
 import { loadCheckoutStore } from '@/lib/payments/card/store'
 import { gatewaySetupState } from '@/lib/payments/card/setup'
@@ -22,6 +23,7 @@ export default async function PaymentSettingsPage() {
         agents={overview.agents}
         store={store}
         setupDone={gatewaySetupState(overview).done}
+        phone={<PhoneCard device={overview.devices[0] ?? null} line={overview.inboundLines[0] ?? null} />}
       />
     </PaymentsShell>
   )

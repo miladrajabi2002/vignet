@@ -80,7 +80,8 @@ export async function receivedTodayByCard(workspaceId: string, now = new Date())
   const dayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - tehranOffsetMs)
   const rows = await prisma.cardPayment.groupBy({
     by: ['cardId'],
-    where: { workspaceId, status: 'PAID', paidAt: { gte: dayStart } },
+    // The setup's own test transfers are not money received.
+    where: { workspaceId, status: 'PAID', paidAt: { gte: dayStart }, NOT: { reference: { startsWith: 'TEST-' } } },
     _sum: { baseAmount: true },
   })
   return new Map(rows.map((row) => [row.cardId, row._sum.baseAmount ?? 0]))
@@ -330,6 +331,8 @@ export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now
       .catch((error) => captureError('cardpay:store-order', error, { workspaceId: payment.workspaceId }))
   }
   await settlePaymentPurpose(payment, 'PAID', now)
+  // The setup's own test transfer: the setup turns green, no alert or callback.
+  if (payment.reference.startsWith('TEST-')) return { changed: true, payment }
   await tellCustomer(payment, 'PAID')
   await notifyWorkspace({
     workspaceId: payment.workspaceId,
@@ -371,7 +374,7 @@ export async function claimCardPayment(paymentId: string, opts: { tellCustomer?:
         type: 'CHANNEL_DOWN',
         title: 'گوشی پیامک واریز را نمی‌فرستد',
         body: 'دو مشتری پشت‌سرهم گفته‌اند پرداخت کرده‌اند ولی پیامکی نرسیده. اینترنت، شارژ پیامک و اپ فوروارد گوشی را بررسی کنید؛ تا آن موقع پرداخت‌ها را دستی تأیید کنید.',
-        link: '/payments/devices',
+        link: '/payments/settings',
         operatorTelegram: 'payments',
       })
     }

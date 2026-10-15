@@ -5,9 +5,12 @@ import { readPayGatewaySettings } from '@/lib/payments/card/settings'
 import { prisma } from '@/lib/prisma'
 import { cardPayView, createCardPayment, manualLinkReference, payPageUrl } from '@/lib/payments/card/service'
 
+/** The setup's test transfer, in whole tomans (before its identifying digits). */
+const TEST_AMOUNT = 10_000
+
 const schema = z.object({
   // Whole tomans.
-  amount: z.number().int().min(1_000).max(2_000_000_000),
+  amount: z.number().int().min(1_000).max(2_000_000_000).optional(),
   description: z.string().trim().max(200).optional(),
   customerName: z.string().trim().max(80).optional(),
   // The setup guide's own small transfer to the owner's card.
@@ -21,15 +24,26 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
   const test = parsed.data.test === true
+  if (!test && !parsed.data.amount) return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
   if (test) {
     // The test must work before the owner switches the gateway on.
     const cards = await prisma.payCard.count({ where: { workspaceId: user.workspaceId, active: true, deletedAt: null } })
     if (!cards) return NextResponse.json({ error: 'NO_CARD' }, { status: 400 })
     await prisma.workspace.updateMany({ where: { id: user.workspaceId, payGatewayEnabled: false }, data: { payGatewayEnabled: true } })
+    // Coming back to the test step shows the same open test, not a new amount.
+    const open = await prisma.cardPayment.findFirst({
+      where: { workspaceId: user.workspaceId, reference: { startsWith: 'TEST-' }, status: 'PENDING', expiresAt: { gt: new Date(Date.now() + 3 * 60_000) } },
+      orderBy: { createdAt: 'desc' },
+      include: { card: true },
+    })
+    if (open && open.card.active && !open.card.deletedAt) {
+      const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { payGatewaySettings: true } })
+      return NextResponse.json({ ok: true, id: open.id, url: payPageUrl(open.authority), card: cardPayView(open, open.card, readPayGatewaySettings(workspace.payGatewaySettings), 'fa') })
+    }
   }
   const created = await createCardPayment({
     workspaceId: user.workspaceId,
-    baseAmount: parsed.data.amount,
+    baseAmount: test ? TEST_AMOUNT : parsed.data.amount!,
     source: 'LINK',
     reference: manualLinkReference(test),
     description: test ? 'واریز آزمایشی راه‌اندازی' : parsed.data.description ?? null,

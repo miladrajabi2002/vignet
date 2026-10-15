@@ -55,7 +55,7 @@ export function BankCardFace({
 			} as CSSProperties}
 		>
 			{/* The Shetab arrow sits on the left edge of every Iranian card, whatever the language. */}
-			<span aria-hidden className="absolute top-1/2 -translate-y-1/2" style={{ left: '3.4cqi', borderStyle: 'solid', borderColor: 'transparent rgba(255,255,255,.55) transparent transparent', borderWidth: '1.7cqi 2.4cqi 1.7cqi 0' }} />
+			<ShetabArrow />
 			<div className="absolute inset-0 flex flex-col" style={{ padding: '6.5cqi 7cqi 6cqi' }}>
 				<div className="flex items-start justify-between">
 					<span className={cn('grid shrink-0 place-items-center', bank.key === 'unknown' ? 'bg-white/15 ring-1 ring-inset ring-white/25' : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,.12)]')} style={{ width: '17cqi', height: '17cqi', borderRadius: '3.2cqi', padding: '1.8cqi' }}>
@@ -69,8 +69,9 @@ export function BankCardFace({
 				<div className="relative flex flex-1 items-center justify-center">
 					<span
 						dir="ltr"
-						className="whitespace-nowrap font-mono font-bold tabular-nums"
-						style={{ fontSize: '7.4cqi', letterSpacing: '.06em', textShadow: '0 1px 0 rgba(255,255,255,.18), 0 2px 3px rgba(0,0,0,.28)' }}
+						className="whitespace-nowrap font-mono font-semibold tabular-nums"
+						// Sized so the sixteen digits keep clear of the arrow and the edges, like a printed card.
+						style={{ fontSize: '6.1cqi', letterSpacing: '.08em', textShadow: '0 1px 0 rgba(255,255,255,.14), 0 1.5px 2px rgba(0,0,0,.3)' }}
 					>
 						{number}
 					</span>
@@ -81,6 +82,22 @@ export function BankCardFace({
 				</div>
 			</div>
 		</div>
+	)
+}
+
+/**
+ * The Shetab mark: the embossed triangle at the middle of the left edge,
+ * pointing out of the card the way it goes into an ATM. Two facets (a lit
+ * upper one and a shaded lower one) and a soft shadow make it read as
+ * pressed into the plastic rather than printed on it.
+ */
+function ShetabArrow() {
+	return (
+		<svg aria-hidden viewBox="0 0 14 18" className="absolute top-1/2 -translate-y-1/2 overflow-visible" style={{ left: '2.3cqi', width: '3.9cqi', height: '5cqi', filter: 'drop-shadow(0 .3cqi .35cqi rgba(0,0,0,.32))' }}>
+			<path d="M13 1.5v15L1.6 9Z" fill="rgba(206,206,214,.85)" stroke="rgba(255,255,255,.7)" strokeWidth=".6" strokeLinejoin="round" />
+			<path d="M13 1.5V9H1.6Z" fill="rgba(255,255,255,.96)" />
+			<path d="M13 9H1.6" stroke="rgba(0,0,0,.08)" strokeWidth=".5" />
+		</svg>
 	)
 }
 

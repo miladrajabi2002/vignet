@@ -30,6 +30,7 @@ const schema = z.object({
   method: z.enum(['SMS', 'URL']).optional(),
   phone: z.string().max(20).optional(),
   active: z.boolean().optional(),
+  keyword: z.string().trim().min(2).max(40).nullable().optional(),
   // A new address; the old one stops working at once.
   rotate: z.literal(true).optional(),
 })

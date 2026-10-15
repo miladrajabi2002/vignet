@@ -27,6 +27,8 @@ export interface GatewayDeviceRow {
   platform: 'ANDROID' | 'IOS'
   method: 'SMS' | 'URL'
   phone: string | null
+  /** The forwarding rule's filter text, as the bank prints it. */
+  keyword: string | null
   url: string
   active: boolean
   connectedAt: string | null
@@ -66,6 +68,21 @@ export interface GatewayOverview {
   activatedAt: string | null
 }
 
+/** The setup's own test transfers («TEST-…») are never a customer's payment. */
+export const NOT_TEST = { NOT: { reference: { startsWith: 'TEST-' } } }
+
+/**
+ * Once the gateway goes live, what the setup left behind is not the owner's
+ * business: deposits that matched nothing while they were testing, and test
+ * transfers still open or waiting for review.
+ */
+async function clearSetupLeftovers(workspaceId: string) {
+  await prisma.$transaction([
+    prisma.bankSms.updateMany({ where: { workspaceId, status: 'UNMATCHED' }, data: { status: 'RESOLVED' } }),
+    prisma.cardPayment.updateMany({ where: { workspaceId, reference: { startsWith: 'TEST-' }, status: { in: ['PENDING', 'CLAIMED'] } }, data: { status: 'CANCELLED' } }),
+  ])
+}
+
 export async function loadGatewayOverview(workspaceId: string): Promise<GatewayOverview> {
   const [workspace, platform, cards, devices, agents, received, review, unmatched, pending, realPayment] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true, payGatewaySuspendedAt: true, payGatewaySuspendReason: true, payGatewayCapOverride: true } }),
@@ -74,9 +91,9 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     prisma.payDevice.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }),
     prisma.agent.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, orderCaptureEnabled: true, payLinkEnabled: true, cardPayEnabled: true } }),
     receivedTodayByCard(workspaceId),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED' } }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED', ...NOT_TEST } }),
     prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING' } }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING', ...NOT_TEST } }),
     prisma.cardPayment.findFirst({ where: { workspaceId, NOT: { reference: { startsWith: 'TEST-' } } }, select: { id: true } }),
   ])
   const usage = await getGatewayUsage(workspaceId, workspace.plan, workspace.payGatewayCapOverride)
@@ -97,6 +114,7 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     platform: device.platform === 'IOS' ? 'IOS' : 'ANDROID',
     method: device.method === 'URL' ? 'URL' : 'SMS',
     phone: device.phone,
+    keyword: device.keyword,
     url: deviceUrl(device),
     active: device.active,
     connectedAt: device.connectedAt?.toISOString() ?? null,
@@ -113,6 +131,7 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     if (setup.complete || realPayment) {
       activatedAt = new Date().toISOString()
       await prisma.workspace.update({ where: { id: workspaceId }, data: { payGatewaySettings: { ...settings, activatedAt } } }).catch(() => null)
+      await clearSetupLeftovers(workspaceId).catch(() => null)
     }
   }
   return {
@@ -146,7 +165,7 @@ export async function loadGatewayNavState(workspaceId: string): Promise<{ state:
     getPlatformGatewaySettings(),
     prisma.payCard.count({ where: { workspaceId, active: true, deletedAt: null } }),
     prisma.payDevice.count({ where: { workspaceId, active: true, connectedAt: { not: null } } }),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED' } }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED', ...NOT_TEST } }),
     prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
   ])
   const attention = review + unmatched
@@ -154,4 +173,24 @@ export async function loadGatewayNavState(workspaceId: string): Promise<{ state:
   if (workspace?.payGatewaySuspendedAt) return { state: 'suspended', attention }
   if (workspace?.payGatewayEnabled && cards > 0 && devices > 0) return { state: 'live', attention }
   return { state: cards > 0 || devices > 0 ? 'setup' : 'off', attention }
+}
+
+/**
+ * The gateway's last seven days for the overview's flow: paid payments and
+ * what they brought in. Null until the gateway is live (set up once, on,
+ * not paused), so the flow shows it only then.
+ */
+export async function loadGatewayWeek(workspaceId: string): Promise<{ paid: number; amount: number } | null> {
+  const [workspace, platform] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: workspaceId }, select: { payGatewayEnabled: true, payGatewaySuspendedAt: true, payGatewaySettings: true } }),
+    getPlatformGatewaySettings(),
+  ])
+  if (!workspace?.payGatewayEnabled || workspace.payGatewaySuspendedAt || !platform.enabled) return null
+  if (!readPayGatewaySettings(workspace.payGatewaySettings).activatedAt) return null
+  const week = await prisma.cardPayment.aggregate({
+    where: { workspaceId, status: 'PAID', paidAt: { gte: new Date(Date.now() - 7 * 86_400_000) }, ...NOT_TEST },
+    _sum: { baseAmount: true },
+    _count: true,
+  })
+  return { paid: week._count, amount: week._sum.baseAmount ?? 0 }
 }

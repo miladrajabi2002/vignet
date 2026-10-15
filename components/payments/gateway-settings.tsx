@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import Link from 'next/link'
@@ -23,6 +23,7 @@ export function GatewaySettings({
 	agents,
 	store,
 	setupDone,
+	phone,
 }: {
 	enabled: boolean
 	settings: PayGatewaySettings
@@ -32,6 +33,8 @@ export function GatewaySettings({
 	store: { host: string; ready: boolean } | null
 	/** Which setup steps are done, for the master switch's checklist. */
 	setupDone: Record<GatewaySetupStep, boolean>
+	/** The SMS phone's card, right under the master switch. */
+	phone?: ReactNode
 }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
@@ -78,6 +81,8 @@ export function GatewaySettings({
 				setupDone={setupDone}
 				onChange={(next) => toggle('enabled', next)}
 			/>
+
+			{phone}
 
 			<section className="spatial-surface rounded-card p-4 sm:p-5">
 				<h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'رفتار درگاه' : 'How the gateway behaves'}</h2>
@@ -134,7 +139,7 @@ export function GatewaySettings({
 
 const STEP_LINKS: Array<{ step: GatewaySetupStep; href: string; fa: string; en: string }> = [
 	{ step: 'card', href: '/payments/cards', fa: 'کارت مقصد', en: 'Destination card' },
-	{ step: 'phone', href: '/payments/devices', fa: 'وصل کردن گوشی', en: 'Connect the phone' },
+	{ step: 'phone', href: '/payments/devices', fa: 'ثبت گوشی', en: 'Register the phone' },
 	{ step: 'test', href: '/payments', fa: 'واریز آزمایشی', en: 'Test transfer' },
 ]
 

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { BankCardFace } from '@/components/payments/bank-card'
 import { CardsManager } from '@/components/payments/cards-manager'
-import { DeviceSetup, TestTransfer } from '@/components/payments/device-setup'
+import { DeviceSetup, StepFooter, TestTransfer } from '@/components/payments/device-setup'
 import { cn } from '@/lib/utils'
 import type { GatewayCardRow, GatewayDeviceRow } from '@/lib/payments/card/dashboard'
 import { GATEWAY_SETUP_STEPS, type GatewaySetupStep } from '@/lib/payments/card/setup'
@@ -23,13 +23,13 @@ const COPY: Record<GatewaySetupStep, { tab: [string, string]; title: [string, st
 	phone: {
 		tab: ['گوشی دریافت پیامک', 'SMS phone'],
 		title: ['پیامک واریز بانک باید به ویجنت برسد', 'The bank’s deposit SMS must reach Vigent'],
-		body: ['سه سؤال کوتاه، بعد راهنمای قدم‌به‌قدم همان گوشی. وقتی اولین پیام از گوشی برسد این قدم خودش تیک می‌خورد.', 'Three short questions, then the step-by-step guide for that phone. This step ticks itself when the phone’s first message arrives.'],
+		body: ['نوع گوشی، یک پیامک واریز نمونه، روش ارسال و شماره؛ بعد راهنمای قدم‌به‌قدم تنظیم همان گوشی.', 'The phone type, a sample deposit SMS, the delivery and the number; then the step-by-step guide for that phone.'],
 		eta: ['حدود ۳ دقیقه', 'About 3 minutes'],
 	},
 	test: {
 		tab: ['واریز آزمایشی', 'Test transfer'],
-		title: ['یک واریز کوچک بزنید تا مطمئن شویم', 'Make one small transfer to be sure'],
-		body: ['از یک کارت دیگر، دقیقاً همین مبلغ را به کارتتان بزنید. وقتی پیامکش برسد، این قدم خودش سبز می‌شود.', 'From another card, transfer exactly this amount to yours. When its SMS arrives this step turns green by itself.'],
+		title: ['یک واریز کوچک؛ همین، اتصال گوشی است', 'One small transfer; that is the phone’s connection'],
+		body: ['یک تراکنش ۱۰٬۰۰۰ تومانی بسازید و از کارت دیگری همان مبلغ را به کارت خودتان بزنید. وقتی پیامکش از گوشی برسد، هم گوشی وصل شده و هم این قدم سبز می‌شود.', 'Create a 10,000-toman transaction and pay it from another card into yours. When its SMS arrives through the phone, the phone is connected and this step turns green.'],
 		eta: ['حدود ۱ دقیقه', 'About 1 minute'],
 	},
 	switch: {
@@ -69,8 +69,9 @@ export function GatewaySetup({
 	const [view, setView] = useState<GatewaySetupStep>(current)
 	const [switching, setSwitching] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	// A step finished on the server moves the wizard on.
-	useEffect(() => setView(current), [current])
+	// A step finished on the server moves the wizard on; a phone just
+	// registered stays on its guide until the owner moves on from it.
+	useEffect(() => setView((shown) => (shown === 'phone' && current === 'test' ? shown : current)), [current])
 
 	const index = GATEWAY_SETUP_STEPS.indexOf(view)
 	const copy = COPY[view]
@@ -158,7 +159,17 @@ export function GatewaySetup({
 				) : <CardsManager cards={[]} />)}
 
 				{view === 'phone' && (
-					<DeviceSetup devices={devices} inboundLines={inboundLines} hasCard={done.card} cardBanks={[...new Set(activeCards.map((card) => card.bankKey))]} />
+					<DeviceSetup
+						devices={devices}
+						inboundLines={inboundLines}
+						hasCard={done.card}
+						inSetup
+						// The phone step owns the bar: its own pages first, then the setup's steps.
+						exits={{
+							back: { label: fa ? `قبلی: ${COPY.card.tab[0]}` : `Back: ${COPY.card.tab[1]}`, onClick: () => setView('card') },
+							next: { label: fa ? `بعدی: ${COPY.test.tab[0]}` : `Next: ${COPY.test.tab[1]}`, onClick: () => setView('test'), ready: done.phone },
+						}}
+					/>
 				)}
 
 				{view === 'test' && (done.phone || done.test
@@ -187,17 +198,22 @@ export function GatewaySetup({
 					</div>
 				)}
 
-				<div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-4">
-					{index < 3 && (done[view] ? (
-						<Button onClick={() => setView(GATEWAY_SETUP_STEPS[index + 1])}>
-							{fa ? `قدم بعد: ${COPY[GATEWAY_SETUP_STEPS[index + 1]].tab[0]}` : `Next: ${COPY[GATEWAY_SETUP_STEPS[index + 1]].tab[1]}`}
-							<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
-						</Button>
-					) : (
-						<p className="flex items-center gap-1.5 text-[12.5px] text-[var(--text-muted)]"><Lock className="size-3.5" aria-hidden />{fa ? 'قدم بعد وقتی باز می‌شود که این قدم کامل شود.' : 'The next step opens once this one is done.'}</p>
-					))}
-					{index > 0 && <Button variant="ghost" onClick={() => setView(GATEWAY_SETUP_STEPS[index - 1])}>{fa ? 'قبلی' : 'Back'}</Button>}
-				</div>
+				{view !== 'phone' && (() => {
+					const previous = index > 0 ? GATEWAY_SETUP_STEPS[index - 1] : null
+					const following = index < 3 ? GATEWAY_SETUP_STEPS[index + 1] : null
+					return (
+						<StepFooter
+							back={previous ? { label: fa ? `قبلی: ${COPY[previous].tab[0]}` : `Back: ${COPY[previous].tab[1]}`, onClick: () => setView(previous) } : null}
+							next={following ? (
+								<Button onClick={() => setView(following)} disabled={!done[view]}>
+									{fa ? `بعدی: ${COPY[following].tab[0]}` : `Next: ${COPY[following].tab[1]}`}
+									<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
+								</Button>
+							) : null}
+							hint={following && !done[view] ? (fa ? 'قدم بعد وقتی باز می‌شود که این قدم کامل شود.' : 'The next step opens once this one is done.') : null}
+						/>
+					)
+				})()}
 			</div>
 		</section>
 	)

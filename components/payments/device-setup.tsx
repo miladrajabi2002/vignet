@@ -1,19 +1,20 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Apple, CheckCircle2, ChevronDown, Globe, MessageSquareText, Radio, RefreshCw, ShieldCheck, Smartphone, Trash2 } from 'lucide-react'
+import { AlertTriangle, Apple, ArrowLeft, ArrowLeftRight, ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardPaste, Globe, Loader2, Lock, MessageSquareText, Radio, RefreshCw, ShieldCheck, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { StatusChip } from '@/components/ui/status-chip'
 import { CardPayCardView } from '@/components/commerce/card-pay-view'
-import { SetupPlayer } from '@/components/payments/setup-player'
+import { PhoneMock, useSetupSteps } from '@/components/payments/setup-player'
 import { cn } from '@/lib/utils'
 import { displayPhone, normalizeIranianMobile } from '@/lib/phone'
-import { DEPOSIT_KEYWORDS, depositKeywordOf, parseBankSms } from '@/lib/payments/card/sms-parse'
 import type { CardPayView } from '@/lib/payments/card/pay-card'
 import type { GatewayDeviceRow } from '@/lib/payments/card/dashboard'
+import type { SmsSampleReading } from '@/lib/payments/card/sms-sample'
 
 type Platform = 'ANDROID' | 'IOS'
 type Method = 'SMS' | 'URL'
@@ -21,10 +22,102 @@ type Method = 'SMS' | 'URL'
 const ERRORS: Record<string, [string, string]> = {
 	INVALID_PHONE: ['شمارهٔ موبایل درست نیست؛ مثل 09121234567 وارد کنید.', 'That mobile number is not valid; enter it like 09121234567.'],
 	PHONE_IN_USE: ['این شماره قبلاً برای یک گوشی دیگر ثبت شده است.', 'This number is already registered for another phone.'],
-	TOO_MANY_DEVICES: ['حداکثر ۵ گوشی می‌توانید ثبت کنید.', 'You can register up to 5 phones.'],
+	TOO_MANY_DEVICES: ['یک گوشی ثبت شده است؛ برای عوض کردنش اول همان را حذف کنید.', 'A phone is already registered; remove it first to change it.'],
 	NO_CARD: ['اول از تب «کارت‌ها» یک کارت فعال اضافه کنید.', 'Add an active card in the Cards tab first.'],
 }
 
+/** The phone step's stages, the same row in the questions and in the guide. */
+const STAGES: Array<[string, string]> = [
+	['نوع گوشی', 'Phone type'],
+	['پیامک نمونه', 'Sample SMS'],
+	['روش ارسال', 'Delivery'],
+	['شمارهٔ فرستنده', 'Sender number'],
+	['تنظیم روی گوشی', 'On the phone'],
+]
+
+/**
+ * The answers of a phone being replaced (switching to another phone, or
+ * editing the answers mid-setup), so the questions open filled in.
+ */
+const DRAFT_KEY = 'vigent:pay-phone-draft'
+type Draft = { platform: Platform | null; method: Method | null; phone: string; keyword: string | null }
+
+function readDraft(): Draft | null {
+	try {
+		const raw = window.sessionStorage.getItem(DRAFT_KEY)
+		return raw ? (JSON.parse(raw) as Draft) : null
+	} catch {
+		return null
+	}
+}
+function writeDraft(draft: Draft | null) {
+	try {
+		if (draft) window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+		else window.sessionStorage.removeItem(DRAFT_KEY)
+	} catch { /* private mode: the questions open empty */ }
+}
+
+const platformName = (platform: Platform, fa: boolean) => (platform === 'IOS' ? (fa ? 'آیفون' : 'iPhone') : (fa ? 'اندروید' : 'Android'))
+const methodName = (method: Method, fa: boolean) => (method === 'SMS' ? (fa ? 'فوروارد پیامکی' : 'Forward as SMS') : (fa ? 'با اینترنت' : 'Over the internet'))
+
+/** Where the phone step goes from its first and last screens (the gateway setup's previous and next steps). */
+export interface StepExits {
+	back?: { label: string; onClick: () => void } | null
+	next?: { label: string; onClick: () => void; ready: boolean } | null
+}
+
+function Progress({ stage, sub }: { stage: number; sub?: string }) {
+	const fa = useLocale() !== 'en'
+	const at = fa ? 0 : 1
+	const numbers = fa ? 'fa-IR' : 'en-US'
+	return (
+		<div className="grid gap-2">
+			<p className="text-[12.5px] text-[var(--text-muted)]">
+				{fa ? `مرحلهٔ ${(stage + 1).toLocaleString(numbers)} از ${STAGES.length.toLocaleString(numbers)}` : `Stage ${stage + 1} of ${STAGES.length}`}
+				{' · '}<b className="text-[var(--text-primary)]">{STAGES[stage][at]}</b>
+				{sub ? <span> ({sub})</span> : null}
+			</p>
+			<ol aria-hidden className="grid gap-1" style={{ gridTemplateColumns: `repeat(${STAGES.length}, minmax(0, 1fr))` }}>
+				{STAGES.map((label, index) => (
+					<li key={label[1]} className="grid gap-1">
+						<span className={cn('h-1 rounded-full transition-colors duration-300', index < stage ? 'bg-emerald-500' : index === stage ? 'bg-[#5b3de8]' : 'bg-[var(--bg-muted)]')} />
+						<span className={cn('hidden truncate text-[11px] md:block', index === stage ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{label[at]}</span>
+					</li>
+				))}
+			</ol>
+		</div>
+	)
+}
+
+/**
+ * Back on the start side, the way forward on the end side; the same bar on
+ * every screen of the phone step, so the buttons never move around.
+ */
+export function StepFooter({ back, next, hint }: { back?: { label: string; onClick: () => void } | null; next?: ReactNode; hint?: ReactNode }) {
+	return (
+		<div className="grid gap-2 border-t border-[var(--border-subtle)] pt-4">
+			<div className="flex flex-wrap-reverse items-center justify-between gap-2">
+				{back ? (
+					<Button type="button" variant="outline" onClick={back.onClick}>
+						<ArrowRight className="size-4 ltr:rotate-180" aria-hidden />{back.label}
+					</Button>
+				) : <span />}
+				{next ?? null}
+			</div>
+			{hint ? <p className="flex items-center gap-1.5 text-[12.5px] text-[var(--text-muted)] sm:justify-end"><Lock className="size-3.5 shrink-0" aria-hidden />{hint}</p> : null}
+		</div>
+	)
+}
+
+function NextButton({ label, onClick, disabled, loading, type = 'button' }: { label: string; onClick?: () => void; disabled?: boolean; loading?: boolean; type?: 'button' | 'submit' }) {
+	return (
+		<Button type={type} onClick={onClick} disabled={disabled} loading={loading}>
+			{label}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
+		</Button>
+	)
+}
+
+/** Radio cards: the icon, the title with its tag, and a radio mark at the end that never sits on the tag. */
 function Choice<T extends string>({ value, onChange, options, label }: { value: T | null; onChange: (next: T) => void; options: Array<{ value: T; icon: typeof Smartphone; title: string; body: string; recommended?: boolean; disabled?: boolean }>; label: string }) {
 	const fa = useLocale() !== 'en'
 	return (
@@ -41,13 +134,18 @@ function Choice<T extends string>({ value, onChange, options, label }: { value: 
 						disabled={option.disabled}
 						onClick={() => onChange(option.value)}
 						className={cn(
-							'relative grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-0.5 rounded-2xl border-[1.5px] bg-white p-3.5 text-start transition-[border-color,box-shadow,transform] duration-150 disabled:cursor-not-allowed disabled:opacity-50 sm:grid-cols-1 sm:gap-y-2 sm:p-4 dark:bg-neutral-900',
+							'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-2xl border-[1.5px] bg-white p-3.5 text-start transition-[border-color,box-shadow,transform] duration-150 disabled:cursor-not-allowed disabled:opacity-50 sm:p-4 dark:bg-neutral-900',
 							selected ? 'border-[#5b3de8] shadow-[0_0_0_4px_#f1eeff] dark:shadow-[0_0_0_4px_rgba(91,61,232,.25)]' : 'border-[var(--border-default)] enabled:hover:-translate-y-px enabled:hover:border-[var(--border-hover)] enabled:hover:shadow-[var(--elev-2)]',
 						)}
 					>
-						{option.recommended && !option.disabled ? <span className="absolute end-3 top-3 rounded-full bg-[#f1eeff] px-2 text-[11px] font-bold leading-5 text-[#5b3de8]">{fa ? 'پیشنهادی' : 'Recommended'}</span> : null}
-						<span className="row-span-2 grid size-11 place-items-center rounded-xl bg-[var(--bg-surface)] sm:row-span-1"><Icon className="size-5" aria-hidden /></span>
-						<span className="text-[14.5px] font-bold text-[var(--text-primary)]">{option.title}</span>
+						<span className={cn('row-span-2 grid size-11 place-items-center rounded-xl', selected ? 'bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]')}><Icon className="size-5" aria-hidden /></span>
+						<span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+							<span className="text-[14.5px] font-bold text-[var(--text-primary)]">{option.title}</span>
+							{option.recommended && !option.disabled ? <span className="rounded-full bg-[#f1eeff] px-2 text-[11px] font-bold leading-5 text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]">{fa ? 'پیشنهادی' : 'Recommended'}</span> : null}
+						</span>
+						<span aria-hidden className={cn('row-span-2 grid size-5 place-items-center rounded-full border-[1.5px] transition-colors', selected ? 'border-[#5b3de8] bg-[#5b3de8]' : 'border-[var(--border-strong)]')}>
+							{selected ? <span className="size-2 rounded-full bg-white" /> : null}
+						</span>
 						<span className="text-[12.5px] leading-6 text-[var(--text-secondary)]">{option.body}</span>
 					</button>
 				)
@@ -56,11 +154,11 @@ function Choice<T extends string>({ value, onChange, options, label }: { value: 
 	)
 }
 
-function Question({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+function Question({ title, body, children }: { title: string; body: ReactNode; children: ReactNode }) {
 	return (
-		<div className="grid gap-3">
+		<div className="grid gap-3.5">
 			<div>
-				<h2 className="text-[19px] font-extrabold leading-8 text-[var(--text-primary)]">{title}</h2>
+				<h2 className="text-[18px] font-extrabold leading-8 text-[var(--text-primary)]">{title}</h2>
 				<p className="text-[13px] leading-6 text-[var(--text-secondary)]">{body}</p>
 			</div>
 			{children}
@@ -69,35 +167,113 @@ function Question({ title, body, children }: { title: string; body: string; chil
 }
 
 /**
- * «دریافت پیامک»: which phone gets the bank's deposit SMS, how it reaches
- * Vigent, and the guide that ends in one real test transfer.
+ * «دریافت پیامک»: one phone gets the bank's deposit SMS and passes it to
+ * Vigent. With no phone yet it asks four questions (phone type, a sample
+ * deposit SMS to read the filter from, delivery, the sender's number); once
+ * the phone is registered it is the guide for that phone, page by page.
+ * Whether it works is proved by the test transfer that follows.
  */
-export function DeviceSetup({ devices, inboundLines, hasCard, cardBanks }: { devices: GatewayDeviceRow[]; inboundLines: string[]; hasCard: boolean; cardBanks: string[] }) {
+export function DeviceSetup({ devices, inboundLines, hasCard, inSetup = false, exits }: { devices: GatewayDeviceRow[]; inboundLines: string[]; hasCard: boolean; inSetup?: boolean; exits?: StepExits }) {
+	const fa = useLocale() !== 'en'
+	return (
+		<div className="space-y-4">
+			{!inSetup && (
+				<details className="group rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] sm:px-5">
+					<summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
+						<ShieldCheck className="size-4 text-emerald-600" aria-hidden />
+						{fa ? 'چرا پیامک بانک لازم است و چه چیزی خوانده می‌شود؟' : 'Why the bank SMS is needed, and what is read'}
+						<ChevronDown className="ms-auto size-4 transition-transform group-open:rotate-180" aria-hidden />
+					</summary>
+					<p className="mt-2 max-w-3xl">
+						{fa
+							? 'ویجنت به عکس رسید مشتری اعتماد نمی‌کند. یک پرداخت فقط وقتی خودکار تأیید می‌شود که پیامک واریز بانک، از گوشی خود شما، به ویجنت برسد. فقط پیامک‌هایی خوانده می‌شوند که از شماره‌ای که این‌جا ثبت می‌کنید آمده باشند؛ پیامک از هر شمارهٔ دیگری نادیده گرفته می‌شود.'
+							: 'Vigent does not trust a receipt photo. A payment is confirmed automatically only when your bank’s deposit SMS reaches Vigent from your own phone. Only messages coming from the number you register here are read; a message from any other number is ignored.'}
+					</p>
+				</details>
+			)}
+			{devices.length === 0
+				? <NewPhone inboundLines={inboundLines} exits={exits} />
+				: devices.map((device) => <PhoneGuide key={device.id} device={device} line={inboundLines[0] ?? null} hasCard={hasCard} inSetup={inSetup} exits={exits} />)}
+		</div>
+	)
+}
+
+// ─── The four questions ──────────────────────────────────────────────────────
+
+function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: StepExits }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
 	const lineReady = inboundLines.length > 0
-	const [adding, setAdding] = useState(devices.length === 0)
-	const [phone, setPhone] = useState('')
-	const [platform, setPlatform] = useState<Platform | null>(null)
-	const [method, setMethod] = useState<Method | null>(null)
-	// One question at a time: phone type, delivery, the SIM's number, then a summary.
 	const [question, setQuestion] = useState(0)
+	const [platform, setPlatform] = useState<Platform | null>(null)
+	const [keyword, setKeyword] = useState<string | null>(null)
+	const [method, setMethod] = useState<Method | null>(null)
+	const [phone, setPhone] = useState('')
+	const [sample, setSample] = useState('')
+	const [reading, setReading] = useState(false)
 	const [busy, setBusy] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	const [openGuide, setOpenGuide] = useState<string | null>(devices.find((device) => !device.verifiedAt)?.id ?? null)
-	// Bank Melli's deposit SMS says «انتقال», the others «واریز».
-	const [keyword, setKeyword] = useState<string>(cardBanks.length === 1 && cardBanks[0] === 'melli' ? 'انتقال' : 'واریز')
+	const sampleRef = useRef<HTMLTextAreaElement>(null)
+	const validPhone = normalizeIranianMobile(phone)
 
-	async function create(event: React.FormEvent) {
-		event.preventDefault()
-		if (!platform || !method || !normalizeIranianMobile(phone)) return
+	// A phone being replaced: its answers come back filled in.
+	useEffect(() => {
+		const draft = readDraft()
+		if (!draft) return
+		setPlatform(draft.platform)
+		setMethod(draft.method)
+		setPhone(draft.phone)
+		setKeyword(draft.keyword)
+	}, [])
+
+	/** Reads the pasted SMS for its fixed text, then moves on without stopping to show it. */
+	async function readSample(text = sample) {
+		if (text.trim().length < 8 || reading) return
+		setReading(true)
+		setError(null)
+		try {
+			const response = await fetch('/api/payments/sms-sample', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+			const data = (await response.json().catch(() => null)) as SmsSampleReading | null
+			if (!response.ok || !data) {
+				setError(response.status === 429 ? (fa ? 'چند دقیقه بعد دوباره امتحان کنید.' : 'Try again in a few minutes.') : (fa ? 'پیامک خوانده نشد؛ دوباره تلاش کنید.' : 'Could not read it; try again.'))
+				return
+			}
+			if (data.kind === 'secret') return setError(fa ? 'این پیامک رمز یا کد دارد. یک پیامک «واریز» بچسبانید.' : 'This message carries a password or code. Paste a deposit message.')
+			if (data.kind === 'withdraw') return setError(fa ? 'این پیامک برداشت است، نه واریز. یک پیامک واریز بچسبانید.' : 'This is a withdrawal, not a deposit. Paste a deposit message.')
+			if (!data.filter) return setError(fa ? 'متن ثابتی در این پیامک پیدا نشد؛ متن کامل یک پیامک واریز را بچسبانید.' : 'No fixed text was found; paste the full text of a deposit message.')
+			setKeyword(data.filter)
+			setQuestion(2)
+		} catch {
+			setError(fa ? 'پیامک خوانده نشد؛ اتصال را بررسی کنید.' : 'Could not read it; check the connection.')
+		} finally {
+			setReading(false)
+		}
+	}
+
+	async function pasteSample() {
+		try {
+			const text = await navigator.clipboard.readText()
+			if (!text.trim()) {
+				setError(fa ? 'کلیپ‌بورد خالی است؛ اول پیامک واریز را کپی کنید.' : 'The clipboard is empty; copy the deposit message first.')
+				return
+			}
+			setSample(text)
+			void readSample(text)
+		} catch {
+			sampleRef.current?.focus()
+			setError(fa ? 'مرورگر اجازهٔ خواندن کلیپ‌بورد را نداد؛ پیامک را داخل کادر بچسبانید.' : 'The browser did not allow reading the clipboard; paste the message into the box.')
+		}
+	}
+
+	async function create() {
+		if (!platform || !method || !validPhone) return
 		setBusy(true)
 		setError(null)
 		try {
 			const response = await fetch('/api/payments/devices', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: platform === 'IOS' ? (fa ? 'آیفون فروشگاه' : 'Store iPhone') : (fa ? 'گوشی فروشگاه' : 'Store phone'), platform, method, phone }),
+				body: JSON.stringify({ name: platform === 'IOS' ? (fa ? 'آیفون فروشگاه' : 'Store iPhone') : (fa ? 'گوشی فروشگاه' : 'Store phone'), platform, method, phone: validPhone, keyword }),
 			})
 			const data = (await response.json().catch(() => null)) as { id?: string; error?: string } | null
 			if (!response.ok || !data?.id) {
@@ -105,128 +281,146 @@ export function DeviceSetup({ devices, inboundLines, hasCard, cardBanks }: { dev
 				setError(copy ? copy[fa ? 0 : 1] : (fa ? 'ثبت نشد؛ دوباره تلاش کنید.' : 'Not saved; try again.'))
 				return
 			}
-			setAdding(false)
-			setPhone('')
-			setPlatform(null)
-			setMethod(null)
-			setQuestion(0)
-			setOpenGuide(data.id)
+			writeDraft(null)
 			router.refresh()
+		} catch {
+			setError(fa ? 'ثبت نشد؛ اتصال را بررسی کنید.' : 'Not saved; check the connection.')
 		} finally {
 			setBusy(false)
 		}
 	}
 
+	function go(to: number) {
+		setError(null)
+		setQuestion(to)
+	}
+	const back = question > 0 ? { label: fa ? 'قبلی' : 'Back', onClick: () => go(question - 1) } : exits?.back ?? null
+	const ready = [platform != null, sample.trim().length >= 8 || keyword != null, method != null, validPhone != null][question]
+
+	function submit() {
+		if (question === 3) return void create()
+		// The sample is read on the way forward; an answer kept from before needs no new read.
+		if (question === 1 && (sample.trim().length >= 8 || !keyword)) return void readSample()
+		if (ready) go(question + 1)
+	}
+
 	return (
-		<div className="space-y-4">
-			<details className="group rounded-card border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] sm:px-5">
-				<summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
-					<ShieldCheck className="size-4 text-emerald-600" aria-hidden />
-					{fa ? 'چرا پیامک بانک لازم است و چه چیزی خوانده می‌شود؟' : 'Why the bank SMS is needed, and what is read'}
-					<ChevronDown className="ms-auto size-4 transition-transform group-open:rotate-180" aria-hidden />
-				</summary>
-				<p className="mt-2 max-w-3xl">
-					{fa
-						? 'ویجنت به عکس رسید مشتری اعتماد نمی‌کند. یک پرداخت فقط وقتی خودکار تأیید می‌شود که پیامک واریز بانک، از گوشی خود شما، به ویجنت برسد. فقط پیامک‌هایی خوانده می‌شوند که از شماره‌ای که این‌جا ثبت می‌کنید آمده باشند؛ پیامک از هر شمارهٔ دیگری نادیده گرفته می‌شود.'
-						: 'Vigent does not trust a receipt photo. A payment is confirmed automatically only when your bank’s deposit SMS reaches Vigent from your own phone. Only messages coming from the number you register here are read; a message from any other number is ignored.'}
-				</p>
-			</details>
-
-			{devices.map((device) => (
-				<DeviceCard key={device.id} device={device} fa={fa} line={inboundLines[0] ?? null} keyword={keyword} setKeyword={setKeyword} open={openGuide === device.id} onToggle={() => setOpenGuide(openGuide === device.id ? null : device.id)} hasCard={hasCard} />
-			))}
-
-			{adding ? (
-				<form onSubmit={create} className="spatial-surface rounded-card p-4 sm:p-6">
-					<div className="mx-auto grid max-w-xl gap-4">
-						<div className="flex items-center justify-between text-[12.5px] text-[var(--text-muted)]">
-							<span>{question < 3 ? (fa ? `سؤال ${(question + 1).toLocaleString('fa-IR')} از ۳` : `Question ${question + 1} of 3`) : (fa ? 'آماده برای ثبت' : 'Ready to register')}</span>
-							<span aria-hidden className="flex gap-1.5">{[0, 1, 2].map((index) => <span key={index} className={cn('h-1 w-6 rounded-full transition-colors', index <= question ? 'bg-[#5b3de8]' : 'bg-[var(--bg-muted)]')} />)}</span>
-						</div>
-						{question === 0 && (
-							<Question title={fa ? 'پیامک واریز بانک روی کدام گوشی می‌آید؟' : 'Which phone gets the bank’s deposit SMS?'} body={fa ? 'همان گوشی‌ای که سیم‌کارتِ ثبت‌شده در بانک داخلش است.' : 'The one with the SIM registered at your bank.'}>
-								<Choice<Platform> label={fa ? 'نوع گوشی' : 'Phone type'} value={platform} onChange={(next) => { setPlatform(next); setQuestion(1) }} options={[
-									{ value: 'ANDROID', icon: Smartphone, title: fa ? 'اندروید' : 'Android', body: fa ? 'با یک اپ فوروارد پیامک' : 'With an SMS forwarder app' },
-									{ value: 'IOS', icon: Apple, title: fa ? 'آیفون' : 'iPhone', body: fa ? 'با اپ Shortcuts خود اپل' : 'With Apple’s Shortcuts app' },
-								]} />
-							</Question>
-						)}
-						{question === 1 && (
-							<Question title={fa ? 'پیامک چطور به ویجنت برسد؟' : 'How should the SMS reach Vigent?'} body={fa ? 'اگر مطمئن نیستید، گزینهٔ پیشنهادی را بزنید.' : 'Not sure? Take the recommended one.'}>
-								<Choice<Method> label={fa ? 'روش ارسال' : 'Delivery'} value={method} onChange={(next) => { setMethod(next); setQuestion(2) }} options={[
-									{ value: 'SMS', icon: MessageSquareText, recommended: lineReady, disabled: !lineReady, title: fa ? 'فوروارد پیامکی' : 'Forward as SMS', body: lineReady ? (fa ? 'اینترنت لازم ندارد · هزینهٔ یک پیامک' : 'No internet needed · costs one SMS') : (fa ? 'سامانهٔ پیامکی هنوز فعال نشده' : 'The SMS line is not active yet') },
-									{ value: 'URL', icon: Globe, recommended: !lineReady, title: fa ? 'با اینترنت' : 'Over the internet', body: fa ? 'رایگان · گوشی باید آنلاین بماند' : 'Free · the phone must stay online' },
-								]} />
-							</Question>
-						)}
-						{question === 2 && (
-							<Question title={fa ? 'شمارهٔ همان سیم‌کارت' : 'That SIM’s number'} body={fa ? 'فقط پیامک‌هایی که از این شماره بیایند خوانده می‌شوند.' : 'Only messages from this number are read.'}>
-								<label className="block">
-									<span className="sr-only">{fa ? 'شمارهٔ موبایل' : 'Mobile number'}</span>
-									<input id="pay-device-phone" dir="ltr" inputMode="tel" autoComplete="tel" autoFocus className="input font-mono text-[17px] tracking-wider" placeholder="0912 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
-								</label>
-								{phone ? (normalizeIranianMobile(phone)
-									? <p className="flex items-center gap-1.5 text-[12.5px] text-emerald-700"><CheckCircle2 className="size-4" aria-hidden />{fa ? 'شمارهٔ موبایل درست است' : 'A valid mobile number'}</p>
-									: <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</p>) : null}
-								<div><Button type="button" disabled={!normalizeIranianMobile(phone)} onClick={() => setQuestion(3)}>{fa ? 'ادامه' : 'Continue'}</Button></div>
-							</Question>
-						)}
-						{question === 3 && (
-							<Question title={fa ? 'همین؟ ثبت کنیم' : 'All set? Register it'} body={fa ? 'بعد از ثبت، راهنمای همین گوشی قدم‌به‌قدم باز می‌شود.' : 'Once registered, the step-by-step guide for this phone opens.'}>
-								<div className="flex flex-wrap gap-1.5 text-[12.5px]">
-									{[platform === 'IOS' ? (fa ? 'آیفون' : 'iPhone') : (fa ? 'اندروید' : 'Android'), method === 'SMS' ? (fa ? 'فوروارد پیامکی' : 'Forward as SMS') : (fa ? 'با اینترنت' : 'Over the internet')].map((item) => <span key={item} className="rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 leading-7">{item}</span>)}
-									<span dir="ltr" className="rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 font-mono leading-7">{displayPhone(normalizeIranianMobile(phone) ?? phone)}</span>
-								</div>
-								{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
-								<div><Button type="submit" loading={busy}>{fa ? 'ثبت گوشی و رفتن به راهنما' : 'Register phone and open the guide'}</Button></div>
-							</Question>
-						)}
-						{question > 0 || devices.length > 0 ? (
-							<div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-3">
-								{question > 0 && <Button type="button" variant="ghost" onClick={() => setQuestion(question - 1)}>{fa ? 'قبلی' : 'Back'}</Button>}
-								{devices.length > 0 && <Button type="button" variant="ghost" onClick={() => setAdding(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>}
+		<form onSubmit={(event) => { event.preventDefault(); submit() }} className="spatial-surface grid gap-5 rounded-card p-4 sm:p-6">
+			<Progress stage={question} />
+			<div className="grid min-h-[15rem] content-start gap-4">
+				{question === 0 && (
+					<Question title={fa ? 'پیامک واریز بانک روی کدام گوشی می‌آید؟' : 'Which phone gets the bank’s deposit SMS?'} body={fa ? 'همان گوشی‌ای که سیم‌کارتِ ثبت‌شده در بانک داخلش است. راهنمای بعدی برای همین گوشی نوشته می‌شود.' : 'The one with the SIM registered at your bank. The guide that follows is written for it.'}>
+						<Choice<Platform> label={fa ? 'نوع گوشی' : 'Phone type'} value={platform} onChange={setPlatform} options={[
+							{ value: 'ANDROID', icon: Smartphone, title: fa ? 'اندروید' : 'Android', body: fa ? 'سامسونگ، شیائومی و…؛ با یک اپ فوروارد پیامک' : 'Samsung, Xiaomi…; with an SMS forwarder app' },
+							{ value: 'IOS', icon: Apple, title: fa ? 'آیفون' : 'iPhone', body: fa ? 'با اپ Shortcuts خود اپل؛ بدون نصب اپ' : 'With Apple’s Shortcuts app; nothing to install' },
+						]} />
+					</Question>
+				)}
+				{question === 1 && (
+					<Question title={fa ? 'یک پیامک واریز همین کارت را بچسبانید' : 'Paste one deposit SMS of this card'} body={fa ? 'روی همان گوشی، یکی از پیامک‌های واریز بانک را کپی کنید و این‌جا بچسبانید. ویجنت خودش متن ثابت آن را پیدا می‌کند و به مرحلهٔ بعد می‌رود.' : 'On that phone, copy one of the bank’s deposit messages and paste it here. Vigent finds its fixed text by itself and moves on.'}>
+						<div className={cn('relative rounded-control border-[1.5px] bg-white transition-colors focus-within:border-[#5b3de8] dark:bg-neutral-900', error ? 'border-red-300' : 'border-[var(--border-default)]')}>
+							<label className="block">
+								<span className="sr-only">{fa ? 'متن پیامک واریز' : 'Deposit SMS text'}</span>
+								<textarea
+									ref={sampleRef}
+									id="pay-sms-sample"
+									dir="rtl"
+									rows={5}
+									className="block w-full resize-none bg-transparent px-3.5 pb-14 pt-3 font-mono text-[13.5px] leading-7 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+									value={sample}
+									disabled={reading}
+									onChange={(event) => { setSample(event.target.value); setError(null) }}
+									onPaste={(event) => { const text = event.clipboardData.getData('text'); if (text.trim().length >= 8) window.setTimeout(() => void readSample(text), 0) }}
+									placeholder={fa ? 'مثلاً:\nحساب8907027623\nواریز303,210,000\nمانده452,963,014\n05/07/15-11:33' : 'e.g.\nAccount 8907027623\nDeposit 303,210,000\nBalance 452,963,014'}
+								/>
+							</label>
+							<div className="absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-2">
+								<span className="flex min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
+									{reading
+										? <><Loader2 className="size-3.5 shrink-0 animate-spin text-[#5b3de8]" aria-hidden /><span role="status">{fa ? 'در حال پیدا کردن متن ثابت…' : 'Finding the fixed text…'}</span></>
+										: <><ShieldCheck className="size-3.5 shrink-0" aria-hidden /><span className="truncate">{fa ? 'مانده و رمز هیچ‌وقت ذخیره نمی‌شوند' : 'Balances and codes are never stored'}</span></>}
+								</span>
+								<Button type="button" size="sm" variant="secondary" disabled={reading} onClick={pasteSample}>
+									<ClipboardPaste className="size-4" aria-hidden />{fa ? 'چسباندن' : 'Paste'}
+								</Button>
 							</div>
-						) : null}
-					</div>
-				</form>
-			) : (
-				<Button variant="outline" onClick={() => setAdding(true)}><Smartphone className="size-4" aria-hidden />{fa ? 'افزودن گوشی دیگر' : 'Add another phone'}</Button>
-			)}
-		</div>
+						</div>
+						{error ? <p role="alert" className="flex items-start gap-2 text-[13px] leading-6 text-red-600"><AlertTriangle className="mt-1 size-4 shrink-0" aria-hidden />{error}</p> : null}
+						{!error && keyword && !sample.trim() ? <p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'پیامک تازه‌ای لازم نیست؛ با «بعدی» همان متن ثابت قبلی می‌ماند.' : 'No new message needed; «Next» keeps the fixed text from before.'}</p> : null}
+					</Question>
+				)}
+				{question === 2 && (
+					<Question title={fa ? 'پیامک چطور به ویجنت برسد؟' : 'How should the SMS reach Vigent?'} body={fa ? 'اگر مطمئن نیستید، گزینهٔ پیشنهادی را بزنید.' : 'Not sure? Take the recommended one.'}>
+						<Choice<Method> label={fa ? 'روش ارسال' : 'Delivery'} value={method} onChange={setMethod} options={[
+							{ value: 'SMS', icon: MessageSquareText, recommended: lineReady, disabled: !lineReady, title: fa ? 'فوروارد پیامکی' : 'Forward as SMS', body: lineReady ? (fa ? 'اینترنت لازم ندارد · هزینهٔ یک پیامک برای هر واریز' : 'No internet needed · one SMS per deposit') : (fa ? 'سامانهٔ پیامکی هنوز فعال نشده' : 'The SMS line is not active yet') },
+							{ value: 'URL', icon: Globe, recommended: !lineReady, title: fa ? 'با اینترنت (لینک)' : 'Over the internet (link)', body: fa ? 'رایگان · گوشی باید به اینترنت وصل بماند' : 'Free · the phone must stay online' },
+						]} />
+					</Question>
+				)}
+				{question === 3 && (
+					<Question
+						title={method === 'URL' ? (fa ? 'شمارهٔ سیم‌کارت همین گوشی' : 'This phone’s SIM number') : (fa ? 'شماره‌ای که پیامک را می‌فرستد' : 'The number that sends the SMS')}
+						body={method === 'URL'
+							? (fa ? 'شمارهٔ سیم‌کارتی که پیامک واریز بانک رویش می‌آید.' : 'The SIM that gets the bank’s deposit SMS.')
+							: (fa ? 'شماره‌ای که پیامک‌های واریز را برای سامانهٔ پیامکی ویجنت می‌فرستد. فقط پیامک‌هایی که از همین شماره برسند خوانده می‌شوند.' : 'The number that forwards the deposit messages to Vigent’s SMS line. Only messages from this number are read.')}
+					>
+						<label className="block max-w-sm">
+							<span className="sr-only">{fa ? 'شمارهٔ موبایل' : 'Mobile number'}</span>
+							<input
+								id="pay-device-phone"
+								dir="ltr"
+								inputMode="tel"
+								autoComplete="tel"
+								autoFocus
+								className="input font-mono text-[17px] tracking-wider"
+								placeholder="0912 123 4567"
+								value={phone}
+								onChange={(event) => setPhone(event.target.value)}
+								// +98…, 98… and 912… all become 09…: one spelling for one SIM.
+								onBlur={() => { if (validPhone) setPhone(validPhone) }}
+							/>
+						</label>
+						{phone ? (validPhone
+							? <p className="flex items-center gap-1.5 text-[12.5px] text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-4" aria-hidden />{fa ? 'ثبت می‌شود به شکل ' : 'Saved as '}<b dir="ltr" className="font-mono">{validPhone}</b></p>
+							: <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</p>) : null}
+						{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+					</Question>
+				)}
+			</div>
+			<StepFooter
+				back={back}
+				next={<NextButton type="submit" label={question === 3 ? (fa ? 'ثبت و رفتن به راهنما' : 'Save and open the guide') : (fa ? 'بعدی' : 'Next')} disabled={!ready || reading} loading={busy || reading} />}
+			/>
+		</form>
 	)
 }
 
-function DeviceCard({ device, fa, line, keyword, setKeyword, open, onToggle, hasCard }: { device: GatewayDeviceRow; fa: boolean; line: string | null; keyword: string; setKeyword: (value: string) => void; open: boolean; onToggle: () => void; hasCard: boolean }) {
+// ─── The registered phone: the guide, page by page ──────────────────────────
+
+/**
+ * The guide for the registered phone, one screen per thing to tap. In the
+ * setup its last page hands over to the test transfer; on its own page the
+ * test transfer is its last page.
+ */
+function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: GatewayDeviceRow; line: string | null; hasCard: boolean; inSetup: boolean; exits?: StepExits }) {
+	const fa = useLocale() !== 'en'
+	const numbers = fa ? 'fa-IR' : 'en-US'
 	const router = useRouter()
-	const [live, setLive] = useState({ connectedAt: device.connectedAt, verifiedAt: device.verifiedAt, lastSmsAt: device.lastSmsAt })
 	const [url, setUrl] = useState(device.url)
 	const [busy, setBusy] = useState<string | null>(null)
-	const [confirmDelete, setConfirmDelete] = useState(false)
-	const [sample, setSample] = useState('')
+	const [page, setPage] = useState(0)
+	const keyword = device.keyword ?? 'واریز'
+	const steps = useSetupSteps({ platform: device.platform, method: device.method, line, url, keyword, lang: fa ? 'fa' : 'en' })
+	// Outside the setup the test transfer is one more page.
+	const testPage = inSetup ? -1 : steps.length
+	const lastPage = inSetup ? steps.length - 1 : steps.length
+	const current = steps[Math.min(page, steps.length - 1)]
+	const destination = device.method === 'SMS' ? line : url
 
-	// While the guide is open, watch for the first forwarded message and the first matched deposit.
-	useEffect(() => {
-		if (!open || live.verifiedAt) return
-		let stopped = false
-		const timer = window.setInterval(async () => {
-			try {
-				const response = await fetch(`/api/payments/devices/${device.id}`, { cache: 'no-store' })
-				if (!response.ok || stopped) return
-				const data = (await response.json()) as typeof live
-				setLive(data)
-				if (data.verifiedAt) router.refresh()
-			} catch { /* keep waiting */ }
-		}, 4000)
-		return () => { stopped = true; window.clearInterval(timer) }
-	}, [open, live.verifiedAt, device.id, router])
-
-	const parsed = useMemo(() => (sample.trim() ? parseBankSms(sample) : null), [sample])
-	const found = sample.trim() ? depositKeywordOf(sample) : null
-
-	async function patch(body: Record<string, unknown>, tag: string) {
-		setBusy(tag)
+	async function rotate() {
+		setBusy('rotate')
 		try {
-			const response = await fetch(`/api/payments/devices/${device.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+			const response = await fetch(`/api/payments/devices/${device.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rotate: true }) })
 			const data = (await response.json().catch(() => null)) as { url?: string } | null
 			if (data?.url) setUrl(data.url)
 			router.refresh()
@@ -234,142 +428,106 @@ function DeviceCard({ device, fa, line, keyword, setKeyword, open, onToggle, has
 			setBusy(null)
 		}
 	}
-	async function remove() {
-		setBusy('delete')
+	/** Back to the questions, filled in with this phone's answers. */
+	async function editAnswers() {
+		setBusy('edit')
 		try {
+			writeDraft({ platform: device.platform, method: device.method, phone: device.phone ?? '', keyword: device.keyword })
 			await fetch(`/api/payments/devices/${device.id}`, { method: 'DELETE' })
 			router.refresh()
 		} finally {
 			setBusy(null)
 		}
 	}
-	const state = live.verifiedAt
-		? { tone: 'ok' as const, text: fa ? 'فعال · واریز واقعی تطبیق خورده' : 'Active · a real deposit has matched' }
-		: live.connectedAt
-			? { tone: 'signal' as const, text: fa ? 'وصل شد · منتظر واریز آزمایشی' : 'Connected · waiting for the test transfer' }
-			: { tone: 'warn' as const, text: fa ? 'منتظر اولین پیامک از این گوشی' : 'Waiting for the first message from this phone' }
+
+	// Editing the answers replaces the phone: only in the setup, before it is live.
+	// Afterwards that is «تعویض گوشی» in Settings, with its own confirmation.
+	const back = page > 0
+		? { label: fa ? 'قبلی' : 'Back', onClick: () => setPage(page - 1) }
+		: inSetup ? { label: fa ? 'ویرایش پاسخ‌ها' : 'Edit the answers', onClick: () => void editAnswers() } : null
+	let next: ReactNode = null
+	if (page < lastPage) next = <NextButton label={fa ? 'بعدی' : 'Next'} onClick={() => setPage(page + 1)} />
+	else if (inSetup && exits?.next) next = <NextButton label={exits.next.label} onClick={exits.next.onClick} />
 
 	return (
-		<section className="spatial-surface rounded-card p-4 sm:p-5">
-			<div className="flex flex-wrap items-start gap-3">
-				<span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)]"><Smartphone className="size-5" aria-hidden /></span>
-				<div className="min-w-0 flex-1">
-					<h2 className="text-[15px] font-bold text-[var(--text-primary)]">{device.name} <span dir="ltr" className="font-mono text-[13px] font-medium text-[var(--text-secondary)]">{displayPhone(device.phone)}</span></h2>
-					<p className="mt-0.5 text-[13px] text-[var(--text-muted)]">
-						{device.platform === 'IOS' ? (fa ? 'آیفون' : 'iPhone') : (fa ? 'اندروید' : 'Android')} · {device.method === 'SMS' ? (fa ? 'فوروارد پیامکی' : 'forwards as SMS') : (fa ? 'ارسال با اینترنت' : 'sends over the internet')}
-						{live.lastSmsAt ? ` · ${fa ? 'آخرین پیامک' : 'last message'} ${new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(live.lastSmsAt))}` : ''}
-					</p>
+		<section className="spatial-surface grid gap-5 rounded-card p-4 sm:p-6">
+			<Progress stage={4} sub={page === testPage ? (fa ? 'واریز آزمایشی' : 'test transfer') : (fa ? `${(page + 1).toLocaleString(numbers)} از ${steps.length.toLocaleString(numbers)}` : `${page + 1} of ${steps.length}`)} />
+
+			{page === testPage ? (
+				<div className="grid gap-3">
+					<div>
+						<h3 className="text-[17px] font-extrabold leading-8 text-[var(--text-primary)]">{fa ? 'یک واریز آزمایشی' : 'One test transfer'}</h3>
+						<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">{fa ? 'گوشی وقتی وصل حساب می‌شود که پیامک یک واریز واقعی از آن به ویجنت برسد.' : 'The phone counts as connected once a real deposit’s SMS reaches Vigent from it.'}</p>
+					</div>
+					<TestTransfer verified={Boolean(device.verifiedAt)} hasCard={hasCard} />
 				</div>
-				<StatusChip tone={state.tone} dot pulse={!live.connectedAt}>{state.text}</StatusChip>
-			</div>
-
-			<button type="button" onClick={onToggle} aria-expanded={open} className="mt-3 inline-flex min-h-9 items-center gap-1.5 text-[13.5px] font-medium text-[var(--text-primary)]">
-				<ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} aria-hidden />
-				{open ? (fa ? 'بستن راهنما' : 'Close the guide') : (fa ? 'راهنمای اتصال و تنظیمات این گوشی' : 'Setup guide and settings of this phone')}
-			</button>
-
-			{open && (
-				<div className="mt-4 grid gap-6 border-t border-[var(--border-subtle)] pt-5">
-					{/* 1 · the fixed word */}
-					<div className="grid gap-3">
-						<h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? '۱ · کلمهٔ ثابت پیامک واریز' : '1 · The fixed word of the deposit SMS'}</h3>
-						<p className="max-w-3xl text-[13.5px] leading-7 text-[var(--text-secondary)]">
-							{fa
-								? 'اپ فوروارد باید بداند کدام پیامک را بفرستد. در هر پیامک واریز بانک یک کلمه همیشه تکرار می‌شود؛ شرط اپ را روی همان کلمه بگذارید تا فقط پیامک واریز فرستاده شود و رمز پویا و پیام‌های شخصی هیچ‌وقت از گوشی بیرون نروند.'
-								: 'The forwarder must know which message to send. Every deposit SMS of a bank repeats one word; set the app’s condition to that word so only deposit messages are sent and one-time passwords or personal texts never leave the phone.'}
+			) : (
+				<div className="grid gap-5 md:grid-cols-[12.5rem_minmax(0,1fr)] md:items-start md:gap-8">
+					<PhoneMock steps={steps} step={Math.min(page, steps.length - 1)} className="w-[10.5rem] md:w-[12.5rem]" />
+					<div className="grid min-w-0 content-start gap-3.5">
+						<p className="flex flex-wrap items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
+							{device.platform === 'IOS' ? <Apple className="size-3.5" aria-hidden /> : <Smartphone className="size-3.5" aria-hidden />}
+							{platformName(device.platform, fa)} · {methodName(device.method, fa)}
+							{device.phone ? <> · <span dir="ltr" className="font-mono">{displayPhone(device.phone)}</span></> : null}
 						</p>
-						<div className="flex flex-wrap items-center gap-2">
-							{DEPOSIT_KEYWORDS.slice(0, 2).map((word) => (
-								<button key={word} type="button" onClick={() => setKeyword(word)} aria-pressed={keyword === word} className={cn('min-h-10 rounded-full border px-4 text-sm font-bold', keyword === word ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-primary)]')}>
-									{word}
-									<span className="ms-1.5 text-[11.5px] font-normal opacity-75">{word === 'واریز' ? (fa ? 'بیشتر بانک‌ها' : 'most banks') : (fa ? 'بانک ملی' : 'Bank Melli')}</span>
-								</button>
-							))}
-							<CopyButton value={keyword} label={fa ? `کپی «${keyword}»` : `Copy “${keyword}”`} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
+						<div>
+							<h3 className="text-[17px] font-extrabold leading-8 text-[var(--text-primary)]">{current.title}</h3>
+							<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">{current.body}</p>
 						</div>
-						<label className="block max-w-xl">
-							<span className="ui-field-label">{fa ? 'مطمئن نیستید؟ یکی از پیامک‌های واریز قبلی‌تان را این‌جا بچسبانید' : 'Not sure? Paste one of your past deposit messages here'}</span>
-							<textarea id={`pay-sms-sample-${device.id}`} dir="rtl" rows={4} className="input mt-1.5 resize-y text-[13px] leading-7" value={sample} onChange={(event) => setSample(event.target.value)} placeholder={'حساب…\nواریز12,503,470\nمانده…'} />
-						</label>
-						{parsed && (
-							<p role="status" className={cn('max-w-xl rounded-control p-3 text-[13.5px] leading-7', parsed.kind === 'deposit' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900')}>
-								{parsed.kind === 'deposit' && parsed.amountRial != null
-									? (fa
-										? <>این پیامک خوانده می‌شود: واریز <b dir="ltr">{parsed.amountRial.toLocaleString('en-US')}</b> ریال{found ? <> · کلمهٔ ثابت: <b>«{found}»</b></> : null}. {found && found !== keyword ? <button type="button" className="ui-link" onClick={() => setKeyword(found)}>همین را انتخاب کن</button> : null}</>
-										: <>This message is readable: a deposit of <b>{parsed.amountRial.toLocaleString('en-US')}</b> rials{found ? <> · fixed word: <b>“{found}”</b></> : null}. {found && found !== keyword ? <button type="button" className="ui-link" onClick={() => setKeyword(found)}>Use it</button> : null}</>)
-									: parsed.kind === 'secret'
-										? (fa ? 'این پیام رمز یا کد دارد؛ چنین پیامی هرگز ذخیره نمی‌شود و نباید فوروارد شود.' : 'This message carries a password or code; such a message is never stored and must not be forwarded.')
-										: (fa ? 'این پیامک واریز نیست یا مبلغش خوانده نشد. متن کامل یک پیامک واریز را بچسبانید.' : 'This is not a deposit message, or its amount could not be read. Paste the full text of a deposit SMS.')}
-							</p>
+
+						{current.kind === 'condition' && (
+							<CopyBox
+								label={fa ? 'متن ثابت شرط' : 'The condition’s fixed text'}
+								value={keyword}
+								copy={fa ? 'کپی متن' : 'Copy text'}
+								note={/[يك]/.test(keyword) ? (fa ? 'این متن «ي» عربی دارد؛ تایپش نکنید، کپی کنید.' : 'This text has an Arabic letter; copy it, do not type it.') : null}
+								info={fa ? 'پیامک‌هایی که این متن ثابت را دارند برای ویجنت فرستاده می‌شوند؛ بقیهٔ پیامک‌ها روی گوشی می‌مانند.' : 'Messages that carry this fixed text are sent to Vigent; every other message stays on the phone.'}
+							/>
 						)}
-					</div>
 
-					{/* 2 · where to send */}
-					<div className="grid gap-3">
-						<h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? '۲ · مقصد' : '2 · Destination'}</h3>
-						{device.method === 'SMS' ? (
-							<div className="flex max-w-xl flex-wrap items-center gap-2 rounded-control border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5 ps-3.5">
-								<span className="min-w-0 flex-1 text-[13.5px] text-[var(--text-secondary)]">{fa ? 'پیامک واریز را به این شماره فوروارد کنید:' : 'Forward the deposit SMS to this number:'} <b dir="ltr" className="font-mono text-[15px] text-[var(--text-primary)]">{line ?? '—'}</b></span>
-								{line && <CopyButton value={line} label={fa ? 'کپی شماره' : 'Copy number'} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />}
-							</div>
-						) : (
-							<div className="grid max-w-2xl gap-2">
-								<div className="flex items-center gap-2 rounded-control border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 ps-3">
-									<span dir="ltr" className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{url}</span>
-									<CopyButton value={url} label={fa ? 'کپی نشانی' : 'Copy address'} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
-								</div>
-								<p className="text-[13px] leading-7 text-[var(--text-muted)]">
-									{fa ? 'اگر اپ شما پیامک را داخل خود لینک می‌گذارد، همین نشانی را با ' : 'If your app puts the message inside the link, use this address with '}
-									<code dir="ltr" className="rounded bg-[var(--bg-muted)] px-1.5 py-0.5 font-mono text-[12px]">?text=</code>
-									{fa ? ' در آخرش بدهید. این نشانی مثل رمز است؛ آن را برای کسی نفرستید.' : ' at the end. This address works like a password; do not share it.'}
-								</p>
-							</div>
-						)}
-					</div>
-
-					{/* 3 · on the phone */}
-					<div className="grid gap-3">
-						<h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? '۳ · روی گوشی' : '3 · On the phone'}</h3>
-						<SetupPlayer platform={device.platform} method={device.method} line={line} url={url} keyword={keyword} lang={fa ? 'fa' : 'en'} />
-					</div>
-
-					{/* 4 · connection + test */}
-					<div className="grid gap-3">
-						<h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? '۴ · تست' : '4 · Test'}</h3>
-						<div className={cn('flex max-w-2xl items-start gap-3 rounded-control border p-3.5', live.connectedAt ? 'border-emerald-200 bg-emerald-50/70' : 'border-[var(--border-default)] bg-[var(--bg-surface)]')}>
-							{live.connectedAt ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden /> : <Radio className="mt-0.5 size-5 shrink-0 animate-pulse text-[var(--text-muted)] motion-reduce:animate-none" aria-hidden />}
-							<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">
-								{live.connectedAt
-									? (fa ? 'اولین پیام از این گوشی رسید؛ اتصال برقرار است.' : 'The first message from this phone arrived; the connection works.')
-									: (fa ? 'این صفحه منتظر اولین پیام از این گوشی است. دکمهٔ «تست» اپ را بزنید یا واریز آزمایشی پایین را انجام دهید؛ همین‌جا خودش سبز می‌شود.' : 'This page is waiting for the first message from this phone. Tap the app’s Test button or make the test transfer below; it turns green by itself.')}
-							</p>
-						</div>
-						<TestTransfer verified={Boolean(live.verifiedAt)} hasCard={hasCard} />
-					</div>
-
-					{/* settings of this phone */}
-					<div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-4">
-						{device.method === 'URL' && <Button size="sm" variant="outline" loading={busy === 'rotate'} onClick={() => patch({ rotate: true }, 'rotate')}><RefreshCw className="size-3.5" aria-hidden />{fa ? 'نشانی تازه' : 'New address'}</Button>}
-						<Button size="sm" variant="outline" loading={busy === 'active'} onClick={() => patch({ active: !device.active }, 'active')}>{device.active ? (fa ? 'غیرفعال کردن این گوشی' : 'Deactivate this phone') : (fa ? 'فعال کردن' : 'Activate')}</Button>
-						{confirmDelete ? (
-							<>
-								<Button size="sm" variant="danger" loading={busy === 'delete'} onClick={remove}>{fa ? 'حذف شود' : 'Remove'}</Button>
-								<Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>{fa ? 'انصراف' : 'Keep'}</Button>
-							</>
-						) : (
-							<Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}><Trash2 className="size-3.5" aria-hidden />{fa ? 'حذف گوشی' : 'Remove phone'}</Button>
-						)}
-						{device.method === 'URL' && <span className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'با «نشانی تازه» نشانی قبلی همان لحظه از کار می‌افتد.' : 'A new address stops the old one at once.'}</span>}
+						{current.kind === 'destination' && (destination ? (
+							<CopyBox
+								label={device.method === 'SMS' ? (fa ? 'شمارهٔ سامانهٔ ویجنت' : 'Vigent’s SMS line') : (fa ? 'نشانی اختصاصی این گوشی' : 'This phone’s own address')}
+								value={destination}
+								ltr
+								copy={device.method === 'SMS' ? (fa ? 'کپی شماره' : 'Copy number') : (fa ? 'کپی نشانی' : 'Copy address')}
+								note={device.method === 'URL' ? (fa ? 'این نشانی مثل رمز است؛ آن را برای کسی نفرستید. اگر اپ پیامک را داخل خود لینک می‌گذارد، ?text= را آخرش اضافه کنید.' : 'This address works like a password; do not share it. If your app puts the message inside the link, add ?text= at the end.') : null}
+								after={device.method === 'URL' && !inSetup ? <button type="button" disabled={busy !== null} onClick={rotate} className="ui-link inline-flex w-fit items-center gap-1 text-[12.5px]"><RefreshCw className={cn('size-3.5', busy === 'rotate' && 'animate-spin')} aria-hidden />{fa ? 'ساخت نشانی تازه (نشانی قبلی از کار می‌افتد)' : 'New address (the old one stops working)'}</button> : null}
+							/>
+						) : <p className="text-[13px] text-amber-800">{fa ? 'سامانهٔ پیامکی ویجنت هنوز فعال نشده؛ روش «با اینترنت» را انتخاب کنید.' : 'Vigent’s SMS line is not active yet; use «over the internet».'}</p>)}
 					</div>
 				</div>
 			)}
+
+			<StepFooter
+				back={busy === 'edit' ? null : back}
+				next={next}
+				hint={page === lastPage && inSetup ? (fa ? 'درستیِ تنظیم با واریز آزمایشی قدم بعد مشخص می‌شود.' : 'The next step’s test transfer shows whether it all works.') : null}
+			/>
 		</section>
 	)
 }
 
+function CopyBox({ label, value, copy, ltr, note, info, after }: { label: string; value: string; copy: string; ltr?: boolean; note?: string | null; info?: string | null; after?: ReactNode }) {
+	const fa = useLocale() !== 'en'
+	return (
+		<div className="grid gap-1.5">
+			<span className="text-[12.5px] font-medium text-[var(--text-muted)]">{label}</span>
+			<div className="flex items-center gap-2 rounded-control border-[1.5px] border-[#5b3de8]/40 bg-[#f7f5ff] p-2 ps-3.5 dark:bg-[#5b3de8]/10">
+				<bdi dir={ltr ? 'ltr' : 'auto'} className={cn('min-w-0 flex-1 font-mono font-bold text-[var(--text-primary)]', ltr ? 'truncate text-[14px]' : 'break-all text-[18px]')}>{value}</bdi>
+				<CopyButton value={value} label={copy} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
+			</div>
+			{info ? <p className="flex items-start gap-1.5 text-[12.5px] leading-6 text-[var(--text-secondary)]"><MessageSquareText className="mt-1 size-3.5 shrink-0 text-[#5b3de8]" aria-hidden />{info}</p> : null}
+			{note ? <p className="flex items-start gap-1.5 text-[12.5px] leading-6 text-[var(--text-muted)]"><AlertTriangle className="mt-1 size-3.5 shrink-0 text-amber-600" aria-hidden />{note}</p> : null}
+			{after}
+		</div>
+	)
+}
+
 /**
- * The one real transfer that proves the chain: a small test payment to the
- * owner's card; the card turns green when its deposit SMS matches.
+ * The one real transfer that proves the chain: a 10,000-toman test payment
+ * to the owner's own card, shown in rials (the unit bank apps ask for). It
+ * turns green when its deposit SMS reaches Vigent through the phone.
  */
 export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard: boolean }) {
 	const fa = useLocale() !== 'en'
@@ -382,35 +540,165 @@ export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard
 		setBusy(true)
 		setTestError(null)
 		try {
-			const response = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: 1000, test: true }) })
+			const response = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test: true }) })
 			const data = (await response.json().catch(() => null)) as { card?: CardPayView; error?: string } | null
 			if (!response.ok || !data?.card) {
 				const copy = ERRORS[data?.error ?? '']
-				setTestError(copy ? copy[fa ? 0 : 1] : (fa ? 'واریز آزمایشی ساخته نشد.' : 'The test transfer could not be created.'))
+				setTestError(copy ? copy[fa ? 0 : 1] : (fa ? 'تراکنش آزمایشی ساخته نشد.' : 'The test transaction could not be created.'))
 				return
 			}
 			setTest(data.card)
+		} catch {
+			setTestError(fa ? 'تراکنش آزمایشی ساخته نشد؛ اتصال را بررسی کنید.' : 'Not created; check the connection.')
 		} finally {
 			setBusy(false)
 		}
 	}
 
 	if (verified) {
-		return <p className="flex max-w-2xl items-center gap-2 rounded-control bg-emerald-50 p-3.5 text-[13.5px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><CheckCircle2 className="size-5" aria-hidden />{fa ? 'یک واریز واقعی از روی پیامک گوشی شما تطبیق خورده است.' : 'A real deposit has matched from your phone’s SMS.'}</p>
+		return <p className="flex max-w-2xl items-center gap-2 rounded-control bg-emerald-50 p-3.5 text-[13.5px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><CheckCircle2 className="size-5 shrink-0" aria-hidden />{fa ? 'واریز آزمایشی از روی پیامک گوشی شما تأیید شد؛ اتصال برقرار است.' : 'The test transfer was confirmed from your phone’s SMS; the connection works.'}</p>
 	}
-	if (test) {
-		return (
-			<div className="grid max-w-sm gap-2">
-				<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">{fa ? 'همین مبلغ را از کارت دیگری (یا از حساب دیگر خودتان) به این کارت واریز کنید. وقتی پیامکش برسد، کارت پایین سبز می‌شود.' : 'Transfer exactly this amount from another card to this card. When its SMS arrives the card below turns green.'}</p>
-				<CardPayCardView card={test} accent="#111111" onAccent="#ffffff" canClaim={false} onStatus={(status) => { if (status === 'PAID') router.refresh() }} />
+	const rows = fa
+		? ['یک تراکنش ۱۰٬۰۰۰ تومانی با چند رقم آخرِ مخصوص ساخته می‌شود.', 'از یک کارت دیگر، همان مبلغ را دقیقاً به ریال به کارت خودتان واریز کنید.', 'پیامک واریز که از گوشی برسد، این قدم خودش سبز می‌شود.']
+		: ['A 10,000-toman transaction with its own last digits is made.', 'From another card, transfer exactly that many rials to your own card.', 'When the deposit SMS arrives through the phone, this step turns green.']
+	return (
+		<div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,21rem)] md:items-start">
+			<div className="grid content-start gap-4">
+				<ol className="grid gap-2.5">
+					{rows.map((row, index) => (
+						<li key={row} className="flex items-start gap-3 text-[13.5px] leading-7 text-[var(--text-secondary)]">
+							<span className={cn('mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-bold', test && index === 0 ? 'bg-emerald-600 text-white' : 'bg-[var(--bg-muted)] text-[var(--text-primary)]')}>
+								{test && index === 0 ? <CheckCircle2 className="size-3.5" aria-hidden /> : (index + 1).toLocaleString(fa ? 'fa-IR' : 'en-US')}
+							</span>
+							{row}
+						</li>
+					))}
+				</ol>
+				{test ? (
+					<p role="status" className="flex items-center gap-2 rounded-control border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[13px] text-[var(--text-secondary)]">
+						<Radio className="size-4 shrink-0 animate-pulse text-[#5b3de8] motion-reduce:animate-none" aria-hidden />
+						{fa ? 'منتظر پیامک واریز از گوشی شما…' : 'Waiting for the deposit SMS from your phone…'}
+					</p>
+				) : (
+					<div className="flex flex-wrap items-center gap-3">
+						<Button loading={busy} disabled={!hasCard} onClick={startTest}>{fa ? 'ساخت تراکنش آزمایشی' : 'Create the test transaction'}</Button>
+						{!hasCard && <span className="text-[13px] text-[var(--text-muted)]">{fa ? 'اول یک کارت اضافه کنید.' : 'Add a card first.'}</span>}
+						{testError && <span role="alert" className="text-[13px] text-red-600">{testError}</span>}
+					</div>
+				)}
 			</div>
+			{test ? (
+				<div className="mx-auto w-full max-w-[21rem]">
+					<CardPayCardView card={test} accent="#111111" onAccent="#ffffff" canClaim={false} unit="rial" onStatus={(status) => { if (status === 'PAID') router.refresh() }} />
+				</div>
+			) : (
+				<div aria-hidden className="hidden rounded-3xl border border-dashed border-[var(--border-default)] p-6 text-center text-[12.5px] leading-6 text-[var(--text-hint)] md:grid md:min-h-[14rem] md:place-items-center">
+					{fa ? 'کارت و مبلغ دقیق، بعد از ساخت تراکنش این‌جا می‌آید.' : 'The card and the exact amount appear here once the transaction is made.'}
+				</div>
+			)}
+		</div>
+	)
+}
+
+// ─── The phone, once the gateway is live (settings) ─────────────────────────
+
+/**
+ * The SMS phone in the gateway's settings: what it is, what it forwards and
+ * when it was last heard from, with the way to switch to another phone
+ * (an iPhone to an Android, or a new SIM).
+ */
+export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; line: string | null }) {
+	const fa = useLocale() !== 'en'
+	const router = useRouter()
+	const [switching, setSwitching] = useState(false)
+	const [target, setTarget] = useState<Platform>(device?.platform === 'IOS' ? 'ANDROID' : 'IOS')
+	const [busy, setBusy] = useState(false)
+
+	if (!device) {
+		return (
+			<section className="spatial-surface flex flex-wrap items-center gap-4 rounded-card p-4 sm:p-5">
+				<span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><Smartphone className="size-6" aria-hidden /></span>
+				<div className="min-w-0 flex-1 basis-56">
+					<h2 className="text-[15.5px] font-bold text-[var(--text-primary)]">{fa ? 'گوشی دریافت پیامک وصل نیست' : 'No SMS phone is connected'}</h2>
+					<p className="mt-0.5 text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'تا وصل شدنش، پرداخت‌ها برای تأیید دستی به شما می‌رسند.' : 'Until one is, payments come to you to confirm by hand.'}</p>
+				</div>
+				<Link href="/payments/devices" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-4 text-[13.5px] font-bold text-white dark:text-neutral-900">{fa ? 'وصل کردن گوشی' : 'Connect a phone'}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden /></Link>
+			</section>
 		)
 	}
+
+	const numbers = fa ? 'fa-IR' : 'en-US'
+	const state = device.verifiedAt
+		? { tone: 'ok' as const, text: fa ? 'وصل و فعال' : 'Connected' }
+		: device.connectedAt
+			? { tone: 'signal' as const, text: fa ? 'وصل · منتظر واریز آزمایشی' : 'Connected · test pending' }
+			: { tone: 'warn' as const, text: fa ? 'هنوز پیامکی نرسیده' : 'No message yet' }
+	const facts = [
+		{ label: fa ? 'متن ثابت شرط' : 'Filter text', value: <bdi dir="auto" className="font-mono">{device.keyword ?? 'واریز'}</bdi> },
+		{ label: device.method === 'SMS' ? (fa ? 'فوروارد به' : 'Forwards to') : (fa ? 'ارسال' : 'Sends'), value: device.method === 'SMS' ? <span dir="ltr" className="font-mono">{line ?? '—'}</span> : (fa ? 'به نشانی اختصاصی' : 'to its own address') },
+		{ label: fa ? 'آخرین پیامک' : 'Last message', value: device.lastSmsAt ? new Intl.DateTimeFormat(numbers, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(device.lastSmsAt)) : '—' },
+	]
+
+	async function replace() {
+		if (!device) return
+		setBusy(true)
+		try {
+			writeDraft({ platform: target, method: device.method, phone: device.phone ?? '', keyword: device.keyword })
+			await fetch(`/api/payments/devices/${device.id}`, { method: 'DELETE' })
+			router.push('/payments/devices')
+			router.refresh()
+		} finally {
+			setBusy(false)
+		}
+	}
+
 	return (
-		<div className="flex flex-wrap items-center gap-3">
-			<Button loading={busy} disabled={!hasCard} onClick={startTest}>{fa ? 'شروع واریز آزمایشی (حدود ۱٬۰۰۰ تومان)' : 'Start the test transfer (about 1,000 Toman)'}</Button>
-			{!hasCard && <span className="text-[13px] text-[var(--text-muted)]">{fa ? 'اول یک کارت اضافه کنید.' : 'Add a card first.'}</span>}
-			{testError && <span role="alert" className="text-[13px] text-red-600">{testError}</span>}
-		</div>
+		<section className="spatial-surface overflow-hidden rounded-card">
+			<div className="flex flex-wrap items-center gap-4 p-4 sm:p-5">
+				<span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-white dark:text-neutral-900">
+					{device.platform === 'IOS' ? <Apple className="size-6" aria-hidden /> : <Smartphone className="size-6" aria-hidden />}
+					<span aria-hidden className={cn('absolute -end-1 -top-1 size-3.5 rounded-full border-2 border-white dark:border-neutral-900', device.verifiedAt ? 'bg-emerald-500' : 'bg-amber-500')} />
+				</span>
+				<div className="min-w-0 flex-1 basis-48">
+					<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+						<h2 className="text-[15.5px] font-bold text-[var(--text-primary)]">{fa ? 'گوشی دریافت پیامک' : 'SMS phone'}</h2>
+						<StatusChip tone={state.tone} dot>{state.text}</StatusChip>
+					</div>
+					<p className="mt-0.5 text-[13px] text-[var(--text-secondary)]">
+						{platformName(device.platform, fa)} · {methodName(device.method, fa)}
+						{device.phone ? <> · <span dir="ltr" className="font-mono">{displayPhone(device.phone)}</span></> : null}
+					</p>
+				</div>
+				<div className="flex w-full flex-wrap gap-2 sm:w-auto">
+					<Link href="/payments/devices" className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)] sm:flex-none"><BookOpen className="size-4" aria-hidden />{fa ? 'راهنمای تنظیم' : 'Setup guide'}</Link>
+					<button type="button" aria-expanded={switching} onClick={() => setSwitching(!switching)} className={cn('inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-bold sm:flex-none', switching ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]' : 'bg-[var(--text-primary)] text-white dark:text-neutral-900')}><ArrowLeftRight className="size-4" aria-hidden />{fa ? 'تعویض گوشی' : 'Switch phone'}</button>
+				</div>
+			</div>
+			<dl className="grid grid-cols-1 border-t border-[var(--border-subtle)] sm:grid-cols-3 sm:divide-x sm:divide-[var(--border-subtle)] sm:rtl:divide-x-reverse">
+				{facts.map((fact) => (
+					<div key={fact.label} className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3 last:border-b-0 sm:block sm:border-b-0 sm:px-5">
+						<dt className="text-[12px] text-[var(--text-muted)]">{fact.label}</dt>
+						<dd className="truncate text-[13.5px] font-semibold text-[var(--text-primary)] sm:mt-0.5">{fact.value}</dd>
+					</div>
+				))}
+			</dl>
+			{switching && (
+				<div className="grid gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5">
+					<p className="text-[13.5px] font-bold text-[var(--text-primary)]">{fa ? 'گوشی تازه کدام است؟' : 'Which is the new phone?'}</p>
+					<div role="radiogroup" aria-label={fa ? 'گوشی تازه' : 'New phone'} className="inline-grid w-full max-w-sm grid-cols-2 gap-1 rounded-full bg-[var(--bg-muted)] p-1">
+						{(['ANDROID', 'IOS'] as const).map((value) => (
+							<button key={value} type="button" role="radio" aria-checked={target === value} onClick={() => setTarget(value)} className={cn('inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full text-[13px] font-bold transition-colors', target === value ? 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-control)] dark:bg-neutral-800' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]')}>
+								{value === 'IOS' ? <Apple className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}{platformName(value, fa)}
+							</button>
+						))}
+					</div>
+					<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'گوشی فعلی جدا می‌شود و همان چهار سؤال با پاسخ‌های قبلی برای گوشی تازه باز می‌شود. تا واریز آزمایشی گوشی تازه، پرداخت‌ها برای تأیید دستی به شما می‌رسند.' : 'The current phone is disconnected and the four questions open for the new one, filled in. Until its test transfer, payments come to you to confirm by hand.'}</p>
+					<div className="flex flex-wrap gap-2">
+						<Button loading={busy} onClick={replace}><ArrowLeftRight className="size-4" aria-hidden />{fa ? `تعویض با ${platformName(target, fa)}` : `Switch to ${platformName(target, fa)}`}</Button>
+						<Button variant="ghost" onClick={() => setSwitching(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>
+					</div>
+				</div>
+			)}
+		</section>
 	)
 }

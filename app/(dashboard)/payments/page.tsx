@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { ArrowLeft, Bot, Link2, MessageSquareText, PackageCheck, PackageX, TrendingUp, WalletCards, Zap } from 'lucide-react'
+import { Bot, MessageSquareText, PackageCheck, PackageX, TrendingUp, WalletCards, Zap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
@@ -8,9 +8,10 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
 import { BankMark } from '@/components/payments/bank-card'
 import { PaymentsShell } from '@/components/payments/payments-shell'
-import { PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
-import { NewLinkForm } from '@/components/payments/new-link-form'
-import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
+import { PaymentActions, PaymentRowMenu, UnmatchedSmsActions } from '@/components/payments/payment-actions'
+import { NewPaymentButton } from '@/components/payments/new-link-form'
+import { Sparkline } from '@/components/admin/sparkline'
+import { loadGatewayOverview, NOT_TEST } from '@/lib/payments/card/dashboard'
 import { suggestPaymentsForSms } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
 
@@ -26,6 +27,22 @@ const STATUS: Record<string, { tone: ChipTone; fa: string; en: string }> = {
 }
 const SOURCE: Record<string, [string, string]> = { CHAT: ['سفارش در گفتگو', 'Chat order'], API: ['سایت', 'Site'], LINK: ['لینک پرداخت', 'Payment link'] }
 
+const TREND_DAYS = 7
+const DAY_KEY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' })
+
+/** The last seven Tehran days, oldest first, each with what `pick` adds up from the paid payments. */
+function dailySeries<T extends { paidAt: Date | null }>(rows: T[], pick: (row: T) => number): number[] {
+  const now = Date.now()
+  const keys = Array.from({ length: TREND_DAYS }, (_, index) => DAY_KEY.format(new Date(now - (TREND_DAYS - 1 - index) * 86_400_000)))
+  const sums = new Map(keys.map((key) => [key, 0]))
+  for (const row of rows) {
+    if (!row.paidAt) continue
+    const key = DAY_KEY.format(row.paidAt)
+    if (sums.has(key)) sums.set(key, (sums.get(key) ?? 0) + pick(row))
+  }
+  return keys.map((key) => sums.get(key) ?? 0)
+}
+
 export default async function PaymentsPage() {
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
@@ -34,22 +51,25 @@ export default async function PaymentsPage() {
   const money = (value: number) => `${value.toLocaleString(numbers)} ${fa ? 'تومان' : 'Toman'}`
   const time = new Intl.DateTimeFormat(dateLocaleTag(locale), { dateStyle: 'medium', timeStyle: 'short' })
   const dayStart = new Date(Date.now() - 24 * 3_600_000)
+  const weekStart = new Date(Date.now() - TREND_DAYS * 86_400_000)
 
   const overview = await loadGatewayOverview(user.workspaceId)
   // Until the gateway is set up once, the page is the setup and nothing else.
   if (!overview.activated) return <PaymentsShell active="payments" overview={overview} locale={locale} />
 
-  const [payments, unmatched, paidToday, autoCount, paidCount] = await Promise.all([
+  const [payments, unmatched, paidToday, autoCount, paidCount, paidWeek] = await Promise.all([
     prisma.cardPayment.findMany({
-      where: { workspaceId: user.workspaceId, NOT: { reference: { startsWith: 'TEST-' }, status: { in: ['EXPIRED', 'CANCELLED'] } } },
+      // The setup's own test transfers are never listed or counted.
+      where: { workspaceId: user.workspaceId, ...NOT_TEST },
       orderBy: [{ createdAt: 'desc' }],
       take: 60,
       include: { card: { select: { bankKey: true, last4: true } }, site: { select: { name: true } } },
     }),
     prisma.bankSms.findMany({ where: { workspaceId: user.workspaceId, status: 'UNMATCHED' }, orderBy: { receivedAt: 'desc' }, take: 10 }),
-    prisma.cardPayment.aggregate({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: dayStart } }, _sum: { baseAmount: true }, _count: true }),
-    prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', confirmedBy: 'AUTO' } }),
-    prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID' } }),
+    prisma.cardPayment.aggregate({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: dayStart }, ...NOT_TEST }, _sum: { baseAmount: true }, _count: true }),
+    prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', confirmedBy: 'AUTO', ...NOT_TEST } }),
+    prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', ...NOT_TEST } }),
+    prisma.cardPayment.findMany({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST }, select: { paidAt: true, baseAmount: true, confirmedBy: true } }),
   ])
   const suggestions = await Promise.all(unmatched.map((sms) => suggestPaymentsForSms(user.workspaceId, sms.amount)))
   // Chat orders paid by card: whether they reached the WooCommerce store.
@@ -64,15 +84,36 @@ export default async function PaymentsPage() {
   const rest = payments.filter((payment) => payment.status !== 'CLAIMED')
   const hasCard = overview.cards.some((card) => card.active)
   const cap = overview.usage.cap
+  const dayLabels = Array.from({ length: TREND_DAYS }, (_, index) => {
+    const ago = TREND_DAYS - 1 - index
+    return ago === 0 ? (fa ? 'امروز' : 'Today') : fa ? `${ago.toLocaleString('fa-IR')} روز پیش` : `${ago}d ago`
+  })
   const tiles = [
-    { label: fa ? 'دریافتی ۲۴ ساعت اخیر' : 'Received in 24 hours', icon: TrendingUp, tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300', value: (paidToday._sum.baseAmount ?? 0).toLocaleString(numbers), unit: fa ? 'تومان' : 'Toman', hint: paidToday._count ? (fa ? `${paidToday._count.toLocaleString(numbers)} پرداخت` : `${paidToday._count} payments`) : (fa ? 'هنوز پرداختی نیامده' : 'No payment yet'), bar: null },
-    { label: fa ? 'تأیید خودکار' : 'Confirmed automatically', icon: Zap, tint: 'bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]', value: (paidCount ? Math.round((autoCount / paidCount) * 100) : 0).toLocaleString(numbers), unit: fa ? '٪' : '%', hint: paidCount ? (fa ? `${autoCount.toLocaleString(numbers)} از ${paidCount.toLocaleString(numbers)} بدون شما` : `${autoCount} of ${paidCount} without you`) : (fa ? 'بعد از اولین پرداخت' : 'After the first payment'), bar: null },
-    { label: fa ? 'پرداخت این ماه' : 'Payments this month', icon: WalletCards, tint: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', value: overview.usage.used.toLocaleString(numbers), unit: cap == null ? '' : (fa ? `از ${cap.toLocaleString(numbers)}` : `of ${cap}`), hint: cap == null ? (fa ? 'بدون سقف در پلن شما' : 'No limit on your plan') : (fa ? 'سقف پلن شما' : 'Your plan’s limit'), bar: cap ? Math.min(100, Math.round((overview.usage.used / cap) * 100)) : null },
+    {
+      label: fa ? 'دریافتی ۲۴ ساعت اخیر' : 'Received in 24 hours', icon: TrendingUp, tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300', stroke: '#059669',
+      value: (paidToday._sum.baseAmount ?? 0).toLocaleString(numbers), unit: fa ? 'تومان' : 'Toman',
+      hint: paidToday._count ? (fa ? `${paidToday._count.toLocaleString(numbers)} پرداخت` : `${paidToday._count} payments`) : (fa ? 'هنوز پرداختی نیامده' : 'No payment yet'),
+      // Rials, so the hover chip reads tomans.
+      series: dailySeries(paidWeek, (row) => row.baseAmount * 10), format: 'irr' as const, bar: null,
+    },
+    {
+      label: fa ? 'تأیید خودکار' : 'Confirmed automatically', icon: Zap, tint: 'bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]', stroke: '#5b3de8',
+      value: (paidCount ? Math.round((autoCount / paidCount) * 100) : 0).toLocaleString(numbers), unit: fa ? '٪' : '%',
+      hint: paidCount ? (fa ? `${autoCount.toLocaleString(numbers)} از ${paidCount.toLocaleString(numbers)} بدون شما` : `${autoCount} of ${paidCount} without you`) : (fa ? 'بعد از اولین پرداخت' : 'After the first payment'),
+      series: dailySeries(paidWeek, (row) => (row.confirmedBy === 'AUTO' ? 1 : 0)), format: 'number' as const, bar: null,
+    },
+    {
+      label: fa ? 'پرداخت این ماه' : 'Payments this month', icon: WalletCards, tint: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', stroke: '#d97706',
+      value: overview.usage.used.toLocaleString(numbers), unit: cap == null ? '' : (fa ? `از ${cap.toLocaleString(numbers)}` : `of ${cap}`),
+      hint: cap == null ? (fa ? 'بدون سقف در پلن شما' : 'No limit on your plan') : (fa ? 'سقف پلن شما' : 'Your plan’s limit'),
+      series: dailySeries(paidWeek, () => 1), format: 'number' as const, bar: cap ? Math.min(100, Math.round((overview.usage.used / cap) * 100)) : null,
+    },
   ]
+  const locked = !overview.platformEnabled ? 'platform' as const : !hasCard ? 'card' as const : null
 
   return (
-    <PaymentsShell active="payments" overview={overview} locale={locale}>
-      {/* Three tiles side by side on every width; phones get the compact type. */}
+    <PaymentsShell active="payments" overview={overview} locale={locale} action={<NewPaymentButton locked={locked} />}>
+      {/* Three tiles side by side on every width, each with its last seven days. */}
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
         {tiles.map((tile) => {
           const Icon = tile.icon
@@ -90,6 +131,9 @@ export default async function PaymentsPage() {
                 <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]"><span className="block h-full rounded-full bg-[#5b3de8]" style={{ width: `${tile.bar}%` }} /></span>
               ) : null}
               <p className="mt-1 text-[10.5px] leading-5 text-[var(--text-muted)] sm:text-xs">{tile.hint}</p>
+              <div className="-mx-1 mt-auto h-8 pt-1.5 sm:h-10" title={fa ? 'روند ۷ روز اخیر' : 'Last 7 days'}>
+                <Sparkline data={tile.series} color={tile.stroke} height={30} fluid labels={dayLabels} valueFormat={tile.format} />
+              </div>
             </div>
           )
         })}
@@ -103,11 +147,14 @@ export default async function PaymentsPage() {
       )}
 
       {(review.length > 0 || unmatched.length > 0) && (
-        <section className="rounded-card border border-red-200 bg-red-50/70 p-4 sm:p-5">
-          <h2 className="text-[15px] font-bold text-red-800">{fa ? 'منتظر تصمیم شما' : 'Waiting for your decision'}</h2>
+        <section className="rounded-card border border-red-200 bg-red-50/70 p-4 sm:p-5 dark:border-red-900/50 dark:bg-red-950/20">
+          <h2 className="flex items-center gap-2 text-[15px] font-bold text-red-800 dark:text-red-200">
+            {fa ? 'منتظر تصمیم شما' : 'Waiting for your decision'}
+            <span className="rounded-full bg-red-600 px-2 text-[12px] leading-5 text-white tabular-nums">{(review.length + unmatched.length).toLocaleString(numbers)}</span>
+          </h2>
           <ul className="mt-3 grid gap-2.5">
             {review.map((payment) => (
-              <li key={payment.id} className="rounded-2xl border border-red-200 bg-white p-3.5">
+              <li key={payment.id} className="rounded-2xl border border-red-200 bg-white p-3.5 dark:border-red-900/50 dark:bg-neutral-900">
                 <div className="flex flex-wrap items-center gap-2">
                   <span dir="ltr" className="font-mono text-sm font-bold">#{payment.reference}</span>
                   <span className="text-sm font-bold text-[var(--text-primary)]">{money(payment.payAmount)}</span>
@@ -123,7 +170,7 @@ export default async function PaymentsPage() {
               </li>
             ))}
             {unmatched.map((sms, index) => (
-              <li key={sms.id} className="rounded-2xl border border-red-200 bg-white p-3.5">
+              <li key={sms.id} className="rounded-2xl border border-red-200 bg-white p-3.5 dark:border-red-900/50 dark:bg-neutral-900">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'واریز بدون سفارش' : 'Deposit with no order'}</span>
                   {sms.amount != null && <span className="text-sm font-bold">{money(sms.amount)}</span>}
@@ -140,50 +187,68 @@ export default async function PaymentsPage() {
         </section>
       )}
 
-      <NewLinkForm locked={!overview.platformEnabled ? 'platform' : !hasCard ? 'card' : null} />
-
-      <section className="spatial-surface rounded-card p-4 shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)] sm:p-5">
-        <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پرداخت‌ها' : 'Payments'}</h2>
+      <section className="spatial-surface overflow-hidden rounded-card shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)]">
+        <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
+          <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پرداخت‌ها' : 'Payments'}</h2>
+          {rest.length ? <span className="text-[12.5px] tabular-nums text-[var(--text-muted)]">{fa ? `${rest.length.toLocaleString(numbers)} پرداخت آخر` : `Last ${rest.length}`}</span> : null}
+        </div>
         {rest.length === 0 ? (
-          <div className="grid justify-items-center gap-1.5 px-3 py-7 text-center">
+          <div className="grid justify-items-center gap-1.5 px-3 pb-8 pt-5 text-center">
             <span className="mb-1 grid size-14 place-items-center rounded-2xl bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><WalletCards className="size-6" aria-hidden /></span>
             <p className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'هنوز پرداختی نیامده' : 'No payments yet'}</p>
-            <p className="max-w-md text-[13px] leading-7 text-[var(--text-secondary)]">{fa ? 'اولین سفارشی که در گفتگو تأیید شود یا اولین لینکی که بسازید این‌جا می‌آید.' : 'The first order confirmed in a conversation, or the first link you create, appears here.'}</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-2">
-              <a href="#pay-link" className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Link2 className="size-4" aria-hidden />{fa ? 'ساخت لینک پرداخت' : 'Create a payment link'}</a>
-              <Link href="/payments/settings" className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Bot className="size-4" aria-hidden />{fa ? 'روش پرداخت ایجنت‌ها' : 'How agents take payment'}</Link>
-            </div>
+            <p className="max-w-md text-[13px] leading-7 text-[var(--text-secondary)]">{fa ? 'اولین سفارشی که در گفتگو تأیید شود، یا اولین پرداختی که با دکمهٔ «پرداخت تازه» بسازید، این‌جا می‌آید.' : 'The first order confirmed in a conversation, or the first payment you make with «New payment», appears here.'}</p>
+            <Link href="/payments/settings" className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Bot className="size-4" aria-hidden />{fa ? 'روش پرداخت ایجنت‌ها' : 'How agents take payment'}</Link>
           </div>
         ) : (
-          <ul className="mt-2 divide-y divide-[var(--border-subtle)]">
-            {rest.map((payment) => {
-              const status = STATUS[payment.status] ?? STATUS.CANCELLED
-              return (
-                <li key={payment.id} className="grid gap-x-4 gap-y-2 py-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span dir="ltr" className="font-mono text-sm font-bold text-[var(--text-primary)]">#{payment.reference}</span>
-                      <span className="text-sm font-medium text-[var(--text-primary)]">{money(payment.baseAmount)}</span>
+          <>
+            {/* Column heads, desktop only: every row below keeps these columns. */}
+            <div aria-hidden className="hidden grid-cols-[2.25rem_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] gap-4 border-y border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-2 text-[12px] font-medium text-[var(--text-muted)] md:grid">
+              <span />
+              <span>{fa ? 'پرداخت' : 'Payment'}</span>
+              <span>{fa ? 'مبلغ' : 'Amount'}</span>
+              <span>{fa ? 'وضعیت' : 'Status'}</span>
+              <span />
+            </div>
+            <ul className="divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)] md:border-t-0">
+              {rest.map((payment) => {
+                const status = STATUS[payment.status] ?? STATUS.CANCELLED
+                const subject = payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]
+                const pending = payment.status === 'PENDING'
+                return (
+                  <li key={payment.id} className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-[var(--bg-surface)] sm:px-5 md:grid-cols-[2.25rem_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] md:gap-x-4">
+                    <span className="row-span-2 md:row-span-1"><BankMark bankKey={payment.card.bankKey} size={36} /></span>
+                    <div className="min-w-0">
+                      <p className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-[13.5px] font-bold text-[var(--text-primary)]">{payment.description || payment.customerName || subject}</span>
+                        <span dir="ltr" className="shrink-0 font-mono text-[11.5px] text-[var(--text-muted)]">#{payment.reference}</span>
+                      </p>
+                      <p className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">
+                        {[subject, payment.site?.name, payment.description && payment.customerName ? payment.customerName : null, time.format(payment.createdAt)].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    {/* Phones: the amount on the end of the first line. */}
+                    <div className="text-end md:text-start">
+                      <p className="whitespace-nowrap text-[14px] font-bold tabular-nums text-[var(--text-primary)]">{payment.baseAmount.toLocaleString(numbers)} <span className="text-[11.5px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span></p>
+                      <p className="hidden truncate text-[12px] text-[var(--text-muted)] md:block">{fa ? 'واریز دقیق' : 'Exact'} <span dir="ltr" className="font-mono">{payment.payAmount.toLocaleString('en-US')}</span> · <span dir="ltr" className="font-mono">••{payment.card.last4}</span></p>
+                    </div>
+                    <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-1.5 md:col-start-auto">
                       <StatusChip tone={status.tone} dot>{fa ? status.fa : status.en}{payment.status === 'PAID' && payment.confirmedBy !== 'AUTO' ? (fa ? ' · دستی' : ' · by hand') : ''}</StatusChip>
                       <StoreOrderChip draft={payment.orderDraftId ? storeOrders.get(payment.orderDraftId) : undefined} fa={fa} />
                     </div>
-                    <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                      {payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]}{payment.site ? ` · ${payment.site.name}` : ''}{payment.customerName ? ` · ${payment.customerName}` : ''}{payment.description ? ` · ${payment.description}` : ''} · {time.format(payment.createdAt)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-                    <BankMark bankKey={payment.card.bankKey} size={24} />
-                    <span>{fa ? 'واریزی' : 'Transfer'} <span dir="ltr" className="font-mono font-medium text-[var(--text-primary)]">{payment.payAmount.toLocaleString('en-US')}</span> {fa ? 'به کارت' : 'to card'} <span dir="ltr" className="font-mono">…{payment.card.last4}</span></span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    {payment.status === 'PENDING' && <PaymentActions paymentId={payment.id} mode="pending" />}
-                    {payment.status === 'PENDING' && payment.source === 'LINK' && <a href={payPageUrl(payment.authority)} target="_blank" rel="noopener noreferrer" className="ui-link text-[13px]">{fa ? 'صفحهٔ پرداخت' : 'Payment page'}</a>}
-                    {payment.conversationId && <Link href={`/conversations/${payment.conversationId}`} aria-label={fa ? 'دیدن گفتگو' : 'Open conversation'} className="grid size-9 place-items-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"><ArrowLeft className="size-4 ltr:rotate-180" aria-hidden /></Link>}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                    <div className="col-start-3 row-start-2 justify-self-end md:col-start-auto md:row-start-auto">
+                      <PaymentRowMenu
+                        paymentId={payment.id}
+                        pending={pending}
+                        payUrl={pending && payment.source === 'LINK' ? payPageUrl(payment.authority) : null}
+                        conversationHref={payment.conversationId ? `/conversations/${payment.conversationId}` : null}
+                        label={`#${payment.reference} · ${money(payment.baseAmount)}`}
+                      />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         )}
       </section>
     </PaymentsShell>

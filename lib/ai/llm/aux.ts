@@ -38,6 +38,7 @@ export type AuxPurpose =
   | 'eval'
   | 'identity'
   | 'link_repair'
+  | 'sms_keyword'
 
 export interface AuxCallRecord {
   purpose: AuxPurpose

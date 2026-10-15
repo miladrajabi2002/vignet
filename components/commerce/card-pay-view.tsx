@@ -73,6 +73,7 @@ export function CardPayCardView({
 	onAccent,
 	live = true,
 	canClaim = true,
+	unit = 'toman',
 	onStatus,
 }: {
 	card: CardPay
@@ -81,6 +82,8 @@ export function CardPayCardView({
 	live?: boolean
 	/** False in the owner's dashboard: only the customer says «پرداخت کردم». */
 	canClaim?: boolean
+	/** Rial for the owner's own test: most bank apps take the amount in rials. */
+	unit?: 'toman' | 'rial'
 	onStatus?: (status: CardPayStatus) => void
 }) {
 	const fa = card.lang !== 'en'
@@ -145,11 +148,23 @@ export function CardPayCardView({
 			{open && (
 				<>
 					<CopyRow label={fa ? 'شماره کارت' : 'Card number'} shown={formatPan(card.pan)} value={card.pan} fa={fa} />
-					<CopyRow label={fa ? 'مبلغ دقیق (تومان)' : 'Exact amount (Toman)'} shown={groupDigits(card.amount)} value={String(card.amount)} fa={fa} />
-					<p className="text-[12px] leading-6 text-neutral-500 dark:text-neutral-400">
-						{fa ? 'همین مبلغ را بدون رُند کردن واریز کنید؛ پرداخت از روی همین عدد شناخته می‌شود. به ریال: ' : 'Transfer exactly this amount; the payment is recognised by it. In rials: '}
-						<span dir="ltr" className="font-mono tabular-nums">{groupDigits(card.amount * 10)}</span>
-					</p>
+					{unit === 'rial' ? (
+						<>
+							<CopyRow label={fa ? 'مبلغ دقیق (ریال)' : 'Exact amount (Rial)'} shown={groupDigits(card.amount * 10)} value={String(card.amount * 10)} fa={fa} />
+							<p className="text-[12px] leading-6 text-neutral-500 dark:text-neutral-400">
+								{fa ? 'همین عدد را به ریال، بدون رُند کردن واریز کنید. به تومان: ' : 'Transfer exactly this many rials, not rounded. In tomans: '}
+								<span dir="ltr" className="font-mono tabular-nums">{groupDigits(card.amount)}</span>
+							</p>
+						</>
+					) : (
+						<>
+							<CopyRow label={fa ? 'مبلغ دقیق (تومان)' : 'Exact amount (Toman)'} shown={groupDigits(card.amount)} value={String(card.amount)} fa={fa} />
+							<p className="text-[12px] leading-6 text-neutral-500 dark:text-neutral-400">
+								{fa ? 'همین مبلغ را بدون رُند کردن واریز کنید؛ پرداخت از روی همین عدد شناخته می‌شود. به ریال: ' : 'Transfer exactly this amount; the payment is recognised by it. In rials: '}
+								<span dir="ltr" className="font-mono tabular-nums">{groupDigits(card.amount * 10)}</span>
+							</p>
+						</>
+					)}
 				</>
 			)}
 			<div role="status" aria-live="polite" className={`rounded-2xl px-3 py-2.5 text-center text-[13px] font-medium ${TONE[status]}`}>{stateText}</div>

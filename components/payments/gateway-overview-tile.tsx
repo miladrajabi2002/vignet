@@ -1,16 +1,19 @@
 import Link from 'next/link'
-import { ArrowLeft, WalletCards } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Clock3, MessageSquareText, TrendingUp, WalletCards } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { BankCardFace } from '@/components/payments/bank-card'
 import { GatewayFlowMotion } from '@/components/payments/gateway-flow-motion'
 import { getPlatformGatewaySettings } from '@/lib/payments/card/platform'
 import { receivedTodayByCard } from '@/lib/payments/card/service'
+import { cn } from '@/lib/utils'
 
 const SAMPLE_AMOUNT = 1_250_347
+const NOT_TEST = { NOT: { reference: { startsWith: 'TEST-' } } }
 
 /**
  * «نمای کلی»: the payment gateway at a glance. Once the gateway is on: the
- * flow animated on the card customers pay into right now, with today's
- * numbers. Before that: the same flow on a sample card and the way in.
+ * card customers pay into right now, still, with today's three numbers
+ * beside it. Before that: the flow animated on a sample card and the way in.
  * Silent on a database without the gateway tables.
  */
 export async function GatewayOverviewTile({ workspaceId, locale }: { workspaceId: string; locale: 'fa' | 'en' }) {
@@ -23,18 +26,17 @@ export async function GatewayOverviewTile({ workspaceId, locale }: { workspaceId
 		if (!platform.enabled || workspace?.payGatewaySuspendedAt) return null
 		const cards = await prisma.payCard.findMany({ where: { workspaceId, active: true, deletedAt: null }, orderBy: { sortOrder: 'asc' } })
 		if (!workspace?.payGatewayEnabled || !cards.length) return { live: null }
-		const [received, pending, review, unmatched, device, last] = await Promise.all([
+		const [received, pending, review, unmatched, device] = await Promise.all([
 			receivedTodayByCard(workspaceId),
-			prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING' } }),
-			prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED' } }),
+			prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING', ...NOT_TEST } }),
+			prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED', ...NOT_TEST } }),
 			prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
 			prisma.payDevice.findFirst({ where: { workspaceId, active: true }, orderBy: { lastSmsAt: { sort: 'desc', nulls: 'last' } }, select: { lastSmsAt: true } }),
-			prisma.cardPayment.findFirst({ where: { workspaceId, status: 'PAID' }, orderBy: { paidAt: 'desc' }, select: { payAmount: true } }),
 		])
 		// The card the next payment goes to: least received today.
 		const next = cards.reduce((best, card) => ((received.get(card.id) ?? 0) < (received.get(best.id) ?? 0) ? card : best))
 		const today = [...received.values()].reduce((sum, value) => sum + value, 0)
-		return { live: { next, today, pending, review, unmatched, lastSmsAt: device?.lastSmsAt ?? null, cards: cards.length, amount: last?.payAmount ?? SAMPLE_AMOUNT } }
+		return { live: { next, today, pending, review, unmatched, lastSmsAt: device?.lastSmsAt ?? null, cards: cards.length } }
 	})().catch(() => null)
 	if (!data) return null
 	const numbers = fa ? 'fa-IR' : 'en-US'
@@ -62,39 +64,55 @@ export async function GatewayOverviewTile({ workspaceId, locale }: { workspaceId
 	const live = data.live
 	const masked = `${live.next.bin.slice(0, 4)} ${live.next.bin.slice(4)}•• •••• ${live.next.last4}`
 	const sms = live.lastSmsAt
-		? new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' }).format(live.lastSmsAt)
+		? new Intl.DateTimeFormat(numbers, { dateStyle: 'short', timeStyle: 'short' }).format(live.lastSmsAt)
 		: null
 	const attention = live.review + live.unmatched
+	const fields = [
+		{ key: 'today', icon: TrendingUp, label: fa ? 'دریافتی امروز' : 'Received today', value: live.today.toLocaleString(numbers), unit: fa ? 'تومان' : 'Toman', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300', alert: false },
+		{ key: 'pending', icon: Clock3, label: fa ? 'در انتظار واریز' : 'Waiting for transfer', value: live.pending.toLocaleString(numbers), unit: fa ? 'پرداخت' : 'payments', tint: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', alert: false },
+		{ key: 'attention', icon: AlertCircle, label: fa ? 'نیاز به تصمیم شما' : 'Needs you', value: attention.toLocaleString(numbers), unit: fa ? 'مورد' : 'items', tint: attention > 0 ? 'bg-red-600 text-white' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]', alert: attention > 0 },
+	]
 	return (
 		<section aria-label={fa ? 'درگاه پرداخت' : 'Payment gateway'} className="spatial-surface rounded-card p-4 sm:p-5">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<h2 className="inline-flex items-center gap-2 text-[15px] font-bold text-[var(--text-primary)]"><WalletCards className="size-4.5 text-[#5b3de8]" aria-hidden />{fa ? 'درگاه پرداخت' : 'Payment gateway'}</h2>
-				<Link href="/payments" className="inline-flex items-center gap-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{fa ? 'همهٔ پرداخت‌ها' : 'All payments'}<ArrowLeft className="size-3.5 ltr:rotate-180" aria-hidden /></Link>
+				<div className="flex items-center gap-2.5">
+					<h2 className="inline-flex items-center gap-2 text-[15px] font-bold text-[var(--text-primary)]"><WalletCards className="size-[18px] text-[#5b3de8]" aria-hidden />{fa ? 'درگاه پرداخت' : 'Payment gateway'}</h2>
+					<span className="ui-chip ui-chip-ok"><span className="ui-chip-dot" />{fa ? 'روشن' : 'On'}</span>
+				</div>
+				<Link href="/payments" className="inline-flex min-h-9 items-center gap-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{fa ? 'همهٔ پرداخت‌ها' : 'All payments'}<ArrowLeft className="size-3.5 ltr:rotate-180" aria-hidden /></Link>
 			</div>
-			<div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-stretch">
-				<GatewayFlowMotion bankKey={live.next.bankKey} pan={masked} holder={live.next.holderName} amount={live.amount} lang={locale} />
-				<div className="flex min-w-0 flex-col gap-2.5">
-					<dl className="grid grid-cols-3 gap-2 lg:grid-cols-1">
-						{[
-							{ label: fa ? 'دریافتی امروز' : 'Received today', value: live.today.toLocaleString(numbers), unit: fa ? 'تومان' : 'Toman', alert: false },
-							{ label: fa ? 'در انتظار واریز' : 'Waiting', value: live.pending.toLocaleString(numbers), unit: '', alert: false },
-							{ label: fa ? 'نیاز به تصمیم شما' : 'Needs you', value: attention.toLocaleString(numbers), unit: '', alert: attention > 0 },
-						].map((item) => (
-							<div key={item.label} className={item.alert ? 'rounded-control bg-red-50 p-2.5 text-red-800 dark:bg-red-950/40 dark:text-red-200' : 'rounded-control bg-[var(--bg-surface)] p-2.5'}>
-								<dt className="text-[12px] text-[var(--text-muted)]">{item.label}</dt>
-								<dd className="mt-0.5 text-[17px] font-bold tabular-nums">{item.value} <span className="text-[11.5px] font-normal">{item.unit}</span></dd>
-							</div>
-						))}
+			<div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:items-center lg:gap-7">
+				<div className="mx-auto grid w-full max-w-[21rem] gap-2 md:mx-0">
+					<BankCardFace bankKey={live.next.bankKey} pan={masked} holder={live.next.holderName} lang={locale} />
+					<p className="text-center text-[12px] text-[var(--text-muted)] md:text-start">
+						{live.cards > 1
+							? (fa ? `پرداخت بعدی به این کارت می‌رود · ${live.cards.toLocaleString(numbers)} کارت فعال` : `The next payment goes to this card · ${live.cards} active cards`)
+							: (fa ? 'کارتی که مشتری‌ها به آن واریز می‌کنند' : 'The card your customers pay into')}
+					</p>
+				</div>
+				<div className="grid min-w-0 gap-3">
+					<dl className="grid grid-cols-3 gap-2 sm:gap-3">
+						{fields.map((field) => {
+							const Icon = field.icon
+							const body = (
+								<>
+									<span className={cn('grid size-8 place-items-center rounded-xl', field.tint)}><Icon className="size-4" aria-hidden /></span>
+									<dt className="mt-2.5 text-[11.5px] leading-5 text-[var(--text-muted)] sm:text-[12.5px]">{field.label}</dt>
+									<dd className="mt-0.5 flex flex-wrap items-baseline gap-x-1">
+										<span className={cn('text-[18px] font-extrabold tabular-nums leading-7 sm:text-[22px]', field.alert ? 'text-red-600' : 'text-[var(--text-primary)]')}>{field.value}</span>
+										<span className="text-[11px] text-[var(--text-muted)]">{field.unit}</span>
+									</dd>
+								</>
+							)
+							return field.alert
+								? <Link key={field.key} href="/payments" className="min-w-0 rounded-2xl border border-red-200 bg-red-50/60 p-3 transition-colors hover:border-red-300 dark:border-red-900/50 dark:bg-red-950/20 sm:p-3.5">{body}</Link>
+								: <div key={field.key} className="min-w-0 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 sm:p-3.5">{body}</div>
+						})}
 					</dl>
-					<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">
-						{live.cards > 1 ? (fa ? `پرداخت بعدی به کارت ••${live.next.last4} می‌رود (از ${live.cards.toLocaleString(numbers)} کارت فعال). ` : `The next payment goes to ••${live.next.last4} (of ${live.cards} active cards). `) : ''}
+					<p className="flex items-center gap-1.5 text-[12.5px] leading-6 text-[var(--text-muted)]">
+						<MessageSquareText className="size-3.5 shrink-0" aria-hidden />
 						{sms ? (fa ? `آخرین پیامک بانک: ${sms}` : `Last bank SMS: ${sms}`) : (fa ? 'هنوز پیامکی از گوشی دریافت پیامک نرسیده.' : 'No SMS has arrived from the phone yet.')}
 					</p>
-					{attention > 0 ? (
-						<Link href="/payments" className="mt-auto inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-red-600 px-4 text-[13px] font-bold text-white">
-							{fa ? `رسیدگی به ${attention.toLocaleString(numbers)} مورد` : `Review ${attention}`}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
-						</Link>
-					) : null}
 				</div>
 			</div>
 		</section>

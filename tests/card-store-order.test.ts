@@ -34,7 +34,7 @@ describe('card-to-card order → WooCommerce', () => {
 
 describe('gateway activation', () => {
   const card = { id: 'c', bankKey: 'mellat', bin: '610433', last4: '5675', holderName: 'n', active: true, dailyCap: null, verified: false, receivedToday: 0 }
-  const device = { id: 'd', name: 'p', platform: 'ANDROID' as const, method: 'SMS' as const, phone: null, url: '', active: true, connectedAt: '2026-10-15T00:00:00Z', verifiedAt: '2026-10-15T00:01:00Z', lastSmsAt: null }
+  const device = { id: 'd', name: 'p', platform: 'ANDROID' as const, method: 'SMS' as const, phone: null, keyword: null, url: '', active: true, connectedAt: '2026-10-15T00:00:00Z', verifiedAt: '2026-10-15T00:01:00Z', lastSmsAt: null }
 
   it('is complete only after all four steps', () => {
     expect(gatewaySetupState({ cards: [card], devices: [{ ...device, verifiedAt: null }], enabled: true, platformEnabled: true }).current).toBe('test')

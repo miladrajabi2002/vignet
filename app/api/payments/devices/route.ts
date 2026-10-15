@@ -12,6 +12,8 @@ const schema = z.object({
   method: z.enum(['SMS', 'URL']),
   // The SIM that receives the bank's deposit SMS.
   phone: z.string().max(20),
+  // The forwarding rule's filter, cut out of the owner's sample deposit SMS.
+  keyword: z.string().trim().min(2).max(40).nullish(),
 })
 
 export async function POST(req: Request) {
@@ -21,10 +23,11 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
   const phone = normalizeIranianMobile(parsed.data.phone)
   if (!phone) return NextResponse.json({ error: 'INVALID_PHONE' }, { status: 400 })
-  if ((await prisma.payDevice.count({ where: { workspaceId: user.workspaceId } })) >= 5) return NextResponse.json({ error: 'TOO_MANY_DEVICES' }, { status: 400 })
+  // One phone per business: it is the gateway's only witness of a deposit.
+  if ((await prisma.payDevice.count({ where: { workspaceId: user.workspaceId } })) >= 1) return NextResponse.json({ error: 'TOO_MANY_DEVICES' }, { status: 400 })
   try {
     const device = await prisma.payDevice.create({
-      data: { workspaceId: user.workspaceId, name: parsed.data.name, platform: parsed.data.platform, method: parsed.data.method, phone, ...deviceTokenFields(newDeviceToken()) },
+      data: { workspaceId: user.workspaceId, name: parsed.data.name, platform: parsed.data.platform, method: parsed.data.method, phone, keyword: parsed.data.keyword ?? null, ...deviceTokenFields(newDeviceToken()) },
       select: { id: true },
     })
     return NextResponse.json({ ok: true, id: device.id })
