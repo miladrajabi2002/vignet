@@ -1,4 +1,5 @@
 import type { CheckoutCard } from '@/lib/commerce/checkout-link'
+import type { CardPayView } from '@/lib/payments/card/pay-card'
 import type { ChannelType } from '@prisma/client'
 
 /**
@@ -194,4 +195,10 @@ export interface MessengerAdapter {
    * text summary + link (`composeCheckoutFallback`) when absent or failing.
    */
   sendCheckoutCard?(chatId: string, card: CheckoutCard): Promise<void>
+  /**
+   * Send a payment-gateway card: the business's bank card and the exact
+   * amount, copyable. Optional; callers fall back to `sendCardPay` messages
+   * (lib/channels/card-pay-delivery.ts) when absent or failing.
+   */
+  sendCardPayCard?(chatId: string, card: CardPayView): Promise<void>
 }

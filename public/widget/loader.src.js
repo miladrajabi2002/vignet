@@ -582,6 +582,32 @@
                         'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:13px;font-weight:800;text-decoration:none;transition:opacity .18s,transform .15s;}' +
                         '.vgt-co-pay:hover{opacity:.92;transform:translateY(-1px);}' +
                         '.vgt-co-pay:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
+                        // payment-gateway card (bank card, exact amount, live state)
+                        '.vgt-cardpay{max-width:min(320px,86vw);display:flex;flex-direction:column;gap:9px;border:1px solid var(--vgt-border);border-radius:var(--vgt-r-bubble);background:var(--vgt-bg);' +
+                        'box-shadow:var(--vgt-elev-1);padding:12px;animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;}' +
+                        '.vgt-cp-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:var(--vgt-text);}' +
+                        '.vgt-cp-tag{font-size:11px;font-weight:500;color:var(--vgt-muted);border:1px solid var(--vgt-border);border-radius:999px;padding:1px 9px;}' +
+                        '.vgt-cp-face{position:relative;overflow:hidden;aspect-ratio:1.586;border-radius:16px;padding:14px 16px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;' +
+                        'box-shadow:inset 0 1px 0 rgba(255,255,255,.18);}' +
+                        '.vgt-cp-face[data-off="1"]{filter:grayscale(1);opacity:.6;}' +
+                        '.vgt-cp-bank{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;}' +
+                        '.vgt-cp-bank img{width:28px;height:28px;flex:0 0 auto;}' +
+                        '.vgt-cp-pan{direction:ltr;text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:clamp(15px,5vw,19px);letter-spacing:.07em;font-variant-numeric:tabular-nums;white-space:nowrap;}' +
+                        '.vgt-cp-holder{font-size:12px;min-height:1.5em;opacity:.92;}' +
+                        '.vgt-cp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--vgt-border);border-radius:var(--vgt-r-ctl);padding:7px 8px 7px 11px;}' +
+                        '[dir="rtl"] .vgt-cp-row{padding:7px 11px 7px 8px;}' +
+                        '.vgt-cp-row small{display:block;font-size:11px;color:var(--vgt-muted);line-height:1.5;}' +
+                        '.vgt-cp-row b{display:block;direction:ltr;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;font-variant-numeric:tabular-nums;color:var(--vgt-text);white-space:nowrap;}' +
+                        '.vgt-cp-copy{flex:0 0 auto;min-height:34px;padding:0 11px;border-radius:10px;border:1px solid var(--vgt-border);background:transparent;color:var(--vgt-text);font:inherit;font-size:12px;cursor:pointer;}' +
+                        '.vgt-cp-copy[data-done="1"]{background:var(--vgt-accent-soft);color:var(--vgt-accent-ink);border-color:transparent;}' +
+                        '.vgt-cp-note{font-size:11.5px;line-height:1.75;color:var(--vgt-muted);}' +
+                        '.vgt-cp-state{border-radius:var(--vgt-r-ctl);padding:9px 10px;text-align:center;font-size:12.5px;font-weight:700;background:var(--vgt-accent-soft);color:var(--vgt-text);box-shadow:inset 0 0 0 1px var(--vgt-accent-line);}' +
+                        '.vgt-cp-state[data-s="PAID"]{background:var(--vgt-accent);color:var(--vgt-on-accent);box-shadow:none;}' +
+                        '.vgt-cp-state[data-s="CLAIMED"],.vgt-cp-state[data-s="FAILED"]{background:var(--vgt-danger-soft);color:var(--vgt-danger);box-shadow:inset 0 0 0 1px var(--vgt-danger-line);}' +
+                        '.vgt-cp-state[data-s="EXPIRED"],.vgt-cp-state[data-s="CANCELLED"]{background:var(--vgt-accent-soft);color:var(--vgt-muted);}' +
+                        '.vgt-cp-claim{min-height:44px;border:0;border-radius:var(--vgt-r-ctl);background:var(--vgt-accent);color:var(--vgt-on-accent);font:inherit;font-size:13px;font-weight:800;cursor:pointer;}' +
+                        '.vgt-cp-claim[disabled]{opacity:.6;cursor:progress;}' +
+                        '.vgt-cp-copy:focus-visible,.vgt-cp-claim:focus-visible{outline:2px solid var(--vgt-focus);outline-offset:2px;}' +
                         // action chips under a bot reply — ≥44px touch height (11px*2 + ~22px line)
                         '.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
                         '.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
@@ -1710,8 +1736,219 @@
                 return box
         }
 
+        // ---- Payment-gateway card ([[cardpay:{…}]] in a reply) ----
+        var CARDPAY_PREFIX = '[[cardpay:'
+
+        /** Strip payment-card markers; keep the first complete one as a card. */
+        function extractCardPay(raw, done) {
+                var card = null
+                var out = []
+                var cursor = 0
+                while (cursor < raw.length) {
+                        var start = raw.indexOf(CARDPAY_PREFIX, cursor)
+                        if (start === -1) {
+                                out.push(raw.slice(cursor))
+                                break
+                        }
+                        out.push(raw.slice(cursor, start))
+                        var jsonStart = start + CARDPAY_PREFIX.length
+                        var bounds = productTokenBounds(raw, jsonStart)
+                        if (!bounds) break // still streaming: hide the partial marker
+                        if (done && !card) {
+                                try {
+                                        var c = JSON.parse(raw.slice(jsonStart, bounds.jsonEnd))
+                                        var pan = String((c && c.pan) || '').replace(/\D/g, '')
+                                        if (pan.length === 16 && typeof c.amount === 'number' && c.amount > 0 && /^[\w-]{8,80}$/.test(String(c.authority || ''))) {
+                                                var bank = c.bank && typeof c.bank === 'object' ? c.bank : {}
+                                                card = {
+                                                        code: compactProductText(c.code, 40),
+                                                        authority: String(c.authority),
+                                                        bankKey: /^[a-z0-9]{1,24}$/.test(String(c.bankKey || '')) ? String(c.bankKey) : '',
+                                                        bankName: compactProductText(bank.name, 60),
+                                                        deep: /^#[0-9a-f]{3,8}$/i.test(String(bank.deep || '')) ? bank.deep : '#2b2b30',
+                                                        light: /^#[0-9a-f]{3,8}$/i.test(String(bank.light || '')) ? bank.light : '#4a4a52',
+                                                        logo: bank.logo === true,
+                                                        pan: pan,
+                                                        holder: compactProductText(c.holder, 80),
+                                                        amount: Math.round(c.amount),
+                                                        expiresAt: typeof c.expiresAt === 'string' ? c.expiresAt : '',
+                                                        claim: c.claim === true,
+                                                        status: typeof c.status === 'string' ? c.status : 'PENDING',
+                                                        lang: c.lang === 'en' ? 'en' : 'fa',
+                                                }
+                                        }
+                                } catch (e) {
+                                        /* malformed marker is removed, never displayed */
+                                }
+                        }
+                        cursor = bounds.tokenEnd
+                }
+                return { raw: out.join(''), cardPay: card }
+        }
+
+        function copyToClipboard(text, done) {
+                function fallback() {
+                        try {
+                                var area = document.createElement('textarea')
+                                area.value = text
+                                area.style.cssText = 'position:fixed;opacity:0;top:0'
+                                document.body.appendChild(area)
+                                area.select()
+                                if (document.execCommand('copy')) done()
+                                document.body.removeChild(area)
+                        } catch (e) {
+                                /* the number stays visible to copy by hand */
+                        }
+                }
+                if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback)
+                else fallback()
+        }
+
+        var CARDPAY_LABELS = {
+                fa: { PENDING: 'منتظر واریز شما', CLAIMED: 'در حال بررسی واریز', PAID: 'پرداخت تأیید شد', EXPIRED: 'مهلت پرداخت تمام شد', FAILED: 'واریزی پیدا نشد', CANCELLED: 'لغو شد' },
+                en: { PENDING: 'Waiting for your transfer', CLAIMED: 'Checking your transfer', PAID: 'Payment confirmed', EXPIRED: 'This payment has expired', FAILED: 'No transfer was found', CANCELLED: 'Cancelled' },
+        }
+
+        /** The business's bank card, the exact amount, copy buttons and the live state. */
+        function renderCardPay(c) {
+                var fa = c.lang !== 'en'
+                var grouped = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }
+                var box = el('div', 'vgt-cardpay')
+                box.setAttribute('dir', fa ? 'rtl' : 'ltr')
+                var head = el('div', 'vgt-cp-head')
+                var title = el('span')
+                title.textContent = (fa ? 'سفارش ' : 'Order ') + c.code
+                var tag = el('span', 'vgt-cp-tag')
+                tag.textContent = fa ? 'کارت‌به‌کارت' : 'Card transfer'
+                head.appendChild(title)
+                head.appendChild(tag)
+                box.appendChild(head)
+
+                var face = el('div', 'vgt-cp-face')
+                face.style.background = 'linear-gradient(140deg,' + c.light + ',' + c.deep + ' 78%)'
+                var bank = el('div', 'vgt-cp-bank')
+                if (c.logo && c.bankKey) {
+                        var img = document.createElement('img')
+                        img.alt = ''
+                        img.loading = 'lazy'
+                        img.src = base + '/brands/banks/' + c.bankKey + '-mono.svg'
+                        bank.appendChild(img)
+                }
+                var bankName = el('span')
+                bankName.textContent = c.bankName
+                bank.appendChild(bankName)
+                var panEl = el('div', 'vgt-cp-pan')
+                panEl.textContent = c.pan.replace(/(\d{4})(?=\d)/g, '$1 ')
+                var holder = el('div', 'vgt-cp-holder')
+                holder.textContent = c.holder || ''
+                face.appendChild(bank)
+                face.appendChild(panEl)
+                face.appendChild(holder)
+                box.appendChild(face)
+
+                var details = el('div')
+                details.style.cssText = 'display:flex;flex-direction:column;gap:9px;'
+                function copyRow(label, shown, value) {
+                        var row = el('div', 'vgt-cp-row')
+                        var text = el('span')
+                        var small = el('small')
+                        small.textContent = label
+                        var strong = el('b')
+                        strong.textContent = shown
+                        text.appendChild(small)
+                        text.appendChild(strong)
+                        var btn = el('button', 'vgt-cp-copy')
+                        btn.type = 'button'
+                        btn.textContent = fa ? 'کپی' : 'Copy'
+                        btn.addEventListener('click', function () {
+                                copyToClipboard(value, function () {
+                                        btn.setAttribute('data-done', '1')
+                                        btn.textContent = fa ? 'کپی شد' : 'Copied'
+                                        setTimeout(function () {
+                                                btn.removeAttribute('data-done')
+                                                btn.textContent = fa ? 'کپی' : 'Copy'
+                                        }, 1500)
+                                })
+                        })
+                        row.appendChild(text)
+                        row.appendChild(btn)
+                        details.appendChild(row)
+                }
+                copyRow(fa ? 'شماره کارت' : 'Card number', c.pan.replace(/(\d{4})(?=\d)/g, '$1 '), c.pan)
+                copyRow(fa ? 'مبلغ دقیق (تومان)' : 'Exact amount (Toman)', grouped(c.amount), String(c.amount))
+                var note = el('div', 'vgt-cp-note')
+                note.textContent = (fa
+                        ? 'همین مبلغ را بدون رُند کردن واریز کنید؛ پرداخت از روی همین عدد شناخته می‌شود. به ریال: '
+                        : 'Transfer exactly this amount; the payment is recognised by it. In rials: ') + grouped(c.amount * 10)
+                details.appendChild(note)
+                box.appendChild(details)
+
+                var state = el('div', 'vgt-cp-state')
+                state.setAttribute('role', 'status')
+                box.appendChild(state)
+                var claim = null
+                if (c.claim) {
+                        claim = el('button', 'vgt-cp-claim')
+                        claim.type = 'button'
+                        claim.textContent = fa ? 'پرداخت کردم' : 'I have paid'
+                        box.appendChild(claim)
+                }
+
+                var status = c.status
+                var timer = null
+                function paint() {
+                        var open = status === 'PENDING' || status === 'CLAIMED'
+                        var label = CARDPAY_LABELS[fa ? 'fa' : 'en'][status] || status
+                        if (status === 'PENDING') {
+                                var left = Math.max(0, Math.ceil((new Date(c.expiresAt).getTime() - Date.now()) / 60000))
+                                if (left) label += fa ? ' · ' + left.toLocaleString('fa-IR') + ' دقیقه مهلت' : ' · ' + left + ' min left'
+                        }
+                        state.textContent = label
+                        state.setAttribute('data-s', status)
+                        details.style.display = open ? 'flex' : 'none'
+                        if (open || status === 'PAID') face.removeAttribute('data-off')
+                        else face.setAttribute('data-off', '1')
+                        if (claim) claim.style.display = status === 'PENDING' ? '' : 'none'
+                }
+                function poll() {
+                        // The card left the page (conversation cleared): stop asking.
+                        if (!box.isConnected && timer !== null) return
+                        fetch(base + '/api/pay/status/' + c.authority, { cache: 'no-store' })
+                                .then(function (r) { return r.ok ? r.json() : null })
+                                .then(function (data) {
+                                        if (data && data.status) {
+                                                status = data.status
+                                                paint()
+                                        }
+                                })
+                                .catch(function () {})
+                                .then(function () {
+                                        if (status === 'PENDING' || status === 'CLAIMED') timer = setTimeout(poll, document.hidden ? 15000 : 5000)
+                                })
+                }
+                if (claim) {
+                        claim.addEventListener('click', function () {
+                                claim.disabled = true
+                                fetch(base + '/api/pay/status/' + c.authority, { method: 'POST' })
+                                        .then(function (r) { return r.json() })
+                                        .then(function (data) {
+                                                if (data && data.status) status = data.status
+                                        })
+                                        .catch(function () {})
+                                        .then(function () {
+                                                claim.disabled = false
+                                                paint()
+                                        })
+                        })
+                }
+                paint()
+                poll()
+                return box
+        }
+
         function parseAssistant(raw, done) {
-                var co = extractCheckout(raw, done)
+                var cp = extractCardPay(raw, done)
+                var co = extractCheckout(cp.raw, done)
                 raw = co.raw
                 var cards = []
                 var visible = []
@@ -1754,7 +1991,7 @@
                         cursor = bounds.tokenEnd
                 }
                 var text = visible.join('')
-                return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards: cards, checkout: co.checkout }
+                return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards: cards, checkout: co.checkout, cardPay: cp.cardPay }
         }
 
         function renderCard(p) {
@@ -2154,6 +2391,11 @@
                 // checkout card — once, when the reply carries a payment link
                 if (done && parsed.checkout && !group.querySelector('.vgt-checkout')) {
                         group.appendChild(renderCheckout(parsed.checkout))
+                }
+
+                // payment-gateway card — once, when the reply carries the business's card
+                if (done && parsed.cardPay && !group.querySelector('.vgt-cardpay')) {
+                        group.appendChild(renderCardPay(parsed.cardPay))
                 }
 
                 // action chips — once, after streaming finished, for the first card

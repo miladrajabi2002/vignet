@@ -40,6 +40,7 @@ export function regexOrderSignals(message: string, lastAssistantText: string | n
     closing: false,
     linkRequest: isLinkRequest(message),
     paymentClaim: isPaymentClaim(message),
+    cardTransfer: false,
     slots: null,
     coupon: undefined,
     shippingText: null,

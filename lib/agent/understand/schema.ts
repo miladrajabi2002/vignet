@@ -32,7 +32,7 @@ export const ACT_TYPES: readonly ActType[] = [
   'greeting', 'thanks', 'goodbye', 'defer', 'smalltalk', 'reset_topic',
   'product_search', 'product_question', 'variants', 'compare', 'cheaper_alternative',
   'order_start', 'cart_edit', 'order_details', 'order_confirm', 'order_decline', 'order_cancel',
-  'payment_claim', 'payment_link_request', 'shipping_change', 'order_status', 'restock_subscribe',
+  'payment_claim', 'payment_link_request', 'card_transfer_request', 'shipping_change', 'order_status', 'restock_subscribe',
   'booking', 'course', 'policy_question', 'knowledge_question', 'complaint', 'human_request', 'off_topic', 'other',
 ]
 
@@ -149,7 +149,7 @@ function parseAct(raw: unknown): Act | null {
   switch (type) {
     case 'greeting': case 'thanks': case 'goodbye': case 'defer': case 'smalltalk': case 'reset_topic':
     case 'order_confirm': case 'order_decline': case 'order_cancel': case 'payment_claim':
-    case 'payment_link_request': case 'shipping_change': case 'human_request': case 'off_topic': case 'other':
+    case 'payment_link_request': case 'card_transfer_request': case 'shipping_change': case 'human_request': case 'off_topic': case 'other':
       return { type }
     case 'product_search': {
       // The search words belong in `terms`; a model that wrote them in

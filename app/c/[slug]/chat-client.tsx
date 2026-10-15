@@ -24,6 +24,8 @@ import {
 } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
+import { CardPayCardView } from '@/components/commerce/card-pay-view'
+import type { CardPayView } from '@/lib/payments/card/pay-card'
 import { parseCheckoutDirective, type CheckoutCard } from '@/lib/commerce/checkout-card'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ type Msg =
 			text: string
 			cards: ProductCard[]
 			checkout?: CheckoutCard | null
+			cardPay?: CardPayView | null
 			done: boolean
 			serverId?: string
 	  }
@@ -62,10 +65,10 @@ type Props = {
 function parseAssistant(
 	raw: string,
 	done: boolean,
-): { text: string; cards: ProductCard[]; checkout: CheckoutCard | null } {
+): { text: string; cards: ProductCard[]; checkout: CheckoutCard | null; cardPay: CardPayView | null } {
 	const checkoutSplit = parseCheckoutDirective(raw)
 	const shared = parseProductShowcaseContent(checkoutSplit.text, done)
-	return { text: shared.text, cards: done ? shared.products : [], checkout: done ? checkoutSplit.checkout : null }
+	return { text: shared.text, cards: done ? shared.products : [], checkout: done ? checkoutSplit.checkout : null, cardPay: done ? shared.cardPay : null }
 }
 
 function errorText(code?: string): string {
@@ -170,6 +173,7 @@ export function ChatLinkClient({
 											text: parsedAssistant.text,
 											cards: parsedAssistant.cards,
 											checkout: parsedAssistant.checkout,
+								cardPay: parsedAssistant.cardPay,
 											done: true,
 											serverId: id,
 										} as Msg
@@ -295,6 +299,7 @@ export function ChatLinkClient({
 								text: parsedAssistant.text,
 								cards: parsedAssistant.cards,
 								checkout: parsedAssistant.checkout,
+								cardPay: parsedAssistant.cardPay,
 								done: true,
 								serverId: id,
 							})
@@ -379,7 +384,7 @@ export function ChatLinkClient({
 			let started = false
 			let serverId: string | undefined
 			const upsertAssistant = (done: boolean) => {
-				const { text: parsed, cards, checkout } = parseAssistant(raw, done)
+				const { text: parsed, cards, checkout, cardPay } = parseAssistant(raw, done)
 				setMessages((m) => {
 					const idx = m.findIndex((x) => x.id === assistantId)
 					const msg: Msg = {
@@ -388,6 +393,7 @@ export function ChatLinkClient({
 						text: parsed,
 						cards,
 						checkout,
+						cardPay,
 						done,
 						...(serverId ? { serverId } : {}),
 					}
@@ -1093,6 +1099,9 @@ function MessageRow({
 				)}
 				{!isUser && msg.checkout && (
 					<CheckoutCardView card={msg.checkout} accent={accent} onAccent={onAccent} />
+				)}
+				{!isUser && msg.cardPay && (
+					<CardPayCardView card={msg.cardPay} accent={accent} onAccent={onAccent} />
 				)}
 				{!isUser && msg.cards.length > 0 && (
 					<ProductShowcaseRail

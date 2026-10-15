@@ -11,6 +11,7 @@ import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
+import { CardPayCardView } from '@/components/commerce/card-pay-view'
 import { detectSttLanguageHint } from '@/lib/ai/turn-language'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
@@ -349,7 +350,7 @@ export function TestPlayground({
                                                 // the last message is still streaming so machine syntax never
                                                 // flashes on screen.
                                                 const showcase = isUser
-                                                        ? { text: m.content, products: [], checkout: null }
+                                                        ? { text: m.content, products: [], checkout: null, cardPay: null }
                                                         : parseProductShowcaseContent(m.content, !streaming || i !== messages.length - 1)
                                                 const hasShowcase = showcase.products.length > 0
                                                 // The agent's avatar marks the last bubble of each run of agent messages.
@@ -400,6 +401,11 @@ export function TestPlayground({
                                                                         {!isUser && showcase.checkout && (
                                                                                 <div className="mt-1.5">
                                                                                         <CheckoutCardView card={showcase.checkout} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" />
+                                                                                </div>
+                                                                        )}
+                                                                        {!isUser && showcase.cardPay && (
+                                                                                <div className="mt-1.5">
+                                                                                        <CardPayCardView card={showcase.cardPay} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" />
                                                                                 </div>
                                                                         )}
                                                                         {m.role === 'assistant' && hasShowcase && (

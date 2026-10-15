@@ -125,7 +125,7 @@ const RELATION_MAP: Record<VerifiedUnderstanding['relation'], ConversationTurnRe
 }
 
 const PRODUCT_ACTS: ReadonlySet<ActType> = new Set(['product_search', 'product_question', 'variants', 'compare', 'cheaper_alternative'])
-const ORDER_ACTS: ReadonlySet<ActType> = new Set(['order_start', 'cart_edit', 'order_details', 'order_confirm', 'order_decline', 'order_cancel', 'payment_claim', 'payment_link_request', 'shipping_change'])
+const ORDER_ACTS: ReadonlySet<ActType> = new Set(['order_start', 'cart_edit', 'order_details', 'order_confirm', 'order_decline', 'order_cancel', 'payment_claim', 'payment_link_request', 'card_transfer_request', 'shipping_change'])
 const QUESTION_ACTS: ReadonlySet<ActType> = new Set(['product_question', 'variants', 'compare', 'cheaper_alternative', 'policy_question', 'knowledge_question', 'order_status', 'product_search'])
 const CLOSING_ACTS: ReadonlySet<ActType> = new Set(['thanks', 'goodbye', 'defer'])
 
@@ -425,6 +425,9 @@ export function routeFromUnderstanding(input: RouteInput): UnderstoodRoute {
         break
       case 'payment_link_request':
         signals.linkRequest = true
+        break
+      case 'card_transfer_request':
+        signals.cardTransfer = true
         break
       case 'shipping_change':
         signals.shippingChange = true

@@ -111,6 +111,8 @@
     "agreeSuffix": "."
   },
   "dashboard": {
+    "payments": "Payment gateway",
+    "store": "WooCommerce",
     "overview": "Overview",
     "agents": "Agents",
     "products": "Products",
@@ -322,7 +324,7 @@
       "cartHoldDescription": "With the first item in a cart, the agent tells the customer until when it is held, and for that hour those units count as taken for other chat customers. It sends one reminder 30 minutes before the end; when the hold ends, any item that sold out leaves the cart and the customer is told.",
       "cartHoldBadge": "Held inside Vigent chats",
       "payLinkDescriptionGeneric": "Instead of handing the order to an operator, the agent sends the customer a payment link on your WooCommerce site. The customer pays with the site's own gateways and the payment confirmation arrives in the same conversation.",
-      "groupSellingDescription": "The agent can take orders right here in the chat. Turn on “Take orders in chat” first, then choose how customers pay: with “Online payment on your site” off, your operator arranges payment; with it on, the customer pays through your site's link.",
+      "groupSellingDescription": "The agent can take the order right here in chat. Switch on “Take orders in chat” first; then, under “Payment for chat orders” below, choose how the customer pays.",
       "locked": {
         "needsCapture": "To turn this on, first turn on “Take orders in chat”.",
         "needsProducts": "To turn this on, first turn on “Use products”.",
@@ -1295,6 +1297,8 @@
       "followUp": "{count} need manual follow-up",
       "storeOrder": "Store order",
       "draftStatus": {
+        "AWAITING_TRANSFER": "Waiting for card transfer",
+        "PAYMENT_REVIEW": "Payment review",
         "SUBMITTED": "Awaiting follow-up",
         "CONFIRMED": "Confirmed",
         "CANCELLED": "Cancelled",

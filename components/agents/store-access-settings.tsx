@@ -8,13 +8,13 @@ import {
   Hourglass,
   Truck,
   ClipboardList,
-  CreditCard,
   Package,
   ShieldCheck,
   ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SwitchCard } from '@/components/ui/switch'
+import { PaymentMethodPicker } from '@/components/payments/payment-method-picker'
 
 type AccessKey = 'productAccessEnabled' | 'orderTrackingEnabled' | 'orderCaptureEnabled' | 'restockAlertsEnabled' | 'payLinkEnabled' | 'orderUpdatesEnabled' | 'cartHoldEnabled'
 
@@ -25,6 +25,8 @@ export function StoreAccessSettings({
   initialOrderCaptureEnabled,
   initialRestockAlertsEnabled,
   initialPayLinkEnabled,
+  initialCardPayEnabled,
+  gatewayReady,
   initialOrderUpdatesEnabled,
   initialCartHoldEnabled,
   checkoutStore,
@@ -37,6 +39,9 @@ export function StoreAccessSettings({
   initialOrderCaptureEnabled: boolean
   initialRestockAlertsEnabled: boolean
   initialPayLinkEnabled: boolean
+  initialCardPayEnabled: boolean
+  /** The payment gateway is on and has an active card. */
+  gatewayReady: boolean
   initialOrderUpdatesEnabled: boolean
   initialCartHoldEnabled: boolean
   /** Connected WooCommerce store; `ready` once its plugin supports payment links. */
@@ -55,6 +60,7 @@ export function StoreAccessSettings({
   const [orderCaptureEnabled, setOrderCaptureEnabled] = useState(initialOrderCaptureEnabled)
   const [restockAlertsEnabled, setRestockAlertsEnabled] = useState(initialRestockAlertsEnabled)
   const [payLinkEnabled, setPayLinkEnabled] = useState(initialPayLinkEnabled)
+  const [cardPayEnabled, setCardPayEnabled] = useState(initialCardPayEnabled)
   const [orderUpdatesEnabled, setOrderUpdatesEnabled] = useState(initialOrderUpdatesEnabled)
   const [cartHoldEnabled, setCartHoldEnabled] = useState(initialCartHoldEnabled)
   const [saving, setSaving] = useState<AccessKey | null>(null)
@@ -86,6 +92,9 @@ export function StoreAccessSettings({
   const orderScope: 'payLink' | 'preOrder' | 'readOnly' = captureOn && payLinkEnabled && checkoutStore?.ready
     ? 'payLink'
     : captureOn ? 'preOrder' : 'readOnly'
+  // Card-to-card is what a confirmed cart gets when no store link is issued.
+  const cardScope = captureOn && cardPayEnabled && gatewayReady && orderScope !== 'payLink'
+  const fa = useLocale() !== 'en'
 
   async function updateAccess(key: AccessKey, enabled: boolean) {
     const previous = values[key]
@@ -164,26 +173,18 @@ export function StoreAccessSettings({
               disabledLabel={t('disabled')}
               onChange={(enabled) => updateAccess('orderCaptureEnabled', enabled)}
             />
-            <SwitchCard
-              icon={CreditCard}
-              title={t('payLinkTitle')}
-              description={checkoutStore
-                ? t('payLinkDescription', { host: checkoutStore.host })
-                : t('payLinkDescriptionGeneric')}
-              badge={t('payLinkBadge')}
-              checked={Boolean(checkoutStore?.ready) && captureOn && payLinkEnabled}
-              pending={saving === 'payLinkEnabled'}
-              disabled={saving !== null || !checkoutStore?.ready || !captureOn}
-              lockedReason={!checkoutStore
-                ? t('payLinkNeedsStore')
-                : !checkoutStore.ready
-                  ? t('payLinkNeedsPlugin', { host: checkoutStore.host })
-                  : !captureOn ? t('locked.needsCapture') : undefined}
-              enabledLabel={t('enabled')}
-              disabledLabel={t('disabled')}
-              onChange={(enabled) => updateAccess('payLinkEnabled', enabled)}
-            />
           </AccessGroup>
+          <PaymentMethodPicker
+            agentId={agentId}
+            initial={{ cardPayEnabled: initialCardPayEnabled, payLinkEnabled: initialPayLinkEnabled }}
+            gatewayReady={gatewayReady}
+            store={checkoutStore}
+            disabledReason={!captureOn ? t('locked.needsCapture') : undefined}
+            onChange={(flags) => {
+              setCardPayEnabled(flags.cardPayEnabled)
+              setPayLinkEnabled(flags.payLinkEnabled)
+            }}
+          />
           <AccessGroup title={t('groupExtra')}>
             <SwitchCard
               icon={Truck}
@@ -234,10 +235,14 @@ export function StoreAccessSettings({
         </span>
         <div>
           <h3 className="text-sm font-bold text-[var(--text-primary)]">
-            {t(`scope.${orderScope}.title`)}
+            {cardScope ? (fa ? 'ایجنت سفارش می‌گیرد و پرداخت را با درگاه ویجنت تأیید می‌کند' : 'The agent takes the order and confirms payment through the Vigent gateway') : t(`scope.${orderScope}.title`)}
           </h3>
           <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)] sm:text-sm">
-            {t(`scope.${orderScope}.description`, { host: checkoutStore?.host ?? '' })}
+            {cardScope
+              ? (fa
+                ? 'بعد از تأیید خلاصهٔ سفارش، کارت شما و مبلغ دقیق برای مشتری فرستاده می‌شود. ایجنت هیچ‌وقت خودش نمی‌گوید «پرداخت رسید»؛ تأیید فقط از روی پیامک واریز بانک یا تصمیم خود شماست.'
+                : 'After the order summary is confirmed, your card and the exact amount are sent to the customer. The agent never says “payment received” by itself; confirmation comes only from the bank’s deposit SMS or your own decision.')
+              : t(`scope.${orderScope}.description`, { host: checkoutStore?.host ?? '' })}
           </p>
         </div>
       </aside>

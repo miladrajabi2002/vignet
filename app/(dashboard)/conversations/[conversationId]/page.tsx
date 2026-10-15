@@ -15,6 +15,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { ConversationMobileLayout } from '@/components/crm/conversation-mobile-layout'
+import { ConversationPaymentBanner } from '@/components/payments/payment-review'
 import { loadConversationView } from '@/lib/conversations/view'
 import { isInstagramCommentThread } from '@/lib/channels/delivery-errors'
 
@@ -69,6 +70,8 @@ export default async function ConversationThreadPage(props: {
                                 </div>
                                 <ConversationHeaderActions conversationId={conversation.id} status={conversation.status} />
                         </div>
+
+                        <ConversationPaymentBanner workspaceId={user.workspaceId} conversationId={conversation.id} locale={locale} />
 
                         <ConversationMobileLayout
                                 locale={locale}

@@ -30,6 +30,7 @@ import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
 import { purgeSoftDeleted } from '@/lib/maintenance/soft-delete-purge'
 import { sweepRestockAlerts } from '@/lib/commerce/restock-service'
 import { sweepCheckoutLinks } from '@/lib/commerce/checkout-service'
+import { sweepCardPayments } from '@/lib/payments/card/service'
 import { sweepCartHolds } from '@/lib/commerce/cart-hold'
 import { purgeExpiredOrderWatches } from '@/lib/commerce/order-updates'
 import { sweepOperatorDailyReports } from '@/lib/channels/operator-daily-report'
@@ -1020,6 +1021,24 @@ export function startScheduler(): () => void {
         const initialCheckout = setTimeout(runCheckoutSweep, 2 * 60_000)
         const checkoutInterval = setInterval(runCheckoutSweep, 5 * 60_000)
 
+        // Payment gateway: deadlines (20 minutes by default), the 5-minutes-left
+        // reminder and pending site callbacks — every minute, so an expiry is
+        // never more than a minute late.
+        const runCardPaymentSweep = async () => {
+                try {
+                        const stats = await sweepCardPayments()
+                        if (stats.expired || stats.reminded || stats.callbacks) {
+                                console.log(`[scheduler] card payments: ${stats.expired} expired, ${stats.reminded} reminded, ${stats.callbacks} callbacks`)
+                        }
+                } catch (e) {
+                        // Before the migration the gateway tables do not exist: nothing to sweep yet.
+                        const code = (e as { code?: string })?.code
+                        if (code !== 'P2021' && code !== 'P2022') console.error('[scheduler] card payment sweep failed:', e)
+                }
+        }
+        const initialCardPayments = setTimeout(runCardPaymentSweep, 75_000)
+        const cardPaymentInterval = setInterval(runCardPaymentSweep, 60_000)
+
         // Cart hold (agent.cartHoldEnabled): the 30-minutes-left reminder and
         // the end of the one-hour hold, when sold-out lines leave the cart.
         const runCartHoldSweep = async () => {
@@ -1096,6 +1115,8 @@ export function startScheduler(): () => void {
                 clearInterval(customerRemindersInterval)
                 clearTimeout(initialCheckout)
                 clearInterval(checkoutInterval)
+                clearTimeout(initialCardPayments)
+                clearInterval(cardPaymentInterval)
                 clearTimeout(initialCartHold)
                 clearInterval(cartHoldInterval)
                 clearTimeout(initialOperatorDaily)

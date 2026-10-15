@@ -205,7 +205,7 @@ export function verifyUnderstanding(input: VerifyInput): VerifiedUnderstanding {
         return Object.keys(out).length > 1 ? out : null
       }
       case 'order_confirm': case 'order_decline': case 'order_cancel':
-      case 'payment_claim': case 'payment_link_request': case 'shipping_change':
+      case 'payment_claim': case 'payment_link_request': case 'card_transfer_request': case 'shipping_change':
         if (has('order_capture')) return act
         // No order is taken in this chat, so the customer talks about one made
         // elsewhere (the store's site): «پرداخت کردم ولی سفارشم ثبت نشده» is a

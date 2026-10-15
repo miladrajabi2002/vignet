@@ -86,10 +86,13 @@ export const config = {
         '/appointments/:path*',
         '/instagram/:path*',
         '/vigento/:path*',
+        '/payments/:path*',
+        '/store/:path*',
     '/api/agents/:path*',
     '/api/products/:path*',
     '/api/campaigns/:path*',
     '/api/integrations/:path*',
+    '/api/payments/:path*',
     // /api/sync/* is deliberately NOT matched: the WooCommerce webhook posts
     // bodies up to 4 MB there, and routing them through Node middleware left
     // the route handler with an already-disturbed body stream ("Response body

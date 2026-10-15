@@ -206,6 +206,7 @@ export async function Header({
   daysLeft,
   handedOffCount = 0,
   instagramConnected = false,
+  storeConnected = false,
   userSwitcher,
 }: {
   name?: string | null
@@ -216,6 +217,7 @@ export async function Header({
   daysLeft: number | null
   handedOffCount?: number
   instagramConnected?: boolean
+  storeConnected?: boolean
   /** Platform owner only: replaces the plan card with the account switcher. */
   userSwitcher?: { currentUserId: string; currentName: string; impersonating: boolean }
 }) {
@@ -280,7 +282,7 @@ export async function Header({
               />
             )}
           </div>
-          <MobileNav businessType={businessType} capabilities={capabilities} handedOffCount={handedOffCount} instagramConnected={instagramConnected} />
+          <MobileNav businessType={businessType} capabilities={capabilities} handedOffCount={handedOffCount} instagramConnected={instagramConnected} storeConnected={storeConnected} />
           <div className="hidden min-w-0 sm:block">
             <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)] xl:text-[15px] xl:leading-6">
               {name ? t('greeting', { name }) : t('welcome')}

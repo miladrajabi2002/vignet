@@ -891,6 +891,13 @@ async function prepareTurn(params: StartChatParams): Promise<
                                         return null
                                 })
                         : null
+                // Payment gateway (card-to-card confirmed by the bank's SMS), when
+                // the owner switched it on for this agent and a card is active.
+                const cardPayContext = agent.orderCaptureEnabled && agent.productAccessEnabled
+                        ? await import('@/lib/payments/card/service')
+                                .then((service) => service.loadCardPayContextForAgent(workspaceId, agent.id))
+                                .catch(() => null)
+                        : null
                 try {
                         const restock = await resolveRestockTurn({
                                 enabled: restockEnabled,
@@ -913,6 +920,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         } else if (agent.orderCaptureEnabled && agent.productAccessEnabled) {
                                 const order = await resolveOrderCaptureTurn({
                                         checkout: checkoutContext,
+                                        cardPay: cardPayContext,
                                         enabled: true,
                                         workspaceId,
                                         agentId: agent.id,
@@ -1021,6 +1029,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 && !history.some((item) => item.role === 'user' || item.role === 'assistant'),
                         orderCaptureEnabled: agent.orderCaptureEnabled === true,
                         payLinkEnabled: Boolean(checkoutContext),
+                        cardPayEnabled: Boolean(cardPayContext),
                 })
 
                 const messages = buildMessages({

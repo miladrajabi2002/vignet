@@ -72,6 +72,8 @@ import {
   itemLine,
 } from '@/lib/commerce/checkout-link'
 import type { CheckoutContext, DraftQuoteView } from '@/lib/commerce/checkout-service'
+import type { CardPayContext } from '@/lib/payments/card/service'
+import { cardPayMarker, composeCardPayNotice, payToman } from '@/lib/payments/card/pay-card'
 
 /** A draft untouched for this long is abandoned, never silently resumed. */
 export const ORDER_DRAFT_TTL_MS = 48 * 60 * 60 * 1000
@@ -108,6 +110,11 @@ export interface OrderCaptureTurnParams {
   restockEnabled: boolean
   /** In-chat checkout (payment link on the store). Null = operator pre-order. */
   checkout?: CheckoutContext | null
+  /**
+   * Payment gateway (card-to-card confirmed by the bank's SMS). Used when the
+   * cart cannot be paid on a store, or when the customer asks for it.
+   */
+  cardPay?: CardPayContext | null
   /** agent.cartHoldEnabled: one-hour hold on this cart; other chats' holds reduce stock. */
   cartHold?: boolean
   /**
@@ -225,7 +232,7 @@ export async function loadCartForUnderstanding(conversationId: string): Promise<
   const draft = await loadActiveOrderDraft(conversationId).catch(() => null)
   if (draft) return { status: draft.status, expecting: draft.expecting, items: parseItems(draft.items), openCheckout: false }
   const open = await prisma.orderDraft.findFirst({
-    where: { conversationId, status: { in: OPEN_CHECKOUT_STATUSES } },
+    where: { conversationId, status: { in: [...OPEN_CHECKOUT_STATUSES, 'AWAITING_TRANSFER', 'PAYMENT_REVIEW'] } },
     orderBy: { updatedAt: 'desc' },
     select: { status: true, expecting: true, items: true },
   }).catch(() => null)
@@ -865,6 +872,16 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
     return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: open.code }, lang), draftId: open.id }
   }
 
+  // The customer would rather pay by card-to-card: the unpaid store order is
+  // cancelled and the same cart gets the business's card instead.
+  if (params.cardPay && !closed && !cue && signals.cardTransfer) {
+    const text = await issueCardPay(params, open.id, open.code, draftPayable(open), { name: open.customerName, phone: open.customerPhone })
+    if (text) {
+      await svc.cancelCheckoutOnStore(open.id)
+      return { kind: 'reply', text, draftId: open.id }
+    }
+  }
+
   if (signals.linkRequest && !expired) {
     const current = card()
     if (current) {
@@ -917,6 +934,160 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
   return null
 }
 
+// ─── Payment gateway (card-to-card) ─────────────────────────────────────────
+
+async function cardPayService() {
+  return import('@/lib/payments/card/service')
+}
+
+const CARD_DRAFT_OPEN = ['AWAITING_TRANSFER', 'PAYMENT_REVIEW']
+
+async function loadOpenCardDraft(conversationId: string): Promise<OpenCheckoutRow | null> {
+  // A recently expired card still counts: «دوباره کارت رو بفرست» re-issues it.
+  const row = await prisma.orderDraft.findFirst({
+    where: {
+      conversationId,
+      checkoutMode: 'CARD_TRANSFER',
+      OR: [
+        { status: { in: CARD_DRAFT_OPEN } },
+        { status: 'EXPIRED', updatedAt: { gt: new Date(Date.now() - 3 * 24 * 3_600_000) } },
+      ],
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+  return (row as OpenCheckoutRow | null) ?? null
+}
+
+/** Total of a draft in whole tomans, when every line has a price. */
+function draftPayable(row: Pick<OpenCheckoutRow, 'grandTotal' | 'items'>): number | null {
+  const total = row.grandTotal ?? orderTotal({ items: parseItems(row.items) })
+  return total != null && total > 0 ? Math.round(total) : null
+}
+
+/** Send the business's card for a confirmed cart; null when the gateway cannot take it. */
+async function issueCardPay(params: OrderCaptureTurnParams, draftId: string, code: string, total: number | null, customer: { name: string | null; phone: string | null }): Promise<string | null> {
+  const ctx = params.cardPay
+  if (!ctx || total == null || total > ctx.maxAmount) return null
+  const svc = await cardPayService()
+  const issued = await svc.issueCardPayForDraft({
+    ctx,
+    draftId,
+    code,
+    conversationId: params.conversationId,
+    total: Math.round(total),
+    customerName: customer.name,
+    customerPhone: customer.phone,
+    lang: params.lang,
+  })
+  return 'text' in issued ? issued.text : null
+}
+
+/**
+ * A card was sent and the transfer is awaited (or under the owner's review).
+ * The customer may say they paid, ask for the card again, cancel, or change
+ * the cart (which re-opens it as a fresh draft with a new code and amount).
+ */
+async function openCardPayTurn(params: OrderCaptureTurnParams, open: OpenCheckoutRow, signals: OrderTurnSignals): Promise<OpenCheckoutOutcome | null> {
+  const lang = params.lang
+  const svc = await cardPayService()
+  const closed = open.status === 'EXPIRED'
+  const cue = signals.cartCue ?? (signals.cartOps?.length ? 'change' : null)
+  const asksCard = signals.linkRequest || signals.cardTransfer
+  const claims = signals.paymentClaim
+  if (closed && !asksCard && !signals.orderIntent && !cue && !claims) return null
+  const payment = await svc.openCardPaymentOfDraft(open.id)
+  const settings = params.cardPay?.settings
+  const view = payment && settings ? svc.cardPayView(payment, payment.card, settings, lang) : null
+  const live = payment?.status === 'PENDING' && payment.expiresAt.getTime() > Date.now()
+
+  if (claims && payment) {
+    if (payment.status === 'PAID') {
+      return { kind: 'reply', text: composeCardPayNotice({ status: 'PAID', code: open.code, amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
+    }
+    if (payment.status === 'PENDING' && (!settings || settings.manualClaim)) {
+      await svc.claimCardPayment(payment.id)
+      // The reply below is the customer's notice for this state.
+      await prisma.cardPayment.update({ where: { id: payment.id }, data: { notifiedStatus: 'CLAIMED' } }).catch(() => {})
+    }
+    const text = payment.status === 'PENDING' && settings && !settings.manualClaim
+      ? (lang === 'en'
+        ? `The bank's confirmation for order ${open.code} has not arrived yet. It usually takes under a minute, and I'll tell you right here as soon as it does.`
+        : `هنوز تأیید بانک برای سفارش ${open.code} نرسیده. معمولاً کمتر از یک دقیقه طول می‌کشه و به محض رسیدن همین‌جا خبرتون می‌کنم.`)
+      : composeCardPayNotice({ status: 'CLAIMED', code: open.code, amount: payment.baseAmount, lang }) ?? ''
+    return { kind: 'reply', text, draftId: open.id }
+  }
+
+  // Cancelling an unpaid order is confirmed once, like a cart.
+  const awaitingCancel = open.expecting === 'confirm_cancel'
+  if (!closed && awaitingCancel && (signals.confirm || signals.cancel) && !cue) {
+    await prisma.orderDraft.update({ where: { id: open.id }, data: { status: 'CANCELLED', expecting: null, resolvedAt: new Date() } })
+    await svc.cancelOpenCardPayments({ orderDraftId: open.id })
+    return { kind: 'reply', text: composeOrderCancelled(lang), draftId: open.id }
+  }
+  if (!closed && awaitingCancel) {
+    await prisma.orderDraft.update({ where: { id: open.id }, data: { expecting: null } }).catch(() => {})
+    if (signals.decline) return { kind: 'reply', text: composeCancelKept(lang), draftId: open.id }
+  }
+  const cancel = signals.cancel && cue !== 'remove' && cue !== 'add'
+  if (cancel && !closed) {
+    await prisma.orderDraft.update({ where: { id: open.id }, data: { expecting: 'confirm_cancel' } })
+    return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: open.code }, lang), draftId: open.id }
+  }
+
+  if (asksCard && !cue && !claims) {
+    if (live && view) {
+      const text = lang === 'en' ? `Here is the card for order ${open.code} again:` : `اینم دوباره کارت و مبلغ سفارش ${open.code}:`
+      return { kind: 'reply', text: `${text}\n${cardPayMarker(view)}`, draftId: open.id }
+    }
+    if (payment?.status === 'CLAIMED') {
+      return { kind: 'reply', text: composeCardPayNotice({ status: 'CLAIMED', code: open.code, amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
+    }
+    // The deadline passed: a new amount on the same order.
+    const fresh = await issueCardPay(params, open.id, open.code, draftPayable(open), { name: open.customerName, phone: open.customerPhone })
+    if (fresh) return { kind: 'reply', text: fresh, draftId: open.id }
+  }
+
+  if (cue || signals.orderIntent) {
+    // Re-open the cart as a new draft: the old amount must never pay for a
+    // cart the customer has since changed.
+    const created = await prisma.orderDraft.create({
+      data: {
+        code: newDraftCode(),
+        workspaceId: params.workspaceId,
+        agentId: params.agentId,
+        conversationId: params.conversationId,
+        contactId: params.contactId,
+        channel: params.channel,
+        status: 'AWAITING_CONFIRM',
+        items: open.items as Prisma.InputJsonValue,
+        customerName: open.customerName,
+        customerPhone: open.customerPhone,
+        city: open.city,
+        address: open.address,
+        postalCode: open.postalCode,
+        note: open.note,
+        expecting: 'confirm',
+        coupons: open.coupons ?? [],
+        shippingRateId: open.shippingRateId ?? null,
+        ...(params.checkout ? { checkoutMode: 'PAY_LINK', integrationId: params.checkout.integrationId } : {}),
+      },
+    })
+    await prisma.orderDraft.update({ where: { id: open.id }, data: { status: 'SUPERSEDED', expecting: null, resolvedAt: new Date() } })
+    await svc.cancelOpenCardPayments({ orderDraftId: open.id })
+    return { kind: 'reopen', row: created as unknown as DraftRow }
+  }
+
+  if (!signals.question || !payment) return null
+  const items = parseItems(open.items)
+  const state = payment.status === 'CLAIMED'
+    ? (lang === 'en' ? 'the customer said they paid; the business is checking the transfer' : 'مشتری گفته پرداخت کرده و کسب‌وکار در حال بررسی واریز است')
+    : live ? (lang === 'en' ? 'waiting for the transfer' : 'در انتظار واریز') : (lang === 'en' ? 'the payment window has ended' : 'مهلت پرداخت تمام شده')
+  const instruction = lang === 'en'
+    ? `=== Card-to-card payment pending ===\nThe customer was sent the business's card for order ${open.code} (${items.map((item) => itemLine(item, 'en')).join(', ')}; exact amount ${payToman(payment.payAmount, 'en')}); status: ${state}. The transfer is confirmed automatically from the bank's deposit message — never say it has arrived unless this block says so, and never write a card number or an amount yourself. If they ask how to pay: transfer exactly that amount to the card already sent; saying "send the card again" resends it.`
+    : `=== پرداخت کارت‌به‌کارت در جریان است ===\nبرای مشتری کارت کسب‌وکار برای سفارش ${open.code} (${items.map((item) => itemLine(item, 'fa')).join('، ')}؛ مبلغ دقیق ${payToman(payment.payAmount, 'fa')}) فرستاده شده؛ وضعیت: ${state}. واریز به‌صورت خودکار از روی پیامک بانک تأیید می‌شود؛ تا این بلوک نگفته، هرگز نگو پرداخت رسیده و خودت هیچ شماره کارت یا مبلغی ننویس. اگر پرسید چطور پرداخت کند: همان مبلغ دقیق را به کارتی که فرستاده شده واریز کند؛ با گفتن «دوباره کارت رو بفرست» کارت دوباره فرستاده می‌شود.`
+  return { kind: 'instruct', instruction, draftId: open.id }
+}
+
 // ─── Turn resolver ──────────────────────────────────────────────────────────
 
 export async function resolveOrderCaptureTurn(params: OrderCaptureTurnParams): Promise<OrderCaptureOutcome> {
@@ -934,6 +1105,17 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
   const payLink = Boolean(checkout)
   let row = await loadActiveOrderDraft(params.conversationId)
   const lang = params.lang
+
+  // `cardPay` undefined = a caller that predates the gateway; null = the
+  // gateway is off now, but a card already sent must still be answered.
+  if (!row && params.cardPay !== undefined) {
+    const openCard = await loadOpenCardDraft(params.conversationId)
+    if (openCard) {
+      const outcome = await openCardPayTurn(params, openCard, signals)
+      if (outcome?.kind === 'reopen') row = outcome.row
+      else if (outcome) return outcome
+    }
+  }
 
   if (!row && checkout) {
     const open = await loadOpenCheckout(params.conversationId)
@@ -983,7 +1165,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
         draftId = await saveDraft(params, row.id, state)
         const next = missing.length
           ? composeOrderAsk({ draft: state, missing, lang, opening: false, unparsed: true })
-          : composeOrderSummary(state, lang, false, null, Boolean(checkout) && !checkout?.storeDisabled)
+          : composeOrderSummary(state, lang, false, null, Boolean(checkout) && !checkout?.storeDisabled, Boolean(params.cardPay))
         return { kind: 'reply', text: `${composeCancelKept(lang)}\n${next}`, draftId }
       }
     }
@@ -1328,9 +1510,19 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
           await saveDraft(params, row.id, state)
           return { kind: 'reply', text: composeShippingQuestion(view.rates, lang), draftId: row.id }
         }
-        const link = checkout.storeDisabled ? null : await svc.issueCheckoutLink(checkout, row.id, state, lang)
-        if (link) return { kind: 'reply', text: link.text, draftId: row.id }
-        // The cart cannot be paid on the store (unsynced item): file it for people.
+        // «تأیید، کارت به کارت می‌کنم»: the customer already chose the card.
+        const link = checkout.storeDisabled || (params.cardPay && signals.cardTransfer) ? null : await svc.issueCheckoutLink(checkout, row.id, state, lang)
+        if (link) {
+          const hint = params.cardPay
+            ? (lang === 'en' ? '\nPrefer card-to-card? Just say “card to card”.' : '\nاگه کارت‌به‌کارت راحت‌ترید، فقط بگید «کارت به کارت».')
+            : ''
+          return { kind: 'reply', text: `${link.text}${hint}`, draftId: row.id }
+        }
+        // The cart cannot be paid on the store (unsynced item): card-to-card, or file it for people.
+      }
+      if (params.cardPay) {
+        const text = await issueCardPay(params, row.id, state.code, orderTotal(state), { name: state.customerName, phone: state.customerPhone })
+        if (text) return { kind: 'reply', text, draftId: row.id }
       }
       state.status = 'SUBMITTED'
       state.expecting = null
@@ -1408,7 +1600,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
       const ask = composeShippingQuestion(view.rates, lang, listedShipping && !anyChange)
       return { kind: 'reply', text: withPrefix(soldOut.length ? `${soldOutNote(soldOut, lang)}\n${ask}` : ask), draftId }
     }
-    const summary = composeOrderSummary(state, lang, corrected, quote, payLink && !checkout?.storeDisabled)
+    const summary = composeOrderSummary(state, lang, corrected, quote, payLink && !checkout?.storeDisabled, Boolean(params.cardPay))
     return { kind: 'reply', text: withPrefix(soldOut.length ? `${soldOutNote(soldOut, lang)}\n${summary}` : summary), draftId }
   }
   const unparsed = !opening && !anyChange

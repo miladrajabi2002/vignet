@@ -1,4 +1,6 @@
 import { composeCheckoutFallback, parseCheckoutDirective } from '@/lib/commerce/checkout-link'
+import { parseCardPayDirective } from '@/lib/payments/card/pay-card'
+import { sendCardPay } from '@/lib/channels/card-pay-delivery'
 import type { Prisma } from '@prisma/client'
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
 import { prisma } from '@/lib/prisma'
@@ -1902,7 +1904,9 @@ async function processChannelInbound(
                         // An in-chat checkout reply carries one [[checkout:{…}]] card:
                         // the pay button is sent after the text, as the channel's
                         // richest format (inline URL button / IG button template).
-                        const checkoutSplit = parseCheckoutDirective(result.reply)
+                        // A payment-gateway reply carries one [[cardpay:{…}]] card the same way.
+                        const cardPaySplit = parseCardPayDirective(result.reply)
+                        const checkoutSplit = parseCheckoutDirective(cardPaySplit.text)
                         const parsedReply = parseProductDirectives(checkoutSplit.text)
                         const showcasedProducts = agent.productAccessEnabled
                                 ? await resolveProductShowcases({
@@ -1999,7 +2003,7 @@ async function processChannelInbound(
                                         const outboundText = [parsedReply.text, productFallback]
                                                 .filter(Boolean)
                                                 .join('\n\n')
-                                        await sendReplyText(outboundText || checkoutSplit.text || result.reply, settings.quickReplies)
+                                        await sendReplyText(outboundText || checkoutSplit.text || cardPaySplit.text || result.reply, settings.quickReplies)
                                 }
                                 if (checkoutSplit.checkout) {
                                         const checkoutCard = checkoutSplit.checkout
@@ -2013,6 +2017,7 @@ async function processChannelInbound(
                                                 await deliveryAdapter.sendText(msg.chatId, composeCheckoutFallback(checkoutCard))
                                         }
                                 }
+                                if (cardPaySplit.cardPay) await sendCardPay(deliveryAdapter, msg.chatId, cardPaySplit.cardPay)
                         } catch (deliveryError) {
                                 await textStream?.cancel()
                                 await markAssistantDelivery(resultMessageId, 'failed')

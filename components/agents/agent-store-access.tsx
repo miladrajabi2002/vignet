@@ -10,12 +10,12 @@ import { findCheckoutIntegration } from '@/lib/commerce/checkout-service'
 export async function AgentStoreAccess({ agentId }: { agentId: string }) {
   const user = await requireUser()
 
-  const [agent, productCount, orderCount, checkoutIntegration] = await Promise.all([
+  const [agent, productCount, orderCount, checkoutIntegration, activeCards] = await Promise.all([
     prisma.agent.findFirst({
       where: { id: agentId, workspaceId: user.workspaceId },
       select: {
         id: true,
-        workspace: { select: { businessType: true, businessProfile: true } },
+        workspace: { select: { businessType: true, businessProfile: true, payGatewayEnabled: true } },
         productAccessEnabled: true,
         orderTrackingEnabled: true,
         orderCaptureEnabled: true,
@@ -27,6 +27,7 @@ export async function AgentStoreAccess({ agentId }: { agentId: string }) {
         orderTrackingConfigured: true,
         orderCaptureConfigured: true,
         payLinkConfigured: true,
+        cardPayEnabled: true,
       },
     }),
     prisma.product.count({
@@ -36,6 +37,7 @@ export async function AgentStoreAccess({ agentId }: { agentId: string }) {
       where: { workspaceId: user.workspaceId },
     }),
     findCheckoutIntegration(user.workspaceId),
+    prisma.payCard.count({ where: { workspaceId: user.workspaceId, active: true, deletedAt: null } }),
   ])
   if (!agent) notFound()
   const checkoutStore = checkoutIntegration.fallback
@@ -76,6 +78,8 @@ export async function AgentStoreAccess({ agentId }: { agentId: string }) {
       initialOrderCaptureEnabled={orderCaptureEnabled}
       initialRestockAlertsEnabled={agent.restockAlertsEnabled}
       initialPayLinkEnabled={payLinkEnabled}
+      initialCardPayEnabled={agent.cardPayEnabled}
+      gatewayReady={agent.workspace.payGatewayEnabled && activeCards > 0}
       initialOrderUpdatesEnabled={agent.orderUpdatesEnabled}
       initialCartHoldEnabled={agent.cartHoldEnabled}
       checkoutStore={checkoutStore ? { host: checkoutStore.storeUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''), ready: pluginSupportsCheckout(checkoutStore.pluginVersion) } : null}

@@ -46,6 +46,8 @@ export interface OrderTurnSignals {
   closing: boolean
   linkRequest: boolean
   paymentClaim: boolean
+  /** Wants to pay by card-to-card / asks for the card number (payment gateway). */
+  cardTransfer: boolean
   /** Verified customer details; null = parse the message (legacy). */
   slots: OrderSlotValues | null
   /** Verified coupon; undefined = parse the message (legacy). */
@@ -72,6 +74,7 @@ export function emptyOrderSignals(source: OrderTurnSignals['source'] = 'understa
     closing: false,
     linkRequest: false,
     paymentClaim: false,
+    cardTransfer: false,
     slots: null,
     coupon: null,
     shippingText: null,

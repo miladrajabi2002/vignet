@@ -1,3 +1,4 @@
+import { GatewayOverviewTile } from '@/components/payments/gateway-overview-tile'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getLocale } from 'next-intl/server'
@@ -413,6 +414,8 @@ export default async function OverviewPage() {
           hint={verticalOutcome.hint}
         />
       </section>
+
+      <GatewayOverviewTile workspaceId={user.workspaceId} locale={fa ? 'fa' : 'en'} />
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <DashboardPanel

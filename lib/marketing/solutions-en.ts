@@ -4,6 +4,31 @@ import type { Solution } from '@/lib/marketing/solutions'
  * language switch never breaks inbound links or campaign URLs. */
 export const SOLUTIONS_EN: Solution[] = [
   {
+    slug: 'card-to-card',
+    metaTitle: 'Automatic Card-to-Card Payment Gateway, No Enamad or Tax Code | Vigent',
+    metaDescription: 'Vigent’s card-to-card gateway: customers transfer card to card and the payment is confirmed automatically from your own bank’s deposit SMS. No Enamad, no tax code, no gateway contract — on Instagram, Telegram, Bale and your website.',
+    keywords: ['card to card payment gateway', 'payment gateway without Enamad', 'automatic card to card confirmation', 'bank SMS payment confirmation', 'Instagram shop payments Iran'],
+    serviceType: 'Card-to-card payment gateway confirmed automatically from the bank SMS',
+    title: 'Automatic card-to-card payment gateway',
+    subtitle: 'Get paid without Enamad or a tax code — we confirm it. The customer transfers card to card and Vigent knows the money arrived from your bank’s deposit SMS, confirms the order and tells the customer.',
+    benefits: [
+      { title: 'No more checking receipts', desc: 'Every payment has a unique amount and the bank’s deposit SMS confirms the order by itself, even at 3 a.m.' },
+      { title: 'Fake receipts do nothing', desc: 'Only an SMS from your own phone and the number you registered counts — never a picture the customer sends.' },
+      { title: 'Done inside the conversation', desc: 'After the order is confirmed the agent sends the card and the exact amount with copy buttons, and announces the payment in the same chat.' },
+      { title: 'Works in every bank app', desc: 'The identifier is in whole tomans, so the rial amount always ends in 0 and can be typed in toman-only apps.' },
+    ],
+    steps: [
+      'Add the destination card; the bank is recognised from the number.',
+      'Connect the phone that gets the bank’s deposit SMS: a forwarder app on Android or Shortcuts on iPhone.',
+      'Make one test transfer; when its SMS arrives the gateway is ready and the agent sends the card for every order.',
+    ],
+    faq: [
+      { q: 'Do I need Enamad or a tax code to set it up?', a: 'No. The gateway works on your own card and needs no Enamad, tax code or bank gateway contract to set up.' },
+      { q: 'How is a payment recognised?', a: 'Each order gets a unique amount (1–999 Toman above the price). When your phone forwards a deposit SMS with that amount, that order is confirmed.' },
+      { q: 'What if the bank SMS never arrives?', a: 'The customer can tap “I have paid”; the payment shows in red in that conversation for you to confirm or reject. Nothing is confirmed without the SMS or your own decision.' },
+    ],
+  },
+  {
     slug: 'unified-inbox',
     metaTitle: 'Unified Inbox for Instagram, Telegram, Bale, Rubika and Your Website | Vigent',
     metaDescription: 'Instagram DMs, Telegram, Bale, Rubika and your website widget in one shared inbox — with an AI agent, an integrated CRM and WordPress/WooCommerce sync.',

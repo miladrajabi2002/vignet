@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, BellRing, BookOpen, Brain, CalendarCheck, ChartColumn, Check, ClipboardCheck, CreditCard, Hourglass, Inbox, Languages, Layers, Link2, Lock, Megaphone, Mic, PackageCheck, PenLine, ScanSearch, Shirt, ShieldAlert, ShieldCheck, ShoppingCart, SlidersHorizontal, Sparkles, Target, TimerReset, Truck, UserPlus, UtensilsCrossed } from 'lucide-react'
+import { ArrowLeftRight, Bell, BellRing, BookOpen, Brain, CalendarCheck, ChartColumn, Check, ClipboardCheck, CreditCard, Hourglass, Inbox, Languages, Layers, Link2, Lock, Megaphone, Mic, PackageCheck, PenLine, ScanSearch, Shirt, ShieldAlert, ShieldCheck, ShoppingCart, SlidersHorizontal, Sparkles, Target, TimerReset, Truck, UserPlus, UtensilsCrossed , WalletCards } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import { TelegramIcon } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
@@ -25,7 +25,7 @@ const COPY = {
 		learnEdit: 'ویرایش',
 		learnDone: 'از این به بعد ایجنت این را می‌داند',
 		sellTitle: 'خرید کامل داخل گفتگو',
-		sellBody: 'ایجنت محصول معرفی می‌کند و سبد می‌چیند؛ مشتری روی سایت خودتان و با درگاه‌های خودتان پرداخت می‌کند و سفارش مستقیم در ووکامرس ثبت می‌شود.',
+		sellBody: 'ایجنت محصول معرفی می‌کند و سبد می‌چیند؛ مشتری روی سایت خودتان و با درگاه‌های خودتان پرداخت می‌کند و سفارش مستقیم در ووکامرس ثبت می‌شود. سایت ندارید؟ درگاه کارت‌به‌کارت خودکار ویجنت واریز را از روی پیامک بانک خودتان تأیید می‌کند؛ بدون اینماد و کد مالیاتی.',
 		sellCart: 'سبد شما',
 		sellItem: 'میز TV آرتا · گردویی',
 		sellItemPrice: '۶٬۹۰۰٬۰۰۰',
@@ -86,6 +86,7 @@ repBody: 'نرخ حل گفتگو، رضایت، سهم هر اتصال و هزی
 		mobile: [
 			{ t: 'یادگیری از اطلاعات شما', d: 'PDF، سایت و کاتالوگ؛ با تأیید شما یاد می‌گیرد.' },
 			{ t: 'خرید کامل در گفتگو', d: 'سبد، لینک پرداخت و سفارش در ووکامرس.' },
+			{ t: 'درگاه کارت‌به‌کارت خودکار', d: 'بدون اینماد و کد مالیاتی؛ تأیید با پیامک بانک.' },
 			{ t: 'رزرو و نوبت‌دهی', d: 'وقت خالی را پیشنهاد می‌دهد و ثبت می‌کند.' },
 			{ t: 'صندوق پیام یکپارچه', d: 'یک ایجنت برای شش اتصال.' },
 			{ t: 'پیام صوتی فارسی', d: 'صوت را می‌فهمد و جواب می‌دهد.' },
@@ -116,7 +117,7 @@ repBody: 'نرخ حل گفتگو، رضایت، سهم هر اتصال و هزی
 		learnEdit: 'Edit',
 		learnDone: 'From now on the agent knows this',
 		sellTitle: 'Checkout inside the chat',
-		sellBody: 'The agent recommends products and builds the cart; the customer pays on your own site with your own gateways, and the order lands straight in WooCommerce.',
+		sellBody: 'The agent recommends products and builds the cart; the customer pays on your own site with your own gateways, and the order lands straight in WooCommerce. No website? Vigent’s automatic card-to-card gateway confirms the transfer from your own bank SMS — no Enamad or tax code.',
 		sellCart: 'Your cart',
 		sellItem: 'Arta TV stand · walnut',
 		sellItemPrice: '6,900,000',
@@ -177,6 +178,7 @@ repBody: 'نرخ حل گفتگو، رضایت، سهم هر اتصال و هزی
 		mobile: [
 			{ t: 'Learns from your data', d: 'PDFs, site and catalog; learns with your approval.' },
 			{ t: 'Checkout in chat', d: 'Cart, payment link and a WooCommerce order.' },
+			{ t: 'Automatic card-to-card gateway', d: 'No Enamad or tax code; confirmed by your bank SMS.' },
 			{ t: 'Booking', d: 'Offers free slots and books them.' },
 			{ t: 'Every channel, one inbox', d: 'One agent for six channels.' },
 			{ t: 'Persian voice notes', d: 'Understands voice and replies.' },
@@ -190,11 +192,11 @@ repBody: 'نرخ حل گفتگو، رضایت، سهم هر اتصال و هزی
 	},
 } as const
 
-type CueKey = 'learn' | 'sell' | 'book' | 'inbox' | 'voice' | 'pre' | 'crm' | 'bot' | 'lang' | 'ctrl' | 'rep'
+type CueKey = 'learn' | 'sell' | 'pay' | 'book' | 'inbox' | 'voice' | 'pre' | 'crm' | 'bot' | 'lang' | 'ctrl' | 'rep'
 /** Order of COPY.mobile; the last card spans both columns on phones. */
-const MOBILE_KEYS: CueKey[] = ['learn', 'sell', 'book', 'inbox', 'voice', 'pre', 'crm', 'bot', 'lang', 'ctrl', 'rep']
+const MOBILE_KEYS: CueKey[] = ['learn', 'sell', 'pay', 'book', 'inbox', 'voice', 'pre', 'crm', 'bot', 'lang', 'ctrl', 'rep']
 const MOBILE_ICONS: Record<CueKey, IconType> = {
-	learn: BookOpen, sell: ShoppingCart, book: CalendarCheck, inbox: Inbox, voice: Mic, pre: Bell,
+	learn: BookOpen, sell: ShoppingCart, pay: WalletCards, book: CalendarCheck, inbox: Inbox, voice: Mic, pre: Bell,
 	crm: ArrowLeftRight, bot: TelegramIcon as IconType, lang: Languages, ctrl: SlidersHorizontal, rep: ChartColumn,
 }
 const BAR_HEIGHTS = [45, 62, 54, 78, 70, 92, 84]
@@ -322,7 +324,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						const cue = MOBILE_KEYS[i]
 						const Icon = MOBILE_ICONS[cue]
 						return (
-							<li key={item.t} className="flex items-center gap-3 rounded-card border border-vg-line bg-white px-3.5 py-3 md:last:col-span-2">
+							<li key={item.t} className="flex items-center gap-3 rounded-card border border-vg-line bg-white px-3.5 py-3 md:[&:nth-child(odd):last-child]:col-span-2">
 								<span aria-hidden className="inline-flex size-[42px] shrink-0 items-center justify-center rounded-control bg-vg-ink text-white">
 									<Icon className="size-[19px]" strokeWidth={1.8} />
 								</span>

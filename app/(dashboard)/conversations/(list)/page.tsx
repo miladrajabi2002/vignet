@@ -1,3 +1,4 @@
+import { PaymentReviewStrip } from '@/components/payments/payment-review'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { getTranslations, getLocale } from 'next-intl/server'
@@ -402,6 +403,7 @@ export default async function ConversationsPage(props: {
                                         </>
                                 }
                         />
+                        <PaymentReviewStrip workspaceId={user.workspaceId} locale={locale} />
 
                         <LiveArrivalProvider key={liveScope} ids={pageItems.map((item) => item.id)}>
                         <LiveRefreshProbe

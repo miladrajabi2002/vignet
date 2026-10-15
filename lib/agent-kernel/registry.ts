@@ -84,7 +84,7 @@ export function compileAgentSkillPlan(input: AgentSkillPlanInput): AgentSkillPla
       }),
       evidence: evidenceGroundingInstruction(isFa),
       capabilities: [
-        actionCapabilityInstruction(isFa, input.orderCaptureEnabled, input.payLinkEnabled),
+        actionCapabilityInstruction(isFa, input.orderCaptureEnabled, input.payLinkEnabled, input.cardPayEnabled),
         input.bookingUnavailable ? bookingUnavailableInstruction(isFa, input.handoffEnabled === true) : '',
       ].filter(Boolean).join('\n'),
       visualReference: visualReferenceInstruction({

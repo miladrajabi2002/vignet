@@ -1,4 +1,4 @@
-import { Bot, Headset, Inbox, MessagesSquare, Send, ShoppingCart, Store } from 'lucide-react'
+import { Bot, Headset, Inbox, MessagesSquare, Send, ShoppingCart, Store, WalletCards } from 'lucide-react'
 import { InstagramGlyph } from '@/components/marketing/social-links'
 import type { IconType, SiteLocale } from './ui'
 
@@ -57,6 +57,13 @@ export const SOLUTION_CARDS: Record<string, { icon: IconType; name: Record<SiteL
 		card: { fa: 'افزونه را نصب کنید؛ ایجنت از قیمت و موجودی واقعی جواب می‌دهد — روی سایت، تلگرام و اینستاگرام.', en: 'Install the plugin and the agent answers from real price and stock — on your site, Telegram and Instagram.' },
 		tags: { fa: ['وردپرس', 'ووکامرس'], en: ['WordPress', 'WooCommerce'] },
 	},
+	'card-to-card': {
+		icon: WalletCards,
+		name: { fa: 'درگاه کارت‌به‌کارت خودکار', en: 'Automatic card-to-card gateway' },
+		pitch: { fa: 'بدون اینماد و کد مالیاتی؛ تأییدش با ما', en: 'No Enamad or tax code — we confirm it' },
+		card: { fa: 'مشتری کارت‌به‌کارت می‌کند و پرداخت از روی پیامک بانک خودتان خودکار تأیید می‌شود.', en: 'Customers transfer card to card and the payment is confirmed automatically from your own bank SMS.' },
+		tags: { fa: ['بدون سایت هم می‌شود', 'بدون درگاه بانکی'], en: ['No website needed', 'No bank gateway'] },
+	},
 	'website-chat': {
 		icon: MessagesSquare,
 		name: { fa: 'چت‌بات سایت و چت لینک', en: 'Website chat & chat link' },
@@ -66,13 +73,17 @@ export const SOLUTION_CARDS: Record<string, { icon: IconType; name: Record<SiteL
 	},
 }
 
-export const SOLUTION_ORDER = ['unified-inbox', 'persian-ai-chatbot', 'website-chat', 'ecommerce-ai', 'customer-support-ai', 'instagram', 'telegram', 'woocommerce'] as const
+export const SOLUTION_ORDER = ['unified-inbox', 'persian-ai-chatbot', 'card-to-card', 'website-chat', 'ecommerce-ai', 'customer-support-ai', 'instagram', 'telegram', 'woocommerce'] as const
 
 /**
  * One-sentence definitions shown in the "short answer" box at the top of each
  * solution page — the extractable answer search and AI answer engines quote.
  */
 export const SOLUTION_ANSWERS: Record<string, Record<SiteLocale, string>> = {
+	'card-to-card': {
+		fa: 'درگاه کارت‌به‌کارت ویجنت شماره کارت شما و یک مبلغ یکتا را به مشتری نشان می‌دهد و با خواندن پیامک واریز بانک، پرداخت را بدون دخالت شما تأیید می‌کند. برای راه‌اندازی به اینماد، کد مالیاتی و قرارداد درگاه نیاز نیست.',
+		en: 'Vigent’s card-to-card gateway shows the customer your card and a unique amount, and confirms the payment by reading your bank’s deposit SMS — no Enamad, tax code or gateway contract needed to set it up.',
+	},
 	'unified-inbox': {
 		fa: 'صندوق پیام یکپارچهٔ ویجنت یعنی یک صفحه برای همهٔ پیام‌ها، یک ایجنت که خودکار پاسخ می‌دهد و یک پروندهٔ CRM برای هر مشتری.',
 		en: 'Vigent’s unified inbox is one screen for every channel, one agent that answers automatically and one CRM record per customer.',
@@ -115,6 +126,13 @@ type Stat = { value: string; label: string }
  * (lib/marketing/solutions.ts); these titles are written to match them.
  */
 export const SOLUTION_FACTS: Record<string, { stats: Record<SiteLocale, Stat[]>; steps: Record<SiteLocale, string[]> }> = {
+	'card-to-card': {
+		stats: {
+			fa: [{ value: '۰', label: 'رسید برای چک کردن' }, { value: '۰', label: 'رقم آخر ریالی؛ در همهٔ همراه‌بانک‌ها' }, { value: '۲', label: 'راه رسیدن پیامک: پیامک یا اینترنت' }, { value: '۳۴', label: 'بانک و مؤسسه با لوگو' }],
+			en: [{ value: '0', label: 'receipts to check' }, { value: '0', label: 'last rial digit; every bank app' }, { value: '2', label: 'ways the SMS arrives: SMS or internet' }, { value: '34', label: 'banks recognised, with logos' }],
+		},
+		steps: { fa: ['افزودن کارت', 'وصل کردن گوشی پیامک', 'واریز آزمایشی'], en: ['Add the card', 'Connect the SMS phone', 'One test transfer'] },
+	},
 	'unified-inbox': {
 		stats: {
 			fa: [{ value: '۶', label: 'اتصال در یک صندوق' }, { value: '۱', label: 'پرونده برای هر مشتری' }, { value: '۰', label: 'پیام گم‌شده' }, { value: '۲۴/۷', label: 'پاسخ خودکار' }],

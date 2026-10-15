@@ -61,6 +61,8 @@ export interface AgentSkillPlanInput {
   orderCaptureEnabled?: boolean
   /** Confirmed carts get a payment link on the store (in-chat checkout). */
   payLinkEnabled?: boolean
+  /** Confirmed carts get the business's card and a unique amount (payment gateway). */
+  cardPayEnabled?: boolean
 }
 
 export interface AgentSkillPlan {

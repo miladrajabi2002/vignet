@@ -25,6 +25,8 @@ const DRAFT_TONE: Record<string, string> = {
   PAYMENT_PENDING: 'bg-amber-50 text-amber-800',
   PAYMENT_FAILED: 'bg-red-50 text-red-700',
   PAID: 'bg-emerald-50 text-emerald-700',
+  AWAITING_TRANSFER: 'bg-amber-50 text-amber-800',
+  PAYMENT_REVIEW: 'bg-red-50 text-red-700',
   ON_HOLD: 'bg-amber-50 text-amber-700',
   EXPIRED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
   REFUNDED: 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
@@ -48,7 +50,7 @@ export default async function ChatRequestsPage() {
       // Operator pre-orders plus payment-link carts (SUPERSEDED copies are hidden).
       where: {
         workspaceId: user.workspaceId,
-        status: { in: ['SUBMITTED', 'CONFIRMED', 'CANCELLED', 'LINK_SENT', 'PAYMENT_PENDING', 'PAYMENT_FAILED', 'PAID', 'ON_HOLD', 'EXPIRED', 'REFUNDED'] },
+        status: { in: ['SUBMITTED', 'CONFIRMED', 'CANCELLED', 'LINK_SENT', 'PAYMENT_PENDING', 'PAYMENT_FAILED', 'PAID', 'ON_HOLD', 'EXPIRED', 'REFUNDED', 'AWAITING_TRANSFER', 'PAYMENT_REVIEW'] },
         submittedAt: { not: null },
       },
       orderBy: { submittedAt: 'desc' },

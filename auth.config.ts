@@ -20,6 +20,8 @@ export const PROTECTED_PREFIXES = [
 	'/appointments',
 	'/instagram',
 	'/vigento',
+	'/payments',
+	'/store',
 ]
 
 /**

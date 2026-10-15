@@ -20,11 +20,13 @@ import {
 	Sparkles,
 	Truck,
 	UserCheck,
+	WalletCards,
 	Zap,
 } from 'lucide-react'
 import { InstagramGlyph, TelegramPlane } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { DemoPointer } from '@/components/motion/pointer'
+import { BankCardFace } from '@/components/payments/bank-card'
 import { CHANNELS, ChannelBadge, type IconType, type SiteLocale } from '../ui'
 
 /*
@@ -442,10 +444,36 @@ function WooCommerceScene({ locale }: { locale: SiteLocale }) {
 	)
 }
 
+/* ── Card-to-card: the card in chat, the bank SMS, confirmed with nobody checking ── */
+
+function CardToCardScene({ locale }: { locale: SiteLocale }) {
+	const t = tr(locale)
+	return (
+		<Frame clock="13s">
+			<Head icon={WalletCards} title={t('گفتگو با فروشگاه', 'Chat with the shop')} meta={<Chip step={6} tone="ok"><CheckCheck className="size-3.5" strokeWidth={2} />{t('تأیید خودکار', 'Auto-confirmed')}</Chip>} />
+			<div className={cn(IN, 'vg-t0')}>{t('همین کفش رو می‌خوام، کارت به کارت می‌کنم', 'I want these sneakers, I’ll pay card to card')}</div>
+			<Typing step={1} />
+			<div className={cn(OUT, 'vg-t2')}>{t('سفارش A7K2Q9 ثبت شد؛ دقیقاً همین مبلغ رو واریز کنید 👇', 'Order A7K2Q9 is in — transfer exactly this amount 👇')}</div>
+			<div className="vg-t3 flex w-[min(17rem,100%)] flex-col gap-2 self-end rounded-[20px] border border-vg-line bg-white p-2.5 ltr:self-start">
+				<BankCardFace bankKey="mellat" pan="6104 33•• •••• 5675" holder={t('نگار رضایی', 'Negar Rezaei')} lang={locale} size="sm" />
+				<div className="flex items-center justify-between rounded-xl bg-vg-bg px-2.5 py-1.5 text-[12px]"><span className="text-vg-sub">{t('مبلغ دقیق', 'Exact amount')}</span><b dir="ltr" className="font-mono">1,250,347</b></div>
+			</div>
+			<div className="vg-t5 flex items-center gap-2 rounded-2xl border border-dashed border-vg-line bg-white px-3 py-2 text-[12px]">
+				<span className="rounded-full bg-vg-bg px-2 py-0.5 text-[11px]">{t('پیامک بانک', 'Bank SMS')}</span>
+				<span className="grow">{t('واریز', 'Deposit')} <b dir="ltr" className="font-mono">12,503,470</b></span>
+				<Chip step={6} tone="violet">{t('تطبیق خورد', 'Matched')}</Chip>
+			</div>
+			<div className={cn(OUT, 'vg-t7')}>{t('پرداختتون رسید ✅ سفارش در حال آماده‌سازیه', 'Payment received ✅ your order is being prepared')}</div>
+			<Chip step={8} tone="ink" className="mt-auto self-center">{t('بدون درگاه · بدون اینماد · بدون چک کردن رسید', 'No gateway · no Enamad · no receipt checking')}</Chip>
+		</Frame>
+	)
+}
+
 const SCENES: Record<string, (props: { locale: SiteLocale }) => ReactNode> = {
 	'unified-inbox': UnifiedInboxScene,
 	'persian-ai-chatbot': PersianChatbotScene,
 	'website-chat': PersianChatbotScene,
+	'card-to-card': CardToCardScene,
 	'ecommerce-ai': EcommerceScene,
 	'customer-support-ai': SupportScene,
 	instagram: InstagramScene,

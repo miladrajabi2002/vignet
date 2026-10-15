@@ -1,4 +1,7 @@
 import { checkoutButtonLabel, checkoutCardText, type CheckoutCard } from '@/lib/commerce/checkout-link'
+import { groupDigits } from '@/lib/payments/card/amount'
+import { bankByKey } from '@/lib/payments/card/bins'
+import { minutesLeft, type CardPayView } from '@/lib/payments/card/pay-card'
 import type { ChannelType } from '@prisma/client'
 import type {
   InboundMessage,
@@ -381,6 +384,61 @@ export function createTelegramLikeAdapter(opts: {
       }
       if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
       await call('sendMessage', payload)
+    },
+
+    /**
+     * Payment-gateway card. The card number and the amount are monospace
+     * (one tap copies them); Telegram also gets «copy» buttons. A client or
+     * platform that refuses those buttons gets the same message without them.
+     */
+    async sendCardPayCard(chatId: string, card: CardPayView): Promise<void> {
+      const fa = card.lang !== 'en'
+      const bank = bankByKey(card.bankKey)
+      const left = minutesLeft(card.expiresAt)
+      const html = channel === 'TELEGRAM'
+      const mono = (value: string) => (html ? `<code>${value}</code>` : value)
+      const esc = (value: string) => (html ? escapeHtml(value) : value)
+      const lines = fa
+        ? [
+            `💳 ${html ? '<b>' : ''}سفارش ${esc(card.code)}${html ? '</b>' : ''}`,
+            `${esc(bank.fa)}${card.holder ? ` — به نام ${esc(card.holder)}` : ''}`,
+            '',
+            'شماره کارت:',
+            mono(card.pan),
+            'مبلغ دقیق (تومان):',
+            mono(String(card.amount)),
+            '',
+            `دقیقاً همین مبلغ (${groupDigits(card.amount)} تومان) را واریز کنید؛ پرداخت از روی همین عدد شناخته و همین‌جا خودکار تأیید می‌شود.`,
+            left ? `⏳ مهلت: ${left.toLocaleString('fa-IR')} دقیقه` : '',
+          ]
+        : [
+            `💳 ${html ? '<b>' : ''}Order ${esc(card.code)}${html ? '</b>' : ''}`,
+            `${esc(bank.en)}${card.holder ? ` — ${esc(card.holder)}` : ''}`,
+            '',
+            'Card number:',
+            mono(card.pan),
+            'Exact amount (Toman):',
+            mono(String(card.amount)),
+            '',
+            `Transfer exactly this amount (${groupDigits(card.amount)} Toman); the payment is recognised by it and confirmed here automatically.`,
+            left ? `⏳ Valid for ${left} minutes` : '',
+          ]
+      const pageButton = [{ text: fa ? 'صفحهٔ پرداخت و وضعیت' : 'Payment page & status', url: card.url }]
+      const base: Record<string, unknown> = { chat_id: chatId, text: lines.filter((line, index) => line || lines[index - 1]).join('\n').trim() }
+      if (html) base.parse_mode = 'HTML'
+      if (channel === 'TELEGRAM') {
+        const copyRow = [
+          { text: fa ? 'کپی شماره کارت' : 'Copy card number', copy_text: { text: card.pan } },
+          { text: fa ? 'کپی مبلغ' : 'Copy amount', copy_text: { text: String(card.amount) } },
+        ]
+        try {
+          await call('sendMessage', { ...base, reply_markup: JSON.stringify({ inline_keyboard: [copyRow, pageButton] }) })
+          return
+        } catch (err) {
+          if (!(err instanceof BotApiError) || err.status !== 400) throw err
+        }
+      }
+      await call('sendMessage', { ...base, reply_markup: JSON.stringify({ inline_keyboard: [pageButton] }) })
     },
 
     async getVoiceUrl(fileId: string): Promise<string | null> {

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
-import { getDashboardNavForProfile, getDashboardNavFromModules, groupDashboardNav, type DashboardNavGroup } from '@/components/dashboard/nav-items'
+import { getDashboardNavForProfile, getDashboardNavFromModules, groupDashboardNav, withStoreNav, type DashboardNavGroup } from '@/components/dashboard/nav-items'
 import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 import { logout } from '@/app/actions/auth'
 import type { BusinessTypeValue, CapabilityKey, DashboardModuleKey } from '@/lib/verticals/registry'
@@ -25,7 +25,7 @@ const GROUP_LABEL_KEY: Record<DashboardNavGroup, 'navGroupDaily' | 'navGroupBusi
 	setup: 'navGroupSetup',
 }
 
-export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOffCount = 0, userName }: { businessType?: BusinessTypeValue | null; capabilities?: readonly CapabilityKey[]; handedOffCount?: number; userName?: string | null }) {
+export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOffCount = 0, storeConnected = false, userName }: { storeConnected?: boolean; businessType?: BusinessTypeValue | null; capabilities?: readonly CapabilityKey[]; handedOffCount?: number; userName?: string | null }) {
         const t = useTranslations('dashboard')
         const locale = useLocale()
         const pathname = usePathname()
@@ -34,7 +34,9 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                 () => getDashboardNavForProfile(capabilitiesKey ? capabilitiesKey.split(',') as CapabilityKey[] : []),
                 [capabilitiesKey],
         )
-        const [nav, setNav] = useState(initialNav)
+        const [baseNav, setNav] = useState(initialNav)
+        // A connected WooCommerce store adds its own tab.
+        const nav = useMemo(() => withStoreNav(baseNav, storeConnected), [baseNav, storeConnected])
         const [newModules, setNewModules] = useState<DashboardModuleKey[]>([])
 
         useEffect(() => setNav(initialNav), [initialNav])

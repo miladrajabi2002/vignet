@@ -13,6 +13,8 @@ import {
 	BarChart3,
 	Camera,
 	GraduationCap,
+	WalletCards,
+	Store,
 } from 'lucide-react'
 import {
 	collapseDashboardNavigationModules,
@@ -35,6 +37,8 @@ const NAV_ITEMS = {
 	contacts: { key: 'contacts', href: '/contacts', icon: Users },
 	analytics: { key: 'analytics', href: '/analytics', icon: BarChart3 },
 	instagram: { key: 'instagram', href: '/instagram', icon: Camera },
+	payments: { key: 'payments', href: '/payments', icon: WalletCards },
+	store: { key: 'store', href: '/store', icon: Store },
 	integrations: { key: 'integrations', href: '/integrations', icon: Plug },
 	billing: { key: 'billing', href: '/billing', icon: CreditCard },
 	settings: { key: 'settings', href: '/settings', icon: Settings },
@@ -46,6 +50,18 @@ const NAV_ITEMS = {
 
 export function getDashboardNavForProfile(capabilities: readonly CapabilityKey[] = []) {
 	return getDashboardNavigationModules(capabilities).map((module) => NAV_ITEMS[module])
+}
+
+/**
+ * The WooCommerce tab exists only while a store is connected: it is not part
+ * of any capability, so the shells add it from what the layout found.
+ */
+export function withStoreNav<T extends { key: DashboardModuleKey }>(items: readonly T[], storeConnected: boolean): Array<T | (typeof NAV_ITEMS)['store']> {
+	if (!storeConnected || items.some((item) => item.key === 'store')) return [...items]
+	const at = items.findIndex((item) => item.key === 'payments')
+	const next: Array<T | (typeof NAV_ITEMS)['store']> = [...items]
+	next.splice(at >= 0 ? at + 1 : next.length, 0, NAV_ITEMS.store)
+	return next
 }
 
 export function getDashboardNavFromModules(modules: readonly DashboardModuleKey[], capabilities: readonly CapabilityKey[] = []) {
@@ -67,6 +83,8 @@ const NAV_GROUP: Record<DashboardModuleKey, DashboardNavGroup> = {
 	services: 'business',
 	menu: 'business',
 	instagram: 'business',
+	payments: 'business',
+	store: 'business',
 	agents: 'setup',
 	integrations: 'setup',
 	billing: 'setup',

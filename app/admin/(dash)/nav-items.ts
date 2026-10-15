@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Users,
   type LucideIcon,
+  WalletCards,
 } from 'lucide-react'
 
 export type AdminNavItem = {
@@ -65,6 +66,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: '/admin/revenue', label: 'درآمد و سود', short: 'درآمد', icon: TrendingUp },
       { href: '/admin/payments', label: 'پرداخت‌ها و فاکتورها', short: 'پرداخت‌ها', icon: CreditCard },
+      { href: '/admin/payment-gateway', label: 'درگاه پرداخت کسب‌وکارها', short: 'درگاه', icon: WalletCards },
       { href: '/admin/usage', label: 'مصرف و هزینه AI', short: 'مصرف AI', icon: BarChart3 },
     ],
   },

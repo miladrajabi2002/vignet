@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Fragment } from 'react'
 import { cookies } from 'next/headers'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { Plus, Package, FolderTree } from 'lucide-react'
+import { Plus, Package, FolderTree, Store } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -17,7 +17,7 @@ import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
-import { WooSetupCard, type WooIntegrationState } from '@/components/products/woo-setup-card'
+import type { WooIntegrationState } from '@/components/products/woo-setup-card'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
@@ -263,11 +263,20 @@ export default async function ProductsPage(
       ? (wooIntegration.lastSyncStatus === 'error' || wooIntegration.lastSyncError ? (fa ? 'فروشگاه: خطا در همگام‌سازی' : 'Store: sync error') : (fa ? 'فروشگاه: همگام' : 'Store: synced'))
       : (fa ? 'فروشگاه: همگام‌سازی خاموش' : 'Store: sync is off')
   const storeTone: 'ok' | 'warn' | 'neutral' = !wooIntegration || !wooIntegration.active ? 'neutral' : wooIntegration.lastSyncError ? 'warn' : 'ok'
+  // The store is managed in its own tab; here it is one line that opens it.
   const storeCard = (
-    <WooSetupCard
-      integration={wooIntegration}
-      productLimit={!productCapacity.allowed ? productLimit : null}
-    />
+    <Link href="/store" className="spatial-surface flex flex-wrap items-center gap-3 rounded-card p-4 transition-[border-color] hover:border-[var(--border-hover)]">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]"><Store className="h-5 w-5" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-[var(--text-primary)]">{wooIntegration ? storeLabel : (fa ? 'فروشگاه ووکامرس دارید؟' : 'Have a WooCommerce store?')}</span>
+        <span className="mt-0.5 block text-[13px] leading-6 text-[var(--text-muted)]">
+          {wooIntegration
+            ? (fa ? 'اتصال، همگام‌سازی و فروش در گفتگو در تب «ووکامرس» مدیریت می‌شود.' : 'Connection, sync and in-chat selling are managed in the WooCommerce tab.')
+            : (fa ? 'با افزونهٔ ویجنت وصلش کنید تا محصولات و موجودی خودکار همگام شوند.' : 'Connect it with the Vigent plugin so products and stock sync automatically.')}
+        </span>
+      </span>
+      <span className="text-[13px] font-medium text-[var(--text-primary)]">{wooIntegration ? (fa ? 'باز کردن' : 'Open') : (fa ? 'اتصال' : 'Connect')}</span>
+    </Link>
   )
   const emptyCatalog = products.length === 0 && !q && !categoryId && !stock
 

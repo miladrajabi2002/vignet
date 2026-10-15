@@ -5,21 +5,13 @@ import type { ChannelType } from '@prisma/client'
 import {
         ArrowRight,
         Plug,
+        Store,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { ChannelMark } from '@/components/ui/channel-mark'
 import { StatusChip } from '@/components/ui/status-chip'
 import { prisma } from '@/lib/prisma'
-import {
-        StoreIntegrationsSection,
-        type StoreIntegrationItem,
-} from '@/components/integrations/store-integrations-section'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { StoreAccessPrompt } from '@/components/agents/store-access-prompt'
-import { loadStoreAccessChoice } from '@/lib/agents/store-access-choice'
-import type { PlanLimitInfo } from '@/components/billing/plan-limit-notice'
-import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
-import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan, type LimitedPlanResource } from '@/lib/billing/plans'
 
 const CHANNELS: {
         type: ChannelType
@@ -56,94 +48,13 @@ export default async function IntegrationsPage() {
                 where: { workspaceId: user.workspaceId, enabled: true },
         })
 
-        // F2: load the workspace's store integrations + the last few sync-log entries
-        // for each so the dashboard section can render without an extra round-trip.
-        const storeIntegrationsRaw = await prisma.storeIntegration.findMany({
-                where: { workspaceId: user.workspaceId },
+        // The store has its own tab; this page only says whether it is connected.
+        const store = await prisma.storeIntegration.findFirst({
+                where: { workspaceId: user.workspaceId, type: 'WOOCOMMERCE' },
                 orderBy: { createdAt: 'desc' },
-                include: {
-                        syncLogs: {
-                                // All events from the last 3 days (capped at 100).
-                                orderBy: { createdAt: 'desc' },
-                                where: { createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
-                                take: 100,
-                                select: {
-                                        id: true,
-                                        direction: true,
-                                        entity: true,
-                                        outcome: true,
-                                        count: true,
-                                        message: true,
-                                        createdAt: true,
-                                },
-                        },
-                        _count: { select: { orders: { where: { deletedAt: null } }, syncLogs: true } },
-                },
+                select: { storeUrl: true, active: true, lastSyncError: true, _count: { select: { products: true } } },
         })
-
-        const [storeAccessChoice, productCapacity, orderCapacity, customerCapacity, planDefs] = await Promise.all([
-                loadStoreAccessChoice(user.workspaceId),
-                checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
-                checkWorkspaceResourceCreateAllowed(user.workspaceId, 'orders'),
-                checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers'),
-                getEffectivePlanDefs(),
-        ])
-        const capacities = [
-                ['products', productCapacity],
-                ['orders', orderCapacity],
-                ['customers', customerCapacity],
-        ] as const
-        const planLimits: PlanLimitInfo[] = capacities.flatMap(([resource, capacity]) => {
-                if (capacity.allowed) return []
-                const recommendedPlan = recommendedUpgradePlan(
-                        planDefs,
-                        capacity.plan,
-                        resource as LimitedPlanResource,
-                        capacity.used,
-                )
-                return [{
-                        resource,
-                        plan: capacity.plan,
-                        used: capacity.used,
-                        limit: capacity.limit,
-                        recommendedPlan,
-                        recommendedLimit: recommendedPlan
-                                ? planResourceLimit(planDefs[recommendedPlan], resource)
-                                : null,
-                }]
-        })
-
-        // Strip encrypted credential ciphertext — only non-sensitive fields are visible.
-        const storeIntegrations: StoreIntegrationItem[] = storeIntegrationsRaw.map(
-                (row) => {
-                        return {
-                                id: row.id,
-                                type: row.type,
-                                storeUrl: row.storeUrl,
-                                webhookSecret: row.webhookSecret,
-                                pollIntervalMinutes: row.pollIntervalMinutes,
-                                active: row.active,
-                                connectedAt: row.connectedAt ? row.connectedAt.toISOString() : null,
-                                lastWebhookAt: row.lastWebhookAt ? row.lastWebhookAt.toISOString() : null,
-                                lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
-                                lastSyncStatus: row.lastSyncStatus,
-                                lastSyncError: row.lastSyncError,
-                                _count: {
-                                        orders: row._count.orders,
-                                        syncLogs: row._count.syncLogs,
-                                },
-                                syncLogs: row.syncLogs.map((l) => ({
-                                        id: l.id,
-                                        direction: l.direction,
-                                        entity: l.entity,
-                                        outcome: l.outcome,
-                                        count: l.count,
-                                        message: l.message,
-                                        createdAt: l.createdAt.toISOString(),
-                                })),
-                        }
-                },
-        )
+        const storeHost = store?.storeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') ?? null
 
         return (
                 <div className="mx-auto max-w-none space-y-6">
@@ -153,15 +64,29 @@ export default async function IntegrationsPage() {
                                 subtitle={t('subtitle')}
                         />
 
-                        {/* A connected store whose access the owner has not chosen yet. */}
-                        {storeAccessChoice.pending && <StoreAccessPrompt initial={storeAccessChoice} />}
-
-                        <StoreIntegrationsSection
-                                integrations={storeIntegrations}
-                                planLimits={planLimits}
-                                storeAccessHref={primaryAgent ? `/agents/${primaryAgent.id}/catalog` : null}
-                                locale={locale}
-                        />
+                        <Link
+                                href="/store"
+                                className="spatial-surface group flex flex-wrap items-center gap-4 rounded-card p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-hover)] sm:p-5"
+                        >
+                                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
+                                        <Store className="h-5 w-5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-bold text-[var(--text-primary)]">
+                                                {locale === 'fa' ? 'فروشگاه ووکامرس' : 'WooCommerce store'}
+                                                {storeHost ? <span dir="ltr" className="ms-2 text-[13px] font-normal text-[var(--text-secondary)]">{storeHost}</span> : null}
+                                        </span>
+                                        <span className="mt-0.5 block text-[13px] leading-6 text-[var(--text-muted)]">
+                                                {store
+                                                        ? (locale === 'fa' ? 'همگام‌سازی، سفارش‌ها و فروش در گفتگو در تب «ووکامرس» مدیریت می‌شود.' : 'Sync, orders and in-chat selling are managed in the WooCommerce tab.')
+                                                        : (locale === 'fa' ? 'محصولات و سفارش‌های سایت وردپرسی را با افزونهٔ ویجنت وصل کنید.' : 'Connect your WordPress store’s products and orders with the Vigent plugin.')}
+                                        </span>
+                                </span>
+                                <StatusChip tone={!store ? 'neutral' : !store.active ? 'neutral' : store.lastSyncError ? 'warn' : 'ok'} dot={Boolean(store?.active)}>
+                                        {!store ? t('notConnected') : !store.active ? (locale === 'fa' ? 'خاموش' : 'Paused') : store.lastSyncError ? (locale === 'fa' ? 'وصل · خطای همگام‌سازی' : 'Connected · sync error') : t('connected')}
+                                </StatusChip>
+                                <ArrowRight className="h-4 w-4 text-[var(--text-muted)] rtl:rotate-180" />
+                        </Link>
 
                         <div className="flex items-center justify-between pt-2">
                                 <h2 className="text-sm font-medium text-[var(--text-secondary)]">

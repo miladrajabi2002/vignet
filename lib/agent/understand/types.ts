@@ -111,6 +111,8 @@ export type Act =
   | { type: 'order_cancel' }
   | { type: 'payment_claim' }
   | { type: 'payment_link_request' }
+  /** Wants to pay by card-to-card / asks for the card number (payment gateway). */
+  | { type: 'card_transfer_request' }
   | { type: 'shipping_change' }
   | { type: 'order_status'; orderRef?: string }
   | { type: 'restock_subscribe'; target?: CandidateRef }

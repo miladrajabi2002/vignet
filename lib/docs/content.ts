@@ -18,6 +18,7 @@ import {
         Settings,
         Truck,
         UtensilsCrossed,
+        WalletCards,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -1548,6 +1549,40 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                         { fa: '«نگه‌داری سبد برای یک ساعت» را روشن کنید (نیاز به روشن بودن «گرفتن سفارش در چت» دارد).', en: 'Turn on “Hold carts for one hour” (needs “Take orders in chat” on).' },
                                 ],
                         },
+                ],
+        },
+        {
+                slug: 'payment-gateway',
+                icon: WalletCards,
+                title: { fa: 'درگاه پرداخت کارت‌به‌کارت خودکار', en: 'Automatic card-to-card payment gateway' },
+                description: {
+                        fa: 'مشتری کارت‌به‌کارت می‌کند و پرداخت از روی پیامک واریز بانک خودتان خودکار تأیید می‌شود؛ راه‌اندازی، کلمهٔ ثابت پیامک، بررسی پرداخت و API.',
+                        en: 'Customers transfer card to card and the payment is confirmed from your own bank’s deposit SMS: setup, the fixed SMS word, payment review and the API.',
+                },
+                blocks: [
+                        { type: 'p', fa: 'درگاه پرداخت ویجنت روی کارت خودتان کار می‌کند و برای راه‌اندازی اینماد، کد مالیاتی یا قرارداد درگاه نمی‌خواهد. هر سفارش یک مبلغ یکتا می‌گیرد (۱ تا ۹۹۹ تومان بیشتر از قیمت) و وقتی پیامک واریز بانک با همان مبلغ از گوشی شما برسد، همان سفارش خودکار تأیید می‌شود.', en: 'Vigent’s payment gateway works on your own card and needs no Enamad, tax code or gateway contract to set up. Each order gets a unique amount (1–999 Toman above the price) and when your phone forwards a deposit SMS with that amount, that order is confirmed automatically.' },
+                        { type: 'h2', fa: 'راه‌اندازی', en: 'Setup' },
+                        { type: 'steps', items: [
+                                { fa: 'در «درگاه پرداخت › کارت‌ها» شماره کارت و نام صاحب کارت را وارد کنید؛ بانک از روی شماره شناخته می‌شود.', en: 'In Payment gateway › Cards, enter the card number and the cardholder’s name; the bank is recognised from the number.' },
+                                { fa: 'در «دریافت پیامک» شمارهٔ گوشی‌ای را بدهید که پیامک واریز بانک به آن می‌آید و روش رسیدن پیامک را انتخاب کنید: فوروارد پیامکی به سامانهٔ ویجنت یا ارسال با اینترنت.', en: 'In SMS source, give the number of the phone that receives the bank’s deposit SMS and choose how it reaches Vigent: forwarded as an SMS to Vigent’s line, or sent over the internet.' },
+                                { fa: 'در اپ فوروارد گوشی (اندروید) یا Shortcuts (آیفون) یک قانون بسازید: «متن پیام شامل» کلمهٔ ثابت پیامک واریز بانک شما؛ مقصد همان شماره یا نشانی که داشبورد نشان می‌دهد.', en: 'On the phone, in a forwarder app (Android) or Shortcuts (iPhone), create a rule: “message contains” your bank’s fixed deposit word; the destination is the number or address the dashboard shows.' },
+                                { fa: 'یک واریز آزمایشی حدود ۱٬۰۰۰ تومانی بزنید. وقتی پیامکش رسید و تطبیق خورد، درگاه آماده است.', en: 'Make a test transfer of about 1,000 Toman. When its SMS arrives and matches, the gateway is ready.' },
+                                { fa: 'در «تنظیمات» یا صفحهٔ ایجنت، روش «پرداخت سفارش‌های چت» را «درگاه پرداخت ویجنت» بگذارید.', en: 'In Settings or on the agent page, set “Payment for chat orders” to the Vigent payment gateway.' },
+                        ] },
+                        { type: 'h2', fa: 'کلمهٔ ثابت پیامک واریز', en: 'The fixed word of the deposit SMS' },
+                        { type: 'p', fa: 'اپ فوروارد باید بداند کدام پیامک را بفرستد. در هر پیامک واریز یک کلمه همیشه تکرار می‌شود: در بیشتر بانک‌ها «واریز» و در بانک ملی «انتقال». شرط اپ را روی همین کلمه بگذارید تا فقط پیامک واریز فرستاده شود و رمز پویا و پیام‌های شخصی هیچ‌وقت از گوشی بیرون نروند. اگر مطمئن نیستید، در داشبورد یکی از پیامک‌های واریز قبلی‌تان را بچسبانید تا کلمه و مبلغ خوانده‌شده را ببینید.', en: 'The forwarder must know which messages to send. Every deposit SMS repeats one word: “واریز” for most banks and “انتقال” for Bank Melli. Set the app’s condition to that word so only deposit messages are sent and one-time passwords or personal texts never leave the phone. If unsure, paste one of your past deposit messages in the dashboard to see the word and the amount it reads.' },
+                        { type: 'callout', fa: 'فقط پیامکی خوانده می‌شود که از شمارهٔ ثبت‌شدهٔ شما (یا نشانی اختصاصی شما) برسد. پیامی با کلمهٔ «رمز» بدون ذخیره دور ریخته می‌شود و موجودی حساب پیش از ذخیره از متن پاک می‌شود.', en: 'Only messages from your registered number (or your own address) are read. A message containing “رمز” is discarded unstored, and the account balance is removed before anything is saved.' },
+                        { type: 'h2', fa: 'بررسی پرداخت', en: 'Payment review' },
+                        { type: 'list', items: [
+                                { fa: 'پرداخت در حالت عادی خودکار تأیید می‌شود و مشتری لازم نیست کاری کند.', en: 'Payments normally confirm by themselves; the customer does nothing.' },
+                                { fa: 'اگر پیامک نرسد و مشتری «پرداخت کردم» را بزند یا بنویسد، پرداخت در همان گفتگو با رنگ قرمز برای بررسی شما می‌آید و تأیید یا ردش می‌کنید.', en: 'If no SMS arrives and the customer taps or writes “I have paid”, the payment shows in red in that conversation for you to confirm or reject.' },
+                                { fa: 'واریزی که با هیچ سفارش بازی دقیقاً برابر نباشد (مثلاً رُند شده) در «واریز بدون سفارش» می‌آید و نزدیک‌ترین سفارش پیشنهاد می‌شود.', en: 'A deposit equal to no open order (e.g. rounded) appears under “Deposit with no order” with the closest orders suggested.' },
+                                { fa: 'مهلت پرداخت پیش‌فرض ۲۰ دقیقه است؛ پیامکی که تا ۲ ساعت بعد برسد هنوز همان سفارش را تأیید می‌کند.', en: 'The default deadline is 20 minutes; an SMS arriving up to 2 hours later still confirms that order.' },
+                        ] },
+                        { type: 'h2', fa: 'API برای سایت', en: 'API for websites' },
+                        { type: 'p', fa: 'در «سایت و API» برای هر سایت یک کلید بسازید. دو درخواست سازگار با زرین‌پی است و مبلغ به ریال:', en: 'Create one key per site in Sites & API. The two requests are ZarinPay-compatible and amounts are in rials:' },
+                        { type: 'code', code: 'POST https://vigent.ir/api/pay/v1/create\nAuthorization: Bearer YOUR_KEY\n{ "amount": 12500000, "order_id": "ORD123", "callback_url": "https://your-site.ir/pay/callback", "return_url": "https://your-site.ir/thanks" }\n\nPOST https://vigent.ir/api/pay/v1/verify\n{ "authority": "P…" }   →   100 paid · 101 already verified · -55 waiting · -1 failed' },
+                        { type: 'p', fa: 'بعد از واریز، ویجنت به callback_url یک POST امضاشده می‌فرستد (هدر X-Vigent-Signature = sha256=HMAC(راز، «timestamp.body»)) و تا ۵ بار تکرار می‌کند. سایت باید وضعیت را با verify دوباره بپرسد.', en: 'After the transfer Vigent sends a signed POST to callback_url (header X-Vigent-Signature = sha256=HMAC(secret, “timestamp.body”)) and retries up to 5 times. Your site should ask again with verify.' },
                 ],
         },
         {

@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
 import { ChevronLeft, LogOut, Menu, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getDashboardNavForProfile, getDashboardNavFromModules, groupDashboardNav } from '@/components/dashboard/nav-items'
+import { getDashboardNavForProfile, getDashboardNavFromModules, groupDashboardNav, withStoreNav } from '@/components/dashboard/nav-items'
 import { NavigationCountBadge } from '@/components/ui/navigation-count-badge'
 import type { BusinessTypeValue, CapabilityKey, DashboardModuleKey } from '@/lib/verticals/registry'
 import { getDashboardModuleLabel } from '@/lib/verticals/registry'
@@ -41,17 +41,21 @@ export function MobileNav({
 	capabilities = NO_CAPABILITIES,
 	handedOffCount = 0,
 	instagramConnected = false,
+	storeConnected = false,
 }: {
 	businessType?: BusinessTypeValue | null
 	capabilities?: readonly CapabilityKey[]
 	handedOffCount?: number
 	/** A live Instagram channel promotes Instagram into the bar's fourth slot. */
 	instagramConnected?: boolean
+	/** A connected WooCommerce store adds its tab. */
+	storeConnected?: boolean
 }) {
 	const t = useTranslations('dashboard')
 	const locale = useLocale()
 	const pathname = usePathname()
-	const [nav, setNav] = useState(() => getDashboardNavForProfile(capabilities))
+	const [baseNav, setNav] = useState(() => getDashboardNavForProfile(capabilities))
+	const nav = useMemo(() => withStoreNav(baseNav, storeConnected), [baseNav, storeConnected])
 	const [newModules, setNewModules] = useState<DashboardModuleKey[]>([])
 	const [open, setOpen] = useState(false)
 	const [closing, setClosing] = useState(false)

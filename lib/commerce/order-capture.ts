@@ -430,6 +430,8 @@ export function composeOrderSummary(
   corrected = false,
   quote: SummaryQuote | null = null,
   payLink = false,
+  /** After «تأیید» the business's card and the exact amount are sent (payment gateway). */
+  cardPay = false,
 ): string {
   const total = orderTotal(draft)
   const lines: string[] = []
@@ -455,7 +457,9 @@ export function composeOrderSummary(
     else if (payLink && !quote) lines.push('Shipping is calculated on the store\'s payment page.')
     lines.push(payLink
       ? `If everything is correct, reply “confirm” and I’ll send the payment link; to change anything (quantity, color${quote?.shippingChangeable ? ', shipping method' : ''}, another item) just tell me.`
-      : 'If everything is correct, reply “confirm” and I’ll file it; if something needs changing, just send the correct value.')
+      : cardPay
+        ? 'If everything is correct, reply “confirm” and I’ll send the card number and the exact amount to transfer; if something needs changing, just tell me.'
+        : 'If everything is correct, reply “confirm” and I’ll file it; if something needs changing, just send the correct value.')
     return lines.join('\n')
   }
   lines.push(corrected ? 'اصلاح شد 👌 خلاصهٔ سفارشتون:' : 'خلاصهٔ سفارشتون:')
@@ -477,7 +481,9 @@ export function composeOrderSummary(
   else if (payLink && !quote) lines.push('هزینهٔ ارسال در صفحهٔ پرداخت سایت حساب می‌شه.')
   lines.push(payLink
     ? `اگه همه‌چیز درسته «تأیید» رو بفرستید تا لینک پرداخت رو بفرستم؛ اگه چیزی باید عوض بشه (تعداد، رنگ${quote?.shippingChangeable ? '، روش ارسال' : ''} یا کالای دیگه) همون رو بگید`
-    : 'اگه همه‌چیز درسته «تأیید» رو بفرستید تا ثبتش کنم؛ اگه چیزی باید عوض بشه، همون رو درستش رو بفرستید')
+    : cardPay
+      ? 'اگه همه‌چیز درسته «تأیید» رو بفرستید تا شماره کارت و مبلغ دقیق واریز رو بفرستم؛ اگه چیزی باید عوض بشه همون رو بگید'
+      : 'اگه همه‌چیز درسته «تأیید» رو بفرستید تا ثبتش کنم؛ اگه چیزی باید عوض بشه، همون رو درستش رو بفرستید')
   return lines.join('\n')
 }
 

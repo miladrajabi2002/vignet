@@ -93,12 +93,17 @@ export default async function DashboardLayout({
   // Conversations handed to a human — shown as a count on the Conversations
   // nav item (desktop rail + phone bar). Served by @@index([workspaceId, status]).
   // A live Instagram channel promotes Instagram into the phone bar.
-  const [handedOffCount, instagramChannel] = await Promise.all([
+  const [handedOffCount, instagramChannel, connectedStore] = await Promise.all([
     prisma.conversation.count({
       where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' },
     }),
     prisma.agentChannel.findFirst({
       where: { type: 'INSTAGRAM', active: true, agent: { workspaceId: user.workspaceId } },
+      select: { id: true },
+    }),
+    // A connected WooCommerce store gets its own tab in the navigation.
+    prisma.storeIntegration.findFirst({
+      where: { workspaceId: user.workspaceId, type: 'WOOCOMMERCE', active: true },
       select: { id: true },
     }),
   ])
@@ -125,7 +130,7 @@ export default async function DashboardLayout({
       >
         {t('skipToContent')}
       </a>
-      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} userName={user.name ?? user.phone} />
+      <Sidebar businessType={workspace?.businessType} capabilities={capabilities} handedOffCount={handedOffCount} storeConnected={Boolean(connectedStore)} userName={user.name ?? user.phone} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           name={user.name}
@@ -136,6 +141,7 @@ export default async function DashboardLayout({
           daysLeft={daysLeft}
           handedOffCount={handedOffCount}
           instagramConnected={Boolean(instagramChannel)}
+          storeConnected={Boolean(connectedStore)}
           userSwitcher={userSwitcher}
         />
         {accessExpired && (

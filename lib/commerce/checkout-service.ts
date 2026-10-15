@@ -17,6 +17,8 @@ import { readBotToken } from '@/lib/channels/config'
 import { readPageToken } from '@/lib/instagram/config'
 import { getAdapter, isMessengerType } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
+import { parseCardPayDirective } from '@/lib/payments/card/pay-card'
+import { sendCardPay } from '@/lib/channels/card-pay-delivery'
 import {
   checkoutMarker,
   composeCheckoutFallback,
@@ -634,9 +636,15 @@ export async function deliverAssistantNotice(conversation: {
   if (!channel) return 'failed'
   const token = conversation.channel === 'INSTAGRAM' ? readPageToken(channel.config) : readBotToken(channel.config)
   if (!token) return 'failed'
-  const { text, checkout } = parseCheckoutDirective(content)
+  const cardPaySplit = parseCardPayDirective(content)
+  const { text, checkout } = parseCheckoutDirective(cardPaySplit.text)
   try {
     const adapter = getAdapter(conversation.channel, token)
+    if (cardPaySplit.cardPay) {
+      if (text) await adapter.sendText(conversation.externalId, text)
+      await sendCardPay(adapter, conversation.externalId, cardPaySplit.cardPay)
+      return 'sent'
+    }
     if (checkout && adapter.sendCheckoutCard) {
       if (text) await adapter.sendText(conversation.externalId, text)
       try {

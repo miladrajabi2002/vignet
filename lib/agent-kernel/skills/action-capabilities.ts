@@ -145,7 +145,7 @@ export function enforceTrustedLinkPresentation(params: {
  * the whole line is removed and the customer is pointed to the real flow.
  */
 const FABRICATED_PAYMENT_RE =
-  /\[\[checkout:|order-pay\/|pay_for_order=|vigent_checkout=|wc_order_[A-Za-z0-9]|\/checkout\/order-received|(?:sandbox\.)?zarinpal\.com\/pg|gateway\.zibal\.ir|\/StartPay\//iu
+  /\[\[checkout:|\[\[cardpay:|order-pay\/|pay_for_order=|vigent_checkout=|wc_order_[A-Za-z0-9]|\/checkout\/order-received|(?:sandbox\.)?zarinpal\.com\/pg|gateway\.zibal\.ir|\/StartPay\//iu
 
 export function stripFabricatedPaymentLinks(reply: string, isFa: boolean): string {
   if (!FABRICATED_PAYMENT_RE.test(reply)) return reply
@@ -181,7 +181,18 @@ export function stripAgentDiscountOffers(reply: string, isFa: boolean): string {
   return [...kept, notice].join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
-export function actionCapabilityInstruction(isFa: boolean, orderCaptureEnabled = false, payLinkEnabled = false): string {
+/**
+ * The payment gateway's part of the boundary: the card number and the amount
+ * come only from the system's own card, and «paid» only from the bank.
+ */
+function cardPayBoundary(isFa: boolean): string {
+  return isFa
+    ? ' پرداخت کارت‌به‌کارت هم فعال است: بعد از تأیید سفارش، خود سیستم کارت کسب‌وکار و «مبلغ دقیق» را می‌فرستد و واریز را از روی پیامک بانک خودکار تأیید می‌کند. اگر مشتری خواست کارت‌به‌کارت کند، فقط بگو بعد از تأیید سفارش شماره کارت و مبلغ برایش فرستاده می‌شود. خودت هرگز شماره کارت، شماره حساب، شبا یا مبلغ واریز ننویس، هرگز نگو «واریزتان رسید» یا «پرداخت تأیید شد»، و از مشتری عکس رسید نخواه.'
+    : ' Card-to-card payment is also enabled: after the order is confirmed the system itself sends the business’s card and the exact amount, and confirms the transfer automatically from the bank’s deposit message. If the customer wants to pay by card-to-card, only say the card number and amount are sent once the order is confirmed. Never write a card number, account number, IBAN or a transfer amount yourself, never say the transfer has arrived or the payment is confirmed, and do not ask for a receipt photo.'
+}
+
+export function actionCapabilityInstruction(isFa: boolean, orderCaptureEnabled = false, payLinkEnabled = false, cardPayEnabled = false): string {
+  if (orderCaptureEnabled && cardPayEnabled) return `${actionCapabilityInstruction(isFa, true, payLinkEnabled)}${cardPayBoundary(isFa)}`
   if (orderCaptureEnabled && payLinkEnabled) {
     return isFa
       ? 'مرز قابلیت اجرایی: فروش داخل گفتگو با سبد خرید و لینک پرداخت فعال است و مراحلش را سیستم خودش جلو می‌برد: افزودن، حذف و تغییر تعداد یا مدل کالا در سبد، گرفتن نام، موبایل و آدرس، نمایش خلاصه با هزینهٔ ارسال و مبلغ نهایی از خود سایت فروشگاه، و بعد از تأیید مشتری فرستادن لینک پرداخت روی سایت خود فروشگاه (با همهٔ درگاه‌های فعال آن). نقش تو فروشندهٔ مشاور است: نیاز مشتری را بفهم، دو یا سه گزینهٔ مناسب با کارت محصول پیشنهاد بده و وقتی مشتری محصولی را پسندید کوتاه بپرس «می‌خواید به سبدتون اضافه‌ش کنم؟». اگر مناسب بود فقط یک کالای مکملِ واقعاً مرتبط از کاتالوگ همین نوبت پیشنهاد بده و اصرار نکن. خودت در متن آزاد نام، آدرس یا شماره جمع نکن، لینک پرداخت نساز و هزینهٔ ارسال یا مبلغ نهایی را حدس نزن. هرگز نگو «سفارش ثبت شد» یا «پرداخت شد»؛ این را فقط سیستم بعد از تأیید واقعی سایت اعلام می‌کند. تو اختیار تخفیف دادن نداری: تخفیف، قیمت ویژه یا کد تخفیف پیشنهاد، وعده یا اختراع نکن و سر قیمت چانه نزن؛ فقط اگر مشتری خودش کد تخفیف فروشگاه را داد، سیستم آن را روی سایت بررسی می‌کند. لینک محصول را فقط از کارت محصول معتبر همین نوبت بده. پیگیری سفارش موجود با ثبت سفارش جدید فرق دارد.'

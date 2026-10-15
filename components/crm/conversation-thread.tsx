@@ -36,6 +36,7 @@ import { ConversationBubble, ConversationText } from '@/components/chat/conversa
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
+import { CardPayCardView } from '@/components/commerce/card-pay-view'
 import { OperatorReply } from './operator-reply'
 import { Headphones, Sparkles } from 'lucide-react'
 import {
@@ -379,7 +380,7 @@ export function ConversationThread({
                                                 ? inboundSourceLabel(readInboundSource(m.metadata), locale)
                                                 : null
                                         const showcase = isUser
-                                                ? { text: m.content, products: [], checkout: null }
+                                                ? { text: m.content, products: [], checkout: null, cardPay: null }
                                                 : parseProductShowcaseContent(m.content)
                                         const hasShowcase = showcase.products.length > 0
                                         const reactions = reactionsByMessageId.get(m.id) ?? []
@@ -514,6 +515,11 @@ export function ConversationThread({
                                                                 {!isUser && showcase.checkout && (
                                                                         <div className="mt-2">
                                                                                 <CheckoutCardView card={showcase.checkout} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" />
+                                                                        </div>
+                                                                )}
+                                                                {!isUser && showcase.cardPay && (
+                                                                        <div className="mt-2">
+                                                                                <CardPayCardView card={showcase.cardPay} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" canClaim={false} />
                                                                         </div>
                                                                 )}
                                                                 {!isUser && hasShowcase && !scenarioReceipt && (

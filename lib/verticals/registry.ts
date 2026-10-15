@@ -23,6 +23,10 @@ export type DashboardModuleKey =
   | 'contacts'
   | 'analytics'
   | 'instagram'
+  // Payment gateway: card-to-card confirmed by the bank's deposit SMS.
+  | 'payments'
+  // The connected WooCommerce store; in the navigation only while one is connected.
+  | 'store'
   | 'integrations'
   | 'billing'
   | 'settings'
@@ -98,6 +102,7 @@ export const CORE_DASHBOARD_MODULES = [
   'conversations',
   'contacts',
   'analytics',
+  'payments',
   'integrations',
   'billing',
   'settings',
@@ -245,6 +250,8 @@ const MODULE_ORDER: readonly DashboardModuleKey[] = [
   'contacts',
   'analytics',
   'instagram',
+  'payments',
+  'store',
   'integrations',
   'billing',
   'settings',

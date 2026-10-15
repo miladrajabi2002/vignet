@@ -7,6 +7,7 @@
  */
 
 import { parseCheckoutDirective, type CheckoutCard } from '@/lib/commerce/checkout-card'
+import { parseCardPayDirective, type CardPayView } from '@/lib/payments/card/pay-card'
 
 const PRODUCT_PREFIX = '[[product:'
 export const MAX_SHOWCASE_PRODUCTS = 10
@@ -126,9 +127,10 @@ function productTokenBounds(
 export function parseProductShowcaseContent(
   raw: string,
   complete = true,
-): { text: string; products: ShowcaseProduct[]; checkout: CheckoutCard | null } {
-  // In-chat checkout cards ride in the same reply; they never render as text.
-  const checkoutSplit = parseCheckoutDirective(raw)
+): { text: string; products: ShowcaseProduct[]; checkout: CheckoutCard | null; cardPay: CardPayView | null } {
+  // In-chat checkout and payment-gateway cards ride in the same reply; they never render as text.
+  const cardPaySplit = parseCardPayDirective(raw)
+  const checkoutSplit = parseCheckoutDirective(cardPaySplit.text)
   raw = checkoutSplit.text
   const products: ShowcaseProduct[] = []
   const visible: string[] = []
@@ -165,5 +167,6 @@ export function parseProductShowcaseContent(
     text: visible.join('').replace(/\n{3,}/g, '\n\n').trim(),
     products,
     checkout: complete ? checkoutSplit.checkout : null,
+    cardPay: complete ? cardPaySplit.cardPay : null,
   }
 }

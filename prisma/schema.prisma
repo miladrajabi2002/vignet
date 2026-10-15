@@ -56,6 +56,11 @@ model Workspace {
   // Remind customers of an upcoming booking in their own conversation
   // (24 hours and 2 hours before).
   bookingRemindersEnabled       Boolean      @default(true)
+  // Payment gateway (card-to-card confirmed by the bank's deposit SMS).
+  // The master switch; behaviour options live in payGatewaySettings
+  // (shape and defaults: lib/payments/card/settings.ts).
+  payGatewayEnabled             Boolean      @default(false)
+  payGatewaySettings            Json?
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
 
@@ -93,6 +98,11 @@ model Workspace {
   courses                  Course[]
   courseEnrollments        CourseEnrollment[]
   turnUnderstandingLogs    TurnUnderstandingLog[]
+  payCards                 PayCard[]
+  payDevices               PayDevice[]
+  cardPayments             CardPayment[]
+  bankSmsMessages          BankSms[]
+  paySites                 PaySite[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -269,6 +279,11 @@ model Agent {
   //   the held units as taken), with a reminder 30 minutes before it ends;
   //   when it ends, sold-out lines leave the cart. Off by default.
   cartHoldEnabled         Boolean  @default(false)
+  // ─ Payment gateway in chat: a confirmed cart gets the business's card and
+  //   a unique amount, and the bank's deposit SMS confirms the order. Needs
+  //   orderCaptureEnabled and workspace.payGatewayEnabled with an active card.
+  cardPayEnabled          Boolean  @default(false)
+  cardPayConfigured       Boolean  @default(false)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -1706,35 +1721,35 @@ model RestockAlert {
 //   into the workspace's catalog and a dedicated orders table so the agent can
 //   answer "where is my order?" with live data.
 model StoreIntegration {
-  id                  String    @id @default(cuid())
-  workspaceId         String
-  type                StoreType
+  id                    String    @id @default(cuid())
+  workspaceId           String
+  type                  StoreType
   // For WooCommerce: store base URL (e.g. https://shop.example.com)
-  storeUrl            String
+  storeUrl              String
   // API credentials (consumer key/secret for Woo REST, or a webhook signing secret)
   // encrypted at rest by the app layer.
-  credentials         Json
+  credentials           Json
   // HMAC secret used to verify inbound webhook pushes from the store plugin.
-  webhookSecret       String?
+  webhookSecret         String?
   // Polling cadence for the fallback sync (minutes). 0 = webhook only.
-  pollIntervalMinutes Int       @default(30)
-  lastSyncAt          DateTime?
-  lastSyncStatus      String? // 'ok' | 'error'
-  lastSyncError       String?
+  pollIntervalMinutes   Int       @default(30)
+  lastSyncAt            DateTime?
+  lastSyncStatus        String? // 'ok' | 'error'
+  lastSyncError         String?
   // Set when a plugin push was refused by the plan's product limit; the store
   // is asked to resend its catalog once there is room (lib/integrations/woo-resync.ts).
   productResyncNeededAt DateTime?
-  connectedAt         DateTime?
-  lastWebhookAt       DateTime?
-  pluginVersion       String?
+  connectedAt           DateTime?
+  lastWebhookAt         DateTime?
+  pluginVersion         String?
   // In-chat checkout: AUTO | ORDER_PAY | CART (the plugin's own setting wins).
-  checkoutFlow        String    @default("AUTO")
+  checkoutFlow          String    @default("AUTO")
   // Last /checkout/capabilities answer (gateways, shipping zones, …).
-  capabilities        Json?
-  capabilitiesAt      DateTime?
-  active              Boolean   @default(true)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  capabilities          Json?
+  capabilitiesAt        DateTime?
+  active                Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   workspace         Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orders            StoreOrder[]
@@ -1901,7 +1916,7 @@ model InstagramAutomation {
   createdAt DateTime                @default(now())
   updatedAt DateTime                @updatedAt
 
-  agent       Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent       Agent                    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   followGates InstagramFollowGate[]
   runs        InstagramAutomationRun[]
 
@@ -1921,7 +1936,7 @@ enum InstagramAutomationType {
 // follow gates and what those people did afterwards (conversation, order,
 // booking) from these rows.
 model InstagramAutomationRun {
-  id             String                    @id @default(cuid())
+  id             String                     @id @default(cuid())
   automationId   String
   agentId        String
   workspaceId    String
@@ -1931,7 +1946,7 @@ model InstagramAutomationRun {
   trigger        InstagramAutomationType
   outcome        InstagramAutomationOutcome
   conversationId String?
-  createdAt      DateTime                  @default(now())
+  createdAt      DateTime                   @default(now())
 
   automation InstagramAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
 
@@ -2387,7 +2402,7 @@ model TurnUnderstandingLog {
   conversationId   String
   // The inbound USER message this turn answered.
   messageId        String?
-  mode             String   // off | shadow | on
+  mode             String // off | shadow | on
   // ok | fallback (no usable reading; legacy routing used) | skipped (fast path)
   status           String
   errorCode        String?
@@ -2413,3 +2428,191 @@ model TurnUnderstandingLog {
   @@index([conversationId])
 }
 
+// ─── PAYMENT GATEWAY ─────────────────────────────────────────────────
+//   Card-to-card payments confirmed automatically: the customer transfers a
+//   unique amount to the business's card, the bank's deposit SMS is forwarded
+//   from the owner's phone (as an SMS to the platform line, or inside a URL)
+//   and the amount identifies the payment. Amounts are whole TOMANS, so the
+//   rial amount always ends in 0 and can be typed in toman-only bank apps.
+
+/// A destination card of the business.
+model PayCard {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  // AES-256-GCM (lib/crypto.ts); lists show bin + last4 only.
+  panEncrypted String
+  panHash      String
+  bin          String
+  last4        String
+  // Key into lib/payments/card/bins.ts ('unknown' when the prefix is not listed).
+  bankKey      String
+  holderName   String
+  active       Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  // Stop offering this card after this much was received today (tomans).
+  dailyCap     Int?
+  // Set by the first deposit SMS that matched a payment on this card.
+  verifiedAt   DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  payments  CardPayment[]
+
+  @@unique([workspaceId, panHash])
+  @@index([workspaceId, active])
+}
+
+/// The phone that receives the bank's deposit SMS and forwards it.
+model PayDevice {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  name           String
+  // ANDROID | IOS
+  platform       String    @default("ANDROID")
+  // SMS = forwards to the platform SMS line (identified by `phone`);
+  // URL = calls /api/pay/sms/<token> (identified by the token).
+  method         String    @default("SMS")
+  // National form (09XXXXXXXXX). Only SMS from this number are read.
+  phone          String?   @unique
+  tokenHash      String    @unique
+  tokenEncrypted String
+  active         Boolean   @default(true)
+  // First forwarded message of any kind / first matched deposit.
+  connectedAt    DateTime?
+  verifiedAt     DateTime?
+  lastSmsAt      DateTime?
+  // Payments the customer claimed while no SMS arrived (device.silent alert).
+  silentClaims   Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages  BankSms[]
+
+  @@index([workspaceId])
+}
+
+/// A website that creates payments through the API (ZarinPay-compatible).
+model PaySite {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  name            String
+  domain          String?
+  keyHash         String    @unique
+  // «vgp_ab12…9f» — enough to recognise the key in the list.
+  keyHint         String
+  secretEncrypted String
+  active          Boolean   @default(true)
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  payments  CardPayment[]
+
+  @@index([workspaceId])
+}
+
+model CardPayment {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  cardId         String
+  siteId         String?
+  // CHAT (an order taken by the agent) | API (a connected site) | LINK (made by hand).
+  source         String    @default("CHAT")
+  orderDraftId   String?
+  conversationId String?
+  // Public handle: /pay/<authority> and the API's `authority`.
+  authority      String    @unique
+  // The order's own reference: OrderDraft.code or the site's order_id.
+  reference      String
+  description    String?
+  customerName   String?
+  customerPhone  String?
+  // Whole tomans. payAmount = baseAmount + identifier (1…999).
+  baseAmount     Int
+  payAmount      Int
+  // PENDING | CLAIMED (customer says paid, no SMS yet — owner reviews) |
+  // PAID | EXPIRED | FAILED (owner rejected) | CANCELLED.
+  status         String    @default("PENDING")
+  // AUTO (deposit SMS) | OWNER (dashboard) | OPERATOR (manager bot).
+  confirmedBy    String?
+  callbackUrl    String?
+  returnUrl      String?
+  callbackTries  Int       @default(0)
+  callbackNextAt DateTime?
+  callbackDoneAt DateTime?
+  callbackError  String?
+  // First successful /verify of the site (answers 100; later ones 101).
+  verifiedAt     DateTime?
+  // Last status the customer was told about (idempotent notices).
+  notifiedStatus String?
+  expiresAt      DateTime
+  // The amount stays reserved until here so a late SMS still finds its payment.
+  holdUntil      DateTime
+  remindedAt     DateTime?
+  claimedAt      DateTime?
+  paidAt         DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  card      PayCard   @relation(fields: [cardId], references: [id])
+  site      PaySite?  @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  messages  BankSms[]
+
+  @@unique([siteId, reference])
+  @@index([workspaceId, status, payAmount])
+  @@index([workspaceId, createdAt])
+  @@index([status, expiresAt])
+  @@index([orderDraftId])
+  @@index([conversationId])
+  @@index([callbackNextAt])
+}
+
+/// A forwarded bank SMS from a registered phone. The account balance is
+/// removed before storage; messages carrying a password are never stored.
+model BankSms {
+  id          String   @id @default(cuid())
+  workspaceId String
+  deviceId    String
+  // SMS | URL
+  via         String
+  text        String   @db.Text
+  // DEPOSIT | WITHDRAW | OTHER
+  kind        String
+  // Whole tomans, when a deposit amount was read.
+  amount      Int?
+  // MATCHED | UNMATCHED (a deposit no open payment asked for) |
+  // RESOLVED (attached or dismissed by the owner) | IGNORED | UNREADABLE.
+  status      String
+  dedupeHash  String   @unique
+  paymentId   String?
+  receivedAt  DateTime @default(now())
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  device    PayDevice    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  payment   CardPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, receivedAt])
+  @@index([deviceId, receivedAt])
+  @@index([status, receivedAt])
+}
+
+/// Platform-wide gateway settings, edited in /admin/payment-gateway.
+model PaymentGatewaySettings {
+  id              String   @id @default("primary")
+  enabled         Boolean  @default(true)
+  // Confirmed payments per calendar month by plan; null = unlimited.
+  // Shape and defaults: lib/payments/card/platform.ts.
+  planMonthlyCaps Json     @default("{}")
+  // SMS lines the owner's phone forwards to (shown in the setup guide).
+  inboundLines    String[] @default([])
+  // Secret in the SMS panel's inbound webhook URL.
+  inboundSecret   String?
+  // Largest single payment offered by card-to-card (tomans).
+  maxAmount       Int      @default(10000000)
+  updatedAt       DateTime @updatedAt
+}

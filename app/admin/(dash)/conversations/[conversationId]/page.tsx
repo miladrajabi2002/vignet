@@ -11,6 +11,8 @@ import { ProductShowcaseRail } from '@/components/products/product-showcase-rail
 import { displayPhone } from '@/lib/phone'
 import { conversationSessionBoundaries } from '@/lib/conversations/session'
 import { ConversationSessionDivider } from '@/components/crm/conversation-session-divider'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { readTurnCost, TURN_PURPOSE_LABEL, usdToRial, type TurnCostView } from '@/lib/admin/turn-cost'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,10 +35,21 @@ export default async function AdminConversationDetailPage({ params }: { params: 
       workspace: { select: { id: true, name: true } },
       agent: { select: { id: true, name: true } },
       contact: { select: { name: true, phone: true } },
-      messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, role: true, content: true, contentType: true, audioUrl: true, createdAt: true } },
+      messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, role: true, content: true, contentType: true, audioUrl: true, createdAt: true, metadata: true } },
     },
   })
   if (!conversation) notFound()
+  // Real provider cost (not what the customer's credit was charged): per
+  // reply from the turn ledger, and for the whole conversation from every
+  // usage row (summaries, voice, images included).
+  const [commercial, usageRows] = await Promise.all([
+    getPlatformCommercialConfig(),
+    prisma.usageLog.groupBy({ by: ['type'], where: { conversationId: conversation.id, status: 'CAPTURED' }, _sum: { cost: true, chargedIRR: true }, _count: true }),
+  ])
+  const usdRate = commercial.financeUsdToIRR
+  const conversationUSD = usageRows.reduce((sum, row) => sum + (row._sum.cost ?? 0), 0)
+  const conversationRequests = usageRows.reduce((sum, row) => sum + row._count, 0)
+  const conversationCharged = usageRows.reduce((sum, row) => sum + (row._sum.chargedIRR ?? 0), 0)
   const contactName = conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'
   const sessionBoundaries = conversationSessionBoundaries(conversation.messages)
 
@@ -95,6 +108,7 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                         className="mt-2"
                       />
                     )}
+                    {!isUser && <TurnCostLine cost={readTurnCost(message.metadata)} rate={usdRate} />}
                     {!isUser && hasShowcase && !showcase.text && !message.audioUrl && (
                       <time dir="auto" className="mt-0.5 block px-1 text-[12px] text-[var(--text-muted)]">{fmtDate(message.createdAt)}</time>
                     )}
@@ -123,6 +137,21 @@ export default async function AdminConversationDetailPage({ params }: { params: 
               ))}
             </dl>
           </Panel>
+          <Panel title="هزینهٔ واقعی این گفتگو">
+            <dl className="divide-y divide-[var(--border-subtle)] text-[13px]">
+              {[
+                ['هزینهٔ واقعی', usdToRial(conversationUSD, usdRate) != null ? `${fa(usdToRial(conversationUSD, usdRate)!)} ریال` : `$${conversationUSD.toFixed(4)}`],
+                ['تعداد درخواست به مدل', fa(conversationRequests)],
+                ['کسرشده از اعتبار مشتری', `${fa(conversationCharged)} ریال`],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-start justify-between gap-3 py-2">
+                  <dt className="shrink-0 text-[var(--text-muted)]">{label}</dt>
+                  <dd className="min-w-0 break-words text-end font-medium text-[var(--text-primary)]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {!usdRate && <p className="mt-2 text-[12px] leading-6 text-[var(--text-muted)]">نرخ دلار در «تنظیمات پلتفرم» ثبت نشده؛ هزینه به دلار نشان داده می‌شود.</p>}
+          </Panel>
           {conversation.summary && (
             <Panel title="خلاصه هوشمند">
               <p className="text-[13px] leading-7 text-[var(--text-secondary)]">{conversation.summary}</p>
@@ -137,5 +166,30 @@ export default async function AdminConversationDetailPage({ params }: { params: 
         </div>
       </div>
     </div>
+  )
+}
+
+/** Under each reply: what the turn really cost the platform — every model call, not the customer's charge. */
+function TurnCostLine({ cost, rate }: { cost: TurnCostView | null; rate: number | null }) {
+  if (!cost) return null
+  const rial = usdToRial(cost.totalUSD, rate)
+  return (
+    <details dir="rtl" className="mt-1 max-w-[32rem] px-1 text-[12px] text-[var(--text-muted)]">
+      <summary className="cursor-pointer select-none list-none">
+        هزینهٔ واقعی: <b className="text-[var(--text-secondary)]">{rial != null ? `${fa(rial)} ریال` : `$${cost.totalUSD.toFixed(5)}`}</b> · {fa(cost.requests)} درخواست
+      </summary>
+      <table className="mt-1.5 w-full border-collapse text-[11.5px]">
+        <tbody>
+          {cost.rows.map((row, index) => (
+            <tr key={index} className="border-t border-[var(--border-subtle)]">
+              <td className="py-1 pe-2">{TURN_PURPOSE_LABEL[row.purpose] ?? row.purpose}{row.ok ? '' : ' (ناموفق)'}</td>
+              <td dir="ltr" className="py-1 pe-2 text-left font-mono">{row.model.split('/').pop()}</td>
+              <td dir="ltr" className="py-1 pe-2 text-left font-mono">{row.tokensIn}→{row.tokensOut}</td>
+              <td className="py-1 text-end font-medium">{row.usd == null ? '—' : usdToRial(row.usd, rate) != null ? `${fa(usdToRial(row.usd, rate)!)} ریال` : `$${row.usd.toFixed(5)}`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
   )
 }
