@@ -46,6 +46,12 @@ export async function PATCH(req: Request) {
     if (enabled && !(await prisma.payCard.count({ where: { workspaceId: user.workspaceId, active: true, deletedAt: null } }))) {
       return NextResponse.json({ error: 'NO_ACTIVE_CARD' }, { status: 400 })
     }
+    // Setup is step by step: before the first activation the gateway goes on
+    // only once the phone is connected and the test transfer has matched.
+    if (enabled && !readPayGatewaySettings(workspace.payGatewaySettings).activatedAt) {
+      const verified = await prisma.payDevice.count({ where: { workspaceId: user.workspaceId, active: true, connectedAt: { not: null }, verifiedAt: { not: null } } })
+      if (!verified) return NextResponse.json({ error: 'SETUP_INCOMPLETE' }, { status: 400 })
+    }
     data.payGatewayEnabled = enabled
   }
   if (Object.keys(behaviour).length) data.payGatewaySettings = { ...readPayGatewaySettings(workspace.payGatewaySettings), ...behaviour }

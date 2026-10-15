@@ -9,6 +9,12 @@ export interface PayGatewaySettings {
   manualClaim: boolean
   /** Show the cardholder's name beside the number. */
   showHolderName: boolean
+  /**
+   * When the owner finished the four setup steps (ISO). Until then the
+   * dashboard shows only the setup; after it the tabs stay, even if a card
+   * or the phone is later removed.
+   */
+  activatedAt: string | null
 }
 
 /** Every chat payment gives the customer twenty minutes. */
@@ -18,6 +24,7 @@ export const DEFAULT_PAY_GATEWAY_SETTINGS: PayGatewaySettings = {
   ttlMinutes: PAY_TTL_MINUTES,
   manualClaim: true,
   showHolderName: true,
+  activatedAt: null,
 }
 
 /** After the deadline the amount stays reserved this long for a late SMS. */
@@ -30,5 +37,6 @@ export function readPayGatewaySettings(value: unknown): PayGatewaySettings {
     ttlMinutes: PAY_TTL_MINUTES,
     manualClaim: typeof row.manualClaim === 'boolean' ? row.manualClaim : DEFAULT_PAY_GATEWAY_SETTINGS.manualClaim,
     showHolderName: typeof row.showHolderName === 'boolean' ? row.showHolderName : DEFAULT_PAY_GATEWAY_SETTINGS.showHolderName,
+    activatedAt: typeof row.activatedAt === 'string' ? row.activatedAt : null,
   }
 }

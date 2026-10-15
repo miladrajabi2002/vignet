@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { ArrowLeft, Check, Clock } from 'lucide-react'
+import { ArrowLeft, Check, Clock, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { BankCardFace } from '@/components/payments/bank-card'
@@ -42,10 +41,11 @@ const COPY: Record<GatewaySetupStep, { tab: [string, string]; title: [string, st
 }
 
 /**
- * The gateway's setup on the «پرداخت‌ها» tab: four steps, one at a time,
- * each doing its job in place (add the card, connect the phone, make the
- * test transfer, switch on). Done steps tick themselves from the server's
- * answer, and the wizard leaves the page once all four are done.
+ * The gateway's setup, the only thing on «درگاه پرداخت» until it is done:
+ * four steps in order, each doing its job in place (add the card, connect
+ * the phone, make the test transfer, switch on). A step opens only after
+ * the one before it; done steps tick themselves from the server's answer,
+ * and once all four are done the page turns into the gateway's tabs.
  */
 export function GatewaySetup({
 	done,
@@ -75,6 +75,8 @@ export function GatewaySetup({
 	const index = GATEWAY_SETUP_STEPS.indexOf(view)
 	const copy = COPY[view]
 	const activeCards = cards.filter((card) => card.active)
+	// Steps up to the first unfinished one are open; the rest wait their turn.
+	const reachable = (step: GatewaySetupStep) => GATEWAY_SETUP_STEPS.indexOf(step) <= GATEWAY_SETUP_STEPS.indexOf(current)
 	const doneCount = GATEWAY_SETUP_STEPS.filter((step) => done[step]).length
 
 	async function switchOn() {
@@ -83,7 +85,7 @@ export function GatewaySetup({
 		try {
 			const response = await fetch('/api/payments/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: true }) })
 			if (!response.ok) {
-				setError(fa ? 'روشن نشد؛ اول یک کارت فعال لازم است.' : 'Not switched on; an active card is needed first.')
+				setError(fa ? 'روشن نشد؛ اول سه قدم قبلی را کامل کنید.' : 'Not switched on; finish the three steps before it first.')
 				return
 			}
 			router.refresh()
@@ -98,7 +100,7 @@ export function GatewaySetup({
 		<section aria-labelledby="gateway-setup-title" className="spatial-surface overflow-hidden rounded-card shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)]">
 			<div className="px-4 pt-4 sm:px-5 sm:pt-5">
 				<h2 id="gateway-setup-title" className="text-lg font-bold text-[var(--text-primary)]">{fa ? 'راه‌اندازی درگاه پرداخت' : 'Set up the payment gateway'}</h2>
-				<p className="mt-0.5 text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'چهار قدم، حدود ۵ دقیقه. هر جا بمانید، دفعهٔ بعد از همان‌جا ادامه می‌دهید.' : 'Four steps, about 5 minutes. Wherever you stop, you pick up from there next time.'}</p>
+				<p className="mt-0.5 text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'چهار قدم پشت سر هم، حدود ۵ دقیقه. بخش‌های دیگر درگاه بعد از این چهار قدم باز می‌شوند؛ هر جا بمانید، دفعهٔ بعد از همان‌جا ادامه می‌دهید.' : 'Four steps in order, about 5 minutes. The gateway’s other sections open after them; wherever you stop, you pick up from there next time.'}</p>
 			</div>
 
 			{/* Desktop: the four steps as a rail. Phones: the current step and a bar. */}
@@ -106,17 +108,19 @@ export function GatewaySetup({
 				{GATEWAY_SETUP_STEPS.map((step, position) => {
 					const isDone = done[step]
 					const isView = view === step
+					const locked = !reachable(step)
 					return (
 						<li key={step}>
-							<button type="button" onClick={() => setView(step)} aria-current={isView ? 'step' : undefined} className="grid w-full gap-2 rounded-lg text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+							<button type="button" disabled={locked} onClick={() => setView(step)} aria-current={isView ? 'step' : undefined} title={locked ? (fa ? 'بعد از قدم قبلی باز می‌شود' : 'Opens after the step before it') : undefined} className="grid w-full gap-2 rounded-lg text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed">
 								<span className="h-1 overflow-hidden rounded-full bg-[var(--bg-muted)]">
 									<span className={cn('block h-full rounded-full transition-[width] duration-500', isDone ? 'w-full bg-emerald-600' : isView ? 'w-1/2 bg-[#5b3de8]' : 'w-0')} />
 								</span>
-								<span className={cn('flex items-center gap-2 text-[13px]', isDone || isView ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>
+								<span className={cn('flex items-center gap-2 text-[13px]', isDone || isView ? 'font-bold text-[var(--text-primary)]' : locked ? 'text-[var(--text-hint)]' : 'text-[var(--text-muted)]')}>
 									<span className={cn('grid size-6 shrink-0 place-items-center rounded-full border-[1.5px] text-[11.5px] font-bold', isDone ? 'border-emerald-600 bg-emerald-600 text-white' : isView ? 'border-[#5b3de8] bg-[#5b3de8] text-white shadow-[0_0_0_4px_#f1eeff] dark:shadow-[0_0_0_4px_rgba(91,61,232,.25)]' : 'border-[var(--border-strong)] bg-white dark:bg-neutral-900')}>
 										{isDone ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : (position + 1).toLocaleString(numbers)}
 									</span>
 									{COPY[step].tab[at]}
+									{locked ? <Lock className="size-3 text-[var(--text-hint)]" aria-hidden /> : null}
 									{isDone ? <span className="sr-only">{fa ? '(انجام شده)' : '(done)'}</span> : null}
 								</span>
 							</button>
@@ -148,7 +152,7 @@ export function GatewaySetup({
 						<BankCardFace bankKey={activeCards[0].bankKey} pan={`${activeCards[0].bin.slice(0, 4)} ${activeCards[0].bin.slice(4)}•• •••• ${activeCards[0].last4}`} holder={activeCards[0].holderName} lang={fa ? 'fa' : 'en'} size="sm" />
 						<div className="grid gap-2 text-[13px]">
 							<p className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-300"><Check className="size-4" aria-hidden />{fa ? `${activeCards.length.toLocaleString(numbers)} کارت فعال اضافه شده` : `${activeCards.length} active card(s) added`}</p>
-							<Link href="/payments/cards" className="ui-link w-fit">{fa ? 'افزودن یا مدیریت کارت‌ها' : 'Add or manage cards'}</Link>
+							<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'کارت‌های بیشتر را بعد از راه‌اندازی از بخش «کارت‌ها» اضافه کنید.' : 'Add more cards from «Cards» once setup is done.'}</p>
 						</div>
 					</div>
 				) : <CardsManager cards={[]} />)}
@@ -164,10 +168,10 @@ export function GatewaySetup({
 				{view === 'switch' && (
 					<div className="grid max-w-xl gap-3">
 						<div className={cn('flex items-center gap-4 rounded-2xl border p-4', done.switch ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/40' : 'border-[var(--border-default)] bg-white dark:bg-neutral-900')}>
-							<Switch checked={done.switch} pending={switching} disabled={switching || done.switch || !done.card || !platformEnabled} onChange={(next) => { if (next) void switchOn() }} aria-label={fa ? 'روشن کردن درگاه پرداخت' : 'Switch the payment gateway on'} />
+							<Switch checked={done.switch} pending={switching} disabled={switching || done.switch || !done.card || !done.phone || !done.test || !platformEnabled} onChange={(next) => { if (next) void switchOn() }} aria-label={fa ? 'روشن کردن درگاه پرداخت' : 'Switch the payment gateway on'} />
 							<div className="min-w-0">
 								<p className="text-[14px] font-bold text-[var(--text-primary)]">{done.switch ? (fa ? 'درگاه روشن است' : 'The gateway is on') : (fa ? 'درگاه پرداخت خاموش است' : 'The payment gateway is off')}</p>
-								<p className="text-[12.5px] text-[var(--text-muted)]">{!platformEnabled ? (fa ? 'درگاه موقتاً از طرف ویجنت در دسترس نیست.' : 'The gateway is temporarily unavailable.') : done.card ? (fa ? 'برای روشن کردن بزنید' : 'Tap to switch it on') : (fa ? 'اول یک کارت اضافه کنید' : 'Add a card first')}</p>
+								<p className="text-[12.5px] text-[var(--text-muted)]">{!platformEnabled ? (fa ? 'درگاه موقتاً از طرف ویجنت در دسترس نیست.' : 'The gateway is temporarily unavailable.') : done.card && done.phone && done.test ? (fa ? 'برای روشن کردن بزنید' : 'Tap to switch it on') : (fa ? 'اول سه قدم قبلی را کامل کنید' : 'Finish the three steps before it first')}</p>
 							</div>
 						</div>
 						<ul className="grid gap-1.5 text-[13px]">
@@ -179,18 +183,19 @@ export function GatewaySetup({
 								</li>
 							))}
 						</ul>
-						{!done.test && done.card ? <p className="text-[12.5px] leading-6 text-amber-800 dark:text-amber-200">{fa ? 'می‌توانید همین حالا روشنش کنید؛ ولی تا گوشی وصل نشود، پرداخت‌ها برای تأیید دستی به شما می‌رسند.' : 'You can switch it on now, but until the phone is connected payments come to you to confirm by hand.'}</p> : null}
 						{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
 					</div>
 				)}
 
 				<div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-4">
-					{index < 3 && (
-						<Button variant={done[view] ? 'primary' : 'ghost'} onClick={() => setView(GATEWAY_SETUP_STEPS[index + 1])}>
-							{done[view] ? (fa ? `قدم بعد: ${COPY[GATEWAY_SETUP_STEPS[index + 1]].tab[0]}` : `Next: ${COPY[GATEWAY_SETUP_STEPS[index + 1]].tab[1]}`) : (fa ? 'فعلاً رد شو' : 'Skip for now')}
+					{index < 3 && (done[view] ? (
+						<Button onClick={() => setView(GATEWAY_SETUP_STEPS[index + 1])}>
+							{fa ? `قدم بعد: ${COPY[GATEWAY_SETUP_STEPS[index + 1]].tab[0]}` : `Next: ${COPY[GATEWAY_SETUP_STEPS[index + 1]].tab[1]}`}
 							<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden />
 						</Button>
-					)}
+					) : (
+						<p className="flex items-center gap-1.5 text-[12.5px] text-[var(--text-muted)]"><Lock className="size-3.5" aria-hidden />{fa ? 'قدم بعد وقتی باز می‌شود که این قدم کامل شود.' : 'The next step opens once this one is done.'}</p>
+					))}
 					{index > 0 && <Button variant="ghost" onClick={() => setView(GATEWAY_SETUP_STEPS[index - 1])}>{fa ? 'قبلی' : 'Back'}</Button>}
 				</div>
 			</div>

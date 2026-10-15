@@ -47,7 +47,11 @@ export function BankCardFace({
 				'--bank-deep': bank.colors[0],
 				'--bank-light': bank.colors[1],
 				background: 'radial-gradient(120% 90% at 0% 0%, rgba(255,255,255,.16), transparent 55%), linear-gradient(135deg, var(--bank-light), var(--bank-deep) 85%)',
-				boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), 0 2px 4px rgba(0,0,0,.06), 0 20px 36px -22px var(--bank-deep)',
+				// A tight neutral lift: a bank-coloured glow smeared under the card
+				// wherever it sat inside a bubble or an animated chat.
+				boxShadow: small
+					? 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(17,17,17,.12)'
+					: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(17,17,17,.1), 0 8px 18px -12px rgba(17,17,17,.35)',
 			} as CSSProperties}
 		>
 			{/* The Shetab arrow sits on the left edge of every Iranian card, whatever the language. */}

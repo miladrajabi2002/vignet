@@ -25,7 +25,7 @@ const COPY = {
 		learnEdit: 'ویرایش',
 		learnDone: 'از این به بعد ایجنت این را می‌داند',
 		sellTitle: 'خرید کامل داخل گفتگو',
-		sellBody: 'ایجنت محصول معرفی می‌کند و سبد می‌چیند؛ مشتری روی سایت خودتان و با درگاه‌های خودتان پرداخت می‌کند و سفارش مستقیم در ووکامرس ثبت می‌شود. سایت ندارید؟ درگاه کارت‌به‌کارت خودکار ویجنت واریز را از روی پیامک بانک خودتان تأیید می‌کند؛ بدون اینماد و کد مالیاتی.',
+		sellBody: 'ایجنت محصول معرفی می‌کند و سبد می‌چیند؛ مشتری روی سایت و درگاه خودتان پرداخت می‌کند و سفارش در ووکامرس ثبت می‌شود. سایت ندارید؟ درگاه کارت‌به‌کارت ویجنت واریز را از پیامک بانک تأیید می‌کند؛ بدون اینماد.',
 		sellCart: 'سبد شما',
 		sellItem: 'میز TV آرتا · گردویی',
 		sellItemPrice: '۶٬۹۰۰٬۰۰۰',
@@ -117,7 +117,7 @@ repBody: 'نرخ حل گفتگو، رضایت، سهم هر اتصال و هزی
 		learnEdit: 'Edit',
 		learnDone: 'From now on the agent knows this',
 		sellTitle: 'Checkout inside the chat',
-		sellBody: 'The agent recommends products and builds the cart; the customer pays on your own site with your own gateways, and the order lands straight in WooCommerce. No website? Vigent’s automatic card-to-card gateway confirms the transfer from your own bank SMS — no Enamad or tax code.',
+		sellBody: 'The agent recommends products and builds the cart; the customer pays on your own site and gateway, and the order lands in WooCommerce. No website? Vigent’s card-to-card gateway confirms the transfer from your bank SMS — no Enamad.',
 		sellCart: 'Your cart',
 		sellItem: 'Arta TV stand · walnut',
 		sellItemPrice: '6,900,000',
@@ -342,7 +342,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 
 				{/* Desktop: a bento where each card shows the capability working. */}
 				<div className="vg-anim vg-rv-group mt-12 hidden grid-cols-12 gap-4 lg:grid">
-					<article className={cn(bento, 'col-span-7 h-[420px] flex-row gap-7')}>
+					<article className={cn(bento, 'col-span-7 min-h-[420px] flex-row gap-7')}>
 						<div className="flex w-[250px] shrink-0 flex-col">
 							<span aria-hidden className="inline-flex size-11 items-center justify-center rounded-control bg-vg-ink text-white"><BookOpen className="size-5" strokeWidth={1.8} /></span>
 							<h3 className="mt-[18px] text-[22px] font-bold leading-[1.6]">{c.learnTitle}</h3>
@@ -360,7 +360,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						</div>
 					</article>
 
-					<article className={cn(bento, 'col-span-5 h-[420px]')}>
+					<article className={cn(bento, 'col-span-5 min-h-[420px]')}>
 						<div className="flex items-center justify-between">
 							<span aria-hidden className="inline-flex size-11 items-center justify-center rounded-control bg-vg-ink text-white"><ShoppingCart className="size-5" strokeWidth={1.8} /></span>
 							<span className="rounded-full bg-vg-signal px-2 py-[3px] text-[12px] text-white">{c.preNew}</span>
@@ -368,7 +368,7 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 						<h3 className="mt-[18px] text-[22px] font-bold">{c.sellTitle}</h3>
 						<p className="mt-2 text-[15px] leading-[1.95] text-vg-sub">{c.sellBody}</p>
 						{/* Cart → payment link → paid on the store's own gateway → WooCommerce order, on the sq clock. */}
-						<div aria-hidden className="mt-auto flex flex-col gap-2">
+						<div aria-hidden className="mt-auto flex flex-col gap-2 pt-4">
 							<div className="vg-sq1 flex flex-col gap-1.5 rounded-card bg-vg-bg p-3 text-[12px]">
 								<div className="flex items-center justify-between">
 									<span className="inline-flex items-center gap-1.5 font-bold"><ShoppingCart className="size-3.5" strokeWidth={2} />{c.sellCart}</span>
@@ -381,8 +381,8 @@ export function Capabilities({ locale }: { locale: SiteLocale }) {
 									<span className="vg-sheen-x absolute inset-y-0 w-1/3 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)]" />
 								</div>
 							</div>
-							<div className="flex items-center gap-2">
-								<span className="vg-sq3 inline-flex h-7 items-center gap-1.5 rounded-full bg-[#dcfce7] px-2.5 text-[12px] font-medium text-[#166534]"><Check className="size-3.5" strokeWidth={2.4} />{c.sellPaid}</span>
+							<div className="flex min-w-0 items-center gap-2">
+								<span className="vg-sq3 inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#dcfce7] px-2.5 text-[12px] font-medium text-[#166534]"><Check className="size-3.5" strokeWidth={2.4} />{c.sellPaid}</span>
 								<span className="vg-sq4 inline-flex h-7 min-w-0 items-center gap-1.5 truncate rounded-full bg-vg-tint px-2.5 text-[12px] font-medium text-[#4c2fd0]"><PackageCheck className="size-3.5 shrink-0" strokeWidth={2} /><span className="truncate">{c.sellOrder}</span></span>
 							</div>
 						</div>

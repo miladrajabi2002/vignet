@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { BadgeCheck, Plus, Trash2 } from 'lucide-react'
+import { BadgeCheck, CreditCard, Eye, MessageSquareText, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { StatusChip } from '@/components/ui/status-chip'
-import { BankCardFace } from '@/components/payments/bank-card'
+import { BankCardFace, BankMark } from '@/components/payments/bank-card'
 import { formatPan, inspectCard } from '@/lib/payments/card/bins'
 import { toEnglishDigits } from '@/lib/phone'
 import type { GatewayCardRow } from '@/lib/payments/card/dashboard'
@@ -109,29 +109,51 @@ export function CardsManager({ cards }: { cards: GatewayCardRow[] }) {
 			{!open ? (
 				<Button variant="outline" onClick={() => setOpen(true)}><Plus className="size-4" aria-hidden />{fa ? 'افزودن کارت' : 'Add a card'}</Button>
 			) : (
-				<form onSubmit={add} className="spatial-surface grid gap-5 rounded-card p-4 sm:p-5 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-start">
-					<div className="mx-auto w-full max-w-[20rem]">
-						<BankCardFace bankKey={info.bank?.key ?? 'unknown'} pan={info.digits.length === 16 ? info.digits : (formatPan(info.digits) || '•••• •••• •••• ••••')} holder={holder.trim() || (fa ? 'نام صاحب کارت' : 'Cardholder name')} lang={fa ? 'fa' : 'en'} />
-					</div>
-					<div className="grid gap-3.5">
-						<div>
-							<h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'کارت تازه' : 'New card'}</h2>
-							<p className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{fa ? 'کارتی را بدهید که پیامک واریزش به گوشی خودتان می‌آید. بانک از روی شماره شناخته می‌شود.' : 'Use a card whose deposit SMS comes to your own phone. The bank is recognised from the number.'}</p>
+				<form onSubmit={add} className="spatial-surface overflow-hidden rounded-card">
+					<div className="flex items-start gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
+						<span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><CreditCard className="size-[18px]" /></span>
+						<div className="min-w-0">
+							<h2 className="text-[15px] font-bold text-[var(--text-primary)]">{cards.length ? (fa ? 'کارت تازه' : 'New card') : (fa ? 'کارت مقصد' : 'Destination card')}</h2>
+							<p className="text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'کارتی را بدهید که پیامک واریزش به گوشی خودتان می‌آید.' : 'Use a card whose deposit SMS comes to your own phone.'}</p>
 						</div>
-						<label className="block">
-							<span className="ui-field-label">{fa ? 'شماره کارت' : 'Card number'}</span>
-							<input id="pay-card-pan" dir="ltr" inputMode="numeric" autoComplete="off" className="input mt-1.5 font-mono tracking-wider" placeholder="6037 9975 0000 0000" value={pan} onChange={(event) => setPan(formatPan(toEnglishDigits(event.target.value).replace(/\D/g, '').slice(0, 16)))} />
-							<span className="mt-1.5 block"><StatusChip tone={hint[info.state].tone}>{hint[info.state].text}</StatusChip></span>
-						</label>
-						<label className="block">
-							<span className="ui-field-label">{fa ? 'نام صاحب کارت' : 'Cardholder name'}</span>
-							<input id="pay-card-holder" className="input mt-1.5" value={holder} onChange={(event) => setHolder(event.target.value)} maxLength={80} placeholder={fa ? 'همان‌طور که روی کارت نوشته شده' : 'As written on the card'} />
-							<span className="ui-field-hint">{fa ? 'مشتری پیش از واریز همین نام را در همراه‌بانک خودش می‌بیند.' : 'The customer sees this name in their own bank app before transferring.'}</span>
-						</label>
-						{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
-						<div className="flex flex-wrap gap-2">
-							<Button type="submit" loading={adding} disabled={!canAdd}>{fa ? 'افزودن کارت' : 'Add card'}</Button>
-							{cards.length > 0 && <Button variant="ghost" onClick={() => setOpen(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>}
+					</div>
+					<div className="grid gap-5 p-4 sm:p-5 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:gap-7">
+						{/* The card as the customer will see it, and what is (and is not) asked. */}
+						<div className="mx-auto grid w-full max-w-[19rem] content-start gap-3">
+							<BankCardFace bankKey={info.bank?.key ?? 'unknown'} pan={info.digits.length === 16 ? info.digits : (formatPan(info.digits) || '•••• •••• •••• ••••')} holder={holder.trim() || (fa ? 'نام صاحب کارت' : 'Cardholder name')} lang={fa ? 'fa' : 'en'} />
+							<ul className="hidden gap-2.5 rounded-2xl bg-[var(--bg-surface)] p-3.5 text-[12.5px] leading-6 text-[var(--text-secondary)] md:grid">
+								{[
+									{ icon: ShieldCheck, text: fa ? 'فقط شماره و نام؛ رمز، CVV2 و تاریخ انقضا هیچ‌وقت لازم نیست.' : 'Only the number and name; never a PIN, CVV2 or expiry date.' },
+									{ icon: Eye, text: fa ? 'مشتری کارت را فقط بعد از تأیید سفارش و همراه مبلغ دقیق می‌بیند.' : 'A customer sees the card only after an order is confirmed, with the exact amount.' },
+									{ icon: MessageSquareText, text: fa ? 'پیامک واریز همین کارت، پرداخت را خودکار تأیید می‌کند.' : 'This card’s deposit SMS confirms the payment automatically.' },
+								].map((row) => (
+									<li key={row.text} className="flex items-start gap-2.5">
+										<row.icon className="mt-1 size-4 shrink-0 text-[var(--text-muted)]" aria-hidden />
+										<span>{row.text}</span>
+									</li>
+								))}
+							</ul>
+						</div>
+						<div className="grid content-start gap-4">
+							<label className="block">
+								<span className="ui-field-label">{fa ? 'شماره کارت' : 'Card number'}</span>
+								<input id="pay-card-pan" dir="ltr" inputMode="numeric" autoComplete="off" className="input mt-1.5 font-mono tracking-wider" placeholder="6037 9975 0000 0000" value={pan} onChange={(event) => setPan(formatPan(toEnglishDigits(event.target.value).replace(/\D/g, '').slice(0, 16)))} />
+								<span className="mt-1.5 flex items-center gap-2">
+									{info.bank && info.state !== 'empty' ? <BankMark bankKey={info.bank.key} size={20} /> : null}
+									<StatusChip tone={hint[info.state].tone}>{hint[info.state].text}</StatusChip>
+								</span>
+							</label>
+							<label className="block">
+								<span className="ui-field-label">{fa ? 'نام صاحب کارت' : 'Cardholder name'}</span>
+								<input id="pay-card-holder" className="input mt-1.5" value={holder} onChange={(event) => setHolder(event.target.value)} maxLength={80} placeholder={fa ? 'همان‌طور که روی کارت نوشته شده' : 'As written on the card'} />
+								<span className="ui-field-hint">{fa ? 'مشتری پیش از واریز همین نام را در همراه‌بانک خودش می‌بیند.' : 'The customer sees this name in their own bank app before transferring.'}</span>
+							</label>
+							{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+							<div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-4">
+								<Button type="submit" loading={adding} disabled={!canAdd}><Plus className="size-4" aria-hidden />{fa ? 'افزودن کارت' : 'Add card'}</Button>
+								{cards.length > 0 && <Button variant="ghost" onClick={() => setOpen(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>}
+								<span className="ms-auto inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] md:hidden"><ShieldCheck className="size-3.5" aria-hidden />{fa ? 'رمز و CVV2 لازم نیست' : 'No PIN or CVV2 needed'}</span>
+							</div>
 						</div>
 					</div>
 				</form>

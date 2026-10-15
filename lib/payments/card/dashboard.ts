@@ -7,6 +7,7 @@ import { deviceUrl } from '@/lib/payments/card/ingest'
 import { getGatewayUsage, getPlatformGatewaySettings, type GatewayUsage } from '@/lib/payments/card/platform'
 import { readPayGatewaySettings, type PayGatewaySettings } from '@/lib/payments/card/settings'
 import { receivedTodayByCard } from '@/lib/payments/card/service'
+import { gatewaySetupState } from '@/lib/payments/card/setup'
 
 export interface GatewayCardRow {
   id: string
@@ -59,10 +60,14 @@ export interface GatewayOverview {
   counts: { review: number; unmatched: number; pending: number }
   /** Paused by the platform admin; the owner sees why. */
   suspended: { reason: string | null } | null
+  /** The four setup steps were finished once: the dashboard shows its tabs. */
+  activated: boolean
+  /** When that happened (ISO), for the one-time «it's live» note. */
+  activatedAt: string | null
 }
 
 export async function loadGatewayOverview(workspaceId: string): Promise<GatewayOverview> {
-  const [workspace, platform, cards, devices, agents, received, review, unmatched, pending] = await Promise.all([
+  const [workspace, platform, cards, devices, agents, received, review, unmatched, pending, realPayment] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true, payGatewaySuspendedAt: true, payGatewaySuspendReason: true, payGatewayCapOverride: true } }),
     getPlatformGatewaySettings(),
     prisma.payCard.findMany({ where: { workspaceId, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
@@ -72,6 +77,7 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED' } }),
     prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
     prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING' } }),
+    prisma.cardPayment.findFirst({ where: { workspaceId, NOT: { reference: { startsWith: 'TEST-' } } }, select: { id: true } }),
   ])
   const usage = await getGatewayUsage(workspaceId, workspace.plan, workspace.payGatewayCapOverride)
   const cardRows: GatewayCardRow[] = cards.map((card) => ({
@@ -97,11 +103,25 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     verifiedAt: device.verifiedAt?.toISOString() ?? null,
     lastSmsAt: device.lastSmsAt?.toISOString() ?? null,
   }))
+  const settings = readPayGatewaySettings(workspace.payGatewaySettings)
+  // Activation is remembered the first time all four steps are done (or,
+  // for a business that set up before the steps were required, once it has
+  // a real payment), so a card or phone removed later never hides the tabs.
+  let activatedAt = settings.activatedAt
+  if (!activatedAt) {
+    const setup = gatewaySetupState({ cards: cardRows, devices: deviceRows, enabled: workspace.payGatewayEnabled, platformEnabled: platform.enabled })
+    if (setup.complete || realPayment) {
+      activatedAt = new Date().toISOString()
+      await prisma.workspace.update({ where: { id: workspaceId }, data: { payGatewaySettings: { ...settings, activatedAt } } }).catch(() => null)
+    }
+  }
   return {
     enabled: workspace.payGatewayEnabled,
     platformEnabled: platform.enabled,
     suspended: workspace.payGatewaySuspendedAt ? { reason: workspace.payGatewaySuspendReason } : null,
-    settings: readPayGatewaySettings(workspace.payGatewaySettings),
+    activated: Boolean(activatedAt),
+    activatedAt,
+    settings: { ...settings, activatedAt },
     cards: cardRows,
     devices: deviceRows,
     agents,

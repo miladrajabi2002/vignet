@@ -10,8 +10,6 @@ import { BankMark } from '@/components/payments/bank-card'
 import { PaymentsShell } from '@/components/payments/payments-shell'
 import { PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
 import { NewLinkForm } from '@/components/payments/new-link-form'
-import { GatewaySetup } from '@/components/payments/gateway-setup'
-import { gatewaySetupState } from '@/lib/payments/card/setup'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
 import { suggestPaymentsForSms } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
@@ -37,8 +35,11 @@ export default async function PaymentsPage() {
   const time = new Intl.DateTimeFormat(dateLocaleTag(locale), { dateStyle: 'medium', timeStyle: 'short' })
   const dayStart = new Date(Date.now() - 24 * 3_600_000)
 
-  const [overview, payments, unmatched, paidToday, autoCount, paidCount] = await Promise.all([
-    loadGatewayOverview(user.workspaceId),
+  const overview = await loadGatewayOverview(user.workspaceId)
+  // Until the gateway is set up once, the page is the setup and nothing else.
+  if (!overview.activated) return <PaymentsShell active="payments" overview={overview} locale={locale} />
+
+  const [payments, unmatched, paidToday, autoCount, paidCount] = await Promise.all([
     prisma.cardPayment.findMany({
       where: { workspaceId: user.workspaceId, NOT: { reference: { startsWith: 'TEST-' }, status: { in: ['EXPIRED', 'CANCELLED'] } } },
       orderBy: [{ createdAt: 'desc' }],
@@ -54,7 +55,6 @@ export default async function PaymentsPage() {
   const review = payments.filter((payment) => payment.status === 'CLAIMED')
   const rest = payments.filter((payment) => payment.status !== 'CLAIMED')
   const hasCard = overview.cards.some((card) => card.active)
-  const setup = gatewaySetupState(overview)
   const cap = overview.usage.cap
   const tiles = [
     { label: fa ? 'دریافتی ۲۴ ساعت اخیر' : 'Received in 24 hours', icon: TrendingUp, tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300', value: (paidToday._sum.baseAmount ?? 0).toLocaleString(numbers), unit: fa ? 'تومان' : 'Toman', hint: paidToday._count ? (fa ? `${paidToday._count.toLocaleString(numbers)} پرداخت` : `${paidToday._count} payments`) : (fa ? 'هنوز پرداختی نیامده' : 'No payment yet'), bar: null },
@@ -64,17 +64,6 @@ export default async function PaymentsPage() {
 
   return (
     <PaymentsShell active="payments" overview={overview} locale={locale}>
-      {setup.current ? (
-        <GatewaySetup
-          done={setup.done}
-          current={setup.current}
-          cards={overview.cards}
-          devices={overview.devices}
-          inboundLines={overview.inboundLines}
-          platformEnabled={overview.platformEnabled}
-        />
-      ) : null}
-
       {/* Three tiles side by side on every width; phones get the compact type. */}
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
         {tiles.map((tile) => {
