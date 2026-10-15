@@ -8,18 +8,11 @@ import { bankByKey } from '@/lib/payments/card/bins'
 import type { GatewayWeek } from '@/lib/payments/card/dashboard'
 import { cn } from '@/lib/utils'
 
-const TICK_MS = 3600
-const DROP_MS = 700
-const SWAP_MS = 750
-
 /**
  * The payment gateway's place in the overview flow, once it is live: the
  * active cards stacked right under the agent, what they took in over seven
- * days beside them, and each card's own week and daily cap underneath.
- *
- * Motion replays the latest real payments: a coin drops from the agent, the
- * card it went to comes to the front and catches it. It plays only on screen
- * and never with reduced motion; the resting frame is complete without it.
+ * days beside them, and the front card's own week and daily cap next to it.
+ * The cards stay still; the card the latest payment reached is in front.
  */
 export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'en'; data: GatewayWeek; conversations: number }) {
 	const fa = locale === 'fa'
@@ -31,17 +24,9 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 
 	const cards = data.cards
 	const recent = data.recent.filter((payment) => cards.some((card) => card.id === payment.cardId))
-	const firstFront = Math.max(0, cards.findIndex((card) => card.id === recent[0]?.cardId))
+	const front = Math.max(0, cards.findIndex((card) => card.id === recent[0]?.cardId))
 
 	const root = useRef<HTMLDivElement>(null)
-	const coin = useRef<HTMLSpanElement>(null)
-	const faces = useRef<(HTMLDivElement | null)[]>([])
-	const plus = useRef<HTMLSpanElement>(null)
-	const [front, setFront] = useState(firstFront)
-	const frontRef = useRef(firstFront)
-	const [leaving, setLeaving] = useState<number | null>(null)
-	const [shown, setShown] = useState(0)
-	const [gain, setGain] = useState<number | null>(null)
 	const [now, setNow] = useState<number | null>(null)
 	const [total, setTotal] = useState(data.amount)
 
@@ -55,17 +40,7 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 	useEffect(() => {
 		const node = root.current
 		if (!node || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-		let visible = false
-		let tick = 0
 		let frame = 0
-		const timers = new Set<ReturnType<typeof setTimeout>>()
-		const later = (ms: number, fn: () => void) => {
-			const timer = setTimeout(() => { timers.delete(timer); fn() }, ms)
-			timers.add(timer)
-		}
-		const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting }, { threshold: 0.3 })
-		observer.observe(node)
-
 		// The week's total counts up once, the first time it is seen.
 		const counter = new IntersectionObserver(([entry]) => {
 			if (!entry.isIntersecting || !data.amount) return
@@ -82,53 +57,8 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 		}, { threshold: 0.3 })
 		counter.observe(node)
 
-		const land = (index: number, cardIndex: number) => {
-			const face = faces.current[cardIndex]
-			face?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.045)', offset: 0.3 }, { transform: 'scale(1)' }], { duration: 700, easing: 'cubic-bezier(.2,1.4,.4,1)' })
-			face?.querySelector('.gd-shine')?.animate([{ transform: 'translateX(-130%)' }, { transform: 'translateX(130%)' }], { duration: 900, easing: 'ease-out' })
-			setGain(recent[index].amount)
-			setShown(index)
-			plus.current?.animate(
-				[
-					{ opacity: 0, transform: 'translate(-50%, 8px) scale(.9)' },
-					{ opacity: 1, transform: 'translate(-50%, -14px) scale(1)', offset: 0.15 },
-					{ opacity: 1, transform: 'translate(-50%, -22px)', offset: 0.7 },
-					{ opacity: 0, transform: 'translate(-50%, -32px)' },
-				],
-				{ duration: 1600, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'forwards' },
-			)
-		}
-
-		const interval = setInterval(() => {
-			if (!visible || document.hidden || !recent.length) return
-			const index = tick++ % recent.length
-			const cardIndex = cards.findIndex((card) => card.id === recent[index].cardId)
-			const dropping = Boolean(coin.current?.offsetParent)
-			if (dropping) {
-				coin.current!.animate(
-					[
-						{ opacity: 0, transform: 'translateY(0) scale(.7)' },
-						{ opacity: 1, offset: 0.2 },
-						{ opacity: 1, transform: 'translateY(72px) scale(.55)' },
-					],
-					{ duration: DROP_MS + 50, easing: 'cubic-bezier(.55,0,.9,.45)' },
-				)
-			}
-			later(dropping ? DROP_MS : 0, () => {
-				const current = frontRef.current
-				if (current === cardIndex) return land(index, cardIndex)
-				frontRef.current = cardIndex
-				setLeaving(current)
-				setFront(cardIndex)
-				later(SWAP_MS, () => { setLeaving(null); land(index, cardIndex) })
-			})
-		}, TICK_MS)
-
 		return () => {
-			clearInterval(interval)
-			timers.forEach(clearTimeout)
 			cancelAnimationFrame(frame)
-			observer.disconnect()
 			counter.disconnect()
 		}
 		// The data is server-rendered once per page load.
@@ -139,7 +69,7 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 	const top = Math.max(1, ...data.daily)
 	const weekday = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { weekday: 'narrow', timeZone: 'Asia/Tehran' })
 	const dayLabel = (index: number) => (index === 6 ? (fa ? 'امروز' : 'Today') : weekday.format(new Date(Date.now() - (6 - index) * 86_400_000)))
-	const latest = recent[shown]
+	const latest = recent[0]
 	const relative = new Intl.RelativeTimeFormat(fa ? 'fa' : 'en', { numeric: 'auto' })
 	const ago = (iso: string) => {
 		if (now === null) return null
@@ -154,7 +84,6 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 	return (
 		<div ref={root} className="gd" dir={fa ? 'rtl' : 'ltr'}>
 			<span aria-hidden className="gd-drop hidden sm:block" />
-			{recent.length ? <span ref={coin} aria-hidden className="gd-coin hidden sm:block" /> : null}
 
 			<div className="gd-grid">
 				{/* What the gateway took in over the week. */}
@@ -173,35 +102,31 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 					)}
 				</div>
 
-				{/* The active cards, the one the latest payment reached in front. */}
+				{/* The active cards, the one the latest payment reached in front, its numbers beside it. */}
 				<div className="gd-cards">
 					{cards.length ? (
 						<>
+							<CardCaption fa={fa} card={showcase} million={million} />
 							<div className="gd-stack">
 								{data.review > 0 ? (
 									<Link href="/payments" className="gd-badge">{fa ? `${nf.format(data.review)} واریز منتظر تأیید` : `${nf.format(data.review)} to review`}</Link>
 								) : null}
-								<span ref={plus} aria-hidden className="gd-plus">
-									{gain !== null ? <><span dir="ltr">+{nf.format(gain)}</span> {toman}</> : null}
-								</span>
 								{cards.map((card, index) => {
 									const depth = (index - front + cards.length) % cards.length
 									return (
 										<div
 											key={card.id}
-											className={cn('gd-card', leaving === index && 'gd-card-out')}
+											className="gd-card"
 											aria-hidden={depth > 0}
-											style={{ '--gd-ty': `${-11 * Math.min(depth, 2)}px`, '--gd-sc': 1 - 0.06 * Math.min(depth, 2), zIndex: leaving === index ? undefined : cards.length - depth, opacity: depth > 2 ? 0 : 1, filter: depth ? 'brightness(.88) saturate(.85)' : undefined } as CSSProperties}
+											style={{ '--gd-ty': `${-11 * Math.min(depth, 2)}px`, '--gd-sc': 1 - 0.06 * Math.min(depth, 2), zIndex: cards.length - depth, opacity: depth > 2 ? 0 : 1, filter: depth ? 'brightness(.88) saturate(.85)' : undefined } as CSSProperties}
 										>
-											<div ref={(node) => { faces.current[index] = node }} className="relative overflow-hidden rounded-[20px]">
+											<div className="overflow-hidden rounded-[20px]">
 												<BankCardFace bankKey={card.bankKey} pan={card.pan} holder={card.holder} lang={locale} />
-												<span aria-hidden className="gd-shine" />
 											</div>
 										</div>
 									)
 								})}
 							</div>
-							<CardCaption fa={fa} card={showcase} million={million} />
 						</>
 					) : (
 						<Link href="/payments" className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-1.5 rounded-[20px] border border-dashed border-[var(--signal-border)] bg-[var(--signal-soft)] text-[13px] font-bold text-[var(--signal-strong)]">
@@ -225,7 +150,7 @@ export function GatewayDock({ locale, data, conversations }: { locale: 'fa' | 'e
 						))}
 					</div>
 					{latest ? (
-						<p key={shown} className="gd-last">
+						<p className="gd-last">
 							{fa ? 'آخرین:' : 'Latest:'} <b className="font-bold tabular-nums text-[var(--text-primary)]">{nf.format(latest.amount)}</b> {toman} · {what(latest.purpose, latest.reference)}
 							{ago(latest.paidAt) ? <> · {ago(latest.paidAt)}</> : null}
 						</p>
@@ -245,7 +170,7 @@ function CardCaption({ fa, card, million }: { fa: boolean; card: GatewayWeek['ca
 	const bank = bankByKey(card.bankKey)
 	const share = card.dailyCap ? Math.min(100, (card.today / card.dailyCap) * 100) : 0
 	return (
-		<div key={card.id} className="gd-caption">
+		<div className="gd-caption">
 			<div className="flex items-center justify-between gap-2">
 				<span className="truncate">{fa ? bank.fa : bank.en} · {fa ? '۷ روز' : '7 days'}</span>
 				<b className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--text-primary)]">{million(card.week)}</b>
