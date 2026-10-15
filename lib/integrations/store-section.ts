@@ -22,7 +22,7 @@ export async function loadStoreSection(workspaceId: string) {
         take: 100,
         select: { id: true, direction: true, entity: true, outcome: true, count: true, message: true, createdAt: true },
       },
-      _count: { select: { orders: { where: { deletedAt: null } }, syncLogs: true } },
+      _count: { select: { orders: { where: { deletedAt: null } }, syncLogs: true, products: true } },
     },
   })
 
@@ -64,7 +64,7 @@ export async function loadStoreSection(workspaceId: string) {
     lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
     lastSyncStatus: row.lastSyncStatus,
     lastSyncError: row.lastSyncError,
-    _count: { orders: row._count.orders, syncLogs: row._count.syncLogs },
+    _count: { orders: row._count.orders, syncLogs: row._count.syncLogs, products: row._count.products },
     syncLogs: row.syncLogs.map((log) => ({
       id: log.id,
       direction: log.direction,

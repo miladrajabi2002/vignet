@@ -1,5 +1,6 @@
 import { channelLabel } from '@/components/crm/channel-badge'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import { getLocale, getTranslations } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
 import {
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { ChannelMark } from '@/components/ui/channel-mark'
+import { WOO_LINK_CARD, WOO_TINT } from '@/components/integrations/woo-styles'
 import { StatusChip } from '@/components/ui/status-chip'
 import { prisma } from '@/lib/prisma'
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -66,9 +68,9 @@ export default async function IntegrationsPage() {
 
                         <Link
                                 href="/store"
-                                className="spatial-surface group flex flex-wrap items-center gap-4 rounded-card p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-hover)] sm:p-5"
+                                className={cn(WOO_LINK_CARD, 'group flex flex-wrap items-center gap-4 p-4 sm:p-5')}
                         >
-                                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
+                                <span className={cn('grid size-11 shrink-0 place-items-center rounded-xl', WOO_TINT)}>
                                         <Store className="h-5 w-5" />
                                 </span>
                                 <span className="min-w-0 flex-1">
@@ -82,8 +84,8 @@ export default async function IntegrationsPage() {
                                                         : (locale === 'fa' ? 'محصولات و سفارش‌های سایت وردپرسی را با افزونهٔ ویجنت وصل کنید.' : 'Connect your WordPress store’s products and orders with the Vigent plugin.')}
                                         </span>
                                 </span>
-                                <StatusChip tone={!store ? 'neutral' : !store.active ? 'neutral' : store.lastSyncError ? 'warn' : 'ok'} dot={Boolean(store?.active)}>
-                                        {!store ? t('notConnected') : !store.active ? (locale === 'fa' ? 'خاموش' : 'Paused') : store.lastSyncError ? (locale === 'fa' ? 'وصل · خطای همگام‌سازی' : 'Connected · sync error') : t('connected')}
+                                <StatusChip tone={!store ? 'neutral' : !store.active ? 'neutral' : store.lastSyncError ? 'danger' : 'ok'} dot={Boolean(store?.active)}>
+                                        {!store ? t('notConnected') : !store.active ? (locale === 'fa' ? 'متوقف' : 'Paused') : store.lastSyncError ? (locale === 'fa' ? 'خطای همگام‌سازی' : 'Sync error') : t('connected')}
                                 </StatusChip>
                                 <ArrowRight className="h-4 w-4 text-[var(--text-muted)] rtl:rotate-180" />
                         </Link>

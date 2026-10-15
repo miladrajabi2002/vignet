@@ -8,6 +8,7 @@ import { StoreIntegrationsSection } from '@/components/integrations/store-integr
 import { StoreAccessPrompt } from '@/components/agents/store-access-prompt'
 import { AgentStoreAccess } from '@/components/agents/agent-store-access'
 import { loadStoreSection } from '@/lib/integrations/store-section'
+import { StatusChip } from '@/components/ui/status-chip'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,15 +27,29 @@ export default async function StorePage() {
   ])
   const primaryAgent = agents[0] ?? null
   const connected = section.integrations.some((integration) => integration.type === 'WOOCOMMERCE')
+  const store = section.integrations[0] ?? null
+  const storeLive = store ? Boolean(store.connectedAt || store.lastWebhookAt || store.lastSyncAt) : false
+  const storeHost = store ? store.storeUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '') : null
+  // The header answers "is my store connected?" before anything else.
+  const headerChip = !store ? null : !store.active
+    ? <StatusChip tone="neutral">{fa ? 'متوقف' : 'Paused'}</StatusChip>
+    : !storeLive
+      ? <StatusChip tone="neutral" dot>{fa ? 'منتظر افزونه' : 'Waiting'}</StatusChip>
+      : store.lastSyncStatus === 'error'
+        ? <StatusChip tone="danger" dot>{fa ? 'خطای همگام‌سازی' : 'Sync error'}</StatusChip>
+        : <StatusChip tone="ok" dot>{fa ? 'متصل' : 'Connected'}</StatusChip>
 
   return (
-    <div className="mx-auto max-w-none space-y-6">
+    <div className="mx-auto max-w-none space-y-5 sm:space-y-6">
       <PageHeader
         icon={Store}
         title={fa ? 'ووکامرس' : 'WooCommerce'}
-        subtitle={fa
-          ? 'اتصال سایت، همگام‌سازی محصول و سفارش، و فروش در گفتگو؛ همه در همین صفحه.'
-          : 'The store connection, product and order sync, and in-chat selling — all on this page.'}
+        subtitle={storeHost
+          ? <><span dir="ltr">{storeHost}</span>{fa ? ' · اتصال، همگام‌سازی و فروش در گفتگو' : ' · connection, sync and in-chat selling'}</>
+          : (fa ? 'اتصال، همگام‌سازی محصول و سفارش، و فروش در گفتگو' : 'Connection, product and order sync, and in-chat selling')}
+        actions={headerChip}
+        // The store's own colour on the tab icon; phones drop the tile so the title keeps its width.
+        className="[&_.page-header-icon]:border-[rgba(127,84,179,0.2)] [&_.page-header-icon]:bg-[#f2edf9] [&_.page-header-icon]:text-[#7f54b3] max-sm:[&_.page-header-icon]:hidden"
       />
 
       {/* A connected store whose access the owner has not chosen yet. */}

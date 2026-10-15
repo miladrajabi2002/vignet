@@ -1,49 +1,56 @@
 'use client'
 
 import { useLocale } from 'next-intl'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
     Plus,
     Loader2,
     RefreshCw,
-    Trash2,
     CheckCircle2,
     AlertCircle,
     X,
-    Globe,
-    Download,
-    Package,
-    ShieldCheck,
-    ShoppingBag,
+    BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
 import { PlanLimitsNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { StatusChip } from '@/components/ui/status-chip'
 import {
     WOO_PLUGIN_DOWNLOAD_HREF,
-    WooPluginDownloadLink,
     WooPluginSetup,
     normalizeStoreUrlInput,
     wooCreateErrorMessage,
+    wpAdminUrl,
 } from '@/components/integrations/woo-plugin-setup'
+import {
+    CopyLinkButton,
+    StoreActionsMenu,
+    StoreAvatar,
+    StoreLinks,
+    StoreStats,
+    StoreUrlField,
+    SyncTimeline,
+    WOO_BTN_GHOST,
+    WOO_BTN_PRIMARY,
+    WOO_BTN_SECONDARY,
+    WOO_CARD,
+    WOO_NOTE,
+    WOO_TEXT,
+    WooStepsPreview,
+    friendlySyncError,
+    relativeTime,
+    storeHost,
+    type WooSyncLogEntry,
+} from '@/components/integrations/woo-ui'
 
 /**
- * Integrations page — "WordPress/WooCommerce" section.
- * Uses the same `spatial-surface rounded-card` design as the Products page.
+ * The WooCommerce tab's store section: the empty state, the add-site form
+ * and one card per connected site (status, numbers, where to manage the
+ * data, recent sync activity). Building blocks live in `woo-ui.tsx`.
  */
-
-interface SyncLogEntry {
-    id: string
-    direction: string
-    entity: string
-    outcome: string
-    count: number
-    message: string | null
-    createdAt: string
-}
 
 export interface StoreIntegrationItem {
     id: string
@@ -57,8 +64,9 @@ export interface StoreIntegrationItem {
     lastSyncAt: string | null
     lastSyncStatus: string | null
     lastSyncError: string | null
-    _count: { orders: number; syncLogs: number }
-    syncLogs: SyncLogEntry[]
+    /** `products` is the number of catalog items this connection synced. */
+    _count: { orders: number; syncLogs: number; products?: number }
+    syncLogs: WooSyncLogEntry[]
 }
 
 export function StoreIntegrationsSection({
@@ -149,7 +157,7 @@ export function StoreIntegrationsSection({
             const res = await fetch(`/api/sync/woocommerce?integrationId=${integration.id}`, { method: 'POST' })
             const data = await res.json().catch(() => ({}))
             if (!res.ok) {
-                setNotice({ type: 'err', msg: (fa ? 'خطا در هم‌گام‌سازی.' : 'Sync failed.') })
+                setNotice({ type: 'err', msg: (fa ? 'همگام‌سازی انجام نشد؛ چند دقیقه بعد دوباره امتحان کنید.' : 'The sync did not run. Try again in a few minutes.') })
                 return
             }
 
@@ -187,8 +195,8 @@ export function StoreIntegrationsSection({
             setNotice({
                 type: 'err',
                 msg: nextActive
-                    ? (fa ? 'فعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be enabled. Try again.')
-                    : (fa ? 'غیرفعال‌سازی اتصال انجام نشد؛ دوباره تلاش کنید.' : 'The connection could not be disabled. Try again.'),
+                    ? (fa ? 'از سرگیری همگام‌سازی انجام نشد؛ دوباره تلاش کنید.' : 'Syncing could not be resumed. Try again.')
+                    : (fa ? 'توقف همگام‌سازی انجام نشد؛ دوباره تلاش کنید.' : 'Syncing could not be paused. Try again.'),
             })
         } finally {
             setTogglingId(null)
@@ -211,38 +219,26 @@ export function StoreIntegrationsSection({
     }
 
     return (
-        <div id="online-store" className="scroll-mt-24 space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-[var(--text-secondary)]">{fa ? 'سایت (وردپرس/ووکامرس)' : 'Website (WordPress/WooCommerce)'}</h2>
-                {integrations.length > 0 && (
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        {fa ? 'افزودن سایت' : 'Add a site'}
-                    </button>
-                )}
-            </div>
-
-            {/* Notice */}
+        <div id="online-store" className="scroll-mt-24 space-y-4 sm:space-y-5">
             {notice && (
                 <div
                     role={notice.type === 'err' ? 'alert' : 'status'}
                     aria-live="polite"
                     className={cn(
-                    'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm',
-                    notice.type === 'ok' ? 'border border-[color:color-mix(in_srgb,var(--ok)_25%,transparent)] bg-[var(--ok-soft)] text-[var(--ok)]' : 'border border-danger/30 bg-danger/5 text-danger',
-                )}>
-                    {notice.type === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                    {notice.msg}
+                        'flex items-center gap-2.5 rounded-2xl px-4 py-3 text-[13px] font-medium',
+                        notice.type === 'ok' ? 'bg-[var(--ok-soft)] text-[var(--ok-ink)]' : 'bg-[var(--danger-soft)] text-[var(--danger-ink)]',
+                    )}
+                >
+                    {notice.type === 'ok' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                    <span className="min-w-0 flex-1">{notice.msg}</span>
+                    <button type="button" onClick={() => setNotice(null)} aria-label={fa ? 'بستن' : 'Close'} className="-m-1.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg opacity-70 hover:opacity-100">
+                        <X className="h-4 w-4" />
+                    </button>
                 </div>
             )}
 
             <PlanLimitsNotice limits={planLimits} locale={locale} syncContext compact />
 
-            {/* Form */}
             {showForm && (
                 <AddSiteForm
                     onClose={() => setShowForm(false)}
@@ -250,38 +246,16 @@ export function StoreIntegrationsSection({
                 />
             )}
 
-            {/* Empty state */}
             {integrations.length === 0 && !showForm && (
-                <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6 text-center">
-                    <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
-                        <Globe className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-4 text-base font-bold tracking-tight text-[var(--text-primary)]">{fa ? 'سایت خود را وصل کنید' : 'Connect your site'}</h3>
-                    <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-                        {fa ? 'آدرس سایت را وارد کنید، افزونه ویجنت را در وردپرس نصب کنید و «اتصال» را بزنید — محصولات و سفارش‌ها خودکار همگام می‌شوند.' : 'Enter your site address, install the Vigent plugin in WordPress and press “Connect”. Products and orders sync automatically.'}
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setShowForm(true)}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
-                        >
-                            <Plus className="h-4 w-4" />
-                            {fa ? 'اتصال سایت' : 'Connect site'}
-                        </button>
-                        <WooPluginDownloadLink variant="quiet" />
-                    </div>
-                </section>
+                <EmptyState fa={fa} onConnect={() => setShowForm(true)} />
             )}
 
-            {/* Integration cards */}
             {integrations.map((integration) => (
                 <IntegrationCard
                     key={integration.id}
                     integration={integration}
                     syncing={syncingId === integration.id}
-                    deleting={deletingId === integration.id}
-                    toggling={togglingId === integration.id}
+                    busy={deletingId === integration.id || togglingId === integration.id}
                     onSync={() => syncNow(integration)}
                     onToggle={() => toggleActive(integration)}
                     onDelete={() => setDeleteTarget(integration)}
@@ -290,30 +264,12 @@ export function StoreIntegrationsSection({
                 />
             ))}
 
-            {/* Footer help */}
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                    <p className="min-w-0 text-xs leading-relaxed text-[var(--text-muted)]">
-                        {fa ? 'افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید — همه چیز خودکار است.' : 'Install the plugin in WordPress and press “Connect”. The rest is automatic.'}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-4">
-                        <a
-                            href={WOO_PLUGIN_DOWNLOAD_HREF}
-                            download
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)] hover:opacity-80"
-                        >
-                            <Download className="h-3.5 w-3.5" />
-                            {fa ? 'دانلود افزونه' : 'Download plugin'}
-                        </a>
-                        <Link
-                            href="/docs/woocommerce"
-                            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        >
-                            {fa ? 'راهنما' : 'Guide'}
-                        </Link>
-                    </div>
-                </div>
-            </div>
+            {integrations.length > 0 && !showForm && (
+                <button type="button" onClick={() => setShowForm(true)} className={cn(WOO_BTN_GHOST, 'min-h-10 text-[12.5px]')}>
+                    <Plus className="h-4 w-4" />
+                    {fa ? 'افزودن سایت دیگر' : 'Add another site'}
+                </button>
+            )}
 
             {/* Branded confirm for removing a store connection (replaces the
                 native confirm(): focus trap, Esc, scroll lock, focus return). */}
@@ -322,7 +278,7 @@ export function StoreIntegrationsSection({
                 title={fa ? 'حذف اتصال سایت' : 'Delete site connection'}
                 description={
                     deleteTarget
-                        ? (fa ? `اتصال به ${deleteTarget.storeUrl} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.` : `The connection to ${deleteTarget.storeUrl} will be deleted; its orders and sync settings leave the panel.`)
+                        ? (fa ? `اتصال به ${storeHost(deleteTarget.storeUrl)} حذف می‌شود؛ سفارش‌ها و تنظیمات هم‌گام‌سازی آن از پنل خارج می‌شوند.` : `The connection to ${storeHost(deleteTarget.storeUrl)} will be deleted; its orders and sync settings leave the panel.`)
                         : undefined
                 }
                 confirmLabel={fa ? 'حذف اتصال' : 'Delete connection'}
@@ -335,7 +291,48 @@ export function StoreIntegrationsSection({
     )
 }
 
-// ─── Add site form (spatial-surface style) ───────────────────────────────
+// ─── Empty state: why, and the whole path up front ──────────────────────
+
+function EmptyState({ fa, onConnect }: { fa: boolean; onConnect: () => void }) {
+    return (
+        <section className={cn(WOO_CARD, 'grid gap-5 p-5 sm:p-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-center md:gap-8')}>
+            <div>
+                <StoreAvatar />
+                <h2 className="mt-3.5 text-[17px] font-bold leading-relaxed text-[var(--text-primary)] [text-wrap:balance]">
+                    {fa ? 'فروشگاه ووکامرس‌تان را وصل کنید' : 'Connect your WooCommerce store'}
+                </h2>
+                <p className={cn(WOO_TEXT, 'mt-1 max-w-md')}>
+                    {fa
+                        ? 'محصولات، موجودی و سفارش‌ها خودکار به ویجنت می‌آیند و ایجنت می‌تواند در گفتگو بفروشد.'
+                        : 'Products, stock and orders come into Vigent automatically, and the agent can sell in chat.'}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={onConnect} className={cn(WOO_BTN_PRIMARY, 'max-sm:w-full')}>
+                        <Plus className="h-4 w-4" />
+                        {fa ? 'اتصال سایت' : 'Connect site'}
+                    </button>
+                    {/* A WordPress plugin is installed from a computer; a phone gets the link. */}
+                    <CopyLinkButton
+                        path={WOO_PLUGIN_DOWNLOAD_HREF}
+                        label={fa ? 'کپی لینک افزونه برای کامپیوتر' : 'Copy the plugin link for a computer'}
+                        copiedLabel={fa ? 'لینک کپی شد' : 'Link copied'}
+                        className={cn(WOO_BTN_SECONDARY, 'w-full sm:hidden')}
+                    />
+                    <Link href="/docs/woocommerce" className={cn(WOO_BTN_GHOST, 'max-sm:w-full')}>
+                        <BookOpen className="h-4 w-4" />
+                        {fa ? 'راهنمای کامل' : 'Full guide'}
+                    </Link>
+                </div>
+            </div>
+            <div className="rounded-2xl bg-[var(--bg-base)] p-4">
+                <p className="mb-3 text-[12.5px] font-bold text-[var(--text-muted)]">{fa ? 'سه قدم تا اتصال' : 'Three steps to connect'}</p>
+                <WooStepsPreview fa={fa} />
+            </div>
+        </section>
+    )
+}
+
+// ─── Add site form ──────────────────────────────────────────────────────
 
 function AddSiteForm({
     onClose,
@@ -348,6 +345,7 @@ function AddSiteForm({
     const [storeUrl, setStoreUrl] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const submitRef = useRef<HTMLButtonElement>(null)
 
     async function submit(e: React.FormEvent) {
         e.preventDefault()
@@ -367,59 +365,62 @@ function AddSiteForm({
         }
     }
 
+    // Phones: once the keyboard has slid up, bring the button above it.
+    function keepButtonInView() {
+        if (window.matchMedia('(min-width: 640px)').matches) return
+        window.setTimeout(() => submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 350)
+    }
+
     return (
-        <form onSubmit={submit} noValidate className="spatial-surface rounded-card p-5 sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'آدرس سایت را وارد کنید' : 'Enter your site address'}</h3>
+        <form onSubmit={submit} noValidate className={cn(WOO_CARD, 'max-w-xl p-5 sm:p-6')}>
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-[12.5px] font-bold text-[var(--text-muted)]">{fa ? 'قدم ۱ از ۳' : 'Step 1 of 3'}</p>
+                    <h2 className="text-[16px] font-bold leading-relaxed text-[var(--text-primary)]">{fa ? 'آدرس فروشگاه' : 'Store address'}</h2>
+                </div>
                 <button
                     type="button"
                     onClick={onClose}
                     aria-label={fa ? 'بستن' : 'Close'}
-                    className="-m-2 grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    className={cn(WOO_BTN_GHOST, '-me-2 -mt-1 w-11 px-0')}
                 >
                     <X className="h-4 w-4" />
                 </button>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                    dir="ltr"
-                    type="text"
-                    inputMode="url"
-                    autoComplete="url"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    aria-label={fa ? 'آدرس سایت' : 'Site address'}
-                    aria-invalid={error ? true : undefined}
+            <div className="mt-3">
+                <StoreUrlField
+                    fa={fa}
                     value={storeUrl}
-                    onChange={(e) => { setStoreUrl(e.target.value); if (error) setError(null) }}
-                    placeholder="https://example.com"
-                    className="input flex-1 font-mono text-sm"
+                    onChange={(next) => { setStoreUrl(next); if (error) setError(null) }}
+                    error={error}
+                    onFocus={keepButtonInView}
                     autoFocus
                 />
+            </div>
+            <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className={WOO_NOTE}>
+                    {fa ? 'بعد از این، فایل افزونه و قدم‌های نصب را همین‌جا می‌بینید.' : 'Next, the plugin file and the install steps appear right here.'}
+                </p>
                 <button
+                    ref={submitRef}
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                    className={cn(WOO_BTN_PRIMARY, 'shrink-0 px-6 max-sm:w-full')}
                 >
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {submitting ? (fa ? 'در حال ایجاد…' : 'Creating…') : (fa ? 'ایجاد اتصال' : 'Create connection')}
+                    {submitting ? (fa ? 'در حال ایجاد…' : 'Creating…') : (fa ? 'ادامه' : 'Continue')}
                 </button>
             </div>
-            {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
-            <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
-                {fa ? 'پس از ایجاد اتصال، دکمه دانلود افزونه و مراحل نصب همین‌جا نمایش داده می‌شود.' : 'After the connection is created, the plugin download button and the install steps appear right here.'}
-            </p>
         </form>
     )
 }
 
-// ─── Integration card (spatial-surface style) ────────────────────────────
+// ─── One connected site ─────────────────────────────────────────────────
 
 function IntegrationCard({
     integration,
     syncing,
-    deleting,
-    toggling,
+    busy,
     onSync,
     onToggle,
     onDelete,
@@ -428,8 +429,7 @@ function IntegrationCard({
 }: {
     integration: StoreIntegrationItem
     syncing: boolean
-    deleting: boolean
-    toggling: boolean
+    busy: boolean
     onSync: () => void
     onToggle: () => void
     onDelete: () => void
@@ -439,255 +439,157 @@ function IntegrationCard({
     const fa = useLocale() !== 'en'
     const limitFromError = planLimitFromError(integration.lastSyncError, planLimits)
     const visibleLogs = integration.syncLogs.filter((log) => log.outcome !== 'ok' || log.count > 0)
+    const failedCount = integration.syncLogs.filter((log) => log.outcome !== 'ok').length
     const hasPlanLimitError = isResourceLimitError(integration.lastSyncError)
     const isPluginConfigured = isIntegrationConnected(integration) || hasPlanLimitError
     const syncPausedByPlan = limitFromError !== null
-    const statusLabel = !integration.active
-        ? (fa ? 'غیرفعال' : 'Disabled')
+    const productCount = integration._count.products ?? null
+    const showSyncError = integration.lastSyncStatus === 'error' && Boolean(integration.lastSyncError) && !hasPlanLimitError
+
+    // One status, said once: the chip. Waiting for the plugin is not a problem,
+    // so it stays neutral; only a full plan is amber.
+    const status = !integration.active
+        ? { tone: 'neutral' as const, label: fa ? 'همگام‌سازی متوقف' : 'Syncing paused', hollow: true }
         : syncPausedByPlan
-            ? (fa ? 'متصل · محدودیت پلن' : 'Connected · plan limit')
-        : isPluginConfigured
-            ? (fa ? 'متصل' : 'Connected')
-            : (fa ? 'در انتظار اتصال افزونه' : 'Waiting for the plugin')
+            ? { tone: 'warn' as const, label: fa ? 'سقف پلن پر شده' : 'Plan limit reached', hollow: false }
+            : isPluginConfigured
+                ? { tone: 'ok' as const, label: fa ? 'متصل' : 'Connected', hollow: false }
+                : { tone: 'neutral' as const, label: fa ? 'منتظر افزونه' : 'Waiting for the plugin', hollow: false }
 
     return (
-        <section className="spatial-surface overflow-hidden rounded-card p-5 sm:p-6">
-            {/* Top row */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 items-start gap-3">
-                    <span className={cn(
-                        'grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[var(--bg-base)] shadow-[var(--shadow-control)]',
-                        syncPausedByPlan ? 'bg-amber-500' : !integration.active ? 'bg-black/30' : isPluginConfigured ? 'bg-emerald-600' : 'bg-[var(--text-primary)]',
-                    )}>
-                        {isPluginConfigured && integration.active ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
-                    </span>
-                    <div className="min-w-0">
-                        <p dir="ltr" className="truncate text-base font-bold tracking-tight text-[var(--text-primary)]" title={integration.storeUrl}>
-                            {integration.storeUrl}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                            <span className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold',
-                                !integration.active
-                                    ? 'bg-gray-100 text-gray-600'
-                                    : syncPausedByPlan
-                                        ? 'bg-amber-100 text-amber-800'
-                                    : isPluginConfigured
-                                        ? 'bg-green-50 text-green-700'
-                                        : 'bg-yellow-50 text-yellow-700',
-                            )}>
-                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                {statusLabel}
+        <section className={cn(WOO_CARD, 'p-4 sm:p-6')}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+                <StoreAvatar storeUrl={integration.storeUrl} />
+                <div className="min-w-0 flex-1">
+                    <p dir="ltr" className="truncate text-start text-[16px] font-extrabold leading-7 text-[var(--text-primary)] rtl:text-right" title={integration.storeUrl}>
+                        {storeHost(integration.storeUrl)}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <StatusChip
+                            tone={status.tone}
+                            dot
+                            className={status.hollow ? '[&_.ui-chip-dot]:bg-transparent [&_.ui-chip-dot]:shadow-[inset_0_0_0_1.5px_currentColor]' : undefined}
+                        >
+                            {status.label}
+                        </StatusChip>
+                        {isPluginConfigured && integration.active && integration.lastSyncAt && (
+                            <span suppressHydrationWarning className="text-[12.5px] text-[var(--text-muted)]">
+                                {fa ? `همگام‌سازی خودکار · ${relativeTime(integration.lastSyncAt, fa)}` : `Auto sync · ${relativeTime(integration.lastSyncAt, fa)}`}
                             </span>
-                            {isPluginConfigured && (
-                                <span suppressHydrationWarning className="text-xs tabular-nums text-[var(--text-muted)]">
-                                    {fa ? `${integration._count.orders.toLocaleString('fa-IR')} سفارش` : `${integration._count.orders.toLocaleString('en-US')} orders`}
-                                    {integration.lastSyncAt ? (fa ? ` · آخرین همگام‌سازی ${relativeTime(integration.lastSyncAt, fa)}` : ` · last synced ${relativeTime(integration.lastSyncAt, fa)}`) : ''}
-                                </span>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
-
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onSync}
-                        disabled={syncing || !integration.active || !isPluginConfigured}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-40"
-                    >
-                        {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        {fa ? 'بروزرسانی' : 'Sync now'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onToggle}
-                        disabled={toggling}
-                        aria-busy={toggling || undefined}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
-                    >
-                        {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        {integration.active ? (fa ? 'غیرفعال کردن' : 'Disable') : (fa ? 'فعال کردن' : 'Enable')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onDelete}
-                        disabled={deleting}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger disabled:opacity-50"
-                    >
-                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                        {fa ? 'حذف' : 'Delete'}
-                    </button>
+                <div className="flex items-center gap-2 max-sm:w-full">
+                    {isPluginConfigured && (
+                        <button
+                            type="button"
+                            onClick={onSync}
+                            disabled={syncing || !integration.active}
+                            className={cn(WOO_BTN_SECONDARY, 'max-sm:flex-1')}
+                        >
+                            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            {fa ? 'همگام‌سازی' : 'Sync now'}
+                        </button>
+                    )}
+                    <StoreActionsMenu
+                        fa={fa}
+                        storeUrl={integration.storeUrl}
+                        wpAdminHref={wpAdminUrl(integration.storeUrl, '')}
+                        active={integration.active}
+                        busy={busy}
+                        onToggle={onToggle}
+                        onDelete={onDelete}
+                    />
                 </div>
             </div>
 
             {/* Pending state — the install guide, with the plugin download */}
             {!isPluginConfigured && integration.active && (
-                <WooPluginSetup storeUrl={integration.storeUrl} className="mt-4" />
+                <WooPluginSetup storeUrl={integration.storeUrl} className="mt-5 border-t border-[var(--border-subtle)] pt-5" />
             )}
 
-            {/* Nothing to manage until the plugin has delivered its first data. */}
             {isPluginConfigured && (
-                <nav
-                    aria-label={fa ? 'مدیریت اطلاعات فروشگاه' : 'Manage store data'}
-                    className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"
-                >
-                    <Link
-                        href="/products"
-                        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
-                    >
-                        <Package className="h-4 w-4" />
-                        {fa ? 'مشاهده محصولات' : 'View products'}
-                    </Link>
-                    <Link
-                        href="/products/orders"
-                        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
-                    >
-                        <ShoppingBag className="h-4 w-4" />
-                        {fa ? 'مشاهده سفارش‌ها' : 'View orders'}
-                    </Link>
-                    {storeAccessHref && (
-                        <Link
-                            href={storeAccessHref}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
-                        >
-                            <ShieldCheck className="h-4 w-4" />
-                            {fa ? 'دسترسی ایجنت به فروشگاه' : 'Agent store access'}
-                        </Link>
+                <div className="mt-5 space-y-4">
+                    <StoreStats
+                        fa={fa}
+                        productCount={productCount}
+                        orderCount={integration._count.orders}
+                        lastSyncAt={integration.lastSyncAt}
+                        failedCount={failedCount}
+                    />
+
+                    {showSyncError && (
+                        <SyncErrorCard
+                            fa={fa}
+                            message={integration.lastSyncError ?? ''}
+                            retrying={syncing}
+                            onRetry={integration.active ? onSync : undefined}
+                        />
                     )}
-                </nav>
-            )}
 
-            {/* Recent sync activity — last 3 days. Deliveries that changed
-                nothing (plugin pings, unchanged items) are noise and hidden. */}
-            {isPluginConfigured && visibleLogs.length > 0 && (
-                <SyncActivity logs={visibleLogs} fa={fa} />
-            )}
+                    <StoreLinks
+                        fa={fa}
+                        productCount={productCount}
+                        orderCount={integration._count.orders}
+                        storeAccessHref={storeAccessHref}
+                    />
 
-            {/* Error */}
-            {integration.lastSyncStatus === 'error' && integration.lastSyncError && !hasPlanLimitError && (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs leading-relaxed text-red-700">
-                    <strong>{fa ? 'خطا:' : 'Error:'}</strong> {integration.lastSyncError}
+                    {visibleLogs.length > 0 && (
+                        <div className="border-t border-[var(--border-subtle)] pt-4">
+                            <SyncTimeline
+                                logs={visibleLogs}
+                                fa={fa}
+                                retrying={syncing}
+                                onRetry={integration.active && !showSyncError ? onSync : undefined}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </section>
     )
 }
 
-const ACTIVITY_PREVIEW = 4
-const ACTIVITY_EXPANDED = 20
-
-/**
- * The latest changes from the site, a few at a time. More are one tap away
- * instead of a scrollable box, which is awkward on a phone.
- */
-function SyncActivity({ logs, fa }: { logs: SyncLogEntry[]; fa: boolean }) {
-    const [expanded, setExpanded] = useState(false)
-    const shown = logs.slice(0, expanded ? ACTIVITY_EXPANDED : ACTIVITY_PREVIEW)
-    const applied = logs.reduce((sum, log) => sum + (log.outcome === 'ok' ? log.count : 0), 0)
-    const failed = logs.filter((log) => log.outcome !== 'ok').length
-    const num = (n: number) => n.toLocaleString(fa ? 'fa-IR' : 'en-US')
-    const hiddenCount = Math.min(logs.length, ACTIVITY_EXPANDED) - ACTIVITY_PREVIEW
-
+/** What went wrong in plain words, one way out, and the raw text for support. */
+function SyncErrorCard({
+    fa,
+    message,
+    retrying,
+    onRetry,
+}: {
+    fa: boolean
+    message: string
+    retrying: boolean
+    onRetry?: () => void
+}) {
+    const friendly = friendlySyncError(message, fa)
     return (
-        <div className="mt-4">
-            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <p className="text-xs font-medium text-[var(--text-secondary)]">
-                    {fa ? 'تغییرات دریافت‌شده از سایت' : 'Changes received from the site'}
-                    <span className="ms-2 text-[var(--text-muted)]">{fa ? '۳ روز اخیر' : 'last 3 days'}</span>
+        <div role="alert" className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-2xl bg-[var(--danger-soft)] p-3.5 sm:p-4">
+            <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-white text-[var(--danger-ink)]">
+                <AlertCircle className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+                <p className="text-[13.5px] font-bold leading-7 text-[var(--text-primary)]">{fa ? 'آخرین همگام‌سازی انجام نشد' : 'The last sync did not complete'}</p>
+                <p className="text-[13px] leading-7 text-[var(--text-secondary)]">
+                    {friendly ?? (fa ? 'سایت به درخواست همگام‌سازی جواب درستی نداد.' : 'The site did not answer the sync request properly.')}
                 </p>
-                <p className="text-xs tabular-nums text-[var(--text-muted)]">
-                    {fa ? `${num(applied)} مورد همگام شد` : `${num(applied)} items synced`}
-                    {failed > 0 && (
-                        <span className="ms-2 font-medium text-red-600">{fa ? `${num(failed)} خطا` : `${num(failed)} errors`}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {onRetry && (
+                        <button type="button" onClick={onRetry} disabled={retrying} className={cn(WOO_BTN_SECONDARY, 'min-h-9 px-3 text-[12.5px]')}>
+                            {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            {fa ? 'دوباره امتحان کن' : 'Try again'}
+                        </button>
                     )}
-                </p>
+                    <details className="group min-w-0 open:basis-full">
+                        <summary className={cn(WOO_BTN_GHOST, 'min-h-9 cursor-pointer list-none px-2.5 text-[12.5px] [&::-webkit-details-marker]:hidden')}>
+                            {fa ? 'جزئیات فنی' : 'Technical details'}
+                        </summary>
+                        <p dir="ltr" className="mt-1 break-words rounded-xl bg-white/70 px-3 py-2 text-left font-mono text-[12px] leading-6 text-[var(--text-secondary)]">{message}</p>
+                    </details>
+                </div>
             </div>
-            <ul className="space-y-1.5">
-                {shown.map((log) => {
-                    const failedLog = log.outcome !== 'ok'
-                    return (
-                        <li key={log.id} className="flex items-start gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2.5 text-xs">
-                            {failedLog ? (
-                                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
-                            ) : (
-                                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
-                            )}
-                            <div className="min-w-0 flex-1">
-                                <p className="leading-5 text-[var(--text-primary)]">{logLabel(log, fa)}</p>
-                                {failedLog && log.message && (
-                                    <p title={log.message} className="mt-0.5 line-clamp-2 text-[11px] leading-5 text-red-700">{log.message}</p>
-                                )}
-                            </div>
-                            <time
-                                suppressHydrationWarning
-                                dateTime={log.createdAt}
-                                title={absoluteTime(log.createdAt, fa)}
-                                className="shrink-0 pt-0.5 text-[11px] tabular-nums text-[var(--text-muted)]"
-                            >
-                                {shortTime(log.createdAt, fa)}
-                            </time>
-                        </li>
-                    )
-                })}
-            </ul>
-            {logs.length > ACTIVITY_PREVIEW && (
-                <button
-                    type="button"
-                    onClick={() => setExpanded((value) => !value)}
-                    aria-expanded={expanded}
-                    className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[var(--border-default)] text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                >
-                    {expanded
-                        ? (fa ? 'نمایش کمتر' : 'Show less')
-                        : (fa ? `نمایش ${num(hiddenCount)} مورد بیشتر` : `Show ${num(hiddenCount)} more`)}
-                </button>
-            )}
         </div>
     )
-}
-
-/** Under a day: "۲ ساعت پیش"; older: the date, so the row says when it happened. */
-function shortTime(iso: string, fa: boolean): string {
-    const age = Date.now() - new Date(iso).getTime()
-    if (age < 24 * 60 * 60 * 1000) return relativeTime(iso, fa)
-    return new Date(iso).toLocaleString(fa ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function absoluteTime(iso: string, fa: boolean): string {
-    return new Date(iso).toLocaleString(fa ? 'fa-IR' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function logLabel(log: SyncLogEntry, fa: boolean): string {
-    const count = log.count.toLocaleString(fa ? 'fa-IR' : 'en-US')
-    const entity = entityLabel(log.entity, fa)
-    if (log.outcome !== 'ok') {
-        if (log.entity === 'batch') return fa ? 'دریافت تغییرات از سایت ناموفق بود' : 'Receiving changes from the site failed'
-        return fa ? `همگام‌سازی ${entity} ناموفق بود` : `Syncing ${entity} failed`
-    }
-    if (log.entity === 'batch') return fa ? `${count} تغییر از سایت اعمال شد` : `${count} changes from the site applied`
-    return fa ? `${count} ${entity} همگام شد` : `${count} ${entity} synced`
-}
-
-function relativeTime(iso: string, fa: boolean): string {
-    const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
-    if (minutes < 1) return fa ? 'همین حالا' : 'just now'
-    if (minutes < 60) return fa ? `${minutes.toLocaleString('fa-IR')} دقیقه پیش` : `${minutes} min ago`
-    const hours = Math.round(minutes / 60)
-    if (hours < 24) return fa ? `${hours.toLocaleString('fa-IR')} ساعت پیش` : `${hours} h ago`
-    const days = Math.round(hours / 24)
-    return fa ? `${days.toLocaleString('fa-IR')} روز پیش` : `${days} d ago`
-}
-
-function entityLabel(entity: string, fa: boolean): string {
-    const map: Record<string, [string, string]> = {
-        products: ['محصولات', 'products'],
-        orders: ['سفارش‌ها', 'orders'],
-        product_update: ['محصول', 'product'],
-        order_update: ['سفارش', 'order'],
-        content_update: ['محتوا', 'content'],
-    }
-    return map[entity]?.[fa ? 0 : 1] ?? entity
 }
 
 function isIntegrationConnected(integration: StoreIntegrationItem): boolean {

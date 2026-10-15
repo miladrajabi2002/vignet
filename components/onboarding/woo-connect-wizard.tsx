@@ -3,16 +3,26 @@
 import { useLocale } from 'next-intl'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { ArrowLeft, Check, Loader2, RefreshCw } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { StatusChip } from '@/components/ui/status-chip'
 import {
-	Check,
-	CheckCircle2,
-	Download,
-	Globe,
-	Loader2,
-	Plug,
-	RefreshCw,
-	ArrowLeft,
-} from 'lucide-react'
+  WooPluginSetup,
+  normalizeStoreUrlInput,
+  wooCreateErrorMessage,
+} from '@/components/integrations/woo-plugin-setup'
+import {
+  ListeningRow,
+  StoreAvatar,
+  StoreUrlField,
+  WOO_BTN_GHOST,
+  WOO_BTN_PRIMARY,
+  WOO_BTN_SECONDARY,
+  WOO_CARD,
+  WOO_TEXT,
+  WooStepsPreview,
+  storeHost,
+} from '@/components/integrations/woo-ui'
 
 /**
  * WooConnectWizard — inline (non-modal) WooCommerce connect wizard.
@@ -85,16 +95,9 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
     if (submitting) return
     setError(null)
 
-    const trimmed = storeUrl.trim()
-    if (!trimmed) {
+    const normalized = normalizeStoreUrlInput(storeUrl)
+    if (!normalized) {
       setError((fa ? 'آدرس سایت را وارد کنید.' : 'Enter your site address.'))
-      return
-    }
-    try {
-      // eslint-disable-next-line no-new
-      new URL(trimmed)
-    } catch {
-      setError((fa ? 'آدرس سایت نامعتبر است. مثال: https://example.com' : 'The site address is not valid. Example: https://example.com'))
       return
     }
 
@@ -105,21 +108,13 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'WOOCOMMERCE',
-          storeUrl: trimmed,
+          storeUrl: normalized,
           credentials: {}, // webhook-only — the plugin pushes data, no REST keys needed
         }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(
-          data.error === 'INVALID'
-            ? (fa ? 'آدرس سایت نامعتبر است.' : 'The site address is not valid.')
-            : data.error === 'UNSAFE_STORE_URL'
-              ? (fa ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.' : 'This site address cannot be accepted for security reasons.')
-              : data.error === 'PLAN_BLOCKED'
-                ? (fa ? 'پلن شما اجازه اتصال سایت را نمی‌دهد.' : 'Your plan does not include a site connection.')
-                : (fa ? 'خطا در ساخت اتصال.' : 'The connection could not be created.'),
-        )
+        setError(wooCreateErrorMessage(data.error, fa))
         return
       }
       // Integration created (or returned idempotently) — move to install step.
@@ -215,38 +210,43 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
     }
   }, [])
 
-  // Cache-busting query param on the plugin download link — guarantees the
-  // browser always fetches the latest zip instead of serving a cached copy.
-  const pluginDownloadHref = `/api/downloads/wordpress-plugin?v=${Date.now()}`
+  function restartPolling() {
+    pollStartRef.current = Date.now()
+    pollStoppedRef.current = false
+    setPolling(true)
+  }
+
+  const stepIndex = step === 'url' ? 0 : step === 'install' ? 1 : 2
+  const stepLabel = fa
+    ? `قدم ${(stepIndex + 1).toLocaleString('fa-IR')} از ۳`
+    : `Step ${stepIndex + 1} of 3`
 
   return (
     <motion.div
-      className="w-full overflow-hidden rounded-card border border-black/10 bg-white shadow-[var(--elev-2)]"
+      className={cn(WOO_CARD, 'w-full overflow-hidden')}
       initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
       {/* Header */}
-      <div className="flex items-center border-b border-[var(--border-subtle)] px-6 py-4">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
-            <Plug className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="text-sm font-bold text-[var(--text-primary)]">
-              {fa ? 'اتصال سایت وردپرس / ووکامرس' : 'Connect a WordPress / WooCommerce site'}
-            </h2>
-            <p className="text-[12px] text-[var(--text-muted)]">
-              {step === 'url' && (fa ? 'مرحله ۱ از ۳ — آدرس سایت' : 'Step 1 of 3: site address')}
-              {step === 'install' && (fa ? 'مرحله ۲ از ۳ — نصب افزونه و اتصال' : 'Step 2 of 3: install the plugin and connect')}
-              {step === 'success' && (fa ? 'مرحله ۳ از ۳ — اتصال موفق' : 'Step 3 of 3: connected')}
-            </p>
-          </div>
+      <div className="flex items-center gap-3 border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
+        <StoreAvatar className="h-10 w-10" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-bold leading-7 text-[var(--text-primary)]">
+            {fa ? 'اتصال فروشگاه ووکامرس' : 'Connect a WooCommerce store'}
+          </h2>
+          <p className="text-[12.5px] font-semibold text-[var(--text-muted)]">{stepLabel}</p>
+        </div>
+        {/* Three segments: how far along the owner is, at a glance. */}
+        <div aria-hidden className="flex w-16 shrink-0 gap-1">
+          {[0, 1, 2].map((index) => (
+            <span key={index} className={cn('h-1.5 flex-1 rounded-full', index <= stepIndex ? (step === 'success' ? 'bg-[var(--ok)]' : 'bg-[var(--text-primary)]') : 'bg-[var(--bg-muted)]')} />
+          ))}
         </div>
       </div>
 
       {/* Body — animated step transitions */}
-      <div className="px-6 py-5">
+      <div className="px-5 py-5 sm:px-6">
         <AnimatePresence mode="wait" initial={false}>
           {step === 'url' && (
             <motion.div
@@ -257,45 +257,36 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
               className="space-y-4"
             >
-              <div className="text-center">
-                <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-                  <Globe className="h-5 w-5" />
-                </span>
-                <h3 className="mt-3 text-base font-bold text-[var(--text-primary)]">
-                  {fa ? 'آدرس سایت خود را وارد کنید' : 'Enter your site address'}
+              <div>
+                <h3 className="text-[16px] font-bold leading-relaxed text-[var(--text-primary)]">
+                  {fa ? 'آدرس فروشگاه' : 'Store address'}
                 </h3>
-                <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-5 text-[var(--text-muted)]">
-                  {fa ? 'سایت وردپرسی یا فروشگاه ووکامرسی خود را وارد کنید. ما اتصال را برای شما می‌سازیم.' : 'Enter your WordPress site or WooCommerce store. We create the connection for you.'}
+                <p className={cn(WOO_TEXT, 'mt-0.5')}>
+                  {fa ? 'آدرس سایت وردپرسی یا فروشگاه ووکامرس را وارد کنید؛ اتصال را ما می‌سازیم.' : 'Enter your WordPress site or WooCommerce store; we create the connection.'}
                 </p>
               </div>
 
-              <form onSubmit={submitUrl} className="space-y-3">
-                <div>
-                  <input
-                    dir="ltr"
-                    type="url"
-                    required
-                    value={storeUrl}
-                    onChange={(e) => setStoreUrl(e.target.value)}
-                    placeholder="https://example.com"
-                    className="input w-full text-center font-mono text-sm"
-                    autoFocus
-                  />
-                </div>
-                {error && (
-                  <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    {error}
-                  </p>
-                )}
+              <form onSubmit={submitUrl} noValidate className="space-y-4">
+                <StoreUrlField
+                  fa={fa}
+                  value={storeUrl}
+                  onChange={(next) => { setStoreUrl(next); if (error) setError(null) }}
+                  error={error}
+                  autoFocus
+                />
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className={cn(WOO_BTN_PRIMARY, 'spatial-press w-full')}
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {submitting ? (fa ? 'در حال ایجاد اتصال…' : 'Creating the connection…') : (fa ? 'ادامه' : 'Continue')}
                 </button>
               </form>
+
+              <div className="rounded-2xl bg-[var(--bg-base)] p-4">
+                <WooStepsPreview fa={fa} />
+              </div>
             </motion.div>
           )}
 
@@ -308,62 +299,31 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
               className="space-y-4"
             >
-              {/* Confirmed URL banner */}
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                <span dir="ltr" className="truncate text-xs font-medium text-emerald-800">
-                  {integration.storeUrl}
+              {/* The address the connection was made for */}
+              <div className="flex items-center gap-3 rounded-2xl bg-[var(--bg-base)] px-3.5 py-2.5">
+                <StoreAvatar storeUrl={integration.storeUrl} className="h-8 w-8 rounded-[10px] text-[14px]" />
+                <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-[13.5px] font-bold text-[var(--text-primary)] rtl:text-right">
+                  {storeHost(integration.storeUrl)}
                 </span>
+                <StatusChip tone="ok" dot>{fa ? 'اتصال ساخته شد' : 'Created'}</StatusChip>
               </div>
 
-              {/* Steps */}
-              <ol className="space-y-3">
-                <StepRow
-                  num={1}
-                  title={fa ? 'افزونه ویجنت را دانلود و نصب کنید' : 'Download and install the Vigent plugin'}
-                  desc={fa ? 'در وردپرس: افزونه‌ها → افزودن → بارگذاری افزونه → این فایل را انتخاب کنید.' : 'In WordPress: Plugins → Add New → Upload Plugin → choose this file.'}
-                  action={
-                    <a
-                      href={pluginDownloadHref}
-                      download
-                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {fa ? 'دانلود افزونه' : 'Download plugin'}
-                    </a>
-                  }
-                />
-                <StepRow
-                  num={2}
-                  title={fa ? 'در افزونه دکمه «اتصال» را بزنید' : 'Press “Connect” in the plugin'}
-                  desc={fa ? 'به صفحه «ویجنت» در منوی وردپرس بروید و دکمه بزرگ «اتصال» را بزنید. همه چیز خودکار است.' : 'Open the “Vigent” page in the WordPress menu and press the large “Connect” button. The rest is automatic.'}
-                />
-                <StepRow
-                  num={3}
-                  title={fa ? 'منتظر بمانید تا اتصال برقرار شود' : 'Wait for the connection'}
-                  desc={fa ? 'ما به‌صورت خودکار اتصال را تشخیص می‌دهیم — نیازی به کاری ندارید.' : 'We detect the connection automatically. There is nothing else to do.'}
-                />
-              </ol>
-
-              {/* Live status — pulsing while polling */}
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
-                {polling ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin text-[var(--text-secondary)]" />
-                    <span className="text-xs font-medium text-[var(--text-secondary)]">
-                      {fa ? 'در انتظار اتصال افزونه…' : 'Waiting for the plugin…'}
-                    </span>
-                  </>
+              <WooPluginSetup
+                storeUrl={integration.storeUrl}
+                status={polling ? (
+                  <ListeningRow fa={fa} />
                 ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 text-[var(--text-muted)]" />
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {fa ? 'اتصال قطع شد — دوباره تلاش کنید' : 'The connection dropped. Try again'}
+                  <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[var(--bg-base)] px-3.5 py-3">
+                    <span className="text-[13px] text-[var(--text-secondary)]">
+                      {fa ? 'هنوز خبری از افزونه نرسیده. بعد از زدن «اتصال» در وردپرس، دوباره بررسی کنید.' : 'No word from the plugin yet. After pressing “Connect” in WordPress, check again.'}
                     </span>
-                  </>
+                    <button type="button" onClick={restartPolling} className={cn(WOO_BTN_SECONDARY, 'min-h-9 px-3 text-[12.5px]')}>
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      {fa ? 'دوباره بررسی کن' : 'Check again'}
+                    </button>
+                  </div>
                 )}
-              </div>
-
+              />
             </motion.div>
           )}
 
@@ -374,43 +334,42 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
               animate={{ opacity: 1, scale: 1 }}
               exit={reduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
               transition={{ duration: reduceMotion ? 0 : 0.3, ease: EASE }}
-              className="space-y-4 text-center"
+              className="space-y-4 py-2 text-center"
             >
               <motion.div
-                initial={reduceMotion ? false : { scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, type: 'spring', bounce: 0.5 }}
-                className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100"
+                initial={reduceMotion ? false : { scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, type: 'spring', bounce: 0.45 }}
+                className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[var(--ok-soft)] text-[var(--ok)] shadow-[0_0_0_8px_color-mix(in_srgb,var(--ok-soft)_45%,transparent)]"
               >
-                <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={2} />
+                <Check className="h-8 w-8" strokeWidth={3} />
               </motion.div>
 
               <div>
-                <h3 className="text-lg font-bold text-[var(--text-primary)]">
-                  {fa ? 'با موفقیت وصل شد!' : 'Connected!'}
+                <h3 className="text-[18px] font-bold text-[var(--text-primary)]">
+                  {fa ? 'فروشگاه وصل شد' : 'Your store is connected'}
                 </h3>
-                <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-[var(--text-secondary)]">
-                  {fa ? 'سایت شما به ویجنت متصل شد. محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند. در حال ادامه راه‌اندازی…' : 'Your site is connected to Vigent. Products and orders sync automatically. Continuing setup…'}
+                <p className={cn(WOO_TEXT, 'mx-auto mt-1.5 max-w-sm')}>
+                  {fa ? 'محصولات و سفارش‌ها از این به بعد خودکار همگام می‌شوند.' : 'Products and orders now sync automatically.'}
                 </p>
               </div>
 
-              {/* Spinner while we auto-advance */}
-              <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {fa ? 'ادامه به مرحله بعد…' : 'Continuing to the next step…'}
+              <div className="flex items-center justify-center gap-2 text-[12.5px] text-[var(--text-muted)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                {fa ? 'رفتن به قدم بعد…' : 'Moving to the next step…'}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
         {step !== 'success' && (
-          <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
+          <div className="mt-5 border-t border-[var(--border-subtle)] pt-3">
             <button
               type="button"
               onClick={onDismiss}
               disabled={submitting}
-              className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-50"
+              className={cn(WOO_BTN_GHOST, 'spatial-press w-full text-[12.5px]')}
             >
-              <ArrowLeft className="h-4 w-4 rotate-180" />
+              <ArrowLeft className="h-4 w-4 ltr:rotate-0 rtl:rotate-180" />
               {fa ? 'بازگشت به محصولات و خدمات' : 'Back to products and services'}
             </button>
           </div>
@@ -420,29 +379,3 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
   )
 }
 
-// ─── Sub-components ─────────────────────────────────────────────
-
-function StepRow({
-  num,
-  title,
-  desc,
-  action,
-}: {
-  num: number
-  title: string
-  desc: string
-  action?: React.ReactNode
-}) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-[12px] font-bold text-white">
-        {num}
-      </span>
-      <div className="flex-1">
-        <p className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</p>
-        <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-muted)]">{desc}</p>
-        {action && <div className="mt-2">{action}</div>}
-      </div>
-    </li>
-  )
-}
