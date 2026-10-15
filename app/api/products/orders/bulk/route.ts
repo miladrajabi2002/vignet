@@ -3,15 +3,18 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { ORDER_BULK_SCOPES, countBulkScopes, orderBulkWhere, parseBulkScope } from '@/lib/bulk-delete/scopes'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Bulk-delete endpoints for store orders.
  *
- * GET  → returns { count } for the confirm dialog.
+ * GET  → returns { count, counts } — the per-preset counts feed the
+ *        «حذف گروهی» menu (لغوشده، تکمیل‌شده، قدیمی‌تر از سه ماه، …).
  *
- * DELETE → soft-deletes ALL StoreOrder rows in the workspace and returns the
+ * DELETE → soft-deletes the StoreOrder rows matching `?scope=` (default: all;
+ * see lib/bulk-delete/scopes.ts) in the workspace and returns the
  * trashed ids for the undo snackbar («بازگردانی»). Rows are physically
  * removed by the worker's purge sweeper after 7 days.
  *
@@ -25,8 +28,11 @@ const BATCH_SIZE = 1000
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  const count = await prisma.storeOrder.count({ where: { workspaceId: user.workspaceId } })
-  return NextResponse.json({ count })
+  const now = new Date()
+  const counts = await countBulkScopes(ORDER_BULK_SCOPES, (scope) =>
+    prisma.storeOrder.count({ where: { workspaceId: user.workspaceId, ...orderBulkWhere(scope, now) } }),
+  )
+  return NextResponse.json({ count: counts.all, counts })
 }
 
 export async function DELETE(request: Request) {
@@ -38,7 +44,11 @@ export async function DELETE(request: Request) {
 
   // Scoped mode: when the body supplies ids, ONLY those orders are trashed
   // (the selection bar on the orders page). Without a body the delete covers
-  // the whole workspace (the «حذف همه» button).
+  // the `?scope=` preset picked in the «حذف گروهی» menu.
+  const scope = parseBulkScope(request, ORDER_BULK_SCOPES)
+  if (!scope) return NextResponse.json({ error: 'INVALID_SCOPE' }, { status: 400 })
+  // One cutoff for every batch, so the age preset cannot creep mid-delete.
+  const scopeWhere = orderBulkWhere(scope)
   const contentType = request.headers.get('content-type') ?? ''
   let scopedIds: string[] | null = null
   if (contentType.includes('application/json')) {
@@ -60,7 +70,7 @@ export async function DELETE(request: Request) {
     const rows = await prisma.storeOrder.findMany({
       where: {
         workspaceId: user.workspaceId,
-        ...(scopedIds ? { id: { in: scopedIds } } : {}),
+        ...(scopedIds ? { id: { in: scopedIds } } : scopeWhere),
       },
       select: { id: true },
       take: BATCH_SIZE,

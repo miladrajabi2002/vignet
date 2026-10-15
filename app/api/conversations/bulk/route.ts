@@ -3,15 +3,18 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { CONVERSATION_BULK_SCOPES, conversationBulkWhere, countBulkScopes, parseBulkScope } from '@/lib/bulk-delete/scopes'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Bulk-delete endpoints for conversations.
  *
- * GET  → returns { count } for the confirm dialog.
+ * GET  → returns { count, counts } — the per-preset counts feed the
+ *        «حذف گروهی» menu (حل‌شده، بی‌پیام، بدون فعالیت در یک ماه، …).
  *
- * DELETE → soft-deletes ALL Conversation rows in the workspace and returns
+ * DELETE → soft-deletes the Conversation rows matching `?scope=` (default:
+ * all; see lib/bulk-delete/scopes.ts) in the workspace and returns
  * the trashed ids for the undo snackbar. Because the soft-delete extension
  * replaces the row removal with a `deletedAt` stamp, the Message/HandoffAlert/
  * SalesInsight cascades never fire — chat history survives untouched and the
@@ -25,8 +28,11 @@ const BATCH_SIZE = 500
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  const count = await prisma.conversation.count({ where: { workspaceId: user.workspaceId } })
-  return NextResponse.json({ count })
+  const now = new Date()
+  const counts = await countBulkScopes(CONVERSATION_BULK_SCOPES, (scope) =>
+    prisma.conversation.count({ where: { workspaceId: user.workspaceId, ...conversationBulkWhere(scope, now) } }),
+  )
+  return NextResponse.json({ count: counts.all, counts })
 }
 
 export async function DELETE(request: Request) {
@@ -38,7 +44,11 @@ export async function DELETE(request: Request) {
 
   // Scoped mode: when the body supplies ids, ONLY those conversations are
   // trashed (the selection bar on the conversations page). Without a body the
-  // delete covers the whole workspace (the «حذف همه» button).
+  // delete covers the `?scope=` preset picked in the «حذف گروهی» menu.
+  const scope = parseBulkScope(request, CONVERSATION_BULK_SCOPES)
+  if (!scope) return NextResponse.json({ error: 'INVALID_SCOPE' }, { status: 400 })
+  // One cutoff for every batch, so the age presets cannot creep mid-delete.
+  const scopeWhere = conversationBulkWhere(scope)
   const contentType = request.headers.get('content-type') ?? ''
   let scopedIds: string[] | null = null
   if (contentType.includes('application/json')) {
@@ -57,7 +67,7 @@ export async function DELETE(request: Request) {
     const rows = await prisma.conversation.findMany({
       where: {
         workspaceId: user.workspaceId,
-        ...(scopedIds ? { id: { in: scopedIds } } : {}),
+        ...(scopedIds ? { id: { in: scopedIds } } : scopeWhere),
       },
       select: { id: true },
       take: BATCH_SIZE,

@@ -23,7 +23,7 @@ import {
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
-import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { UNDO_RESTORED_EVENT } from '@/lib/undo-queue'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { ContactDetailSheet } from '@/components/crm/contact-detail-sheet'
@@ -360,29 +360,28 @@ export function ContactsView({
                                                                 : undefined}
                                                 />
                                                 {exportLink}
-                                                <BulkDeleteButton
-                                                        countEndpoint="/api/contacts/bulk"
-                                                        deleteEndpoint="/api/contacts/bulk"
-                                                        restoreEndpoint="/api/contacts/bulk/restore"
-                                                        entityLabel={locale === 'fa' ? 'مشتری' : 'contact'}
-                                                        entitySingularLabel={locale === 'fa' ? 'مشتری' : 'contact'}
-                                                        buttonLabel={selected.size > 0
-                                                                ? locale === 'fa'
-                                                                        ? `حذف ${selected.size.toLocaleString('fa-IR')} مشتری`
-                                                                        : `Delete ${selected.size} customers`
-                                                                : locale === 'fa' ? 'حذف همه مشتریان' : 'Delete all customers'}
-                                                        dialogTitle={selected.size > 0
-                                                                ? locale === 'fa'
-                                                                        ? `حذف ${selected.size.toLocaleString('fa-IR')} مشتری؟`
-                                                                        : `Delete ${selected.size} customers?`
-                                                                : undefined}
-                                                        countOverride={selected.size > 0 ? selected.size : undefined}
-                                                        deleteBody={selected.size > 0 ? { ids: [...selected] } : undefined}
-                                                        extraWarning={locale === 'fa'
-                                                                ? 'گفتگوهای مشتریان حفظ می‌شوند؛ با حذف یا بازگردانی، لینک گفتگوها هم به همان شکل برمی‌گردد.'
-                                                                : 'Conversations are preserved; restoring also brings their links back.'}
-                                                        compactOnMobile
+                                                <BulkDeleteMenu
+                                                        endpoint="/api/contacts/bulk"
                                                         undoKind="contact"
+                                                        entityLabel={locale === 'fa' ? 'مشتری' : 'customers'}
+                                                        compactOnMobile
+                                                        selection={selected.size > 0
+                                                                ? {
+                                                                        ids: [...selected],
+                                                                        label: locale === 'fa'
+                                                                                ? `حذف ${selected.size.toLocaleString('fa-IR')} مشتری انتخاب‌شده`
+                                                                                : `Delete ${selected.size} selected customers`,
+                                                                }
+                                                                : undefined}
+                                                        options={[
+                                                                { scope: 'no_conversations', label: locale === 'fa' ? 'حذف مشتریان بدون گفتگو' : 'Delete customers with no conversation', hint: locale === 'fa' ? 'هیچ گفتگوی فعالی با آن‌ها نمانده' : 'No live conversation left with them' },
+                                                                { scope: 'anonymous', label: locale === 'fa' ? 'حذف مشتریان بی‌نام و بی‌شماره' : 'Delete customers with no name or phone', hint: locale === 'fa' ? 'نه نامی ثبت شده نه شماره‌ای' : 'Neither a name nor a phone number' },
+                                                                { scope: 'inactive_180d', label: locale === 'fa' ? 'حذف مشتریان غیرفعال (۶ ماه)' : 'Delete customers inactive for 6 months', hint: locale === 'fa' ? 'بیش از ۱۸۰ روز هیچ پیامی نداشته‌اند' : 'No message in more than 180 days' },
+                                                                { scope: 'all', label: locale === 'fa' ? 'حذف همهٔ مشتریان' : 'Delete all customers', hint: locale === 'fa' ? 'کل فهرست مشتریان' : 'The whole customer list' },
+                                                        ]}
+                                                        extraWarning={locale === 'fa'
+                                                                ? 'گفتگوهای مشتریان حفظ می‌شوند؛ با بازگردانی، لینک گفتگوها هم به همان شکل برمی‌گردد'
+                                                                : 'Conversations are preserved; restoring also brings their links back'}
                                                         onDeleted={() => setSelected(new Set())}
                                                 />
                                         </>

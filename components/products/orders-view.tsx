@@ -9,7 +9,7 @@ import { MenuTabs } from '@/components/menu/menu-tabs'
 import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 import { Pagination } from '@/components/ui/pagination'
 import { displayPhone } from '@/lib/phone'
-import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { OrdersSearchForm } from '@/components/products/orders-search-form'
 import { CopyButton } from '@/components/ui/copy-button'
 import { OrderEntry } from '@/components/products/order-entry'
@@ -246,15 +246,22 @@ export async function OrdersView({
         subtitle={t('subtitle')}
         actions={
           <>
-            <BulkDeleteButton
-              countEndpoint="/api/products/orders/bulk"
-              deleteEndpoint="/api/products/orders/bulk"
-              restoreEndpoint="/api/products/orders/bulk/restore"
+            <BulkDeleteMenu
+              endpoint="/api/products/orders/bulk"
               undoKind="order"
               entityLabel={locale === 'en' ? 'orders' : 'سفارش'}
-              entitySingularLabel={locale === 'en' ? 'order' : 'سفارش'}
-              buttonLabel={t('deleteAll')}
               compactOnMobile
+              options={[
+                { scope: 'cancelled', label: locale === 'en' ? 'Delete cancelled and failed orders' : 'حذف سفارش‌های لغوشده و ناموفق', hint: locale === 'en' ? 'Cancelled, refunded or failed payment' : 'لغوشده، مرجوعی یا پرداخت ناموفق' },
+                { scope: 'completed', label: locale === 'en' ? 'Delete completed orders' : 'حذف سفارش‌های تکمیل‌شده', hint: locale === 'en' ? 'Delivered; nothing left to follow up' : 'تحویل شده‌اند و پیگیری لازم ندارند' },
+                { scope: 'older_90d', label: locale === 'en' ? 'Delete orders older than 3 months' : 'حذف سفارش‌های قدیمی‌تر از سه ماه', hint: locale === 'en' ? 'Placed more than 90 days ago' : 'ثبت‌شده بیش از ۹۰ روز پیش' },
+                { scope: 'all', label: t('deleteAll'), hint: locale === 'en' ? 'Every order, whatever its status' : 'همهٔ سفارش‌ها با هر وضعیتی' },
+              ]}
+              extraWarning={scope === 'products'
+                ? (locale === 'en'
+                    ? 'Only the copy in Vigent is removed; the orders stay in your store'
+                    : 'فقط نسخهٔ ویجنت حذف می‌شود؛ سفارش‌ها در فروشگاه شما می‌مانند')
+                : undefined}
             />
             <span className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
               {t('total', { count: totalOrders.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}

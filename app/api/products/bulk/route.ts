@@ -6,16 +6,18 @@ import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { cleanupProductMarkersFromMessages } from '@/lib/products/marker-cleanup'
 import { cleanupProductIdsFromAutomations } from '@/lib/instagram/automation-cleanup'
+import { PRODUCT_BULK_SCOPES, countBulkScopes, parseBulkScope, productBulkWhere } from '@/lib/bulk-delete/scopes'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Bulk-delete endpoints for products.
  *
- * GET  → returns { count } so the UI can show «۱۲۳ محصول حذف می‌شود»
- *        in the confirm dialog before the user commits.
+ * GET  → returns { count, counts } so the «حذف گروهی» menu can show how
+ *        many products each preset (ناموجود، پنهان، …) would remove.
  *
- * DELETE → soft-deletes ALL products in the workspace and returns the trashed
+ * DELETE → soft-deletes the products matching `?scope=` (default: all; see
+ * lib/bulk-delete/scopes.ts) in the workspace and returns the trashed
  * ids — the UI feeds them to /api/products/bulk/restore for the «بازگردانی»
  * (undo) snackbar. Rows are physically purged (with marker/automation/embed
  * cleanup below) by the worker after 7 days.
@@ -37,8 +39,10 @@ const BATCH_SIZE = 1000
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  const count = await prisma.product.count({ where: { workspaceId: user.workspaceId } })
-  return NextResponse.json({ count })
+  const counts = await countBulkScopes(PRODUCT_BULK_SCOPES, (scope) =>
+    prisma.product.count({ where: { workspaceId: user.workspaceId, ...productBulkWhere(scope) } }),
+  )
+  return NextResponse.json({ count: counts.all, counts })
 }
 
 export async function DELETE(request: Request) {
@@ -50,7 +54,9 @@ export async function DELETE(request: Request) {
 
   // Scoped mode: when the body supplies ids, ONLY those products are
   // trashed (the selection bar on the products page). Without a body the
-  // delete covers the whole workspace (the «حذف همه» button).
+  // delete covers the `?scope=` preset picked in the «حذف گروهی» menu.
+  const scope = parseBulkScope(request, PRODUCT_BULK_SCOPES)
+  if (!scope) return NextResponse.json({ error: 'INVALID_SCOPE' }, { status: 400 })
   const contentType = request.headers.get('content-type') ?? ''
   let scopedIds: string[] | null = null
   if (contentType.includes('application/json')) {
@@ -70,7 +76,7 @@ export async function DELETE(request: Request) {
   const products = await prisma.product.findMany({
     where: {
       workspaceId: user.workspaceId,
-      ...(scopedIds ? { id: { in: scopedIds } } : {}),
+      ...(scopedIds ? { id: { in: scopedIds } } : productBulkWhere(scope)),
     },
     select: {
       id: true,

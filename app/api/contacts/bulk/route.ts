@@ -3,16 +3,19 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { CONTACT_BULK_SCOPES, contactBulkWhere, countBulkScopes, parseBulkScope } from '@/lib/bulk-delete/scopes'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Bulk-delete endpoints for contacts.
  *
- * GET  → returns { count } for the confirm dialog.
+ * GET  → returns { count, counts } — the per-preset counts feed the
+ *        «حذف گروهی» menu (بدون گفتگو، بی‌نام و شماره، غیرفعال، …).
  *
- * DELETE → soft-deletes the supplied contact ids, or all Contact rows when no
- * JSON body is supplied. Every delete remains scoped to the current workspace.
+ * DELETE → soft-deletes the supplied contact ids, or the Contact rows matching
+ * `?scope=` (default: all; see lib/bulk-delete/scopes.ts) when no JSON body is
+ * supplied. Every delete remains scoped to the current workspace.
  * The response contains the ids that were trashed — the UI feeds them to the
  * /restore endpoint for the «بازگردانی» (undo) snackbar. Rows are physically
  * removed by the worker's purge sweeper after 7 days.
@@ -29,8 +32,11 @@ const deleteSchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).m
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  const count = await prisma.contact.count({ where: { workspaceId: user.workspaceId } })
-  return NextResponse.json({ count })
+  const now = new Date()
+  const counts = await countBulkScopes(CONTACT_BULK_SCOPES, (scope) =>
+    prisma.contact.count({ where: { workspaceId: user.workspaceId, ...contactBulkWhere(scope, now) } }),
+  )
+  return NextResponse.json({ count: counts.all, counts })
 }
 
 export async function DELETE(request: Request) {
@@ -64,11 +70,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: true, deleted: ids.length, ids })
   }
 
+  const scope = parseBulkScope(request, CONTACT_BULK_SCOPES)
+  if (!scope) return NextResponse.json({ error: 'INVALID_SCOPE' }, { status: 400 })
+  // One cutoff for every batch, so the age preset cannot creep mid-delete.
+  const scopeWhere = contactBulkWhere(scope)
   const ids: string[] = []
   let batch = 0
   do {
     const rows = await prisma.contact.findMany({
-      where: { workspaceId: user.workspaceId },
+      where: { workspaceId: user.workspaceId, ...scopeWhere },
       select: { id: true },
       take: BATCH_SIZE,
     })

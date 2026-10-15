@@ -141,13 +141,12 @@ describe('CRM avatar and customer deletion contract', () => {
 
   it('targets selected customers from the bulk-delete action', () => {
     const view = source('components/crm/contacts-view.tsx')
-    const bulkAction = source('components/ui/bulk-delete-button.tsx')
+    const bulkAction = source('components/ui/bulk-delete-menu.tsx')
     const route = source('app/api/contacts/bulk/route.ts')
 
-    expect(view).toContain('`حذف ${selected.size.toLocaleString(\'fa-IR\')} مشتری`')
-    expect(view).toContain('deleteBody={selected.size > 0 ? { ids: [...selected] } : undefined}')
-    expect(view).toContain('countOverride={selected.size > 0 ? selected.size : undefined}')
-    expect(bulkAction).toContain("body: JSON.stringify(deleteBody)")
+    expect(view).toContain('`حذف ${selected.size.toLocaleString(\'fa-IR\')} مشتری انتخاب‌شده`')
+    expect(view).toContain('ids: [...selected],')
+    expect(bulkAction).toContain("body: JSON.stringify({ ids: selection?.ids ?? [] })")
     expect(route).toContain('workspaceId: user.workspaceId')
     expect(route).toContain('id: { in: parsed.data.ids }')
   })

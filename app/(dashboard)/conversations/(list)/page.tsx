@@ -28,7 +28,7 @@ import { SalesInsightText, SatisfactionText } from '@/components/crm/sales-insig
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
 import { SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
 import { DISSATISFIED_BELOW } from '@/lib/ai/turn-signal'
-import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import {
         LiveArrivalItem,
         LiveArrivalProvider,
@@ -387,18 +387,21 @@ export default async function ConversationsPage(props: {
                                                         compactOnMobile
                                                 />
 
-                                                <BulkDeleteButton
-                                                        countEndpoint="/api/conversations/bulk"
-                                                        deleteEndpoint="/api/conversations/bulk"
-                                                        restoreEndpoint="/api/conversations/bulk/restore"
+                                                <BulkDeleteMenu
+                                                        endpoint="/api/conversations/bulk"
                                                         undoKind="conversation"
-                                                        entityLabel={isFa ? 'گفتگو' : 'conversation'}
-                                                        entitySingularLabel={isFa ? 'گفتگو' : 'conversation'}
-                                                        buttonLabel={t('deleteAll')}
+                                                        entityLabel={isFa ? 'گفتگو' : 'conversations'}
                                                         compactOnMobile
+                                                        options={[
+                                                                { scope: 'resolved', label: isFa ? 'حذف گفتگوهای حل‌شده' : 'Delete resolved conversations', hint: isFa ? 'گفتگوهایی که بسته شده‌اند' : 'Conversations marked resolved' },
+                                                                { scope: 'idle_30d', label: isFa ? 'حذف گفتگوهای بیش از یک ماه پیش' : 'Delete conversations older than a month', hint: isFa ? 'آخرین پیامشان بیش از ۳۰ روز پیش بوده' : 'Last message more than 30 days ago' },
+                                                                { scope: 'idle_90d', label: isFa ? 'حذف گفتگوهای بیش از سه ماه پیش' : 'Delete conversations older than 3 months', hint: isFa ? 'آخرین پیامشان بیش از ۹۰ روز پیش بوده' : 'Last message more than 90 days ago' },
+                                                                { scope: 'empty', label: isFa ? 'حذف گفتگوهای خالی' : 'Delete empty conversations', hint: isFa ? 'باز شده‌اند ولی هیچ پیامی ندارند' : 'Opened but never got a message' },
+                                                                { scope: 'all', label: t('deleteAll'), hint: isFa ? 'همهٔ گفتگوها در همهٔ کانال‌ها' : 'Every conversation on every channel' },
+                                                        ]}
                                                         extraWarning={isFa
-                                                                ? 'تاریخچه پیام‌ها حذف می‌شود اما بلافاصله بعد از حذف، چند ثانیه فرصت «بازگردانی» کامل خواهید داشت. اطلاعات مشتریان حفظ می‌شود.'
-                                                                : 'Message history is removed, but you get a few seconds to fully undo right after the delete. Customer info is preserved.'}
+                                                                ? 'تاریخچهٔ پیام‌ها هم حذف می‌شود؛ اطلاعات مشتریان حفظ می‌شود'
+                                                                : 'Their message history goes too; customer info is preserved'}
                                                 />
                                         </>
                                 }

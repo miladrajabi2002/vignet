@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { StatusChip } from '@/components/ui/status-chip'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
@@ -289,6 +290,25 @@ export function AppointmentsWorkspace({
             <button type="button" onClick={() => setBooking({ open: true })} disabled={!activeServices.length} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45">
               <CalendarCheck2 className="h-4 w-4" />{fa ? 'ثبت نوبت' : 'Book'}
             </button>
+            <BulkDeleteMenu
+              endpoint="/api/appointments/bulk"
+              entityLabel={fa ? 'نوبت' : 'bookings'}
+              buttonLabel={fa ? 'پاک‌سازی' : 'Clean up'}
+              compactOnMobile
+              options={[
+                { scope: 'cancelled', label: fa ? 'حذف نوبت‌های لغوشده' : 'Delete cancelled bookings', hint: fa ? 'نوبت‌هایی که لغو شده‌اند' : 'Bookings that were cancelled' },
+                { scope: 'no_show', label: fa ? 'حذف نوبت‌های غیبت' : 'Delete no-shows', hint: fa ? 'مشتری سر نوبت نیامده' : 'The customer did not turn up' },
+                { scope: 'past_30d', label: fa ? 'حذف نوبت‌های بیش از یک ماه پیش' : 'Delete bookings older than a month', hint: fa ? 'زمانشان بیش از ۳۰ روز پیش تمام شده' : 'Ended more than 30 days ago' },
+              ]}
+              extraWarning={fa ? 'این حذف دائمی است و برگشت ندارد' : 'This is permanent and cannot be undone'}
+              onDeleted={(result) => {
+                const byService = (result.byService ?? {}) as Record<string, number>
+                setServices((rows) => rows.map((row) => (
+                  byService[row.id] ? { ...row, appointmentCount: Math.max(0, row.appointmentCount - byService[row.id]) } : row
+                )))
+                void refreshAll()
+              }}
+            />
           </>
         )}
       />

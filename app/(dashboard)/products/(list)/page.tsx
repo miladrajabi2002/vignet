@@ -20,7 +20,7 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import type { WooIntegrationState } from '@/components/products/woo-setup-card'
 import { WOO_LINK_CARD, WOO_TINT } from '@/components/integrations/woo-styles'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
-import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
@@ -313,15 +313,24 @@ export default async function ProductsPage(
               <FolderTree className="h-4 w-4" />
               <span className="hidden sm:inline">{t('manageCategories')}</span>
             </Link>
-            <BulkDeleteButton
-              countEndpoint="/api/products/bulk"
-              deleteEndpoint="/api/products/bulk"
-              restoreEndpoint="/api/products/bulk/restore"
+            <BulkDeleteMenu
+              endpoint="/api/products/bulk"
               undoKind="product"
-              entityLabel={fa ? 'محصولات' : 'products'}
-              entitySingularLabel={fa ? 'محصول' : 'product'}
-              buttonLabel={t('deleteAll')}
+              entityLabel={fa ? 'محصول' : 'products'}
               compactOnMobile
+              options={[
+                { scope: 'out_of_stock', label: fa ? 'حذف محصولات ناموجود' : 'Delete out-of-stock products', hint: fa ? 'موجودی صفر یا کمتر' : 'Stock at zero or below' },
+                { scope: 'hidden', label: fa ? 'حذف محصولات پنهان' : 'Delete hidden products', hint: fa ? 'محصولاتی که غیرفعال شده‌اند و دستیار معرفی‌شان نمی‌کند' : 'Turned off; the assistant does not offer them' },
+                { scope: 'no_price', label: fa ? 'حذف محصولات بدون قیمت' : 'Delete products without a price', hint: fa ? 'قیمت ثبت نشده یا صفر است' : 'No price, or a price of zero' },
+                { scope: 'no_image', label: fa ? 'حذف محصولات بدون عکس' : 'Delete products without a photo', hint: fa ? 'هیچ تصویری ندارند' : 'No image at all' },
+                {
+                  scope: 'synced',
+                  label: fa ? 'حذف محصولات همگام‌شده از فروشگاه' : 'Delete products synced from the store',
+                  hint: fa ? 'محصولاتی که از ووکامرس آمده‌اند؛ محصولات دستی می‌مانند' : 'Imported from WooCommerce; products added by hand stay',
+                  extraWarning: fa ? 'اگر فروشگاه هنوز وصل باشد، همگام‌سازی بعدی دوباره آن‌ها را می‌آورد' : 'If the store is still connected, the next sync brings them back',
+                },
+                { scope: 'all', label: t('deleteAll'), hint: fa ? 'کل کاتالوگ، بدون استثنا' : 'The whole catalog, no exceptions' },
+              ]}
             />
           </>
         }
