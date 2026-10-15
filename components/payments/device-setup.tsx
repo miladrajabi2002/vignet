@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { AlertTriangle, Apple, ArrowLeft, ArrowLeftRight, ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardPaste, Globe, Loader2, Lock, MessageSquareText, Radio, RefreshCw, ShieldCheck, Smartphone } from 'lucide-react'
+import { AlertTriangle, Apple, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardPaste, Download, Globe, Lightbulb, ListChecks, Loader2, Lock, MessageSquareText, Radio, RefreshCw, RotateCcw, ShieldCheck, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -448,6 +448,9 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 	let next: ReactNode = null
 	if (page < lastPage) next = <NextButton label={fa ? 'بعدی' : 'Next'} onClick={() => setPage(page + 1)} />
 	else if (inSetup && exits?.next) next = <NextButton label={exits.next.label} onClick={exits.next.onClick} />
+	// The phone is proved: nothing to go back to, the way on is the payments.
+	const done = page === testPage && Boolean(device.verifiedAt)
+	if (done) next = <Link href="/payments" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-5 text-[14px] font-bold text-white dark:text-neutral-900"><ListChecks className="size-4" aria-hidden />{fa ? 'رفتن به پرداخت‌ها' : 'Go to payments'}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden /></Link>
 
 	return (
 		<section className="spatial-surface grid gap-5 rounded-card p-4 sm:p-6">
@@ -463,8 +466,8 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 				</div>
 			) : (
 				<div className="grid gap-5 md:grid-cols-[12.5rem_minmax(0,1fr)] md:items-start md:gap-8">
-					<PhoneMock steps={steps} step={Math.min(page, steps.length - 1)} className="w-[10.5rem] md:w-[12.5rem]" />
-					<div className="grid min-w-0 content-start gap-3.5">
+					<PhoneMock steps={steps} step={Math.min(page, steps.length - 1)} platform={device.platform} className="w-[11rem] md:w-[12.5rem]" />
+					<div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3.5">
 						<p className="flex flex-wrap items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
 							{device.platform === 'IOS' ? <Apple className="size-3.5" aria-hidden /> : <Smartphone className="size-3.5" aria-hidden />}
 							{platformName(device.platform, fa)} · {methodName(device.method, fa)}
@@ -474,6 +477,29 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 							<h3 className="text-[17px] font-extrabold leading-8 text-[var(--text-primary)]">{current.title}</h3>
 							<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">{current.body}</p>
 						</div>
+
+						{current.link ? (
+							<a href={current.link.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-fit items-center gap-2.5 rounded-xl bg-[#111] py-1.5 pe-4 ps-3 text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900">
+								{current.link.store === 'play' ? (
+									<svg width="20" height="22" viewBox="0 0 20 22" aria-hidden><path d="M1 1.2 11.2 11 1 20.8c-.4-.2-.6-.6-.6-1.1V2.3c0-.5.2-.9.6-1.1Z" fill="#00d7fe" /><path d="m14.6 7.6-3.4 3.4L1 1.2c.2-.1.5-.2.8-.2.3 0 .6.1.9.2l11.9 6.4Z" fill="#00f076" /><path d="M14.6 14.4 2.7 20.8c-.3.2-.6.2-.9.2-.3 0-.6-.1-.8-.2L11.2 11l3.4 3.4Z" fill="#ff3a44" /><path d="m18.6 12.2-4 2.2-3.4-3.4 3.4-3.4 4 2.2c.5.3.8.7.8 1.2s-.3.9-.8 1.2Z" fill="#ffd400" /></svg>
+								) : <Apple className="size-5" aria-hidden />}
+								<span className="grid leading-tight">
+									<span className="text-[10px] opacity-70">{current.link.store === 'play' ? 'GET IT ON' : 'Download on the'}</span>
+									<b className="text-[13.5px]">{current.link.store === 'play' ? 'Google Play' : 'App Store'}</b>
+								</span>
+								<Download className="ms-1 size-4 opacity-70" aria-hidden />
+								<span className="sr-only">{current.link.label}</span>
+							</a>
+						) : null}
+
+						{current.tips?.length ? (
+							<div className="grid gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/60 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/20">
+								<p className="flex items-center gap-1.5 text-[12.5px] font-bold text-amber-900 dark:text-amber-200"><Lightbulb className="size-4" aria-hidden />{fa ? 'اگر پیامک نرسید' : 'If messages do not arrive'}</p>
+								<ul className="grid gap-1.5">
+									{current.tips.map((tip) => <li key={tip} className="flex items-start gap-2 text-[12.5px] leading-6 text-[var(--text-secondary)]"><span aria-hidden className="mt-2.5 size-1 shrink-0 rounded-full bg-amber-600" />{tip}</li>)}
+								</ul>
+							</div>
+						) : null}
 
 						{current.kind === 'condition' && (
 							<CopyBox
@@ -500,7 +526,7 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 			)}
 
 			<StepFooter
-				back={busy === 'edit' ? null : back}
+				back={busy === 'edit' || done ? null : back}
 				next={next}
 				hint={page === lastPage && inSetup ? (fa ? 'درستیِ تنظیم با واریز آزمایشی قدم بعد مشخص می‌شود.' : 'The next step’s test transfer shows whether it all works.') : null}
 			/>
@@ -511,9 +537,9 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 function CopyBox({ label, value, copy, ltr, note, info, after }: { label: string; value: string; copy: string; ltr?: boolean; note?: string | null; info?: string | null; after?: ReactNode }) {
 	const fa = useLocale() !== 'en'
 	return (
-		<div className="grid gap-1.5">
+		<div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
 			<span className="text-[12.5px] font-medium text-[var(--text-muted)]">{label}</span>
-			<div className="flex items-center gap-2 rounded-control border-[1.5px] border-[#5b3de8]/40 bg-[#f7f5ff] p-2 ps-3.5 dark:bg-[#5b3de8]/10">
+			<div className="flex min-w-0 items-center gap-2 rounded-control border-[1.5px] border-[#5b3de8]/40 bg-[#f7f5ff] p-2 ps-3.5 dark:bg-[#5b3de8]/10">
 				<bdi dir={ltr ? 'ltr' : 'auto'} className={cn('min-w-0 flex-1 font-mono font-bold text-[var(--text-primary)]', ltr ? 'truncate text-[14px]' : 'break-all text-[18px]')}>{value}</bdi>
 				<CopyButton value={value} label={copy} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
 			</div>
@@ -604,14 +630,14 @@ export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard
 
 /**
  * The SMS phone in the gateway's settings: what it is, what it forwards and
- * when it was last heard from, with the way to switch to another phone
- * (an iPhone to an Android, or a new SIM).
+ * when it was last heard from, with «راه‌اندازی مجدد»: the phone is let go
+ * and the setup questions open again, filled in with its answers (a new
+ * phone, Android or iPhone, a new SIM, the other delivery).
  */
 export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; line: string | null }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
-	const [switching, setSwitching] = useState(false)
-	const [target, setTarget] = useState<Platform>(device?.platform === 'IOS' ? 'ANDROID' : 'IOS')
+	const [confirming, setConfirming] = useState(false)
 	const [busy, setBusy] = useState(false)
 
 	if (!device) {
@@ -643,7 +669,7 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 		if (!device) return
 		setBusy(true)
 		try {
-			writeDraft({ platform: target, method: device.method, phone: device.phone ?? '', keyword: device.keyword })
+			writeDraft({ platform: device.platform, method: device.method, phone: device.phone ?? '', keyword: device.keyword })
 			await fetch(`/api/payments/devices/${device.id}`, { method: 'DELETE' })
 			router.push('/payments/devices')
 			router.refresh()
@@ -671,7 +697,7 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 				</div>
 				<div className="flex w-full flex-wrap gap-2 sm:w-auto">
 					<Link href="/payments/devices" className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)] sm:flex-none"><BookOpen className="size-4" aria-hidden />{fa ? 'راهنمای تنظیم' : 'Setup guide'}</Link>
-					<button type="button" aria-expanded={switching} onClick={() => setSwitching(!switching)} className={cn('inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-bold sm:flex-none', switching ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]' : 'bg-[var(--text-primary)] text-white dark:text-neutral-900')}><ArrowLeftRight className="size-4" aria-hidden />{fa ? 'تعویض گوشی' : 'Switch phone'}</button>
+					<button type="button" aria-expanded={confirming} onClick={() => setConfirming(!confirming)} className={cn('inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-bold sm:flex-none', confirming ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]' : 'bg-[var(--text-primary)] text-white dark:text-neutral-900')}><RotateCcw className="size-4" aria-hidden />{fa ? 'راه‌اندازی مجدد' : 'Set up again'}</button>
 				</div>
 			</div>
 			<dl className="grid grid-cols-1 border-t border-[var(--border-subtle)] sm:grid-cols-3 sm:divide-x sm:divide-[var(--border-subtle)] sm:rtl:divide-x-reverse">
@@ -682,20 +708,15 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 					</div>
 				))}
 			</dl>
-			{switching && (
+			{confirming && (
 				<div className="grid gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5">
-					<p className="text-[13.5px] font-bold text-[var(--text-primary)]">{fa ? 'گوشی تازه کدام است؟' : 'Which is the new phone?'}</p>
-					<div role="radiogroup" aria-label={fa ? 'گوشی تازه' : 'New phone'} className="inline-grid w-full max-w-sm grid-cols-2 gap-1 rounded-full bg-[var(--bg-muted)] p-1">
-						{(['ANDROID', 'IOS'] as const).map((value) => (
-							<button key={value} type="button" role="radio" aria-checked={target === value} onClick={() => setTarget(value)} className={cn('inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full text-[13px] font-bold transition-colors', target === value ? 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-control)] dark:bg-neutral-800' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]')}>
-								{value === 'IOS' ? <Apple className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}{platformName(value, fa)}
-							</button>
-						))}
+					<div>
+						<p className="text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'راه‌اندازی مجدد گوشی دریافت پیامک' : 'Set up the SMS phone again'}</p>
+						<p className="mt-1 text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'برای گوشی تازه (اندروید یا آیفون)، سیم‌کارت تازه یا روش ارسال دیگر. همان سؤال‌ها با پاسخ‌های فعلی باز می‌شود و با یک واریز آزمایشی تمام می‌شود؛ تا آن موقع پرداخت‌ها برای تأیید دستی به شما می‌رسند.' : 'For a new phone (Android or iPhone), a new SIM or the other delivery. The same questions open with the current answers and finish with one test transfer; until then payments come to you to confirm by hand.'}</p>
 					</div>
-					<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'گوشی فعلی جدا می‌شود و همان چهار سؤال با پاسخ‌های قبلی برای گوشی تازه باز می‌شود. تا واریز آزمایشی گوشی تازه، پرداخت‌ها برای تأیید دستی به شما می‌رسند.' : 'The current phone is disconnected and the four questions open for the new one, filled in. Until its test transfer, payments come to you to confirm by hand.'}</p>
 					<div className="flex flex-wrap gap-2">
-						<Button loading={busy} onClick={replace}><ArrowLeftRight className="size-4" aria-hidden />{fa ? `تعویض با ${platformName(target, fa)}` : `Switch to ${platformName(target, fa)}`}</Button>
-						<Button variant="ghost" onClick={() => setSwitching(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>
+						<Button loading={busy} onClick={replace}><RotateCcw className="size-4" aria-hidden />{fa ? 'شروع راه‌اندازی مجدد' : 'Start again'}</Button>
+						<Button variant="ghost" onClick={() => setConfirming(false)}>{fa ? 'انصراف' : 'Cancel'}</Button>
 					</div>
 				</div>
 			)}
