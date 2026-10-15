@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, CalendarCheck2, CalendarDays, Loader2, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DialogShell } from '@/components/ui/dialog-shell'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
 import { dateLocaleTag, formatDateKey } from '@/lib/localized-date'
@@ -178,14 +178,39 @@ export function BookingDialog({
     ? `${formatDateKey(date, locale, { weekday: 'long', day: 'numeric', month: 'long' })} · ${formatClock(slot, fa)}`
     : null
 
+  // The submit button is pinned in the footer; its error sits at the end of
+  // the scrolling body, so bring it into view when it appears.
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [error])
+
+  const footer = (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">
+        {chosenLabel ? <><span className="font-bold text-[var(--text-primary)]">{chosenLabel}</span>{service ? ` · ${service.name}` : ''}</> : (fa ? 'یک زمان آزاد انتخاب کنید.' : 'Pick a free time.')}
+      </p>
+      <button
+        type="button"
+        onClick={() => void submit()}
+        disabled={!canSubmit}
+        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45"
+      >
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : reschedule ? <ArrowLeftRight className="h-4 w-4" /> : <CalendarCheck2 className="h-4 w-4" />}
+        {reschedule ? (fa ? 'انتقال به این زمان' : 'Move to this time') : (fa ? 'ثبت در تقویم' : 'Add to calendar')}
+      </button>
+    </div>
+  )
+
   return (
-    <DialogShell
-      wide
+    <SideSheet
       title={reschedule ? (fa ? 'جابه‌جایی نوبت' : 'Reschedule appointment') : (fa ? 'ثبت نوبت جدید' : 'New appointment')}
       subtitle={reschedule
         ? (fa ? `${reschedule.customerName} · ${reschedule.serviceName}؛ نوبت قبلی بعد از ثبت زمان جدید آزاد می‌شود.` : `${reschedule.customerName} · ${reschedule.serviceName}. The old time frees up once the new one is saved.`)
         : (fa ? 'فقط زمان‌هایی که واقعاً ظرفیت دارند نمایش داده می‌شوند.' : 'Only times with real remaining capacity are shown.')}
       onClose={onClose}
+      footer={footer}
+      closeLabel={fa ? 'بستن' : 'Close'}
     >
       <div className="space-y-6">
         {!reschedule && services.length > 1 && (
@@ -338,26 +363,9 @@ export function BookingDialog({
           </div>
         )}
 
-        {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
-
-        <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-[var(--border-subtle)] bg-white/95 px-4 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">
-              {chosenLabel ? <><span className="font-bold text-[var(--text-primary)]">{chosenLabel}</span>{service ? ` · ${service.name}` : ''}</> : (fa ? 'یک زمان آزاد انتخاب کنید.' : 'Pick a free time.')}
-            </p>
-            <button
-              type="button"
-              onClick={() => void submit()}
-              disabled={!canSubmit}
-              className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-45"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : reschedule ? <ArrowLeftRight className="h-4 w-4" /> : <CalendarCheck2 className="h-4 w-4" />}
-              {reschedule ? (fa ? 'انتقال به این زمان' : 'Move to this time') : (fa ? 'ثبت در تقویم' : 'Add to calendar')}
-            </button>
-          </div>
-        </div>
+        {error && <p ref={errorRef} role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
       </div>
-    </DialogShell>
+    </SideSheet>
   )
 }
 

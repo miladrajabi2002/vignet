@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CalendarPlus, Loader2, Repeat, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toEnglishDigits } from '@/lib/phone'
 import { dateKeyInTimeZone, localDateTimeToUtc } from '@/lib/bookings/time'
 import { shiftDateKey } from '@/components/bookings/booking-model'
-import { DialogShell } from '@/components/ui/dialog-shell'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { TimeRangeField } from '@/components/ui/time-picker'
@@ -170,13 +170,53 @@ export function CourseEditor({
 
   const inputClass = 'input min-h-11 w-full rounded-xl text-sm'
 
+  // Save and delete live in the pinned footer, but their warnings sit at the
+  // end of the scrolling body — bring each into view when it appears.
+  const deleteNoticeRef = useRef<HTMLDivElement>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (deleteState !== 'idle') deleteNoticeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [deleteState])
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [error])
+
+  // Pinned footer, laid out like the service editor's: save takes the room,
+  // cancel beside it, delete last and quiet so it is never under the thumb.
+  const footer = (
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={() => void save()} disabled={busy !== null} className="spatial-press inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-60">
+        {busy === 'save' && <Loader2 className="h-4 w-4 animate-spin" />}
+        {course ? (fa ? 'ذخیره تغییرات' : 'Save changes') : status === 'PUBLISHED' ? (fa ? 'ساخت و شروع ثبت‌نام' : 'Create and open') : (fa ? 'ساخت دوره' : 'Create course')}
+      </button>
+      <button type="button" onClick={onClose} disabled={busy !== null} className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50">{fa ? 'انصراف' : 'Cancel'}</button>
+      {course && (
+        typeof deleteState === 'object' ? (
+          <button type="button" onClick={() => { setStatus('ARCHIVED'); setDeleteState('idle') }} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm font-bold text-[var(--text-primary)]">
+            {fa ? 'بایگانی' : 'Archive'}
+          </button>
+        ) : (
+          <button type="button" disabled={busy !== null} onClick={() => void remove()} aria-label={fa ? 'حذف دوره' : 'Delete course'} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
+            {busy === 'delete' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}<span className="max-sm:sr-only">{fa ? 'حذف' : 'Delete'}</span>
+          </button>
+        )
+      )}
+    </div>
+  )
+
   return (
-    <DialogShell wide title={course ? (fa ? 'ویرایش دوره' : 'Edit course') : (fa ? 'دوره جدید' : 'New course')} subtitle={fa ? 'ایجنت فقط دوره‌های «در حال ثبت‌نام» را معرفی و ثبت‌نام می‌کند.' : 'The agent only offers and enrols in courses that are enrolling.'} onClose={() => !busy && onClose()}>
+    <SideSheet
+      title={course ? (fa ? 'ویرایش دوره' : 'Edit course') : (fa ? 'دوره جدید' : 'New course')}
+      subtitle={fa ? 'ایجنت فقط دوره‌های «در حال ثبت‌نام» را معرفی و ثبت‌نام می‌کند.' : 'The agent only offers and enrols in courses that are enrolling.'}
+      onClose={() => !busy && onClose()}
+      footer={footer}
+      closeLabel={fa ? 'بستن' : 'Close'}
+    >
       <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{fa ? 'نام دوره' : 'Course name'}</span>
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={fa ? 'مثلاً آموزش پایتون مقدماتی' : 'e.g. Intro to Python'} className={inputClass} autoFocus />
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={fa ? 'مثلاً آموزش پایتون مقدماتی' : 'e.g. Intro to Python'} className={inputClass} data-sheet-initial-focus />
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{fa ? 'توضیح برای مشتری' : 'Description for customers'}</span>
@@ -207,7 +247,7 @@ export function CourseEditor({
 
         <PrepayField mode={prepay.mode} value={prepay.value} price={price} onChange={setPrepay} lang={fa ? 'fa' : 'en'} kind="course" />
 
-        <div className="grid gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{fa ? 'ظرفیت (نفر)' : 'Capacity'}</span>
             <input inputMode="numeric" value={groupDigits(capacity, fa)} onChange={(event) => setCapacity(toEnglishDigits(event.target.value).replace(/[^\d]/g, ''))} className={cn(inputClass, 'bg-white tabular-nums')} />
@@ -220,7 +260,7 @@ export function CourseEditor({
             <LocalizedDatePicker value={deadline} onValueChange={setDeadline} locale={locale} min={today} ariaLabel={fa ? 'مهلت ثبت‌نام' : 'Enrollment deadline'} placeholder={fa ? 'تا شروع جلسه اول' : 'Until the first session'} />
             {deadline && <button type="button" onClick={() => setDeadline('')} className="mt-1 text-[12px] text-[var(--text-muted)] underline">{fa ? 'حذف مهلت' : 'Clear'}</button>}
           </div>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-white p-3">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-white p-3 sm:col-span-2">
             <input type="checkbox" checked={waitlist} onChange={(event) => setWaitlist(event.target.checked)} className="mt-1 h-4 w-4 accent-black" />
             <span>
               <span className="block text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'فهرست انتظار' : 'Waitlist'}</span>
@@ -272,7 +312,7 @@ export function CourseEditor({
         </div>
 
         {deleteState !== 'idle' && (
-          <div role="alert" className={cn('flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[13px] leading-6', typeof deleteState === 'object' ? 'border border-amber-500/25 bg-amber-500/[0.08] text-amber-900' : 'border border-red-500/20 bg-red-50/70 text-red-800')}>
+          <div ref={deleteNoticeRef} role="alert" className={cn('flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[13px] leading-6', typeof deleteState === 'object' ? 'border border-amber-500/25 bg-amber-500/[0.08] text-amber-900' : 'border border-red-500/20 bg-red-50/70 text-red-800')}>
             <AlertTriangle className="mt-1 h-4 w-4 shrink-0" />
             <p>
               {typeof deleteState === 'object'
@@ -282,28 +322,8 @@ export function CourseEditor({
           </div>
         )}
 
-        {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
-
-        <div className="flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] pt-4 sm:flex-row sm:items-center">
-          {course && (
-            typeof deleteState === 'object' ? (
-              <button type="button" onClick={() => { setStatus('ARCHIVED'); setDeleteState('idle') }} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-bold text-[var(--text-primary)]">
-                {fa ? 'بایگانی به‌جای حذف' : 'Archive instead'}
-              </button>
-            ) : (
-              <button type="button" disabled={busy !== null} onClick={() => void remove()} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
-                {busy === 'delete' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{fa ? 'حذف' : 'Delete'}
-              </button>
-            )
-          )}
-          <span className="hidden flex-1 sm:block" aria-hidden />
-          <button type="button" onClick={onClose} disabled={busy !== null} className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50">{fa ? 'انصراف' : 'Cancel'}</button>
-          <button type="button" onClick={() => void save()} disabled={busy !== null} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] disabled:opacity-60">
-            {busy === 'save' && <Loader2 className="h-4 w-4 animate-spin" />}
-            {course ? (fa ? 'ذخیره تغییرات' : 'Save changes') : status === 'PUBLISHED' ? (fa ? 'ساخت و شروع ثبت‌نام' : 'Create and open') : (fa ? 'ساخت دوره' : 'Create course')}
-          </button>
-        </div>
+        {error && <p ref={errorRef} role="alert" className="rounded-xl bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-700">{error}</p>}
       </div>
-    </DialogShell>
+    </SideSheet>
   )
 }

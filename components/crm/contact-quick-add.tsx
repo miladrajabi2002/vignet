@@ -1,11 +1,11 @@
 'use client'
 
-import { type FormEvent, useId, useRef, useState } from 'react'
+import { type FormEvent, useId, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, Check, Loader2, UserPlus } from 'lucide-react'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { MaterialSelect } from '@/components/ui/material-select'
 import {
   CONTACT_STAGES,
@@ -35,7 +35,6 @@ export function ContactQuickAdd({
   const t = useTranslations('contacts')
   const router = useRouter()
   const formId = useId()
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -119,7 +118,6 @@ export function ContactQuickAdd({
   return (
     <>
       <button
-        ref={triggerRef}
         type="button"
         onClick={() => {
           setError(null)
@@ -139,30 +137,19 @@ export function ContactQuickAdd({
         <span className="hidden sm:inline">{saved ? t('quickAdd.saved') : t('quickAdd.button')}</span>
       </button>
 
-      <MobileBottomSheet
-        open={open}
-        onClose={() => setOpen(false)}
-        triggerRef={triggerRef}
+      {open && (
+      <SideSheet
+        onClose={() => { if (!submitting) setOpen(false) }}
         title={t('quickAdd.title')}
-        description={t('quickAdd.description')}
+        subtitle={t('quickAdd.description')}
         closeLabel={t('quickAdd.close')}
-        mobileOnly={false}
-        contentClassName="bg-[color:color-mix(in_srgb,var(--bg-base)_60%,transparent)]"
         footer={
-          <div className="grid grid-cols-[auto_1fr] gap-2 md:flex md:justify-end">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              disabled={submitting}
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
-            >
-              {t('quickAdd.cancel')}
-            </button>
+          <div className="flex items-center gap-2">
             <button
               type="submit"
               form={formId}
               disabled={submitting}
-              className="inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting && (
                 <Loader2
@@ -171,6 +158,14 @@ export function ContactQuickAdd({
                 />
               )}
               {submitting ? t('quickAdd.saving') : t('quickAdd.save')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={submitting}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white px-5 text-sm font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
+            >
+              {t('quickAdd.cancel')}
             </button>
           </div>
         }
@@ -283,7 +278,8 @@ export function ContactQuickAdd({
             </span>
           </label>
         </form>
-      </MobileBottomSheet>
+      </SideSheet>
+      )}
     </>
   )
 }

@@ -51,11 +51,11 @@ describe('managed agent generation settings', () => {
     expect(wizard).not.toContain('form.maxTokens')
   })
 
-  it('opens prompt preview as an accessible portal dialog', () => {
+  it('opens prompt preview in the shared side sheet', () => {
     const settings = source('components/agents/agent-settings-form.tsx')
     expect(settings).toContain("onClick={() => setShowPreview(true)}")
-    expect(settings).toContain('aria-label={tf(\'previewPrompt\')}')
-    expect(settings).toContain('document.body')
+    expect(settings).toContain('<SideSheet')
+    expect(settings).toContain("title={tf('previewPrompt')}")
   })
 })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -12,7 +12,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { DeleteCategoryDialog } from '@/components/products/delete-category-dialog'
 
 export interface CategoryNode {
@@ -25,7 +25,6 @@ export interface CategoryNode {
 export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
   const t = useTranslations('products.categories')
   const router = useRouter()
-  const createTriggerRef = useRef<HTMLButtonElement>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryNode | null>(null)
   const [name, setName] = useState('')
@@ -176,7 +175,6 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
       <div className="sticky top-[5.25rem] z-20 -mx-1 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--bg-base)_95%,transparent)] p-3 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
         <p className="text-sm text-[var(--text-secondary)]">{t('total', { count: categories.length })}</p>
         <button
-          ref={createTriggerRef}
           type="button"
           onClick={openCreate}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)]"
@@ -195,22 +193,20 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
         <div className="space-y-2">{roots.map((category) => renderRow(category, 0, new Set()))}</div>
       )}
 
-      <MobileBottomSheet
-        open={editorOpen}
+      {editorOpen && (
+      <SideSheet
         title={editing ? t('editTitle') : t('createTitle')}
-        description={t('editorDescription')}
+        subtitle={t('editorDescription')}
         closeLabel={t('cancel')}
-        mobileOnly={false}
-        triggerRef={createTriggerRef}
         onClose={() => !busy && setEditorOpen(false)}
         footer={(
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setEditorOpen(false)} disabled={busy} className="min-h-11 rounded-xl border border-[var(--border-default)] px-4 text-sm font-semibold text-[var(--text-primary)] disabled:opacity-50">
-              {t('cancel')}
-            </button>
-            <button type="button" onClick={save} disabled={busy || !name.trim()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] disabled:opacity-50">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={save} disabled={busy || !name.trim()} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] disabled:opacity-50">
               {busy && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
               {editing ? t('save') : t('add')}
+            </button>
+            <button type="button" onClick={() => setEditorOpen(false)} disabled={busy} className="min-h-11 rounded-xl border border-[var(--border-default)] px-5 text-sm font-semibold text-[var(--text-primary)] disabled:opacity-50">
+              {t('cancel')}
             </button>
           </div>
         )}
@@ -218,7 +214,7 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
         <div className="space-y-4">
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{t('name')}</span>
-            <input autoFocus value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && save()} placeholder={t('namePlaceholder')} className="input min-h-11 w-full" />
+            <input data-sheet-initial-focus value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && save()} placeholder={t('namePlaceholder')} className="input min-h-11 w-full" />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{t('parent')}</span>
@@ -231,7 +227,8 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
           </label>
           {error && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         </div>
-      </MobileBottomSheet>
+      </SideSheet>
+      )}
 
       {deleting && (
         <DeleteCategoryDialog

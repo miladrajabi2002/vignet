@@ -45,7 +45,8 @@ describe('omnichannel CRM user-visible contract', () => {
     expect(bottomSheet).toContain('FOCUSABLE_SELECTOR')
     expect(bottomSheet).toContain('env(safe-area-inset-bottom)')
     expect(quickAdd).toContain("fetch('/api/contacts'")
-    expect(quickAdd).toContain('mobileOnly={false}')
+    // Forms open in the shared drawer: inline-end on desktop, bottom on phones.
+    expect(quickAdd).toContain('<SideSheet')
     expect(createRoute).toContain('export async function POST')
     expect(exportRoute).toContain('ReadableStream<Uint8Array>')
     expect(exportRoute).toContain('Content-Disposition')

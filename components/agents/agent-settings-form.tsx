@@ -26,6 +26,7 @@ import { ModelSelect } from '@/components/agent-builder/model-select'
 import { Switch, SwitchCard } from '@/components/ui/switch'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
 import { AutoSaveStatus } from '@/components/ui/auto-save-status'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import {
@@ -652,49 +653,18 @@ export function AgentSettingsForm({
                         </div>
                         )}
 
-                        {typeof document !== 'undefined' && createPortal(
-                                <AnimatePresence>
-                                        {showPreview && (
-                                                <motion.div
-                                                        className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4 backdrop-blur-md"
-                                                        initial={reduceMotion ? false : { opacity: 0 }}
-                                                        animate={{ opacity: 1 }}
-                                                        exit={{ opacity: 0 }}
-                                                        onMouseDown={(event) => {
-                                                                if (event.target === event.currentTarget) setShowPreview(false)
-                                                        }}
-                                                >
-                                                        <motion.div
-                                                                role="dialog"
-                                                                aria-modal="true"
-                                                                aria-label={tf('previewPrompt')}
-                                                                className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-card border border-black/10 bg-white shadow-[var(--elev-2)]"
-                                                                initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 10 }}
-                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                                                        >
-                                                                <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
-                                                                        <div>
-                                                                                <h3 className="text-base font-bold text-neutral-900">{tf('previewPrompt')}</h3>
-                                                                                <p className="mt-1 text-xs text-neutral-500">{tf('assembledPrompt')}</p>
-                                                                        </div>
-                                                                        <button
-                                                                                type="button"
-                                                                                onClick={() => setShowPreview(false)}
-                                                                                aria-label={tf('close')}
-                                                                                className="grid h-10 w-10 place-items-center rounded-xl text-neutral-500 transition-colors hover:bg-black/5 hover:text-neutral-900"
-                                                                        >
-                                                                                <X className="h-5 w-5" />
-                                                                        </button>
-                                                                </div>
-                                                                <pre dir={locale === 'fa' ? 'rtl' : 'ltr'} className="overflow-y-auto whitespace-pre-wrap p-5 text-start font-mono text-xs leading-7 text-neutral-700">
-                                                                        {previewPrompt || tf('emptyPrompt')}
-                                                                </pre>
-                                                        </motion.div>
-                                                </motion.div>
-                                        )}
-                                </AnimatePresence>,
-                                document.body,
+                        {showPreview && (
+                                <SideSheet
+                                        title={tf('previewPrompt')}
+                                        subtitle={tf('assembledPrompt')}
+                                        closeLabel={tf('close')}
+                                        onClose={() => setShowPreview(false)}
+                                        className="md:w-[min(48rem,calc(100vw-1.5rem))]"
+                                >
+                                        <pre dir={locale === 'fa' ? 'rtl' : 'ltr'} className="whitespace-pre-wrap text-start font-mono text-xs leading-7 text-neutral-700">
+                                                {previewPrompt || tf('emptyPrompt')}
+                                        </pre>
+                                </SideSheet>
                         )}
 
                         {/* Delete confirmation modal — uses the same portal + motion + backdrop-blur

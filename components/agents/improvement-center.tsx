@@ -36,7 +36,7 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ConversationCardSkeleton, HistoryCardSkeleton, ReviewCardSkeleton, SuggestionCardSkeleton, Skeleton } from '@/components/ui/skeleton'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { Switch } from '@/components/ui/switch'
 import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { IMPROVEMENT_ACTIVITY_EVENT } from '@/components/dashboard/improvement-activity-indicator'
@@ -101,7 +101,6 @@ function DetailDialog({
   onClose,
   children,
   footer,
-  triggerRef,
   wide = false,
   compact = false,
 }: {
@@ -110,39 +109,22 @@ function DetailDialog({
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** Kept for callers; SideSheet restores focus to the opener itself. */
   triggerRef?: { current: HTMLElement | null }
   wide?: boolean
   compact?: boolean
 }) {
-  const [open, setOpen] = useState(true)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const closing = useRef(false)
-  useEffect(() => () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-  }, [])
-  function closeWithMotion() {
-    if (closing.current) return
-    closing.current = true
-    setOpen(false)
-    closeTimer.current = setTimeout(onClose, 240)
-  }
   return (
-    <MobileBottomSheet
-      open={open}
+    <SideSheet
       title={title}
-      description={description}
+      subtitle={description}
       closeLabel="Close / بستن"
-      onClose={closeWithMotion}
+      onClose={onClose}
       footer={footer}
-      triggerRef={triggerRef}
-      mobileOnly={false}
-      motionPreset="detail"
-      size="large"
-      panelClassName={cn('max-md:h-dvh max-md:rounded-none max-md:border-0', wide ? 'md:max-w-4xl' : 'md:max-w-3xl', compact && 'md:max-h-[calc(100dvh-3rem)]')}
-      contentClassName={cn('space-y-5 bg-[color:color-mix(in_srgb,var(--bg-base)_70%,transparent)] sm:px-5 sm:py-5', compact && 'md:space-y-3 md:px-4 md:py-3')}
+      className={wide ? 'md:w-[min(48rem,calc(100vw-1.5rem))]' : undefined}
     >
-      {children}
-    </MobileBottomSheet>
+      <div className={cn('space-y-5', compact && 'md:space-y-3')}>{children}</div>
+    </SideSheet>
   )
 }
 

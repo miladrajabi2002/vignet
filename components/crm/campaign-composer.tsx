@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SideSheet } from '@/components/ui/side-sheet'
 import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 
 type Preview = {
@@ -123,17 +123,16 @@ export function CampaignComposer({
     ? 'برای لغو پیام‌های اطلاع‌رسانی، STOP را ارسال کنید.'
     : 'Recipients can reply STOP to opt out of future informational campaigns.'
 
+  if (!open) return null
+
   return (
-    <MobileBottomSheet
-      open={open}
+    <SideSheet
       onClose={() => { if (!queueing) onClose() }}
       title={isFa ? 'کمپین پیام‌رسانی امن' : 'Safe messaging campaign'}
-      description={isFa ? 'پیش‌نمایش ← ساخت پیش‌نویس ← تأیید نهایی ← صف ارسال' : 'Preview → draft → final confirmation → delivery queue'}
+      subtitle={isFa ? 'پیش‌نمایش ← ساخت پیش‌نویس ← تأیید نهایی ← صف ارسال' : 'Preview → draft → final confirmation → delivery queue'}
       closeLabel={isFa ? 'بستن' : 'Close'}
-      mobileOnly={false}
-      panelClassName="md:max-w-2xl"
     >
-        <div className="space-y-5 md:p-2">
+        <div className="space-y-5">
           {queued ? (
             <div className="py-10 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-[var(--ok)]" />
@@ -175,7 +174,7 @@ export function CampaignComposer({
             </>
           )}
         </div>
-    </MobileBottomSheet>
+    </SideSheet>
   )
 }
 

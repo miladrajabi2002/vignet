@@ -64,9 +64,8 @@ describe('shared adaptive mobile UI contract', () => {
     expect(search).toContain('<MaterialSelect')
     expect(search).not.toContain('aria-live="polite"')
     expect(orders).toContain('<OrderEntry')
-    expect(mobileOrder).toContain('<MobileBottomSheet')
+    expect(mobileOrder).toContain('<SideSheet')
     expect(mobileOrder).toContain("'aria-haspopup': 'dialog'")
-    expect(mobileOrder).toContain('mobileOnly={false}')
     expect(orders).toContain('spatial-surface hidden overflow-hidden rounded-card !bg-white')
     expect(search).toContain('spatial-surface rounded-card !bg-white')
     // Products / orders / chat requests share the app-wide segmented control.
@@ -133,7 +132,7 @@ describe('shared adaptive mobile UI contract', () => {
     expect(contactDetail).toContain('motionPreset="detail"')
     expect(orderSearch).toContain('type="search"')
     expect(orderSearch).toContain('<MobileBottomSheet')
-    expect(orderDetail).toContain('motionPreset="detail"')
+    expect(orderDetail).toContain('<SideSheet')
     for (const file of [adminUsers, adminPayments]) {
       expect(file).toContain('<AdminUsersSearchForm')
       expect(file).toContain('<AdminFilterSheet')

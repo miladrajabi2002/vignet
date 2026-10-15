@@ -1,9 +1,9 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SideSheet } from '@/components/ui/side-sheet'
 import { ORDER_ROW_GRID } from '@/components/products/order-row-grid'
 
 /**
@@ -48,9 +48,7 @@ export function OrderEntry({
   children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerProps = {
-    ref: triggerRef,
     type: 'button' as const,
     onClick: () => setOpen(true),
     'aria-haspopup': 'dialog' as const,
@@ -128,16 +126,12 @@ export function OrderEntry({
         </article>
       )}
 
-      <MobileBottomSheet
-        mobileOnly={false}
-        open={open}
+      {open && (
+      <SideSheet
         title={`#${orderNumber}`}
-        description={`${customerName} · ${statusLabel}`}
+        subtitle={`${customerName} · ${statusLabel}`}
         closeLabel={closeLabel}
-        motionPreset="detail"
-        triggerRef={triggerRef}
         onClose={() => setOpen(false)}
-        contentClassName="bg-[color:color-mix(in_srgb,var(--bg-base)_70%,transparent)]"
       >
         <div className="mb-4 grid grid-cols-2 gap-2 rounded-card border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]">
           <div className="min-w-0">
@@ -150,7 +144,8 @@ export function OrderEntry({
           </div>
         </div>
         {children}
-      </MobileBottomSheet>
+      </SideSheet>
+      )}
     </>
   )
 }

@@ -45,7 +45,8 @@ describe('improvement center interaction contract', () => {
     expect(source).toContain('contactAvatarSrc({')
     expect(source).toContain('<ContactAvatar src={avatarSrc}')
     expect(source).toContain("compact={selection.mode === 'latest'}")
-    expect(source).toContain("compact && 'md:space-y-3 md:px-4 md:py-3'")
+    expect(source).toContain("compact && 'md:space-y-3'")
+    expect(source).toContain('<SideSheet')
   })
 
   it('keeps the primary suggestion action beside delete with readable mobile labels', () => {

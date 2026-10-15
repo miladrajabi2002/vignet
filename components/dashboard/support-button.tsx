@@ -1,11 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
 import { BookOpen, Check, Copy, Headphones, Phone, Sparkles } from 'lucide-react'
 import { TelegramPlane } from '@/components/marketing/social-links'
-import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SideSheet } from '@/components/ui/side-sheet'
 import {
   SUPPORT_PHONE_DISPLAY,
   SUPPORT_PHONE_E164,
@@ -15,12 +15,11 @@ import {
 /**
  * Header support entry. The sheet leads with the two ways to reach a person
  * (call, Telegram message) as equal, tappable rows, then the number itself
- * with copy, then self-serve links. It is a bottom sheet on phones and a
- * centred dialog on larger screens (MobileBottomSheet, mobileOnly=false).
+ * with copy, then self-serve links. Like every panel in the dashboard it is
+ * a SideSheet: a drawer on the inline-end edge, a bottom sheet on phones.
  */
 export function SupportButton() {
   const fa = useLocale() !== 'en'
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const phone = fa ? SUPPORT_PHONE_DISPLAY.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : SUPPORT_PHONE_DISPLAY
@@ -40,7 +39,6 @@ export function SupportButton() {
   return (
     <>
       <button
-        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label={fa ? 'پشتیبانی ویجنت' : 'Vigent support'}
@@ -50,13 +48,11 @@ export function SupportButton() {
         <Headphones aria-hidden="true" className="h-4 w-4" />
       </button>
 
-      <MobileBottomSheet
-        open={open}
+      {open && (
+      <SideSheet
         onClose={() => setOpen(false)}
-        triggerRef={triggerRef}
-        mobileOnly={false}
         title={fa ? 'پشتیبانی ویجنت' : 'Vigent support'}
-        description={fa ? 'یک نفر از تیم ما جواب می‌دهد؛ هر راهی راحت‌تر است.' : 'A real person from our team answers — pick whichever is easier.'}
+        subtitle={fa ? 'یک نفر از تیم ما جواب می‌دهد؛ هر راهی راحت‌تر است.' : 'A real person from our team answers — pick whichever is easier.'}
         closeLabel={fa ? 'بستن پنجره پشتیبانی' : 'Close support dialog'}
       >
         <div dir={fa ? 'rtl' : 'ltr'} className="space-y-3">
@@ -102,7 +98,8 @@ export function SupportButton() {
             </Link>
           </div>
         </div>
-      </MobileBottomSheet>
+      </SideSheet>
+      )}
     </>
   )
 }
