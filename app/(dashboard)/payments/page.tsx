@@ -162,7 +162,7 @@ export default async function PaymentsPage() {
                       <StatusChip tone={status.tone} dot>{fa ? status.fa : status.en}{payment.status === 'PAID' && payment.confirmedBy !== 'AUTO' ? (fa ? ' · دستی' : ' · by hand') : ''}</StatusChip>
                     </div>
                     <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                      {(SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]}{payment.site ? ` · ${payment.site.name}` : ''}{payment.customerName ? ` · ${payment.customerName}` : ''}{payment.description ? ` · ${payment.description}` : ''} · {time.format(payment.createdAt)}
+                      {payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]}{payment.site ? ` · ${payment.site.name}` : ''}{payment.customerName ? ` · ${payment.customerName}` : ''}{payment.description ? ` · ${payment.description}` : ''} · {time.format(payment.createdAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">

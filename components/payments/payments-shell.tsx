@@ -24,6 +24,8 @@ export function PaymentsShell({ active, overview, locale, children }: { active: 
 	const attention = overview.counts.review + overview.counts.unmatched
 	const state = !overview.platformEnabled
 		? { tone: 'neutral' as const, text: fa ? 'موقتاً در دسترس نیست' : 'Temporarily unavailable' }
+		: overview.suspended
+			? { tone: 'danger' as const, text: fa ? 'متوقف از طرف ویجنت' : 'Paused by Vigent' }
 		: !overview.enabled
 			? { tone: 'neutral' as const, text: fa ? 'خاموش' : 'Off' }
 			: !overview.ready
@@ -51,6 +53,13 @@ export function PaymentsShell({ active, overview, locale, children }: { active: 
 					)
 				})}
 			</nav>
+			{overview.suspended ? (
+				<div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+					<b>{fa ? 'درگاه پرداخت شما از طرف ویجنت متوقف شده است.' : 'Vigent has paused your payment gateway.'}</b>{' '}
+					{fa ? 'تا رفع توقف، کارتی برای پرداخت فرستاده نمی‌شود و ایجنت سفارش را به روش قبلی می‌گیرد.' : 'Until it is resumed no card is sent and the agent takes orders the previous way.'}
+					{overview.suspended.reason ? <span className="mt-1 block">{fa ? 'دلیل: ' : 'Reason: '}{overview.suspended.reason}</span> : null}
+				</div>
+			) : null}
 			{children}
 		</div>
 	)

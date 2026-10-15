@@ -29,6 +29,8 @@ export interface CardPayView {
   claim: boolean
   status: CardPayStatus
   lang: 'fa' | 'en'
+  /** What it pays for when it is not a cart («بیعانهٔ نوبت کوتاهی مو»); the heading otherwise reads «سفارش <code>». */
+  title?: string | null
   /** For the embeddable widget, which has no bank table: name, face colours, whether a logo exists. */
   bank?: { name: string; deep: string; light: string; logo: boolean }
 }
@@ -59,7 +61,14 @@ function asCardPay(value: unknown): CardPayView | null {
     claim: row.claim === true,
     status: STATUSES.includes(row.status as CardPayStatus) ? (row.status as CardPayStatus) : 'PENDING',
     lang: row.lang === 'en' ? 'en' : 'fa',
+    ...(typeof row.title === 'string' && row.title.trim() ? { title: row.title.trim().slice(0, 80) } : {}),
   }
+}
+
+/** The card's heading: what it pays for. */
+export function cardPayHeading(card: Pick<CardPayView, 'code' | 'lang' | 'title'>): string {
+  if (card.title) return card.title
+  return card.lang === 'en' ? `Order ${card.code}` : `سفارش ${card.code}`
 }
 
 /**
@@ -104,7 +113,7 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
   const left = minutesLeft(card.expiresAt, now)
   const lines = fa
     ? [
-        `💳 سفارش ${card.code}`,
+        `💳 ${cardPayHeading(card)}`,
         `${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}`,
         `شماره کارت: ${formatPan(card.pan)}`,
         `مبلغ دقیق: ${groupDigits(card.amount)} تومان`,
@@ -112,7 +121,7 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
         left ? `مهلت: ${left.toLocaleString('fa-IR')} دقیقه` : '',
       ]
     : [
-        `💳 Order ${card.code}`,
+        `💳 ${cardPayHeading(card)}`,
         `${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}`,
         `Card number: ${formatPan(card.pan)}`,
         `Exact amount: ${groupDigits(card.amount)} Toman`,
@@ -131,8 +140,8 @@ export function cardPaySplitMessages(card: CardPayView, now = new Date()): strin
   const fa = card.lang !== 'en'
   const left = minutesLeft(card.expiresAt, now)
   const head = fa
-    ? `💳 سفارش ${card.code}\n${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}\nشماره کارت و مبلغ دقیق رو جدا می‌فرستم که راحت کپی کنید 👇`
-    : `💳 Order ${card.code}\n${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}\nThe card number and the exact amount follow as separate messages so they are easy to copy 👇`
+    ? `💳 ${cardPayHeading(card)}\n${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}\nشماره کارت و مبلغ دقیق رو جدا می‌فرستم که راحت کپی کنید 👇`
+    : `💳 ${cardPayHeading(card)}\n${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}\nThe card number and the exact amount follow as separate messages so they are easy to copy 👇`
   const tail = fa
     ? `مبلغ به تومانه (${groupDigits(card.amount)}) و باید دقیقاً همین باشه؛ بعد از واریز همین‌جا خودکار تأیید می‌شه.${left ? ` مهلت: ${left.toLocaleString('fa-IR')} دقیقه.` : ''}`
     : `The amount is in Toman (${groupDigits(card.amount)}) and must be exact; it is confirmed here automatically after the transfer.${left ? ` Valid for ${left} minutes.` : ''}`
@@ -168,8 +177,47 @@ export function cardPayStatusLabel(status: CardPayStatus, lang: 'fa' | 'en'): st
 }
 
 /** What the customer is told when a payment changes state outside their own turn. */
-export function composeCardPayNotice(params: { status: CardPayStatus; code: string; amount: number; lang: 'fa' | 'en' }): string | null {
+export function composeCardPayNotice(params: {
+  status: CardPayStatus
+  code: string
+  amount: number
+  lang: 'fa' | 'en'
+  /** ORDER (default) | BOOKING | COURSE */
+  purpose?: string
+  /** The booking or course it pays for («کوتاهی مو · شنبه ۱۷:۰۰»). */
+  subject?: string | null
+}): string | null {
   const { status, code, lang } = params
+  const subject = params.subject?.trim()
+  if (params.purpose === 'BOOKING' || params.purpose === 'COURSE') {
+    const booking = params.purpose === 'BOOKING'
+    const fa = lang !== 'en'
+    const what = fa
+      ? booking ? `نوبت${subject ? ` «${subject}»` : ''}` : `دورهٔ${subject ? ` «${subject}»` : ''}`
+      : booking ? `your booking${subject ? ` (${subject})` : ''}` : `the course${subject ? ` “${subject}”` : ''}`
+    const money = payToman(params.amount, lang)
+    if (status === 'PAID') {
+      return fa
+        ? booking ? `پرداختتون رسید ✅ ${what} قطعی شد (${money}). منتظرتون هستیم 🌿` : `پرداختتون رسید ✅ ثبت‌نام شما در ${what} قطعی شد (${money}).`
+        : booking ? `Your payment arrived ✅ ${what} is confirmed (${money}). See you then!` : `Your payment arrived ✅ your seat in ${what} is confirmed (${money}).`
+    }
+    if (status === 'EXPIRED') {
+      return fa
+        ? `مهلت پرداخت ${what} تمام شد و ${booking ? 'زمانش' : 'جای شما'} آزاد شد. اگه هنوز می‌خواید بگید تا دوباره ${booking ? 'رزرو' : 'ثبت‌نام'} کنیم.`
+        : `The payment window for ${what} has ended and the ${booking ? 'time' : 'seat'} was released. Tell me if you still want it and I'll set it up again.`
+    }
+    if (status === 'FAILED') {
+      return fa
+        ? `واریزی برای ${what} پیدا نکردیم. اگه پرداخت کردید، لطفاً رسیدش رو همین‌جا بفرستید تا بررسی کنیم.`
+        : `We could not find a transfer for ${what}. If you did pay, please send the receipt here so we can check it.`
+    }
+    if (status === 'CLAIMED') {
+      return fa
+        ? `ممنون 🙏 هنوز تأیید بانک برای ${what} به ما نرسیده؛ همکارم داره بررسی می‌کنه و همین‌جا خبرتون می‌کنم.`
+        : `Thanks. The bank's confirmation for ${what} has not reached us yet; a colleague is checking it and I'll tell you right here.`
+    }
+    return null
+  }
   if (status === 'PAID') {
     return lang === 'en'
       ? `Your payment arrived ✅ Order ${code} (${payToman(params.amount, 'en')}) is confirmed and being prepared.`

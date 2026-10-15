@@ -24,6 +24,8 @@ import { formatDateKey } from '@/lib/localized-date'
 import { TimeRangeField, formatClock } from '@/components/ui/time-picker'
 import { DeleteServicePanel } from '@/components/bookings/delete-service'
 import { NumberField } from '@/components/admin/number-field'
+import { PrepayField } from '@/components/payments/prepay-field'
+import { readPrepayMode, type PrepayMode } from '@/lib/payments/card/prepay'
 import { enableBookingModule, openBookingSetup } from '@/components/services/enable-booking'
 import {
   WEEKDAYS,
@@ -136,6 +138,10 @@ export function ServiceEditor({
   const [description, setDescription] = useState(service?.description ?? '')
   const [location, setLocation] = useState(service?.location ?? (fa ? template?.locationFa ?? '' : ''))
   const [price, setPrice] = useState(service?.price ? String(service.price) : '')
+  const [prepay, setPrepay] = useState<{ mode: PrepayMode; value: string }>({
+    mode: readPrepayMode(service?.prepayMode),
+    value: service?.prepayValue != null ? String(service.prepayValue) : '',
+  })
   const [duration, setDuration] = useState(service?.durationMinutes ?? template?.duration ?? 60)
   const [interval, setIntervalMinutes] = useState(service?.slotIntervalMinutes ?? template?.interval ?? 30)
   const [capacity, setCapacity] = useState(service?.capacity ?? template?.capacity ?? 1)
@@ -277,6 +283,8 @@ export function ServiceEditor({
           description: description.trim() || (current ? null : undefined),
           location: location.trim() || (current ? null : undefined),
           price: Number(price) > 0 ? Number(price) : (current ? null : undefined),
+          prepayMode: prepay.mode,
+          prepayValue: prepay.mode === 'FIXED' || prepay.mode === 'PERCENT' ? Number(prepay.value) || null : null,
           durationMinutes: duration,
           // The catalog editor never touches an existing booking schedule.
           ...(catalog
@@ -409,6 +417,7 @@ export function ServiceEditor({
                 />
               </Field>
             </div>
+            {catalog ? null : <PrepayField mode={prepay.mode} value={prepay.value} price={price} onChange={setPrepay} lang={fa ? 'fa' : 'en'} kind="booking" />}
           </div>
         </Section>
 

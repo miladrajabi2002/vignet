@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PREPAY_MODES } from '@/lib/payments/card/prepay'
 import { phoneSchema } from '@/lib/phone'
 import { assertDateKey } from '@/lib/bookings/time'
 
@@ -31,6 +32,9 @@ export const courseInputSchema = z.object({
   location: z.string().trim().max(200).nullable().optional(),
   // Toman; null = not published.
   price: z.number().nonnegative().max(10_000_000_000).nullable().optional(),
+  // Advance payment through the payment gateway (lib/payments/card/prepay.ts).
+  prepayMode: z.enum(PREPAY_MODES).optional(),
+  prepayValue: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
   capacity: z.number().int().min(1).max(10_000),
   status: z.enum(COURSE_STATUSES).default('DRAFT'),
   waitlistEnabled: z.boolean().default(true),

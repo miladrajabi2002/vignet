@@ -57,11 +57,13 @@ export interface GatewayOverview {
   /** Card + connected phone: the gateway can confirm a payment by itself. */
   ready: boolean
   counts: { review: number; unmatched: number; pending: number }
+  /** Paused by the platform admin; the owner sees why. */
+  suspended: { reason: string | null } | null
 }
 
 export async function loadGatewayOverview(workspaceId: string): Promise<GatewayOverview> {
   const [workspace, platform, cards, devices, agents, received, review, unmatched, pending] = await Promise.all([
-    prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true } }),
+    prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true, payGatewaySuspendedAt: true, payGatewaySuspendReason: true, payGatewayCapOverride: true } }),
     getPlatformGatewaySettings(),
     prisma.payCard.findMany({ where: { workspaceId, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
     prisma.payDevice.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }),
@@ -71,7 +73,7 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
     prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
     prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING' } }),
   ])
-  const usage = await getGatewayUsage(workspaceId, workspace.plan)
+  const usage = await getGatewayUsage(workspaceId, workspace.plan, workspace.payGatewayCapOverride)
   const cardRows: GatewayCardRow[] = cards.map((card) => ({
     id: card.id,
     bankKey: card.bankKey,
@@ -98,6 +100,7 @@ export async function loadGatewayOverview(workspaceId: string): Promise<GatewayO
   return {
     enabled: workspace.payGatewayEnabled,
     platformEnabled: platform.enabled,
+    suspended: workspace.payGatewaySuspendedAt ? { reason: workspace.payGatewaySuspendReason } : null,
     settings: readPayGatewaySettings(workspace.payGatewaySettings),
     cards: cardRows,
     devices: deviceRows,

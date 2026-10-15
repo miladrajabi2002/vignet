@@ -14,6 +14,21 @@ const schema = z.object({
   agent: z.object({ id: z.string().min(1), cardPayEnabled: z.boolean().optional(), payLinkEnabled: z.boolean().optional() }).optional(),
 })
 
+/** Whether the gateway can collect a payment now (the advance-payment fields of bookings and courses ask). */
+export async function GET() {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  const { cardPayAvailability } = await import('@/lib/payments/card/service')
+  const availability = await cardPayAvailability(user.workspaceId, true)
+  const devices = await prisma.payDevice.count({ where: { workspaceId: user.workspaceId, active: true, connectedAt: { not: null } } })
+  return NextResponse.json({
+    ready: Boolean(availability.context),
+    reason: availability.reason,
+    phoneConnected: devices > 0,
+    ttlMinutes: availability.context?.settings.ttlMinutes ?? null,
+  })
+}
+
 /**
  * One place for the gateway's switches. The agent's own switch lives here too
  * (and is mirrored on the agent's store-access page) so «how does this agent

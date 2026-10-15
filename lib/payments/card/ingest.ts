@@ -133,7 +133,8 @@ export async function ingestBankSms(device: PayDevice, via: 'SMS' | 'URL', rawTe
       ? `${payToman(amount, 'fa')} واریز شد ولی هیچ پرداخت بازی با این مبلغ دقیق نیست. از «درگاه پرداخت» به سفارش درست وصلش کنید.`
       : 'یک پیامک واریز رسید که مبلغش خوانده نشد.',
     link: '/payments',
-    operatorTelegram: 'orders',
+    operatorTelegram: 'payments',
+    operatorButtons: [[{ text: '🔗 وصل کردن به پرداخت', callback_data: `ps:v:${smsId}` }]],
   }).catch((error) => captureError('cardpay:unmatched', error, { workspaceId: device.workspaceId }))
   return { status: 'unmatched', smsId }
 }
@@ -155,13 +156,13 @@ export async function suggestPaymentsForSms(workspaceId: string, amount: number 
 }
 
 /** The owner attaches an unmatched deposit to a payment (confirming it) or dismisses it. */
-export async function resolveBankSms(workspaceId: string, smsId: string, paymentId: string | null): Promise<boolean> {
+export async function resolveBankSms(workspaceId: string, smsId: string, paymentId: string | null, by: 'OWNER' | 'OPERATOR' | 'ADMIN' = 'OWNER'): Promise<boolean> {
   const sms = await prisma.bankSms.findFirst({ where: { id: smsId, workspaceId, status: 'UNMATCHED' } })
   if (!sms) return false
   if (paymentId) {
     const payment = await prisma.cardPayment.findFirst({ where: { id: paymentId, workspaceId } })
     if (!payment) return false
-    const result = await confirmCardPayment(payment.id, 'OWNER')
+    const result = await confirmCardPayment(payment.id, by)
     if (!result.changed) return false
   }
   await prisma.bankSms.update({ where: { id: smsId }, data: { status: 'RESOLVED', paymentId } })

@@ -10,6 +10,8 @@ import { DialogShell } from '@/components/ui/dialog-shell'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { TimeRangeField } from '@/components/ui/time-picker'
+import { PrepayField } from '@/components/payments/prepay-field'
+import { readPrepayMode, type PrepayMode } from '@/lib/payments/card/prepay'
 import type { CourseTemplate } from '@/components/courses/courses-workspace'
 import {
   FORMAT_META,
@@ -69,6 +71,10 @@ export function CourseEditor({
   const [format, setFormat] = useState<CourseFormat>(course?.format ?? template?.format ?? 'IN_PERSON')
   const [location, setLocation] = useState(course?.location ?? '')
   const [price, setPrice] = useState(course?.price !== null && course?.price !== undefined ? String(course.price) : '')
+  const [prepay, setPrepay] = useState<{ mode: PrepayMode; value: string }>({
+    mode: readPrepayMode(course?.prepayMode),
+    value: course?.prepayValue != null ? String(course.prepayValue) : '',
+  })
   const [capacity, setCapacity] = useState(String(course?.capacity ?? template?.capacity ?? 20))
   const [waitlist, setWaitlist] = useState(course?.waitlistEnabled ?? true)
   const [status, setStatus] = useState<CourseStatus>(course?.status ?? 'PUBLISHED')
@@ -123,6 +129,8 @@ export function CourseEditor({
       format,
       location: location.trim() || null,
       price: parseNumber(price),
+      prepayMode: prepay.mode,
+      prepayValue: prepay.mode === 'FIXED' || prepay.mode === 'PERCENT' ? Number(prepay.value) || null : null,
       capacity: Math.round(capacityNum),
       status,
       waitlistEnabled: waitlist,
@@ -196,6 +204,8 @@ export function CourseEditor({
             <input inputMode="numeric" value={groupDigits(price, fa)} onChange={(event) => setPrice(toEnglishDigits(event.target.value).replace(/[^\d]/g, ''))} placeholder={fa ? 'خالی = ایجنت قیمت نمی‌گوید · ۰ = رایگان' : 'Blank = not quoted · 0 = free'} className={cn(inputClass, 'tabular-nums')} />
           </label>
         </div>
+
+        <PrepayField mode={prepay.mode} value={prepay.value} price={price} onChange={setPrepay} lang={fa ? 'fa' : 'en'} kind="course" />
 
         <div className="grid gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 sm:grid-cols-3">
           <label className="block">

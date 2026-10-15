@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { readPayGatewaySettings } from '@/lib/payments/card/settings'
 import { prisma } from '@/lib/prisma'
-import { cardPayView, createCardPayment, payPageUrl } from '@/lib/payments/card/service'
+import { cardPayView, createCardPayment, manualLinkReference, payPageUrl } from '@/lib/payments/card/service'
 
 const schema = z.object({
   // Whole tomans.
@@ -13,13 +13,6 @@ const schema = z.object({
   // The setup guide's own small transfer to the owner's card.
   test: z.boolean().optional(),
 })
-
-function reference(test: boolean): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let code = ''
-  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)]
-  return `${test ? 'TEST-' : 'L-'}${code}`
-}
 
 /** A payment link made by hand (phone orders, a customer on another app) or the setup test. */
 export async function POST(req: Request) {
@@ -38,7 +31,7 @@ export async function POST(req: Request) {
     workspaceId: user.workspaceId,
     baseAmount: parsed.data.amount,
     source: 'LINK',
-    reference: reference(test),
+    reference: manualLinkReference(test),
     description: test ? 'واریز آزمایشی راه‌اندازی' : parsed.data.description ?? null,
     customerName: parsed.data.customerName ?? null,
     ttlMinutes: test ? 15 : 60,

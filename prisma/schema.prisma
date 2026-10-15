@@ -61,6 +61,11 @@ model Workspace {
   // (shape and defaults: lib/payments/card/settings.ts).
   payGatewayEnabled             Boolean      @default(false)
   payGatewaySettings            Json?
+  // Platform admin: a suspended gateway issues no card (reason shown to the owner)
+  // and a per-business monthly cap that overrides the plan's.
+  payGatewaySuspendedAt         DateTime?
+  payGatewaySuspendReason       String?
+  payGatewayCapOverride         Int?
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
 
@@ -2058,6 +2063,10 @@ model Service {
   location            String?
   // Toman; null = not published, so the agent never quotes a price for it.
   price               Float?
+  // Advance payment through the payment gateway: NONE | FIXED (toman) |
+  // PERCENT (of price) | FULL. The booking waits as PENDING until it is paid.
+  prepayMode          String   @default("NONE")
+  prepayValue         Int?
   active              Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -2313,6 +2322,9 @@ model Course {
   location           String?
   // Toman; null = not published, so the agent never quotes a price.
   price              Float?
+  // Advance payment through the payment gateway, as Service.prepayMode.
+  prepayMode         String       @default("NONE")
+  prepayValue        Int?
   capacity           Int          @default(20)
   status             CourseStatus @default(DRAFT)
   waitlistEnabled    Boolean      @default(true)
@@ -2522,6 +2534,10 @@ model CardPayment {
   // CHAT (an order taken by the agent) | API (a connected site) | LINK (made by hand).
   source         String    @default("CHAT")
   orderDraftId   String?
+  // ORDER (a cart or a hand-made link) | BOOKING | COURSE — what a payment confirms.
+  purpose        String    @default("ORDER")
+  appointmentId  String?
+  enrollmentId   String?
   conversationId String?
   // Public handle: /pay/<authority> and the API's `authority`.
   authority      String    @unique
@@ -2568,6 +2584,8 @@ model CardPayment {
   @@index([workspaceId, createdAt])
   @@index([status, expiresAt])
   @@index([orderDraftId])
+  @@index([appointmentId])
+  @@index([enrollmentId])
   @@index([conversationId])
   @@index([callbackNextAt])
 }

@@ -1,10 +1,21 @@
 -- AlterTable
-ALTER TABLE "Workspace" ADD COLUMN     "payGatewayEnabled" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "payGatewaySettings" JSONB;
+ALTER TABLE "Workspace" ADD COLUMN     "payGatewayCapOverride" INTEGER,
+ADD COLUMN     "payGatewayEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "payGatewaySettings" JSONB,
+ADD COLUMN     "payGatewaySuspendReason" TEXT,
+ADD COLUMN     "payGatewaySuspendedAt" TIMESTAMP(3);
 
 -- AlterTable
 ALTER TABLE "Agent" ADD COLUMN     "cardPayConfigured" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "cardPayEnabled" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "Service" ADD COLUMN     "prepayMode" TEXT NOT NULL DEFAULT 'NONE',
+ADD COLUMN     "prepayValue" INTEGER;
+
+-- AlterTable
+ALTER TABLE "Course" ADD COLUMN     "prepayMode" TEXT NOT NULL DEFAULT 'NONE',
+ADD COLUMN     "prepayValue" INTEGER;
 
 -- CreateTable
 CREATE TABLE "PayCard" (
@@ -72,6 +83,9 @@ CREATE TABLE "CardPayment" (
     "siteId" TEXT,
     "source" TEXT NOT NULL DEFAULT 'CHAT',
     "orderDraftId" TEXT,
+    "purpose" TEXT NOT NULL DEFAULT 'ORDER',
+    "appointmentId" TEXT,
+    "enrollmentId" TEXT,
     "conversationId" TEXT,
     "authority" TEXT NOT NULL,
     "reference" TEXT NOT NULL,
@@ -167,6 +181,12 @@ CREATE INDEX "CardPayment_status_expiresAt_idx" ON "CardPayment"("status", "expi
 
 -- CreateIndex
 CREATE INDEX "CardPayment_orderDraftId_idx" ON "CardPayment"("orderDraftId");
+
+-- CreateIndex
+CREATE INDEX "CardPayment_appointmentId_idx" ON "CardPayment"("appointmentId");
+
+-- CreateIndex
+CREATE INDEX "CardPayment_enrollmentId_idx" ON "CardPayment"("enrollmentId");
 
 -- CreateIndex
 CREATE INDEX "CardPayment_conversationId_idx" ON "CardPayment"("conversationId");

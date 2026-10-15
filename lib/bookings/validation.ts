@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PREPAY_MODES } from '@/lib/payments/card/prepay'
 import { normalizePhone } from '@/lib/phone'
 import { assertDateKey } from '@/lib/bookings/time'
 
@@ -81,6 +82,8 @@ export const serviceCreateSchema = z.object({
   timezone: timezoneSchema.default('Asia/Tehran'),
   location: z.string().trim().max(250).optional(),
   price: z.number().min(0).max(100_000_000_000).optional(),
+  prepayMode: z.enum(PREPAY_MODES).optional(),
+  prepayValue: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
   weeklyRules: weeklyRulesSchema.default([]),
 })
 
@@ -95,6 +98,8 @@ export const serviceUpdateSchema = z.object({
   timezone: timezoneSchema.optional(),
   location: z.string().trim().max(250).nullable().optional(),
   price: z.number().min(0).max(100_000_000_000).nullable().optional(),
+  prepayMode: z.enum(PREPAY_MODES).optional(),
+  prepayValue: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
   active: z.boolean().optional(),
   weeklyRules: weeklyRulesSchema.optional(),
   exception: dateExceptionSchema.optional(),

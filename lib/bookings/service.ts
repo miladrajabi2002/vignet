@@ -167,6 +167,11 @@ export interface BookingOptions {
   replace?: RescheduleSource
   /** Conversation that booked it — scopes later agent lookups/cancels. */
   conversationId?: string
+  /**
+   * Held for an advance payment: booked as PENDING (it still takes the slot)
+   * and announced to the owner only once the payment arrives.
+   */
+  awaitingPayment?: boolean
 }
 
 async function bookInTransaction(
@@ -324,6 +329,7 @@ async function bookInTransaction(
       timezone: service.timezone,
       partySize: input.partySize,
       source: input.source,
+      ...(options.awaitingPayment ? { status: 'PENDING' as const } : {}),
       idempotencyKey: input.idempotencyKey,
       notes: input.notes,
       ...(replace || options.conversationId
@@ -383,25 +389,33 @@ export async function createAppointment(
   }
   if (!result) throw new BookingError('TRANSACTION_CONFLICT')
 
-  if (result.created) {
-    const appointment = result.appointment
-    const when = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-      timeZone: appointment.timezone,
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(appointment.startsAt)
-    await notifyWorkspace({
-      workspaceId,
-      type: 'APPOINTMENT',
-      title: replace
-        ? `نوبت ${appointment.service.name} جابه‌جا شد`
-        : `رزرو جدید برای ${appointment.service.name}`,
-      body: `${appointment.customerName} · ${when}`,
-      link: '/appointments',
-      operatorTelegram: true,
-    })
+  if (result.created && !options.awaitingPayment) {
+    await announceAppointment(workspaceId, result.appointment, { moved: Boolean(replace) })
   }
   return result
+}
+
+/** The owner's «رزرو جدید» alert (bell + manager bot). */
+export async function announceAppointment(
+  workspaceId: string,
+  appointment: { customerName: string; startsAt: Date; timezone: string; service: { name: string } },
+  opts: { moved?: boolean; paid?: string } = {},
+): Promise<void> {
+  const when = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+    timeZone: appointment.timezone,
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(appointment.startsAt)
+  await notifyWorkspace({
+    workspaceId,
+    type: 'APPOINTMENT',
+    title: opts.moved
+      ? `نوبت ${appointment.service.name} جابه‌جا شد`
+      : `رزرو جدید برای ${appointment.service.name}`,
+    body: `${appointment.customerName} · ${when}${opts.paid ? ` · ${opts.paid}` : ''}`,
+    link: '/appointments',
+    operatorTelegram: true,
+  })
 }
 
 export async function notifyAppointmentCancellation(params: {

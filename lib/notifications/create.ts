@@ -4,6 +4,7 @@ import { dispatchNotification } from '@/lib/queue/jobs'
 import { captureError, captureWarning } from '@/lib/errors/capture'
 import { OperatorBotUnavailableError, sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 import type { OperatorPrefKey } from '@/lib/channels/operator-bot-screens'
+import type { TelegramInlineKeyboardButton } from '@/lib/channels/operator-bot'
 
 // Which «هشدارها» toggle in the manager bot governs each notification type.
 const OPERATOR_CATEGORY: Record<NotificationType, OperatorPrefKey> = {
@@ -30,6 +31,8 @@ export interface NotifyParams {
    * (SYSTEM covers both billing and store events).
    */
   operatorTelegram?: boolean | OperatorPrefKey
+  /** Extra glass buttons on that bot message (approve/reject a payment …). */
+  operatorButtons?: TelegramInlineKeyboardButton[][]
 }
 
 /**
@@ -72,6 +75,7 @@ export async function notifyWorkspace(params: NotifyParams): Promise<void> {
         body: params.body,
         link: params.link,
         category: typeof params.operatorTelegram === 'string' ? params.operatorTelegram : OPERATOR_CATEGORY[params.type],
+        buttons: params.operatorButtons,
       })
     } catch (e) {
       // A revoked or blocked manager bot is the customer's to reconnect —

@@ -55,6 +55,8 @@ export default async function AppointmentsPage({
         timezone: service.timezone,
         location: service.location,
         price: service.price,
+        prepayMode: service.prepayMode,
+        prepayValue: service.prepayValue,
         active: service.active,
         appointmentCount: service._count.appointments,
         weeklyRules: service.weeklyRules.map((rule) => ({

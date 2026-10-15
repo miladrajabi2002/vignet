@@ -1,7 +1,7 @@
 import { checkoutButtonLabel, checkoutCardText, type CheckoutCard } from '@/lib/commerce/checkout-link'
 import { groupDigits } from '@/lib/payments/card/amount'
 import { bankByKey } from '@/lib/payments/card/bins'
-import { minutesLeft, type CardPayView } from '@/lib/payments/card/pay-card'
+import { cardPayHeading, minutesLeft, type CardPayView } from '@/lib/payments/card/pay-card'
 import type { ChannelType } from '@prisma/client'
 import type {
   InboundMessage,
@@ -400,7 +400,7 @@ export function createTelegramLikeAdapter(opts: {
       const esc = (value: string) => (html ? escapeHtml(value) : value)
       const lines = fa
         ? [
-            `💳 ${html ? '<b>' : ''}سفارش ${esc(card.code)}${html ? '</b>' : ''}`,
+            `💳 ${html ? '<b>' : ''}${esc(cardPayHeading(card))}${html ? '</b>' : ''}`,
             `${esc(bank.fa)}${card.holder ? ` — به نام ${esc(card.holder)}` : ''}`,
             '',
             'شماره کارت:',
@@ -412,7 +412,7 @@ export function createTelegramLikeAdapter(opts: {
             left ? `⏳ مهلت: ${left.toLocaleString('fa-IR')} دقیقه` : '',
           ]
         : [
-            `💳 ${html ? '<b>' : ''}Order ${esc(card.code)}${html ? '</b>' : ''}`,
+            `💳 ${html ? '<b>' : ''}${esc(cardPayHeading(card))}${html ? '</b>' : ''}`,
             `${esc(bank.en)}${card.holder ? ` — ${esc(card.holder)}` : ''}`,
             '',
             'Card number:',

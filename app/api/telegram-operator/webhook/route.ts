@@ -33,6 +33,21 @@ import {
   writeReplyScreen,
   type OperatorContext,
 } from '@/lib/channels/operator-bot-screens'
+import {
+  armPayLink,
+  clearPayLinkMode,
+  gatewayToggleScreen,
+  payHomeScreen,
+  payLinkCreatedScreen,
+  payLinkPromptScreen,
+  paymentConfirmScreen,
+  paymentListScreen,
+  paymentScreen,
+  readPayLinkInput,
+  smsListScreen,
+  smsScreen,
+  takePayLinkMode,
+} from '@/lib/channels/operator-bot-pay'
 import { getTelegramWebhookInfo, setTelegramBotCommands, TELEGRAM_BASE } from '@/lib/channels/telegram'
 import { invalidateWidgetConfig } from '@/lib/widget/cache'
 import type { Prisma } from '@prisma/client'
@@ -188,6 +203,7 @@ async function screenFor(name: OperatorBotScreenName, op: OperatorChannelRow, bo
     case 'credit': return creditScreen(op.workspaceId)
     case 'alerts': return alertsScreen(toContext(op))
     case 'help': return helpScreen()
+    case 'pay': return payHomeScreen(op.workspaceId)
     case 'health':
       return {
         text: await healthText(op, botToken),
@@ -200,6 +216,52 @@ async function screenFor(name: OperatorBotScreenName, op: OperatorChannelRow, bo
 const GONE: Screen = {
   text: 'این گفتگو دیگر در دسترس نیست.',
   keyboard: { inline_keyboard: [[{ text: '↩️ صف اپراتور', callback_data: 'm:queue' }, { text: '🏠 خانه', callback_data: 'm:home' }]] },
+}
+
+const PAY_GONE: Screen = {
+  text: 'این مورد دیگر در دسترس نیست.',
+  keyboard: { inline_keyboard: [[{ text: '💳 درگاه پرداخت', callback_data: 'm:pay' }, { text: '🏠 خانه', callback_data: 'm:home' }]] },
+}
+
+async function handlePaymentCallback(params: {
+  query: TgCallbackQuery
+  op: OperatorChannelRow
+  botToken: string
+  callback: Extract<ReturnType<typeof parseOperatorBotCallback>, { type: 'payment' }>
+  show: (screen: Screen) => Promise<void>
+}): Promise<void> {
+  const { op, botToken, callback, show } = params
+  const { workspaceId } = op
+  const owned = await prisma.cardPayment.findFirst({ where: { id: callback.paymentId, workspaceId }, select: { id: true } })
+  if (!owned) {
+    await answerCallback(botToken, params.query.id, 'این پرداخت پیدا نشد.')
+    await show(PAY_GONE)
+    return
+  }
+  if (callback.action === 'view' || callback.action === 'askConfirm' || callback.action === 'askReject' || callback.action === 'askCancel') {
+    await answerCallback(botToken, params.query.id, '')
+    const screen = callback.action === 'view'
+      ? await paymentScreen(workspaceId, owned.id)
+      : await paymentConfirmScreen(workspaceId, owned.id, callback.action === 'askConfirm' ? 'confirm' : callback.action === 'askReject' ? 'reject' : 'cancel')
+    await show(screen ?? PAY_GONE)
+    return
+  }
+  const service = await import('@/lib/payments/card/service')
+  let notice: string
+  if (callback.action === 'confirm') {
+    const result = await service.confirmCardPayment(owned.id, 'OPERATOR')
+    notice = result.changed ? '✅ پرداخت تأیید شد و به مشتری خبر داده شد.' : 'ℹ️ وضعیت این پرداخت قبلاً عوض شده بود.'
+    await answerCallback(botToken, params.query.id, result.changed ? 'تأیید شد ✅' : 'قبلاً رسیدگی شده')
+  } else if (callback.action === 'reject') {
+    const result = await service.rejectCardPayment(owned.id)
+    notice = result.changed ? '❌ پرداخت رد شد و به مشتری گفته شد رسیدش را بفرستد.' : 'ℹ️ وضعیت این پرداخت قبلاً عوض شده بود.'
+    await answerCallback(botToken, params.query.id, result.changed ? 'رد شد' : 'قبلاً رسیدگی شده')
+  } else {
+    const count = await service.cancelOpenCardPayments({ id: owned.id })
+    notice = count ? '🚫 پرداخت لغو شد.' : 'ℹ️ این پرداخت دیگر باز نبود.'
+    await answerCallback(botToken, params.query.id, count ? 'لغو شد' : 'باز نبود')
+  }
+  await show((await paymentScreen(workspaceId, owned.id, notice)) ?? PAY_GONE)
 }
 
 async function handleCallback(params: {
@@ -255,6 +317,7 @@ async function handleCallback(params: {
     }
     case 'cancel': {
       await clearReplyTarget(op.workspaceId)
+      await clearPayLinkMode(op.workspaceId)
       await answerCallback(botToken, params.query.id, 'لغو شد')
       await show(await homeScreen(toContext(op)))
       return
@@ -291,6 +354,66 @@ async function handleCallback(params: {
         ? `✅ پاسخ برای ${escapeHtml(result.contactName || 'مشتری')} ارسال شد.`
         : '⚠️ ارسال انجام نشد؛ ممکن است گفتگو بسته شده باشد. از پنل امتحان کنید.')
       await show(screen ?? GONE)
+      return
+    }
+    case 'payList': {
+      await answerCallback(botToken, params.query.id, '')
+      await show(await paymentListScreen(op.workspaceId, callback.filter, callback.page))
+      return
+    }
+    case 'payment': {
+      await handlePaymentCallback({ ...params, callback, show })
+      return
+    }
+    case 'smsList': {
+      await answerCallback(botToken, params.query.id, '')
+      await show(await smsListScreen(op.workspaceId))
+      return
+    }
+    case 'sms': {
+      if (callback.action === 'ignore') {
+        const { resolveBankSms } = await import('@/lib/payments/card/ingest')
+        const done = await resolveBankSms(op.workspaceId, callback.smsId, null)
+        await answerCallback(botToken, params.query.id, done ? 'کنار گذاشته شد' : 'قبلاً رسیدگی شده')
+        await show(await smsListScreen(op.workspaceId))
+        return
+      }
+      await answerCallback(botToken, params.query.id, '')
+      await show((await smsScreen(op.workspaceId, callback.smsId)) ?? PAY_GONE)
+      return
+    }
+    case 'smsAttach': {
+      const { resolveBankSms } = await import('@/lib/payments/card/ingest')
+      const done = await resolveBankSms(op.workspaceId, callback.smsId, callback.paymentId, 'OPERATOR')
+      await answerCallback(botToken, params.query.id, done ? 'وصل و تأیید شد ✅' : 'وصل نشد؛ شاید قبلاً رسیدگی شده')
+      await show((await paymentScreen(op.workspaceId, callback.paymentId, done ? '✅ واریز به این پرداخت وصل شد و به مشتری خبر داده شد.' : '⚠️ وصل نشد؛ این واریز یا پرداخت قبلاً رسیدگی شده.')) ?? PAY_GONE)
+      return
+    }
+    case 'payLink': {
+      await clearReplyTarget(op.workspaceId)
+      await armPayLink(op.workspaceId)
+      await answerCallback(botToken, params.query.id, '')
+      await show(payLinkPromptScreen())
+      return
+    }
+    case 'gateway': {
+      if (callback.action === 'ask') {
+        await answerCallback(botToken, params.query.id, '')
+        await show(await gatewayToggleScreen(op.workspaceId))
+        return
+      }
+      const enable = callback.action === 'resume'
+      if (enable) {
+        const cards = await prisma.payCard.count({ where: { workspaceId: op.workspaceId, active: true, deletedAt: null } })
+        if (!cards) {
+          await answerCallback(botToken, params.query.id, 'اول از پنل یک کارت اضافه کنید.')
+          await show(await payHomeScreen(op.workspaceId, '⚠️ کارت فعالی نیست؛ اول از پنل «درگاه پرداخت» یک کارت اضافه کنید.'))
+          return
+        }
+      }
+      await prisma.workspace.update({ where: { id: op.workspaceId }, data: { payGatewayEnabled: enable } })
+      await answerCallback(botToken, params.query.id, enable ? 'درگاه روشن شد' : 'درگاه متوقف شد')
+      await show(await payHomeScreen(op.workspaceId, enable ? '▶️ درگاه پرداخت روشن شد.' : '⏸ درگاه پرداخت موقتاً متوقف شد.'))
       return
     }
     case 'alert': break
@@ -426,15 +549,28 @@ export async function POST(req: Request) {
 
     if (command?.startsWith('/')) {
       await clearReplyTarget(op.workspaceId)
+      await clearPayLinkMode(op.workspaceId)
       // Keep the Telegram command menu down to one entry: everything else is
       // a glass button inside the bot.
       if (command === '/start') void setTelegramBotCommands(botToken).catch(() => {})
-      const byCommand: Record<string, OperatorBotScreenName> = { '/chats': 'queue', '/open': 'queue', '/health': 'health', '/help': 'help' }
+      const byCommand: Record<string, OperatorBotScreenName> = { '/chats': 'queue', '/open': 'queue', '/health': 'health', '/help': 'help', '/pay': 'pay' }
       if (command === '/stats') await send(await reportScreen(op.workspaceId, 1))
       else await send(await screenFor(byCommand[command] ?? 'home', op, botToken))
       return NextResponse.json({ ok: true })
     }
     if (!text) return NextResponse.json({ ok: true })
+
+    // «لینک پرداخت» is waiting for an amount.
+    if (!repliedMessageId && (await takePayLinkMode(op.workspaceId))) {
+      const input = readPayLinkInput(text)
+      if (!input) {
+        await armPayLink(op.workspaceId)
+        await sendMessage(botToken, op.operatorChatId, '🔢 مبلغ را با عدد و به تومان بنویسید؛ مثلاً <code>250000</code>', { inline_keyboard: [[{ text: '❌ انصراف', callback_data: 'x:c' }]] })
+        return NextResponse.json({ ok: true })
+      }
+      await send(await payLinkCreatedScreen(op.workspaceId, input))
+      return NextResponse.json({ ok: true })
+    }
 
     // «نوشتن پاسخ» armed a target, or the owner used Telegram's Reply on an alert.
     const targetAlertId = repliedMessageId ? null : await takeReplyTarget(op.workspaceId)

@@ -67,6 +67,7 @@ import { detectTurnLanguage, type TurnLanguage } from '@/lib/ai/turn-language'
 import type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
 import type { ConversationReceipt } from '@/lib/conversations/activity'
 import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
+import { cardPayMarker, type CardPayView } from '@/lib/payments/card/pay-card'
 import { maybeRunCourseAgentTurn } from '@/lib/courses/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
@@ -1407,6 +1408,12 @@ export async function completeTurn(
         let extraReceipts: ConversationReceipt[] = []
         let providerFailed = false
         let turnSignal: TurnSignal | null = null
+        // An advance-payment card issued by a booking/course tool: trusted, so it
+        // is appended after the guards that strip model-written payment markers.
+        let issuedCardPay: CardPayView | null = null
+        const onCardPay = (view: CardPayView) => {
+                issuedCardPay = view
+        }
         try {
                 const courseTurn = hasAgentSkill(skillPlan, 'course-enrollment')
                         ? await maybeRunCourseAgentTurn({
@@ -1418,6 +1425,7 @@ export async function completeTurn(
                                 temperature: AGENT_RESPONSE_TEMPERATURE,
                                 maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                                 hint: prep.courseHint,
+                                onCardPay,
                         })
                         : null
                 const bookingTurn = courseTurn ?? (hasAgentSkill(skillPlan, 'appointment-booking')
@@ -1432,6 +1440,7 @@ export async function completeTurn(
                                 intentKnown: prep.bookingIntentKnown,
                                 hint: prep.bookingHint,
                                 confirmed: prep.bookingConfirmed,
+                                onCardPay,
                         })
                         : null)
                 if (bookingTurn) {
@@ -1584,6 +1593,7 @@ export async function completeTurn(
                 // model-authored product directives.
                 reply = parseProductDirectives(reply).text
         }
+        if (issuedCardPay) reply = `${reply}\n${cardPayMarker(issuedCardPay)}`
         io.onFinal?.(reply)
         for (const status of providerStatus) io.onProviderStatus?.(status)
 

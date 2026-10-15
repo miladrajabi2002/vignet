@@ -9,7 +9,8 @@
  *
  * Screens: home · operator queue · case detail (+ quick replies / write a
  * reply) · today's conversations · orders · bookings · performance report ·
- * agents (pause/resume) · credit & plan · alert preferences · health · help.
+ * agents (pause/resume) · credit & plan · alert preferences · health · help ·
+ * payment gateway (lib/channels/operator-bot-pay.ts).
  * Plus the morning report pushed by the worker.
  *
  * Callback data (≤ 64 bytes, Telegram limit):
@@ -40,13 +41,14 @@ const TEHRAN_OFFSET_MS = 210 * 60 * 1000
 
 // ─── Alert preferences ──────────────────────────────────────────────────
 
-export const OPERATOR_PREF_KEYS = ['handoff', 'orders', 'stock', 'bookings', 'billing', 'health', 'daily'] as const
+export const OPERATOR_PREF_KEYS = ['handoff', 'orders', 'payments', 'stock', 'bookings', 'billing', 'health', 'daily'] as const
 export type OperatorPrefKey = (typeof OPERATOR_PREF_KEYS)[number]
 export type OperatorPrefs = Record<OperatorPrefKey, boolean>
 
 const PREF_LABELS: Record<OperatorPrefKey, { icon: string; title: string; hint: string }> = {
   handoff: { icon: '🙋', title: 'گفتگوهای سپرده‌شده به شما', hint: 'وقتی ایجنت گفتگو را به اپراتور می‌سپارد' },
   orders: { icon: '🛒', title: 'سفارش و پیش‌سفارش جدید', hint: 'ثبت سفارش در گفتگو' },
+  payments: { icon: '💰', title: 'واریزها و درگاه پرداخت', hint: 'پرداخت رسید، منتظر بررسی، واریز بی‌سفارش' },
   stock: { icon: '📦', title: 'موجودی کم محصول', hint: 'وقتی موجودی به حد هشدار می‌رسد' },
   bookings: { icon: '📅', title: 'رزرو، لغو و یادآوری نوبت', hint: 'نوبت‌های جدید و نزدیک' },
   billing: { icon: '💳', title: 'اعتبار و پلن', hint: 'کم شدن اعتبار و پایان دوره' },
@@ -226,6 +228,10 @@ export async function homeScreen(op: OperatorContext): Promise<BotScreen> {
   const upcoming = basics.hasBookings
     ? await prisma.appointment.count({ where: { workspaceId: op.workspaceId, startsAt: { gte: new Date(), lt: tehranDayStart(1) }, status: { in: ['PENDING', 'CONFIRMED'] } } })
     : 0
+  const { gatewayAttention, gatewayDayTotals, gatewayEnabled } = await import('@/lib/channels/operator-bot-pay')
+  const gateway = (await gatewayEnabled(op.workspaceId))
+    ? await Promise.all([gatewayDayTotals(op.workspaceId, tehranDayStart()), gatewayAttention(op.workspaceId)]).then(([day, attention]) => ({ day, attention }))
+    : null
 
   const lines = [
     `🎛 <b>مرکز مدیریت ${escapeHtml(basics.name)}</b>`,
@@ -241,8 +247,12 @@ export async function homeScreen(op: OperatorContext): Promise<BotScreen> {
       basics.hasBookings ? `📅 نوبت باقی‌مانده: <b>${fa(upcoming)}</b>` : null,
     ].filter(Boolean).join('    '))
   }
+  if (gateway) {
+    lines.push(`💰 دریافتی درگاه: <b>${fa(gateway.day.sum)} تومان</b> · ${fa(gateway.day.count)} پرداخت`)
+  }
   lines.push(DIVIDER, `💳 اعتبار: <b>${toman(basics.balance)}</b> · پلن ${PLAN_FA[basics.plan] ?? basics.plan}`)
   if (waiting > 0) lines.push('', `⚠️ ${fa(waiting)} گفتگو منتظر پاسخ شماست.`)
+  if (gateway?.attention.review) lines.push(`🔴 ${fa(gateway.attention.review)} پرداخت منتظر بررسی شماست.`)
 
   const rows: Row[] = [
     [btn(waiting > 0 ? `📥 صف اپراتور · ${fa(waiting)}` : '📥 صف اپراتور', 'm:queue'), btn('💬 گفتگوهای امروز', 'm:today')],
@@ -251,6 +261,10 @@ export async function homeScreen(op: OperatorContext): Promise<BotScreen> {
   if (basics.hasStore) business.push(btn('🛒 سفارش‌ها', 'm:orders'))
   if (basics.hasBookings) business.push(btn('📅 نوبت‌ها', 'm:book'))
   if (business.length) rows.push(business)
+  if (gateway) {
+    const attention = gateway.attention.review + gateway.attention.unmatched
+    rows.push([btn(attention ? `💰 درگاه پرداخت · ${fa(attention)} 🔴` : '💰 درگاه پرداخت', 'm:pay')])
+  }
   rows.push(
     [btn('📊 گزارش عملکرد', 'm:rep:1'), btn('🤖 ایجنت‌ها', 'm:agents')],
     [btn('💳 اعتبار و پلن', 'm:credit'), btn('🔔 هشدارها', 'm:alerts')],
@@ -581,6 +595,7 @@ export function helpScreen(): BotScreen {
       '↩️ روی خود پیام هشدار هم می‌توانید Reply بزنید و جواب بدهید.',
       '📊 <b>گزارش:</b> امروز، ۷ و ۳۰ روز — و هر صبح ساعت ۹ یک خلاصه.',
       '🤖 <b>ایجنت‌ها:</b> در مواقع لازم یک ایجنت را متوقف یا روشن کنید.',
+      '💰 <b>درگاه پرداخت:</b> دریافتی امروز، تراکنش‌ها، تأیید یا رد پرداخت، وصل کردن واریز بی‌سفارش و ساخت لینک پرداخت با نوشتن مبلغ.',
       '🔔 <b>هشدارها:</b> انتخاب کنید چه چیزهایی به شما خبر داده شود.',
       '',
       'هر وقت گم شدید، /start را بزنید تا به خانه برگردید.',
@@ -611,6 +626,10 @@ export async function dailyReportScreen(op: OperatorContext): Promise<BotScreen>
   const bookingsToday = basics.hasBookings
     ? await prisma.appointment.count({ where: { workspaceId: op.workspaceId, startsAt: { gte: tehranDayStart(), lt: tehranDayStart(1) }, status: { in: ['PENDING', 'CONFIRMED'] } } })
     : 0
+  const { gatewayAttention, gatewayDayTotals, gatewayEnabled } = await import('@/lib/channels/operator-bot-pay')
+  const gateway = (await gatewayEnabled(op.workspaceId))
+    ? await Promise.all([gatewayDayTotals(op.workspaceId, tehranDayStart(-1), tehranDayStart()), gatewayAttention(op.workspaceId)]).then(([day, attention]) => ({ day, attention }))
+    : null
   const decided = yesterday.resolved + yesterday.handedOff
   const lines = [
     `🌅 <b>صبح بخیر! گزارش ${escapeHtml(basics.name)}</b>`,
@@ -619,6 +638,7 @@ export async function dailyReportScreen(op: OperatorContext): Promise<BotScreen>
     '<b>دیروز</b>',
     `💬 ${fa(yesterday.conversations)} گفتگو · 🤖 ${decided > 0 ? `${fa(Math.round((yesterday.resolved / decided) * 100))}٪ خودکار` : '—'}`,
     `🙋 ${fa(yesterday.handedOff)} سپرده به اپراتور · 👥 ${fa(yesterday.contacts)} مشتری جدید`,
+    ...(gateway ? [`💰 دریافتی درگاه: <b>${fa(gateway.day.sum)} تومان</b> · ${fa(gateway.day.count)} پرداخت`] : []),
     '',
     '<b>امروز</b>',
     `📥 منتظر شما: <b>${fa(waiting)}</b>${basics.hasBookings ? ` · 📅 نوبت: <b>${fa(bookingsToday)}</b>` : ''}`,
@@ -626,6 +646,10 @@ export async function dailyReportScreen(op: OperatorContext): Promise<BotScreen>
   ]
   const rows: Row[] = [[btn('📥 صف اپراتور', 'm:queue'), btn('📊 گزارش کامل', 'm:rep:7')]]
   if (basics.hasBookings) rows.push([btn('📅 نوبت‌های امروز', 'm:book')])
+  if (gateway && gateway.attention.review + gateway.attention.unmatched > 0) {
+    lines.push(`🔴 درگاه: ${fa(gateway.attention.review)} منتظر بررسی · ${fa(gateway.attention.unmatched)} واریز بی‌سفارش`)
+    rows.push([btn('💰 رسیدگی به پرداخت‌ها', 'm:pay')])
+  }
   rows.push([btn('🏠 مرکز مدیریت', 'm:home')])
   return { text: lines.join('\n'), keyboard: kb(rows) }
 }

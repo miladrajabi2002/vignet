@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import type { CardPayView } from '@/lib/payments/card/pay-card'
+import { takeCardPayAttachment } from '@/lib/payments/card/prepay-service'
 import { chatCompletion, type ChatMessage, type ChatTool, type ChatUsage } from '@/lib/ai/openrouter'
 import type { ConversationReceipt } from '@/lib/conversations/activity'
 import { combinedUsage, safeToolError, stableTextHash } from '@/lib/bookings/chat-orchestrator'
@@ -42,6 +44,11 @@ export async function maybeRunCourseAgentTurn(params: {
   maxTokens: number
   /** What the understanding layer read («ثبت‌نام دوره کاشت ناخن»), a hint for the tool loop. */
   hint?: string
+  /**
+   * A tool issued an advance-payment card. It is kept out of the model's view
+   * and appended by the chat engine after the reply guards.
+   */
+  onCardPay?: (view: CardPayView) => void
 }): Promise<CourseChatResult | null> {
   const published = await prisma.course.count({ where: { workspaceId: params.workspaceId, status: { in: ['PUBLISHED', 'CLOSED'] } } }).catch(() => 0)
   if (published === 0) return null
@@ -127,6 +134,8 @@ export async function maybeRunCourseAgentTurn(params: {
             ? ['agent', params.conversationId, String(args.courseId ?? ''), fingerprint].join(':').slice(0, 128)
             : undefined,
         })
+        const cardPay = takeCardPayAttachment(output)
+        if (cardPay) params.onCardPay?.(cardPay)
         const out = output as Record<string, unknown>
         if (call.function.name === 'enroll_in_course' && out.ok === true) {
           appendReceipt(receipts, out.status === 'WAITLISTED' ? 'course_waitlisted' : 'course_enrolled')

@@ -33,6 +33,9 @@ export interface ServiceRow {
   timezone: string
   location: string | null
   price: number | null
+  /** Advance payment via the gateway (lib/payments/card/prepay.ts). */
+  prepayMode?: string
+  prepayValue?: number | null
   active: boolean
   appointmentCount: number
   weeklyRules: WeeklyRule[]
@@ -242,6 +245,8 @@ export function serviceFromApi(raw: Record<string, unknown>): ServiceRow {
     timezone: String(raw.timezone),
     location: typeof raw.location === 'string' ? raw.location : null,
     price: typeof raw.price === 'number' && raw.price > 0 ? raw.price : null,
+    prepayMode: typeof raw.prepayMode === 'string' ? raw.prepayMode : 'NONE',
+    prepayValue: typeof raw.prepayValue === 'number' ? raw.prepayValue : null,
     active: Boolean(raw.active),
     appointmentCount: Number(count.appointments) || 0,
     weeklyRules: rules.map((value) => {

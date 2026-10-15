@@ -17,6 +17,9 @@ export interface CourseRow {
   format: CourseFormat
   location: string | null
   price: number | null
+  /** Advance payment via the gateway (lib/payments/card/prepay.ts). */
+  prepayMode?: string
+  prepayValue?: number | null
   capacity: number
   status: CourseStatus
   waitlistEnabled: boolean
@@ -65,6 +68,8 @@ export function courseFromApi(raw: Record<string, unknown>): CourseRow {
     capacity: Number(raw.capacity) || 0,
     status: (raw.status as CourseStatus) ?? 'DRAFT',
     waitlistEnabled: raw.waitlistEnabled !== false,
+    prepayMode: typeof raw.prepayMode === 'string' ? raw.prepayMode : 'NONE',
+    prepayValue: typeof raw.prepayValue === 'number' ? raw.prepayValue : null,
     enrollmentDeadline: typeof raw.enrollmentDeadline === 'string' ? raw.enrollmentDeadline : raw.enrollmentDeadline instanceof Date ? raw.enrollmentDeadline.toISOString() : null,
     timezone: String(raw.timezone ?? 'Asia/Tehran'),
     sessions: sessions.map((session) => ({

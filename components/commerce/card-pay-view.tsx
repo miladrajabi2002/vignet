@@ -138,7 +138,7 @@ export function CardPayCardView({
 			className="flex w-full max-w-[340px] flex-col gap-2.5 rounded-3xl border border-[var(--border-default,#e5e7eb)] bg-white p-3.5 shadow-[0_12px_32px_-20px_rgba(0,0,0,.35)] dark:border-neutral-700 dark:bg-neutral-900"
 		>
 			<div className="flex items-center justify-between gap-2">
-				<span className="text-[15px] font-extrabold text-neutral-900 dark:text-neutral-50">{fa ? 'سفارش' : 'Order'} <span dir="ltr" className="font-mono">{card.code}</span></span>
+				<span className="text-[15px] font-extrabold text-neutral-900 dark:text-neutral-50">{card.title ? card.title : <>{fa ? 'سفارش' : 'Order'} <span dir="ltr" className="font-mono">{card.code}</span></>}</span>
 				<span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">{fa ? 'کارت‌به‌کارت' : 'Card transfer'}</span>
 			</div>
 			<BankCardFace bankKey={card.bankKey} pan={card.pan} holder={card.holder} lang={card.lang} muted={!open && status !== 'PAID'} />

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 import { escapeHtml, readOperatorPrefs, type OperatorPrefKey } from '@/lib/channels/operator-bot-screens'
+import type { TelegramInlineKeyboardButton } from '@/lib/channels/operator-bot'
 
 const CATEGORY_ICON: Record<OperatorPrefKey, string> = {
   handoff: '🙋',
@@ -8,6 +9,7 @@ const CATEGORY_ICON: Record<OperatorPrefKey, string> = {
   stock: '📦',
   bookings: '📅',
   billing: '💳',
+  payments: '💰',
   health: '🩺',
   daily: '🌅',
 }
@@ -36,6 +38,8 @@ export async function sendOperatorTelegramNotification(params: {
   body?: string
   link?: string
   category: OperatorPrefKey
+  /** Rows of glass buttons above «مشاهده در پنل · مرکز مدیریت». */
+  buttons?: TelegramInlineKeyboardButton[][]
 }): Promise<boolean> {
   const channel = await prisma.operatorChannel.findUnique({
     where: { workspaceId: params.workspaceId },
@@ -65,10 +69,13 @@ export async function sendOperatorTelegramNotification(params: {
       text,
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: [[
-          ...(absoluteLink ? [{ text: '🖥 مشاهده در پنل', url: absoluteLink }] : []),
-          { text: '🏠 مرکز مدیریت', callback_data: 'm:home' },
-        ]],
+        inline_keyboard: [
+          ...(params.buttons ?? []),
+          [
+            ...(absoluteLink ? [{ text: '🖥 مشاهده در پنل', url: absoluteLink }] : []),
+            { text: '🏠 مرکز مدیریت', callback_data: 'm:home' },
+          ],
+        ],
       },
     }),
     signal: AbortSignal.timeout(8_000),

@@ -1817,7 +1817,7 @@
                 box.setAttribute('dir', fa ? 'rtl' : 'ltr')
                 var head = el('div', 'vgt-cp-head')
                 var title = el('span')
-                title.textContent = (fa ? 'سفارش ' : 'Order ') + c.code
+                title.textContent = c.title || ((fa ? 'سفارش ' : 'Order ') + c.code)
                 var tag = el('span', 'vgt-cp-tag')
                 tag.textContent = fa ? 'کارت‌به‌کارت' : 'Card transfer'
                 head.appendChild(title)

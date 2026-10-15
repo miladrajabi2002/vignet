@@ -1,59 +1,54 @@
-import { WalletCards } from 'lucide-react'
-import { prisma } from '@/lib/prisma'
-import { PaymentGatewayForm } from '@/components/admin/payment-gateway-form'
-import { getPlatformGatewaySettings, monthStart } from '@/lib/payments/card/platform'
-import { PageHeader, Panel, fa, fmtDate } from '../ui'
+import Link from 'next/link'
+import { AlertTriangle, BadgeCheck, Banknote, Percent, Store, Zap } from 'lucide-react'
+import { TrendChart, BarList } from '@/components/admin/trend-chart'
+import { filterGatewayBusinesses, loadGatewayBusinesses, loadGatewaySummary } from '@/lib/admin/payment-gateway'
+import { getPlatformGatewaySettings } from '@/lib/payments/card/platform'
+import { EmptyState, Panel, StatCard, fa } from '../ui'
+import { GatewayBusinessesTable, toman } from './shared'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminPaymentGatewayPage() {
-  const since = monthStart()
-  const [settings, enabledCount, paid, auto, claimed, unmatched] = await Promise.all([
-    getPlatformGatewaySettings(true),
-    prisma.workspace.count({ where: { payGatewayEnabled: true } }),
-    prisma.cardPayment.aggregate({ where: { status: 'PAID', paidAt: { gte: since } }, _count: true, _sum: { baseAmount: true } }),
-    prisma.cardPayment.count({ where: { status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' } }),
-    prisma.cardPayment.count({ where: { status: 'CLAIMED' } }),
-    prisma.bankSms.findMany({ where: { status: 'UNMATCHED' }, orderBy: { receivedAt: 'desc' }, take: 15, include: { workspace: { select: { name: true } } } }),
-  ])
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
+  const [summary, businesses, platform] = await Promise.all([loadGatewaySummary(), loadGatewayBusinesses(), getPlatformGatewaySettings(true)])
+  const live = businesses.filter((row) => row.state === 'live').length
+  const attention = filterGatewayBusinesses(businesses, 'attention', '')
+  const top = [...businesses].sort((a, b) => b.monthVolume - a.monthVolume).filter((row) => row.monthVolume > 0).slice(0, 8)
+  const silent = businesses.filter((row) => row.silentDevice).length
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="درگاه پرداخت" subtitle="کارت‌به‌کارت خودکار با پیامک بانک: سقف پلن‌ها، سامانهٔ پیامکی و وضعیت" icon={WalletCards} />
-      <div className="grid gap-3 sm:grid-cols-4">
-        {[
-          ['کسب‌وکار با درگاه روشن', fa(enabledCount)],
-          ['پرداخت تأییدشدهٔ این ماه', fa(paid._count)],
-          ['تأیید خودکار', paid._count ? `${fa(Math.round((auto / paid._count) * 100))}٪` : '—'],
-          ['منتظر بررسی صاحب کسب‌وکار', fa(claimed)],
-        ].map(([label, value]) => (
-          <div key={label} className="spatial-surface rounded-card p-4">
-            <p className="text-[12.5px] text-[var(--text-muted)]">{label}</p>
-            <p className="mt-1 text-[22px] font-bold">{value}</p>
-          </div>
-        ))}
+    <div className="space-y-5">
+      {!platform.enabled && (
+        <p role="status" className="rounded-card border border-amber-200 bg-amber-50 p-3.5 text-sm leading-7 text-amber-900">
+          درگاه پرداخت برای همهٔ کسب‌وکارها خاموش است؛ هیچ کارتی برای مشتری فرستاده نمی‌شود. <Link href="/admin/payment-gateway/settings" className="ui-link">تنظیمات</Link>
+        </p>
+      )}
+      {!platform.inboundLines.length && (
+        <p role="status" className="rounded-card border border-amber-200 bg-amber-50 p-3.5 text-sm leading-7 text-amber-900">
+          هنوز شمارهٔ خط پیامکی ثبت نشده؛ گوشی‌هایی که پیامک را با «فوروارد پیامکی» می‌فرستند جایی برای فرستادن ندارند. <Link href="/admin/payment-gateway/settings" className="ui-link">ثبت خط و وب‌هوک</Link>
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="کسب‌وکار فعال" value={fa(live)} sub={`از ${fa(businesses.length)} کسب‌وکار با درگاه`} icon={<Store />} />
+        <StatCard label="پرداخت تأییدشدهٔ این ماه" value={fa(summary.monthPaid)} icon={<BadgeCheck />} series={summary.series.map((point) => point.count)} />
+        <StatCard label="حجم این ماه" value={toman(summary.monthVolume)} icon={<Banknote />} series={summary.series.map((point) => point.volume)} />
+        <StatCard label="تأیید خودکار" value={summary.autoRate == null ? '—' : `${fa(summary.autoRate)}٪`} sub="بدون دخالت صاحب کسب‌وکار" icon={<Zap />} />
+        <StatCard label="نرخ پرداخت" value={summary.conversion == null ? '—' : `${fa(summary.conversion)}٪`} sub={`${fa(summary.expired)} منقضی این ماه`} icon={<Percent />} />
+        <StatCard
+          label="منتظر تصمیم"
+          value={fa(summary.claimed + summary.unmatched)}
+          sub={`${fa(summary.claimed)} بررسی · ${fa(summary.unmatched)} واریز بی‌سفارش${silent ? ` · ${fa(silent)} گوشی ساکت` : ''}`}
+          tone={summary.claimed + summary.unmatched + silent > 0 ? 'danger' : 'default'}
+          icon={<AlertTriangle />}
+        />
       </div>
-      <PaymentGatewayForm
-        appUrl={appUrl}
-        initial={{ enabled: settings.enabled, planMonthlyCaps: settings.planMonthlyCaps, inboundLines: settings.inboundLines, inboundSecret: settings.inboundSecret, maxAmount: settings.maxAmount }}
-      />
-      <Panel title="واریزهای بدون سفارش (برای بهتر کردن خواندن پیامک)">
-        {unmatched.length === 0 ? (
-          <p className="text-[13px] text-[var(--text-muted)]">موردی نیست.</p>
-        ) : (
-          <ul className="divide-y divide-[var(--border-subtle)]">
-            {unmatched.map((sms) => (
-              <li key={sms.id} className="py-2.5 text-[13px]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <b>{sms.workspace.name}</b>
-                  <span className="text-[var(--text-muted)]">{sms.amount != null ? `${fa(sms.amount)} تومان` : 'مبلغ خوانده نشد'}</span>
-                  <span className="ms-auto text-[12px] text-[var(--text-muted)]">{fmtDate(sms.receivedAt)}</span>
-                </div>
-                <pre dir="rtl" className="mt-1.5 whitespace-pre-wrap rounded-control bg-[var(--bg-surface)] p-2 text-[12px] leading-6 text-[var(--text-secondary)]">{sms.text}</pre>
-              </li>
-            ))}
-          </ul>
-        )}
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <TrendChart title="حجم پرداخت‌های تأییدشده" subtitle="۳۰ روز اخیر · تومان" data={summary.series.map((point) => ({ day: point.day, value: point.volume }))} variant="area" format="toman" />
+        <BarList title="پرکارترین کسب‌وکارها" subtitle="حجم این ماه" data={top.map((row) => ({ label: row.name, value: row.monthVolume }))} format="toman" />
+      </div>
+
+      <Panel title="نیاز به توجه" subtitle="پرداخت منتظر بررسی، واریز بی‌سفارش، گوشی ساکت یا نزدیک سقف" href="/admin/payment-gateway/businesses?filter=attention" linkLabel="همه">
+        {attention.length ? <GatewayBusinessesTable rows={attention.slice(0, 10)} /> : <EmptyState>همه‌چیز مرتب است؛ موردی نیاز به رسیدگی ندارد.</EmptyState>}
       </Panel>
     </div>
   )

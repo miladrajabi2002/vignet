@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { CardPayView } from '@/lib/payments/card/pay-card'
+import { takeCardPayAttachment } from '@/lib/payments/card/prepay-service'
 import { prisma } from '@/lib/prisma'
 import {
   chatCompletion,
@@ -121,6 +123,11 @@ export async function maybeRunBookingAgentTurn(params: {
   hint?: string
   /** The understanding layer read «yes» to the agent's booking summary. */
   confirmed?: boolean
+  /**
+   * A tool issued an advance-payment card. It is kept out of the model's view
+   * and appended by the chat engine after the reply guards.
+   */
+  onCardPay?: (view: CardPayView) => void
 }): Promise<BookingChatResult | null> {
   if (!params.intentKnown) return null
 
@@ -271,6 +278,8 @@ export async function maybeRunBookingAgentTurn(params: {
           isFa,
           now,
         })
+        const cardPay = takeCardPayAttachment(output)
+        if (cardPay) params.onCardPay?.(cardPay)
 
         const succeeded = typeof output === 'object' && output !== null && 'ok' in output && output.ok === true
         if (

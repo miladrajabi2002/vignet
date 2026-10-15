@@ -21,6 +21,8 @@ import { bankByKey, detectBank, luhnValid, panDigits } from '@/lib/payments/card
 import { cardPayMarker, composeCardPayNotice, payToman, type CardPayStatus, type CardPayView } from '@/lib/payments/card/pay-card'
 import { getGatewayUsage, getPlatformGatewaySettings } from '@/lib/payments/card/platform'
 import { LATE_SMS_GRACE_MS, readPayGatewaySettings, type PayGatewaySettings } from '@/lib/payments/card/settings'
+import { paymentSubject, readPurpose, settlePaymentPurpose } from '@/lib/payments/card/prepay-service'
+import { paymentAlertButtons } from '@/lib/payments/card/bot-buttons'
 
 export const OPEN_PAYMENT_STATUSES = ['PENDING', 'CLAIMED']
 /** OrderDraft.status values owned by the gateway (checkoutMode CARD_TRANSFER). */
@@ -94,19 +96,20 @@ export interface CardPayContext {
   maxAmount: number
 }
 
-export type CardPayUnavailable = 'PLATFORM_OFF' | 'WORKSPACE_OFF' | 'AGENT_OFF' | 'NO_CARD' | 'CAP_REACHED'
+export type CardPayUnavailable = 'PLATFORM_OFF' | 'WORKSPACE_OFF' | 'SUSPENDED' | 'AGENT_OFF' | 'NO_CARD' | 'CAP_REACHED'
 
 export async function cardPayAvailability(workspaceId: string, agentCardPayEnabled: boolean): Promise<{ context: CardPayContext | null; reason: CardPayUnavailable | null }> {
   if (!agentCardPayEnabled) return { context: null, reason: 'AGENT_OFF' }
   const [platform, workspace] = await Promise.all([
     getPlatformGatewaySettings(),
-    prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true } }),
+    prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true, payGatewaySuspendedAt: true, payGatewayCapOverride: true } }),
   ])
   if (!platform.enabled) return { context: null, reason: 'PLATFORM_OFF' }
   if (!workspace?.payGatewayEnabled) return { context: null, reason: 'WORKSPACE_OFF' }
+  if (workspace.payGatewaySuspendedAt) return { context: null, reason: 'SUSPENDED' }
   const cards = await prisma.payCard.count({ where: { workspaceId, active: true, deletedAt: null } })
   if (!cards) return { context: null, reason: 'NO_CARD' }
-  const usage = await getGatewayUsage(workspaceId, workspace.plan)
+  const usage = await getGatewayUsage(workspaceId, workspace.plan, workspace.payGatewayCapOverride)
   if (usage.reached) return { context: null, reason: 'CAP_REACHED' }
   return {
     context: { workspaceId, settings: readPayGatewaySettings(workspace.payGatewaySettings), maxAmount: platform.maxAmount },
@@ -158,6 +161,15 @@ export interface CreatePaymentInput {
 
 export type CreatePaymentResult = { ok: true; payment: CardPayment; card: PayCard } | { ok: false; error: CreatePaymentError }
 
+/** «L-7KQ2MX» for a hand-made link, «TEST-…» for the setup's own transfer. */
+export function manualLinkReference(test: boolean): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.randomBytes(6)
+  let code = ''
+  for (const byte of bytes) code += alphabet[byte % alphabet.length]
+  return `${test ? 'TEST-' : 'L-'}${code}`
+}
+
 /** Smallest transfer banks accept by card-to-card. */
 export const MIN_PAY_AMOUNT = 1_000
 
@@ -171,11 +183,11 @@ export async function createCardPayment(input: CreatePaymentInput): Promise<Crea
   if (!(baseAmount >= MIN_PAY_AMOUNT)) return { ok: false, error: 'AMOUNT_TOO_LOW' }
   const [platform, workspace] = await Promise.all([
     getPlatformGatewaySettings(),
-    prisma.workspace.findUnique({ where: { id: input.workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true } }),
+    prisma.workspace.findUnique({ where: { id: input.workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true, payGatewaySuspendedAt: true, payGatewayCapOverride: true } }),
   ])
-  if (!platform.enabled || !workspace?.payGatewayEnabled) return { ok: false, error: 'DISABLED' }
+  if (!platform.enabled || !workspace?.payGatewayEnabled || workspace.payGatewaySuspendedAt) return { ok: false, error: 'DISABLED' }
   if (baseAmount > platform.maxAmount) return { ok: false, error: 'AMOUNT_TOO_HIGH' }
-  const usage = await getGatewayUsage(input.workspaceId, workspace.plan)
+  const usage = await getGatewayUsage(input.workspaceId, workspace.plan, workspace.payGatewayCapOverride)
   if (usage.reached) return { ok: false, error: 'CAP_REACHED' }
   const settings = readPayGatewaySettings(workspace.payGatewaySettings)
   const ttlMs = (input.ttlMinutes ?? settings.ttlMinutes) * 60_000
@@ -244,6 +256,7 @@ export function cardPayView(payment: CardPayment, card: PayCard, settings: PayGa
     claim: settings.manualClaim,
     status: payment.status as CardPayStatus,
     lang,
+    ...(readPurpose(payment.purpose) !== 'ORDER' ? { title: paymentSubject(payment, lang) } : {}),
     bank: (() => {
       const bank = bankByKey(card.bankKey)
       return { name: lang === 'en' ? bank.en : bank.fa, deep: bank.colors[0], light: bank.colors[1], logo: bank.logo }
@@ -272,7 +285,7 @@ async function tellCustomer(payment: CardPayment, status: CardPayStatus): Promis
   if (!claimed.count) return
   const { deliverAssistantNotice, lastCustomerLang } = await import('@/lib/commerce/checkout-service')
   const lang = await lastCustomerLang(conversation.id).catch((): 'fa' | 'en' => 'fa')
-  const text = composeCardPayNotice({ status, code: payment.reference, amount: payment.baseAmount, lang })
+  const text = composeCardPayNotice({ status, code: payment.reference, amount: payment.baseAmount, lang, purpose: readPurpose(payment.purpose), subject: payment.description })
   if (!text) return
   await deliverAssistantNotice(conversation, text, { cardPayNotice: true, paymentId: payment.id, status }).catch((error) => {
     captureError('cardpay:notice', error, { workspaceId: payment.workspaceId })
@@ -287,7 +300,7 @@ async function syncDraft(payment: CardPayment, status: string, extra: Prisma.Ord
   }).catch((error) => captureError('cardpay:draft', error, { workspaceId: payment.workspaceId }))
 }
 
-export type ConfirmedBy = 'AUTO' | 'OWNER' | 'OPERATOR'
+export type ConfirmedBy = 'AUTO' | 'OWNER' | 'OPERATOR' | 'ADMIN'
 
 /**
  * Mark a payment paid. Idempotent: only the first caller changes the row and
@@ -307,14 +320,16 @@ export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now
 
   await prisma.payCard.updateMany({ where: { id: payment.cardId, verifiedAt: null }, data: { verifiedAt: now } }).catch(() => {})
   await syncDraft(payment, 'PAID', { paidAt: now, resolvedAt: now, grandTotal: payment.baseAmount, paymentMethodTitle: 'کارت‌به‌کارت' })
+  await settlePaymentPurpose(payment, 'PAID', now)
   await tellCustomer(payment, 'PAID')
   await notifyWorkspace({
     workspaceId: payment.workspaceId,
     type: 'SYSTEM',
-    title: `پرداخت سفارش ${payment.reference} رسید`,
-    body: `${payToman(payment.baseAmount, 'fa')}${by === 'AUTO' ? ' · تأیید خودکار از روی پیامک بانک' : ' · تأیید دستی'}`,
+    title: `پرداخت ${paymentSubject(payment)} رسید`,
+    body: `${payToman(payment.baseAmount, 'fa')}${payment.customerName ? ` · ${payment.customerName}` : ''}${by === 'AUTO' ? ' · تأیید خودکار از روی پیامک بانک' : by === 'OPERATOR' ? ' · تأیید از ربات مدیر' : ' · تأیید دستی'}`,
     link: payment.conversationId ? `/conversations/${payment.conversationId}` : '/payments',
-    operatorTelegram: 'orders',
+    operatorTelegram: 'payments',
+    operatorButtons: paymentAlertButtons(payment),
   })
   await sendPaymentCallback(payment.id).catch((error) => captureError('cardpay:callback', error, { workspaceId: payment.workspaceId }))
   return { changed: true, payment }
@@ -331,10 +346,11 @@ export async function claimCardPayment(paymentId: string, opts: { tellCustomer?:
   await notifyWorkspace({
     workspaceId: payment.workspaceId,
     type: 'HANDOFF',
-    title: `بررسی پرداخت سفارش ${payment.reference}`,
+    title: `بررسی پرداخت ${paymentSubject(payment)}`,
     body: `مشتری می‌گوید ${payToman(payment.payAmount, 'fa')} واریز کرده ولی پیامک واریز هنوز نرسیده. حساب را نگاه کنید و تأیید یا رد کنید.`,
     link: payment.conversationId ? `/conversations/${payment.conversationId}` : '/payments',
-    operatorTelegram: 'orders',
+    operatorTelegram: 'payments',
+    operatorButtons: paymentAlertButtons(payment),
   })
   // Two claims in a row with no SMS in between: the phone has stopped forwarding.
   const devices = await prisma.payDevice.findMany({ where: { workspaceId: payment.workspaceId, active: true }, select: { id: true, silentClaims: true } })
@@ -347,7 +363,7 @@ export async function claimCardPayment(paymentId: string, opts: { tellCustomer?:
         title: 'گوشی پیامک واریز را نمی‌فرستد',
         body: 'دو مشتری پشت‌سرهم گفته‌اند پرداخت کرده‌اند ولی پیامکی نرسیده. اینترنت، شارژ پیامک و اپ فوروارد گوشی را بررسی کنید؛ تا آن موقع پرداخت‌ها را دستی تأیید کنید.',
         link: '/payments/devices',
-        operatorTelegram: 'health',
+        operatorTelegram: 'payments',
       })
     }
   }
@@ -359,13 +375,14 @@ export async function rejectCardPayment(paymentId: string, now = new Date()): Pr
   const payment = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
   if (!changed.count || !payment) return { changed: false, payment }
   await syncDraft(payment, 'CANCELLED', { resolvedAt: now })
+  await settlePaymentPurpose(payment, 'FAILED', now)
   await tellCustomer(payment, 'FAILED')
   await sendPaymentCallback(payment.id).catch(() => {})
   return { changed: true, payment }
 }
 
 /** The cart changed or the customer cancelled: the card must stop being payable. */
-export async function cancelOpenCardPayments(where: { orderDraftId: string } | { id: string }, now = new Date()): Promise<number> {
+export async function cancelOpenCardPayments(where: { orderDraftId: string } | { id: string } | { appointmentId: string } | { enrollmentId: string }, now = new Date()): Promise<number> {
   const result = await prisma.cardPayment.updateMany({
     where: { ...where, status: { in: OPEN_PAYMENT_STATUSES } },
     // The amount stays reserved for the grace window: a transfer already on its way must not confirm someone else's order.
@@ -440,6 +457,7 @@ export async function sweepCardPayments(now = new Date()): Promise<CardPaymentSw
     if (!changed.count) continue
     stats.expired += 1
     await syncDraft(payment, 'EXPIRED', { resolvedAt: now })
+    await settlePaymentPurpose(payment, 'EXPIRED', now)
     await tellCustomer({ ...payment, status: 'EXPIRED' }, 'EXPIRED')
   }
 
@@ -456,8 +474,8 @@ export async function sweepCardPayments(now = new Date()): Promise<CardPaymentSw
     const { deliverAssistantNotice, lastCustomerLang } = await import('@/lib/commerce/checkout-service')
     const lang = await lastCustomerLang(conversation.id).catch((): 'fa' | 'en' => 'fa')
     const text = lang === 'en'
-      ? `Five minutes left to pay order ${payment.reference} (${payToman(payment.payAmount, 'en')}).`
-      : `۵ دقیقه تا پایان مهلت پرداخت سفارش ${payment.reference} مانده (${payToman(payment.payAmount, 'fa')}).`
+      ? `Five minutes left to pay for ${paymentSubject(payment, 'en')} (${payToman(payment.payAmount, 'en')}).`
+      : `۵ دقیقه تا پایان مهلت پرداخت ${paymentSubject(payment)} مانده (${payToman(payment.payAmount, 'fa')}).`
     const result = await deliverAssistantNotice(conversation, text, { cardPayNotice: true, paymentId: payment.id, status: 'REMINDER' }).catch(() => 'failed')
     if (result === 'sent') stats.reminded += 1
   }

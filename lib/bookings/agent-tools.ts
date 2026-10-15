@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import {
   agentAppointmentScope,
+  announceAppointment,
   createAppointment,
   explainUnavailableDate,
   findNextAvailableSlots,
@@ -11,6 +12,9 @@ import {
   rescheduleAppointment,
 } from '@/lib/bookings/service'
 import { appointmentCreateSchema } from '@/lib/bookings/validation'
+import { prepayAmount } from '@/lib/payments/card/prepay'
+import { cancelOpenCardPayments } from '@/lib/payments/card/service'
+import { bookingPrepayDue, CARD_PAY_ATTACHMENT, issueBookingPrepay, type PrepayIssued } from '@/lib/payments/card/prepay-service'
 import { recordConfirmedCustomer } from '@/lib/crm/confirmed-customer'
 import { captureError } from '@/lib/errors/capture'
 import { dateKeyInTimeZone, formatMinuteOfDay } from '@/lib/bookings/time'
@@ -143,7 +147,8 @@ export function bookingToolInstruction(params: { isFa: boolean; now?: Date }): s
 - اگر ابزار گفت روز تعطیل یا پر است، دلیل را کوتاه بگو و نزدیک‌ترین زمان آزاد (nextAvailable) را پیشنهاد کن.
 - قبل از create_appointment، خدمت، روز، ساعت، نام و شماره تماس را در یک جمله خلاصه کن و تأیید صریح بگیر. در هر پیام فقط یک سؤال بپرس.
 - برای لغو یا جابه‌جایی اول list_my_appointments را صدا بزن و بعد از تأیید صریح مشتری اقدام کن.
-- فقط وقتی بگو «ثبت شد» که ابزار created=true یا ok=true برگردانده باشد. خروجی ابزار منبع حقیقت است و شناسه‌های داخلی را نشان نده.`
+- فقط وقتی بگو «ثبت شد» که ابزار created=true یا ok=true برگردانده باشد. خروجی ابزار منبع حقیقت است و شناسه‌های داخلی را نشان نده.
+- اگر خدمتی advancePayment دارد، قبل از تأیید بگو برای قطعی شدن نوبت این مبلغ پیش‌پرداخت لازم است. اگر خروجی create_appointment وضعیت AWAITING_PAYMENT داشت، بگو نوبت تا پایان مهلت برایش نگه داشته شده و با رسیدن واریز خودکار قطعی می‌شود؛ کارت و مبلغ دقیق خودکار زیر پیامت نمایش داده می‌شود، پس شماره کارت یا مبلغ را خودت ننویس.`
     : `
 Booking rules:
 - Never guess times or dates; get services with list_booking_services and free times with list_available_slots or find_next_available_slots.
@@ -152,7 +157,8 @@ Booking rules:
 - If a tool says the day is closed or full, say why in one short line and offer nextAvailable.
 - Before create_appointment, summarize service, day, time, name and phone in one sentence and get explicit confirmation. Ask one question per message.
 - To cancel or move, call list_my_appointments first and act only after explicit confirmation.
-- Say "booked" only when a tool returned created=true or ok=true. Tool output is the source of truth; never show internal ids.`
+- Say "booked" only when a tool returned created=true or ok=true. Tool output is the source of truth; never show internal ids.
+- If a service has advancePayment, say before confirming that this deposit secures the booking. When create_appointment returns status AWAITING_PAYMENT, say the time is held until the deadline and is confirmed automatically once the transfer arrives; the card and exact amount appear under your message by themselves, so never write a card number or amount yourself.`
   return `${bookingCalendarContext({ now: params.now, isFa: params.isFa })}\n${rules.trim()}`
 }
 
@@ -270,6 +276,7 @@ export async function executeBookingAgentTool(params: {
           capacity: service.capacity,
           location: service.location,
           price: service.price,
+          advancePayment: prepayAmount(service.prepayMode, service.prepayValue, service.price),
           weeklyHours: summarizeWeeklyHours(service.weeklyRules, isFa),
           upcomingClosedDates: service.exceptions
             .map((exception) => ({ key: exception.date.toISOString().slice(0, 10), closed: exception.closed }))
@@ -363,8 +370,19 @@ export async function executeBookingAgentTool(params: {
       contactId: params.contactId ?? undefined,
       source: 'agent',
     })
+    // Never blocks a booking: any failure here books it the usual way.
+    const deposit = params.conversationId
+      ? await (async () => {
+          const service = await prisma.service.findFirst({
+            where: { id: input.serviceId, workspaceId: params.workspaceId },
+            select: { prepayMode: true, prepayValue: true, price: true },
+          })
+          return service ? bookingPrepayDue(params.workspaceId, service, input.partySize) : null
+        })().catch(() => null)
+      : null
     const result = await createAppointment(params.workspaceId, input, {
       conversationId: params.conversationId,
+      awaitingPayment: deposit != null,
     })
     const appointment = result.appointment
     // The name and phone the customer booked with go to their CRM profile,
@@ -379,7 +397,7 @@ export async function executeBookingAgentTool(params: {
         source: 'booking',
       }).catch((error) => captureError('bookings:customer-profile-sync', error, { workspaceId: params.workspaceId }))
     }
-    return {
+    const base = {
       ok: true,
       created: result.created,
       service: appointment.service.name,
@@ -389,6 +407,31 @@ export async function executeBookingAgentTool(params: {
       location: appointment.service.location,
       status: appointment.status,
     }
+    if (deposit != null && appointment.status === 'PENDING') {
+      const card = await bookingDepositCard({
+        workspaceId: params.workspaceId,
+        appointmentId: appointment.id,
+        amount: deposit,
+        description: `${appointment.service.name} · ${bookingDateLabel(input.localDate, isFa)} ${localTimeOf(appointment.startsAt, appointment.timezone)}`,
+        conversationId: params.conversationId ?? null,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone ?? null,
+        lang: isFa ? 'fa' : 'en',
+      })
+      if (card) {
+        return {
+          ...base,
+          status: 'AWAITING_PAYMENT',
+          advancePayment: { amount: deposit, minutesToPay: card.minutes, shownAutomatically: true },
+          [CARD_PAY_ATTACHMENT]: card.view,
+        }
+      }
+      // The gateway could not issue a card after all: book it the usual way.
+      await prisma.appointment.update({ where: { id: appointment.id }, data: { status: 'CONFIRMED' } })
+      await announceAppointment(params.workspaceId, appointment)
+      return { ...base, status: 'CONFIRMED' }
+    }
+    return base
   }
 
   if (params.name === 'list_my_appointments') {
@@ -469,8 +512,27 @@ export async function executeBookingAgentTool(params: {
       workspaceId: params.workspaceId,
       appointment: updated,
     })
+    await cancelOpenCardPayments({ appointmentId: updated.id }).catch(() => 0)
     return { ok: true, cancelled: true }
   }
 
   throw new Error('UNKNOWN_BOOKING_TOOL')
+}
+
+/**
+ * The deposit card of a booking held for payment: the open one when the
+ * customer repeats the request (idempotent tool call), else a new one.
+ */
+async function bookingDepositCard(params: Parameters<typeof issueBookingPrepay>[0]): Promise<PrepayIssued | null> {
+  const open = await prisma.cardPayment.findFirst({
+    where: { appointmentId: params.appointmentId, workspaceId: params.workspaceId, status: { in: ['PENDING', 'CLAIMED'] } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  })
+  if (open) {
+    const { loadCardPayView } = await import('@/lib/payments/card/service')
+    const view = await loadCardPayView(open.id, params.lang)
+    if (view) return { view, amount: params.amount, minutes: Math.max(1, Math.ceil((new Date(view.expiresAt).getTime() - Date.now()) / 60_000)) }
+  }
+  return issueBookingPrepay(params)
 }

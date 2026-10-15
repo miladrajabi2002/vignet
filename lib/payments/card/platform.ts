@@ -72,11 +72,20 @@ export interface GatewayUsage {
   reached: boolean
 }
 
-export async function getGatewayUsage(workspaceId: string, plan: Plan): Promise<GatewayUsage> {
+/**
+ * The cap that applies to one business: the admin's override when set
+ * (-1 = unlimited), otherwise its plan's.
+ */
+export function effectiveMonthlyCap(caps: PlanMonthlyCaps, plan: Plan, override: number | null | undefined): number | null {
+  if (override == null) return caps[plan]
+  return override < 0 ? null : override
+}
+
+export async function getGatewayUsage(workspaceId: string, plan: Plan, capOverride: number | null = null): Promise<GatewayUsage> {
   const [settings, used] = await Promise.all([
     getPlatformGatewaySettings(),
     prisma.cardPayment.count({ where: { workspaceId, status: 'PAID', paidAt: { gte: monthStart() } } }),
   ])
-  const cap = settings.planMonthlyCaps[plan]
+  const cap = effectiveMonthlyCap(settings.planMonthlyCaps, plan, capOverride)
   return { used, cap, reached: cap != null && used >= cap }
 }
