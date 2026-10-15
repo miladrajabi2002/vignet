@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { LayoutGrid, Package, Pencil, Rows3, Store, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, X } from 'lucide-react'
+import { LayoutGrid, Package, Pencil, Rows3, Store, Trash2, Loader2, SlidersHorizontal, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { queueUndo } from '@/lib/undo-queue'
 import { rememberProductsView } from '@/lib/products/view-preference'
 import { ProductImage } from '@/components/products/product-image'
+import { SearchFieldIcon } from '@/components/ui/search-field-icon'
 
 export interface ProductCard {
   id: string
@@ -448,11 +449,7 @@ export function ProductsToolbar({
   function searchField(className?: string) {
     return (
       <div className={cn('relative min-w-0 flex-1', className)}>
-        {isSearching ? (
-          <Loader2 className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" aria-hidden="true" />
-        ) : (
-          <SearchIcon className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
-        )}
+        <SearchFieldIcon loading={isSearching} />
         <input
           type="search"
           inputMode="search"

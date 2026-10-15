@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, Loader2, MoreVertical, Search, SlidersHorizontal, Users, X } from 'lucide-react'
+import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, MoreVertical, SlidersHorizontal, Users, X } from 'lucide-react'
 import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { ChannelBadge, ChannelGlyph, SourceTagBadges, isSourceTag } from '@/components/crm/channel-badge'
 import { smartTime, formatDateTime } from '@/lib/format'
@@ -34,6 +34,7 @@ import {
         type ContactStage,
 } from '@/components/crm/contact-stage-badge'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
+import { SearchFieldIcon } from '@/components/ui/search-field-icon'
 
 export interface ContactRow {
         id: string
@@ -577,11 +578,7 @@ function ContactSearchField({
 }) {
         return (
                 <div className={cn('relative min-w-0 flex-1', className)}>
-                        {loading ? (
-                                <Loader2 className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" aria-hidden="true" />
-                        ) : (
-                                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
-                        )}
+                        <SearchFieldIcon loading={loading} />
                         <input
                                 name="q"
                                 type="search"

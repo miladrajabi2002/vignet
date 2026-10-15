@@ -3,9 +3,7 @@
 import { type FormEvent, useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-        Loader2,
         MessageCircleWarning,
-        Search,
         SlidersHorizontal,
         X,
 } from 'lucide-react'
@@ -13,6 +11,7 @@ import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
+import { SearchFieldIcon } from '@/components/ui/search-field-icon'
 
 type StatusKey = 'OPEN' | 'RESOLVED' | 'HANDED_OFF'
 
@@ -492,17 +491,7 @@ function ConversationSearchField({
 }) {
         return (
                 <div className={cn('relative min-w-0 flex-1', className)}>
-                        {loading ? (
-                                <Loader2
-                                        className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none"
-                                        aria-hidden="true"
-                                />
-                        ) : (
-                                <Search
-                                        className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
-                                        aria-hidden="true"
-                                />
-                        )}
+                        <SearchFieldIcon loading={loading} />
                         <input
                                 name="q"
                                 type="search"

@@ -2,7 +2,6 @@
 
 import { useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Loader2 } from 'lucide-react'
 import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 
 /**
@@ -16,6 +15,7 @@ import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
  * `plan` query param via useSearchParams().
  */
 import { useSearchParams } from 'next/navigation'
+import { SearchFieldIcon } from '@/components/ui/search-field-icon'
 
 export function AdminUsersSearchForm({
   defaultQuery,
@@ -65,11 +65,7 @@ export function AdminUsersSearchForm({
       autoComplete="off"
       onSubmit={(e) => e.preventDefault()}
     >
-      {isSearching ? (
-        <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" />
-      ) : (
-        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-      )}
+      <SearchFieldIcon loading={isSearching} className="start-auto right-3" />
       <input
         type="search"
         name={queryParam}
