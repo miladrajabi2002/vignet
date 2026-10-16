@@ -14,6 +14,7 @@ import {
   requestWooProductResync,
   wooResyncHint,
 } from '@/lib/integrations/woo-resync'
+import { wooPluginUpdateHint } from '@/lib/integrations/woo-plugin-release'
 import { prisma } from '@/lib/prisma'
 import {
   dispatchWooWebhook,
@@ -272,7 +273,7 @@ export async function POST(req: Request) {
   }
   const resync = await wooResyncHint(integration, job.pluginVersion).catch(() => null)
   return NextResponse.json(
-    { ok: true, accepted: job.events.length, ...(resync ? { resync } : {}) },
+    { ok: true, accepted: job.events.length, ...(resync ? { resync } : {}), ...wooPluginUpdateHint(job.pluginVersion) },
     { status: 202 },
   )
 }

@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Vigent_Woo_Admin {
         /** Release this file shipped in; vigent-woo.php will not boot a mix of releases. */
-        const RELEASE = '5.2.1';
+        const RELEASE = '5.2.2';
 
         private static $instance = null;
 

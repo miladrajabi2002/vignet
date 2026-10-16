@@ -9,7 +9,7 @@
  *     passes the empty `$transient->response` through the
  *     `pre_set_site_transient_update_plugins` filter.
  *  2. We hook that filter, fetch the latest version info from the Vigent
- *     server (cached for 6 hours in a transient), and if the remote version
+ *     server (cached for an hour in a transient), and if the remote version
  *     is newer than VIGENT_WOO_VERSION we inject a stdClass into
  *     `$transient->response[ $plugin_file ]` so WordPress shows the update
  *     on the Plugins page (yellow banner + "update now" link).
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Vigent_Woo_Updater {
         /** Release this file shipped in; vigent-woo.php will not boot a mix of releases. */
-        const RELEASE = '5.2.1';
+        const RELEASE = '5.2.2';
 
         private static $instance = null;
 
@@ -169,7 +169,12 @@ class Vigent_Woo_Updater {
                 $plugin_file = self::plugin_file();
                 $current     = get_site_transient( 'update_plugins' );
                 if ( is_object( $current ) && isset( $current->response[ $plugin_file ] ) ) {
-                        return true;
+                        // An entry for an older release is replaced, not kept.
+                        $info   = $this->fetch_latest_info();
+                        $listed = isset( $current->response[ $plugin_file ]->new_version ) ? (string) $current->response[ $plugin_file ]->new_version : '';
+                        if ( ! $info || empty( $info['version'] ) || version_compare( $listed, $info['version'], '>=' ) ) {
+                                return true;
+                        }
                 }
 
                 if ( ! is_object( $current ) ) {
@@ -196,6 +201,29 @@ class Vigent_Woo_Updater {
 
                 $stored = get_site_transient( 'update_plugins' );
                 return is_object( $stored ) && isset( $stored->response[ $plugin_file ] );
+        }
+
+        /**
+         * A webhook answer named a newer release than this store knows about:
+         * drop the cached update info and list the update for WordPress now.
+         *
+         * @param string $latest Release Vigent hands out.
+         */
+        public function note_latest_release( $latest ) {
+                if ( version_compare( self::installed_version(), $latest, '>=' ) ) {
+                        return;
+                }
+                $cached = get_transient( 'vigent_woo_update_info' );
+                if ( is_array( $cached ) && ! empty( $cached['version'] ) && version_compare( $cached['version'], $latest, '>=' ) ) {
+                        return; // Already known; nothing to fetch.
+                }
+                delete_transient( 'vigent_woo_update_info' );
+                // Without a WordPress update transient the next regular check
+                // reads the fresh info itself; building one here would delay
+                // every other plugin's check by twelve hours.
+                if ( is_object( get_site_transient( 'update_plugins' ) ) ) {
+                        $this->ensure_update_in_transient();
+                }
         }
 
         /**
@@ -454,7 +482,7 @@ class Vigent_Woo_Updater {
         /**
          * Fetch the latest plugin info from the Vigent server.
          *
-         * Result is cached in a transient for 6 hours to avoid hammering
+         * Result is cached in a transient for an hour to avoid hammering
          * the server. Pass `true` to bypass the cache (used by the manual
          * "check for updates" button).
          *
@@ -490,9 +518,9 @@ class Vigent_Woo_Updater {
                         return false;
                 }
 
-                // Cache for 6 hours — long enough to be cheap, short enough
-                // to pick up a hot-fix release within a reasonable window.
-                set_transient( $cache_key, $data, 6 * HOUR_IN_SECONDS );
+                // Cache for an hour, the same pace as WordPress's own check on
+                // the Plugins screen; webhook answers clear it on a new release.
+                set_transient( $cache_key, $data, HOUR_IN_SECONDS );
 
                 return $data;
         }

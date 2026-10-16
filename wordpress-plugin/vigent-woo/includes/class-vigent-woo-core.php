@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Vigent_Woo_Core {
         /** Release this file shipped in; vigent-woo.php will not boot a mix of releases. */
-        const RELEASE = '5.2.1';
+        const RELEASE = '5.2.2';
 
         private static $instance = null;
 
@@ -498,6 +498,7 @@ class Vigent_Woo_Core {
                                 ) );
                                 $this->update_connection_status( true, $code, null );
                                 $this->handle_resync_hint( $resp_body );
+                                $this->handle_update_hint( $resp_body );
                                 return array( 'code' => $code, 'body' => $resp_body, 'success' => true );
                         }
 
@@ -552,6 +553,21 @@ class Vigent_Woo_Core {
                 $data = json_decode( $resp_body, true );
                 if ( is_array( $data ) && isset( $data['resync'] ) && is_array( $data['resync'] ) && in_array( 'products', $data['resync'], true ) ) {
                         Vigent_Woo_Sync::instance()->request_product_resync( 'hint' );
+                }
+        }
+
+        /**
+         * Vigent adds `"plugin_latest":"x.y.z"` to webhook answers while this
+         * store runs an older release, so a new version shows up within minutes
+         * instead of when the update cache runs out.
+         */
+        private function handle_update_hint( $resp_body ) {
+                if ( ! is_string( $resp_body ) || false === strpos( $resp_body, '"plugin_latest"' ) || ! class_exists( 'Vigent_Woo_Updater' ) ) {
+                        return;
+                }
+                $data = json_decode( $resp_body, true );
+                if ( is_array( $data ) && ! empty( $data['plugin_latest'] ) && is_string( $data['plugin_latest'] ) ) {
+                        Vigent_Woo_Updater::instance()->note_latest_release( sanitize_text_field( $data['plugin_latest'] ) );
                 }
         }
 
