@@ -114,10 +114,10 @@ export function GatewaySetup({
 						<li key={step}>
 							<button type="button" disabled={locked} onClick={() => setView(step)} aria-current={isView ? 'step' : undefined} title={locked ? (fa ? 'بعد از قدم قبلی باز می‌شود' : 'Opens after the step before it') : undefined} className="grid w-full gap-2 rounded-lg text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed">
 								<span className="h-1 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-									<span className={cn('block h-full rounded-full transition-[width] duration-500', isDone ? 'w-full bg-emerald-600' : isView ? 'w-1/2 bg-[#5b3de8]' : 'w-0')} />
+									<span className={cn('block h-full rounded-full transition-[width] duration-500', isDone ? 'w-full bg-[var(--text-primary)]' : isView ? 'w-1/2 bg-[var(--text-primary)]' : 'w-0')} />
 								</span>
 								<span className={cn('flex items-center gap-2 text-[13px]', isDone || isView ? 'font-bold text-[var(--text-primary)]' : locked ? 'text-[var(--text-hint)]' : 'text-[var(--text-muted)]')}>
-									<span className={cn('grid size-6 shrink-0 place-items-center rounded-full border-[1.5px] text-[11.5px] font-bold', isDone ? 'border-emerald-600 bg-emerald-600 text-white' : isView ? 'border-[#5b3de8] bg-[#5b3de8] text-white shadow-[0_0_0_4px_#f1eeff] dark:shadow-[0_0_0_4px_rgba(91,61,232,.25)]' : 'border-[var(--border-strong)] bg-white dark:bg-neutral-900')}>
+									<span className={cn('grid size-6 shrink-0 place-items-center rounded-full border-[1.5px] text-[11.5px] font-bold', isDone ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : isView ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[0_0_0_4px_var(--bg-muted)]' : 'border-[var(--border-strong)] bg-white dark:bg-neutral-900')}>
 										{isDone ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : (position + 1).toLocaleString(numbers)}
 									</span>
 									{COPY[step].tab[at]}
@@ -135,7 +135,7 @@ export function GatewaySetup({
 					<span className="text-[var(--text-muted)]">{fa ? `قدم ${(index + 1).toLocaleString(numbers)} از ۴` : `Step ${index + 1} of 4`}</span>
 				</div>
 				<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-					<span className="block h-full rounded-full bg-[#5b3de8] transition-[width] duration-500" style={{ width: `${Math.max(8, (doneCount / 4) * 100)}%` }} />
+					<span className="block h-full rounded-full bg-[var(--text-primary)] transition-[width] duration-500" style={{ width: `${Math.max(8, (doneCount / 4) * 100)}%` }} />
 				</div>
 			</div>
 

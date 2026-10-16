@@ -1,30 +1,24 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { Bot, MessageSquareText, PackageCheck, PackageX, TrendingUp, WalletCards, Zap } from 'lucide-react'
+import { Bot, MessageSquareText, TrendingUp, WalletCards, Zap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 import { dateLocaleTag } from '@/lib/localized-date'
-import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
-import { BankMark } from '@/components/payments/bank-card'
 import { PaymentsShell } from '@/components/payments/payments-shell'
-import { PaymentActions, PaymentRowMenu, UnmatchedSmsActions } from '@/components/payments/payment-actions'
+import { PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
+import { PaymentsList, type PaymentRowData } from '@/components/payments/payments-list'
 import { NewPaymentButton } from '@/components/payments/new-link-form'
 import { Sparkline } from '@/components/admin/sparkline'
 import { loadGatewayOverview, NOT_TEST } from '@/lib/payments/card/dashboard'
 import { suggestPaymentsForSms } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
+import { readPayItems, type PayItem } from '@/lib/payments/card/items'
+import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
 
 export const dynamic = 'force-dynamic'
 
-const STATUS: Record<string, { tone: ChipTone; fa: string; en: string }> = {
-  PENDING: { tone: 'warn', fa: 'در انتظار واریز', en: 'Waiting for transfer' },
-  CLAIMED: { tone: 'danger', fa: 'نیاز به بررسی شما', en: 'Needs your review' },
-  PAID: { tone: 'ok', fa: 'پرداخت‌شده', en: 'Paid' },
-  EXPIRED: { tone: 'neutral', fa: 'منقضی', en: 'Expired' },
-  FAILED: { tone: 'danger', fa: 'رد شد', en: 'Rejected' },
-  CANCELLED: { tone: 'neutral', fa: 'لغو شد', en: 'Cancelled' },
-}
 const SOURCE: Record<string, [string, string]> = { CHAT: ['سفارش در گفتگو', 'Chat order'], API: ['سایت', 'Site'], LINK: ['لینک پرداخت', 'Payment link'] }
 
 const TREND_DAYS = 7
@@ -43,7 +37,22 @@ function dailySeries<T extends { paidAt: Date | null }>(rows: T[], pick: (row: T
   return keys.map((key) => sums.get(key) ?? 0)
 }
 
-export default async function PaymentsPage() {
+const FILTERS = ['all', 'pending', 'paid', 'chat', 'link'] as const
+type Filter = (typeof FILTERS)[number]
+
+/** A chat order's lines in the payment's own shape. */
+function draftPayItems(items: unknown): PayItem[] {
+  if (!Array.isArray(items)) return []
+  return readPayItems(items.map((item: Record<string, unknown>) => ({
+    name: [item.name, item.variant].filter((part) => typeof part === 'string' && part).join(' · '),
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+  })))
+}
+
+export default async function PaymentsPage(props: { searchParams: Promise<{ f?: string }> }) {
+  const { f } = await props.searchParams
+  const filter: Filter = (FILTERS as readonly string[]).includes(f ?? '') ? (f as Filter) : 'all'
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const fa = locale === 'fa'
@@ -72,16 +81,93 @@ export default async function PaymentsPage() {
     prisma.cardPayment.findMany({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST }, select: { paidAt: true, baseAmount: true, confirmedBy: true } }),
   ])
   const suggestions = await Promise.all(unmatched.map((sms) => suggestPaymentsForSms(user.workspaceId, sms.amount)))
-  // Chat orders paid by card: whether they reached the WooCommerce store.
-  const draftIds = payments.flatMap((payment) => (payment.status === 'PAID' && payment.orderDraftId ? [payment.orderDraftId] : []))
-  const storeOrders = new Map(
+  // Chat orders: their lines, and once paid whether they reached the WooCommerce store.
+  const draftIds = [...new Set(payments.flatMap((payment) => (payment.orderDraftId ? [payment.orderDraftId] : [])))]
+  const drafts = new Map(
     (draftIds.length
-      ? await prisma.orderDraft.findMany({ where: { id: { in: draftIds }, checkoutMode: 'CARD_TRANSFER' }, select: { id: true, externalOrderNumber: true, storeSyncAt: true, storeSyncError: true } })
+      ? await prisma.orderDraft.findMany({ where: { id: { in: draftIds } }, select: { id: true, items: true, checkoutMode: true, externalOrderNumber: true, storeSyncAt: true, storeSyncError: true } })
       : []
     ).map((draft) => [draft.id, draft]),
   )
+  // Who each payment came from: the conversation's customer, their app and last words.
+  const conversationIds = [...new Set(payments.flatMap((payment) => (payment.conversationId ? [payment.conversationId] : [])))]
+  const conversations = new Map(
+    (conversationIds.length
+      ? await prisma.conversation.findMany({
+          where: { id: { in: conversationIds }, workspaceId: user.workspaceId },
+          select: {
+            id: true,
+            channel: true,
+            externalId: true,
+            contactId: true,
+            contact: { select: { name: true, phone: true, telegramUsername: true, telegramAvatarUrl: true, baleUsername: true, baleAvatarUrl: true, rubikaUsername: true, rubikaAvatarUrl: true, whatsappName: true, whatsappAvatarUrl: true, instagramUsername: true, instagramAvatarUrl: true } },
+            messages: { where: { role: 'USER' }, orderBy: { createdAt: 'desc' }, take: 1, select: { content: true } },
+          },
+        })
+      : []
+    ).map((conversation) => [conversation.id, conversation]),
+  )
   const review = payments.filter((payment) => payment.status === 'CLAIMED')
-  const rest = payments.filter((payment) => payment.status !== 'CLAIMED')
+  const all = payments.filter((payment) => payment.status !== 'CLAIMED')
+  const counts = { pending: all.filter((payment) => payment.status === 'PENDING').length }
+  const rest = all.filter((payment) =>
+    filter === 'pending' ? payment.status === 'PENDING'
+      : filter === 'paid' ? payment.status === 'PAID'
+      : filter === 'chat' ? Boolean(payment.conversationId)
+      : filter === 'link' ? payment.source === 'LINK' && !payment.conversationId
+      : true)
+  const rows: PaymentRowData[] = rest.map((payment) => {
+    const subject = payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : payment.source === 'LINK' && payment.conversationId ? (fa ? 'درخواست پرداخت در گفتگو' : 'Payment request in chat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]
+    const draft = payment.orderDraftId ? drafts.get(payment.orderDraftId) : undefined
+    const conversation = payment.conversationId ? conversations.get(payment.conversationId) : undefined
+    const contact = conversation?.contact
+    const name = conversation
+      ? contactDisplayName({
+          name: contact?.name ?? payment.customerName,
+          phone: contact?.phone,
+          handle: contact ? channelHandleFor({ channel: conversation.channel, ...contact }) : null,
+          channel: conversation.channel,
+          channelId: conversation.externalId,
+          anonymousLabel: fa ? 'مشتری' : 'Customer',
+        })
+      : null
+    const lastMessage = conversation?.messages[0]?.content?.replace(/\[\[[^\]]*\]\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90) || null
+    const storeOrder = draft && draft.checkoutMode === 'CARD_TRANSFER' && payment.status === 'PAID' && (draft.externalOrderNumber || draft.storeSyncAt || draft.storeSyncError)
+      ? { number: draft.externalOrderNumber, queued: !draft.externalOrderNumber && Boolean(draft.storeSyncAt), error: draft.storeSyncError }
+      : null
+    return {
+      id: payment.id,
+      reference: payment.reference,
+      status: payment.status,
+      confirmedBy: payment.confirmedBy,
+      source: payment.source,
+      subject,
+      title: payment.description || payment.customerName || name || subject,
+      customerName: payment.customerName,
+      baseAmount: payment.baseAmount,
+      payAmount: payment.payAmount,
+      bankKey: payment.card.bankKey,
+      last4: payment.card.last4,
+      siteName: payment.site?.name ?? null,
+      createdAt: payment.createdAt.toISOString(),
+      claimedAt: payment.claimedAt?.toISOString() ?? null,
+      paidAt: payment.paidAt?.toISOString() ?? null,
+      resolvedAt: payment.resolvedAt?.toISOString() ?? null,
+      expiresAt: payment.expiresAt.toISOString(),
+      payUrl: payPageUrl(payment.authority),
+      conversation: conversation && name
+        ? {
+            id: conversation.id,
+            name,
+            channel: conversation.channel,
+            avatar: contactAvatarSrc({ contactId: conversation.contactId, channel: conversation.channel, rawUrl: contact ? channelAvatarFor({ channel: conversation.channel, ...contact }) : null }),
+            lastMessage,
+          }
+        : null,
+      items: draft ? draftPayItems(draft.items) : readPayItems(payment.items),
+      storeOrder,
+    }
+  })
   const hasCard = overview.cards.some((card) => card.active)
   const cap = overview.usage.cap
   const dayLabels = Array.from({ length: TREND_DAYS }, (_, index) => {
@@ -190,82 +276,35 @@ export default async function PaymentsPage() {
       <section className="spatial-surface overflow-hidden rounded-card shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)]">
         <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
           <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پرداخت‌ها' : 'Payments'}</h2>
-          {rest.length ? <span className="text-[12.5px] tabular-nums text-[var(--text-muted)]">{fa ? `${rest.length.toLocaleString(numbers)} پرداخت آخر` : `Last ${rest.length}`}</span> : null}
+          {rest.length ? <span className="text-[12.5px] tabular-nums text-[var(--text-muted)]">{fa ? `${rest.length.toLocaleString(numbers)} پرداخت` : `${rest.length} payments`}</span> : null}
         </div>
-        {rest.length === 0 ? (
+        {all.length ? (
+          <nav aria-label={fa ? 'فیلتر پرداخت‌ها' : 'Filter payments'} className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-5">
+            {FILTERS.map((key) => {
+              const label = { all: ['همه', 'All'], pending: ['در انتظار', 'Waiting'], paid: ['پرداخت‌شده', 'Paid'], chat: ['از گفتگو', 'From chats'], link: ['لینک دستی', 'Manual links'] }[key][fa ? 0 : 1]
+              const active = filter === key
+              return (
+                <Link key={key} href={key === 'all' ? '/payments' : `/payments?f=${key}`} scroll={false} aria-current={active ? 'page' : undefined} className={cn('inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors', active ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]')}>
+                  {label}
+                  {key === 'pending' && counts.pending ? <span className={cn('rounded-full px-1.5 text-[11px] leading-5 tabular-nums', active ? 'bg-white/20' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200')}>{counts.pending.toLocaleString(numbers)}</span> : null}
+                </Link>
+              )
+            })}
+          </nav>
+        ) : null}
+        {all.length === 0 ? (
           <div className="grid justify-items-center gap-1.5 px-3 pb-8 pt-5 text-center">
             <span className="mb-1 grid size-14 place-items-center rounded-2xl bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><WalletCards className="size-6" aria-hidden /></span>
             <p className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'هنوز پرداختی نیامده' : 'No payments yet'}</p>
             <p className="max-w-md text-[13px] leading-7 text-[var(--text-secondary)]">{fa ? 'اولین سفارشی که در گفتگو تأیید شود، یا اولین پرداختی که با دکمهٔ «پرداخت تازه» بسازید، این‌جا می‌آید.' : 'The first order confirmed in a conversation, or the first payment you make with «New payment», appears here.'}</p>
             <Link href="/payments/settings" className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Bot className="size-4" aria-hidden />{fa ? 'روش پرداخت ایجنت‌ها' : 'How agents take payment'}</Link>
           </div>
+        ) : rows.length === 0 ? (
+          <p className="border-t border-[var(--border-subtle)] px-4 py-8 text-center text-[13px] text-[var(--text-muted)]">{fa ? 'پرداختی با این فیلتر نیست.' : 'No payment matches this filter.'}</p>
         ) : (
-          <>
-            {/* Column heads, desktop only: every row below keeps these columns. */}
-            <div aria-hidden className="hidden grid-cols-[2.25rem_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] gap-4 border-y border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-2 text-[12px] font-medium text-[var(--text-muted)] md:grid">
-              <span />
-              <span>{fa ? 'پرداخت' : 'Payment'}</span>
-              <span>{fa ? 'مبلغ' : 'Amount'}</span>
-              <span>{fa ? 'وضعیت' : 'Status'}</span>
-              <span />
-            </div>
-            <ul className="divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)] md:border-t-0">
-              {rest.map((payment) => {
-                const status = STATUS[payment.status] ?? STATUS.CANCELLED
-                const subject = payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]
-                const pending = payment.status === 'PENDING'
-                return (
-                  <li key={payment.id} className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-[var(--bg-surface)] sm:px-5 md:grid-cols-[2.25rem_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] md:gap-x-4">
-                    <span className="row-span-2 md:row-span-1"><BankMark bankKey={payment.card.bankKey} size={36} /></span>
-                    <div className="min-w-0">
-                      <p className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-[13.5px] font-bold text-[var(--text-primary)]">{payment.description || payment.customerName || subject}</span>
-                        <span dir="ltr" className="shrink-0 font-mono text-[11.5px] text-[var(--text-muted)]">#{payment.reference}</span>
-                      </p>
-                      <p className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">
-                        {[subject, payment.site?.name, payment.description && payment.customerName ? payment.customerName : null, time.format(payment.createdAt)].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                    {/* Phones: the amount on the end of the first line. */}
-                    <div className="text-end md:text-start">
-                      <p className="whitespace-nowrap text-[14px] font-bold tabular-nums text-[var(--text-primary)]">{payment.baseAmount.toLocaleString(numbers)} <span className="text-[11.5px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span></p>
-                      <p className="hidden truncate text-[12px] text-[var(--text-muted)] md:block">{fa ? 'واریز دقیق' : 'Exact'} <span dir="ltr" className="font-mono">{payment.payAmount.toLocaleString('en-US')}</span> · <span dir="ltr" className="font-mono">••{payment.card.last4}</span></p>
-                    </div>
-                    <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-1.5 md:col-start-auto">
-                      <StatusChip tone={status.tone} dot>{fa ? status.fa : status.en}{payment.status === 'PAID' && payment.confirmedBy !== 'AUTO' ? (fa ? ' · دستی' : ' · by hand') : ''}</StatusChip>
-                      <StoreOrderChip draft={payment.orderDraftId ? storeOrders.get(payment.orderDraftId) : undefined} fa={fa} />
-                    </div>
-                    <div className="col-start-3 row-start-2 justify-self-end md:col-start-auto md:row-start-auto">
-                      <PaymentRowMenu
-                        paymentId={payment.id}
-                        pending={pending}
-                        payUrl={pending && payment.source === 'LINK' ? payPageUrl(payment.authority) : null}
-                        conversationHref={payment.conversationId ? `/conversations/${payment.conversationId}` : null}
-                        label={`#${payment.reference} · ${money(payment.baseAmount)}`}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </>
+          <PaymentsList rows={rows} />
         )}
       </section>
     </PaymentsShell>
   )
-}
-
-/** Where a paid chat order stands on the WooCommerce store. */
-function StoreOrderChip({ draft, fa }: { draft?: { externalOrderNumber: string | null; storeSyncAt: Date | null; storeSyncError: string | null }; fa: boolean }) {
-  if (!draft) return null
-  if (draft.externalOrderNumber) {
-    return <span className="inline-flex items-center gap-1 rounded-full bg-[#f1eeff] px-2 py-0.5 text-[11.5px] font-medium text-[#4c2fd0] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><PackageCheck className="size-3.5" aria-hidden />{fa ? 'ووکامرس' : 'WooCommerce'} #{draft.externalOrderNumber}</span>
-  }
-  if (draft.storeSyncAt) {
-    return <span title={draft.storeSyncError ?? undefined} className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11.5px] text-[var(--text-secondary)]"><PackageCheck className="size-3.5" aria-hidden />{fa ? 'در صف ثبت در ووکامرس' : 'Queued for WooCommerce'}</span>
-  }
-  if (draft.storeSyncError) {
-    return <span title={draft.storeSyncError} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11.5px] font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300"><PackageX className="size-3.5" aria-hidden />{fa ? 'در ووکامرس ثبت نشد' : 'Not placed on WooCommerce'}</span>
-  }
-  return null
 }

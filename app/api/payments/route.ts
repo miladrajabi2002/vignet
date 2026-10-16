@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/session'
 import { readPayGatewaySettings } from '@/lib/payments/card/settings'
 import { prisma } from '@/lib/prisma'
 import { cardPayView, createCardPayment, manualLinkReference, payPageUrl } from '@/lib/payments/card/service'
+import { MAX_PAY_ITEMS, readPayItems } from '@/lib/payments/card/items'
+import { requestPaymentInConversation } from '@/lib/payments/card/request'
 
 /** The setup's test transfer, in whole tomans (before its identifying digits). */
 const TEST_AMOUNT = 10_000
@@ -13,6 +15,10 @@ const schema = z.object({
   amount: z.number().int().min(1_000).max(2_000_000_000).optional(),
   description: z.string().trim().max(200).optional(),
   customerName: z.string().trim().max(80).optional(),
+  // Send it to this customer's conversation instead of handing back a link.
+  conversationId: z.string().min(1).max(80).optional(),
+  items: z.array(z.object({ name: z.string().trim().min(1).max(120), quantity: z.number().int().min(1).max(999), unitPrice: z.number().int().min(0).max(2_000_000_000).nullable(), productId: z.string().max(80).nullable().optional() })).max(MAX_PAY_ITEMS).optional(),
+  note: z.string().trim().max(500).optional(),
   // The setup guide's own small transfer to the owner's card.
   test: z.boolean().optional(),
 })
@@ -41,9 +47,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, id: open.id, url: payPageUrl(open.authority), card: cardPayView(open, open.card, readPayGatewaySettings(workspace.payGatewaySettings), 'fa') })
     }
   }
+  const items = readPayItems(parsed.data.items ?? [])
+  if (!test && parsed.data.conversationId) {
+    const requested = await requestPaymentInConversation({
+      workspaceId: user.workspaceId,
+      conversationId: parsed.data.conversationId,
+      amount: parsed.data.amount!,
+      description: parsed.data.description ?? null,
+      items,
+      note: parsed.data.note ?? null,
+    })
+    if (!requested.ok) return NextResponse.json({ error: requested.error }, { status: requested.error === 'NOT_FOUND' ? 404 : 400 })
+    return NextResponse.json({ ok: true, id: requested.payment.id, url: requested.url, delivery: requested.delivery, message: requested.message })
+  }
   const created = await createCardPayment({
     workspaceId: user.workspaceId,
     baseAmount: test ? TEST_AMOUNT : parsed.data.amount!,
+    items: test ? null : items,
     source: 'LINK',
     reference: manualLinkReference(test),
     description: test ? 'واریز آزمایشی راه‌اندازی' : parsed.data.description ?? null,

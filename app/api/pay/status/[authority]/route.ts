@@ -13,7 +13,7 @@ async function load(authority: string) {
   if (!/^[\w-]{8,80}$/.test(authority)) return null
   return prisma.cardPayment.findUnique({
     where: { authority },
-    select: { id: true, status: true, expiresAt: true, returnUrl: true, authority: true, reference: true, source: true, workspace: { select: { payGatewaySettings: true } } },
+    select: { id: true, status: true, expiresAt: true, paidAt: true, returnUrl: true, authority: true, reference: true, source: true, workspace: { select: { payGatewaySettings: true } } },
   })
 }
 
@@ -21,6 +21,7 @@ function body(payment: NonNullable<Awaited<ReturnType<typeof load>>>) {
   return {
     status: payment.status,
     expiresAt: payment.expiresAt.toISOString(),
+    paidAt: payment.paidAt?.toISOString() ?? null,
     // Where the customer goes back to once the payment is final (API payments).
     returnUrl: payment.status === 'PAID' && payment.returnUrl ? payment.returnUrl : null,
   }

@@ -18,6 +18,9 @@ import { ConversationMobileLayout } from '@/components/crm/conversation-mobile-l
 import { ConversationPaymentBanner } from '@/components/payments/payment-review'
 import { loadConversationView } from '@/lib/conversations/view'
 import { isInstagramCommentThread } from '@/lib/channels/delivery-errors'
+import { prisma } from '@/lib/prisma'
+import { getGatewayUsage, getPlatformGatewaySettings } from '@/lib/payments/card/platform'
+import type { ComposerTools } from '@/components/crm/operator-reply'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -36,6 +39,18 @@ export default async function ConversationThreadPage(props: {
         })
         if (!view) notFound()
         const { conversation, insight, handle, avatar, who, handoffAlert, sourceTag, attention, liveSummary } = view
+        // What the composer's helpers need: a live card-to-card gateway, and products.
+        const [gateway, platform, activeCards, products] = await Promise.all([
+                prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySuspendedAt: true, payGatewayCapOverride: true } }),
+                getPlatformGatewaySettings(),
+                prisma.payCard.count({ where: { workspaceId: user.workspaceId, active: true, deletedAt: null } }),
+                prisma.product.count({ where: { workspaceId: user.workspaceId, active: true, deletedAt: null } }),
+        ])
+        const usage = gateway?.payGatewayEnabled && !gateway.payGatewaySuspendedAt && activeCards ? await getGatewayUsage(user.workspaceId, gateway.plan, gateway.payGatewayCapOverride) : null
+        const tools: ComposerTools = {
+                payment: !platform.enabled || gateway?.payGatewaySuspendedAt || usage?.reached ? 'GATEWAY_PAUSED' : !gateway?.payGatewayEnabled ? 'GATEWAY_OFF' : !activeCards ? 'NO_CARD' : null,
+                products: products ? null : 'NO_PRODUCTS',
+        }
         const meta = [
                 conversation.agent.name,
                 handle ? `@${handle}` : null,
@@ -83,6 +98,7 @@ export default async function ConversationThreadPage(props: {
                                                 locale={locale}
                                                 channel={conversation.channel}
                                                 commentThread={conversation.channel === 'INSTAGRAM' && isInstagramCommentThread(conversation.externalId)}
+                                                tools={tools}
                                                 handoff={handoffAlert ? { at: handoffAlert.createdAt, reason: handoffAlert.reason } : null}
                                         />
                                 }

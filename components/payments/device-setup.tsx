@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { AlertTriangle, Apple, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardPaste, Download, Globe, Lightbulb, ListChecks, Loader2, Lock, MessageSquareText, Radio, RefreshCw, RotateCcw, ShieldCheck, Smartphone } from 'lucide-react'
+import { AlertTriangle, Apple, ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, ClipboardPaste, Download, Globe, Lightbulb, ListChecks, Loader2, Lock, MessageSquareText, Radio, RefreshCw, RotateCcw, ShieldCheck, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -80,7 +80,7 @@ function Progress({ stage, sub }: { stage: number; sub?: string }) {
 			<ol aria-hidden className="grid gap-1" style={{ gridTemplateColumns: `repeat(${STAGES.length}, minmax(0, 1fr))` }}>
 				{STAGES.map((label, index) => (
 					<li key={label[1]} className="grid gap-1">
-						<span className={cn('h-1 rounded-full transition-colors duration-300', index < stage ? 'bg-emerald-500' : index === stage ? 'bg-[#5b3de8]' : 'bg-[var(--bg-muted)]')} />
+						<span className={cn('h-1 rounded-full transition-colors duration-300', index <= stage ? 'bg-[var(--text-primary)]' : 'bg-[var(--bg-muted)]')} />
 						<span className={cn('hidden truncate text-[11px] md:block', index === stage ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>{label[at]}</span>
 					</li>
 				))}
@@ -364,7 +364,7 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
 							? (fa ? 'شمارهٔ سیم‌کارتی که پیامک واریز بانک رویش می‌آید.' : 'The SIM that gets the bank’s deposit SMS.')
 							: (fa ? 'شماره‌ای که پیامک‌های واریز را برای سامانهٔ پیامکی ویجنت می‌فرستد. فقط پیامک‌هایی که از همین شماره برسند خوانده می‌شوند.' : 'The number that forwards the deposit messages to Vigent’s SMS line. Only messages from this number are read.')}
 					>
-						<label className="block max-w-sm">
+						<label className="relative block max-w-sm">
 							<span className="sr-only">{fa ? 'شمارهٔ موبایل' : 'Mobile number'}</span>
 							<input
 								id="pay-device-phone"
@@ -372,17 +372,16 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
 								inputMode="tel"
 								autoComplete="tel"
 								autoFocus
-								className="input font-mono text-[17px] tracking-wider"
+								className="input pe-12 font-mono text-[17px] tracking-wider"
 								placeholder="0912 123 4567"
 								value={phone}
 								onChange={(event) => setPhone(event.target.value)}
 								// +98…, 98… and 912… all become 09…: one spelling for one SIM.
 								onBlur={() => { if (validPhone) setPhone(validPhone) }}
 							/>
+							{validPhone ? <span className="pointer-events-none absolute inset-y-0 end-3 grid place-items-center"><span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white"><Check className="size-3.5" strokeWidth={3} aria-hidden /></span><span className="sr-only">{fa ? 'شماره درست است' : 'The number is valid'}</span></span> : null}
 						</label>
-						{phone ? (validPhone
-							? <p className="flex items-center gap-1.5 text-[12.5px] text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-4" aria-hidden />{fa ? 'ثبت می‌شود به شکل ' : 'Saved as '}<b dir="ltr" className="font-mono">{validPhone}</b></p>
-							: <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</p>) : null}
+						{phone && !validPhone ? <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</p> : null}
 						{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
 					</Question>
 				)}
@@ -501,6 +500,8 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 							</div>
 						) : null}
 
+						{device.platform === 'ANDROID' && current.kind === 'install' ? <AndroidAlternatives method={device.method} keyword={keyword} destination={destination} /> : null}
+
 						{current.kind === 'condition' && (
 							<CopyBox
 								label={fa ? 'متن ثابت شرط' : 'The condition’s fixed text'}
@@ -531,6 +532,87 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 				hint={page === lastPage && inSetup ? (fa ? 'قدم بعد، با یک واریز آزمایشی معلوم می‌شود تنظیم درست است یا نه.' : 'The next step’s test transfer shows whether it all works.') : null}
 			/>
 		</section>
+	)
+}
+
+/** Other Android apps that do the same job, for phones where the guide's app misses the bank's messages. */
+const ANDROID_ALTERNATIVES: Array<{ key: string; name: string; maker: string; play: string; methods: Method[]; about: [string, string] }> = [
+	{ key: 'macrodroid', name: 'MacroDroid', maker: 'ArloSoft', play: 'https://play.google.com/store/apps/details?id=com.arlosoft.macrodroid', methods: ['SMS', 'URL'], about: ['اپ اتوماسیون پرطرفدار؛ روی شیائومی و سامسونگ معمولاً پایدارتر است. نسخهٔ رایگان تا ۵ ماکرو.', 'A popular automation app; usually steadier on Xiaomi and Samsung. The free version allows 5 macros.'] },
+	{ key: 'automate', name: 'Automate', maker: 'LlamaLab', play: 'https://play.google.com/store/apps/details?id=com.llamalab.automate', methods: ['SMS', 'URL'], about: ['رایگان؛ با چند بلوک آماده یک «فلوچارت» می‌سازید.', 'Free; you build a small «flowchart» from ready blocks.'] },
+	{ key: 'smstourl', name: 'SMS to URL Forwarder', maker: 'bogkonstantin', play: 'https://play.google.com/store/apps/details?id=tech.bogomolov.incomingsmsgateway', methods: ['URL'], about: ['متن‌باز و خیلی سبک؛ فقط پیامک را به یک نشانی اینترنتی می‌فرستد.', 'Open source and very light; it only sends the message to a web address.'] },
+]
+
+function alternativeRecipe(key: string, method: Method, keyword: string, destination: string, fa: boolean): ReactNode[] {
+	const kw = <bdi className="rounded-md border border-[var(--border-default)] bg-white px-1.5 font-medium dark:bg-neutral-900">{keyword}</bdi>
+	const to = <bdi dir="ltr" className="rounded-md border border-[var(--border-default)] bg-white px-1.5 font-mono text-[12px] dark:bg-neutral-900">{destination}</bdi>
+	if (key === 'macrodroid') {
+		return [
+			<>{fa ? 'ماکروی تازه ← تریگر ' : 'New macro → trigger '}<b>{fa ? '«پیامک دریافت شد» (SMS Received)' : '«SMS Received»'}</b>{fa ? ' ← محتوا شامل ' : ' → content contains '}{kw}</>,
+			method === 'SMS'
+				? <>{fa ? 'اکشن ' : 'Action '}<b>Send SMS</b>{fa ? ' به ' : ' to '}{to}{fa ? ' با متن ' : ' with the text '}<bdi dir="ltr" className="font-mono text-[12px]">[sms_message]</bdi></>
+				: <>{fa ? 'اکشن ' : 'Action '}<b>HTTP Request</b>{fa ? ' با روش POST به ' : ' as POST to '}{to}{fa ? '، بدنه: ' : ', body: '}<bdi dir="ltr" className="font-mono text-[12px]">[sms_message]</bdi></>,
+			<>{fa ? 'ذخیره، و در اطلاعات برنامه باتری را «بدون محدودیت» بگذارید.' : 'Save it, and set Battery to «Unrestricted» in App info.'}</>,
+		]
+	}
+	if (key === 'automate') {
+		return [
+			<>{fa ? 'فلوچارت تازه ← بلوک ' : 'New flow → block '}<b>SMS received</b>{fa ? ' و در «Message body» متن ' : ' with «Message body» containing '}{kw}</>,
+			method === 'SMS'
+				? <>{fa ? 'بعدش بلوک ' : 'Then the block '}<b>SMS send</b>{fa ? ' به ' : ' to '}{to}{fa ? ' با همان متن پیامک' : ' with the same message text'}</>
+				: <>{fa ? 'بعدش بلوک ' : 'Then the block '}<b>HTTP request</b>{fa ? ' با روش POST به ' : ' as POST to '}{to}{fa ? ' و متن پیامک در بدنه' : ' with the message text as the body'}</>,
+			<>{fa ? 'خروجی آخر را به بلوک اول وصل کنید و «Start» را بزنید.' : 'Connect the last block back to the first and tap «Start».'}</>,
+		]
+	}
+	return [
+		<>{fa ? 'دکمهٔ + ← در «Sender» علامت ' : 'Tap + → set «Sender» to '}<bdi dir="ltr" className="font-mono text-[12px]">*</bdi>{fa ? ' و در «URL» نشانی ' : ' and «URL» to '}{to}</>,
+		<>{fa ? 'قالب پیام را همان پیش‌فرض بگذارید (متن پیامک در ' : 'Keep the default template (the text goes in '}<bdi dir="ltr" className="font-mono text-[12px]">%text%</bdi>{fa ? ' می‌رود).' : ').'}</>,
+		<>{fa ? `فقط پیامک‌هایی که «${keyword}» دارند خوانده می‌شوند؛ بقیه نادیده گرفته می‌شوند.` : `Only messages with «${keyword}» are read; the rest are ignored.`}</>,
+	]
+}
+
+function AndroidAlternatives({ method, keyword, destination }: { method: Method; keyword: string; destination: string | null }) {
+	const fa = useLocale() !== 'en'
+	const at = fa ? 0 : 1
+	const [open, setOpen] = useState<string | null>(null)
+	return (
+		<div className="grid gap-2.5">
+			<p className="flex items-center gap-3 text-[12.5px] font-medium text-[var(--text-muted)] before:h-px before:flex-1 before:bg-[var(--border-default)] after:h-px after:flex-1 after:bg-[var(--border-default)]">{fa ? 'کار نکرد؟ یکی از این‌ها را امتحان کنید' : 'Did not work? Try one of these'}</p>
+			<ul className="grid gap-2">
+				{ANDROID_ALTERNATIVES.map((app) => {
+					const fits = app.methods.includes(method)
+					const expanded = open === app.key && fits
+					return (
+						<li key={app.key} className={cn('grid gap-2 rounded-2xl border border-[var(--border-default)] bg-white p-3 dark:bg-neutral-900', !fits && 'opacity-60')}>
+							<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+								<div className="min-w-0 flex-1">
+									<p className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-bold text-[var(--text-primary)]">
+										<span dir="ltr">{app.name}</span>
+										{app.methods.map((value) => <span key={value} className="rounded-full bg-[var(--bg-muted)] px-2 text-[11px] font-medium leading-5 text-[var(--text-secondary)]">{value === 'SMS' ? (fa ? 'پیامکی' : 'SMS') : (fa ? 'اینترنتی' : 'Internet')}</span>)}
+									</p>
+									<p className="text-[12px] leading-6 text-[var(--text-muted)]">
+										{fits ? app.about[at] : (fa ? 'فقط با روش «با اینترنت» کار می‌کند؛ برای استفاده، روش را با «ویرایش پاسخ‌ها» عوض کنید.' : 'Works only over the internet; switch the delivery with «Edit the answers» to use it.')}
+									</p>
+								</div>
+								<div className="flex items-center gap-1.5">
+									{fits && destination ? <Button type="button" size="sm" variant="ghost" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : app.key)}>{fa ? 'طرز تنظیم' : 'How to set up'}<ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden /></Button> : null}
+									<a href={app.play} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3.5 text-[12.5px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><Download className="size-3.5" aria-hidden />Google Play</a>
+								</div>
+							</div>
+							{expanded && destination ? (
+								<ol className="grid gap-1.5 rounded-xl bg-[var(--bg-surface)] p-3">
+									{alternativeRecipe(app.key, method, keyword, destination, fa).map((line, index) => (
+										<li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-2 text-[12.5px] leading-7 text-[var(--text-secondary)]">
+											<span className="mt-1 grid size-5 place-items-center rounded-full border border-[var(--border-default)] bg-white text-[11px] font-bold text-[var(--text-primary)] dark:bg-neutral-900">{(index + 1).toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>
+											<span className="min-w-0 break-words">{line}</span>
+										</li>
+									))}
+								</ol>
+							) : null}
+						</li>
+					)
+				})}
+			</ul>
+		</div>
 	)
 }
 

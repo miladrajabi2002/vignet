@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { Check, CircleCheck, Loader2, Package, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
+import Link from 'next/link'
+import { Check, CircleCheck, CreditCard, Loader2, Lock, Package, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { cn } from '@/lib/utils'
 import { deliveryReasonDetail } from '@/lib/channels/delivery-errors'
 import type { ThreadMessage } from './conversation-thread'
 import { ProductImage } from '@/components/products/product-image'
+import { AmountField, formatAmountInput, ItemsEditor, itemsTotal, toPayItems, type EditorItem } from '@/components/payments/payment-request-fields'
 
 type DeliveryFeedback = {
   status: 'sent' | 'stored' | 'unavailable' | 'failed'
@@ -31,6 +33,21 @@ const MAX_PRODUCTS = 10
 const CHIP =
   'spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50'
 const CHIP_IDLE = 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
+const CHIP_LOCKED = 'border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-hint)] hover:text-[var(--text-muted)]'
+
+/**
+ * Why a composer tool is off, so the chip can say what to switch on. Null
+ * when the tool works.
+ */
+export type ComposerToolLock = 'GATEWAY_OFF' | 'NO_CARD' | 'GATEWAY_PAUSED' | 'NO_PRODUCTS' | null
+export interface ComposerTools { payment: ComposerToolLock; products: ComposerToolLock }
+
+const LOCK_COPY: Record<Exclude<ComposerToolLock, null>, { fa: string; en: string; href: string; cta: [string, string] }> = {
+  GATEWAY_OFF: { fa: 'درخواست پرداخت با درگاه کارت‌به‌کارت ویجنت کار می‌کند که هنوز راه‌اندازی یا روشن نشده.', en: 'Payment requests use Vigent’s card-to-card gateway, which is not set up or switched on yet.', href: '/payments', cta: ['راه‌اندازی درگاه پرداخت', 'Set up the gateway'] },
+  NO_CARD: { fa: 'برای درخواست پرداخت، دست‌کم یک کارت بانکی فعال در درگاه لازم است.', en: 'A payment request needs at least one active bank card in the gateway.', href: '/payments/cards', cta: ['افزودن کارت', 'Add a card'] },
+  GATEWAY_PAUSED: { fa: 'درگاه پرداخت الان در دسترس نیست (متوقف شده یا سقف ماه پر شده).', en: 'The gateway is unavailable right now (paused or this month’s limit is reached).', href: '/payments', cta: ['دیدن درگاه پرداخت', 'Open the gateway'] },
+  NO_PRODUCTS: { fa: 'هنوز محصول فعالی ندارید؛ محصول اضافه کنید یا فروشگاه ووکامرس را وصل کنید.', en: 'There is no active product yet; add products or connect your WooCommerce store.', href: '/products', cta: ['رفتن به محصولات', 'Go to products'] },
+}
 
 /** How the picked products reach the customer on this conversation's channel. */
 function productDeliveryHint(channel: ChannelType | undefined, fa: boolean): string {
@@ -70,12 +87,15 @@ export function OperatorReply({
   conversationId,
   channel,
   commentThread = false,
+  tools = { payment: null, products: null },
   onSent,
 }: {
   conversationId: string
   channel?: ChannelType
   /** A public Instagram comment thread: text replies only, no product cards. */
   commentThread?: boolean
+  /** Which helpers under the field are off, and why. */
+  tools?: ComposerTools
   onSent?: (message: ThreadMessage) => void
 }) {
   const t = useTranslations('conversations')
@@ -91,8 +111,76 @@ export function OperatorReply({
   const [noteSaved, setNoteSaved] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [attached, setAttached] = useState<PickerProduct[]>([])
+  const [payMode, setPayMode] = useState(false)
+  const [payItems, setPayItems] = useState<EditorItem[]>([])
+  const [payAmount, setPayAmount] = useState('')
+  const [payAmountTouched, setPayAmountTouched] = useState(false)
+  const [payFor, setPayFor] = useState('')
+  const [lockShown, setLockShown] = useState<Exclude<ComposerToolLock, null> | null>(null)
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
-  const sendsProducts = !noteMode && attached.length > 0
+  const sendsProducts = !noteMode && !payMode && attached.length > 0
+  const payValue = Number(payAmount.replace(/\D/g, ''))
+  const payTotal = itemsTotal(payItems)
+
+  /** Open the payment panel; products already picked become its items. */
+  function openPayment() {
+    if (tools.payment) { setLockShown(lockShown === tools.payment ? null : tools.payment); return }
+    if (payMode) { setPayMode(false); return }
+    const fromProducts: EditorItem[] = attached.map((product) => ({ key: product.id, name: product.name, quantity: 1, unitPrice: product.price, productId: product.id, image: product.images?.find((src) => /^https?:\/\//.test(src)) ?? null }))
+    setPayItems(fromProducts)
+    setPayAmount(formatAmountInput(itemsTotal(fromProducts)))
+    setPayAmountTouched(false)
+    setAttached([])
+    setPickerOpen(false)
+    setNoteMode(false)
+    setLockShown(null)
+    setPayMode(true)
+    setError(null)
+  }
+
+  function changePayItems(next: EditorItem[]) {
+    setPayItems(next)
+    if (!payAmountTouched) setPayAmount(formatAmountInput(itemsTotal(next)))
+  }
+
+  async function sendPayment() {
+    if (!payValue || busy) {
+      if (!payValue) setError(fa ? 'مبلغ پرداخت را وارد کنید.' : 'Enter the amount.')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    setDelivery(null)
+    try {
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, amount: payValue, description: payFor.trim() || undefined, items: toPayItems(payItems), note: text.trim() || undefined }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        const copy: Record<string, string> = fa
+          ? { WINDOW_CLOSED: 'اینستاگرام فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهد.', DISABLED: 'درگاه پرداخت خاموش است.', NO_CARD: 'کارت فعالی در درگاه نیست.', AMOUNT_TOO_LOW: 'حداقل مبلغ ۱٬۰۰۰ تومان است.', AMOUNT_TOO_HIGH: 'این مبلغ از سقف کارت‌به‌کارت بیشتر است.', CAP_REACHED: 'سقف پرداخت‌های این ماه پر شده است.', NO_SLOT: 'چند دقیقهٔ دیگر دوباره تلاش کنید.' }
+          : { WINDOW_CLOSED: 'Instagram allows messages only within 24 hours of the customer’s last one.', DISABLED: 'The gateway is off.', NO_CARD: 'There is no active card.', AMOUNT_TOO_LOW: 'The minimum is 1,000 Toman.', AMOUNT_TOO_HIGH: 'This amount is above the card-to-card limit.', CAP_REACHED: 'This month’s limit is reached.', NO_SLOT: 'Try again in a few minutes.' }
+        setError(copy[data?.error] ?? (fa ? 'درخواست پرداخت فرستاده نشد. دوباره تلاش کنید.' : 'The payment request was not sent. Try again.'))
+        return
+      }
+      if (onSent && data?.message) {
+        onSent({ id: data.message.id, role: data.message.role, content: data.message.content, createdAt: data.message.createdAt, contentType: 'TEXT', metadata: data.message.metadata ?? { operator: true } })
+      }
+      setDelivery({ status: data?.delivery === 'failed' ? 'failed' : data?.delivery === 'stored' ? 'stored' : 'sent' })
+      setText('')
+      setPayMode(false)
+      setPayItems([])
+      setPayAmount('')
+      setPayFor('')
+      router.refresh()
+    } catch {
+      setError(fa ? 'درخواست پرداخت فرستاده نشد. اینترنت را چک کنید.' : 'The payment request was not sent. Check the connection.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function toggleProduct(product: PickerProduct) {
     setAttached((current) => {
@@ -259,6 +347,34 @@ export function OperatorReply({
         </div>
       )}
 
+      {payMode && (
+        <div className="grid gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+            <p className="min-w-0 flex-1 text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'درخواست پرداخت کارت‌به‌کارت' : 'Card-to-card payment request'}</p>
+            <button type="button" onClick={() => setPayMode(false)} disabled={busy} aria-label={fa ? 'بستن' : 'Close'} className="grid h-8 w-8 place-items-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" aria-hidden="true" /></button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start">
+            <div className="grid gap-1.5">
+              <span className="text-[12px] font-medium text-[var(--text-muted)]">{fa ? 'اقلام (اختیاری)' : 'Items (optional)'}</span>
+              <ItemsEditor items={payItems} onChange={changePayItems} fa={fa} disabled={busy} />
+            </div>
+            <div className="grid gap-2">
+              <AmountField
+                id={`pay-request-amount-${conversationId}`}
+                value={payAmount}
+                onChange={(next) => { setPayAmount(next); setPayAmountTouched(Boolean(next)) }}
+                fa={fa}
+                disabled={busy}
+                hint={payTotal ? (payAmountTouched && payValue !== payTotal ? (fa ? `جمع اقلام ${nf.format(payTotal)}` : `Items: ${nf.format(payTotal)}`) : (fa ? 'از جمع اقلام' : 'From the items')) : null}
+              />
+              <input value={payFor} onChange={(event) => setPayFor(event.target.value)} maxLength={200} disabled={busy} placeholder={fa ? 'بابت (اختیاری)، مثلاً: کفش سایز ۴۰' : 'For (optional), e.g. Sneakers size 40'} aria-label={fa ? 'بابت' : 'For'} className="input min-h-10 text-[13px]" />
+            </div>
+          </div>
+          <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'کارت بانکی و مبلغ دقیق در همین گفتگو می‌رود؛ با رسیدن پیامک واریز، خودکار تأیید و به مشتری خبر داده می‌شود.' : 'The bank card and the exact amount go into this conversation; the transfer is confirmed from the bank SMS and the customer is told.'}</p>
+        </div>
+      )}
+
       <ChatComposer
         ref={composerRef}
         value={text}
@@ -266,17 +382,19 @@ export function OperatorReply({
           setText(value)
           if (noteSaved) setNoteSaved(false)
         }}
-        onSend={() => void (noteMode ? saveNote() : send())}
+        onSend={() => void (noteMode ? saveNote() : payMode ? sendPayment() : send())}
         busy={busy}
-        hasAttachment={sendsProducts}
+        hasAttachment={sendsProducts || (payMode && payValue > 0)}
         placeholder={noteMode
           ? (fa ? 'یادداشت داخلی؛ مشتری نمی‌بیند…' : 'Internal note; the customer will not see it…')
+          : payMode
+            ? (fa ? 'یک متن کوتاه همراه کارت پرداخت (اختیاری)…' : 'A short line to go with the payment card (optional)…')
           : sendsProducts
             ? (fa ? 'یک متن کوتاه همراه محصولات (اختیاری)…' : 'A short line to go with the products (optional)…')
             : t('replyPlaceholder')}
         inputLabel={noteMode ? (fa ? 'یادداشت داخلی' : 'Internal note') : (fa ? 'پاسخ اپراتور' : 'Operator reply')}
         dir={fa ? 'rtl' : 'ltr'}
-        sendLabel={noteMode ? (fa ? 'ثبت یادداشت' : 'Save note') : t('send')}
+        sendLabel={noteMode ? (fa ? 'ثبت یادداشت' : 'Save note') : payMode ? (fa ? 'فرستادن کارت پرداخت' : 'Send the payment card') : t('send')}
         maxLength={noteMode ? 1000 : 4000}
         className={cn(noteMode && '[&>div:first-child]:border-[color:color-mix(in_srgb,var(--notif-strong)_35%,transparent)] [&>div:first-child]:bg-[var(--notif-soft)]')}
       />
@@ -284,25 +402,44 @@ export function OperatorReply({
       <div className="relative flex flex-wrap items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setPickerOpen((open) => !open)}
-          disabled={noteMode || commentThread}
+          onClick={() => {
+            if (tools.products) { setLockShown(lockShown === tools.products ? null : tools.products); return }
+            setPickerOpen((open) => !open)
+          }}
+          disabled={noteMode || payMode || commentThread}
           aria-expanded={pickerOpen}
           aria-haspopup="dialog"
           title={commentThread
             ? (deliveryReasonDetail('products_need_dm', fa) ?? undefined)
             : (fa ? 'چند محصول را با عکس و قیمت برای مشتری بفرستید' : 'Send several products with photo and price')}
-          className={cn(CHIP, pickerOpen || attached.length > 0 ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : CHIP_IDLE)}
+          className={cn(CHIP, tools.products ? CHIP_LOCKED : pickerOpen || attached.length > 0 ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : CHIP_IDLE)}
+          aria-describedby={lockShown === tools.products && tools.products ? `composer-lock-${conversationId}` : undefined}
         >
-          <Package className="h-3.5 w-3.5" aria-hidden="true" />
+          {tools.products ? <Lock className="h-3.5 w-3.5" aria-hidden="true" /> : <Package className="h-3.5 w-3.5" aria-hidden="true" />}
           {fa ? 'ارسال محصول' : 'Send products'}
           {attached.length > 0 && (
             <span className="rounded-full bg-[var(--text-primary)] px-1.5 text-[12px] font-bold leading-5 text-white tabular-nums">{nf.format(attached.length)}</span>
           )}
         </button>
+        {!commentThread && (
+          <button
+            type="button"
+            onClick={openPayment}
+            disabled={noteMode || busy}
+            aria-pressed={payMode}
+            title={tools.payment ? LOCK_COPY[tools.payment][fa ? 'fa' : 'en'] : (fa ? 'کارت بانکی و مبلغ دقیق را برای پرداخت به مشتری بفرستید' : 'Send the customer your bank card and the exact amount to pay')}
+            aria-describedby={lockShown === tools.payment && tools.payment ? `composer-lock-${conversationId}` : undefined}
+            className={cn(CHIP, tools.payment ? CHIP_LOCKED : payMode ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : CHIP_IDLE)}
+          >
+            {tools.payment ? <Lock className="h-3.5 w-3.5" aria-hidden="true" /> : <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />}
+            {fa ? 'درخواست پرداخت' : 'Request payment'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
             setNoteMode((on) => !on)
+            setPayMode(false)
             setPickerOpen(false)
             setError(null)
             composerRef.current?.focus()
@@ -327,11 +464,22 @@ export function OperatorReply({
         )}
       </div>
 
+      {lockShown && (
+        <div id={`composer-lock-${conversationId}`} role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-2.5 text-[12.5px] leading-6 text-[var(--text-secondary)]">
+          <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{LOCK_COPY[lockShown][fa ? 'fa' : 'en']}</span>
+          <Link href={LOCK_COPY[lockShown].href} className="inline-flex min-h-8 shrink-0 items-center rounded-full bg-[var(--text-primary)] px-3 text-[12px] font-bold text-white">{LOCK_COPY[lockShown].cta[fa ? 0 : 1]}</Link>
+          <button type="button" onClick={() => setLockShown(null)} aria-label={fa ? 'بستن' : 'Close'} className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
+        </div>
+      )}
+
       {feedback ?? (
-        <p className="truncate text-[12px] leading-5 text-[var(--text-muted)]" title={noteMode ? undefined : t('replyHint')}>
+        <p className="truncate text-[12px] leading-5 text-[var(--text-muted)]" title={noteMode || payMode ? undefined : t('replyHint')}>
           {noteMode
             ? (fa ? 'یادداشت فقط در خط زمان همین گفتگو برای شما و همکارانتان می‌ماند.' : 'The note stays on this conversation’s timeline for you and your team only.')
-            : t('replyHint')}
+            : payMode
+              ? (fa ? 'متن اختیاری بالای کارت پرداخت می‌آید؛ ایجنت همچنان پاسخ مشتری را می‌دهد.' : 'The optional text goes above the payment card; the agent keeps answering the customer.')
+              : t('replyHint')}
         </p>
       )}
     </div>

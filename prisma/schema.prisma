@@ -2555,6 +2555,8 @@ model CardPayment {
   // The order's own reference: OrderDraft.code or the site's order_id.
   reference      String
   description    String?
+  // What the payment is for, when the owner listed it: [{ name, quantity, unitPrice, productId }].
+  items          Json?
   customerName   String?
   customerPhone  String?
   // Whole tomans. payAmount = baseAmount + identifier (1…999).

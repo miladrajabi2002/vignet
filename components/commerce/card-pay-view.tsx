@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Check } from 'lucide-react'
 import { BankCardFace } from '@/components/payments/bank-card'
 import { groupDigits } from '@/lib/payments/card/amount'
 import { formatPan } from '@/lib/payments/card/bins'
@@ -17,7 +18,7 @@ const TONE: Record<CardPayStatus, string> = {
 	CANCELLED: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
 }
 
-async function copy(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
 	try {
 		await navigator.clipboard.writeText(text)
 		return true
@@ -48,7 +49,7 @@ function CopyRow({ label, shown, value, fa }: { label: string; shown: string; va
 			<button
 				type="button"
 				onClick={async () => {
-					if (await copy(value)) {
+					if (await copyText(value)) {
 						setDone(true)
 						window.setTimeout(() => setDone(false), 1500)
 					}
@@ -58,6 +59,61 @@ function CopyRow({ label, shown, value, fa }: { label: string; shown: string; va
 				{done ? (fa ? 'کپی شد' : 'Copied') : (fa ? 'کپی' : 'Copy')}
 			</button>
 		</div>
+	)
+}
+
+/**
+ * The live state of a payment: asks the server every few seconds while it is
+ * open (slower when the tab is hidden) and stops once it is final.
+ */
+export function useCardPayStatus(authority: string, initial: CardPayStatus, { live = true, onChange }: { live?: boolean; onChange?: (status: CardPayStatus, paidAt: string | null) => void } = {}) {
+	const [status, setStatus] = useState<CardPayStatus>(initial)
+	const [paidAt, setPaidAt] = useState<string | null>(null)
+	const notify = useRef(onChange)
+	notify.current = onChange
+
+	const apply = useCallback((next: CardPayStatus, paid: string | null = null) => {
+		if (paid) setPaidAt(paid)
+		setStatus((previous) => {
+			if (previous !== next) notify.current?.(next, paid)
+			return next
+		})
+	}, [])
+
+	useEffect(() => {
+		if (!live) return
+		let stopped = false
+		let timer: number | undefined
+		const tick = async () => {
+			try {
+				const response = await fetch(`/api/pay/status/${authority}`, { cache: 'no-store' })
+				if (response.ok) {
+					const data = (await response.json()) as { status?: CardPayStatus; paidAt?: string | null }
+					if (!stopped && data.status) {
+						apply(data.status, data.paidAt ?? null)
+						if (!OPEN.includes(data.status)) return
+					}
+				}
+			} catch { /* offline: try again on the next tick */ }
+			if (!stopped) timer = window.setTimeout(tick, document.hidden ? 15_000 : 5_000)
+		}
+		void tick()
+		return () => {
+			stopped = true
+			if (timer) window.clearTimeout(timer)
+		}
+	}, [live, authority, apply])
+
+	return { status, paidAt, apply }
+}
+
+/** A dot that keeps pulsing while a payment waits for its transfer. */
+export function PendingPulse({ className }: { className?: string }) {
+	return (
+		<span aria-hidden className={`relative inline-flex size-2 shrink-0 ${className ?? ''}`}>
+			<span className="absolute inset-0 animate-ping rounded-full bg-current opacity-60 motion-reduce:animate-none" />
+			<span className="relative inline-flex size-2 rounded-full bg-current" />
+		</span>
 	)
 }
 
@@ -87,42 +143,9 @@ export function CardPayCardView({
 	onStatus?: (status: CardPayStatus) => void
 }) {
 	const fa = card.lang !== 'en'
-	const [status, setStatus] = useState<CardPayStatus>(card.status)
+	const { status, apply } = useCardPayStatus(card.authority, card.status, { live, onChange: (next) => onStatus?.(next) })
 	const [left, setLeft] = useState(() => minutesLeft(card.expiresAt))
 	const [claiming, setClaiming] = useState(false)
-	const notify = useRef(onStatus)
-	notify.current = onStatus
-
-	const apply = useCallback((next: CardPayStatus) => {
-		setStatus((previous) => {
-			if (previous !== next) notify.current?.(next)
-			return next
-		})
-	}, [])
-
-	useEffect(() => {
-		if (!live) return
-		let stopped = false
-		let timer: number | undefined
-		const tick = async () => {
-			try {
-				const response = await fetch(`/api/pay/status/${card.authority}`, { cache: 'no-store' })
-				if (response.ok) {
-					const data = (await response.json()) as { status?: CardPayStatus }
-					if (!stopped && data.status) {
-						apply(data.status)
-						if (!OPEN.includes(data.status)) return
-					}
-				}
-			} catch { /* offline: try again on the next tick */ }
-			if (!stopped) timer = window.setTimeout(tick, document.hidden ? 15_000 : 5_000)
-		}
-		void tick()
-		return () => {
-			stopped = true
-			if (timer) window.clearTimeout(timer)
-		}
-	}, [live, card.authority, apply])
 
 	useEffect(() => {
 		if (status !== 'PENDING') return
@@ -144,7 +167,15 @@ export function CardPayCardView({
 				<span className="text-[15px] font-extrabold text-neutral-900 dark:text-neutral-50">{card.title ? card.title : <>{fa ? 'سفارش' : 'Order'} <span dir="ltr" className="font-mono">{card.code}</span></>}</span>
 				<span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">{fa ? 'کارت‌به‌کارت' : 'Card transfer'}</span>
 			</div>
-			<BankCardFace bankKey={card.bankKey} pan={card.pan} holder={card.holder} lang={card.lang} muted={!open && status !== 'PAID'} />
+			{status === 'PAID' ? (
+				<div className="grid justify-items-center gap-1.5 rounded-2xl bg-emerald-50 px-3 py-5 text-center dark:bg-emerald-950/40">
+					<span className="grid size-12 place-items-center rounded-full bg-emerald-600 text-white shadow-[0_0_0_6px_rgba(16,185,129,.15)]"><Check className="size-6" strokeWidth={3} aria-hidden /></span>
+					<p className="mt-1 text-[15px] font-extrabold text-emerald-800 dark:text-emerald-200">{fa ? 'پرداخت تأیید شد' : 'Payment confirmed'}</p>
+					<p className="text-[13px] text-emerald-900/80 dark:text-emerald-100/80"><span dir="ltr" className="font-mono font-bold tabular-nums">{groupDigits(card.amount)}</span> {fa ? 'تومان' : 'Toman'}</p>
+				</div>
+			) : (
+				<BankCardFace bankKey={card.bankKey} pan={card.pan} holder={card.holder} lang={card.lang} muted={!open} />
+			)}
 			{open && (
 				<>
 					<CopyRow label={fa ? 'شماره کارت' : 'Card number'} shown={formatPan(card.pan)} value={card.pan} fa={fa} />
@@ -167,7 +198,7 @@ export function CardPayCardView({
 					)}
 				</>
 			)}
-			<div role="status" aria-live="polite" className={`rounded-2xl px-3 py-2.5 text-center text-[13px] font-medium ${TONE[status]}`}>{stateText}</div>
+			{status !== 'PAID' ? <div role="status" aria-live="polite" className={`flex items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-center text-[13px] font-medium ${TONE[status]}`}>{status === 'PENDING' ? <PendingPulse /> : null}{stateText}</div> : <span role="status" aria-live="polite" className="sr-only">{stateText}</span>}
 			{canClaim && card.claim && status === 'PENDING' && (
 				<button
 					type="button"

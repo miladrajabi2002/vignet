@@ -4,11 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { CheckCircle2, ExternalLink, Link2, Lock, Plus, Share2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, Link2, Lock, MessageSquareText, Plus, Send, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { toEnglishDigits } from '@/lib/phone'
+import { AmountField, formatAmountInput, ItemsEditor, itemsTotal, RecipientPicker, RecipientRow, toPayItems, type EditorItem, type Recipient } from '@/components/payments/payment-request-fields'
 import { cn } from '@/lib/utils'
 
 const ERRORS: Record<string, [string, string]> = {
@@ -18,52 +19,81 @@ const ERRORS: Record<string, [string, string]> = {
 	AMOUNT_TOO_LOW: ['حداقل مبلغ ۱٬۰۰۰ تومان است.', 'The minimum is 1,000 Toman.'],
 	CAP_REACHED: ['سقف پرداخت‌های این ماهِ پلن شما پر شده است.', 'This month’s payment limit of your plan is reached.'],
 	NO_SLOT: ['الان پرداخت‌های باز زیادی با همین مبلغ هست؛ چند دقیقهٔ دیگر تلاش کنید.', 'Too many open payments with this amount; try again shortly.'],
+	WINDOW_CLOSED: ['اینستاگرام فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهد؛ «فقط لینک بساز» را بزنید و لینک را جور دیگری بفرستید.', 'Instagram allows messages only within 24 hours of the customer’s last one; make a link instead.'],
+	NOT_FOUND: ['این گفتگو پیدا نشد.', 'That conversation was not found.'],
 }
 
 /**
- * «پرداخت تازه» in the gateway's header: a payment link for a customer who
- * is not in a Vigent conversation (a phone order, another app). It opens a
- * side sheet (a bottom sheet on phones) and ends on the link to send.
+ * «پرداخت تازه» in the gateway's header: a payment link to send by hand (a
+ * phone order, another app) or a payment card sent straight into a
+ * customer's conversation, optionally with its items. It opens a side sheet
+ * (a bottom sheet on phones).
  */
 export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | null }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
 	const [open, setOpen] = useState(false)
 	const [amount, setAmount] = useState('')
+	const [amountTouched, setAmountTouched] = useState(false)
 	const [description, setDescription] = useState('')
+	const [target, setTarget] = useState<'link' | 'chat'>('link')
+	const [recipient, setRecipient] = useState<Recipient | null>(null)
+	const [items, setItems] = useState<EditorItem[]>([])
 	const [busy, setBusy] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	const [made, setMade] = useState<{ url: string; amount: number; description: string } | null>(null)
+	const [made, setMade] = useState<{ url: string; amount: number; description: string; recipient: Recipient | null; delivery: string | null } | null>(null)
 	const value = Number(toEnglishDigits(amount).replace(/\D/g, ''))
 	const numbers = fa ? 'fa-IR' : 'en-US'
+	const total = itemsTotal(items)
+	const ready = Boolean(value) && !locked && (target === 'link' || recipient !== null)
+
+	function reset() {
+		setMade(null)
+		setAmount('')
+		setAmountTouched(false)
+		setDescription('')
+		setItems([])
+		setRecipient(null)
+	}
 
 	function close() {
 		setOpen(false)
 		setError(null)
-		if (made) {
-			setMade(null)
-			setAmount('')
-			setDescription('')
-		}
+		if (made) reset()
+	}
+
+	/** The items' total fills the amount until the owner types one of their own. */
+	function changeItems(next: EditorItem[]) {
+		setItems(next)
+		if (!amountTouched) setAmount(formatAmountInput(itemsTotal(next)))
 	}
 
 	async function submit(event: React.FormEvent) {
 		event.preventDefault()
-		if (!value || locked) return
+		if (!ready) return
 		setBusy(true)
 		setError(null)
 		try {
-			const response = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: value, description: description.trim() || undefined }) })
-			const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null
+			const response = await fetch('/api/payments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					amount: value,
+					description: description.trim() || undefined,
+					items: toPayItems(items),
+					...(target === 'chat' && recipient ? { conversationId: recipient.conversationId } : {}),
+				}),
+			})
+			const data = (await response.json().catch(() => null)) as { url?: string; error?: string; delivery?: string } | null
 			if (!response.ok || !data?.url) {
 				const copy = ERRORS[data?.error ?? '']
-				setError(copy ? copy[fa ? 0 : 1] : (fa ? 'لینک ساخته نشد؛ دوباره تلاش کنید.' : 'The link was not created; try again.'))
+				setError(copy ? copy[fa ? 0 : 1] : (fa ? 'پرداخت ساخته نشد؛ دوباره تلاش کنید.' : 'The payment was not created; try again.'))
 				return
 			}
-			setMade({ url: data.url, amount: value, description: description.trim() })
+			setMade({ url: data.url, amount: value, description: description.trim(), recipient: target === 'chat' ? recipient : null, delivery: data.delivery ?? null })
 			router.refresh()
 		} catch {
-			setError(fa ? 'لینک ساخته نشد؛ اینترنت را چک کنید.' : 'The link was not created; check the connection.')
+			setError(fa ? 'پرداخت ساخته نشد؛ اینترنت را چک کنید.' : 'The payment was not created; check the connection.')
 		} finally {
 			setBusy(false)
 		}
@@ -83,20 +113,23 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 			</Button>
 			{open && (
 				<SideSheet
-					title={made ? (fa ? 'لینک پرداخت آماده است' : 'The payment link is ready') : (fa ? 'پرداخت تازه' : 'New payment')}
-					subtitle={fa ? 'برای سفارش تلفنی یا مشتری بیرون از گفتگو' : 'For a phone order or a customer outside a chat'}
+					title={made ? (made.recipient ? (fa ? 'درخواست پرداخت فرستاده شد' : 'Payment request sent') : (fa ? 'لینک پرداخت آماده است' : 'The payment link is ready')) : (fa ? 'پرداخت تازه' : 'New payment')}
+					subtitle={fa ? 'یک لینک، یا مستقیم در گفتگوی مشتری' : 'A link, or straight into a customer’s conversation'}
 					onClose={close}
 					closeLabel={fa ? 'بستن' : 'Close'}
 					className="md:w-[min(30rem,calc(100vw-1.5rem))]"
 					icon={<span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><Link2 className="size-5" /></span>}
 					footer={made ? (
 						<div className="flex flex-wrap gap-2">
-							<Button onClick={() => { setMade(null); setAmount(''); setDescription('') }}><Plus className="size-4" aria-hidden />{fa ? 'یک پرداخت دیگر' : 'Another payment'}</Button>
+							<Button onClick={reset}><Plus className="size-4" aria-hidden />{fa ? 'یک پرداخت دیگر' : 'Another payment'}</Button>
 							<Button variant="ghost" onClick={close}>{fa ? 'بستن' : 'Close'}</Button>
 						</div>
 					) : (
 						<div className="flex flex-wrap gap-2">
-							<Button type="submit" form="pay-new-link" loading={busy} disabled={!value || locked !== null}>{fa ? 'ساخت لینک پرداخت' : 'Create the link'}</Button>
+							<Button type="submit" form="pay-new-link" loading={busy} disabled={!ready}>
+								{target === 'chat' ? <Send className="size-4" aria-hidden /> : null}
+								{target === 'chat' ? (recipient ? (fa ? `ساخت و فرستادن برای ${recipient.name}` : `Create and send to ${recipient.name}`) : (fa ? 'اول مشتری را انتخاب کنید' : 'Pick the customer first')) : (fa ? 'ساخت لینک پرداخت' : 'Create the link')}
+							</Button>
 							<Button variant="ghost" onClick={close}>{fa ? 'انصراف' : 'Cancel'}</Button>
 						</div>
 					)}
@@ -108,8 +141,17 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 								<p className="text-[22px] font-extrabold tabular-nums text-[var(--text-primary)]">{made.amount.toLocaleString(numbers)} <span className="text-[13px] font-medium text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span></p>
 								{made.description ? <p className="text-[13px] text-[var(--text-secondary)]">{made.description}</p> : null}
 							</div>
+							{made.recipient ? (
+								<div className="grid gap-2">
+									<div className="flex items-center gap-3 rounded-2xl border border-[var(--border-default)] p-2.5"><RecipientRow recipient={made.recipient} fa={fa} /></div>
+									{made.delivery === 'failed'
+										? <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[12.5px] leading-6 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"><AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />{fa ? 'پرداخت ساخته شد ولی پیام به کانال نرسید؛ لینک زیر را دستی بفرستید.' : 'The payment was created but the channel did not take the message; send the link below yourself.'}</p>
+										: <p className="flex items-center gap-2 text-[13px] text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-4" aria-hidden />{fa ? 'کارت پرداخت در گفتگو فرستاده شد؛ با واریز، به مشتری هم خبر می‌دهیم.' : 'The payment card was sent in the conversation; the customer hears when it lands.'}</p>}
+									<Link href={`/conversations/${made.recipient.conversationId}`} className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3.5 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open the conversation'}</Link>
+								</div>
+							) : null}
 							<div className="grid gap-1.5">
-								<span className="ui-field-label">{fa ? 'لینک را برای مشتری بفرستید' : 'Send this link to the customer'}</span>
+								<span className="ui-field-label">{made.recipient ? (fa ? 'لینک صفحهٔ پرداخت' : 'Payment page link') : (fa ? 'لینک را برای مشتری بفرستید' : 'Send this link to the customer')}</span>
 								<div className="flex items-center gap-2 rounded-control border-[1.5px] border-[var(--border-default)] bg-[var(--bg-surface)] p-2 ps-3">
 									<span dir="ltr" className="min-w-0 flex-1 truncate font-mono text-[13px]">{made.url}</span>
 									<CopyButton value={made.url} label={fa ? 'کپی' : 'Copy'} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
@@ -130,18 +172,38 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 									{locked === 'card' ? <Link href="/payments/cards" className="ui-link text-[13px]">{fa ? 'افزودن کارت' : 'Add a card'}</Link> : null}
 								</div>
 							) : null}
-							<label className="block">
-								<span className="ui-field-label">{fa ? 'مبلغ' : 'Amount'}</span>
-								<span className="relative mt-1.5 block">
-									<input id="pay-link-amount" data-sheet-initial-focus dir="ltr" inputMode="numeric" autoComplete="off" className={cn('input font-mono text-[18px] tabular-nums', fa ? 'pl-16 pr-3' : 'pl-3 pr-16')} value={amount} onChange={(event) => setAmount(toEnglishDigits(event.target.value).replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))} placeholder="1,250,000" required disabled={locked !== null} />
-									<span aria-hidden className={cn('pointer-events-none absolute inset-y-1 grid place-items-center rounded-[10px] bg-[var(--bg-surface)] px-2.5 text-[12px] text-[var(--text-muted)]', fa ? 'left-1' : 'right-1')}>{fa ? 'تومان' : 'Toman'}</span>
-								</span>
-								{value >= 1000 ? <span className="ui-field-hint">{fa ? `به ریال: ${(value * 10).toLocaleString('fa-IR')}` : `In rials: ${(value * 10).toLocaleString('en-US')}`}</span> : null}
-							</label>
+							<div className="grid gap-1.5">
+								<span className="ui-field-label">{fa ? 'به چه کسی؟' : 'For whom?'}</span>
+								<div role="radiogroup" aria-label={fa ? 'به چه کسی؟' : 'For whom?'} className="grid grid-cols-2 gap-1 rounded-2xl bg-[var(--bg-muted)] p-1">
+									{([['link', Link2, fa ? 'فقط لینک بساز' : 'Just a link'], ['chat', MessageSquareText, fa ? 'بفرست برای مشتری' : 'Send to a customer']] as const).map(([key, Icon, label]) => (
+										<button key={key} type="button" role="radio" aria-checked={target === key} disabled={locked !== null} onClick={() => { setTarget(key); setError(null) }} className={cn('inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl text-[13px] transition-colors', target === key ? 'bg-white font-bold text-[var(--text-primary)] shadow-[0_1px_2px_rgba(17,17,17,.1)] dark:bg-neutral-800' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]')}>
+											<Icon className="size-4" aria-hidden />{label}
+										</button>
+									))}
+								</div>
+								{target === 'chat' ? (
+									<>
+										<RecipientPicker value={recipient} onChange={setRecipient} fa={fa} />
+										<span className="ui-field-hint">{fa ? 'کارت پرداخت در همان گفتگو (اینستاگرام، تلگرام، بله، ویجت…) فرستاده می‌شود و با واریز، خودکار به مشتری خبر می‌دهیم.' : 'The payment card goes into that conversation, and the customer hears automatically when it lands.'}</span>
+									</>
+								) : <span className="ui-field-hint">{fa ? 'برای سفارش تلفنی یا مشتری بیرون از گفتگو؛ لینک را خودتان می‌فرستید.' : 'For a phone order or a customer outside a chat; you send the link.'}</span>}
+							</div>
+							<div className="grid gap-1.5">
+								<span className="ui-field-label">{fa ? 'اقلام' : 'Items'} <span className="font-normal text-[var(--text-muted)]">{fa ? '(اختیاری)' : '(optional)'}</span></span>
+								<ItemsEditor items={items} onChange={changeItems} fa={fa} disabled={locked !== null} />
+							</div>
+							<AmountField
+								id="pay-link-amount"
+								value={amount}
+								onChange={(next) => { setAmount(next); setAmountTouched(Boolean(next)) }}
+								fa={fa}
+								disabled={locked !== null}
+								hint={total ? (amountTouched && value !== total ? (fa ? `جمع اقلام ${total.toLocaleString(numbers)} تومان است.` : `The items add up to ${total.toLocaleString(numbers)}.`) : (fa ? 'از جمع اقلام پر شد؛ می‌توانید عوضش کنید.' : 'Filled from the items; you can change it.')) : null}
+							/>
 							<label className="block">
 								<span className="ui-field-label">{fa ? 'بابت (اختیاری)' : 'For (optional)'}</span>
 								<input id="pay-link-description" className="input mt-1.5" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={200} placeholder={fa ? 'مثلاً: کفش کتانی سایز ۴۰' : 'e.g. Sneakers, size 40'} disabled={locked !== null} />
-								<span className="ui-field-hint">{fa ? 'مشتری همین را بالای کارت پرداخت می‌بیند.' : 'The customer sees this above the payment card.'}</span>
+								<span className="ui-field-hint">{fa ? 'مشتری همین را در صفحهٔ پرداخت می‌بیند.' : 'The customer sees this on the payment page.'}</span>
 							</label>
 							{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
 						</form>

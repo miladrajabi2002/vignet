@@ -17,6 +17,7 @@ import { decrypt, encrypt } from '@/lib/crypto'
 import { captureError } from '@/lib/errors/capture'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { allocateAmount, tomanToRial } from '@/lib/payments/card/amount'
+import type { PayItem } from '@/lib/payments/card/items'
 import { bankByKey, detectBank, luhnValid, panDigits } from '@/lib/payments/card/bins'
 import { cardPayMarker, composeCardPayNotice, payToman, type CardPayStatus, type CardPayView } from '@/lib/payments/card/pay-card'
 import { getGatewayUsage, getPlatformGatewaySettings } from '@/lib/payments/card/platform'
@@ -151,6 +152,8 @@ export interface CreatePaymentInput {
   conversationId?: string | null
   siteId?: string | null
   description?: string | null
+  /** The lines it is for (hand-made payments). */
+  items?: PayItem[] | null
   customerName?: string | null
   customerPhone?: string | null
   callbackUrl?: string | null
@@ -226,6 +229,7 @@ export async function createCardPayment(input: CreatePaymentInput): Promise<Crea
           authority: newAuthority(),
           reference: input.reference.slice(0, 120),
           description: input.description?.slice(0, 300) ?? null,
+          ...(input.items?.length ? { items: input.items as unknown as Prisma.InputJsonValue } : {}),
           customerName: input.customerName?.slice(0, 120) ?? null,
           customerPhone: input.customerPhone?.slice(0, 32) ?? null,
           baseAmount,

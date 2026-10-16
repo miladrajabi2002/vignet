@@ -37,7 +37,7 @@ import { parseProductShowcaseContent } from '@/components/products/product-showc
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
 import { CardPayCardView } from '@/components/commerce/card-pay-view'
-import { OperatorReply } from './operator-reply'
+import { OperatorReply, type ComposerTools } from './operator-reply'
 import { Headphones, Sparkles } from 'lucide-react'
 import {
         ConversationTimelineActivity,
@@ -139,6 +139,7 @@ export function ConversationThread({
         handoff = null,
         channel,
         commentThread = false,
+        tools,
 }: {
         initialMessages: ThreadMessage[]
         conversationId: string
@@ -147,6 +148,8 @@ export function ConversationThread({
         channel?: ChannelType
         /** A public Instagram comment thread; operator replies go out as comment replies. */
         commentThread?: boolean
+        /** Which composer helpers are off (no gateway, no products), and why. */
+        tools?: ComposerTools
         /** Inside the inbox pane the surrounding card and header already exist. */
         embedded?: boolean
         /**
@@ -592,6 +595,7 @@ export function ConversationThread({
                                         conversationId={conversationId}
                                         channel={channel}
                                         commentThread={commentThread}
+                                        tools={tools}
                                         onSent={handleSent}
                                 />
                         </div>
