@@ -1962,30 +1962,6 @@ html[dir='rtl'] .undo-indeterminate {
 	/* ── Live flow (overview motion graphic) ───────────────────────────── */
 	.lf { --lf-dir: 1; }
 	[dir='rtl'] .lf, .lf[dir='rtl'] { --lf-dir: -1; }
-	.lf-line {
-		position: relative;
-		height: 2px;
-		overflow: hidden;
-		border-radius: 2px;
-		background-image: repeating-linear-gradient(90deg, rgba(91, 61, 232, 0.3) 0 5px, transparent 5px 11px);
-		background-size: 11px 2px;
-		animation: lf-dash 1.1s linear infinite;
-	}
-	.lf-line-ok { background-image: repeating-linear-gradient(90deg, rgba(21, 128, 61, 0.32) 0 5px, transparent 5px 11px); }
-	.lf-line-idle { animation: none; opacity: 0.55; }
-	.lf-run { position: absolute; inset: 0; animation: lf-run 2.6s cubic-bezier(.45, .05, .55, .95) infinite; }
-	.lf-run > i {
-		position: absolute;
-		top: 50%;
-		inset-inline-start: 0;
-		width: 7px;
-		height: 7px;
-		margin-top: -3.5px;
-		border-radius: 9999px;
-		background: var(--signal);
-		box-shadow: 0 0 0 3px rgba(91, 61, 232, 0.16);
-	}
-	.lf-run-ok > i { background: var(--ok); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.16); }
 	.lf-vline {
 		position: relative;
 		width: 2px;
@@ -1995,20 +1971,6 @@ html[dir='rtl'] .undo-indeterminate {
 		background-size: 2px 11px;
 		animation: lf-vdash 1.1s linear infinite;
 	}
-	.lf-vline-ok { background-image: repeating-linear-gradient(180deg, rgba(21, 128, 61, 0.32) 0 5px, transparent 5px 11px); }
-	.lf-vrun { position: absolute; inset: 0; animation: lf-vrun 2.2s cubic-bezier(.45, .05, .55, .95) infinite; }
-	.lf-vrun > i {
-		position: absolute;
-		left: 50%;
-		top: 0;
-		width: 7px;
-		height: 7px;
-		margin-left: -3.5px;
-		border-radius: 9999px;
-		background: var(--signal);
-		box-shadow: 0 0 0 3px rgba(91, 61, 232, 0.16);
-	}
-	.lf-vrun-ok > i { background: var(--ok); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.16); }
 }
 
 /* ── Overview flow: the live stage (.ls-*) ───────────────────────────────
@@ -2021,7 +1983,6 @@ html[dir='rtl'] .undo-indeterminate {
 	@keyframes ls-in { from { opacity: 0; transform: translateY(6px); } }
 	.ls-lane { fill: none; stroke-width: 1.3; stroke-dasharray: 2 6; stroke-opacity: 0.45; }
 	/* The agent's link to the cards: drawn once a card is on, and always moving. */
-	.ls-lane-gold { stroke-width: 1.6; stroke-dasharray: 3 7; stroke-opacity: 0.7; animation: ls-dash 1s linear infinite; }
 	@keyframes ls-dash { to { stroke-dashoffset: -10; } }
 	.ls-ring { background: #fff; box-shadow: 0 0 0 4px #fff, 0 6px 14px -8px rgba(17, 17, 17, 0.4); }
 	.ls-ghost { border: 1.5px dashed #c9c5bf; color: #a8a29d; }
@@ -2103,16 +2064,6 @@ html[dir='rtl'] .undo-indeterminate {
 	@keyframes ls-gauge { from { stroke-dasharray: 0 100; } }
 	@keyframes ls-pulse { from { transform: scale(0.92); opacity: 0.85; } to { transform: scale(1.42); opacity: 0; } }
 
-	.ls-vl {
-		position: relative;
-		width: 2px;
-		height: 30px;
-		margin: 0 auto;
-		background-image: repeating-linear-gradient(180deg, rgba(91, 61, 232, 0.38) 0 5px, transparent 5px 11px);
-		background-size: 2px 11px;
-		animation: ls-vdash 1.1s linear infinite;
-	}
-	.ls-vl-gold { background-image: repeating-linear-gradient(180deg, rgba(201, 154, 27, 0.6) 0 5px, transparent 5px 11px); }
 	.ls-coin {
 		position: absolute;
 		top: 0;
@@ -2361,7 +2312,7 @@ html[dir='rtl'] .undo-indeterminate {
 	.ls-seat-bar i { display: block; height: 100%; border-radius: inherit; background: var(--ls-c); }
 
 	@media (prefers-reduced-motion: reduce) {
-		.ls-stage, .ls-orbit, .ls-gauge, .ls-pulse, .ls-vl, .ls-catch, .ls-tick, .ls-lane-gold, .ls-lane-mod, .ls-mvl, .ls-dock-cn, .ls-pn, .ls-blk.is-drop, .ls-seats i.is-fill, .ls-kp .is-bump b, .ls-wire::before, .ls-mn-st.is-live::after { animation: none; }
+		.ls-stage, .ls-orbit, .ls-gauge, .ls-pulse, .ls-catch, .ls-tick, .ls-lane-mod, .ls-mvl, .ls-dock-cn, .ls-pn, .ls-blk.is-drop, .ls-seats i.is-fill, .ls-kp .is-bump b, .ls-wire::before, .ls-mn-st.is-live::after { animation: none; }
 		.ls-sheen, .ls-pulse, .ls-wp, .ls-demo-coin { display: none; }
 		.ls-card { transition: none; }
 	}
