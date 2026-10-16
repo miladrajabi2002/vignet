@@ -18,7 +18,8 @@ export async function PATCH(req: Request, props: Params) {
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const parsed = schema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
-  const payment = await prisma.cardPayment.findFirst({ where: { id: paymentId, workspaceId: user.workspaceId }, select: { id: true } })
+  // The conversation's payment card knows only its public authority.
+  const payment = await prisma.cardPayment.findFirst({ where: { OR: [{ id: paymentId }, { authority: paymentId }], workspaceId: user.workspaceId }, select: { id: true } })
   if (!payment) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
   if (parsed.data.action === 'block' || parsed.data.action === 'unblock') {

@@ -37,6 +37,7 @@ import { parseProductShowcaseContent } from '@/components/products/product-showc
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { CheckoutCardView } from '@/components/commerce/checkout-card-view'
 import { CardPayCardView } from '@/components/commerce/card-pay-view'
+import { CardPayOwnerActions } from '@/components/payments/payment-actions'
 import { OperatorReply, type ComposerTools } from './operator-reply'
 import { Headphones, Sparkles } from 'lucide-react'
 import {
@@ -522,7 +523,13 @@ export function ConversationThread({
                                                                 )}
                                                                 {!isUser && showcase.cardPay && (
                                                                         <div className="mt-2">
-                                                                                <CardPayCardView card={showcase.cardPay} accent="var(--text-primary, #111111)" onAccent="var(--bg-base, #ffffff)" canClaim={false} />
+                                                                                <CardPayCardView
+                                                                                        card={showcase.cardPay}
+                                                                                        accent="var(--text-primary, #111111)"
+                                                                                        onAccent="var(--bg-base, #ffffff)"
+                                                                                        canClaim={false}
+                                                                                        actions={(status, apply) => <CardPayOwnerActions authority={showcase.cardPay!.authority} status={status} onStatus={apply} />}
+                                                                                />
                                                                         </div>
                                                                 )}
                                                                 {!isUser && hasShowcase && !scenarioReceipt && (

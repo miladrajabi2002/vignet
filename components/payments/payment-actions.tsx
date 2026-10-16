@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Ban, CreditCard } from 'lucide-react'
+import { Ban, Check, CreditCard, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import type { CardPayStatus } from '@/lib/payments/card/pay-card'
 
 /** The owner's decision on one payment. `review` shows confirm + reject; `pending` shows confirm by hand + withdraw. */
 export function PaymentActions({ paymentId, mode, compact = false }: { paymentId: string; mode: 'review' | 'pending'; compact?: boolean }) {
@@ -138,6 +139,87 @@ export function UnmatchedSmsActions({ smsId, suggestions }: { smsId: string; sug
 			<Button size="sm" variant="ghost" loading={busy === 'none'} disabled={busy !== null} onClick={() => resolve(null)}>
 				{fa ? 'به سفارشی مربوط نیست' : 'Not an order'}
 			</Button>
+		</div>
+	)
+}
+
+type CardPayAction = 'confirm' | 'reject' | 'cancel'
+const AFTER: Record<CardPayAction, CardPayStatus> = { confirm: 'PAID', reject: 'FAILED', cancel: 'CANCELLED' }
+
+/**
+ * The payments page's decisions on the payment card in a conversation: an open
+ * one is confirmed or withdrawn (a claimed one confirmed or rejected), a closed
+ * one whose money did arrive is confirmed late. Each asks once more first.
+ */
+export function CardPayOwnerActions({ authority, status, onStatus }: { authority: string; status: CardPayStatus; onStatus: (next: CardPayStatus) => void }) {
+	const fa = useLocale() !== 'en'
+	const router = useRouter()
+	const [busy, setBusy] = useState<CardPayAction | null>(null)
+	const [armed, setArmed] = useState<CardPayAction | null>(null)
+	const [error, setError] = useState<string | null>(null)
+	useEffect(() => {
+		if (!armed) return
+		const timer = window.setTimeout(() => setArmed(null), 4000)
+		return () => window.clearTimeout(timer)
+	}, [armed])
+
+	if (status === 'PAID') return null
+	const open = status === 'PENDING' || status === 'CLAIMED'
+	const review = status === 'CLAIMED'
+	const stop: CardPayAction = review ? 'reject' : 'cancel'
+
+	async function run(action: CardPayAction) {
+		if (armed !== action) { setArmed(action); return }
+		setArmed(null)
+		setBusy(action)
+		setError(null)
+		try {
+			const response = await fetch(`/api/payments/${authority}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+			if (response.ok) onStatus(AFTER[action])
+			else if (response.status === 409) {
+				// Already decided elsewhere (the SMS, another tab): show where it stands.
+				const now = (await fetch(`/api/pay/status/${authority}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null)) as { status?: CardPayStatus } | null
+				if (now?.status) onStatus(now.status)
+			} else throw new Error('failed')
+			router.refresh()
+		} catch {
+			setError(fa ? 'انجام نشد؛ دوباره تلاش کنید.' : 'That did not work; try again.')
+		} finally {
+			setBusy(null)
+		}
+	}
+
+	const base = 'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border px-3 text-[13px] font-bold transition-[background-color,border-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60'
+	const confirmClass = cn(base, armed === 'confirm' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200')
+	const failed = error ? <span role="alert" className="col-span-2 text-[12px] text-red-600">{error}</span> : null
+
+	if (!open) {
+		const why = status === 'EXPIRED' ? (fa ? 'مهلتش تمام شده' : 'It expired') : status === 'FAILED' ? (fa ? 'رد شده بود' : 'It was rejected') : (fa ? 'لغو شده بود' : 'It was withdrawn')
+		return (
+			<div className="grid gap-2">
+				<p className="text-[12px] leading-6 text-neutral-500 dark:text-neutral-400">
+					{fa ? `${why}؛ اگر پولش به حسابتان آمده، تأییدش کنید — پیام تأیید برای مشتری می‌رود.` : `${why}; if the money reached your account, confirm it — the customer is told it is confirmed.`}
+				</p>
+				<button type="button" disabled={busy !== null} onClick={() => run('confirm')} className={confirmClass}>
+					<Check className="size-4" strokeWidth={2.6} aria-hidden />
+					{busy === 'confirm' ? '…' : armed === 'confirm' ? (fa ? 'بله، واریز رسیده؛ تأیید شود' : 'Yes, it arrived; confirm') : (fa ? 'واریز رسیده، تأیید دستی' : 'It arrived, confirm by hand')}
+				</button>
+				{failed}
+			</div>
+		)
+	}
+	const stopArmed = armed === stop
+	return (
+		<div className="grid grid-cols-2 gap-2">
+			<button type="button" disabled={busy !== null} onClick={() => run('confirm')} className={confirmClass}>
+				<Check className="size-4" strokeWidth={2.6} aria-hidden />
+				{busy === 'confirm' ? '…' : armed === 'confirm' ? (fa ? 'بله، واریز رسیده' : 'Yes, it arrived') : review ? (fa ? 'واریز رسیده' : 'It arrived') : (fa ? 'تأیید دستی' : 'Confirm')}
+			</button>
+			<button type="button" disabled={busy !== null} onClick={() => run(stop)} className={cn(base, stopArmed ? 'border-red-600 bg-red-600 text-white' : 'border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300')}>
+				<X className="size-4" strokeWidth={2.6} aria-hidden />
+				{busy === stop ? '…' : stopArmed ? (fa ? 'بله، لغو شود' : 'Yes, withdraw') : review ? (fa ? 'نیامده، رد' : 'Reject') : (fa ? 'لغو' : 'Withdraw')}
+			</button>
+			{failed}
 		</div>
 	)
 }

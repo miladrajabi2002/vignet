@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { BankCardFace } from '@/components/payments/bank-card'
 import { groupDigits } from '@/lib/payments/card/amount'
@@ -131,6 +131,7 @@ export function CardPayCardView({
 	canClaim = true,
 	unit = 'toman',
 	onStatus,
+	actions,
 }: {
 	card: CardPay
 	accent: string
@@ -141,6 +142,8 @@ export function CardPayCardView({
 	/** Rial for the owner's own test: most bank apps take the amount in rials. */
 	unit?: 'toman' | 'rial'
 	onStatus?: (status: CardPayStatus) => void
+	/** The owner's decisions under the card, given its live state and a way to move it. */
+	actions?: (status: CardPayStatus, apply: (next: CardPayStatus) => void) => ReactNode
 }) {
 	const fa = card.lang !== 'en'
 	const { status, apply } = useCardPayStatus(card.authority, card.status, { live, onChange: (next) => onStatus?.(next) })
@@ -219,6 +222,7 @@ export function CardPayCardView({
 					{fa ? 'پرداخت کردم' : 'I have paid'}
 				</button>
 			)}
+			{actions?.(status, apply)}
 		</div>
 	)
 }
