@@ -1,4 +1,5 @@
 import { stripProductTokens } from '@/lib/widget/config'
+import { cardPayHeading, parseCardPayDirective, payToman } from '@/lib/payments/card/pay-card'
 
 /**
  * One-line preview of a message for inbox rows and "latest conversations"
@@ -6,6 +7,13 @@ import { stripProductTokens } from '@/lib/widget/config'
  * so the markers are dropped and only the words stay.
  */
 export function conversationPreviewText(content: string): string {
+        // A payment card previews as what it pays for and its amount, never as its JSON.
+        const { cardPay } = parseCardPayDirective(content)
+        if (cardPay) {
+                const words = previewWords(content).replace(/\s*👇\s*$/u, '')
+                const card = `💳 ${cardPayHeading(cardPay)} · ${payToman(cardPay.amount, cardPay.lang)}`
+                return words ? `${words} — ${card}` : card
+        }
         const text = previewWords(content)
         if (text) return text
         // A message that is only product cards previews as the product names.

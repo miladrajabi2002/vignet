@@ -306,6 +306,9 @@ export function stripProductTokens(content: string): string {
                 .replace(/\[\[product:\{[\s\S]*?\}\]\]/g, '')
                 // In-chat checkout cards ([[checkout:{…}]]) are channel UI, not text.
                 .replace(/\[\[checkout:\{[\s\S]*?\}\]\](?!\])/g, '')
+                // So are payment-gateway cards ([[cardpay:{…}]]), and one cut off mid-JSON.
+                .replace(/\[\[cardpay:\{[\s\S]*?\}\]\](?!\])/g, '')
+                .replace(/\[\[cardpay:(?![^\n]*?\}\]\])[^\n]*/g, '')
                 .replace(/\n{3,}/g, '\n\n')
                 .trim()
 }
