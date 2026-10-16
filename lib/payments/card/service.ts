@@ -128,10 +128,12 @@ export async function loadCardPayContext(workspaceId: string, agentCardPayEnable
  * a catch-all: the worker runs from source, so a restart before the migration
  * must degrade to "off", never break an inbound message.
  */
-export async function loadCardPayContextForAgent(workspaceId: string, agentId: string): Promise<CardPayContext | null> {
+export async function loadCardPayContextForAgent(workspaceId: string, agentId: string, contactId?: string | null): Promise<CardPayContext | null> {
   try {
     const rows = await prisma.$queryRaw<Array<{ cardPayEnabled: boolean }>>`SELECT "cardPayEnabled" FROM "Agent" WHERE id = ${agentId}`
     if (rows[0]?.cardPayEnabled !== true) return null
+    // A customer the owner blocked is offered the other ways to pay.
+    if (contactId && (await prisma.contact.findUnique({ where: { id: contactId }, select: { cardPayBlockedAt: true } }))?.cardPayBlockedAt) return null
     return await loadCardPayContext(workspaceId, true)
   } catch {
     return null
@@ -285,12 +287,13 @@ async function conversationOf(payment: Pick<CardPayment, 'conversationId'>) {
 async function tellCustomer(payment: CardPayment, status: CardPayStatus): Promise<void> {
   const conversation = await conversationOf(payment)
   if (!conversation) return
-  // Idempotent: one notice per state.
-  const claimed = await prisma.cardPayment.updateMany({ where: { id: payment.id, NOT: { notifiedStatus: status } }, data: { notifiedStatus: status } })
+  // Idempotent: one notice per state. (A bare NOT would skip a never-notified
+  // row: NOT (NULL = 'PAID') is NULL in SQL.)
+  const claimed = await prisma.cardPayment.updateMany({ where: { id: payment.id, OR: [{ notifiedStatus: null }, { notifiedStatus: { not: status } }] }, data: { notifiedStatus: status } })
   if (!claimed.count) return
   const { deliverAssistantNotice, lastCustomerLang } = await import('@/lib/commerce/checkout-service')
   const lang = await lastCustomerLang(conversation.id).catch((): 'fa' | 'en' => 'fa')
-  const text = composeCardPayNotice({ status, code: payment.reference, amount: payment.baseAmount, lang, purpose: readPurpose(payment.purpose), subject: payment.description })
+  const text = composeCardPayNotice({ status, code: payment.reference, amount: payment.baseAmount, lang, purpose: readPurpose(payment.purpose), subject: payment.description, extra: payment.overpaidAmount })
   if (!text) return
   await deliverAssistantNotice(conversation, text, { cardPayNotice: true, paymentId: payment.id, status }).catch((error) => {
     captureError('cardpay:notice', error, { workspaceId: payment.workspaceId })
@@ -312,13 +315,14 @@ export type ConfirmedBy = 'AUTO' | 'OWNER' | 'OPERATOR' | 'ADMIN'
  * runs the side effects (customer notice, owner alert, site callback).
  * A recently expired payment is still accepted (the SMS was late).
  */
-export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now = new Date()): Promise<{ changed: boolean; payment: CardPayment | null }> {
+export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now = new Date(), opts: { overpaid?: number | null } = {}): Promise<{ changed: boolean; payment: CardPayment | null }> {
+  const overpaid = opts.overpaid && opts.overpaid > 0 ? Math.round(opts.overpaid) : null
   const changed = await prisma.cardPayment.updateMany({
     where: {
       id: paymentId,
       OR: [{ status: { in: OPEN_PAYMENT_STATUSES } }, { status: 'EXPIRED', ...(by === 'AUTO' ? { holdUntil: { gt: now } } : {}) }, ...(by === 'AUTO' ? [] : [{ status: 'FAILED' }])],
     },
-    data: { status: 'PAID', confirmedBy: by, paidAt: now, resolvedAt: now, callbackNextAt: now },
+    data: { status: 'PAID', confirmedBy: by, paidAt: now, resolvedAt: now, callbackNextAt: now, ...(overpaid ? { overpaidAmount: overpaid } : {}) },
   })
   const payment = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
   if (!changed.count || !payment) return { changed: false, payment }
@@ -342,7 +346,7 @@ export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now
     workspaceId: payment.workspaceId,
     type: 'SYSTEM',
     title: `پرداخت ${paymentSubject(payment)} رسید`,
-    body: `${payToman(payment.baseAmount, 'fa')}${payment.customerName ? ` · ${payment.customerName}` : ''}${by === 'AUTO' ? ' · تأیید خودکار از روی پیامک بانک' : by === 'OPERATOR' ? ' · تأیید از ربات مدیر' : ' · تأیید دستی'}`,
+    body: `${payToman(payment.baseAmount, 'fa')}${payment.customerName ? ` · ${payment.customerName}` : ''}${by === 'AUTO' ? ' · تأیید خودکار از روی پیامک بانک' : by === 'OPERATOR' ? ' · تأیید از ربات مدیر' : ' · تأیید دستی'}${payment.overpaidAmount ? ` · ${payToman(payment.overpaidAmount, 'fa')} اضافه واریز شده که باید برگردانده یا حساب شود` : ''}`,
     link: payment.conversationId ? `/conversations/${payment.conversationId}` : '/payments',
     operatorTelegram: 'payments',
     operatorButtons: paymentAlertButtons(payment),
@@ -351,8 +355,40 @@ export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now
   return { changed: true, payment }
 }
 
-/** The customer says they paid and no SMS has matched: the owner decides. */
-export async function claimCardPayment(paymentId: string, opts: { tellCustomer?: boolean } = {}, now = new Date()): Promise<{ changed: boolean; payment: CardPayment | null }> {
+/**
+ * «پرداخت کردم» one customer may leave unbacked by a deposit in a day. Past
+ * it a claim no longer reaches the owner: the payment simply waits for the
+ * bank's SMS, which still confirms it on its own.
+ */
+export const CLAIM_LIMIT_PER_DAY = 3
+
+/** Claims of the last day by this payment's customer (any of their conversations, or the same phone) that no deposit backed. */
+export async function unbackedClaimCount(payment: Pick<CardPayment, 'id' | 'workspaceId' | 'conversationId' | 'customerPhone'>, now = new Date()): Promise<number> {
+  const conversation = payment.conversationId
+    ? await prisma.conversation.findUnique({ where: { id: payment.conversationId }, select: { contactId: true } })
+    : null
+  const conversationIds = conversation?.contactId
+    ? (await prisma.conversation.findMany({ where: { contactId: conversation.contactId }, select: { id: true }, take: 50 })).map((row) => row.id)
+    : payment.conversationId ? [payment.conversationId] : []
+  const who: Prisma.CardPaymentWhereInput[] = [
+    ...(conversationIds.length ? [{ conversationId: { in: conversationIds } }] : []),
+    ...(payment.customerPhone ? [{ customerPhone: payment.customerPhone }] : []),
+  ]
+  if (!who.length) return 0
+  return prisma.cardPayment.count({
+    where: { workspaceId: payment.workspaceId, id: { not: payment.id }, claimedAt: { gte: new Date(now.getTime() - 24 * 3_600_000) }, status: { not: 'PAID' }, OR: who },
+  })
+}
+
+/**
+ * The customer says they paid and no SMS has matched: the owner decides.
+ * `limited`: this customer already made CLAIM_LIMIT_PER_DAY unbacked claims
+ * today, so nothing changed and the payment keeps waiting for the SMS.
+ */
+export async function claimCardPayment(paymentId: string, opts: { tellCustomer?: boolean } = {}, now = new Date()): Promise<{ changed: boolean; payment: CardPayment | null; limited?: boolean }> {
+  const current = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
+  if (!current || current.status !== 'PENDING') return { changed: false, payment: current }
+  if ((await unbackedClaimCount(current, now)) >= CLAIM_LIMIT_PER_DAY) return { changed: false, payment: current, limited: true }
   const changed = await prisma.cardPayment.updateMany({ where: { id: paymentId, status: 'PENDING' }, data: { status: 'CLAIMED', claimedAt: now } })
   const payment = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
   if (!changed.count || !payment) return { changed: false, payment }
@@ -397,6 +433,72 @@ export async function rejectCardPayment(paymentId: string, now = new Date()): Pr
   return { changed: true, payment }
 }
 
+/** Statuses a short deposit can be attached to; the payment reopens for the rest. */
+const PARTIAL_STATUSES = ['PENDING', 'CLAIMED', 'EXPIRED']
+
+/**
+ * The owner attached a deposit smaller than what is due. The payment stays
+ * open for the rest under a fresh exact amount (the rest itself when no other
+ * open payment holds it) with a new deadline, and the customer is asked for
+ * it with the card again. Nothing is confirmed until the rest arrives.
+ */
+export async function recordPartialDeposit(paymentId: string, amount: number, now = new Date()): Promise<{ changed: boolean; payment: CardPayment | null }> {
+  const current = await prisma.cardPayment.findUnique({ where: { id: paymentId }, include: { card: true, workspace: { select: { payGatewaySettings: true } } } })
+  if (!current || !PARTIAL_STATUSES.includes(current.status)) return { changed: false, payment: current }
+  const received = Math.round(amount)
+  const rest = current.payAmount - received
+  if (!(received > 0) || rest < MIN_PAY_AMOUNT) return { changed: false, payment: current }
+  // An expired booking or seat was already released; only an order reopens.
+  if (current.status === 'EXPIRED' && readPurpose(current.purpose) !== 'ORDER') return { changed: false, payment: current }
+  const settings = readPayGatewaySettings(current.workspace.payGatewaySettings)
+  const expiresAt = new Date(now.getTime() + settings.ttlMinutes * 60_000)
+
+  const payment = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`cardpay:${current.workspaceId}`}))`
+    const reserved = await tx.cardPayment.findMany({
+      where: {
+        workspaceId: current.workspaceId,
+        id: { not: current.id },
+        payAmount: { gte: rest, lte: rest + 999 },
+        OR: [{ status: { in: OPEN_PAYMENT_STATUSES } }, { status: 'EXPIRED', holdUntil: { gt: now } }],
+      },
+      select: { payAmount: true },
+    })
+    const taken = new Set(reserved.map((row) => row.payAmount))
+    const payAmount = taken.has(rest) ? allocateAmount(rest, taken)?.payAmount : rest
+    if (!payAmount) return null
+    const updated = await tx.cardPayment.updateMany({
+      where: { id: current.id, status: current.status, payAmount: current.payAmount },
+      data: {
+        payAmount,
+        partialAmount: { increment: received },
+        status: 'PENDING',
+        claimedAt: null,
+        resolvedAt: null,
+        remindedAt: null,
+        notifiedStatus: 'PARTIAL',
+        expiresAt,
+        holdUntil: new Date(expiresAt.getTime() + LATE_SMS_GRACE_MS),
+      },
+    })
+    return updated.count ? tx.cardPayment.findUnique({ where: { id: current.id } }) : null
+  })
+  if (!payment) return { changed: false, payment: current }
+
+  await syncDraft(payment, CARD_DRAFT_PENDING)
+  const conversation = await conversationOf(payment)
+  if (conversation) {
+    const { deliverAssistantNotice, lastCustomerLang } = await import('@/lib/commerce/checkout-service')
+    const lang = await lastCustomerLang(conversation.id).catch((): 'fa' | 'en' => 'fa')
+    const { composeCardPayRemainder } = await import('@/lib/payments/card/pay-card')
+    const text = composeCardPayRemainder(cardPayView(payment, current.card, settings, lang), received)
+    await deliverAssistantNotice(conversation, text, { cardPayNotice: true, paymentId: payment.id, status: 'PARTIAL' }).catch((error) => {
+      captureError('cardpay:partial', error, { workspaceId: payment.workspaceId })
+    })
+  }
+  return { changed: true, payment }
+}
+
 /** The cart changed or the customer cancelled: the card must stop being payable. */
 export async function cancelOpenCardPayments(where: { orderDraftId: string } | { id: string } | { appointmentId: string } | { enrollmentId: string }, now = new Date()): Promise<number> {
   const result = await prisma.cardPayment.updateMany({
@@ -405,6 +507,19 @@ export async function cancelOpenCardPayments(where: { orderDraftId: string } | {
     data: { status: 'CANCELLED', resolvedAt: now, holdUntil: new Date(now.getTime() + LATE_SMS_GRACE_MS) },
   })
   return result.count
+}
+
+/**
+ * The owner's switch on the customer behind a payment (through its
+ * conversation's contact). False when the payment has no known customer.
+ */
+export async function setCardPayBlockForPayment(workspaceId: string, paymentId: string, blocked: boolean, now = new Date()): Promise<boolean> {
+  const payment = await prisma.cardPayment.findFirst({ where: { id: paymentId, workspaceId }, select: { conversationId: true } })
+  if (!payment?.conversationId) return false
+  const conversation = await prisma.conversation.findFirst({ where: { id: payment.conversationId, workspaceId }, select: { contactId: true } })
+  if (!conversation?.contactId) return false
+  const result = await prisma.contact.updateMany({ where: { id: conversation.contactId, workspaceId }, data: { cardPayBlockedAt: blocked ? now : null } })
+  return result.count > 0
 }
 
 // ─── Site callback ──────────────────────────────────────────────────────────

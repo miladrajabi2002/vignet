@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Check, ChevronLeft, Copy, ExternalLink, MessageSquareText, PackageCheck, PackageX, ReceiptText, X } from 'lucide-react'
+import { Ban, Check, ChevronLeft, Copy, ExternalLink, MessageSquareText, PackageCheck, PackageX, ReceiptText, ShieldCheck, X } from 'lucide-react'
 import type { ChannelType } from '@prisma/client'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
@@ -25,7 +25,14 @@ export interface PaymentRowData {
 	title: string
 	customerName: string | null
 	baseAmount: number
+	/** What is still to transfer: after a short deposit, the rest. */
 	payAmount: number
+	/** Tomans already received from short deposits the owner attached. */
+	partialAmount: number
+	/** Tomans sent beyond the amount, to return or count toward the next purchase. */
+	overpaidAmount: number | null
+	/** Whether card-to-card is stopped for this customer; null when the payment has no known customer. */
+	customerBlocked: boolean | null
 	bankKey: string
 	last4: string
 	siteName: string | null
@@ -90,9 +97,35 @@ function StoreOrderChip({ order }: { order: PaymentRowData['storeOrder'] }) {
 	return null
 }
 
-type Action = 'confirm' | 'cancel' | 'reject'
+type Action = 'confirm' | 'cancel' | 'reject' | 'block' | 'unblock'
 
-/** Runs a decision on a payment; `confirm`/`cancel` ask once more before they act. */
+/** Money that does not fit the amount: part received so far, or the extra beyond it. */
+function MoneyChip({ row }: { row: PaymentRowData }) {
+	const { fa, num } = useFormat()
+	if (row.overpaidAmount) return <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{fa ? `${num(row.overpaidAmount)} اضافه` : `${num(row.overpaidAmount)} extra`}</span>
+	if (row.partialAmount && row.status !== 'PAID') return <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{fa ? `${num(row.partialAmount)} رسیده` : `${num(row.partialAmount)} received`}</span>
+	return null
+}
+
+/** Stop card-to-card for the payment's customer, or allow it again; asks once more before blocking. */
+function BlockToggle({ row }: { row: PaymentRowData }) {
+	const { fa } = useFormat()
+	const { busy, armed, error, run } = usePaymentAction(row.id)
+	if (row.customerBlocked == null) return null
+	const action: Action = row.customerBlocked ? 'unblock' : 'block'
+	return (
+		<div className="grid gap-1">
+			<button type="button" disabled={busy !== null} onClick={() => run(action, action === 'unblock')} className={cn('inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors disabled:opacity-60', armed === 'block' ? 'border-red-600 bg-red-600 text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]')}>
+				{row.customerBlocked ? <ShieldCheck className="size-4" aria-hidden /> : <Ban className="size-4" aria-hidden />}
+				{busy ? '…' : row.customerBlocked ? (fa ? 'باز کردن کارت‌به‌کارت این مشتری' : 'Allow card-to-card again') : armed === 'block' ? (fa ? 'بله، ببند' : 'Yes, block') : (fa ? 'بستن کارت‌به‌کارت این مشتری' : 'Block card-to-card for this customer')}
+			</button>
+			{row.customerBlocked ? <p className="text-[11.5px] text-[var(--text-muted)]">{fa ? 'ایجنت برای این مشتری کارت نمی‌فرستد و راه‌های دیگر پرداخت را پیشنهاد می‌کند.' : 'The agent does not send this customer the card and offers the other ways to pay.'}</p> : null}
+			{error ? <span role="alert" className="text-[12px] text-red-600">{error}</span> : null}
+		</div>
+	)
+}
+
+/** Runs a decision on a payment; it asks once more before acting unless `immediate`. */
 function usePaymentAction(paymentId: string, onDone?: () => void) {
 	const router = useRouter()
 	const { fa } = useFormat()
@@ -104,8 +137,8 @@ function usePaymentAction(paymentId: string, onDone?: () => void) {
 		const timer = window.setTimeout(() => setArmed(null), 4000)
 		return () => window.clearTimeout(timer)
 	}, [armed])
-	async function run(action: Action) {
-		if (armed !== action) { setArmed(action); return }
+	async function run(action: Action, immediate = false) {
+		if (!immediate && armed !== action) { setArmed(action); return }
 		setArmed(null)
 		setBusy(action)
 		setError(null)
@@ -193,13 +226,18 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 			closeLabel={fa ? 'بستن' : 'Close'}
 			className="md:w-[min(28rem,calc(100vw-1.5rem))]"
 			icon={<BankMark bankKey={row.bankKey} size={40} />}
-			footer={open ? (
+			footer={open || row.customerBlocked != null ? (
 				<div className="grid gap-2">
-					<DecisionButtons row={row} size="sheet" onDone={onClose} />
-					<div className="flex flex-wrap gap-2">
-						<CopyLinkButton url={row.payUrl} />
-						<a href={row.payUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3 text-[12.5px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><ExternalLink className="size-4" aria-hidden />{fa ? 'صفحهٔ پرداخت' : 'Payment page'}</a>
-					</div>
+					{open ? (
+						<>
+							<DecisionButtons row={row} size="sheet" onDone={onClose} />
+							<div className="flex flex-wrap gap-2">
+								<CopyLinkButton url={row.payUrl} />
+								<a href={row.payUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3 text-[12.5px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><ExternalLink className="size-4" aria-hidden />{fa ? 'صفحهٔ پرداخت' : 'Payment page'}</a>
+							</div>
+						</>
+					) : null}
+					<BlockToggle row={row} />
 				</div>
 			) : undefined}
 		>
@@ -211,6 +249,16 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 						{fa ? 'واریز دقیق' : 'Exact transfer'} <span dir="ltr" className="font-mono">{row.payAmount.toLocaleString('en-US')}</span> · {fa ? 'به کارت' : 'to'} <span dir="ltr" className="font-mono">••{row.last4}</span>
 						{row.status === 'PENDING' && minutes > 0 ? <> · {fa ? `${num(minutes)} دقیقه مانده` : `${minutes} min left`}</> : null}
 					</p>
+					{row.partialAmount ? (
+						<p className="text-[12.5px] text-amber-800 dark:text-amber-300">
+							{row.status === 'PAID'
+								? (fa ? `در دو مرحله رسید: اول ${num(row.partialAmount)} تومان، بعد بقیه` : `Arrived in two parts: ${num(row.partialAmount)} Toman first, then the rest`)
+								: (fa ? `${num(row.partialAmount)} تومان رسیده؛ بقیه از مشتری خواسته شده` : `${num(row.partialAmount)} Toman received; the customer was asked for the rest`)}
+						</p>
+					) : null}
+					{row.overpaidAmount ? (
+						<p className="text-[12.5px] text-amber-800 dark:text-amber-300">{fa ? `مشتری ${num(row.overpaidAmount)} تومان بیشتر واریز کرده؛ برگردانید یا در خرید بعدی حساب کنید.` : `The customer sent ${num(row.overpaidAmount)} Toman more; return it or count it toward the next purchase.`}</p>
+					) : null}
 					<StoreOrderChip order={row.storeOrder} />
 				</div>
 
@@ -320,6 +368,7 @@ export function PaymentsList({ rows }: { rows: PaymentRowData[] }) {
 								{/* Phones: status and where it came from on the second line, a chevron at the end. */}
 								<div className="col-start-2 col-end-4 flex min-w-0 items-center gap-1.5 md:col-auto">
 									<PaymentStatusChip status={row.status} confirmedBy={row.confirmedBy} size="sm" />
+									<MoneyChip row={row} />
 									<span className="hidden md:inline-flex"><StoreOrderChip order={row.storeOrder} /></span>
 									<span className="flex min-w-0 md:hidden">{row.conversation ? <FromChip conversation={row.conversation} /> : <span className="truncate text-[11.5px] text-[var(--text-muted)]">{row.subject}</span>}</span>
 									<ChevronLeft className="ms-auto size-4 shrink-0 text-[var(--text-hint)] md:hidden ltr:rotate-180" aria-hidden />

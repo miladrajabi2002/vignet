@@ -6,12 +6,12 @@ import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { PaymentsShell } from '@/components/payments/payments-shell'
-import { PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
+import { CardPayBlockButton, PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
 import { PaymentsList, type PaymentRowData } from '@/components/payments/payments-list'
 import { NewPaymentButton } from '@/components/payments/new-link-form'
 import { Sparkline } from '@/components/admin/sparkline'
 import { loadGatewayOverview, NOT_TEST } from '@/lib/payments/card/dashboard'
-import { suggestPaymentsForSms } from '@/lib/payments/card/ingest'
+import { depositFit, suggestPaymentsForSms } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
 import { readPayItems, type PayItem } from '@/lib/payments/card/items'
 import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
@@ -100,7 +100,7 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
             channel: true,
             externalId: true,
             contactId: true,
-            contact: { select: { name: true, phone: true, telegramUsername: true, telegramAvatarUrl: true, baleUsername: true, baleAvatarUrl: true, rubikaUsername: true, rubikaAvatarUrl: true, whatsappName: true, whatsappAvatarUrl: true, instagramUsername: true, instagramAvatarUrl: true } },
+            contact: { select: { cardPayBlockedAt: true, name: true, phone: true, telegramUsername: true, telegramAvatarUrl: true, baleUsername: true, baleAvatarUrl: true, rubikaUsername: true, rubikaAvatarUrl: true, whatsappName: true, whatsappAvatarUrl: true, instagramUsername: true, instagramAvatarUrl: true } },
             messages: { where: { role: 'USER' }, orderBy: { createdAt: 'desc' }, take: 1, select: { content: true } },
           },
         })
@@ -146,6 +146,9 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
       customerName: payment.customerName,
       baseAmount: payment.baseAmount,
       payAmount: payment.payAmount,
+      partialAmount: payment.partialAmount,
+      overpaidAmount: payment.overpaidAmount,
+      customerBlocked: conversation?.contactId ? Boolean(contact?.cardPayBlockedAt) : null,
       bankKey: payment.card.bankKey,
       last4: payment.card.last4,
       siteName: payment.site?.name ?? null,
@@ -251,6 +254,10 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <PaymentActions paymentId={payment.id} mode="review" />
+                  {(() => {
+                    const conversation = payment.conversationId ? conversations.get(payment.conversationId) : undefined
+                    return conversation?.contactId ? <CardPayBlockButton paymentId={payment.id} blocked={Boolean(conversation.contact?.cardPayBlockedAt)} /> : null
+                  })()}
                   {payment.conversationId && <Link href={`/conversations/${payment.conversationId}`} className="ui-link inline-flex items-center gap-1 text-[13px]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open conversation'}</Link>}
                 </div>
               </li>
@@ -262,10 +269,15 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
                   {sms.amount != null && <span className="text-sm font-bold">{money(sms.amount)}</span>}
                   <span className="ms-auto text-xs text-[var(--text-muted)]">{time.format(sms.receivedAt)}</span>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'این مبلغ با هیچ پرداخت بازی دقیقاً برابر نیست؛ احتمالاً مشتری مبلغ را رُند واریز کرده.' : 'This amount equals no open payment exactly; the customer probably rounded it.'}</p>
+                <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'این مبلغ با هیچ پرداخت بازی دقیقاً برابر نیست؛ احتمالاً مشتری مبلغ را رُند یا ناقص واریز کرده. اگر کمتر از مبلغ باشد، پرداخت باز می‌ماند و بقیه از مشتری خواسته می‌شود؛ اگر بیشتر باشد، تأیید می‌شود و اضافه‌اش ثبت می‌شود.' : 'This amount equals no open payment exactly; the customer probably rounded it or sent part of it. If it is less, the payment stays open and the customer is asked for the rest; if it is more, it is confirmed and the extra is recorded.'}</p>
                 <pre dir="rtl" className="mt-2 whitespace-pre-wrap rounded-xl bg-[var(--bg-surface)] p-2.5 text-xs leading-6 text-[var(--text-secondary)]">{sms.text}</pre>
                 <div className="mt-3">
-                  <UnmatchedSmsActions smsId={sms.id} suggestions={suggestions[index].slice(0, 3).map((payment) => ({ id: payment.id, label: `#${payment.reference} · ${money(payment.baseAmount)}` }))} />
+                  <UnmatchedSmsActions smsId={sms.id} suggestions={suggestions[index].slice(0, 3).map((payment) => {
+                    const fit = depositFit(sms.amount, payment.payAmount)
+                    const hint = fit.kind === 'SHORT' ? (fa ? `${fit.rest.toLocaleString(numbers)} کم؛ بقیه خواسته می‌شود` : `${fit.rest.toLocaleString(numbers)} short; the rest is asked for`)
+                      : fit.extra ? (fa ? `${fit.extra.toLocaleString(numbers)} اضافه` : `${fit.extra.toLocaleString(numbers)} extra`) : null
+                    return { id: payment.id, label: `#${payment.reference} · ${money(payment.baseAmount)}`, hint }
+                  })} />
                 </div>
               </li>
             ))}

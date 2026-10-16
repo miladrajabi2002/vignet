@@ -17,7 +17,7 @@ import { notifyWorkspace } from '@/lib/notifications/create'
 import { rialToToman } from '@/lib/payments/card/amount'
 import { payToman } from '@/lib/payments/card/pay-card'
 import { parseBankSms } from '@/lib/payments/card/sms-parse'
-import { confirmCardPayment, OPEN_PAYMENT_STATUSES } from '@/lib/payments/card/service'
+import { confirmCardPayment, MIN_PAY_AMOUNT, OPEN_PAYMENT_STATUSES, recordPartialDeposit } from '@/lib/payments/card/service'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
 
@@ -155,14 +155,32 @@ export async function suggestPaymentsForSms(workspaceId: string, amount: number 
     .map((row) => row.payment)
 }
 
-/** The owner attaches an unmatched deposit to a payment (confirming it) or dismisses it. */
+/**
+ * How an unmatched deposit lands on a payment: SHORT keeps it open and asks
+ * for the rest, FULL confirms it, with `extra` tomans beyond what was due.
+ * A shortfall under the smallest transfer is forgiven (FULL).
+ */
+export function depositFit(deposit: number | null, due: number): { kind: 'SHORT'; rest: number } | { kind: 'FULL'; extra: number } {
+  if (deposit == null) return { kind: 'FULL', extra: 0 }
+  if (due - deposit >= MIN_PAY_AMOUNT) return { kind: 'SHORT', rest: due - deposit }
+  return { kind: 'FULL', extra: Math.max(0, deposit - due) }
+}
+
+/**
+ * The owner attaches an unmatched deposit to a payment or dismisses it.
+ * A deposit short of what is due keeps the payment open for the rest; a
+ * larger one confirms it and records the extra.
+ */
 export async function resolveBankSms(workspaceId: string, smsId: string, paymentId: string | null, by: 'OWNER' | 'OPERATOR' | 'ADMIN' = 'OWNER'): Promise<boolean> {
   const sms = await prisma.bankSms.findFirst({ where: { id: smsId, workspaceId, status: 'UNMATCHED' } })
   if (!sms) return false
   if (paymentId) {
     const payment = await prisma.cardPayment.findFirst({ where: { id: paymentId, workspaceId } })
     if (!payment) return false
-    const result = await confirmCardPayment(payment.id, by)
+    const fit = depositFit(sms.amount, payment.payAmount)
+    const result = fit.kind === 'SHORT' && sms.amount != null
+      ? await recordPartialDeposit(payment.id, sms.amount)
+      : await confirmCardPayment(payment.id, by, new Date(), { overpaid: fit.kind === 'FULL' ? fit.extra : null })
     if (!result.changed) return false
   }
   await prisma.bankSms.update({ where: { id: smsId }, data: { status: 'RESOLVED', paymentId } })

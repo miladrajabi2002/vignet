@@ -896,7 +896,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 // the owner switched it on for this agent and a card is active.
                 const cardPayContext = agent.orderCaptureEnabled && agent.productAccessEnabled
                         ? await import('@/lib/payments/card/service')
-                                .then((service) => service.loadCardPayContextForAgent(workspaceId, agent.id))
+                                .then((service) => service.loadCardPayContextForAgent(workspaceId, agent.id, contactId))
                                 .catch(() => null)
                         : null
                 try {

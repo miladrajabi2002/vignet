@@ -385,7 +385,7 @@ async function handleCallback(params: {
     case 'smsAttach': {
       const { resolveBankSms } = await import('@/lib/payments/card/ingest')
       const done = await resolveBankSms(op.workspaceId, callback.smsId, callback.paymentId, 'OPERATOR')
-      await answerCallback(botToken, params.query.id, done ? 'وصل و تأیید شد ✅' : 'وصل نشد؛ شاید قبلاً رسیدگی شده')
+      await answerCallback(botToken, params.query.id, done ? 'وصل شد ✅' : 'وصل نشد؛ شاید قبلاً رسیدگی شده')
       await show((await paymentScreen(op.workspaceId, callback.paymentId, done ? '✅ واریز به این پرداخت وصل شد و به مشتری خبر داده شد.' : '⚠️ وصل نشد؛ این واریز یا پرداخت قبلاً رسیدگی شده.')) ?? PAY_GONE)
       return
     }

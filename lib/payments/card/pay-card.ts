@@ -186,9 +186,16 @@ export function composeCardPayNotice(params: {
   purpose?: string
   /** The booking or course it pays for («کوتاهی مو · شنبه ۱۷:۰۰»). */
   subject?: string | null
+  /** Tomans sent beyond the amount (PAID only). */
+  extra?: number | null
 }): string | null {
   const { status, code, lang } = params
   const subject = params.subject?.trim()
+  const extra = status === 'PAID' && params.extra && params.extra > 0
+    ? (lang === 'en'
+      ? ` You sent ${payToman(params.extra, 'en')} more than the amount; we will contact you to return it or count it toward your next purchase.`
+      : ` ${payToman(params.extra, 'fa')} بیشتر از مبلغ واریز کردید؛ برای برگرداندن یا حساب کردنش در خرید بعدی باهاتون هماهنگ می‌کنیم.`)
+    : ''
   if (params.purpose === 'BOOKING' || params.purpose === 'COURSE') {
     const booking = params.purpose === 'BOOKING'
     const fa = lang !== 'en'
@@ -197,9 +204,9 @@ export function composeCardPayNotice(params: {
       : booking ? `your booking${subject ? ` (${subject})` : ''}` : `the course${subject ? ` “${subject}”` : ''}`
     const money = payToman(params.amount, lang)
     if (status === 'PAID') {
-      return fa
+      return (fa
         ? booking ? `پرداختتون رسید ✅ ${what} قطعی شد (${money}). منتظرتون هستیم 🌿` : `پرداختتون رسید ✅ ثبت‌نام شما در ${what} قطعی شد (${money}).`
-        : booking ? `Your payment arrived ✅ ${what} is confirmed (${money}). See you then!` : `Your payment arrived ✅ your seat in ${what} is confirmed (${money}).`
+        : booking ? `Your payment arrived ✅ ${what} is confirmed (${money}). See you then!` : `Your payment arrived ✅ your seat in ${what} is confirmed (${money}).`) + extra
     }
     if (status === 'EXPIRED') {
       return fa
@@ -219,9 +226,9 @@ export function composeCardPayNotice(params: {
     return null
   }
   if (status === 'PAID') {
-    return lang === 'en'
+    return (lang === 'en'
       ? `Your payment arrived ✅ Order ${code} (${payToman(params.amount, 'en')}) is confirmed and being prepared.`
-      : `پرداختتون رسید ✅ سفارش ${code} (${payToman(params.amount, 'fa')}) تأیید شد و در حال آماده‌سازیه.`
+      : `پرداختتون رسید ✅ سفارش ${code} (${payToman(params.amount, 'fa')}) تأیید شد و در حال آماده‌سازیه.`) + extra
   }
   if (status === 'EXPIRED') {
     return lang === 'en'
@@ -239,4 +246,16 @@ export function composeCardPayNotice(params: {
       : `ممنون 🙏 هنوز تأیید بانک برای سفارش ${code} به ما نرسیده؛ همکارم داره بررسی می‌کنه و همین‌جا خبرتون می‌کنم.`
   }
   return null
+}
+
+/**
+ * A deposit smaller than the amount arrived: what came, what is left, and the
+ * card again with the exact rest (the view already carries the new amount).
+ */
+export function composeCardPayRemainder(card: CardPayView, received: number): string {
+  const what = cardPayHeading(card)
+  const intro = card.lang === 'en'
+    ? `${payToman(received, 'en')} arrived, thank you 🙏 ${payToman(card.amount, 'en')} is still due for ${what}; please transfer exactly that to the same card and it is confirmed here automatically.`
+    : `${payToman(received, 'fa')} رسید، ممنون 🙏 ${payToman(card.amount, 'fa')} از ${what} مونده؛ لطفاً دقیقاً همین مبلغ رو به همین کارت بزنید تا خودکار تأیید بشه.`
+  return `${intro}\n${cardPayMarker(card)}`
 }

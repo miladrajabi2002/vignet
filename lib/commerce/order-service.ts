@@ -1004,12 +1004,14 @@ async function openCardPayTurn(params: OrderCaptureTurnParams, open: OpenCheckou
     if (payment.status === 'PAID') {
       return { kind: 'reply', text: composeCardPayNotice({ status: 'PAID', code: open.code, amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
     }
+    // Past the day's limit of unbacked claims the payment waits for the SMS, without the owner.
+    let limited = false
     if (payment.status === 'PENDING' && (!settings || settings.manualClaim)) {
-      await svc.claimCardPayment(payment.id)
+      limited = (await svc.claimCardPayment(payment.id)).limited === true
       // The reply below is the customer's notice for this state.
-      await prisma.cardPayment.update({ where: { id: payment.id }, data: { notifiedStatus: 'CLAIMED' } }).catch(() => {})
+      if (!limited) await prisma.cardPayment.update({ where: { id: payment.id }, data: { notifiedStatus: 'CLAIMED' } }).catch(() => {})
     }
-    const text = payment.status === 'PENDING' && settings && !settings.manualClaim
+    const text = payment.status === 'PENDING' && (limited || (settings && !settings.manualClaim))
       ? (lang === 'en'
         ? `The bank's confirmation for order ${open.code} has not arrived yet. It usually takes under a minute, and I'll tell you right here as soon as it does.`
         : `هنوز تأیید بانک برای سفارش ${open.code} نرسیده. معمولاً کمتر از یک دقیقه طول می‌کشه و به محض رسیدن همین‌جا خبرتون می‌کنم.`)

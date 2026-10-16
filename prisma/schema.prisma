@@ -724,6 +724,9 @@ model Contact {
   marketingOptIn     Boolean   @default(false)
   marketingOptInAt   DateTime?
   marketingOptOutAt  DateTime?
+  // The owner stopped card-to-card for this customer (too many false «پرداخت کردم»):
+  // the agent offers the other ways to pay instead of the card.
+  cardPayBlockedAt   DateTime?
   // ── Soft delete (undo support). See Product.deletedAt for the full story.
   deletedAt          DateTime?
 
@@ -2559,9 +2562,14 @@ model CardPayment {
   items          Json?
   customerName   String?
   customerPhone  String?
-  // Whole tomans. payAmount = baseAmount + identifier (1…999).
+  // Whole tomans. payAmount = baseAmount + identifier (1…999); after a short
+  // deposit the owner attached, it is what is still owed (see partialAmount).
   baseAmount     Int
   payAmount      Int
+  // Tomans already received from deposits smaller than the amount, attached by the owner.
+  partialAmount  Int       @default(0)
+  // Tomans the customer sent beyond the amount (an attached larger deposit).
+  overpaidAmount Int?
   // PENDING | CLAIMED (customer says paid, no SMS yet — owner reviews) |
   // PAID | EXPIRED | FAILED (owner rejected) | CANCELLED.
   status         String    @default("PENDING")

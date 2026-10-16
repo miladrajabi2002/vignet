@@ -310,7 +310,7 @@ export async function smsScreen(workspaceId: string, smsId: string): Promise<Bot
     `📩 <b>واریز ${sms.amount != null ? money(sms.amount) : 'با مبلغ نامشخص'}</b> · ${ago(sms.receivedAt)}`,
     sms.text ? `<blockquote>${escapeHtml(clip(sms.text, 240))}</blockquote>` : '',
     DIVIDER,
-    suggestions.length ? '<b>نزدیک‌ترین پرداخت‌های باز</b> — روی درستش بزنید تا تأیید شود:' : 'پرداخت بازی برای وصل کردن نیست.',
+    suggestions.length ? '<b>نزدیک‌ترین پرداخت‌های باز</b> — روی درستش بزنید تا تأیید شود؛ اگر واریز کمتر باشد، پرداخت باز می‌ماند و بقیه از مشتری خواسته می‌شود:' : 'پرداخت بازی برای وصل کردن نیست.',
   ].filter(Boolean)
   const rows: Row[] = suggestions.map((payment) => {
     const diff = sms.amount != null ? sms.amount - payment.payAmount : null
