@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { AlertTriangle, CheckCircle2, ExternalLink, Link2, Lock, MessageSquareText, Plus, Send, Share2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Link2, Lock, MessageSquareText, Plus, Send, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { SideSheet } from '@/components/ui/side-sheet'
@@ -108,7 +108,7 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 
 	return (
 		<>
-			<Button onClick={() => setOpen(true)} aria-label={fa ? 'ساخت پرداخت تازه' : 'Create a payment'} className="max-sm:size-11 max-sm:rounded-full max-sm:px-0">
+			<Button onClick={() => setOpen(true)} aria-label={fa ? 'ساخت پرداخت تازه' : 'Create a payment'} className="max-sm:size-11 max-sm:px-0">
 				<Plus className="size-4" aria-hidden /><span className="max-sm:sr-only">{fa ? 'پرداخت تازه' : 'New payment'}</span>
 			</Button>
 			{open && (
@@ -135,7 +135,8 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 					)}
 				>
 					{made ? (
-						<div className="grid gap-4">
+						// grid-cols-1 (minmax(0,1fr)): the long link truncates instead of widening the sheet past a phone's edge.
+						<div className="grid grid-cols-1 gap-4">
 							<div className="grid justify-items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-6 text-center dark:bg-emerald-950/40">
 								<span className="grid size-12 place-items-center rounded-full bg-emerald-600 text-white"><CheckCircle2 className="size-6" aria-hidden /></span>
 								<p className="text-[22px] font-extrabold tabular-nums text-[var(--text-primary)]">{made.amount.toLocaleString(numbers)} <span className="text-[13px] font-medium text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span></p>
@@ -150,17 +151,16 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 									<Link href={`/conversations/${made.recipient.conversationId}`} className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3.5 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open the conversation'}</Link>
 								</div>
 							) : null}
-							<div className="grid gap-1.5">
+							<div className="grid grid-cols-1 gap-1.5">
 								<span className="ui-field-label">{made.recipient ? (fa ? 'لینک صفحهٔ پرداخت' : 'Payment page link') : (fa ? 'لینک را برای مشتری بفرستید' : 'Send this link to the customer')}</span>
 								<div className="flex items-center gap-2 rounded-control border-[1.5px] border-[var(--border-default)] bg-[var(--bg-surface)] p-2 ps-3">
-									<span dir="ltr" className="min-w-0 flex-1 truncate font-mono text-[13px]">{made.url}</span>
-									<CopyButton value={made.url} label={fa ? 'کپی' : 'Copy'} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
+									<span dir="ltr" className="min-w-0 flex-1 truncate font-mono text-[12.5px] sm:text-[13px]">{made.url}</span>
+									<CopyButton value={made.url} label={fa ? 'کپی لینک' : 'Copy link'} copiedLabel={fa ? 'کپی شد' : 'Copied'} showLabel />
 								</div>
 							</div>
-							<div className="flex flex-wrap gap-2">
-								{typeof navigator !== 'undefined' && 'share' in navigator ? <Button variant="outline" size="sm" onClick={share}><Share2 className="size-4" aria-hidden />{fa ? 'اشتراک‌گذاری' : 'Share'}</Button> : null}
-								<a href={made.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3.5 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><ExternalLink className="size-4" aria-hidden />{fa ? 'دیدن صفحهٔ پرداخت' : 'Open the payment page'}</a>
-							</div>
+							{typeof navigator !== 'undefined' && 'share' in navigator ? (
+								<Button variant="outline" size="sm" className="w-fit" onClick={share}><Share2 className="size-4" aria-hidden />{fa ? 'اشتراک‌گذاری' : 'Share'}</Button>
+							) : null}
 							<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'مشتری کارت و مبلغ دقیق را می‌بیند و واریزش از روی پیامک بانک خودکار تأیید می‌شود. لینک تا یک ساعت باز است.' : 'The customer sees the card and the exact amount, and the transfer is confirmed from the bank SMS. The link stays open for an hour.'}</p>
 						</div>
 					) : (

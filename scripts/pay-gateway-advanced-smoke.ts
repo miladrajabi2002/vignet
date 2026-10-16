@@ -2,7 +2,8 @@
  * The gateway's second line against a real database: a short deposit keeps
  * the payment open for the rest, a larger one records the extra, a customer
  * with too many unbacked «پرداخت کردم» stops reaching the owner, and a
- * blocked customer is not offered the card.
+ * blocked customer is not offered the card, and a person can still confirm
+ * an expired or withdrawn payment with everything a paid one does.
  * Run: tsx -r dotenv/config scripts/pay-gateway-advanced-smoke.ts   (never against production)
  */
 import assert from 'node:assert/strict'
@@ -13,7 +14,9 @@ import { composeCardPayNotice, composeCardPayRemainder, parseCardPayDirective, t
 import {
   addPayCard,
   CLAIM_LIMIT_PER_DAY,
+  cancelOpenCardPayments,
   claimCardPayment,
+  confirmCardPayment,
   createCardPayment,
   loadCardPayContextForAgent,
   setCardPayBlockForPayment,
@@ -119,11 +122,49 @@ async function main() {
     assert.equal(await setCardPayBlockForPayment(wid, a.payment.id, false), true)
     assert(await loadCardPayContextForAgent(wid, agent.id, contact.id), 'allowed again')
 
+    // 7) late confirm by hand: withdrawn and expired payments, never by the SMS
+    const w = await createCardPayment({ workspaceId: wid, baseAmount: 330_000, source: 'CHAT', reference: 'W1', conversationId: conversation.id, callbackUrl: 'http://127.0.0.1:9/cb' })
+    assert(w.ok)
+    assert.equal(await cancelOpenCardPayments({ id: w.payment.id }), 1)
+    assert.equal((await confirmCardPayment(w.payment.id, 'AUTO')).changed, false, 'the SMS never confirms a withdrawn payment')
+    await prisma.cardPayment.update({ where: { id: w.payment.id }, data: { callbackDoneAt: new Date(), callbackTries: 1 } })
+    assert.equal((await confirmCardPayment(w.payment.id, 'OWNER')).changed, true)
+    const paidW = await prisma.cardPayment.findUniqueOrThrow({ where: { id: w.payment.id } })
+    assert.equal(paidW.status, 'PAID')
+    assert.equal(paidW.confirmedBy, 'OWNER')
+    assert.equal(paidW.callbackDoneAt, null, 'the site is told «paid» afresh')
+    assert.equal(paidW.notifiedStatus, 'PAID')
+    const lateNotice = await prisma.message.findFirst({ where: { conversationId: conversation.id }, orderBy: { createdAt: 'desc' } })
+    assert.match(lateNotice?.content ?? '', /پرداختتون رسید/)
+    assert.equal((await confirmCardPayment(w.payment.id, 'OWNER')).changed, false, 'once only')
+
+    const x = await createCardPayment({ workspaceId: wid, baseAmount: 340_000, source: 'LINK', reference: 'X1' })
+    assert(x.ok)
+    await prisma.cardPayment.update({ where: { id: x.payment.id }, data: { status: 'EXPIRED', resolvedAt: new Date(), holdUntil: new Date(Date.now() - 60_000) } })
+    assert.equal((await confirmCardPayment(x.payment.id, 'AUTO')).changed, false, 'a late SMS past the hold does not confirm')
+    assert.equal((await confirmCardPayment(x.payment.id, 'OWNER')).changed, true)
+
+    // An order the customer cancelled, its payment confirmed by hand: the order is paid, a newer card for it withdrawn.
+    const draft = await prisma.orderDraft.create({
+      data: {
+        workspaceId: wid, agentId: agent.id, conversationId: other.id, channel: 'WEB_WIDGET', code: `Y${String(stamp).slice(-5)}`, status: 'CANCELLED', checkoutMode: 'CARD_TRANSFER',
+        items: [{ productId: null, variationId: null, name: 'کیف', variant: null, quantity: 1, unitPrice: 350_000, url: null, maxQuantity: null }],
+      },
+    })
+    const y1 = await createCardPayment({ workspaceId: wid, baseAmount: 350_000, source: 'CHAT', reference: draft.code, orderDraftId: draft.id, conversationId: other.id })
+    assert(y1.ok)
+    await cancelOpenCardPayments({ id: y1.payment.id })
+    const y2 = await createCardPayment({ workspaceId: wid, baseAmount: 350_000, source: 'CHAT', reference: draft.code, orderDraftId: draft.id, conversationId: other.id })
+    assert(y2.ok)
+    assert.equal((await confirmCardPayment(y1.payment.id, 'OWNER')).changed, true)
+    assert.equal((await prisma.orderDraft.findUniqueOrThrow({ where: { id: draft.id } })).status, 'PAID', 'the cancelled order is taken back')
+    assert.equal((await prisma.cardPayment.findUniqueOrThrow({ where: { id: y2.payment.id } })).status, 'CANCELLED', 'no second payment for the same order')
+
     // Remainder text shape (pure).
     const view: CardPayView = { code: 'A1', authority: 'P1', url: 'https://vigent.ir/pay/P1', bankKey: 'mellat', pan: '6104337712345675', holder: null, amount: 30_237, expiresAt: new Date(Date.now() + 60_000).toISOString(), claim: true, status: 'PENDING', lang: 'en' }
     assert.match(composeCardPayRemainder(view, 450_000), /^450,000 Toman arrived.*30,237 Toman is still due/)
 
-    console.log('payment gateway advanced smoke: all 6 paths passed')
+    console.log('payment gateway advanced smoke: all 7 paths passed')
   } finally {
     await prisma.workspace.delete({ where: { id: wid } })
   }

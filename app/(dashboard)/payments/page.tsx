@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { PaymentsShell } from '@/components/payments/payments-shell'
-import { CardPayBlockButton, PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
+import { CustomerCardPaySwitch, PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
 import { PaymentsList, type PaymentRowData } from '@/components/payments/payments-list'
 import { NewPaymentButton } from '@/components/payments/new-link-form'
 import { Sparkline } from '@/components/admin/sparkline'
@@ -37,7 +37,7 @@ function dailySeries<T extends { paidAt: Date | null }>(rows: T[], pick: (row: T
   return keys.map((key) => sums.get(key) ?? 0)
 }
 
-const FILTERS = ['all', 'pending', 'paid', 'chat', 'link'] as const
+const FILTERS = ['all', 'pending', 'paid', 'chat'] as const
 type Filter = (typeof FILTERS)[number]
 
 /** A chat order's lines in the payment's own shape. */
@@ -114,7 +114,6 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
     filter === 'pending' ? payment.status === 'PENDING'
       : filter === 'paid' ? payment.status === 'PAID'
       : filter === 'chat' ? Boolean(payment.conversationId)
-      : filter === 'link' ? payment.source === 'LINK' && !payment.conversationId
       : true)
   const rows: PaymentRowData[] = rest.map((payment) => {
     const subject = payment.purpose === 'BOOKING' ? (fa ? 'بیعانهٔ نوبت' : 'Booking deposit') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course seat') : payment.source === 'LINK' && payment.conversationId ? (fa ? 'درخواست پرداخت در گفتگو' : 'Payment request in chat') : (SOURCE[payment.source] ?? SOURCE.LINK)[fa ? 0 : 1]
@@ -254,11 +253,11 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <PaymentActions paymentId={payment.id} mode="review" />
+                  {payment.conversationId && <Link href={`/conversations/${payment.conversationId}`} className="ui-link inline-flex items-center gap-1 text-[13px]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open conversation'}</Link>}
                   {(() => {
                     const conversation = payment.conversationId ? conversations.get(payment.conversationId) : undefined
-                    return conversation?.contactId ? <CardPayBlockButton paymentId={payment.id} blocked={Boolean(conversation.contact?.cardPayBlockedAt)} /> : null
+                    return conversation?.contactId ? <span className="sm:ms-auto"><CustomerCardPaySwitch paymentId={payment.id} blocked={Boolean(conversation.contact?.cardPayBlockedAt)} variant="inline" /></span> : null
                   })()}
-                  {payment.conversationId && <Link href={`/conversations/${payment.conversationId}`} className="ui-link inline-flex items-center gap-1 text-[13px]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open conversation'}</Link>}
                 </div>
               </li>
             ))}
@@ -290,13 +289,14 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
           <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پرداخت‌ها' : 'Payments'}</h2>
           {rest.length ? <span className="text-[12.5px] tabular-nums text-[var(--text-muted)]">{fa ? `${rest.length.toLocaleString(numbers)} پرداخت` : `${rest.length} payments`}</span> : null}
         </div>
+        {/* Four chips that fit a phone's width side by side, no sideways scroll. */}
         {all.length ? (
-          <nav aria-label={fa ? 'فیلتر پرداخت‌ها' : 'Filter payments'} className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-5">
+          <nav aria-label={fa ? 'فیلتر پرداخت‌ها' : 'Filter payments'} className="flex gap-1.5 px-4 pb-3 sm:px-5">
             {FILTERS.map((key) => {
-              const label = { all: ['همه', 'All'], pending: ['در انتظار', 'Waiting'], paid: ['پرداخت‌شده', 'Paid'], chat: ['از گفتگو', 'From chats'], link: ['لینک دستی', 'Manual links'] }[key][fa ? 0 : 1]
+              const label = { all: ['همه', 'All'], pending: ['در انتظار', 'Waiting'], paid: ['پرداخت‌شده', 'Paid'], chat: ['از گفتگو', 'From chats'] }[key][fa ? 0 : 1]
               const active = filter === key
               return (
-                <Link key={key} href={key === 'all' ? '/payments' : `/payments?f=${key}`} scroll={false} aria-current={active ? 'page' : undefined} className={cn('inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors', active ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]')}>
+                <Link key={key} href={key === 'all' ? '/payments' : `/payments?f=${key}`} scroll={false} aria-current={active ? 'page' : undefined} className={cn('inline-flex min-h-9 min-w-0 flex-auto items-center justify-center gap-1 whitespace-nowrap rounded-full border px-2 text-[12.5px] font-medium transition-colors sm:min-h-8 sm:flex-none sm:gap-1.5 sm:px-3', active ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]')}>
                   {label}
                   {key === 'pending' && counts.pending ? <span className={cn('rounded-full px-1.5 text-[11px] leading-5 tabular-nums', active ? 'bg-white/20' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200')}>{counts.pending.toLocaleString(numbers)}</span> : null}
                 </Link>

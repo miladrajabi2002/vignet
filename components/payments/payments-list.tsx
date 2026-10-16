@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Ban, Check, ChevronLeft, Copy, ExternalLink, MessageSquareText, PackageCheck, PackageX, ReceiptText, ShieldCheck, X } from 'lucide-react'
+import { Check, ChevronLeft, Copy, MessageSquareText, PackageCheck, PackageX, ReceiptText, X } from 'lucide-react'
 import type { ChannelType } from '@prisma/client'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ChannelGlyph, channelLabel } from '@/components/crm/channel-badge'
 import { BankMark } from '@/components/payments/bank-card'
+import { CustomerCardPaySwitch } from '@/components/payments/payment-actions'
 import { copyText } from '@/components/commerce/card-pay-view'
 import type { PayItem } from '@/lib/payments/card/items'
 import { cn } from '@/lib/utils'
@@ -97,7 +98,7 @@ function StoreOrderChip({ order }: { order: PaymentRowData['storeOrder'] }) {
 	return null
 }
 
-type Action = 'confirm' | 'cancel' | 'reject' | 'block' | 'unblock'
+type Action = 'confirm' | 'cancel' | 'reject'
 
 /** Money that does not fit the amount: part received so far, or the extra beyond it. */
 function MoneyChip({ row }: { row: PaymentRowData }) {
@@ -105,24 +106,6 @@ function MoneyChip({ row }: { row: PaymentRowData }) {
 	if (row.overpaidAmount) return <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{fa ? `${num(row.overpaidAmount)} اضافه` : `${num(row.overpaidAmount)} extra`}</span>
 	if (row.partialAmount && row.status !== 'PAID') return <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{fa ? `${num(row.partialAmount)} رسیده` : `${num(row.partialAmount)} received`}</span>
 	return null
-}
-
-/** Stop card-to-card for the payment's customer, or allow it again; asks once more before blocking. */
-function BlockToggle({ row }: { row: PaymentRowData }) {
-	const { fa } = useFormat()
-	const { busy, armed, error, run } = usePaymentAction(row.id)
-	if (row.customerBlocked == null) return null
-	const action: Action = row.customerBlocked ? 'unblock' : 'block'
-	return (
-		<div className="grid gap-1">
-			<button type="button" disabled={busy !== null} onClick={() => run(action, action === 'unblock')} className={cn('inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors disabled:opacity-60', armed === 'block' ? 'border-red-600 bg-red-600 text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]')}>
-				{row.customerBlocked ? <ShieldCheck className="size-4" aria-hidden /> : <Ban className="size-4" aria-hidden />}
-				{busy ? '…' : row.customerBlocked ? (fa ? 'باز کردن کارت‌به‌کارت این مشتری' : 'Allow card-to-card again') : armed === 'block' ? (fa ? 'بله، ببند' : 'Yes, block') : (fa ? 'بستن کارت‌به‌کارت این مشتری' : 'Block card-to-card for this customer')}
-			</button>
-			{row.customerBlocked ? <p className="text-[11.5px] text-[var(--text-muted)]">{fa ? 'ایجنت برای این مشتری کارت نمی‌فرستد و راه‌های دیگر پرداخت را پیشنهاد می‌کند.' : 'The agent does not send this customer the card and offers the other ways to pay.'}</p> : null}
-			{error ? <span role="alert" className="text-[12px] text-red-600">{error}</span> : null}
-		</div>
-	)
 }
 
 /** Runs a decision on a payment; it asks once more before acting unless `immediate`. */
@@ -168,7 +151,7 @@ function CopyLinkButton({ url, compact }: { url: string; compact?: boolean }) {
 				event.stopPropagation()
 				if (await copyText(url)) { setDone(true); window.setTimeout(() => setDone(false), 1500) }
 			}}
-			className={cn('inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', done ? 'border-transparent bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-[var(--border-default)] bg-white text-[var(--text-primary)] hover:border-[var(--border-hover)] dark:bg-neutral-900', compact && 'size-9 justify-center px-0')}
+			className={cn('inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]', done ? 'border-transparent bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-[var(--border-default)] bg-white text-[var(--text-primary)] hover:border-[var(--border-hover)] dark:bg-neutral-900', compact && 'size-9 justify-center px-0')}
 		>
 			{done ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
 			{compact ? <span className="sr-only">{label}</span> : label}
@@ -201,9 +184,37 @@ function DecisionButtons({ row, size = 'row', onDone }: { row: PaymentRowData; s
 	)
 }
 
+/**
+ * A closed payment (expired, withdrawn, rejected) whose money did arrive:
+ * the owner confirms it and everything a paid one does follows.
+ */
+function LateConfirm({ row, onDone }: { row: PaymentRowData; onDone?: () => void }) {
+	const { fa } = useFormat()
+	const { busy, armed, error, run } = usePaymentAction(row.id, onDone)
+	const confirmArmed = armed === 'confirm'
+	const why = row.status === 'EXPIRED' ? (fa ? 'مهلتش تمام شده' : 'It expired') : row.status === 'FAILED' ? (fa ? 'رد شده بود' : 'It was rejected') : (fa ? 'لغو شده بود' : 'It was withdrawn')
+	const follows = row.conversation
+		? (fa ? 'پیام تأیید برای مشتری می‌رود' : 'the customer is told it is confirmed')
+		: row.source === 'API' ? (fa ? 'سایت خبر پرداخت موفق را می‌گیرد' : 'the site is told it was paid') : null
+	return (
+		<div className="grid gap-2">
+			<p className="text-[12.5px] leading-6 text-[var(--text-secondary)]">
+				{fa ? `${why}؛ اگر پولش به حسابتان آمده، تأییدش کنید` : `${why}; if the money reached your account, confirm it`}
+				{follows ? (fa ? ` — ${follows} و همه‌چیز مثل یک پرداخت موفق پیش می‌رود.` : ` — ${follows} and it goes on like any paid one.`) : (fa ? '.' : '.')}
+			</p>
+			<button type="button" disabled={busy !== null} onClick={() => run('confirm')} className={cn('inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl border px-4 text-[14px] font-bold transition-[background-color,border-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60', confirmArmed ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200')}>
+				<Check className="size-4" strokeWidth={2.6} aria-hidden />
+				{busy === 'confirm' ? '…' : confirmArmed ? (fa ? 'بله، واریز رسیده؛ تأیید شود' : 'Yes, it arrived; confirm') : (fa ? 'واریز رسیده، تأیید دستی' : 'It arrived, confirm by hand')}
+			</button>
+			{error ? <span role="alert" className="text-[12px] text-red-600">{error}</span> : null}
+		</div>
+	)
+}
+
 function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) {
 	const { fa, num, time, clock } = useFormat()
 	const open = row.status === 'PENDING' || row.status === 'CLAIMED'
+	const late = row.status === 'EXPIRED' || row.status === 'CANCELLED' || row.status === 'FAILED'
 	const minutes = Math.max(0, Math.ceil((new Date(row.expiresAt).getTime() - Date.now()) / 60_000))
 	const steps: Array<{ label: string; at: string | null; state: 'done' | 'now' | 'bad' }> = [
 		{ label: row.conversation ? (fa ? `ساخته و در گفتگوی ${channelLabel(row.conversation.channel, 'fa')} فرستاده شد` : `Created and sent on ${channelLabel(row.conversation.channel, 'en')}`) : row.source === 'API' ? (fa ? `از سایت ${row.siteName ?? ''} ساخته شد` : `Created by ${row.siteName ?? 'the site'}`) : (fa ? 'لینک پرداخت ساخته شد' : 'Payment link created'), at: row.createdAt, state: 'done' },
@@ -226,20 +237,12 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 			closeLabel={fa ? 'بستن' : 'Close'}
 			className="md:w-[min(28rem,calc(100vw-1.5rem))]"
 			icon={<BankMark bankKey={row.bankKey} size={40} />}
-			footer={open || row.customerBlocked != null ? (
+			footer={open ? (
 				<div className="grid gap-2">
-					{open ? (
-						<>
-							<DecisionButtons row={row} size="sheet" onDone={onClose} />
-							<div className="flex flex-wrap gap-2">
-								<CopyLinkButton url={row.payUrl} />
-								<a href={row.payUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3 text-[12.5px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]"><ExternalLink className="size-4" aria-hidden />{fa ? 'صفحهٔ پرداخت' : 'Payment page'}</a>
-							</div>
-						</>
-					) : null}
-					<BlockToggle row={row} />
+					<DecisionButtons row={row} size="sheet" onDone={onClose} />
+					<CopyLinkButton url={row.payUrl} />
 				</div>
-			) : undefined}
+			) : late ? <LateConfirm row={row} onDone={onClose} /> : undefined}
 		>
 			<div className="grid gap-5">
 				<div className="grid justify-items-center gap-1.5 rounded-2xl bg-[var(--bg-surface)] px-4 py-5 text-center">
@@ -276,6 +279,7 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 							</span>
 							<span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'باز کردن' : 'Open'}</span>
 						</Link>
+						{row.customerBlocked != null ? <CustomerCardPaySwitch paymentId={row.id} blocked={row.customerBlocked} /> : null}
 					</div>
 				) : row.customerName ? (
 					<p className="text-[13px] text-[var(--text-secondary)]">{fa ? 'مشتری: ' : 'Customer: '}<b className="text-[var(--text-primary)]">{row.customerName}</b></p>

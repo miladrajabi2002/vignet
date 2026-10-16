@@ -300,10 +300,11 @@ async function tellCustomer(payment: CardPayment, status: CardPayStatus): Promis
   })
 }
 
-async function syncDraft(payment: CardPayment, status: string, extra: Prisma.OrderDraftUpdateManyMutationInput = {}): Promise<void> {
+/** `reopen`: a person confirmed a payment the order had given up on, so a cancelled order is taken back too. */
+async function syncDraft(payment: CardPayment, status: string, extra: Prisma.OrderDraftUpdateManyMutationInput = {}, opts: { reopen?: boolean } = {}): Promise<void> {
   if (!payment.orderDraftId) return
   await prisma.orderDraft.updateMany({
-    where: { id: payment.orderDraftId, checkoutMode: 'CARD_TRANSFER', status: { in: [...CARD_DRAFT_OPEN_STATUSES, 'EXPIRED'] } },
+    where: { id: payment.orderDraftId, checkoutMode: 'CARD_TRANSFER', status: { in: [...CARD_DRAFT_OPEN_STATUSES, 'EXPIRED', ...(opts.reopen ? ['CANCELLED'] : [])] } },
     data: { status, expecting: null, ...extra },
   }).catch((error) => captureError('cardpay:draft', error, { workspaceId: payment.workspaceId }))
 }
@@ -311,26 +312,39 @@ async function syncDraft(payment: CardPayment, status: string, extra: Prisma.Ord
 export type ConfirmedBy = 'AUTO' | 'OWNER' | 'OPERATOR' | 'ADMIN'
 
 /**
+ * Closed payments a person (never the SMS) may still confirm: the money came
+ * after the deadline, after a withdrawal or after a rejection.
+ */
+export const LATE_CONFIRM_STATUSES = ['EXPIRED', 'CANCELLED', 'FAILED']
+
+/**
  * Mark a payment paid. Idempotent: only the first caller changes the row and
  * runs the side effects (customer notice, owner alert, site callback).
- * A recently expired payment is still accepted (the SMS was late).
+ * A recently expired payment is still accepted (the SMS was late); a person
+ * may confirm any closed one, and it runs every step a paid one does.
  */
 export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now = new Date(), opts: { overpaid?: number | null } = {}): Promise<{ changed: boolean; payment: CardPayment | null }> {
   const overpaid = opts.overpaid && opts.overpaid > 0 ? Math.round(opts.overpaid) : null
+  const before = await prisma.cardPayment.findUnique({ where: { id: paymentId }, select: { status: true } })
   const changed = await prisma.cardPayment.updateMany({
     where: {
       id: paymentId,
-      OR: [{ status: { in: OPEN_PAYMENT_STATUSES } }, { status: 'EXPIRED', ...(by === 'AUTO' ? { holdUntil: { gt: now } } : {}) }, ...(by === 'AUTO' ? [] : [{ status: 'FAILED' }])],
+      OR: by === 'AUTO'
+        ? [{ status: { in: OPEN_PAYMENT_STATUSES } }, { status: 'EXPIRED', holdUntil: { gt: now } }]
+        : [{ status: { in: [...OPEN_PAYMENT_STATUSES, ...LATE_CONFIRM_STATUSES] } }],
     },
-    data: { status: 'PAID', confirmedBy: by, paidAt: now, resolvedAt: now, callbackNextAt: now, ...(overpaid ? { overpaidAmount: overpaid } : {}) },
+    // The site may already have been told «expired» or «failed»: it is told «paid» afresh.
+    data: { status: 'PAID', confirmedBy: by, paidAt: now, resolvedAt: now, callbackNextAt: now, callbackDoneAt: null, callbackTries: 0, callbackError: null, ...(overpaid ? { overpaidAmount: overpaid } : {}) },
   })
   const payment = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
   if (!changed.count || !payment) return { changed: false, payment }
 
   await prisma.payCard.updateMany({ where: { id: payment.cardId, verifiedAt: null }, data: { verifiedAt: now } }).catch(() => {})
   // storeSyncAt: the paid cart is placed on the connected WooCommerce store.
-  await syncDraft(payment, 'PAID', { paidAt: now, resolvedAt: now, grandTotal: payment.baseAmount, paymentMethodTitle: 'کارت‌به‌کارت', storeSyncAt: now, storeSyncTries: 0, storeSyncError: null })
+  await syncDraft(payment, 'PAID', { paidAt: now, resolvedAt: now, grandTotal: payment.baseAmount, paymentMethodTitle: 'کارت‌به‌کارت', storeSyncAt: now, storeSyncTries: 0, storeSyncError: null }, { reopen: by !== 'AUTO' && before != null && LATE_CONFIRM_STATUSES.includes(before.status) })
   if (payment.orderDraftId) {
+    // A fresh card issued for the same order after this one closed must not be paid a second time.
+    await cancelOpenCardPayments({ orderDraftId: payment.orderDraftId }, now)
     // Not awaited: a slow store must not hold up the SMS that confirmed it.
     // The worker's sweep retries whatever this attempt leaves behind.
     const draftId = payment.orderDraftId
