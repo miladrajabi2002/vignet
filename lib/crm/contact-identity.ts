@@ -253,6 +253,10 @@ export async function resolveInboundContact(params: {
 
     let contactId: string
     if (candidates.length === 0) {
+      // A customer is someone we can name or reach. A sender id and a handle
+      // alone (an Instagram DM) is not one: the conversation stays without a
+      // contact until applyContactIdentity learns a name or a phone.
+      if (!cleanContactName(params.senderName) && !canonicalPhone) return null
       await assertWorkspaceResourceCapacity(tx, params.workspaceId, 'customers', limit)
       const created = await tx.contact.create({
         data: {

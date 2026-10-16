@@ -3,6 +3,8 @@ import { parseCardPayDirective } from '@/lib/payments/card/pay-card'
 import { sendCardPay } from '@/lib/channels/card-pay-delivery'
 import type { Prisma } from '@prisma/client'
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
+import { cleanContactName } from '@/lib/crm/display'
+import { normalizeContactPhone } from '@/lib/phone'
 import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
 import type { StartChatParams } from '@/lib/ai/chat-types'
@@ -1113,8 +1115,10 @@ async function processChannelInbound(
                                 senderAvatarUrl: msg.senderAvatarUrl,
                         })
                         contactId = resolvedContactId
-                        if (!contactId) {
-                                // This happens when the workspace has hit its
+                        if (!contactId && (cleanContactName(msg.senderName) || normalizeContactPhone(msg.senderPhone))) {
+                                // A sender with no name and no phone is not a
+                                // customer yet, so a null there is expected.
+                                // Otherwise this happens when the workspace has hit its
                                 // customer limit (TRIAL=100, STARTER=2000, …).
                                 // The conversation is still persisted (with
                                 // contactId=null), but it shows as «ناشناس» in

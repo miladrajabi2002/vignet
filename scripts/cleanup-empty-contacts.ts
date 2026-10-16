@@ -1,17 +1,18 @@
 /**
- * Remove identity-less contacts from the customers list.
+ * Remove contacts with no name and no phone from the customers list.
  *
- * A customer is someone we can name or reach. The v1 name extractor mined
- * names out of ordinary prose («من دیروز درخواست دادم…» → contact «دیروز
- * درخو») and created contacts for anonymous web-widget visitors; when those
- * junk names were cleared, the rows stayed behind with no name, no phone and
- * no channel identity — empty «بدون نام» entries in /contacts.
+ * A customer is someone we can name or reach. Inbound messengers used to file
+ * a contact for every new sender — an Instagram DM carries only a sender id
+ * and a handle — and the v1 name extractor created contacts for anonymous
+ * web-widget visitors. Those rows have no name and no phone: empty «بدون نام»
+ * entries in /contacts. A channel id or a handle does not make them customers.
  *
- * This detaches the conversation (an anonymous visitor's conversation has no
- * contact — the normal state for the widget) and soft-deletes the shell. A
- * contact is touched only when it has NOTHING: no name, phone, channel id or
- * username, tags, notes, orders, appointments, campaigns, enrollments, drafts,
- * restock alerts or follow gates.
+ * This detaches their conversations (a conversation with no contact is the
+ * normal state until the visitor gives a name or a phone — applyContactIdentity
+ * then files the customer and links the chat's carts, course places and
+ * restock requests back to them), unlinks those chat records and follow gates,
+ * and soft-deletes the shell. A contact is kept when it has a real business
+ * record: a store order, an appointment or a campaign delivery.
  *
  * Dry run (default):  npx tsx -r dotenv/config scripts/cleanup-empty-contacts.ts
  * Apply:              npx tsx -r dotenv/config scripts/cleanup-empty-contacts.ts --apply
@@ -32,23 +33,13 @@ async function main() {
     WHERE k."deletedAt" IS NULL
       AND COALESCE(BTRIM(k.name), '') = ''
       AND COALESCE(BTRIM(k.phone), '') = ''
-      AND k."telegramId" IS NULL AND k."whatsappId" IS NULL AND k."instagramId" IS NULL
-      AND k."rubikaId" IS NULL AND k."baleId" IS NULL
-      AND k."telegramUsername" IS NULL AND k."instagramUsername" IS NULL
-      AND k."baleUsername" IS NULL AND k."rubikaUsername" IS NULL AND k."whatsappName" IS NULL
-      AND COALESCE(CARDINALITY(k.tags), 0) = 0
-      AND COALESCE(BTRIM(k.notes), '') = ''
       AND NOT EXISTS (SELECT 1 FROM "StoreOrder" o WHERE o."contactId" = k.id)
       AND NOT EXISTS (SELECT 1 FROM "Appointment" a WHERE a."contactId" = k.id)
       AND NOT EXISTS (SELECT 1 FROM "CampaignRecipient" r WHERE r."contactId" = k.id)
-      AND NOT EXISTS (SELECT 1 FROM "CourseEnrollment" e WHERE e."contactId" = k.id)
-      AND NOT EXISTS (SELECT 1 FROM "OrderDraft" d WHERE d."contactId" = k.id)
-      AND NOT EXISTS (SELECT 1 FROM "RestockAlert" s WHERE s."contactId" = k.id)
-      AND NOT EXISTS (SELECT 1 FROM "InstagramFollowGate" g WHERE g."contactId" = k.id)
     ORDER BY k."createdAt"
   `
 
-  console.log(`${shells.length} identity-less contact(s) found${APPLY ? '' : ' (dry run — pass --apply to clean up)'}`)
+  console.log(`${shells.length} contact(s) with no name and no phone found${APPLY ? '' : ' (dry run — pass --apply to clean up)'}`)
   let cleaned = 0
   for (const shell of shells) {
     const conversations = await prisma.conversation.findMany({
@@ -61,10 +52,16 @@ async function main() {
     )
     if (!APPLY) continue
     await prisma.$transaction(async (tx) => {
+      const unlink = { where: { contactId: shell.id }, data: { contactId: null } }
       await tx.conversation.updateMany({
         where: { contactId: shell.id, deletedAt: undefined },
         data: { contactId: null },
       })
+      await tx.orderDraft.updateMany(unlink)
+      await tx.courseEnrollment.updateMany(unlink)
+      await tx.restockAlert.updateMany(unlink)
+      await tx.instagramFollowGate.updateMany(unlink)
+      await tx.skillFinding.updateMany(unlink)
       await tx.contact.updateMany({
         where: { id: shell.id, deletedAt: null },
         data: { deletedAt: new Date() },

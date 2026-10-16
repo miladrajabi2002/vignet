@@ -201,10 +201,28 @@ describe('cross-channel contact identity merge', () => {
       workspaceId: 'workspace-1',
       channel: 'TELEGRAM',
       senderId: 'telegram-brand-new',
+      senderName: 'Sara',
     })
 
     expect(id).toBeNull()
     expect(mocks.assertCapacity).toHaveBeenCalledWith(mocks.tx, 'workspace-1', 'customers', 50)
+    expect(mocks.tx.contact.create).not.toHaveBeenCalled()
+  })
+
+  it('never creates a customer for a sender with no name and no valid phone', async () => {
+    // An Instagram DM: only a sender id and a handle.
+    mocks.tx.contact.findMany.mockResolvedValueOnce([])
+
+    const id = await resolveInboundContact({
+      workspaceId: 'workspace-1',
+      channel: 'INSTAGRAM',
+      senderId: 'ig-brand-new',
+      senderName: 'None',
+      senderUsername: 'someone',
+    })
+
+    expect(id).toBeNull()
+    expect(mocks.assertCapacity).not.toHaveBeenCalled()
     expect(mocks.tx.contact.create).not.toHaveBeenCalled()
   })
 })
