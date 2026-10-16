@@ -28,6 +28,19 @@ describe('WooCommerce plugin version stays consistent', () => {
     expect(readme).toContain(`= ${header} =`)
   })
 
+  it('stamps every booted class file with the same release', () => {
+    // vigent-woo.php stays idle when the files disagree (a host's OPcache serving
+    // part of the previous release), so an un-bumped file would idle every site.
+    const main = plugin('vigent-woo.php')
+    const header = main.match(/^\s*\*\s*Version:\s*([0-9.]+)\s*$/m)?.[1]
+    const booted = [...main.matchAll(/__DIR__ \. '\/(includes\/class-vigent-woo-[a-z-]+\.php)'/g)].map((m) => m[1])
+
+    expect(booted).toHaveLength(7)
+    for (const file of booted) {
+      expect(plugin(file).match(/const RELEASE = '([0-9.]+)';/)?.[1], file).toBe(header)
+    }
+  })
+
   it('reports its version on every delivery, not only on a connection test', () => {
     // lib/integrations/woocommerce.ts persists job.pluginVersion, which the route
     // reads from this header; without it an auto-updated site kept reporting old.

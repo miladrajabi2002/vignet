@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Vigent_Woo_Updater {
+        /** Release this file shipped in; vigent-woo.php will not boot a mix of releases. */
+        const RELEASE = '5.2.1';
 
         private static $instance = null;
 
@@ -60,6 +62,22 @@ class Vigent_Woo_Updater {
 	/** Resolve the installed basename even when the folder was renamed. */
 	public static function plugin_file() {
 		return defined( 'VIGENT_WOO_FILE' ) ? plugin_basename( VIGENT_WOO_FILE ) : self::PLUGIN_FILE;
+	}
+
+	/**
+	 * Version of the plugin files on disk. Under OPcache the running code can
+	 * lag behind a finished update; comparing the remote release against the
+	 * running constant then offered the same update again and again.
+	 */
+	public static function installed_version() {
+		static $version = null;
+		if ( null === $version ) {
+			$data    = get_file_data( VIGENT_WOO_FILE, array( 'Version' => 'Version' ) );
+			$version = ! empty( $data['Version'] ) && version_compare( $data['Version'], VIGENT_WOO_VERSION, '>' )
+				? $data['Version']
+				: VIGENT_WOO_VERSION;
+		}
+		return $version;
 	}
 
         public static function instance() {
@@ -117,9 +135,9 @@ class Vigent_Woo_Updater {
                         'latest_version' => is_array( $info ) && ! empty( $info['version'] )
                                 ? $info['version']
                                 : '',
-                        'current_version' => VIGENT_WOO_VERSION,
+                        'current_version' => self::installed_version(),
                         'update_available' => is_array( $info ) && ! empty( $info['version'] )
-                                ? version_compare( VIGENT_WOO_VERSION, $info['version'], '<' )
+                                ? version_compare( self::installed_version(), $info['version'], '<' )
                                 : false,
                 );
                 update_option( 'vigent_woo_last_update_check', $last_check, false );
@@ -168,7 +186,7 @@ class Vigent_Woo_Updater {
                 if ( ! isset( $current->checked ) || ! is_array( $current->checked ) ) {
                         $current->checked = array();
                 }
-                $current->checked[ $plugin_file ] = VIGENT_WOO_VERSION;
+                $current->checked[ $plugin_file ] = self::installed_version();
 
                 $current = $this->filter_update_transient( $current );
                 if ( ! isset( $current->response[ $plugin_file ] ) ) {
@@ -206,13 +224,14 @@ class Vigent_Woo_Updater {
          * }
          */
         public function manual_check() {
-                $info = $this->fetch_latest_info( true );
+                $installed = self::installed_version();
+                $info      = $this->fetch_latest_info( true );
                 if ( ! $info ) {
                         return array(
                                 'success'         => false,
                                 'update_available' => false,
-                                'current_version' => VIGENT_WOO_VERSION,
-                                'latest_version'  => VIGENT_WOO_VERSION,
+                                'current_version' => $installed,
+                                'latest_version'  => $installed,
                                 'message'         => __( 'خطا در ارتباط با سرور ویجنت. چند لحظه دیگر تلاش کنید.', 'vigent-woo' ),
                                 'download_url'    => '',
                         );
@@ -220,16 +239,16 @@ class Vigent_Woo_Updater {
 
                 $latest = isset( $info['version'] ) ? (string) $info['version'] : '0.0.0';
 
-                if ( version_compare( VIGENT_WOO_VERSION, $latest, '>=' ) ) {
+                if ( version_compare( $installed, $latest, '>=' ) ) {
                         return array(
                                 'success'          => true,
                                 'update_available' => false,
-                                'current_version'  => VIGENT_WOO_VERSION,
+                                'current_version'  => $installed,
                                 'latest_version'   => $latest,
                                 'message'          => sprintf(
                                         /* translators: %s: version number */
                                         __( 'شما از آخرین نسخه (%s) استفاده می‌کنید.', 'vigent-woo' ),
-                                        VIGENT_WOO_VERSION
+                                        $installed
                                 ),
                                 'download_url'     => '',
                         );
@@ -238,7 +257,7 @@ class Vigent_Woo_Updater {
                 return array(
                         'success'          => true,
                         'update_available' => true,
-                        'current_version'  => VIGENT_WOO_VERSION,
+                        'current_version'  => $installed,
                         'latest_version'   => $latest,
                         'message'          => sprintf(
                                 /* translators: %s: new version number */
@@ -273,13 +292,13 @@ class Vigent_Woo_Updater {
                 }
 
                 // No update needed.
-                if ( version_compare( VIGENT_WOO_VERSION, $info['version'], '>=' ) ) {
+                if ( version_compare( self::installed_version(), $info['version'], '>=' ) ) {
                         // Mark as "no update" so WP doesn't keep re-checking.
                         $no_update            = new stdClass();
 			$no_update->id        = self::plugin_file();
                         $no_update->slug      = self::SLUG;
 			$no_update->plugin    = self::plugin_file();
-                        $no_update->new_version = VIGENT_WOO_VERSION;
+                        $no_update->new_version = self::installed_version();
                         $no_update->url       = isset( $info['homepage'] ) ? $info['homepage'] : 'https://vigent.ir';
                         $no_update->package   = '';
                         $no_update->tested    = isset( $info['tested'] ) ? $info['tested'] : '';
@@ -390,14 +409,30 @@ class Vigent_Woo_Updater {
          */
         public function maybe_show_update_notice() {
                 $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-                if ( ! $screen || 'toplevel_page_vigent-woo' !== $screen->id ) {
+                if ( ! $screen || ! in_array( $screen->id, array( 'toplevel_page_vigent-woo', 'plugins' ), true ) ) {
+                        return;
+                }
+                // The update finished but PHP still runs the previous release
+                // from OPcache: say so instead of offering the update again.
+                if ( version_compare( self::installed_version(), VIGENT_WOO_VERSION, '>' ) ) {
+                        if ( function_exists( 'vigent_woo_refresh_opcache' ) ) {
+                                vigent_woo_refresh_opcache();
+                        }
+                        ?>
+                        <div class="notice notice-warning">
+                                <p><?php printf( esc_html__( 'ویجنت: نسخهٔ %s نصب شده است، ولی PHP این هاست هنوز نسخهٔ قبلی را از حافظهٔ موقت (OPcache) اجرا می‌کند. یک دقیقه دیگر صفحه را تازه کنید؛ اگر تغییری نکرد، از پنل هاست PHP را ری‌استارت کنید یا OPcache را پاک کنید. نیازی به حذف و نصب دوبارهٔ افزونه نیست.', 'vigent-woo' ), esc_html( self::installed_version() ) ); ?></p>
+                        </div>
+                        <?php
+                        return;
+                }
+                if ( 'toplevel_page_vigent-woo' !== $screen->id ) {
                         return;
                 }
                 $info = $this->fetch_latest_info();
                 if ( ! $info || empty( $info['version'] ) ) {
                         return;
                 }
-                if ( version_compare( VIGENT_WOO_VERSION, $info['version'], '>=' ) ) {
+                if ( version_compare( self::installed_version(), $info['version'], '>=' ) ) {
                         return;
                 }
                 $latest = esc_html( $info['version'] );

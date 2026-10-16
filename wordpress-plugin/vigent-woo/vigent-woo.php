@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند، محصولات و سفارش‌ها را همگام می‌سازد و خرید داخل گفتگو را روی صفحهٔ پرداخت خود سایت ثبت می‌کند.
- * Version:           5.2.0
+ * Version:           5.2.1
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '5.2.0' );
+define( 'VIGENT_WOO_VERSION', '5.2.1' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
@@ -41,6 +41,64 @@ foreach ( $vg_includes as $vg_file ) {
         if ( file_exists( $vg_file ) ) {
                 require_once $vg_file;
         }
+}
+
+/**
+ * Whether every loaded class file belongs to this release.
+ *
+ * Right after an update a host's OPcache can keep serving some files of the
+ * previous release next to the new ones (WordPress cannot clear that cache
+ * where the host restricts opcache_invalidate). Wiring hooks across two
+ * releases is what took sites down with a fatal error mid-update.
+ */
+function vigent_woo_release_matches() {
+        $classes = array( 'Vigent_Woo_Core', 'Vigent_Woo_Sync', 'Vigent_Woo_REST', 'Vigent_Woo_Checkout', 'Vigent_Woo_Admin', 'Vigent_Woo_Ajax', 'Vigent_Woo_Updater' );
+        foreach ( $classes as $class ) {
+                if ( ! class_exists( $class, false ) || ! defined( $class . '::RELEASE' ) || VIGENT_WOO_VERSION !== constant( $class . '::RELEASE' ) ) {
+                        return false;
+                }
+        }
+        return true;
+}
+
+/**
+ * Drop this plugin's files from OPcache so the next request compiles what is
+ * on disk. Returns false where the host does not allow it.
+ */
+function vigent_woo_refresh_opcache() {
+        if ( ! function_exists( 'opcache_invalidate' ) ) {
+                return false;
+        }
+        $restrict = (string) ini_get( 'opcache.restrict_api' );
+        if ( '' !== $restrict ) {
+                $script = isset( $_SERVER['SCRIPT_FILENAME'] ) ? realpath( $_SERVER['SCRIPT_FILENAME'] ) : false;
+                if ( ! $script || 0 !== stripos( $script, $restrict ) ) {
+                        return false;
+                }
+        }
+        $files = array_merge( glob( __DIR__ . '/*.php' ) ?: array(), glob( __DIR__ . '/includes/*.php' ) ?: array() );
+        foreach ( $files as $file ) {
+                @opcache_invalidate( $file, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+        }
+        return true;
+}
+
+/** Admin notice while the host still runs part of the previous release. */
+function vigent_woo_mixed_release_notice() {
+        if ( ! current_user_can( 'activate_plugins' ) ) {
+                return;
+        }
+        echo '<div class="notice notice-warning"><p>'
+                . esc_html__( 'ویجنت: نسخهٔ تازهٔ افزونه نصب شده، ولی PHP این هاست هنوز بخشی از نسخهٔ قبلی را از حافظهٔ موقت (OPcache) اجرا می‌کند. تا یکی شدن نسخه‌ها افزونه موقتاً کاری انجام نمی‌دهد تا سایت از کار نیفتد. یک دقیقه دیگر صفحه را تازه کنید؛ اگر این پیام ماند، از پنل هاست PHP را ری‌استارت کنید یا OPcache را پاک کنید. نیازی به حذف و نصب دوبارهٔ افزونه نیست.', 'vigent-woo' )
+                . '</p></div>';
+}
+
+// A mixed release stays idle for this request instead of fataling the site;
+// the next request after the cache refreshes boots normally.
+if ( ! vigent_woo_release_matches() ) {
+        vigent_woo_refresh_opcache();
+        add_action( 'admin_notices', 'vigent_woo_mixed_release_notice' );
+        return;
 }
 
 // ─── فعال‌سازی (ساده و امن) ────────────────────────────────────────────────

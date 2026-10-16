@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Vigent_Woo_Sync {
+        /** Release this file shipped in; vigent-woo.php will not boot a mix of releases. */
+        const RELEASE = '5.2.1';
 
         const DELTA_QUEUE_OPTION = 'vigent_woo_delta_queue';
         const SYNC_STATE_OPTION  = 'vigent_woo_sync_state';

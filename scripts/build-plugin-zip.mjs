@@ -32,6 +32,17 @@ function walk(dir, out = []) {
   return out
 }
 
+// The plugin will not boot a mix of releases, so every class file must carry
+// the header version; refuse to ship a zip that would idle every store.
+const version = readFileSync(join(srcDir, 'vigent-woo.php'), 'utf8').match(/^\s*\*\s*Version:\s*([0-9.]+)\s*$/m)?.[1]
+for (const p of walk(join(srcDir, 'includes'))) {
+  const release = readFileSync(p, 'utf8').match(/const RELEASE = '([0-9.]+)';/)?.[1]
+  if (release && release !== version) {
+    console.error(`✗ ${relative(root, p)} has RELEASE ${release}, header is ${version}`)
+    process.exit(1)
+  }
+}
+
 const files = walk(srcDir).map((p) => ({
   // Keep the plugin folder name as the top-level dir inside the zip —
   // WordPress uses it as the plugin slug.
