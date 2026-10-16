@@ -185,6 +185,8 @@ export interface GatewayWeekCard {
   week: number
   today: number
   dailyCap: number | null
+  /** A real deposit has matched on this card (the cards tab's «با واریز واقعی تأیید شده»). */
+  verified: boolean
 }
 
 export interface GatewayWeek {
@@ -264,6 +266,7 @@ export async function loadGatewayWeek(workspaceId: string, now = new Date()): Pr
       week: week.get(card.id) ?? 0,
       today: today.get(card.id) ?? 0,
       dailyCap: card.dailyCap,
+      verified: Boolean(card.verifiedAt),
     })),
   }
 }

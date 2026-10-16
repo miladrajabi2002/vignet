@@ -1,22 +1,27 @@
 'use client'
 
 import Link from 'next/link'
-import { forwardRef, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { AlertCircle, ArrowLeft, ArrowRight, Bot, CalendarCheck2, CheckCircle2, MessagesSquare, MoreHorizontal, Package, Plug, Plus, UserPlus, type LucideIcon } from 'lucide-react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { AlertCircle, ArrowLeft, ArrowRight, Bot, CalendarCheck2, CheckCircle2, MessagesSquare, MoreHorizontal, Package, Plug, UserPlus, type LucideIcon } from 'lucide-react'
 import { CHANNEL_TONES, ChannelMark, type ChannelKey } from '@/components/ui/channel-mark'
-import { BankCardFace } from '@/components/payments/bank-card'
-import { bankByKey } from '@/lib/payments/card/bins'
+import { BookingsPanel, CoursesPanel, MenuPanel, MOD, modVars, moduleNodes, PayPanel, StorePanel, type ModKey, type ModNode, type PanelHandle } from '@/components/dashboard/stage-panels'
 import type { GatewayWeek } from '@/lib/payments/card/dashboard'
+import type { StageModules } from '@/lib/dashboard/stage-modules'
 import { cn } from '@/lib/utils'
 
 /*
  * The overview's 7-day flow as a live stage: the connected apps sit on an
  * arc on the start side, the agent in the middle, the outcomes on the end
  * side. Messages fly in as bubbles from each app (faster from the busier
- * ones), the agent sends each on to an outcome, and once the payment
- * gateway is live the latest payments replay as coins dropping onto the
- * card they reached, with a ticker beside the cards. With no payment yet a
- * gold spark still runs down to the cards, so the link always reads.
+ * ones) and the agent sends each on to an outcome.
+ *
+ * Under the agent, every module the business turned on or connected has a
+ * node and a lane: the store (WooCommerce or the catalog), the digital
+ * menu, bookings, courses and the payment gateway. The chosen node opens
+ * its panel below. Each lane replays only that module's real events (a coin
+ * for a payment, a parcel for an order, a calendar for a booking the agent
+ * made, a cap for a sign-up); a module still being set up has a grey, still
+ * lane and its panel shows the next step.
  *
  * The bubbles are a picture of the week's volume, not real messages; every
  * number on the stage is real. The geometry follows the stage's measured
@@ -76,8 +81,8 @@ type Geo = {
 	node: number
 	ins: (Pt & { lane: Lane })[]
 	outs: (Pt & { lane: Lane; w: number })[]
-	coin: Lane | null
 }
+type Band = { top: number; nh: number; nw: number; H: number; nodes: { x: number; lane: Lane }[] }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 function unit(a: Pt, b: Pt): Pt {
@@ -92,7 +97,7 @@ const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2,
 const lanePath = (L: Lane) => `M${L.a.x.toFixed(1)} ${L.a.y.toFixed(1)}Q${L.c.x.toFixed(1)} ${L.c.y.toFixed(1)} ${L.b.x.toFixed(1)} ${L.b.y.toFixed(1)}`
 
 /** The arc: apps on the start side, outcomes on the end side, the agent between. */
-function wideGeo(W: number, nIn: number, nOut: number, rtl: boolean, coin: boolean): Geo {
+function wideGeo(W: number, nIn: number, nOut: number, rtl: boolean): Geo {
 	const dir = rtl ? 1 : -1
 	const H = 306, C = { x: W / 2, y: 162 }, R = 46, node = nIn >= 6 ? 34 : 38
 	// A narrow stage flattens the arc so the top and bottom nodes keep clear of the agent's name.
@@ -117,10 +122,7 @@ function wideGeo(W: number, nIn: number, nOut: number, rtl: boolean, coin: boole
 		const u = unit(C, c)
 		return { ...p, w: 150, lane: { a: { x: C.x + u.x * (R + 3), y: C.y + u.y * (R + 3) }, c, b } }
 	})
-	return {
-		narrow: false, W, H, C, R, node, ins, outs,
-		coin: coin ? { a: { x: C.x, y: C.y + R }, c: { x: C.x, y: (C.y + H) / 2 + 30 }, b: { x: C.x, y: H + 44 } } : null,
-	}
+	return { narrow: false, W, H, C, R, node, ins, outs }
 }
 
 /** Phones: apps across the top, the agent, the outcomes in one row. */
@@ -138,7 +140,20 @@ function narrowGeo(W: number, nIn: number, nOut: number, rtl: boolean): Geo {
 		const a = { x: C.x, y: C.y + R + 50 }
 		return { x, y: tilesY, w: tw, lane: { a, c: { x, y: a.y + 6 }, b: { x, y: tilesY } } }
 	})
-	return { narrow: true, W, H, C, R, node, ins, outs, coin: null }
+	return { narrow: true, W, H, C, R, node, ins, outs }
+}
+
+/** The module nodes under the agent, start side first, one lane each from the agent. */
+function bandGeo(geo: Geo, count: number, rtl: boolean): Band {
+	const top = geo.H + 30, nh = 52, gap = 10
+	const nw = Math.min(152, (geo.W - gap * (count - 1)) / count)
+	const x0 = (geo.W - (nw * count + gap * (count - 1))) / 2
+	const a = { x: geo.C.x, y: geo.C.y + geo.R + 3 }
+	const nodes = Array.from({ length: count }, (_, i) => {
+		const x = rtl ? geo.W - x0 - nw * (i + 0.5) - gap * i : x0 + nw * (i + 0.5) + gap * i
+		return { x, lane: { a, c: { x: geo.C.x + (x - geo.C.x) * 0.1, y: top - 40 }, b: { x, y: top - 3 } } }
+	})
+	return { top, nh, nw, H: top + nh, nodes }
 }
 
 function group(inputs: FlowInput[], max: number, locale: Locale): Item[] {
@@ -151,6 +166,20 @@ function group(inputs: FlowInput[], max: number, locale: Locale): Item[] {
 	]
 }
 
+/** Opens on a module that has something to show: events first, then anything set up. */
+function firstModule(nodes: ModNode[]): ModKey | null {
+	return (nodes.find((node) => node.state !== 'setup' && node.events > 0) ?? nodes.find((node) => node.state !== 'setup') ?? nodes[0])?.key ?? null
+}
+
+/* Replay tokens on the module lanes. */
+const TOKENS: Record<Exclude<ModKey, 'pay'>, string> = {
+	store: `<rect x="-8" y="-8" width="16" height="16" rx="5" fill="${MOD.store.color}"/><path d="M-4-2h8l-1 6h-6z" fill="none" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/><path d="M-2-2a2 2 0 0 1 4 0" fill="none" stroke="#fff" stroke-width="1.4"/>`,
+	menu: `<circle r="8" fill="${MOD.menu.color}"/><path d="M-3-4v8M1-4v3a2 2 0 0 0 2 2v3" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+	bookings: `<rect x="-8" y="-8" width="16" height="16" rx="4" fill="${MOD.bookings.color}"/><path d="M-5-3h10M-2-7v3M2-7v3" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="0" cy="2" r="1.6" fill="#fff"/>`,
+	courses: `<circle r="8" fill="${MOD.courses.color}"/><path d="M-5-1 0-4 5-1 0 2zM-3 0v3c2 1.6 4 1.6 6 0V0" fill="none" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/>`,
+}
+const GAPS: Record<Exclude<ModKey, 'pay'>, number> = { store: 4600, menu: 5000, bookings: 5200, courses: 5600 }
+
 // useLayoutEffect warns on the server; the stage only measures in the browser.
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -161,6 +190,7 @@ export function LiveStage({
 	inputs,
 	outputs,
 	gateway,
+	modules,
 }: {
 	locale: Locale
 	agentName: string
@@ -169,6 +199,8 @@ export function LiveStage({
 	outputs: FlowOutput[]
 	/** The live payment gateway's week; null until it is live. */
 	gateway: GatewayWeek | null
+	/** The modules under the agent (lib/dashboard/stage-modules.ts). */
+	modules: StageModules
 }) {
 	const fa = locale === 'fa'
 	const rtl = fa
@@ -180,7 +212,9 @@ export function LiveStage({
 	const fxRef = useRef<SVGGElement>(null)
 	const coreRef = useRef<HTMLSpanElement>(null)
 	const outRefs = useRef<(HTMLAnchorElement | null)[]>([])
-	const walletRef = useRef<WalletHandle>(null)
+	const modRefs = useRef<Partial<Record<ModKey, HTMLButtonElement | null>>>({})
+	const panelRef = useRef<PanelHandle>(null)
+	const vlRef = useRef<HTMLDivElement>(null)
 
 	const [width, setWidth] = useState<number | null>(null)
 	const [motion, setMotion] = useState(false)
@@ -217,13 +251,19 @@ export function LiveStage({
 		() => (empty ? GHOSTS.map((key) => ({ key, count: 0, ghost: true })) : group(inputs, narrow ? 5 : 7, locale)),
 		[empty, inputs, narrow, locale],
 	)
-	const payments = gateway?.recent.filter((payment) => gateway.cards.some((card) => card.id === payment.cardId)) ?? []
-	const hasCards = Boolean(gateway?.cards.length)
-	const coins = hasCards && payments.length > 0
+	const payments = useMemo(() => gateway?.recent.filter((payment) => gateway.cards.some((card) => card.id === payment.cardId)) ?? [], [gateway])
+	const mods = useMemo(() => moduleNodes(modules, gateway, locale), [modules, gateway, locale])
+	const modsKey = mods.map((node) => `${node.key}:${node.state}:${node.events}`).join('|')
+	const [active, setActive] = useState<ModKey | null>(() => firstModule(mods))
+	const activeRef = useRef(active)
+	useEffect(() => { activeRef.current = active }, [active])
+
 	const geo = useMemo(() => {
 		if (width === null) return null
-		return width < NARROW_BELOW ? narrowGeo(width, items.length, outputs.length, rtl) : wideGeo(width, items.length, outputs.length, rtl, hasCards)
-	}, [width, items.length, outputs.length, rtl, hasCards])
+		return width < NARROW_BELOW ? narrowGeo(width, items.length, outputs.length, rtl) : wideGeo(width, items.length, outputs.length, rtl)
+	}, [width, items.length, outputs.length, rtl])
+	const band = useMemo(() => (geo && !geo.narrow && mods.length ? bandGeo(geo, mods.length, rtl) : null), [geo, mods.length, rtl])
+	const stageH = band ? band.H : geo?.H
 
 	const low = automationRate !== null && automationRate < 50
 	const itemName = (item: Item, short = false) =>
@@ -232,10 +272,11 @@ export function LiveStage({
 			: CHANNEL_NAMES[item.key][locale]
 	const itemColor = (item: Item) => (item.ghost ? '#c9c5bf' : item.key === 'OTHER' ? OTHER_COLOR : CHANNEL_TONES[item.key].color)
 
-	/* The motion: bubbles from the apps, dots to the outcomes, coins to the cards. */
+	/* The motion: bubbles from the apps, dots to the outcomes, each module's replays on its lane. */
 	useEffect(() => {
 		const fx = fxRef.current
-		if (!geo || !fx || !motion || !onScreen || (!total && !hasCards)) return
+		const replays = mods.filter((node) => node.state !== 'setup' && node.events > 0)
+		if (!geo || !fx || !motion || !onScreen || (!total && !replays.length)) return
 		type Particle = { lane: Lane; t: number; dur: number; g: SVGGElement; accel?: boolean; done?: () => void }
 		const particles: Particle[] = []
 		const timers: number[] = []
@@ -281,42 +322,68 @@ export function LiveStage({
 			})
 		}
 
+		// A token reaches its module: the node nudges and, if its panel is open, the panel lands it.
+		const arrive = (key: ModKey, at: number | null) => {
+			bump(modRefs.current[key], 1.05)
+			if (activeRef.current === key) panelRef.current?.land(at)
+		}
+		const coinMarkup = (coin: boolean) => coin
+			? `<circle r="10" fill="url(#${gid}-coin)"/><text y="3.6" text-anchor="middle" font-size="10" font-weight="800" fill="#6b4e00">${fa ? 'ت' : 'T'}</text>`
+			: `<circle r="8" fill="#f5c84b" fill-opacity=".22"/><circle r="3.6" fill="url(#${gid}-coin)"/>`
+		const fly = (key: ModKey, at: number | null, coin = true) => {
+			const slot = mods.findIndex((node) => node.key === key)
+			if (band && slot >= 0) {
+				particles.push({ lane: band.nodes[slot].lane, t: 0, dur: 1.05, accel: true, g: spawn(key === 'pay' ? coinMarkup(coin) : TOKENS[key]), done: () => arrive(key, at) })
+				return
+			}
+			// Phones: the open module's token drops down the line above the module row.
+			const vl = vlRef.current
+			if (!vl || activeRef.current !== key) { bump(modRefs.current[key], 1.05); return }
+			const token = document.createElement('i')
+			token.className = key === 'pay' ? (coin ? 'ls-coin' : 'ls-coin ls-spark') : 'ls-coin'
+			token.textContent = key === 'pay' && coin ? (fa ? 'ت' : 'T') : ''
+			if (key !== 'pay') Object.assign(token.style, { width: '14px', height: '14px', background: MOD[key].color, boxShadow: `0 3px 8px ${MOD[key].color}66`, borderRadius: key === 'store' || key === 'bookings' ? '5px' : '9999px' })
+			vl.appendChild(token)
+			const animation = token.animate(
+				[{ transform: 'translate(-50%,-22px) scale(.5)', opacity: 0 }, { transform: 'translate(-50%,-8px) scale(1)', opacity: 1, offset: 0.3 }, { transform: 'translate(-50%,40px) scale(.75)', opacity: 0.9 }],
+				{ duration: 950, easing: 'cubic-bezier(.55,0,.75,.2)' },
+			)
+			animation.onfinish = () => { token.remove(); arrive(key, at) }
+		}
+
+		replays.forEach((node, slot) => {
+			if (node.key === 'pay') {
+				// The latest payments replay oldest first, so the newest ends in front; then a pause.
+				if (payments.length) {
+					let step = 0
+					const next = () => {
+						const order = payments.length - 1 - (step % payments.length)
+						const lastOfRound = step % payments.length === payments.length - 1
+						step++
+						fly('pay', order, true)
+						later(lastOfRound ? 9000 : 3800, next)
+					}
+					later(1600, next)
+				} else {
+					// No payment yet: a spark, not a coin, so nothing pretends money arrived.
+					const spark = () => { fly('pay', null, false); later(5200, spark) }
+					later(1400, spark)
+				}
+				return
+			}
+			const key = node.key
+			let step = 0
+			const next = () => {
+				fly(key, step % node.events)
+				step++
+				later(step % node.events === 0 ? GAPS[key] * 2 : GAPS[key], next)
+			}
+			later(2200 + slot * 900, next)
+		})
+
 		// Busier weeks send more bubbles; a quiet app still sends one now and then.
 		const rate = total ? Math.min(3.3, 0.5 + Math.log10(total + 1) * 0.72) : 0
 		const acc = items.map(() => Math.random())
-
-		// Coins replay the latest payments oldest first, so the newest ends in front; then a pause.
-		if (coins) {
-			let step = 0
-			const next = () => {
-				const order = payments.length - 1 - (step % payments.length)
-				const lastOfRound = step % payments.length === payments.length - 1
-				step++
-				if (geo.coin) {
-					particles.push({
-						lane: geo.coin, t: 0, dur: 1, accel: true,
-						g: spawn(`<circle r="10" fill="url(#${gid}-coin)"/><text y="3.6" text-anchor="middle" font-size="10" font-weight="800" fill="#6b4e00">${fa ? 'ت' : 'T'}</text>`),
-						done: () => walletRef.current?.land(order),
-					})
-				} else walletRef.current?.drop(order)
-				later(lastOfRound ? 9000 : 3800, next)
-			}
-			later(1600, next)
-		} else if (hasCards) {
-			// No payment yet: a spark, not a coin, so nothing pretends money arrived.
-			const spark = () => {
-				if (geo.coin) {
-					particles.push({
-						lane: geo.coin, t: 0, dur: 1.1, accel: true,
-						g: spawn(`<circle r="8" fill="#f5c84b" fill-opacity=".22"/><circle r="3.6" fill="url(#${gid}-coin)"/>`),
-						done: () => walletRef.current?.glint(),
-					})
-				} else walletRef.current?.drop(null)
-				later(5200, spark)
-			}
-			later(1400, spark)
-		}
-
 		let raf = 0, last = performance.now(), dead = false
 		const tick = (now: number) => {
 			if (dead) return
@@ -346,15 +413,46 @@ export function LiveStage({
 			particles.forEach((p) => p.g.remove())
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [geo, motion, onScreen, total, coins, hasCards])
+	}, [geo, band, motion, onScreen, total, modsKey, payments])
 
 	const Arrow = fa ? ArrowLeft : ArrowRight
 	const agentChip = automationRate === null
 		? <span className="ui-chip ui-chip-neutral whitespace-nowrap">{fa ? 'منتظر اولین پیام' : 'Waiting for the first message'}</span>
 		: <span className={cn('ui-chip whitespace-nowrap', low ? 'ui-chip-warn' : 'ui-chip-signal')}>{fa ? `${fmt(automationRate)}٪ خودکار` : `${fmt(automationRate)}% automated`}</span>
 
+	const modButton = (node: ModNode, slot: number) => {
+		const Icon = MOD[node.key].icon
+		return (
+			<button
+				key={node.key}
+				ref={(el) => { modRefs.current[node.key] = el }}
+				type="button"
+				aria-pressed={active === node.key}
+				onClick={() => setActive(node.key)}
+				className={cn('ls-mn', node.state === 'setup' && 'is-setup', band && band.nw < 130 && 'is-compact')}
+				style={{ ...modVars(node.key), ...(band ? { left: band.nodes[slot].x - band.nw / 2, top: band.top, width: band.nw } : null) }}
+			>
+				<span className="ls-mt"><Icon className="h-4 w-4" /></span>
+				<span className="ls-mn-tx"><small>{node.name}</small><b>{node.value}</b></span>
+				<span aria-hidden className={cn('ls-mn-st', `is-${node.state}`)} />
+			</button>
+		)
+	}
+	const panelWidth = geo?.W ?? 600
+	const panel = (() => {
+		switch (active) {
+			case 'pay': return <PayPanel ref={panelRef} locale={locale} gateway={gateway} payments={payments} setup={modules.paySetup} narrow={Boolean(geo?.narrow)} width={panelWidth} Arrow={Arrow} />
+			case 'store': return modules.store ? <StorePanel ref={panelRef} locale={locale} data={modules.store} Arrow={Arrow} /> : null
+			case 'menu': return modules.menu ? <MenuPanel ref={panelRef} locale={locale} data={modules.menu} narrow={Boolean(geo?.narrow)} Arrow={Arrow} /> : null
+			case 'bookings': return modules.bookings ? <BookingsPanel ref={panelRef} locale={locale} data={modules.bookings} narrow={Boolean(geo?.narrow)} Arrow={Arrow} /> : null
+			case 'courses': return modules.courses ? <CoursesPanel ref={panelRef} locale={locale} data={modules.courses} Arrow={Arrow} /> : null
+			default: return null
+		}
+	})()
+	const activeSlot = active ? mods.findIndex((node) => node.key === active) : -1
+
 	return (
-		<div dir={rtl ? 'rtl' : 'ltr'} className="ls">
+		<div dir={rtl ? 'rtl' : 'ltr'} className={cn('ls', geo?.narrow && 'ls-narrow')}>
 			<div className="flex items-center gap-2">
 				<h2 className="ui-h3">{fa ? 'جریان ۷ روز اخیر' : 'The last 7 days, flowing'}</h2>
 				{empty ? (
@@ -369,10 +467,10 @@ export function LiveStage({
 			</div>
 
 			{/* Before the first measure the stage keeps its height, so nothing jumps. */}
-			<div ref={rootRef} className={cn('relative mt-4', !geo && 'h-[392px] sm:h-[306px]')} style={geo ? { height: geo.H } : undefined}>
+			<div ref={rootRef} className={cn('relative mt-4', !geo && (mods.length ? 'h-[392px] sm:h-[388px]' : 'h-[392px] sm:h-[306px]'))} style={geo ? { height: stageH } : undefined}>
 				{geo ? (
 					<div className="ls-stage absolute inset-0">
-						<svg aria-hidden className="absolute inset-0 overflow-visible" width={geo.W} height={geo.H} viewBox={`0 0 ${geo.W} ${geo.H}`}>
+						<svg aria-hidden className="absolute inset-0 overflow-visible" width={geo.W} height={stageH} viewBox={`0 0 ${geo.W} ${stageH}`}>
 							<defs>
 								<radialGradient id={`${gid}-coin`} cx=".35" cy=".3" r=".75">
 									<stop offset="0" stopColor="#fff6d2" />
@@ -382,7 +480,7 @@ export function LiveStage({
 							</defs>
 							{geo.ins.map((node, i) => <path key={`i${i}`} d={lanePath(node.lane)} className="ls-lane" stroke={itemColor(items[i])} />)}
 							{geo.outs.map((node, j) => <path key={`o${j}`} d={lanePath(node.lane)} className="ls-lane" stroke={outputs[j].value ? TONE_COLOR[outputs[j].tone] : '#c9c5bf'} />)}
-							{geo.coin ? <path d={lanePath(geo.coin)} className="ls-lane ls-lane-gold" stroke="#c99a1b" /> : null}
+							{band ? mods.map((node, slot) => <path key={`m${node.key}`} d={lanePath(band.nodes[slot].lane)} className={cn('ls-lane ls-lane-mod', node.state === 'setup' && 'is-idle', active === node.key && 'is-on')} stroke={MOD[node.key].color} />) : null}
 							<g ref={fxRef} />
 						</svg>
 
@@ -467,22 +565,27 @@ export function LiveStage({
 								</Link>
 							</div>
 						) : null}
+
+						{band ? mods.map(modButton) : null}
 					</div>
 				) : null}
 			</div>
 
-			{gateway && geo ? (
-				<Wallet
-					ref={walletRef}
-					locale={locale}
-					data={gateway}
-					payments={payments}
-					layout={geo.narrow || geo.W < 600 ? 'stack' : 'three'}
-					single={geo.W < 420}
-					drop={geo.narrow}
-					cardWidth={geo.narrow ? Math.min(252, geo.W - 40) : geo.W < 600 ? 240 : clamp(Math.round(geo.W * 0.34), 236, 272)}
-					Arrow={Arrow}
-				/>
+			{geo && mods.length ? (
+				<>
+					{geo.narrow ? (
+						<>
+							<div ref={vlRef} aria-hidden className="ls-mvl" style={active ? modVars(active) : undefined} />
+							<div className="ls-mrow" role="group" aria-label={fa ? 'ماژول‌ها' : 'Modules'}>{mods.map(modButton)}</div>
+						</>
+					) : null}
+					{active && panel ? (
+						<div className="ls-dock" style={geo.narrow ? { paddingTop: 6 } : undefined}>
+							{band && activeSlot >= 0 ? <span aria-hidden className="ls-dock-cn" style={{ ...modVars(active), left: band.nodes[activeSlot].x }} /> : null}
+							<section key={active} className="ls-pn" style={modVars(active) as CSSProperties} aria-label={mods[activeSlot]?.name}>{panel}</section>
+						</div>
+					) : null}
+				</>
 			) : null}
 		</div>
 	)
@@ -504,226 +607,3 @@ function StageAgent({ size, idle, low, rate, coreRef }: { size: number; idle: bo
 		</div>
 	)
 }
-
-/* ── The cards: the payments replay onto them, the ticker follows ─────── */
-
-/** land/drop a payment by its index; drop(null) and glint() only light up the front card. */
-type WalletHandle = { land: (index: number) => void; drop: (index: number | null) => void; glint: () => void }
-type Payment = GatewayWeek['recent'][number]
-
-const Wallet = forwardRef<WalletHandle, {
-	locale: Locale
-	data: GatewayWeek
-	payments: Payment[]
-	layout: 'three' | 'stack'
-	/** Narrow phones put the card's numbers above the days instead of beside them. */
-	single: boolean
-	drop: boolean
-	cardWidth: number
-	Arrow: LucideIcon
-}>(function Wallet({ locale, data, payments, layout, single, drop, cardWidth, Arrow }, ref) {
-	const fa = locale === 'fa'
-	const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
-	const short = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US', { maximumFractionDigits: 1 })
-	const million = (value: number) => `${short.format(value / 1_000_000)} ${fa ? 'میلیون' : 'M'}`
-	const toman = fa ? 'تومان' : 'Toman'
-	const cards = data.cards
-	const cardIndex = (payment: Payment | undefined) => Math.max(0, cards.findIndex((card) => card.id === payment?.cardId))
-
-	const [front, setFront] = useState(() => cardIndex(payments[0]))
-	const [ticker, setTicker] = useState(() => payments.slice(0, 3))
-	const [pop, setPop] = useState<{ id: number; text: string } | null>(null)
-	const [catchId, setCatchId] = useState(0)
-	const [sheenId, setSheenId] = useState(0)
-	const [now, setNow] = useState<number | null>(null)
-	const vlRef = useRef<HTMLDivElement>(null)
-
-	// Times are relative to the viewer's clock, so they appear after hydration.
-	useEffect(() => {
-		setNow(Date.now())
-		const timer = setInterval(() => setNow(Date.now()), 60_000)
-		return () => clearInterval(timer)
-	}, [])
-
-	const land = (index: number) => {
-		const payment = payments[index]
-		if (!payment) return
-		setFront(cardIndex(payment))
-		setCatchId((id) => id + 1)
-		setPop({ id: Date.now(), text: `+${million(payment.amount)} ${toman}` })
-		setTicker((list) => [payment, ...list.filter((item) => item !== payment)].slice(0, 3))
-		setSheenId((id) => id + 1)
-	}
-	const glint = () => setSheenId((id) => id + 1)
-	useImperativeHandle(ref, () => ({
-		land,
-		glint,
-		drop: (index: number | null) => {
-			const vl = vlRef.current
-			const arrive = () => (index === null ? glint() : land(index))
-			if (!vl) return arrive()
-			const coin = document.createElement('i')
-			coin.className = index === null ? 'ls-coin ls-spark' : 'ls-coin'
-			coin.textContent = index === null ? '' : fa ? 'ت' : 'T'
-			vl.appendChild(coin)
-			const animation = coin.animate(
-				[
-					{ transform: 'translate(-50%,-26px) scale(.5)', opacity: 0 },
-					{ transform: 'translate(-50%,-10px) scale(1)', opacity: 1, offset: 0.3 },
-					{ transform: 'translate(-50%,46px) scale(.75)', opacity: 0.9 },
-				],
-				{ duration: 950, easing: 'cubic-bezier(.55,0,.75,.2)' },
-			)
-			animation.onfinish = () => { coin.remove(); arrive() }
-		},
-	}))
-
-	const relative = new Intl.RelativeTimeFormat(fa ? 'fa' : 'en', { numeric: 'auto' })
-	const ago = (iso: string) => {
-		if (now === null) return null
-		const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60_000))
-		if (minutes < 60) return minutes < 1 ? (fa ? 'همین حالا' : 'just now') : relative.format(-minutes, 'minute')
-		const hours = Math.round(minutes / 60)
-		return hours < 24 ? relative.format(-hours, 'hour') : relative.format(-Math.round(hours / 24), 'day')
-	}
-	const what = (payment: Payment) =>
-		payment.purpose === 'BOOKING' ? (fa ? 'نوبت' : 'Booking') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course sign-up') : `${fa ? 'سفارش' : 'Order'} ${payment.reference}`
-
-	const badge = data.review > 0 ? (
-		<Link href="/payments" className="ls-badge">{fa ? `${nf.format(data.review)} واریز منتظر تأیید` : `${nf.format(data.review)} to review`}</Link>
-	) : null
-	const line = drop ? <div ref={vlRef} aria-hidden className="ls-vl ls-vl-gold" /> : null
-
-	if (!cards.length) {
-		return (
-			<div className={cn('ls-wallet', !drop && 'pt-3')}>
-				{line}
-				<div className="relative mx-auto" style={{ width: cardWidth }}>
-					{badge}
-					<Link href="/payments" className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-1 rounded-[20px] border border-dashed border-[var(--signal-border)] bg-[var(--signal-soft)] px-6 text-center text-[13px] font-bold text-[var(--signal-strong)]">
-						<Plus className="h-5 w-5" />
-						{fa ? 'کارت فعالی نیست' : 'No active card'}
-						<span className="text-[11.5px] font-medium text-[var(--text-muted)]">{fa ? 'یک کارت روشن کنید تا پرداخت‌ها برسد' : 'Switch a card on to receive payments'}</span>
-					</Link>
-				</div>
-			</div>
-		)
-	}
-
-	const card = cards[front] ?? cards[0]
-	const bank = bankByKey(card.bankKey)
-	const share = card.dailyCap ? Math.min(100, (card.today / card.dailyCap) * 100) : 0
-	const near = share >= 85
-	const top = Math.max(1, ...data.daily)
-	const weekday = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { weekday: 'narrow', timeZone: 'Asia/Tehran' })
-	const dayLabel = (index: number) => (index === 6 ? (fa ? 'امروز' : 'Today') : now === null ? '' : weekday.format(new Date(now - (6 - index) * 86_400_000)))
-
-	const stack = (
-		<div className="relative mx-auto" style={{ width: cardWidth }}>
-			{badge}
-			<div className="relative" style={{ height: Math.round(cardWidth / 1.586) + 22 }}>
-				{cards.map((item, index) => {
-					const depth = (index - front + cards.length) % cards.length
-					const k = Math.min(depth, 2)
-					return (
-						<div
-							key={item.id}
-							aria-hidden={depth > 0}
-							className="ls-card"
-							style={{ transform: `translateY(${-11 * k}px) scale(${1 - 0.06 * k})`, zIndex: cards.length - depth, opacity: depth > 2 ? 0 : 1, filter: depth ? 'brightness(.86) saturate(.85)' : undefined }}
-						>
-							<div key={depth === 0 ? catchId : 'still'} className={cn('relative overflow-hidden rounded-[20px]', depth === 0 && catchId > 0 && 'ls-catch')}>
-								<BankCardFace bankKey={item.bankKey} pan={item.pan} holder={item.holder} lang={locale} />
-								{depth === 0 && sheenId > 0 ? <span key={sheenId} aria-hidden className="ls-sheen" /> : null}
-							</div>
-						</div>
-					)
-				})}
-			</div>
-			{pop ? <span key={pop.id} className="ls-pop">{pop.text}</span> : null}
-		</div>
-	)
-	const caption = (
-		<div className="flex min-w-0 flex-col gap-1.5 text-[12px] text-[var(--text-muted)]">
-			<div className="flex items-center justify-between gap-2">
-				<span className="truncate">{fa ? bank.fa : bank.en} · {fa ? '۷ روز' : '7 days'}</span>
-				<b className="shrink-0 tabular-nums text-[var(--text-primary)]">{card.week ? million(card.week) : fa ? 'بدون واریز' : 'Nothing yet'}</b>
-			</div>
-			{card.dailyCap ? (
-				<div className="h-[5px] overflow-hidden rounded-full bg-[rgba(17,17,17,0.07)]">
-					<i className={cn('block h-full rounded-full transition-[width] duration-500', near ? 'bg-gradient-to-l from-amber-500 to-red-600' : 'bg-gradient-to-l from-[#8b74ff] to-[var(--signal)]')} style={{ width: `${card.today ? Math.max(3, share) : 0}%` }} />
-				</div>
-			) : null}
-			<div className="flex items-center justify-between gap-2 whitespace-nowrap">
-				<span>{card.today ? `${fa ? 'امروز' : 'Today'} ${million(card.today)}` : fa ? 'امروز بدون واریز' : 'Nothing today'}</span>
-				{card.dailyCap ? <span>{fa ? 'سقف' : 'Cap'} {million(card.dailyCap)}</span> : null}
-			</div>
-			{near ? <span className="ui-chip ui-chip-warn self-start">{fa ? `${nf.format(Math.round(share))}٪ سقف امروز پر شده` : `${nf.format(Math.round(share))}% of today's cap used`}</span> : null}
-		</div>
-	)
-	const bars = (
-		<div className="grid h-[58px] grid-cols-7 items-end gap-[5px]" role="img" aria-label={fa ? 'دریافتی روزانه در ۷ روز اخیر' : 'Received per day, last 7 days'}>
-			{data.daily.map((value, index) => (
-				<span key={index} className="flex h-full flex-col items-center justify-end gap-1" title={value ? `${million(value)} ${toman}` : fa ? 'بدون پرداخت' : 'no payments'}>
-					<span
-						className={cn('ls-bar', !value && 'ls-bar-none', value && index === 6 && 'ls-bar-today')}
-						style={{ height: value ? Math.max(6, Math.round((value / top) * 38)) : 4, animationDelay: `${0.15 + index * 0.06}s` }}
-					/>
-					<span className="h-2.5 text-[9.5px] leading-none text-[var(--text-muted)]">{dayLabel(index)}</span>
-				</span>
-			))}
-		</div>
-	)
-	const list = (
-		<div className="min-w-0">
-			<p className="mb-1.5 text-[11.5px] font-semibold text-[var(--text-muted)]">{fa ? 'آخرین پرداخت‌ها · تومان' : 'Latest payments · Toman'}</p>
-			{ticker.length ? null : (
-				<p className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2.5 text-[11.5px] leading-[1.7] text-[var(--text-muted)]">
-					{fa ? 'هنوز پرداختی نرسیده. پرداخت هر مشتری همین‌جا، با نام کارتی که به آن رسیده، دیده می‌شود.' : 'No payment yet. Each one shows here, with the card it reached.'}
-				</p>
-			)}
-			<ul className="flex flex-col gap-1.5">
-				{ticker.map((payment, index) => (
-					<li key={`${payment.reference}-${payment.paidAt}`} className={cn('flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5', index === 0 && catchId > 0 && 'ls-tick')}>
-						<b className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--ok-ink)]">+{nf.format(payment.amount)}</b>
-						<span className="min-w-0 flex-1 truncate text-[11.5px] leading-[1.45] text-[var(--text-primary)]">
-							{what(payment)}
-							<small className="block truncate text-[10.5px] text-[var(--text-muted)]">
-								{fa ? bankByKey(cards[cardIndex(payment)]?.bankKey).fa : bankByKey(cards[cardIndex(payment)]?.bankKey).en}
-								{ago(payment.paidAt) ? ` · ${ago(payment.paidAt)}` : ''}
-							</small>
-						</span>
-					</li>
-				))}
-			</ul>
-		</div>
-	)
-	const pill = (
-		<Link
-			href="/payments"
-			className="spatial-press group inline-flex min-h-9 items-center gap-1.5 self-start rounded-full border border-[var(--signal-border)] bg-[var(--signal-soft)] pe-3 ps-3.5 text-[12.5px] font-bold text-[var(--signal-strong)] transition-colors hover:border-[var(--signal)] hover:bg-white"
-		>
-			{fa ? 'همهٔ پرداخت‌ها' : 'All payments'}
-			<Arrow className={cn('h-3.5 w-3.5 transition-transform', fa ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5')} />
-		</Link>
-	)
-
-	if (layout === 'three') {
-		return (
-			<div className="ls-wallet grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-5 pt-2.5">
-				{list}
-				{stack}
-				<div className="flex min-w-0 flex-col gap-3 pt-3">{caption}{bars}{pill}</div>
-			</div>
-		)
-	}
-	return (
-		<div className={cn('ls-wallet', !drop && 'pt-2.5')}>
-			{line}
-			{stack}
-			<div className={cn('mt-4 grid items-end gap-4', single ? 'grid-cols-1' : 'grid-cols-2')}>{caption}{bars}</div>
-			<div className="mt-4">{list}</div>
-			<div className="mt-3">{pill}</div>
-		</div>
-	)
-})

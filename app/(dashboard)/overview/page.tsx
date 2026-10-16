@@ -1,5 +1,5 @@
-import { GatewayOverviewTile } from '@/components/payments/gateway-overview-tile'
 import { loadGatewayWeek } from '@/lib/payments/card/dashboard'
+import { loadStageModules } from '@/lib/dashboard/stage-modules'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getLocale } from 'next-intl/server'
@@ -223,7 +223,10 @@ export default async function OverviewPage() {
   const pack = getVerticalPack(workspace.businessType)
   const capabilities = workspaceCapabilities(workspace)
   const modules = getDashboardNavigationModules(capabilities)
-  const readiness = await getCapabilityReadiness(workspaceId, capabilities)
+  const [readiness, stageModules] = await Promise.all([
+    getCapabilityReadiness(workspaceId, capabilities),
+    loadStageModules({ workspaceId, capabilities, businessType: workspace.businessType, gatewayLive: Boolean(gatewayWeek), now }),
+  ])
   const businessLabel = fa ? pack.titleFa : pack.titleEn
   const profile = isRecord(workspace.businessProfile) ? workspace.businessProfile : {}
   const profileName = typeof profile.businessName === 'string' ? profile.businessName.trim() : ''
@@ -374,6 +377,8 @@ export default async function OverviewPage() {
             outputs={flowOutputs}
             // Once the payment gateway is live, its cards take the flow on.
             gateway={gatewayWeek}
+            // Everything else the business turned on or connected sits under the agent.
+            modules={stageModules}
           />
         }
       />
@@ -420,7 +425,6 @@ export default async function OverviewPage() {
       </section>
 
       {/* Until the gateway is live: what it does and the way to set it up. */}
-      {gatewayWeek ? null : <GatewayOverviewTile workspaceId={user.workspaceId} locale={fa ? 'fa' : 'en'} />}
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <DashboardPanel
