@@ -14,8 +14,9 @@ import { cn } from '@/lib/utils'
  * arc on the start side, the agent in the middle, the outcomes on the end
  * side. Messages fly in as bubbles from each app (faster from the busier
  * ones), the agent sends each on to an outcome, and once the payment
- * gateway is live the week's latest payments replay as coins dropping onto
- * the card they reached, with a ticker beside the cards.
+ * gateway is live the latest payments replay as coins dropping onto the
+ * card they reached, with a ticker beside the cards. With no payment yet a
+ * gold spark still runs down to the cards, so the link always reads.
  *
  * The bubbles are a picture of the week's volume, not real messages; every
  * number on the stage is real. The geometry follows the stage's measured
@@ -217,11 +218,12 @@ export function LiveStage({
 		[empty, inputs, narrow, locale],
 	)
 	const payments = gateway?.recent.filter((payment) => gateway.cards.some((card) => card.id === payment.cardId)) ?? []
-	const coins = Boolean(gateway && gateway.cards.length && payments.length)
+	const hasCards = Boolean(gateway?.cards.length)
+	const coins = hasCards && payments.length > 0
 	const geo = useMemo(() => {
 		if (width === null) return null
-		return width < NARROW_BELOW ? narrowGeo(width, items.length, outputs.length, rtl) : wideGeo(width, items.length, outputs.length, rtl, coins)
-	}, [width, items.length, outputs.length, rtl, coins])
+		return width < NARROW_BELOW ? narrowGeo(width, items.length, outputs.length, rtl) : wideGeo(width, items.length, outputs.length, rtl, hasCards)
+	}, [width, items.length, outputs.length, rtl, hasCards])
 
 	const low = automationRate !== null && automationRate < 50
 	const itemName = (item: Item, short = false) =>
@@ -233,7 +235,7 @@ export function LiveStage({
 	/* The motion: bubbles from the apps, dots to the outcomes, coins to the cards. */
 	useEffect(() => {
 		const fx = fxRef.current
-		if (!geo || !fx || !motion || !onScreen || (!total && !coins)) return
+		if (!geo || !fx || !motion || !onScreen || (!total && !hasCards)) return
 		type Particle = { lane: Lane; t: number; dur: number; g: SVGGElement; accel?: boolean; done?: () => void }
 		const particles: Particle[] = []
 		const timers: number[] = []
@@ -300,6 +302,19 @@ export function LiveStage({
 				later(lastOfRound ? 9000 : 3800, next)
 			}
 			later(1600, next)
+		} else if (hasCards) {
+			// No payment yet: a spark, not a coin, so nothing pretends money arrived.
+			const spark = () => {
+				if (geo.coin) {
+					particles.push({
+						lane: geo.coin, t: 0, dur: 1.1, accel: true,
+						g: spawn(`<circle r="8" fill="#f5c84b" fill-opacity=".22"/><circle r="3.6" fill="url(#${gid}-coin)"/>`),
+						done: () => walletRef.current?.glint(),
+					})
+				} else walletRef.current?.drop(null)
+				later(5200, spark)
+			}
+			later(1400, spark)
 		}
 
 		let raf = 0, last = performance.now(), dead = false
@@ -331,7 +346,7 @@ export function LiveStage({
 			particles.forEach((p) => p.g.remove())
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [geo, motion, onScreen, total, coins])
+	}, [geo, motion, onScreen, total, coins, hasCards])
 
 	const Arrow = fa ? ArrowLeft : ArrowRight
 	const agentChip = automationRate === null
@@ -367,7 +382,7 @@ export function LiveStage({
 							</defs>
 							{geo.ins.map((node, i) => <path key={`i${i}`} d={lanePath(node.lane)} className="ls-lane" stroke={itemColor(items[i])} />)}
 							{geo.outs.map((node, j) => <path key={`o${j}`} d={lanePath(node.lane)} className="ls-lane" stroke={outputs[j].value ? TONE_COLOR[outputs[j].tone] : '#c9c5bf'} />)}
-							{geo.coin ? <path d={lanePath(geo.coin)} className="ls-lane" stroke="#c99a1b" /> : null}
+							{geo.coin ? <path d={lanePath(geo.coin)} className="ls-lane ls-lane-gold" stroke="#c99a1b" /> : null}
 							<g ref={fxRef} />
 						</svg>
 
@@ -465,7 +480,7 @@ export function LiveStage({
 					layout={geo.narrow || geo.W < 600 ? 'stack' : 'three'}
 					single={geo.W < 420}
 					drop={geo.narrow}
-					cardWidth={geo.narrow ? Math.min(232, geo.W - 40) : geo.W < 600 ? 220 : 208}
+					cardWidth={geo.narrow ? Math.min(252, geo.W - 40) : geo.W < 600 ? 240 : clamp(Math.round(geo.W * 0.34), 236, 272)}
 					Arrow={Arrow}
 				/>
 			) : null}
@@ -492,7 +507,8 @@ function StageAgent({ size, idle, low, rate, coreRef }: { size: number; idle: bo
 
 /* ── The cards: the payments replay onto them, the ticker follows ─────── */
 
-type WalletHandle = { land: (index: number) => void; drop: (index: number) => void }
+/** land/drop a payment by its index; drop(null) and glint() only light up the front card. */
+type WalletHandle = { land: (index: number) => void; drop: (index: number | null) => void; glint: () => void }
 type Payment = GatewayWeek['recent'][number]
 
 const Wallet = forwardRef<WalletHandle, {
@@ -518,6 +534,7 @@ const Wallet = forwardRef<WalletHandle, {
 	const [ticker, setTicker] = useState(() => payments.slice(0, 3))
 	const [pop, setPop] = useState<{ id: number; text: string } | null>(null)
 	const [catchId, setCatchId] = useState(0)
+	const [sheenId, setSheenId] = useState(0)
 	const [now, setNow] = useState<number | null>(null)
 	const vlRef = useRef<HTMLDivElement>(null)
 
@@ -535,15 +552,19 @@ const Wallet = forwardRef<WalletHandle, {
 		setCatchId((id) => id + 1)
 		setPop({ id: Date.now(), text: `+${million(payment.amount)} ${toman}` })
 		setTicker((list) => [payment, ...list.filter((item) => item !== payment)].slice(0, 3))
+		setSheenId((id) => id + 1)
 	}
+	const glint = () => setSheenId((id) => id + 1)
 	useImperativeHandle(ref, () => ({
 		land,
-		drop: (index: number) => {
+		glint,
+		drop: (index: number | null) => {
 			const vl = vlRef.current
-			if (!vl) return land(index)
+			const arrive = () => (index === null ? glint() : land(index))
+			if (!vl) return arrive()
 			const coin = document.createElement('i')
-			coin.className = 'ls-coin'
-			coin.textContent = fa ? 'ت' : 'T'
+			coin.className = index === null ? 'ls-coin ls-spark' : 'ls-coin'
+			coin.textContent = index === null ? '' : fa ? 'ت' : 'T'
 			vl.appendChild(coin)
 			const animation = coin.animate(
 				[
@@ -553,7 +574,7 @@ const Wallet = forwardRef<WalletHandle, {
 				],
 				{ duration: 950, easing: 'cubic-bezier(.55,0,.75,.2)' },
 			)
-			animation.onfinish = () => { coin.remove(); land(index) }
+			animation.onfinish = () => { coin.remove(); arrive() }
 		},
 	}))
 
@@ -571,7 +592,7 @@ const Wallet = forwardRef<WalletHandle, {
 	const badge = data.review > 0 ? (
 		<Link href="/payments" className="ls-badge">{fa ? `${nf.format(data.review)} واریز منتظر تأیید` : `${nf.format(data.review)} to review`}</Link>
 	) : null
-	const line = drop ? <div ref={vlRef} aria-hidden className="ls-vl" /> : null
+	const line = drop ? <div ref={vlRef} aria-hidden className="ls-vl ls-vl-gold" /> : null
 
 	if (!cards.length) {
 		return (
@@ -611,8 +632,9 @@ const Wallet = forwardRef<WalletHandle, {
 							className="ls-card"
 							style={{ transform: `translateY(${-11 * k}px) scale(${1 - 0.06 * k})`, zIndex: cards.length - depth, opacity: depth > 2 ? 0 : 1, filter: depth ? 'brightness(.86) saturate(.85)' : undefined }}
 						>
-							<div key={depth === 0 ? catchId : 'still'} className={cn('overflow-hidden rounded-[20px]', depth === 0 && catchId > 0 && 'ls-catch')}>
+							<div key={depth === 0 ? catchId : 'still'} className={cn('relative overflow-hidden rounded-[20px]', depth === 0 && catchId > 0 && 'ls-catch')}>
 								<BankCardFace bankKey={item.bankKey} pan={item.pan} holder={item.holder} lang={locale} />
+								{depth === 0 && sheenId > 0 ? <span key={sheenId} aria-hidden className="ls-sheen" /> : null}
 							</div>
 						</div>
 					)
@@ -655,6 +677,11 @@ const Wallet = forwardRef<WalletHandle, {
 	const list = (
 		<div className="min-w-0">
 			<p className="mb-1.5 text-[11.5px] font-semibold text-[var(--text-muted)]">{fa ? 'آخرین پرداخت‌ها · تومان' : 'Latest payments · Toman'}</p>
+			{ticker.length ? null : (
+				<p className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2.5 text-[11.5px] leading-[1.7] text-[var(--text-muted)]">
+					{fa ? 'هنوز پرداختی نرسیده. پرداخت هر مشتری همین‌جا، با نام کارتی که به آن رسیده، دیده می‌شود.' : 'No payment yet. Each one shows here, with the card it reached.'}
+				</p>
+			)}
 			<ul className="flex flex-col gap-1.5">
 				{ticker.map((payment, index) => (
 					<li key={`${payment.reference}-${payment.paidAt}`} className={cn('flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5', index === 0 && catchId > 0 && 'ls-tick')}>
@@ -684,7 +711,7 @@ const Wallet = forwardRef<WalletHandle, {
 	if (layout === 'three') {
 		return (
 			<div className="ls-wallet grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-5 pt-2.5">
-				{ticker.length ? list : <span />}
+				{list}
 				{stack}
 				<div className="flex min-w-0 flex-col gap-3 pt-3">{caption}{bars}{pill}</div>
 			</div>
@@ -695,7 +722,7 @@ const Wallet = forwardRef<WalletHandle, {
 			{line}
 			{stack}
 			<div className={cn('mt-4 grid items-end gap-4', single ? 'grid-cols-1' : 'grid-cols-2')}>{caption}{bars}</div>
-			{ticker.length ? <div className="mt-4">{list}</div> : null}
+			<div className="mt-4">{list}</div>
 			<div className="mt-3">{pill}</div>
 		</div>
 	)

@@ -194,7 +194,7 @@ export interface GatewayWeek {
   review: number
   /** Tomans paid per Tehran day, oldest first; the last one is today. */
   daily: number[]
-  /** The latest paid payments, newest first. */
+  /** The latest paid payments on the active cards, newest first, from any week. */
   recent: { amount: number; reference: string; purpose: string; cardId: string; paidAt: string }[]
   /** Active cards, in the owner's order. */
   cards: GatewayWeekCard[]
@@ -221,11 +221,19 @@ export async function loadGatewayWeek(workspaceId: string, now = new Date()): Pr
   const local = new Date(now.getTime() + TEHRAN_OFFSET_MS)
   const todayStart = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - TEHRAN_OFFSET_MS
   const weekStart = new Date(todayStart - 6 * DAY_MS)
-  const [cards, payments, review, unmatched] = await Promise.all([
-    prisma.payCard.findMany({ where: { workspaceId, active: true, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
+  const cards = await prisma.payCard.findMany({ where: { workspaceId, active: true, deletedAt: null }, orderBy: { sortOrder: 'asc' } })
+  const activeIds = cards.map((card) => card.id)
+  const [payments, latest, review, unmatched] = await Promise.all([
     prisma.cardPayment.findMany({
       where: { workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST },
       orderBy: { paidAt: 'desc' },
+      select: { baseAmount: true, reference: true, purpose: true, cardId: true, paidAt: true },
+    }),
+    // A quiet week still shows what last arrived, so the list beside the cards is never blank.
+    prisma.cardPayment.findMany({
+      where: { workspaceId, status: 'PAID', paidAt: { not: null }, cardId: { in: activeIds }, ...NOT_TEST },
+      orderBy: { paidAt: 'desc' },
+      take: 5,
       select: { baseAmount: true, reference: true, purpose: true, cardId: true, paidAt: true },
     }),
     prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED', ...NOT_TEST } }),
@@ -242,16 +250,12 @@ export async function loadGatewayWeek(workspaceId: string, now = new Date()): Pr
     week.set(payment.cardId, (week.get(payment.cardId) ?? 0) + payment.baseAmount)
     if (at >= todayStart) today.set(payment.cardId, (today.get(payment.cardId) ?? 0) + payment.baseAmount)
   }
-  const activeIds = new Set(cards.map((card) => card.id))
   return {
     paid: payments.length,
     amount: daily.reduce((sum, value) => sum + value, 0),
     review: review + unmatched,
     daily,
-    recent: payments
-      .filter((payment) => activeIds.has(payment.cardId) && payment.paidAt)
-      .slice(0, 5)
-      .map((payment) => ({ amount: payment.baseAmount, reference: payment.reference, purpose: payment.purpose, cardId: payment.cardId, paidAt: payment.paidAt!.toISOString() })),
+    recent: latest.map((payment) => ({ amount: payment.baseAmount, reference: payment.reference, purpose: payment.purpose, cardId: payment.cardId, paidAt: payment.paidAt!.toISOString() })),
     cards: cards.map((card) => ({
       id: card.id,
       bankKey: card.bankKey,

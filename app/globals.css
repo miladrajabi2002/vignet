@@ -2020,6 +2020,9 @@ html[dir='rtl'] .undo-indeterminate {
 	.ls-stage { animation: ls-in 0.5s var(--vg-ease-out) both; }
 	@keyframes ls-in { from { opacity: 0; transform: translateY(6px); } }
 	.ls-lane { fill: none; stroke-width: 1.3; stroke-dasharray: 2 6; stroke-opacity: 0.45; }
+	/* The agent's link to the cards: drawn once a card is on, and always moving. */
+	.ls-lane-gold { stroke-width: 1.6; stroke-dasharray: 3 7; stroke-opacity: 0.7; animation: ls-dash 1s linear infinite; }
+	@keyframes ls-dash { to { stroke-dashoffset: -10; } }
 	.ls-ring { background: #fff; box-shadow: 0 0 0 4px #fff, 0 6px 14px -8px rgba(17, 17, 17, 0.4); }
 	.ls-ghost { border: 1.5px dashed #c9c5bf; color: #a8a29d; }
 	.ls-ch { position: absolute; z-index: 1; display: flex; align-items: center; gap: 7px; transform: translateY(-50%); border-radius: 9999px; }
@@ -2109,6 +2112,7 @@ html[dir='rtl'] .undo-indeterminate {
 		background-size: 2px 11px;
 		animation: lf-vdash 1.1s linear infinite;
 	}
+	.ls-vl-gold { background-image: repeating-linear-gradient(180deg, rgba(201, 154, 27, 0.6) 0 5px, transparent 5px 11px); }
 	.ls-coin {
 		position: absolute;
 		top: 0;
@@ -2129,6 +2133,17 @@ html[dir='rtl'] .undo-indeterminate {
 	.ls-card { position: absolute; inset-inline: 0; bottom: 0; transform-origin: 50% 0; transition: transform 0.6s var(--vg-ease-out), filter 0.45s, opacity 0.45s; }
 	.ls-catch { animation: ls-catch 0.46s var(--vg-ease-out); }
 	@keyframes ls-catch { 40% { transform: translateY(5px) scale(0.985); } }
+	.ls-coin.ls-spark { width: 10px; height: 10px; box-shadow: 0 0 0 5px rgba(245, 200, 75, 0.22); }
+	/* A light sweep across the front card when a payment (or a spark) reaches it. */
+	.ls-sheen {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.38) 48%, transparent 66%);
+		transform: translateX(-110%);
+		animation: ls-sheen 0.9s var(--vg-ease-out) forwards;
+	}
+	@keyframes ls-sheen { to { transform: translateX(110%); } }
 	.ls-pop {
 		position: absolute;
 		top: 42%;
@@ -2179,7 +2194,8 @@ html[dir='rtl'] .undo-indeterminate {
 	.ls-bar-none { background: transparent; border: 1px dashed rgba(91, 61, 232, 0.35); }
 	@keyframes ls-grow { from { transform: scaleY(0); } }
 	@media (prefers-reduced-motion: reduce) {
-		.ls-stage, .ls-orbit, .ls-gauge, .ls-pulse, .ls-vl, .ls-bar, .ls-catch, .ls-tick { animation: none; }
+		.ls-stage, .ls-orbit, .ls-gauge, .ls-pulse, .ls-vl, .ls-bar, .ls-catch, .ls-tick, .ls-lane-gold { animation: none; }
+		.ls-sheen { display: none; }
 		.ls-pulse { display: none; }
 		.ls-card { transition: none; }
 	}
