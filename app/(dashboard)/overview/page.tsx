@@ -1,6 +1,5 @@
 import { GatewayOverviewTile } from '@/components/payments/gateway-overview-tile'
 import { loadGatewayWeek } from '@/lib/payments/card/dashboard'
-import { GatewayDock } from '@/components/dashboard/gateway-dock'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getLocale } from 'next-intl/server'
@@ -10,13 +9,11 @@ import {
   ArrowRight,
   Bot,
   CalendarCheck2,
-  CheckCircle2,
   FlaskConical,
   MessagesSquare,
   Minus,
   TrendingDown,
   TrendingUp,
-  UserPlus,
   Package,
   Sparkles,
 } from 'lucide-react'
@@ -28,7 +25,8 @@ import {
   DashboardCompletionChecklist,
   type DashboardChecklistFacts,
 } from '@/components/dashboard/completion-checklist'
-import { LiveFlow, OperatorBotCard, OpsCenter, VigentoCard, type FlowInput, type FlowOutput } from '@/components/dashboard/overview-ops'
+import { OperatorBotCard, OpsCenter, VigentoCard } from '@/components/dashboard/overview-ops'
+import { LiveStage, type FlowInput, type FlowOutput } from '@/components/dashboard/live-stage'
 import type { ChannelKey } from '@/components/ui/channel-mark'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
@@ -311,14 +309,14 @@ export default async function OverviewPage() {
     .sort((a, b) => b.count - a.count)
   const isCommerce = workspace.businessType === 'COMMERCE' || workspace.businessType === 'FOOD'
   const flowOutputs: FlowOutput[] = [
-    { key: 'resolved', label: fa ? 'حل خودکار' : 'Auto-resolved', value: resolved7d, href: '/conversations?status=RESOLVED', icon: CheckCircle2, tone: 'ok' },
-    { key: 'handoff', label: fa ? 'سپرده به اپراتور' : 'Handed to a person', value: handedOff7d, href: '/conversations?status=HANDED_OFF', icon: AlertCircle, tone: 'warn' },
-    { key: 'contacts', label: fa ? 'مشتری تازه در CRM' : 'New CRM customers', value: contacts7d, href: '/contacts', icon: UserPlus, tone: 'signal' },
+    { key: 'resolved', label: fa ? 'حل خودکار' : 'Auto-resolved', value: resolved7d, href: '/conversations?status=RESOLVED', tone: 'ok' },
+    { key: 'handoff', label: fa ? 'سپرده به اپراتور' : 'Handed to a person', value: handedOff7d, href: '/conversations?status=HANDED_OFF', tone: 'warn' },
+    { key: 'contacts', label: fa ? 'مشتری تازه در CRM' : 'New CRM customers', value: contacts7d, href: '/contacts', tone: 'signal' },
     hasBookingModule
-      ? { key: 'bookings', label: fa ? 'نوبت پیش رو' : 'Upcoming bookings', value: upcomingAppointments, href: '/appointments', icon: CalendarCheck2, tone: 'ink' }
+      ? { key: 'bookings', label: fa ? 'نوبت پیش رو' : 'Upcoming bookings', value: upcomingAppointments, href: '/appointments', tone: 'ink' }
       : isCommerce
-        ? { key: 'orders', label: fa ? 'سفارش فروشگاه' : 'Store orders', value: orders7d, href: `${catalogHref}/orders`, icon: Package, tone: 'ink' }
-        : { key: 'open', label: fa ? 'گفتگوی باز' : 'Open chats', value: openConversations, href: '/conversations?status=OPEN', icon: MessagesSquare, tone: 'ink' },
+        ? { key: 'orders', label: fa ? 'سفارش فروشگاه' : 'Store orders', value: orders7d, href: `${catalogHref}/orders`, tone: 'ink' }
+        : { key: 'open', label: fa ? 'گفتگوی باز' : 'Open chats', value: openConversations, href: '/conversations?status=OPEN', tone: 'ink' },
   ]
   const vigentoAnswer = fa
     ? `امروز ${nf.format(conversationsToday)} گفتگوی تازه داشتید؛ ${handedOff > 0 ? `${nf.format(handedOff)} گفتگو منتظر شماست` : 'هیچ گفتگویی منتظر شما نیست'}${pendingImprovements > 0 ? ` و ${nf.format(pendingImprovements)} پیشنهاد بهبود آمادهٔ تأیید است` : ''}.`
@@ -368,14 +366,14 @@ export default async function OverviewPage() {
             ? { href: `/agents/${primaryAgent.id}`, label: fa ? 'تست ایجنت' : 'Test the agent', icon: FlaskConical }
             : { href: '/agents/new', label: fa ? 'ساخت اولین ایجنت' : 'Create your first agent', icon: Sparkles }}
         flow={
-          <LiveFlow
+          <LiveStage
             locale={lang}
             agentName={primaryAgent?.name?.trim() || (fa ? 'ایجنت' : 'Agent')}
             automationRate={conversations7d > 0 ? Math.round((resolved7d / conversations7d) * 100) : null}
             inputs={flowInputs}
             outputs={flowOutputs}
             // Once the payment gateway is live, its cards take the flow on.
-            gateway={gatewayWeek ? <GatewayDock locale={lang} data={gatewayWeek} /> : null}
+            gateway={gatewayWeek}
           />
         }
       />

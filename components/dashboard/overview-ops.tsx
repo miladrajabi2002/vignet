@@ -1,8 +1,7 @@
 import Link from 'next/link'
-import type { CSSProperties, ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, BarChart3, Bot, Inbox, MessageSquareReply, Plug, Power, ShoppingBag, Sparkles, Wallet, type LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { ArrowLeft, ArrowRight, BarChart3, Inbox, MessageSquareReply, Power, ShoppingBag, Sparkles, Wallet, type LucideIcon } from 'lucide-react'
 import { TelegramIcon } from '@/components/marketing/social-links'
-import { ChannelMark, type ChannelKey } from '@/components/ui/channel-mark'
 import { cn } from '@/lib/utils'
 import { DemoPointer } from '@/components/motion/pointer'
 
@@ -10,26 +9,13 @@ import { DemoPointer } from '@/components/motion/pointer'
  * Overview "operations center" (redesign, 1405).
  *
  * Everything here is server-rendered from the workspace's real numbers; the
- * only motion is CSS (app/ui-system.css `.lf*` flow lines and the site's
- * `.vg-*` sequence), paused off-screen by MotionPauser and frozen for
- * reduced motion. No client JavaScript.
+ * only motion is CSS (the site's `.vg-*` sequence), paused off-screen by
+ * MotionPauser and frozen for reduced motion. The 7-day flow placed in it
+ * is the client-side live stage (components/dashboard/live-stage.tsx).
  */
 
 type Locale = 'fa' | 'en'
 
-const CHANNEL_NAMES: Record<ChannelKey, { fa: string; en: string }> = {
-	INSTAGRAM: { fa: 'اینستاگرام', en: 'Instagram' },
-	TELEGRAM: { fa: 'تلگرام', en: 'Telegram' },
-	BALE: { fa: 'بله', en: 'Bale' },
-	RUBIKA: { fa: 'روبیکا', en: 'Rubika' },
-	WEB_WIDGET: { fa: 'ویجت سایت', en: 'Website' },
-	CHAT_LINK: { fa: 'چت لینک', en: 'Chat link' },
-	WHATSAPP: { fa: 'واتساپ', en: 'WhatsApp' },
-	API: { fa: 'API', en: 'API' },
-}
-
-export type FlowInput = { channel: ChannelKey; count: number; connected: boolean }
-export type FlowOutput = { key: string; label: string; value: number; href: string; icon: LucideIcon; tone: 'ok' | 'warn' | 'signal' | 'ink' }
 export type AttentionTile = { key: string; label: string; hint: string; value: number; href: string; icon: LucideIcon; urgent: boolean }
 
 function fmt(locale: Locale, value: number) {
@@ -132,179 +118,6 @@ export function OpsCenter({
 				<div className="border-t border-[var(--border-subtle)] p-4 sm:p-6 xl:border-s xl:border-t-0">{flow}</div>
 			</div>
 		</section>
-	)
-}
-
-/* ── Live flow: real 7-day traffic from each app → agent → outcomes ───── */
-
-export function LiveFlow({
-	locale,
-	agentName,
-	inputs,
-	outputs,
-	automationRate,
-	gateway,
-}: {
-	locale: Locale
-	agentName: string
-	inputs: FlowInput[]
-	outputs: FlowOutput[]
-	automationRate: number | null
-	/** The live payment gateway's cards, flowing on under the agent. */
-	gateway?: ReactNode
-}) {
-	const fa = locale === 'fa'
-	const connected = inputs.filter((input) => input.connected)
-	const total = inputs.reduce((sum, input) => sum + input.count, 0)
-	const shown = (connected.length ? connected : inputs).slice(0, 5)
-	const outputTone: Record<FlowOutput['tone'], string> = {
-		ok: 'bg-[var(--ok-soft)] text-[var(--ok-ink)]',
-		warn: 'bg-[var(--warn-soft)] text-[var(--warn-ink)]',
-		signal: 'bg-[var(--signal-soft)] text-[var(--signal-strong)]',
-		ink: 'bg-[var(--text-primary)] text-white',
-	}
-
-	return (
-		<div dir={fa ? 'rtl' : 'ltr'} className="lf vg-anim">
-			<div className="flex items-center gap-2">
-				<h2 className="ui-h3">{fa ? 'جریان ۷ روز اخیر' : 'The last 7 days, flowing'}</h2>
-				<span className="ui-chip ui-chip-ok">
-					<span className="relative inline-flex"><span className="absolute inset-0 animate-ping rounded-full bg-current opacity-40 motion-reduce:animate-none" /><span className="ui-chip-dot relative" /></span>
-					{fa ? 'داده زنده' : 'Live data'}
-				</span>
-				<span className="ms-auto text-[12px] tabular-nums text-[var(--text-muted)]">
-					{fa ? `${fmt(locale, total)} گفتگو` : `${fmt(locale, total)} chats`}
-				</span>
-			</div>
-
-			{/* Desktop / tablet: apps → agent → outcomes, left to right in reading order. */}
-			<div className="mt-5 hidden grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center sm:grid">
-				<ul className="flex flex-col gap-2">
-					{shown.length ? shown.map((input, index) => {
-						const name = CHANNEL_NAMES[input.channel][locale]
-						return (
-							<li key={input.channel}>
-								<Link href={`/conversations?channel=${input.channel}`} className="group flex items-center gap-2 rounded-xl py-1 pe-0 ps-1 hover:bg-[var(--bg-surface)]">
-									<ChannelMark channel={input.channel} size="sm" />
-									<span className="min-w-0 truncate text-[13px] font-semibold text-[var(--text-primary)]">{name}</span>
-									<span className="shrink-0 text-[12px] tabular-nums text-[var(--text-muted)]">{fmt(locale, input.count)}</span>
-									<span className={cn('lf-line ms-1 min-w-6 flex-1', input.count === 0 && 'lf-line-idle')}>
-										{input.count > 0 ? <span className="lf-run" style={{ animationDelay: `${index * 0.45}s` } as CSSProperties}><i /></span> : null}
-									</span>
-								</Link>
-							</li>
-						)
-					}) : (
-						<li>
-							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
-								<Plug className="h-4 w-4" />
-								{fa ? 'افزودن اولین اتصال' : 'Connect your first app'}
-							</Link>
-						</li>
-					)}
-				</ul>
-
-				{gateway ? (
-					// The node stays centred; a line below it runs on into the gateway's cards.
-					<div className="flex flex-col items-center self-stretch">
-						<span className="flex-1" />
-						<AgentNode locale={locale} agentName={agentName} automationRate={automationRate} />
-						<span aria-hidden className="lf-vline min-h-0 flex-1"><span className="lf-vrun" style={{ animationDelay: '1.6s' }}><i /></span></span>
-					</div>
-				) : (
-					<AgentNode locale={locale} agentName={agentName} automationRate={automationRate} />
-				)}
-
-				<ul className="flex flex-col gap-2">
-					{outputs.map((output, index) => {
-						const Icon = output.icon
-						return (
-							<li key={output.key}>
-								<Link href={output.href} className="group flex items-center gap-2 rounded-xl py-1 pe-1 ps-0 hover:bg-[var(--bg-surface)]">
-									<span className={cn('lf-line lf-line-ok me-1 min-w-6 flex-1', output.value === 0 && 'lf-line-idle')}>
-										{output.value > 0 ? <span className="lf-run lf-run-ok" style={{ animationDelay: `${1.2 + index * 0.5}s` } as CSSProperties}><i /></span> : null}
-									</span>
-									<span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', outputTone[output.tone])}><Icon className="h-3.5 w-3.5" /></span>
-									<span className="shrink-0">
-										<b className={cn('block text-[15px] font-bold leading-5 tabular-nums', output.value === 0 ? 'text-[var(--text-hint)]' : 'text-[var(--text-primary)]')}>{fmt(locale, output.value)}</b>
-										<span className="block whitespace-nowrap text-[12px] text-[var(--text-muted)]">{output.label}</span>
-									</span>
-								</Link>
-							</li>
-						)
-					})}
-				</ul>
-			</div>
-
-			{/* Phones: the same story top to bottom. */}
-			<div className="mt-4 sm:hidden">
-				<ul className="flex flex-wrap justify-center gap-1.5">
-					{shown.length ? shown.map((input) => (
-						<li key={input.channel}>
-							<Link href={`/conversations?channel=${input.channel}`} className="flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white py-1 pe-2.5 ps-1">
-								<ChannelMark channel={input.channel} size="sm" className="rounded-full" />
-								<span className="text-[12px] font-semibold">{CHANNEL_NAMES[input.channel][locale]}</span>
-								<span className="text-[12px] tabular-nums text-[var(--text-muted)]">{fmt(locale, input.count)}</span>
-							</Link>
-						</li>
-					)) : (
-						<li>
-							<Link href="/integrations" className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-[var(--border-hover)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
-								<Plug className="h-4 w-4" />
-								{fa ? 'افزودن اولین اتصال' : 'Connect your first app'}
-							</Link>
-						</li>
-					)}
-				</ul>
-				<div className="mx-auto mt-2 flex h-7 justify-center"><span className={cn('lf-vline', total === 0 && 'lf-line-idle')}>{total > 0 ? <span className="lf-vrun"><i /></span> : null}</span></div>
-				<div className="flex justify-center"><AgentNode locale={locale} agentName={agentName} automationRate={automationRate} compact /></div>
-				<div className="mx-auto mb-2 flex h-7 justify-center"><span className="lf-vline lf-vline-ok"><span className="lf-vrun lf-vrun-ok" style={{ animationDelay: '1.1s' }}><i /></span></span></div>
-				<ul className="grid grid-cols-2 gap-2">
-					{outputs.map((output, index) => {
-						const Icon = output.icon
-						// An odd one out takes the whole row.
-						const wide = outputs.length % 2 === 1 && index === outputs.length - 1
-						return (
-							<li key={output.key} className={cn(wide && 'col-span-2')}>
-								<Link href={output.href} className={'flex min-h-14 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white p-2'}>
-									<span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', outputTone[output.tone])}><Icon className="h-4 w-4" /></span>
-									<span className="min-w-0">
-										<b className="block text-[15px] font-bold leading-5 tabular-nums">{fmt(locale, output.value)}</b>
-										<span className="block truncate text-[12px] text-[var(--text-muted)]">{output.label}</span>
-									</span>
-								</Link>
-							</li>
-						)
-					})}
-				</ul>
-			</div>
-
-			{gateway ? <div className="mt-4 sm:mt-0">{gateway}</div> : null}
-		</div>
-	)
-}
-
-function AgentNode({ locale, agentName, automationRate, compact = false }: { locale: Locale; agentName: string; automationRate: number | null; compact?: boolean }) {
-	const fa = locale === 'fa'
-	return (
-		<div className={cn('relative flex flex-col items-center', compact ? 'px-0' : 'px-1')}>
-			<div className={cn('relative grid place-items-center', compact ? 'h-[5.5rem] w-[5.5rem]' : 'h-28 w-28')}>
-				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(91,61,232,0.4)]" />
-				<span aria-hidden className="vg-ring absolute inset-2 rounded-full border-[1.5px] border-[rgba(91,61,232,0.4)] [animation-delay:1.4s]" />
-				<span className={cn('relative grid place-items-center rounded-full border border-[var(--border-default)] bg-white shadow-[0_20px_40px_-20px_rgba(91,61,232,0.6)]', compact ? 'h-[4.5rem] w-[4.5rem]' : 'h-24 w-24')}>
-					<span className={cn('flex flex-col items-center justify-center gap-0.5 rounded-full bg-[var(--text-primary)] text-white', compact ? 'h-14 w-14' : 'h-[4.5rem] w-[4.5rem]')}>
-						<Bot className={cn('text-[#b9adff]', compact ? 'h-6 w-6' : 'h-7 w-7')} strokeWidth={1.8} />
-					</span>
-				</span>
-			</div>
-			{/* The name sits under the node in full — inside the circle it was cut to "…". */}
-			<span className="line-clamp-2 max-w-[8.5rem] text-balance text-center text-[12px] font-bold leading-5 text-[var(--text-primary)]">{agentName}</span>
-			{automationRate !== null ? (
-				<span className="ui-chip ui-chip-signal mt-1 whitespace-nowrap">
-					{fa ? `${fmt(locale, automationRate)}٪ خودکار` : `${fmt(locale, automationRate)}% automated`}
-				</span>
-			) : null}
-		</div>
 	)
 }
 
