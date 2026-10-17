@@ -7,7 +7,7 @@ vi.mock('next-intl', async (original) => ({ ...await original<typeof import('nex
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => '/admin/agent-core' }))
 import { prisma } from '@/lib/prisma'
 import { getAgentCoreReport } from '@/lib/admin/agent-core'
-import AgentCorePage from '@/app/admin/(dash)/agent-core/page'
+import AgentCorePage from '@/app/(app)/admin/(dash)/agent-core/page'
 
 // Explicit opt-in: needs a disposable PostgreSQL with every migration applied.
 // The report is platform-wide, so the fixture workspace is report-visible and

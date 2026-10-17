@@ -104,6 +104,45 @@ function emitConsole(
   method(payload)
 }
 
+// An error loop (a dead provider, a crashing sweep) used to write hundreds of
+// thousands of identical rows; deleting them later left ~190 MB of dead table
+// space. Identical warn/error rows beyond a burst are kept to the console only,
+// and the next stored row says how many were skipped. Info events are business
+// records (SMS attempts, sign-ins) and are always stored.
+const STORM_WINDOW_MS = 5 * 60_000
+const STORM_MAX_ROWS = 20
+const STORM_MAX_KEYS = 1_000
+const stormCounters = new Map<string, { windowStart: number; stored: number; skipped: number }>()
+
+/** Returns null when the row should be skipped, else how many repeats were skipped before it. */
+function admitToStore(level: LogLevel, source: string, message: string, workspaceId: string | undefined, now: number): number | null {
+  if (level !== 'error' && level !== 'warn') return 0
+  const key = `${level}\u0000${source}\u0000${workspaceId ?? ''}\u0000${message.slice(0, 300)}`
+  const counter = stormCounters.get(key)
+  if (!counter || now - counter.windowStart >= STORM_WINDOW_MS) {
+    if (!counter && stormCounters.size >= STORM_MAX_KEYS) {
+      for (const [staleKey, stale] of stormCounters) {
+        if (now - stale.windowStart >= STORM_WINDOW_MS) stormCounters.delete(staleKey)
+      }
+      if (stormCounters.size >= STORM_MAX_KEYS) stormCounters.clear()
+    }
+    const skipped = counter?.skipped ?? 0
+    stormCounters.set(key, { windowStart: now, stored: 1, skipped: 0 })
+    return skipped
+  }
+  if (counter.stored >= STORM_MAX_ROWS) {
+    counter.skipped += 1
+    return null
+  }
+  counter.stored += 1
+  return 0
+}
+
+/** Test hook: forget the burst counters. */
+export function resetLogStormGuard(): void {
+  stormCounters.clear()
+}
+
 /**
  * Write one structured, searchable application event to the process log and
  * (except debug by default) the admin-visible ErrorLog table. Logger failures
@@ -128,6 +167,10 @@ export async function persistLog(
   emitConsole(level, source, details.message, metadata)
   if (opts?.persist === false || (level === 'debug' && opts?.persist !== true)) return
 
+  const skippedRepeats = admitToStore(level, source, details.message, opts?.workspaceId, Date.now())
+  if (skippedRepeats === null) return
+  const storedMetadata = skippedRepeats > 0 ? { ...(metadata ?? {}), skippedRepeats } : metadata
+
   try {
     await prisma.errorLog.create({
       data: {
@@ -136,7 +179,7 @@ export async function persistLog(
         message: details.message,
         stack: details.stack,
         workspaceId: opts?.workspaceId ?? null,
-        metadata: metadata as Prisma.InputJsonValue | undefined,
+        metadata: storedMetadata as Prisma.InputJsonValue | undefined,
       },
     })
   } catch (loggerError) {

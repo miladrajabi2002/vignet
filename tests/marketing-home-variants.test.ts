@@ -16,7 +16,7 @@ describe('marketing homepage composition', () => {
 	})
 
 	it('renders the homepage sections in story order', () => {
-		const homepage = read('app/(marketing)/page.tsx')
+		const homepage = read('app/(marketing)/vg-site/[variant]/(chrome)/page.tsx')
 		const sections = [
 			'<Hero locale={locale} />',
 			'<QuickFacts locale={locale} />',

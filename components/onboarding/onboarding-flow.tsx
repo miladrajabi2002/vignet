@@ -43,6 +43,7 @@ import {
   type CapabilityKey,
 } from '@/lib/verticals/registry'
 import type { BusinessProfile } from '@/lib/verticals/profile'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 // ─── Icons per business type ────────────────────────────────────
 const ICONS: Record<BusinessTypeValue, LucideIcon> = {
@@ -889,7 +890,7 @@ function KnowledgeStep({
     setError('')
     try {
       for (const row of filled) {
-        const digits = row.price.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[^\d]/g, '')
+        const digits = row.price.replace(PERSIAN_DIGIT_RE, persianDigitToLatin).replace(/[^\d]/g, '')
         const res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

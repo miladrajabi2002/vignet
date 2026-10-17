@@ -39,7 +39,7 @@ describe('owner-only Prisma Studio', () => {
   it('keeps Studio loopback-only and gates nginx with the admin session', () => {
     const ecosystem = readFileSync(path.join(process.cwd(), 'deploy/ecosystem.config.js'), 'utf8')
     const setup = readFileSync(path.join(process.cwd(), 'deploy/setup-db-studio.sh'), 'utf8')
-    const nav = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/admin-nav.tsx'), 'utf8')
+    const nav = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/admin-nav.tsx'), 'utf8')
 
     expect(ecosystem).toContain('"127.0.0.1"')
     expect(ecosystem).toContain('name: "vignet-studio"')

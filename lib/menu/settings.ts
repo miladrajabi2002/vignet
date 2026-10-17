@@ -4,6 +4,7 @@
  * Everything here is safe on both server and client (no DB, no Node APIs).
  */
 import { z } from 'zod'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 export const MENU_THEMES = ['minimal', 'night', 'garden', 'cafe'] as const
 export const MENU_LAYOUTS = ['list', 'grid', 'classic'] as const
@@ -176,6 +177,6 @@ export function withoutBadge(tags: string[], badge: MenuBadge): string[] {
 export function readTable(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value
   if (!raw) return null
-  const clean = raw.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).trim()
+  const clean = raw.replace(PERSIAN_DIGIT_RE, persianDigitToLatin).trim()
   return /^[A-Za-z0-9-]{1,8}$/.test(clean) ? clean : null
 }

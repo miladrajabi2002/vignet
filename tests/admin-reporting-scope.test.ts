@@ -35,7 +35,7 @@ describe('admin reporting scope', () => {
   })
 
   it('scopes knowledge counts through the owning agent relation', async () => {
-    const agentsPage = await readFile(path.join(process.cwd(), 'app/admin/(dash)/agents/page.tsx'), 'utf8')
+    const agentsPage = await readFile(path.join(process.cwd(), 'app/(app)/admin/(dash)/agents/page.tsx'), 'utf8')
 
     expect(agentsPage).toMatch(
       /prisma\.knowledgeBase\.count\(\{\s*where: \{\s*\.\.\.ADMIN_VISIBLE_KNOWLEDGE_WHERE/,
@@ -44,12 +44,12 @@ describe('admin reporting scope', () => {
 
   it('keeps every customer-facing admin data surface on the shared scope', async () => {
     const files = [
-      'app/admin/(dash)/page.tsx',
-      'app/admin/(dash)/users/page.tsx',
-      'app/admin/(dash)/agents/page.tsx',
-      'app/admin/(dash)/conversations/page.tsx',
-      'app/admin/(dash)/payments/page.tsx',
-      'app/admin/(dash)/usage/page.tsx',
+      'app/(app)/admin/(dash)/page.tsx',
+      'app/(app)/admin/(dash)/users/page.tsx',
+      'app/(app)/admin/(dash)/agents/page.tsx',
+      'app/(app)/admin/(dash)/conversations/page.tsx',
+      'app/(app)/admin/(dash)/payments/page.tsx',
+      'app/(app)/admin/(dash)/usage/page.tsx',
       'app/api/admin/vigento/route.ts',
       'app/api/admin/notifications/route.ts',
       'lib/admin/revenue.ts',
@@ -65,7 +65,7 @@ describe('admin reporting scope', () => {
   })
 
   it('uses scoped usage logs instead of provider-wide daily and monthly totals', async () => {
-    const page = await readFile(path.join(process.cwd(), 'app/admin/(dash)/ai/page.tsx'), 'utf8')
+    const page = await readFile(path.join(process.cwd(), 'app/(app)/admin/(dash)/ai/page.tsx'), 'utf8')
     const health = await readFile(path.join(process.cwd(), 'app/api/admin/health/route.ts'), 'utf8')
 
     expect(page).toContain('getCurrentDayAiSpendUSD()')
@@ -81,7 +81,7 @@ describe('admin reporting scope', () => {
     const migration = await readFile(path.join(process.cwd(), 'prisma/migrations/20260722034500_single_owner_workspace_reporting/migration.sql'), 'utf8')
     const auth = await readFile(path.join(process.cwd(), 'auth.ts'), 'utf8')
     const explorer = await readFile(path.join(process.cwd(), 'lib/admin/database-explorer.ts'), 'utf8')
-    const userDetail = await readFile(path.join(process.cwd(), 'app/admin/(dash)/users/[userId]/page.tsx'), 'utf8')
+    const userDetail = await readFile(path.join(process.cwd(), 'app/(app)/admin/(dash)/users/[userId]/page.tsx'), 'utf8')
 
     expect(schema).not.toContain('enum UserRole')
     expect(schema).toMatch(/\bowner\s+User\?/)

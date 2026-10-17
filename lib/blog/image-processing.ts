@@ -36,6 +36,38 @@ async function writeVariant(input: Buffer | string, baseName: string, width: Blo
 	return target
 }
 
+/**
+ * Re-encodes a PNG original losslessly (max zlib effort, adaptive filtering)
+ * and returns it only when every decoded pixel and the colour metadata are
+ * unchanged and the file got smaller; otherwise the input comes back as is.
+ * Originals feed Open Graph previews and variant regeneration, so they must
+ * stay exact — this only drops the bytes a weak encoder wasted.
+ */
+export async function compactPngOriginal(input: Buffer): Promise<Buffer> {
+	try {
+		const before = await sharp(input).metadata()
+		if (before.format !== 'png' || (before.pages ?? 1) > 1) return input
+		const output = await sharp(input)
+			.keepMetadata()
+			.png({ compressionLevel: 9, adaptiveFiltering: true, palette: false })
+			.toBuffer()
+		if (output.length >= input.length) return input
+		const after = await sharp(output).metadata()
+		const sameMeta = after.width === before.width && after.height === before.height
+			&& after.channels === before.channels && after.depth === before.depth
+			&& after.space === before.space && after.hasProfile === before.hasProfile
+			&& Buffer.compare(after.icc ?? Buffer.alloc(0), before.icc ?? Buffer.alloc(0)) === 0
+		if (!sameMeta) return input
+		const [a, b] = await Promise.all([
+			sharp(input).raw().toBuffer(),
+			sharp(output).raw().toBuffer(),
+		])
+		return a.equals(b) ? output : input
+	} catch {
+		return input
+	}
+}
+
 /** Generates all device variants for a freshly uploaded original. */
 export async function writeBlogImageVariants(input: Buffer, baseName: string, dir = BLOG_UPLOAD_DIR) {
 	for (const width of BLOG_IMAGE_WIDTHS) {

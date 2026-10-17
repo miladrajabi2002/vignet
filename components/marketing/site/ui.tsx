@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Globe, Link2, Sparkles } from 'lucide-rea
 import { BaleIcon, InstagramIcon, RubikaIcon, TelegramIcon } from '@/components/marketing/social-links'
 import { SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { cn } from '@/lib/utils'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 export type SiteLocale = 'fa' | 'en'
 export type IconType = ComponentType<SVGProps<SVGSVGElement> & { className?: string; strokeWidth?: number | string }>
@@ -179,5 +180,5 @@ export function ChannelBadge({ channel, size = 34, iconSize = 18, radius = 10 }:
 
 export function faNum(locale: SiteLocale, value: number | string) {
 	const text = String(value)
-	return locale === 'fa' ? text.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : text
+	return locale === 'fa' ? text.replace(LATIN_DIGIT_RE, latinDigitToPersian) : text
 }

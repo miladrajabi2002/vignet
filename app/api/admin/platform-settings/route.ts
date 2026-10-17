@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdminAuthed } from '@/lib/admin/auth'
+import { revalidatePublicSite } from '@/lib/marketing/revalidate-site'
 import { isProviderSlug, MAX_PROVIDER_ORDER } from '@/lib/ai/provider-routing'
 import {
   getPlatformCommercialConfig,
@@ -62,5 +63,8 @@ export async function PUT(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'INVALID_SETTINGS', issues: parsed.error.flatten() }, { status: 400 })
   }
-  return NextResponse.json(await updatePlatformCommercialConfig(parsed.data))
+  const config = await updatePlatformCommercialConfig(parsed.data)
+  // Prices are baked into the static public pages (/, /pricing).
+  revalidatePublicSite()
+  return NextResponse.json(config)
 }

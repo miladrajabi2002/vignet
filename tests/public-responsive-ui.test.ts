@@ -5,7 +5,7 @@ const source = (path: string) => readFileSync(path, 'utf8')
 
 describe('public adaptive UI contracts', () => {
   it('keeps public mobile navigation persistent and reserves its safe area', () => {
-    const layout = source('app/(marketing)/layout.tsx')
+    const layout = source('app/(marketing)/vg-site/[variant]/(chrome)/layout.tsx')
     const navbar = source('components/marketing/navbar.tsx')
     const mobileNav = source('components/marketing/mobile-bottom-nav.tsx')
     const backToTop = source('components/marketing/back-to-top.tsx')
@@ -38,7 +38,7 @@ describe('public adaptive UI contracts', () => {
   it('adds live blog search and preserves minimum mobile touch targets', () => {
     const blog = source('components/blog/public-blog-index.tsx')
     const card = source('components/blog/public-post-card.tsx')
-    const chat = source('app/c/[slug]/chat-client.tsx')
+    const chat = source('app/(app)/c/[slug]/chat-client.tsx')
     const auth = source('components/auth/phone-otp-form.tsx')
 
     expect(blog).toContain('useDeferredValue')
@@ -49,7 +49,7 @@ describe('public adaptive UI contracts', () => {
   })
 
   it('keeps every mobile status row separated without changing the desktop grid', () => {
-    const status = source('app/(marketing)/status/page.tsx')
+    const status = source('app/(marketing)/vg-site/[variant]/(chrome)/status/page.tsx')
 
     expect(status).toContain('index < report.checks.length - 1')
     expect(status).toContain('index >= report.checks.length - 2')

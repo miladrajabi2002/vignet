@@ -75,9 +75,9 @@ describe('mobile motion in the user panel', () => {
 
 describe('admin panel way back', () => {
   it('offers a return to the user dashboard and keeps logout in the menus', () => {
-    const header = source('app/admin/(dash)/admin-header.tsx')
-    const rail = source('app/admin/(dash)/admin-nav.tsx')
-    const mobileNav = source('app/admin/(dash)/mobile-nav.tsx')
+    const header = source('app/(app)/admin/(dash)/admin-header.tsx')
+    const rail = source('app/(app)/admin/(dash)/admin-nav.tsx')
+    const mobileNav = source('app/(app)/admin/(dash)/mobile-nav.tsx')
     expect(header).toContain('href="/overview"')
     expect(header).toContain('بازگشت به پنل کاربر')
     expect(header).toContain('action={adminLogout}')

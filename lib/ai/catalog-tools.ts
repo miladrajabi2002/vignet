@@ -18,6 +18,7 @@ import { extractProductTerms, GLOBAL_PRODUCT_WORDS, modelNumberIn, normalizePers
 import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
 import { attributeLaneIds } from '@/lib/search/attribute-lane'
 import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 const MAX_RESULTS = 10
 
@@ -83,7 +84,7 @@ function toCatalogProduct(row: ProductRow): CatalogProduct {
 
 function digitVariants(term: string): string[] {
   if (!/\d/.test(term)) return [term]
-  return [...new Set([term, term.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])])]
+  return [...new Set([term, term.replace(LATIN_DIGIT_RE, latinDigitToPersian)])]
 }
 
 /**

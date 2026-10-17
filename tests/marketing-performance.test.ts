@@ -112,9 +112,9 @@ describe('marketing launch performance boundaries', () => {
 	it('keeps root-only public and error surfaces translation-hook free', () => {
 		const rootOnlyFiles = [
 			'app/global-error.tsx',
-			'app/admin/login/login-form.tsx',
-			'app/c/[slug]/chat-client.tsx',
-			'app/menu/[slug]/page.tsx',
+			'app/(app)/admin/login/login-form.tsx',
+			'app/(app)/c/[slug]/chat-client.tsx',
+			'app/(app)/menu/[slug]/page.tsx',
 		]
 
 		for (const file of rootOnlyFiles) {

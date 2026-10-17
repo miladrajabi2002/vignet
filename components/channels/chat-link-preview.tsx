@@ -8,6 +8,7 @@ import { COMPOSER_GEOMETRY, SendButton } from '@/components/chat/chat-composer'
 import { InstagramIcon } from '@/components/marketing/social-links'
 import { chatLinkOpenState, type ChatLinkSettings } from '@/lib/chat-link/config'
 import { contrastOn } from '@/lib/widget/config'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 /** Which screen of the public page the phone shows. */
 export type ChatLinkPreviewState = 'intro' | 'lead' | 'chat' | 'closed'
@@ -301,5 +302,5 @@ export function ChatLinkPreview({
 function faClock(value: string): string {
         if (!value) return '—'
         const [hour, minute] = value.split(':')
-        return `${Number(hour)}:${minute}`.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])
+        return `${Number(hour)}:${minute}`.replace(LATIN_DIGIT_RE, latinDigitToPersian)
 }

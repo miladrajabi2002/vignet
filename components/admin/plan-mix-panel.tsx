@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Panel, fa } from '@/app/admin/(dash)/ui'
+import { Panel, fa } from '@/app/(app)/admin/(dash)/ui'
 import { PLAN_COLOR } from '@/components/admin/chart-palette'
 import type { PlanMixRow } from '@/lib/admin/charts'
 

@@ -9,6 +9,7 @@ import type { Prisma } from '@prisma/client'
 import { historyCardIds, isConversationMemory } from '@/lib/ai/conversation-memory'
 import { isFirstPersonCityToken } from '@/lib/ai/fact-capture'
 import { attributeValueText, extractTypedVariations } from '@/lib/products/description'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin, LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 /**
  * Conversation resolution + per-turn data loading, extracted from the chat
@@ -361,7 +362,7 @@ export function normalizePersianText(value: string): string {
                 // set-products into single-item comparisons.
                 .replace(/\u200cست(?=\s|$|[.!?؟،؛:;,])/gu, '')
                 .replace(/[\u200c\u200d]/g, ' ')
-                .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+                .replace(PERSIAN_DIGIT_RE, persianDigitToLatin)
                 .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
                 .replace(/\s+/g, ' ')
                 .trim()
@@ -855,7 +856,7 @@ function catalogTermVariants(term: string): string[] {
         if (!/\d/.test(term)) return [term]
         const variants = [
                 term,
-                term.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]),
+                term.replace(LATIN_DIGIT_RE, latinDigitToPersian),
                 term.replace(/\d/g, (digit) => '٠١٢٣٤٥٦٧٨٩'[Number(digit)]),
         ]
         return [...new Set(variants)]
@@ -1606,7 +1607,7 @@ export async function buildFamilyEnumerationReply(params: {
         ].join(' ')
         const formatToman = (price: number) =>
                 price.toLocaleString('en-US')
-                        .replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])
+                        .replace(LATIN_DIGIT_RE, latinDigitToPersian)
                         .replace(/,/g, '\u066C')
         const distinctPrices = [...new Set(prices)]
         const priceLine = distinctPrices.length === 1

@@ -3,6 +3,7 @@
 import { Children, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Check, ChevronLeft, ChevronRight, MessageSquare, Pause, Play, Timer } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 export type PlayerStep = { num: string; title: string; duration: string; eyebrow: string; desc: string; result: string; path: string }
 export type PlayerLabels = { tabs: string; goal: string; result: string; clockNote: string; clockLabel: string; prev: string; next: string; pause: string; play: string; pauseShort: string; playShort: string }
@@ -31,7 +32,7 @@ const PHONE = '(max-width: 1023px)'
 
 const clockText = (seconds: number, fa: boolean) => {
 	const text = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
-	return fa ? text.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : text
+	return fa ? text.replace(LATIN_DIGIT_RE, latinDigitToPersian) : text
 }
 
 type Api = { jump: (index: number) => void; step: (delta: number) => void; toggle: () => void; hold: (on: boolean) => void }

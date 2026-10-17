@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, type CSSProperties } from 'react'
-import { usePathname } from 'next/navigation'
+import { useSitePathname } from '@/components/marketing/site/use-site-pathname'
 import { useLocale } from 'next-intl'
 import { Phone } from 'lucide-react'
 import { SUPPORT_PHONE_DISPLAY } from '@/lib/marketing/contact'
@@ -64,7 +64,7 @@ function Words({ text, from = 0 }: { text: string; from?: number }) {
  */
 export function FutureCta() {
 	const locale = toSiteLocale(useLocale())
-	const pathname = usePathname() ?? '/'
+	const pathname = useSitePathname()
 	const copy = COPY[locale]
 	const fa = locale === 'fa'
 	const path = pathname.replace(/^\/en(?=\/|$)/, '') || '/'

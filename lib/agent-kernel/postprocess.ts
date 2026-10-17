@@ -6,6 +6,7 @@ import { enforceConversationContinuity } from '@/lib/agent-kernel/skills/convers
 import { enforceHumanizerPolish } from '@/lib/agent-kernel/skills/humanizer-polish'
 import { findUngroundedLinks, stripUngroundedLinks, type LinkEvidence, type LinkGuardMode } from '@/lib/agent-kernel/skills/link-grounding'
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 export interface AgentSkillPostprocessContext {
   /** Trusted rows selected by the scoped catalog repository for this turn. */
@@ -76,7 +77,7 @@ function normalizeIdentity(value: string): string {
     .normalize('NFKC')
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(PERSIAN_DIGIT_RE, persianDigitToLatin)
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .replace(/\s+/g, ' ')
     .trim()

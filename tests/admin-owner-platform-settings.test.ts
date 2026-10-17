@@ -130,20 +130,20 @@ describe('platform settings migration coverage', () => {
 
 describe('admin control-center regressions', () => {
   it('matches the user dashboard shell while keeping tab content narrower than the global header', () => {
-    const layout = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/layout.tsx'), 'utf8')
-    const nav = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/admin-nav.tsx'), 'utf8')
-    const ui = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/ui.tsx'), 'utf8')
+    const layout = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/layout.tsx'), 'utf8')
+    const nav = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/admin-nav.tsx'), 'utf8')
+    const ui = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/ui.tsx'), 'utf8')
 
     // The rail keeps the dashboard's geometry (it lives in admin-nav now).
     expect(nav).toContain('sticky top-3 m-3 me-0')
     expect(layout).toContain('<AdminRail')
     // Same header frame and content inset as the user dashboard.
-    const header = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/admin-header.tsx'), 'utf8')
+    const header = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/admin-header.tsx'), 'utf8')
     expect(layout).toContain('<AdminHeader')
     expect(header).toContain('dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]')
     expect(layout).toContain('dashboard-shell-content')
     expect(layout).toContain('<div className="dashboard-main">')
-    expect(readFileSync(path.join(process.cwd(), 'app/admin/(dash)/vigento-card.tsx'), 'utf8')).toContain('Vigento AI')
+    expect(readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/vigento-card.tsx'), 'utf8')).toContain('Vigento AI')
     expect(nav).toContain('admin-rail-link')
     // Admin and dashboard share one page header (title bar + inline back).
     expect(ui).toContain('<DashboardPageHeader')
@@ -151,7 +151,7 @@ describe('admin control-center regressions', () => {
 
   it('opens a read-only allow-listed Prisma explorer', () => {
     const explorer = readFileSync(path.join(process.cwd(), 'lib/admin/database-explorer.ts'), 'utf8')
-    const page = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/database/page.tsx'), 'utf8')
+    const page = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/database/page.tsx'), 'utf8')
 
     expect(explorer).toContain('DATABASE_MODELS')
     expect(explorer).toContain('SENSITIVE_FIELD')
@@ -170,7 +170,7 @@ describe('admin control-center regressions', () => {
   })
 
   it('keeps the Vigento conversation aligned and removes the report cards', () => {
-    const page = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/vigento/page.tsx'), 'utf8')
+    const page = readFileSync(path.join(process.cwd(), 'app/(app)/admin/(dash)/vigento/page.tsx'), 'utf8')
     const consoleSource = readFileSync(path.join(process.cwd(), 'components/admin/vigento-admin-console.tsx'), 'utf8')
 
     expect(page).not.toContain('<PageHeader')

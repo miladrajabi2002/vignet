@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePublicSite } from '@/lib/marketing/revalidate-site'
 import { prisma } from '@/lib/prisma'
 import { isAdminAuthed } from '@/lib/admin/auth'
 import { blogPostSchema } from '@/lib/blog/validations'
@@ -83,13 +83,8 @@ export async function POST(req: Request) {
                                 publishedAt,
                         },
                 })
-                // ISR freshness: a newly published post must appear on /blog at once.
-                try {
-                        revalidatePath('/blog', 'layout')
-                        revalidatePath(`/blog/${slug}`)
-                } catch {
-                        // best-effort
-                }
+                // A newly published post must appear on /blog (and the homepage) at once.
+                revalidatePublicSite()
                 return NextResponse.json({ post })
         } catch (e) {
                 const msg = e instanceof Error ? e.message : 'unknown'

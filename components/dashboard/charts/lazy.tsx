@@ -29,11 +29,6 @@ export const ChannelDonut = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> },
 )
 
-export const SatisfactionGauge = dynamic(
-  () => import('./satisfaction-gauge').then((m) => m.SatisfactionGauge),
-  { ssr: false, loading: () => <ChartSkeleton height={160} /> },
-)
-
 export const AgentSparkline = dynamic(
   () => import('./agent-sparkline').then((m) => m.AgentSparkline),
   { ssr: false, loading: () => <ChartSkeleton height={48} /> },

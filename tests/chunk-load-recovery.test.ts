@@ -24,7 +24,7 @@ describe('Next.js chunk load recovery', () => {
 
   it('deploys immutable builds, keeps previous assets, and installs root recovery', () => {
     const deploy = readFileSync(path.join(process.cwd(), 'deploy/deploy.sh'), 'utf8')
-    const layout = readFileSync(path.join(process.cwd(), 'app/layout.tsx'), 'utf8')
+    const layout = readFileSync(path.join(process.cwd(), 'app/root-document.tsx'), 'utf8')
     const nextConfig = readFileSync(path.join(process.cwd(), 'next.config.mjs'), 'utf8')
     const buildGuard = readFileSync(path.join(process.cwd(), 'scripts/safe-next-build.mjs'), 'utf8')
 

@@ -150,6 +150,9 @@ const nextConfig = {
   // unaffected.
   experimental: {
     cpus: 1,
+    // Two root layouts (app/(app) and the static public site) leave no single
+    // root for a not-found page; app/global-not-found.tsx renders unmatched URLs.
+    globalNotFound: true,
   },
   // scripts/safe-next-build.mjs runs `tsc --noEmit` as a separate step first
   // (type errors still fail the build); skipping the duplicate in-build check

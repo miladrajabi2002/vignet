@@ -1,3 +1,5 @@
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
+
 /**
  * Shared Persian text normalization for the knowledge pipeline.
  *
@@ -32,7 +34,7 @@ export function normalizePersian(value: string): string {
       // «می‌خوام» and «می خوام» tokenize identically (U+200C/U+200D).
       .replace(/[‌‍]/g, ' ')
       // Persian / Arabic-Indic digits → ASCII so SKUs and prices match.
-      .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+      .replace(PERSIAN_DIGIT_RE, persianDigitToLatin)
       .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
       // Collapse space runs introduced by the substitutions above, but
       // PRESERVE newlines — chunking relies on paragraph boundaries.

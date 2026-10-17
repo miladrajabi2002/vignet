@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePublicSite } from '@/lib/marketing/revalidate-site'
 import { prisma } from '@/lib/prisma'
 import { isAdminAuthed } from '@/lib/admin/auth'
 import { blogPostSchema } from '@/lib/blog/validations'
@@ -91,7 +91,7 @@ export async function PATCH(req: Request, props: Params) {
     })
     // Public blog pages are ISR-cached now; an admin edit must be visible
     // immediately instead of waiting out the revalidate window.
-    revalidateBlogPaths(post.slug)
+    revalidatePublicSite()
     return NextResponse.json({ post })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown'
@@ -118,22 +118,6 @@ export async function DELETE(_req: Request, props: Params) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
   }
   await prisma.blogPost.delete({ where: { id: params.postId } })
-  revalidateBlogPaths(null)
+  revalidatePublicSite()
   return NextResponse.json({ ok: true })
-}
-
-/**
- * Keeps the ISR-cached public blog surfaces fresh after any admin change.
- * revalidatePath without a type revalidates the specific URL; the second form
- * ('layout') refreshes the /blog index and its category children.
- */
-function revalidateBlogPaths(slug: string | null) {
-  try {
-    revalidatePath('/blog', 'layout')
-    if (slug) {
-      revalidatePath(`/blog/${slug}`)
-    }
-  } catch {
-    // Revalidation is a best-effort freshness nudge; never fail the API call.
-  }
 }

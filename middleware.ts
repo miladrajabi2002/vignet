@@ -1,8 +1,54 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextFetchEvent, type NextMiddleware, type NextRequest } from 'next/server'
 import NextAuth from 'next-auth'
 import { authConfig, PROTECTED_PREFIXES } from '@/auth.config'
+import { LOCALE_COOKIE } from '@/lib/locale'
+import { hasSessionCookie, isMarketingPath, SITE_ROUTE_PREFIX, siteVariant } from '@/lib/marketing/site-variant'
 
 const { auth } = NextAuth(authConfig)
+
+const SITE_REWRITE_HEADER = 'x-vigent-site-rewrite'
+
+const LOCALE_COOKIE_OPTIONS = {
+  path: '/',
+  maxAge: 60 * 60 * 24 * 365,
+  sameSite: 'lax',
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+} as const
+
+// ── Public site → its static variant ────────────────────────────────────
+// /pricing (or /en/pricing) is served from /vg-site/<variant>/pricing, the
+// page prerendered for this visitor's locale and signed-in state (see
+// lib/marketing/site-variant.ts). The URL in the browser stays the same.
+// Runs before Auth.js: public pages never need the session decoded.
+function routePublicSite(req: NextRequest): NextResponse | null {
+  const { pathname } = req.nextUrl
+  // The internal paths are not public URLs (they would duplicate every page
+  // for crawlers). Middleware runs again for our own rewrite below, which is
+  // marked with SITE_REWRITE_HEADER; anything else gets the 404. The header
+  // only reveals public pages, so a hand-set one exposes nothing.
+  if (pathname === SITE_ROUTE_PREFIX || pathname.startsWith(`${SITE_ROUTE_PREFIX}/`)) {
+    if (req.headers.get(SITE_REWRITE_HEADER) === '1') return NextResponse.next()
+    return NextResponse.rewrite(new URL('/vg-site-not-found', req.url))
+  }
+
+  const onEnPrefix = pathname === '/en' || pathname.startsWith('/en/')
+  const rest = onEnPrefix ? pathname.slice(3) || '/' : pathname
+  if (!isMarketingPath(rest)) return null
+  // Blog and status are fa-only: the /en handling below redirects them.
+  if (onEnPrefix && (rest.startsWith('/blog') || rest === '/status')) return null
+
+  const locale = onEnPrefix || req.cookies.get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'fa'
+  const signedIn = hasSessionCookie(req.cookies.getAll().map(({ name }) => name))
+  const url = req.nextUrl.clone()
+  url.pathname = `${SITE_ROUTE_PREFIX}/${siteVariant(locale, signedIn)}${rest === '/' ? '' : rest}`
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set(SITE_REWRITE_HEADER, '1')
+  const res = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+  // Persist English for this visitor, exactly like the /en rewrite below.
+  if (onEnPrefix) res.cookies.set(LOCALE_COOKIE, 'en', LOCALE_COOKIE_OPTIONS)
+  return res
+}
 
 // The `authorized` callback in authConfig gates access (and redirects).
 // When access is allowed, we forward the current pathname so server layouts can
@@ -11,7 +57,7 @@ const { auth } = NextAuth(authConfig)
 // is never visible to `headers()` in a server component, which left the layout
 // reading an empty pathname and redirecting /onboarding → /onboarding in a loop
 // (blank page after a new user's first login).
-export default auth((req) => {
+const authMiddleware = auth((req) => {
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set('x-pathname', req.nextUrl.pathname)
 
@@ -52,18 +98,16 @@ export default auth((req) => {
     const res = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
     // Persist English for this visitor so navigation inside the app stays
     // English even when links drop the /en prefix (mirrors /api/locale).
-    res.cookies.set('locale', 'en', {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: 'lax',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    })
+    res.cookies.set(LOCALE_COOKIE, 'en', LOCALE_COOKIE_OPTIONS)
     return res
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } })
-})
+}) as unknown as NextMiddleware
+
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  return routePublicSite(req) ?? authMiddleware(req, event)
+}
 
 export const config = {
   // Node.js runtime (stable since Next 15.5). The app only ever runs on
@@ -105,5 +149,15 @@ export const config = {
     // English public URL prefix (see the /en handling above).
     '/en',
     '/en/:path*',
+    // Public site, served from its static variants (routePublicSite).
+    '/',
+    '/pricing',
+    '/privacy',
+    '/terms',
+    '/status',
+    '/solutions/:path*',
+    '/docs/:path*',
+    '/blog/:path*',
+    '/vg-site/:path*',
   ],
 }

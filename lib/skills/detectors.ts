@@ -15,6 +15,7 @@
  */
 
 import type { SkillKey, SkillSeverity } from './registry'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 export interface FindingDraft {
   skillKey: SkillKey
@@ -1232,7 +1233,7 @@ export function candidateConflictPairs(
 ): ConflictPairInput[] {
   const tokens = (q: string) => new Set(normalizedTopicKey(q).split(' ').filter((t) => t.length > 2))
   const numbersIn = (text: string) =>
-    new Set([...text.matchAll(/[۰-۹0-9]{1,9}/gu)].map((m) => m[0].replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))))
+    new Set([...text.matchAll(/[۰-۹0-9]{1,9}/gu)].map((m) => m[0].replace(PERSIAN_DIGIT_RE, persianDigitToLatin)))
   const pairs: Array<ConflictPairInput & { score: number }> = []
   const MAX_CONSIDERED = 600 // safety bound for large KBs (O(n²) pairing)
   for (let i = 0; i < sources.length && pairs.length < MAX_CONSIDERED; i++) {

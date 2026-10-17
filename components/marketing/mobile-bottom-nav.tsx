@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import type { MouseEvent } from 'react'
-import { usePathname } from 'next/navigation'
+import { useSitePathname } from '@/components/marketing/site/use-site-pathname'
 import { CircleDollarSign, House, LayoutDashboard, LayoutGrid, LogIn, Rocket } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +30,7 @@ export function MarketingMobileBottomNav({
 	activeSection: string
 	copy: MobileNavCopy
 }) {
-	const pathname = usePathname()
+	const pathname = useSitePathname()
 	const scrollHomeToTop = (event: MouseEvent<HTMLAnchorElement>) => {
 		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
 		event.preventDefault()

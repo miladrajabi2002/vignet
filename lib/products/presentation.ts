@@ -6,6 +6,7 @@ import {
 import { extractListItems, extractTypedVariations, normalizeAttributes, stripListBlocks, type VariationRow } from '@/lib/products/description'
 import { numberLocale, type TurnLanguage } from '@/lib/ai/turn-language'
 import type { ProductCard } from '@/lib/channels/types'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 /** Reply locale for deterministic customer-facing templates. */
 export type ReplyLanguage = TurnLanguage
@@ -248,7 +249,7 @@ function normalizedProductMention(value: string): string {
     // Catalog names usually carry ASCII digits («تونیک روناز 0788») while the
     // model echoes the customer's script («تونیک روناز ۰۷۸۸»). Folding digit
     // scripts keeps exact-name recovery working across both conventions.
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(PERSIAN_DIGIT_RE, persianDigitToLatin)
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .toLocaleLowerCase('fa')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')

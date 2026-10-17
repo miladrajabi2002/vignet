@@ -170,7 +170,6 @@ model OTPLog {
   verified Boolean  @default(false)
   ip       String?
 
-  @@index([phone])
   @@index([phone, sentAt])
   @@index([verified, sentAt])
 }
@@ -398,7 +397,6 @@ model AgentChannel {
   conversationTurnLeases ConversationTurnLease[]
 
   @@unique([agentId, type])
-  @@index([agentId])
 }
 
 enum ChannelType {
@@ -510,8 +508,6 @@ model ProductCategory {
 
   @@unique([workspaceId, slug])
   @@unique([sourceIntegrationId, externalId])
-  @@index([workspaceId])
-  @@index([sourceIntegrationId])
 }
 
 model Product {
@@ -561,7 +557,6 @@ model Product {
   // app layer). A plain index keeps the case-sensitive name lookups fast.
   @@index([workspaceId, name])
   @@index([workspaceId, sku])
-  @@index([workspaceId])
   @@index([sourceIntegrationId])
   @@index([categoryId])
 }
@@ -576,7 +571,6 @@ model AgentCatalog {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([agentId, productId])
-  @@index([agentId])
   @@index([productId])
 }
 
@@ -739,7 +733,6 @@ model Contact {
   appointments       Appointment[]
   courseEnrollments  CourseEnrollment[]
 
-  @@index([workspaceId])
   @@index([workspaceId, phone])
   @@index([telegramId])
   @@index([phone])
@@ -800,9 +793,7 @@ model Conversation {
   orderWatches       OrderWatch[]
 
   @@unique([agentId, channel, externalId])
-  @@index([workspaceId])
   @@index([workspaceId, updatedAt])
-  @@index([agentId])
   @@index([contactId])
   @@index([externalId])
   // Inbox lists filter by workspace + status; the pair avoids a filter+sort
@@ -959,7 +950,6 @@ model Message {
   resultForInboundEvent InboundEvent?         @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
   improvementEvidence   ImprovementEvidence[]
 
-  @@index([conversationId])
   @@index([parentId])
   // Threads are rendered in createdAt order — the composite lets Postgres
   // walk the index instead of sorting each conversation's messages.
@@ -1440,7 +1430,6 @@ model ErrorLog {
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
-  @@index([level])
   @@index([level, createdAt])
   @@index([source, createdAt])
   @@index([workspaceId, createdAt])
@@ -1463,7 +1452,6 @@ model BlogCategory {
   posts     BlogPost[]
 
   @@unique([workspaceId, slug])
-  @@index([workspaceId])
 }
 
 model BlogPost {
@@ -1581,7 +1569,6 @@ model HandoffAlert {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  @@index([workspaceId, state])
   @@index([conversationId])
   @@index([agentId])
 }
@@ -1836,7 +1823,6 @@ model StoreOrder {
 
   @@unique([integrationId, externalOrderId])
   @@index([workspaceId])
-  @@index([contactId])
   @@index([externalOrderId])
 }
 

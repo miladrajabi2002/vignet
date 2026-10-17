@@ -34,7 +34,7 @@ describe('marketing homepage UX contracts', () => {
 
 		expect([...anchorIds].sort()).toEqual(['capabilities', 'instagram', 'pricing', 'what'])
 		for (const id of anchorIds) expect(sections).toContain(`id="${id}"`)
-		expect(read('app/(marketing)/solutions/[slug]/page.tsx')).not.toContain('/#demo')
+		expect(read('app/(marketing)/vg-site/[variant]/(chrome)/solutions/[slug]/page.tsx')).not.toContain('/#demo')
 	})
 
 	it('uses a persistent five-destination mobile bar with a session-aware account action', () => {
@@ -66,7 +66,7 @@ describe('marketing homepage UX contracts', () => {
 	it('keeps the hero on a single primary call to action and away from the old demo', () => {
 		const hero = read('components/marketing/site/home/hero.tsx')
 		const ui = read('components/marketing/site/ui.tsx')
-		const page = read('app/(marketing)/page.tsx')
+		const page = read('app/(marketing)/vg-site/[variant]/(chrome)/page.tsx')
 
 		expect(ui).toContain("export const SIGNUP_HREF = '/login?next=/onboarding'")
 		expect(hero.match(/<Link href=\{SIGNUP_HREF\}/g)).toHaveLength(1)
@@ -185,7 +185,7 @@ describe('marketing homepage UX contracts', () => {
 	})
 
 	it('advertises the active language without inventing duplicate hreflang URLs', () => {
-		const page = read('app/(marketing)/page.tsx')
+		const page = read('app/(marketing)/vg-site/[variant]/(chrome)/page.tsx')
 
 		expect(page).toContain("locale: locale === 'fa' ? 'fa_IR' : 'en_US'")
 		expect(page).toContain("alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR']")
@@ -201,7 +201,7 @@ describe('marketing homepage UX contracts', () => {
 
 	it('publishes a directly callable support number from the shared constant', () => {
 		const footer = read('components/marketing/footer.tsx')
-		const page = read('app/(marketing)/page.tsx')
+		const page = read('app/(marketing)/vg-site/[variant]/(chrome)/page.tsx')
 		const contact = read('lib/marketing/contact.ts')
 
 		// The number lives in exactly one place; every surface must consume it.

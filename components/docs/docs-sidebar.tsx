@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useSitePathname } from '@/components/marketing/site/use-site-pathname'
 import { useLocale } from 'next-intl'
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from 'react'
 import { List, ChevronDown, Search, X } from 'lucide-react'
@@ -68,7 +68,7 @@ function DocsSearchField({
 }
 
 export function DocsSidebar() {
-  const pathname = usePathname()
+  const pathname = useSitePathname()
   const locale = useLocale() as 'fa' | 'en'
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')

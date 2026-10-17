@@ -2,7 +2,18 @@ import { getRequestConfig } from 'next-intl/server'
 import { cookies, headers } from 'next/headers'
 import { DEFAULT_LOCALE, isLocale } from '@/lib/locale'
 
-export default getRequestConfig(async () => {
+export default getRequestConfig(async ({ requestLocale }) => {
+  // The static public site pins its locale from the URL (setRequestLocale in
+  // lib/marketing/enter-site.ts); reading headers or cookies there would make
+  // every public page per-request again.
+  const pinnedLocale = await requestLocale
+  if (isLocale(pinnedLocale)) {
+    return {
+      locale: pinnedLocale,
+      messages: (await import(`../messages/${pinnedLocale}.json`)).default,
+    }
+  }
+
   // Locale resolution order:
   //   1. `x-vigent-locale` request header — set by middleware for /en/* URLs.
   //      A shared English link must render English even when the visitor's

@@ -9,6 +9,7 @@
  */
 
 import { blogImageSources } from '@/lib/blog/image-variants'
+import { LATIN_DIGIT_RE, PERSIAN_DIGIT_RE, latinDigitToPersian, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 const STOP_WORDS_FA = new Set([
 	'و',
@@ -80,11 +81,10 @@ const STOP_WORDS_EN = new Set([
 	'she',
 ])
 
-const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
 
 /** Convert ASCII digits in a string to Persian digits (for display). */
 export function toPersianDigits(s: string | number): string {
-	return String(s).replace(/[0-9]/g, (d) => PERSIAN_DIGITS[Number(d)])
+	return String(s).replace(LATIN_DIGIT_RE, latinDigitToPersian)
 }
 
 /** Convert any string to a URL-safe slug. Persian chars preserved where possible. */
@@ -399,7 +399,7 @@ export function renderMarkdown(markdown: string): string {
 			flushParagraph()
 			if (!inList || !inOrdered) {
 				closeList()
-				const start = Number(ol[1].replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))))
+				const start = Number(ol[1].replace(PERSIAN_DIGIT_RE, persianDigitToLatin))
 				out.push(start > 1 ? `<ol start="${start}">` : '<ol>')
 				inList = true
 				inOrdered = true

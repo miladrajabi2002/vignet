@@ -33,8 +33,9 @@ import {
   SUPPORT_TELEGRAM_URL,
   SUPPORT_TELEGRAM_USERNAME,
 } from '@/lib/marketing/contact'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
-const SUPPORT_PHONE_FA = SUPPORT_PHONE_DISPLAY.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])
+const SUPPORT_PHONE_FA = SUPPORT_PHONE_DISPLAY.replace(LATIN_DIGIT_RE, latinDigitToPersian)
 const CONTACT_ACTION =
   'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]'
 

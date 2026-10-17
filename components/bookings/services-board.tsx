@@ -13,6 +13,7 @@ import {
   type Locale,
   type ServiceRow,
 } from '@/components/bookings/booking-model'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 /**
  * Weekly-hours graph: one 24h track per weekday with the open ranges drawn in
@@ -51,7 +52,7 @@ function clock(minute: number, fa: boolean) {
   const h = Math.floor(minute / 60)
   const m = minute % 60
   const text = m ? `${h}:${String(m).padStart(2, '0')}` : String(h)
-  return fa ? text.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : text
+  return fa ? text.replace(LATIN_DIGIT_RE, latinDigitToPersian) : text
 }
 
 /** Seven weekday dots (filled = open) and the hours in words. */

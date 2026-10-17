@@ -115,9 +115,9 @@ describe('product showcase rail exposes a way to reach hidden cards', () => {
   })
 
   it('lets every product surface render the rail from one component', () => {
-    const chatLink = source('app/c/[slug]/chat-client.tsx')
+    const chatLink = source('app/(app)/c/[slug]/chat-client.tsx')
     const thread = source('components/crm/conversation-thread.tsx')
-    const admin = source('app/admin/(dash)/conversations/[conversationId]/page.tsx')
+    const admin = source('app/(app)/admin/(dash)/conversations/[conversationId]/page.tsx')
 
     for (const file of [chatLink, thread, admin]) {
       expect(file).toContain("from '@/components/products/product-showcase-rail'")

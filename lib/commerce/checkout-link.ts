@@ -10,6 +10,7 @@
  * happen.
  */
 import crypto from 'node:crypto'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 export * from '@/lib/commerce/checkout-card'
 
@@ -78,6 +79,6 @@ const COUPON_RE = /(?:کد\s?تخفیف|کوپن|کد\s?کوپن|coupon(?:\s?cod
 
 /** «کد تخفیف VIGENT10» → VIGENT10 */
 export function extractCouponCode(message: string): string | null {
-  const match = COUPON_RE.exec(message.normalize('NFKC').replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))))
+  const match = COUPON_RE.exec(message.normalize('NFKC').replace(PERSIAN_DIGIT_RE, persianDigitToLatin))
   return match ? match[1].toUpperCase() : null
 }

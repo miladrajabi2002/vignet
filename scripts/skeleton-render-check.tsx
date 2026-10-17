@@ -7,14 +7,14 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 async function main() {
   const routes: [string, string][] = [
-    ['contacts', '../app/(dashboard)/contacts/(list)/loading'],
-    ['conversations', '../app/(dashboard)/conversations/(list)/loading'],
-    ['overview', '../app/(dashboard)/overview/loading'],
-    ['billing', '../app/(dashboard)/billing/loading'],
-    ['products', '../app/(dashboard)/products/(list)/loading'],
-    ['courses', '../app/(dashboard)/courses/loading'],
-    ['services', '../app/(dashboard)/services/loading'],
-    ['appointments', '../app/(dashboard)/appointments/loading'],
+    ['contacts', '../app/(app)/(dashboard)/contacts/(list)/loading'],
+    ['conversations', '../app/(app)/(dashboard)/conversations/(list)/loading'],
+    ['overview', '../app/(app)/(dashboard)/overview/loading'],
+    ['billing', '../app/(app)/(dashboard)/billing/loading'],
+    ['products', '../app/(app)/(dashboard)/products/(list)/loading'],
+    ['courses', '../app/(app)/(dashboard)/courses/loading'],
+    ['services', '../app/(app)/(dashboard)/services/loading'],
+    ['appointments', '../app/(app)/(dashboard)/appointments/loading'],
   ]
 
   let failed = 0

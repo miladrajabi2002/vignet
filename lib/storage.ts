@@ -33,6 +33,24 @@ export const BUCKETS = {
   products: 'products',
 } as const
 
+// ── Admin health probe ───────────────────────────────────────────────────────
+// (formerly lib/storage/s3.ts, which built a second client from the same env)
+
+/** True when every S3 variable the health probe needs is set (no network). */
+export function isS3Configured(): boolean {
+  return ['S3_ENDPOINT', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_REGION'].every((key) => !!process.env[key])
+}
+
+/** The bucket the admin health page probes (S3_BUCKET, default `vignet-media`). */
+export function getBucket(): string {
+  return process.env.S3_BUCKET || 'vignet-media'
+}
+
+/** The shared client, for callers that send their own commands. */
+export function getS3Client(): S3Client {
+  return getClient()
+}
+
 /** Upload a file buffer and return its storage key (path within the bucket). */
 export async function uploadFile(params: {
   bucket: string

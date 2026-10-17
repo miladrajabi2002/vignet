@@ -8,7 +8,7 @@ import { getCurrentMonthAiSpendUSD, getOpenRouterAccountUsage } from '@/lib/admi
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { QUEUE_NAMES, isQueueDisabled } from '@/lib/queue/connection'
-import { getBucket, getS3Client, isS3Configured } from '@/lib/storage/s3'
+import { getBucket, getS3Client, isS3Configured } from '@/lib/storage'
 import { iranRelayActivity, iranRelayHealth } from '@/lib/security/iran-relay'
 
 export const dynamic = 'force-dynamic'

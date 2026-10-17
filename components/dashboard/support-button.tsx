@@ -11,6 +11,7 @@ import {
   SUPPORT_PHONE_E164,
   SUPPORT_TELEGRAM_URL,
 } from '@/lib/marketing/contact'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 /**
  * Header support entry. The sheet leads with the two ways to reach a person
@@ -22,7 +23,7 @@ export function SupportButton() {
   const fa = useLocale() !== 'en'
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const phone = fa ? SUPPORT_PHONE_DISPLAY.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : SUPPORT_PHONE_DISPLAY
+  const phone = fa ? SUPPORT_PHONE_DISPLAY.replace(LATIN_DIGIT_RE, latinDigitToPersian) : SUPPORT_PHONE_DISPLAY
 
   async function copyPhone() {
     try {

@@ -75,7 +75,7 @@ describe('simplified onboarding flow', () => {
 
   it('keeps Instagram scenarios out of setup and brings the tab in on connect', () => {
     const flow = read('components/onboarding/onboarding-flow.tsx')
-    const manager = read('app/(dashboard)/agents/[agentId]/instagram/page.tsx')
+    const manager = read('app/(app)/(dashboard)/agents/[agentId]/instagram/page.tsx')
     const callback = read('app/api/instagram/oauth/callback/route.ts')
 
     // A connected account returns to the setup steps, never to the scenario builder.

@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { isAdminAuthed } from '@/lib/admin/auth'
-import { BLOG_UPLOAD_DIR, writeBlogImageVariants } from '@/lib/blog/image-processing'
+import { BLOG_UPLOAD_DIR, compactPngOriginal, writeBlogImageVariants } from '@/lib/blog/image-processing'
 import { matchesImageSignature } from '@/lib/security/file-signatures'
 import {
 	readBoundedRequestBody,
@@ -68,10 +68,11 @@ export async function POST(req: Request) {
 	const baseName = `${Date.now()}-${randomUUID()}`
 	const name = `${baseName}.${ext}`
 
-	// The original is kept untouched (Open Graph / social previews use it).
+	// The original keeps every pixel (Open Graph / social previews use it);
+	// PNGs are only re-encoded losslessly when that makes them smaller.
 	const dir = BLOG_UPLOAD_DIR
 	await mkdir(dir, { recursive: true })
-	await writeFile(join(dir, name), buf)
+	await writeFile(join(dir, name), ext === 'png' ? await compactPngOriginal(buf) : buf)
 
 	// Mobile / tablet / desktop WebP copies the public pages serve via srcset.
 	// GIFs keep only the original (a resized WebP would lose the animation).

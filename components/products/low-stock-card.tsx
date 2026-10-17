@@ -7,6 +7,7 @@ import { BellRing, PackageMinus, Pencil } from 'lucide-react'
 import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { cn } from '@/lib/utils'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 function num(value: number, fa: boolean) {
   return value.toLocaleString(fa ? 'fa-IR' : 'en-US')
@@ -57,7 +58,7 @@ export function LowStockCard({
   /** Leaving the field keeps what was typed; an empty or non-numeric field changes nothing. */
   function commit() {
     if (discarded.current) return
-    const digits = draft.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).trim()
+    const digits = draft.replace(PERSIAN_DIGIT_RE, persianDigitToLatin).trim()
     const value = /^\d+$/.test(digits) ? Math.min(1000, Number(digits)) : threshold
     setThreshold(value)
     setDraft(String(value))

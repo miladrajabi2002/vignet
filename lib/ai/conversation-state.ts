@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { loadConversationSession, sessionMessageWhere } from '@/lib/conversations/session-store'
 import { bareReplyKind } from '@/lib/conversations/short-replies'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 /**
  * Durable, domain-neutral working memory for one live conversation session.
@@ -207,7 +208,7 @@ function normalize(value: string): string {
     // enclitic as a fake search term.
     .replace(/\u200cست(?=\s|$|[.!?؟،؛:;,])/gu, '')
     .replace(/[\u200c\u200d]/g, ' ')
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(PERSIAN_DIGIT_RE, persianDigitToLatin)
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .replace(/\s+/g, ' ')
     .trim()

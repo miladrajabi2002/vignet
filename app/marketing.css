@@ -1,0 +1,11 @@
+/*
+ * Public-site stylesheet: the same sources, in the same order, as app/app.css,
+ * compiled against tailwind.marketing.config.ts so it carries only the
+ * utilities public pages use. postcss-import inlines the files first, so the
+ * custom CSS and the cascade stay exactly as in the app.
+ */
+@import './globals.css';
+@import './tailwind-variants.css';
+@import '../components/marketing/site/site.css';
+@import './ui-system.css';
+@config '../tailwind.marketing.config.ts';

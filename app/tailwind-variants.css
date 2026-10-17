@@ -1,0 +1,8 @@
+/*
+ * Imported by app/marketing.css right after globals.css. Without it Tailwind
+ * appends hover/focus/responsive variants to the very end of the bundle —
+ * after site.css and ui-system.css — whereas the app build (where each file is
+ * compiled on its own) puts them at the end of globals.css. Same position,
+ * same cascade on both sides.
+ */
+@tailwind variants;

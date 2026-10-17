@@ -12,7 +12,7 @@ import {
   Toolbar,
   fa,
   fmtDate,
-} from '@/app/admin/(dash)/ui'
+} from '@/app/(app)/admin/(dash)/ui'
 import { Sparkline } from '@/components/admin/sparkline'
 import { BarList, TrendChart } from '@/components/admin/trend-chart'
 import { CHART_ACCENT } from '@/components/admin/chart-palette'

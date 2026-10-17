@@ -50,7 +50,7 @@ describe('web widget layout tiers', () => {
 })
 
 describe('chat link page', () => {
-  const page = source('app/c/[slug]/chat-client.tsx')
+  const page = source('app/(app)/c/[slug]/chat-client.tsx')
 
   it('does not point at a form "below" while the lead form sits above', () => {
     expect(page).not.toContain('اطلاعات زیر را وارد کنید')

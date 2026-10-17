@@ -37,6 +37,7 @@ import { ProductImage } from '@/components/products/product-image'
 import { MenuItemSheet } from '@/components/menu/menu-item-sheet'
 import { MenuTabs } from '@/components/menu/menu-tabs'
 import { UNDO_RESTORED_EVENT } from '@/lib/undo-queue'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin, LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 export interface MenuItem {
   id: string
@@ -526,7 +527,7 @@ function SharePanel({ businessName, publicUrl, chatUrl }: { businessName: string
   const [making, setMaking] = useState(false)
   // A QR per table: the menu shows «میز ۷» and passes it to the chat.
   const [table, setTable] = useState('')
-  const tableId = table.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[^A-Za-z0-9-]/g, '').slice(0, 8)
+  const tableId = table.replace(PERSIAN_DIGIT_RE, persianDigitToLatin).replace(/[^A-Za-z0-9-]/g, '').slice(0, 8)
   const qrUrl = tableId ? `${publicUrl}?t=${tableId}` : publicUrl
 
   useEffect(() => {
@@ -551,7 +552,7 @@ function SharePanel({ businessName, publicUrl, chatUrl }: { businessName: string
     <aside className="spatial-surface space-y-4 rounded-card p-4 lg:sticky lg:top-24" aria-label="اشتراک منو">
       <div className="rounded-card border border-[var(--border-subtle)] bg-white p-4">
         {qr ? <img src={qr} alt={`کد QR منوی ${businessName}`} className="mx-auto aspect-square w-full max-w-[14rem]" /> : <span className="mx-auto grid aspect-square w-full max-w-[14rem] place-items-center rounded-xl bg-[var(--bg-surface)]"><QrCode className="h-10 w-10 animate-pulse text-[var(--text-hint)]" /></span>}
-        <p className="mt-2 text-center text-[13px] font-bold text-[var(--text-primary)]">{tableId ? `QR میز ${tableId.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])}` : 'اسکن کنید و منو را ببینید'}</p>
+        <p className="mt-2 text-center text-[13px] font-bold text-[var(--text-primary)]">{tableId ? `QR میز ${tableId.replace(LATIN_DIGIT_RE, latinDigitToPersian)}` : 'اسکن کنید و منو را ببینید'}</p>
       </div>
       <label className="block">
         <span className="mb-1.5 block text-[13px] text-[var(--text-secondary)]">شمارهٔ میز (اختیاری)</span>
@@ -614,7 +615,7 @@ async function tableCard(qrDataUrl: string, businessName: string, publicUrl: str
   context.textAlign = 'center'
   context.fillStyle = '#6b6b6b'
   context.font = `500 56px ${family}`
-  context.fillText(table ? `منوی دیجیتال · میز ${table.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])}` : 'منوی دیجیتال', width / 2, 250)
+  context.fillText(table ? `منوی دیجیتال · میز ${table.replace(LATIN_DIGIT_RE, latinDigitToPersian)}` : 'منوی دیجیتال', width / 2, 250)
   context.fillStyle = '#111111'
   context.font = `800 104px ${family}`
   context.fillText(fitText(context, businessName, width - 200), width / 2, 390)

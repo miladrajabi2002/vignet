@@ -7,7 +7,7 @@ function source(path: string) {
 
 describe('omnichannel CRM user-visible contract', () => {
   it('keeps customer search server-backed, debounced, and phone-normalized', () => {
-    const page = source('app/(dashboard)/contacts/(list)/page.tsx')
+    const page = source('app/(app)/(dashboard)/contacts/(list)/page.tsx')
     const view = source('components/crm/contacts-view.tsx')
 
     expect(page).toContain('contactPhoneLookupVariants(query)')
@@ -78,7 +78,7 @@ describe('omnichannel CRM user-visible contract', () => {
   })
 
   it('uses a real mobile inbox with cards, sheet filters, and detail tabs', () => {
-    const list = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const list = source('app/(app)/(dashboard)/conversations/(list)/page.tsx')
     const filters = source('components/dashboard/conversation-filters.tsx')
     const detailLayout = source('components/crm/conversation-mobile-layout.tsx')
     const mobileNav = source('components/dashboard/mobile-nav.tsx')
@@ -113,13 +113,13 @@ describe('omnichannel CRM user-visible contract', () => {
 
 describe('CRM avatar and customer deletion contract', () => {
   it('uses the internal Instagram avatar proxy and puts channel identity in the trailing column', () => {
-    const contacts = source('app/(dashboard)/contacts/(list)/page.tsx')
-    const conversations = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const contacts = source('app/(app)/(dashboard)/contacts/(list)/page.tsx')
+    const conversations = source('app/(app)/(dashboard)/conversations/(list)/page.tsx')
     const avatar = source('components/crm/contact-avatar.tsx')
 
     expect(contacts).toContain('contactAvatarSrc({')
     expect(conversations).toContain('<ContactAvatar src={channelAvatarSrc} alt={who} />')
-    expect(source('app/(dashboard)/conversations/[conversationId]/page.tsx')).toContain('<ConversationStatusBadge')
+    expect(source('app/(app)/(dashboard)/conversations/[conversationId]/page.tsx')).toContain('<ConversationStatusBadge')
     expect(avatar).toContain('setUsingFallback(true)')
     expect(avatar).toContain('setBroken(true)')
   })
@@ -155,8 +155,8 @@ describe('CRM avatar and customer deletion contract', () => {
 
 describe('conversation sales intelligence UI contract', () => {
   it('surfaces classification, probability, filtering, and historical backfill', () => {
-    const list = source('app/(dashboard)/conversations/(list)/page.tsx')
-    const detail = source('app/(dashboard)/conversations/[conversationId]/page.tsx')
+    const list = source('app/(app)/(dashboard)/conversations/(list)/page.tsx')
+    const detail = source('app/(app)/(dashboard)/conversations/[conversationId]/page.tsx')
     const filter = source('components/dashboard/conversation-filters.tsx')
     const backfill = source('components/crm/sales-insight-backfill.tsx')
 

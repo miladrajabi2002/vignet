@@ -7,7 +7,7 @@ import {
   AlertTriangle, BookOpen, CheckCircle2, EyeOff, HeartHandshake, HelpCircle, Loader2,
   Mic, Play, Radar, RotateCcw, Scale, ShieldCheck, ShoppingCart, Sparkles, Wrench,
 } from 'lucide-react'
-import { Badge, Card, EmptyState, Panel, StatCard, fa, fmtDate } from '@/app/admin/(dash)/ui'
+import { Badge, Card, EmptyState, Panel, StatCard, fa, fmtDate } from '@/app/(app)/admin/(dash)/ui'
 import { SKILL_REGISTRY, skillNameFa, type SkillKey } from '@/lib/skills/registry'
 
 export interface FindingView {

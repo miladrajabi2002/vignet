@@ -7,7 +7,7 @@ const source = (file: string) => readFileSync(path.join(root, file), 'utf8')
 
 describe('agent channel UI', () => {
   it('keeps Instagram connection in the channel list without the service setup interstitial', () => {
-    const page = source('app/(dashboard)/agents/[agentId]/channels/page.tsx')
+    const page = source('app/(app)/(dashboard)/agents/[agentId]/channels/page.tsx')
 
     expect(page).not.toContain('InstagramServiceSetup')
     expect(page).not.toContain('instagramServiceActive')
@@ -17,7 +17,7 @@ describe('agent channel UI', () => {
   })
 
   it('removes WhatsApp connection surfaces', () => {
-    const page = source('app/(dashboard)/agents/[agentId]/channels/page.tsx')
+    const page = source('app/(app)/(dashboard)/agents/[agentId]/channels/page.tsx')
     const messenger = source('components/channels/messenger-channel.tsx')
     const migration = source('prisma/migrations/20260808120000_account_cascade_retention_admin_mailbox/migration.sql')
 
@@ -51,7 +51,7 @@ describe('agent channel UI', () => {
   })
 
   it('shows connections as cards that open in a side sheet', () => {
-    const page = source('app/(dashboard)/agents/[agentId]/channels/page.tsx')
+    const page = source('app/(app)/(dashboard)/agents/[agentId]/channels/page.tsx')
     const board = source('components/channels/channel-board.tsx')
 
     expect(page).toContain('<ChannelBoard items={channelItems} initialOpen={initialOpen} />')

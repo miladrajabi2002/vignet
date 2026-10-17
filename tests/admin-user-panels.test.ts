@@ -6,7 +6,7 @@ function source(path: string) {
 }
 
 describe('admin user detail tab panels (v3.6)', () => {
-  const page = () => source('app/admin/(dash)/users/[userId]/page.tsx')
+  const page = () => source('app/(app)/admin/(dash)/users/[userId]/page.tsx')
 
   it('exposes five per-user tabs (conversations tab removed by request)', () => {
     const src = page()
@@ -127,7 +127,7 @@ describe('login + SMS delivery tracking (v3.6)', () => {
 })
 
 describe('admin users list without the redundant business column (v3.5)', () => {
-  const page = () => source('app/admin/(dash)/users/page.tsx')
+  const page = () => source('app/(app)/admin/(dash)/users/page.tsx')
   const cards = () => source('components/admin/admin-user-mobile-cards.tsx')
 
   it('drops the کسب‌وکار column and replaces it with a status column', () => {
@@ -150,19 +150,19 @@ describe('admin users list without the redundant business column (v3.5)', () => 
 
 describe('admin panel Toman-only price display (v3.5)', () => {
   it('agent detail shows 30-day AI spend in Toman', () => {
-    const src = source('app/admin/(dash)/agents/[agentId]/page.tsx')
+    const src = source('app/(app)/admin/(dash)/agents/[agentId]/page.tsx')
     expect(src).toContain('value={fmtIRR(usage._sum.chargedIRR ?? 0)}')
     expect(src).not.toContain('ریال')
   })
 
   it('revenue page quotes the USD rate in Toman', () => {
-    const src = source('app/admin/(dash)/revenue/page.tsx')
+    const src = source('app/(app)/admin/(dash)/revenue/page.tsx')
     expect(src).toContain('Math.round(finance.usdToIRR / 10)')
     expect(src).not.toContain('} ریال')
   })
 
   it('AI usage page no longer advertises rial amounts', () => {
-    const src = source('app/admin/(dash)/ai/page.tsx')
+    const src = source('app/(app)/admin/(dash)/ai/page.tsx')
     expect(src).not.toContain('مجموع مبلغ ریالی')
   })
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useSitePathname } from '@/components/marketing/site/use-site-pathname'
 import { useEffect, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { Check, Globe, House } from 'lucide-react'
@@ -58,7 +58,7 @@ const COPY = {
 export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const locale = toSiteLocale(useLocale())
 	const copy = COPY[locale]
-	const pathname = usePathname()
+	const pathname = useSitePathname()
 	const [scrolled, setScrolled] = useState(false)
 	// White glass over a dark section turns muddy grey, so the bar follows what
 	// is under it: sections marked data-nav="dark" switch it to dark glass.

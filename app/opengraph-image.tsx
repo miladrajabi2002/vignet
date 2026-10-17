@@ -1,8 +1,8 @@
 import { ImageResponse } from 'next/og'
 
-export const alt = 'Vigent — AI sales, support and omnichannel CRM'
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+import { size } from '@/lib/seo/share-image'
+
+export { alt, contentType, size } from '@/lib/seo/share-image'
 
 export default function OpenGraphImage() {
 	return new ImageResponse(

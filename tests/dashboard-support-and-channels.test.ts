@@ -16,7 +16,7 @@ describe('dashboard support and channel alert destinations', () => {
 
   it('links new channel health alerts to their agent and redirects legacy links', () => {
     const health = source('lib/channels/health.ts')
-    const legacyRoute = source('app/(dashboard)/channels/page.tsx')
+    const legacyRoute = source('app/(app)/(dashboard)/channels/page.tsx')
 
     expect(health).toContain('link: `/agents/${ch.agent.id}/channels`')
     expect(health).not.toContain("link: '/channels'")

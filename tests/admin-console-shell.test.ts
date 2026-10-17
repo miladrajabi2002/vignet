@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const ADMIN_DIR = 'app/admin/(dash)'
+const ADMIN_DIR = 'app/(app)/admin/(dash)'
 
 function source(file: string) {
   return readFileSync(file, 'utf8')
@@ -17,7 +17,7 @@ function tsxFiles(dir: string): string[] {
 }
 
 const ADMIN_UI_FILES = [
-  ...tsxFiles('app/admin'),
+  ...tsxFiles('app/(app)/admin'),
   ...tsxFiles('components/admin'),
   'components/blog/admin-blog-manager.tsx',
   'components/showcase/admin-showcase-manager.tsx',

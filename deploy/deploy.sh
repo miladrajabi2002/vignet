@@ -445,6 +445,10 @@ mkdir -p .next-builds
 echo "==> Building production artifact into ${VIGENT_NEXT_DIST_DIR}"
 npm run build
 
+# Every release builds into a fresh directory, so its ~900 MB webpack cache is
+# never read again. The server only needs cache/fetch-cache (and images) at runtime.
+rm -rf "${VIGENT_NEXT_DIST_DIR}/cache/webpack"
+
 if [ -d "${active_dist_dir}/static" ]; then
   echo "==> Retaining previous release chunks for open browser tabs"
   mkdir -p "${VIGENT_NEXT_DIST_DIR}/static"

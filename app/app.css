@@ -1,0 +1,12 @@
+/*
+ * App stylesheet (dashboard, admin, login, chat/menu/pay pages). Built like
+ * app/marketing.css — same sources, same order — but against the full
+ * tailwind.config.ts. Both entries name their config: Tailwind's plugin
+ * remembers the last `@config` it saw for every later file in the build, so
+ * a stylesheet without one could be compiled with the public-site config.
+ */
+@import './globals.css';
+@import './tailwind-variants.css';
+@import '../components/marketing/site/site.css';
+@import './ui-system.css';
+@config '../tailwind.config.ts';

@@ -7,12 +7,12 @@ function source(path: string) {
 
 describe('shared adaptive mobile UI contract', () => {
   it('activates edge-to-edge safe areas and reserves room for persistent mobile navigation', () => {
-    const rootLayout = source('app/layout.tsx')
-    const dashboardLayout = source('app/(dashboard)/layout.tsx')
-    const adminLayout = source('app/admin/(dash)/layout.tsx')
+    const rootLayout = source('app/root-document.tsx')
+    const dashboardLayout = source('app/(app)/(dashboard)/layout.tsx')
+    const adminLayout = source('app/(app)/admin/(dash)/layout.tsx')
     const dashboardHeader = source('components/dashboard/header.tsx')
     const dashboardNav = source('components/dashboard/mobile-nav.tsx')
-    const adminNav = source('app/admin/(dash)/mobile-nav.tsx')
+    const adminNav = source('app/(app)/admin/(dash)/mobile-nav.tsx')
     const bottomSheet = source('components/ui/mobile-bottom-sheet.tsx')
 
     expect(rootLayout).toContain("viewportFit: 'cover'")
@@ -20,7 +20,7 @@ describe('shared adaptive mobile UI contract', () => {
     expect(dashboardLayout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
     expect(adminLayout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
     expect(dashboardHeader).toContain('env(safe-area-inset-top)')
-    expect(source('app/admin/(dash)/admin-header.tsx')).toContain('env(safe-area-inset-top)')
+    expect(source('app/(app)/admin/(dash)/admin-header.tsx')).toContain('env(safe-area-inset-top)')
     expect(dashboardNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
     expect(adminNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
     expect(bottomSheet).toContain("!footer && '[padding-bottom:max(1rem,env(safe-area-inset-bottom))]'")
@@ -40,7 +40,7 @@ describe('shared adaptive mobile UI contract', () => {
   it('uses sticky mobile product search and sheet filters', () => {
     const products = source('components/products/product-grid.tsx')
     const productForm = source('components/products/product-form.tsx')
-    const page = source('app/(dashboard)/products/(list)/page.tsx')
+    const page = source('app/(app)/(dashboard)/products/(list)/page.tsx')
 
     expect(products).toContain('sticky top-[5.35rem]')
     expect(products).toContain('<MobileBottomSheet')
@@ -93,11 +93,11 @@ describe('shared adaptive mobile UI contract', () => {
   it('pairs every data-dense desktop table with a dedicated mobile card view', () => {
     const pairedViews = [
       'components/products/orders-view.tsx',
-      'app/admin/(dash)/users/page.tsx',
-      'app/admin/(dash)/payments/page.tsx',
-      'app/admin/(dash)/conversations/page.tsx',
-      'app/admin/(dash)/revenue/page.tsx',
-      'app/admin/(dash)/ai/page.tsx',
+      'app/(app)/admin/(dash)/users/page.tsx',
+      'app/(app)/admin/(dash)/payments/page.tsx',
+      'app/(app)/admin/(dash)/conversations/page.tsx',
+      'app/(app)/admin/(dash)/revenue/page.tsx',
+      'app/(app)/admin/(dash)/ai/page.tsx',
       'components/blog/admin-blog-manager.tsx',
       'components/admin/service-health-panel.tsx',
     ]
@@ -109,7 +109,7 @@ describe('shared adaptive mobile UI contract', () => {
     }
 
     const contacts = source('components/crm/contacts-view.tsx')
-    const database = source('app/admin/(dash)/database/page.tsx')
+    const database = source('app/(app)/admin/(dash)/database/page.tsx')
     expect(contacts).toContain('space-y-3 md:hidden')
     expect(contacts).toContain('spatial-surface hidden')
     expect(database).toContain('<DatabaseMobileRows')
@@ -121,9 +121,9 @@ describe('shared adaptive mobile UI contract', () => {
     const contactDetail = source('components/crm/contact-detail-sheet.tsx')
     const orderSearch = source('components/products/orders-search-form.tsx')
     const orderDetail = source('components/products/order-entry.tsx')
-    const adminUsers = source('app/admin/(dash)/users/page.tsx')
-    const adminPayments = source('app/admin/(dash)/payments/page.tsx')
-    const adminConversations = source('app/admin/(dash)/conversations/page.tsx')
+    const adminUsers = source('app/(app)/admin/(dash)/users/page.tsx')
+    const adminPayments = source('app/(app)/admin/(dash)/payments/page.tsx')
+    const adminConversations = source('app/(app)/admin/(dash)/conversations/page.tsx')
     const adminBlog = source('components/blog/admin-blog-manager.tsx')
 
     expect(contacts).toContain('type="search"')
@@ -150,7 +150,7 @@ describe('shared adaptive mobile UI contract', () => {
   })
 
   it('opens a compact mobile conversation preview before entering the thread', () => {
-    const page = source('app/(dashboard)/conversations/(list)/page.tsx')
+    const page = source('app/(app)/(dashboard)/conversations/(list)/page.tsx')
     const card = source('components/crm/mobile-conversation-card.tsx')
     const filters = source('components/dashboard/conversation-filters.tsx')
 
@@ -166,8 +166,8 @@ describe('shared adaptive mobile UI contract', () => {
   it('keeps Excel export exclusive to contacts', () => {
     const contacts = source('components/crm/contacts-view.tsx')
     const orders = source('components/products/orders-view.tsx')
-    const analytics = source('app/(dashboard)/analytics/page.tsx')
-    const agentAnalytics = source('app/(dashboard)/agents/[agentId]/analytics/page.tsx')
+    const analytics = source('app/(app)/(dashboard)/analytics/page.tsx')
+    const agentAnalytics = source('app/(app)/(dashboard)/agents/[agentId]/analytics/page.tsx')
 
     expect(contacts).toContain('/api/contacts/export')
     expect(existsSync('app/api/contacts/export/route.ts')).toBe(true)

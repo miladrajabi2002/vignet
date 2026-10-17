@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
 import { normalizePersian } from '@/lib/search/persian'
 import { BADGE_LABELS, menuPalette, openState, type MenuBadge } from '@/lib/menu/settings'
 import type { PublicMenuData, PublicMenuItem, PublicMenuVariant } from '@/lib/menu/public-data'
+import { LATIN_DIGIT_RE, latinDigitToPersian } from '@/lib/agent/parsers/digits'
 
 const fa = (value: number) => Math.round(value).toLocaleString('fa-IR')
-const faDigits = (value: string) => value.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])
+const faDigits = (value: string) => value.replace(LATIN_DIGIT_RE, latinDigitToPersian)
 
 type MenuPick = { id: string; variantId: number | null; qty: number }
 

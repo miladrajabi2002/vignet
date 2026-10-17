@@ -1,5 +1,6 @@
 import { PDFParse } from 'pdf-parse'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { PERSIAN_DIGIT_RE, persianDigitToLatin } from '@/lib/agent/parsers/digits'
 
 export interface PdfPage {
   page: number
@@ -71,7 +72,7 @@ export function parseCsv(content: string, options: { batchChars?: number } = {})
   // «۱۲٬۵۰۰»، «1,250,000» and «٩٨٠» are numbers; a leading-zero value such
   // as «0788» is an identifier (SKU/code) and must never become a range.
   const asciiDigits = (value: string): string => value
-    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(PERSIAN_DIGIT_RE, persianDigitToLatin)
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
   const numericLike = (value: string): boolean => {
     const ascii = asciiDigits(value).trim()
