@@ -119,7 +119,7 @@ export function Hero({ locale }: { locale: SiteLocale }) {
 		<section data-vg-hero className="relative flex flex-col items-center px-4 pt-[88px] text-center lg:pt-[142px]">
 			<div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[470px] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(199,189,240,0.35),rgba(245,245,243,0))] lg:top-10 lg:h-[520px] lg:w-[900px]" />
 			<HeroPill className="relative">{copy.pill}</HeroPill>
-			<h1 className="relative mt-[18px] text-[36px] font-bold leading-[1.35] md:text-[48px] md:leading-[1.3] lg:mt-7 lg:text-[64px] lg:leading-[1.2] xl:text-[80px] xl:leading-[1.18]">
+			<h1 className="relative mt-[18px] text-[36px] font-bold leading-[1.35] md:text-[48px] md:leading-[1.3] lg:mt-7 lg:text-[52px] lg:leading-[1.25] xl:text-[60px] xl:leading-[1.22]">
 				{copy.h1a}
 				<br className="md:hidden" /> {copy.h1b}
 			</h1>
