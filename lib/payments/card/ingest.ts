@@ -17,7 +17,7 @@ import { notifyWorkspace } from '@/lib/notifications/create'
 import { rialToToman } from '@/lib/payments/card/amount'
 import { payToman } from '@/lib/payments/card/pay-card'
 import { parseBankSms } from '@/lib/payments/card/sms-parse'
-import { confirmCardPayment, MIN_PAY_AMOUNT, OPEN_PAYMENT_STATUSES, recordPartialDeposit } from '@/lib/payments/card/service'
+import { confirmCardPayment, LATE_CONFIRM_STATUSES, MIN_PAY_AMOUNT, OPEN_PAYMENT_STATUSES, recordPartialDeposit } from '@/lib/payments/card/service'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
 
@@ -57,12 +57,13 @@ export async function findDeviceByPhone(from: string): Promise<PayDevice | null>
 export type IngestOutcome =
   | { status: 'matched'; paymentId: string }
   | { status: 'unmatched'; smsId: string }
-  | { status: 'ignored'; reason: 'secret' | 'not-deposit' | 'duplicate' | 'empty' }
+  | { status: 'ignored'; reason: 'secret' | 'not-deposit' | 'duplicate' | 'empty' | 'unrelated' }
 
 /**
  * Read one forwarded message from a registered phone. A deposit whose amount
- * equals exactly one open payment of that business confirms it; any other
- * deposit is kept for the owner as «واریز بدون سفارش».
+ * equals exactly one open payment of that business confirms it; one close to
+ * a payment of the last 12 hours is kept for the owner as «واریز بدون سفارش»
+ * with those payments; any other is stored as IGNORED, without a word.
  */
 export async function ingestBankSms(device: PayDevice, via: 'SMS' | 'URL', rawText: string, now = new Date()): Promise<IngestOutcome> {
   const text = rawText.trim().slice(0, 1200)
@@ -94,6 +95,7 @@ export async function ingestBankSms(device: PayDevice, via: 'SMS' | 'URL', rawTe
   // Best-ranked amount first; one SMS confirms one payment.
   const hit = amounts.map((amount) => candidates.filter((payment) => payment.payAmount === amount)).find((group) => group.length === 1)?.[0] ?? null
   const amount = hit?.payAmount ?? (parsed.amountRial != null ? Math.floor(parsed.amountRial / 10) : null)
+  const near = hit ? [] : await nearPaymentsForSms(device.workspaceId, amount, now)
 
   let smsId: string
   try {
@@ -105,7 +107,7 @@ export async function ingestBankSms(device: PayDevice, via: 'SMS' | 'URL', rawTe
         text: parsed.redacted.slice(0, 1200),
         kind: 'DEPOSIT',
         amount,
-        status: hit ? 'MATCHED' : 'UNMATCHED',
+        status: hit ? 'MATCHED' : near.length ? 'UNMATCHED' : 'IGNORED',
         dedupeHash,
         paymentId: hit?.id ?? null,
         receivedAt: now,
@@ -125,18 +127,84 @@ export async function ingestBankSms(device: PayDevice, via: 'SMS' | 'URL', rawTe
     return { status: 'matched', paymentId: hit.id }
   }
 
+  // Salary, a friend's transfer, a refund: nothing the owner sold.
+  if (!near.length) return { status: 'ignored', reason: 'unrelated' }
+
+  const options = near.map((payment) => `#${payment.reference} (${payToman(payment.payAmount, 'fa')}${amount != null && amount !== payment.payAmount ? `، ${depositGapLabel(amount, payment.payAmount, 'fa')}` : ''})`)
   await notifyWorkspace({
     workspaceId: device.workspaceId,
     type: 'SYSTEM',
     title: 'واریز بدون سفارش',
     body: amount != null
-      ? `${payToman(amount, 'fa')} واریز شد ولی هیچ پرداخت بازی با این مبلغ دقیق نیست. از «درگاه پرداخت» به سفارش درست وصلش کنید.`
-      : 'یک پیامک واریز رسید که مبلغش خوانده نشد.',
+      ? `${payToman(amount, 'fa')} واریز شد که با هیچ پرداختی دقیقاً برابر نیست؛ شاید برای ${options.join(' یا ')} باشد.`
+      : `یک پیامک واریز رسید که مبلغش خوانده نشد؛ شاید برای ${options.join(' یا ')} باشد.`,
     link: '/payments',
     operatorTelegram: 'payments',
-    operatorButtons: [[{ text: '🔗 وصل کردن به پرداخت', callback_data: `ps:v:${smsId}` }]],
+    operatorButtons: [
+      ...near.map((payment) => [{ text: `🔗 #${payment.reference} · ${payment.payAmount.toLocaleString('fa-IR')}`, callback_data: `ps:a:${smsId}:${payment.id}` }]),
+      [{ text: '🗑 نادیده بگیر', callback_data: `ps:i:${smsId}` }],
+    ],
   }).catch((error) => captureError('cardpay:unmatched', error, { workspaceId: device.workspaceId }))
   return { status: 'unmatched', smsId }
+}
+
+/** How far back from a deposit the payment it may be for is looked for. */
+export const NEAR_WINDOW_MS = 12 * 3_600_000
+
+/**
+ * Whether a deposit that equals no payment exactly may still be for one of
+ * `due` tomans: part of it, a little over, or the amount rounded — up to a
+ * fifth either way, with at least 5,000 tomans of room on small amounts.
+ */
+export function depositNear(deposit: number, due: number): boolean {
+  if (!(deposit > 0) || !(due > 0)) return false
+  return Math.abs(deposit - due) <= Math.max(due * 0.2, 5_000)
+}
+
+/** «۹,۹۶۱ تومان کمتر» / «۵۰۰ تومان بیشتر»: how a deposit differs from what is due. */
+export function depositGapLabel(deposit: number, due: number, lang: 'fa' | 'en'): string {
+  const gap = payToman(Math.abs(deposit - due), lang)
+  if (deposit < due) return lang === 'fa' ? `${gap} کمتر` : `${gap} less`
+  return lang === 'fa' ? `${gap} بیشتر` : `${gap} more`
+}
+
+/**
+ * The payments of the 12 hours before a deposit (still open, or closed but
+ * confirmable by hand) that it may be for, closest amount first. A deposit
+ * whose amount was not read may be for any of them.
+ */
+export async function nearPaymentsForSms(workspaceId: string, amount: number | null, at: Date) {
+  const recent = await prisma.cardPayment.findMany({
+    where: {
+      workspaceId,
+      status: { in: [...OPEN_PAYMENT_STATUSES, ...LATE_CONFIRM_STATUSES] },
+      // A few minutes after too: the bank's SMS can beat the payment's own write.
+      createdAt: { gte: new Date(at.getTime() - NEAR_WINDOW_MS), lte: new Date(at.getTime() + 10 * 60_000) },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: { id: true, reference: true, baseAmount: true, payAmount: true, status: true, customerName: true, createdAt: true },
+  })
+  if (amount == null) return recent.slice(0, 3)
+  return recent
+    .filter((payment) => depositNear(amount, payment.payAmount) || depositNear(amount, payment.baseAmount))
+    .map((payment) => ({ payment, distance: Math.abs(payment.payAmount - amount) }))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 3)
+    .map((row) => row.payment)
+}
+
+/**
+ * The deposits waiting for the owner, newest first, each with the payments it
+ * may be for. One with no such payment left (it was paid another way, or the
+ * deposit was never a sale) is set aside as IGNORED instead of shown.
+ */
+export async function pendingDeposits(workspaceId: string, take = 10) {
+  const rows = await prisma.bankSms.findMany({ where: { workspaceId, status: 'UNMATCHED' }, orderBy: { receivedAt: 'desc' }, take })
+  const near = await Promise.all(rows.map((sms) => nearPaymentsForSms(workspaceId, sms.amount, sms.receivedAt)))
+  const stale = rows.filter((_, index) => !near[index].length).map((sms) => sms.id)
+  if (stale.length) await prisma.bankSms.updateMany({ where: { id: { in: stale }, status: 'UNMATCHED' }, data: { status: 'IGNORED' } })
+  return rows.flatMap((sms, index) => (near[index].length ? [{ sms, candidates: near[index] }] : []))
 }
 
 /** Open payments the owner may attach an unmatched deposit to, closest amount first. */
@@ -167,7 +235,7 @@ export function depositFit(deposit: number | null, due: number): { kind: 'SHORT'
 }
 
 /**
- * The owner attaches an unmatched deposit to a payment or dismisses it.
+ * The owner attaches an unmatched deposit to a payment or dismisses it (IGNORED).
  * A deposit short of what is due keeps the payment open for the rest; a
  * larger one confirms it and records the extra.
  */
@@ -183,6 +251,7 @@ export async function resolveBankSms(workspaceId: string, smsId: string, payment
       : await confirmCardPayment(payment.id, by, new Date(), { overpaid: fit.kind === 'FULL' ? fit.extra : null })
     if (!result.changed) return false
   }
-  await prisma.bankSms.update({ where: { id: smsId }, data: { status: 'RESOLVED', paymentId } })
+  // Dismissed: it leaves the owner's list for good.
+  await prisma.bankSms.update({ where: { id: smsId }, data: { status: paymentId ? 'RESOLVED' : 'IGNORED', paymentId } })
   return true
 }

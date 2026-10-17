@@ -269,12 +269,8 @@ export async function paymentConfirmScreen(workspaceId: string, paymentId: strin
 // ─── Deposits that matched nothing ──────────────────────────────────────
 
 export async function smsListScreen(workspaceId: string): Promise<BotScreen> {
-  const rows = await prisma.bankSms.findMany({
-    where: { workspaceId, status: 'UNMATCHED' },
-    orderBy: { receivedAt: 'desc' },
-    take: 8,
-    select: { id: true, amount: true, receivedAt: true },
-  })
+  const { pendingDeposits } = await import('@/lib/payments/card/ingest')
+  const rows = (await pendingDeposits(workspaceId, 8)).map((row) => row.sms)
   if (!rows.length) {
     return {
       text: '📩 <b>واریز بی‌سفارش</b>\n\nهمهٔ واریزها به پرداختی وصل شده‌اند. 👌',
@@ -283,7 +279,7 @@ export async function smsListScreen(workspaceId: string): Promise<BotScreen> {
   }
   const lines = [
     `📩 <b>واریز بی‌سفارش</b> · ${fa(rows.length)} مورد`,
-    'پیامک واریزی رسیده که مبلغش با هیچ پرداخت بازی یکی نبود (مثلاً مشتری مبلغ را رُند کرده). روی هر کدام بزنید تا نزدیک‌ترین پرداخت‌ها را ببینید.',
+    'واریزهایی که با هیچ پرداختی دقیقاً برابر نبودند ولی به پرداختی از ۱۲ ساعت اخیر نزدیک‌اند (مثلاً مشتری مبلغ را رُند کرده). روی هر کدام بزنید تا آن پرداخت‌ها را ببینید.',
     DIVIDER,
   ]
   const buttons: Row[] = []
@@ -304,13 +300,13 @@ export async function smsScreen(workspaceId: string, smsId: string): Promise<Bot
       keyboard: kb([[btn('📩 واریزهای دیگر', 'ps:l'), btn('🏠 خانه', 'm:home')]]),
     }
   }
-  const { suggestPaymentsForSms } = await import('@/lib/payments/card/ingest')
-  const suggestions = await suggestPaymentsForSms(workspaceId, sms.amount)
+  const { nearPaymentsForSms } = await import('@/lib/payments/card/ingest')
+  const suggestions = await nearPaymentsForSms(workspaceId, sms.amount, sms.receivedAt)
   const lines = [
     `📩 <b>واریز ${sms.amount != null ? money(sms.amount) : 'با مبلغ نامشخص'}</b> · ${ago(sms.receivedAt)}`,
-    sms.text ? `<blockquote>${escapeHtml(clip(sms.text, 240))}</blockquote>` : '',
+    sms.text ? `<blockquote>${escapeHtml(clip(sms.text.replace(/\\n/g, '\n'), 240))}</blockquote>` : '',
     DIVIDER,
-    suggestions.length ? '<b>نزدیک‌ترین پرداخت‌های باز</b> — روی درستش بزنید تا تأیید شود؛ اگر واریز کمتر باشد، پرداخت باز می‌ماند و بقیه از مشتری خواسته می‌شود:' : 'پرداخت بازی برای وصل کردن نیست.',
+    suggestions.length ? '<b>پرداخت‌های نزدیکِ ۱۲ ساعت اخیر</b> — روی درستش بزنید تا تأیید شود؛ اگر واریز کمتر باشد، پرداخت باز می‌ماند و بقیه از مشتری خواسته می‌شود:' : 'پرداختی در ۱۲ ساعت اخیر به این مبلغ نزدیک نیست.',
   ].filter(Boolean)
   const rows: Row[] = suggestions.map((payment) => {
     const diff = sms.amount != null ? sms.amount - payment.payAmount : null
@@ -318,7 +314,7 @@ export async function smsScreen(workspaceId: string, smsId: string): Promise<Bot
     const status = PAYMENT_STATUS_FA[payment.status]?.icon ?? '•'
     return [btn(`🔗 ${status} ${fa(payment.payAmount)}${diffLabel} · ${clip(payment.customerName || payment.reference, 16)}`, `ps:a:${sms.id}:${payment.id}`)]
   })
-  rows.push([btn('🙈 مربوط به فروش نیست', `ps:i:${sms.id}`)])
+  rows.push([btn('🗑 هیچ‌کدام؛ نادیده بگیر', `ps:i:${sms.id}`)])
   rows.push([btn('↩️ واریزها', 'ps:l'), btn('🏠 خانه', 'm:home')])
   return { text: lines.join('\n'), keyboard: kb(rows) }
 }

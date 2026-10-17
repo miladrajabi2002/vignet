@@ -11,7 +11,7 @@ import { PaymentsList, type PaymentRowData } from '@/components/payments/payment
 import { NewPaymentButton } from '@/components/payments/new-link-form'
 import { Sparkline } from '@/components/admin/sparkline'
 import { loadGatewayOverview, NOT_TEST } from '@/lib/payments/card/dashboard'
-import { depositFit, suggestPaymentsForSms } from '@/lib/payments/card/ingest'
+import { depositFit, depositGapLabel, pendingDeposits } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
 import { readPayItems, type PayItem } from '@/lib/payments/card/items'
 import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
@@ -74,13 +74,13 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
       take: 60,
       include: { card: { select: { bankKey: true, last4: true } }, site: { select: { name: true } } },
     }),
-    prisma.bankSms.findMany({ where: { workspaceId: user.workspaceId, status: 'UNMATCHED' }, orderBy: { receivedAt: 'desc' }, take: 10 }),
+    // Only deposits close to a payment of their last 12 hours wait for the owner.
+    pendingDeposits(user.workspaceId),
     prisma.cardPayment.aggregate({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: dayStart }, ...NOT_TEST }, _sum: { baseAmount: true }, _count: true }),
     prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', confirmedBy: 'AUTO', ...NOT_TEST } }),
     prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', ...NOT_TEST } }),
     prisma.cardPayment.findMany({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST }, select: { paidAt: true, baseAmount: true, confirmedBy: true } }),
   ])
-  const suggestions = await Promise.all(unmatched.map((sms) => suggestPaymentsForSms(user.workspaceId, sms.amount)))
   // Chat orders: their lines, and once paid whether they reached the WooCommerce store.
   const draftIds = [...new Set(payments.flatMap((payment) => (payment.orderDraftId ? [payment.orderDraftId] : [])))]
   const drafts = new Map(
@@ -261,23 +261,33 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
                 </div>
               </li>
             ))}
-            {unmatched.map((sms, index) => (
+            {unmatched.map(({ sms, candidates }) => (
               <li key={sms.id} className="rounded-2xl border border-red-200 bg-white p-3.5 dark:border-red-900/50 dark:bg-neutral-900">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'واریز بدون سفارش' : 'Deposit with no order'}</span>
                   {sms.amount != null && <span className="text-sm font-bold">{money(sms.amount)}</span>}
                   <span className="ms-auto text-xs text-[var(--text-muted)]">{time.format(sms.receivedAt)}</span>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">{fa ? 'این مبلغ با هیچ پرداخت بازی دقیقاً برابر نیست؛ احتمالاً مشتری مبلغ را رُند یا ناقص واریز کرده. اگر کمتر از مبلغ باشد، پرداخت باز می‌ماند و بقیه از مشتری خواسته می‌شود؛ اگر بیشتر باشد، تأیید می‌شود و اضافه‌اش ثبت می‌شود.' : 'This amount equals no open payment exactly; the customer probably rounded it or sent part of it. If it is less, the payment stays open and the customer is asked for the rest; if it is more, it is confirmed and the extra is recorded.'}</p>
-                <pre dir="rtl" className="mt-2 whitespace-pre-wrap rounded-xl bg-[var(--bg-surface)] p-2.5 text-xs leading-6 text-[var(--text-secondary)]">{sms.text}</pre>
-                <div className="mt-3">
-                  <UnmatchedSmsActions smsId={sms.id} suggestions={suggestions[index].slice(0, 3).map((payment) => {
+                <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">
+                  {fa
+                    ? (candidates.length > 1 ? 'با هیچ پرداختی دقیقاً برابر نیست، ولی به این پرداخت‌های ۱۲ ساعت اخیر نزدیک است. اگر برای یکی از آن‌هاست رویش بزنید:' : 'با هیچ پرداختی دقیقاً برابر نیست، ولی به این پرداختِ ۱۲ ساعت اخیر نزدیک است. اگر برای آن است رویش بزنید:')
+                    : 'It equals no payment exactly, but is close to these payments of the last 12 hours. Tap the one it is for:'}
+                </p>
+                <div className="mt-2.5">
+                  <UnmatchedSmsActions smsId={sms.id} suggestions={candidates.map((payment) => {
                     const fit = depositFit(sms.amount, payment.payAmount)
-                    const hint = fit.kind === 'SHORT' ? (fa ? `${fit.rest.toLocaleString(numbers)} کم؛ بقیه خواسته می‌شود` : `${fit.rest.toLocaleString(numbers)} short; the rest is asked for`)
-                      : fit.extra ? (fa ? `${fit.extra.toLocaleString(numbers)} اضافه` : `${fit.extra.toLocaleString(numbers)} extra`) : null
-                    return { id: payment.id, label: `#${payment.reference} · ${money(payment.baseAmount)}`, hint }
+                    const gap = sms.amount != null && sms.amount !== payment.payAmount ? depositGapLabel(sms.amount, payment.payAmount, locale) : null
+                    const hint = !gap ? null
+                      : fit.kind === 'SHORT' ? (fa ? `${gap}؛ بقیه از مشتری خواسته می‌شود` : `${gap}; the rest is asked for`)
+                      : fa ? `${gap}؛ تأیید می‌شود` : `${gap}; it is confirmed`
+                    return { id: payment.id, label: `#${payment.reference}`, name: payment.customerName, amount: money(payment.payAmount), hint }
                   })} />
                 </div>
+                <details className="mt-2.5 text-xs text-[var(--text-muted)]">
+                  <summary className="cursor-pointer select-none">{fa ? 'متن پیامک بانک' : 'Bank SMS'}</summary>
+                  {/* Rows stored before escaped line breaks were read still carry a literal «\n». */}
+                  <p dir="auto" className="mt-1.5 whitespace-pre-line break-words rounded-xl bg-[var(--bg-surface)] p-2.5 leading-6 text-[var(--text-secondary)]">{sms.text.replace(/\\n/g, '\n')}</p>
+                </details>
               </li>
             ))}
           </ul>

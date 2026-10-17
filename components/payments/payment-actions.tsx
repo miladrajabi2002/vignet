@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Ban, Check, CreditCard, X } from 'lucide-react'
+import { Ban, Check, CreditCard, Loader2, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -110,18 +110,21 @@ export function CustomerCardPaySwitch({ paymentId, blocked, variant = 'row' }: {
 }
 
 /**
- * Attach a deposit no order asked for to one of the open payments, or say it
- * belongs to none. `hint` says what attaching does when the amounts differ.
+ * Attach a deposit no order asked for to one of the payments it is close to,
+ * or dismiss it for good. `hint` says how the amounts differ and what attaching does.
  */
-export function UnmatchedSmsActions({ smsId, suggestions }: { smsId: string; suggestions: Array<{ id: string; label: string; hint?: string | null }> }) {
+export function UnmatchedSmsActions({ smsId, suggestions }: { smsId: string; suggestions: Array<{ id: string; label: string; name?: string | null; amount: string; hint?: string | null }> }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
 	const [busy, setBusy] = useState<string | null>(null)
+	const [failed, setFailed] = useState(false)
 
 	async function resolve(paymentId: string | null) {
 		setBusy(paymentId ?? 'none')
+		setFailed(false)
 		try {
-			await fetch(`/api/payments/sms/${smsId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId }) })
+			const response = await fetch(`/api/payments/sms/${smsId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId }) })
+			if (!response.ok) setFailed(true)
 			router.refresh()
 		} finally {
 			setBusy(null)
@@ -129,16 +132,36 @@ export function UnmatchedSmsActions({ smsId, suggestions }: { smsId: string; sug
 	}
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
+		<div className="grid gap-2">
 			{suggestions.map((suggestion) => (
-				<Button key={suggestion.id} size="sm" variant="outline" loading={busy === suggestion.id} disabled={busy !== null} onClick={() => resolve(suggestion.id)}>
-					{fa ? `برای ${suggestion.label} است` : `It is for ${suggestion.label}`}
-					{suggestion.hint ? <span className="font-normal opacity-70">· {suggestion.hint}</span> : null}
-				</Button>
+				<button
+					key={suggestion.id}
+					type="button"
+					disabled={busy !== null}
+					onClick={() => resolve(suggestion.id)}
+					className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2 text-start transition-colors hover:border-[var(--border-hover)] disabled:opacity-60"
+				>
+					<span className="min-w-0 flex-1">
+						<span className="flex flex-wrap items-baseline gap-x-2">
+							<b dir="ltr" className="font-mono text-[13px] text-[var(--text-primary)]">{suggestion.label}</b>
+							{suggestion.name ? <span className="truncate text-[12.5px] text-[var(--text-secondary)]">{suggestion.name}</span> : null}
+							<span className="ms-auto text-[13px] font-bold tabular-nums text-[var(--text-primary)]">{suggestion.amount}</span>
+						</span>
+						{suggestion.hint ? <span className="mt-0.5 block text-[12px] leading-5 text-[var(--text-muted)]">{suggestion.hint}</span> : null}
+					</span>
+					<span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2.5 py-1 text-[12px] font-medium text-[var(--bg-base)]">
+						{busy === suggestion.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Check className="size-3.5" aria-hidden />}
+						{fa ? 'برای این است' : 'It is this'}
+					</span>
+				</button>
 			))}
-			<Button size="sm" variant="ghost" loading={busy === 'none'} disabled={busy !== null} onClick={() => resolve(null)}>
-				{fa ? 'به سفارشی مربوط نیست' : 'Not an order'}
-			</Button>
+			<div className="flex flex-wrap items-center gap-2">
+				<Button size="sm" variant="ghost" loading={busy === 'none'} disabled={busy !== null} onClick={() => resolve(null)}>
+					<Trash2 className="size-4" aria-hidden />
+					{fa ? 'هیچ‌کدام؛ نادیده بگیر و حذف کن' : 'None of these; dismiss it'}
+				</Button>
+				{failed ? <span className="text-[12px] text-red-700 dark:text-red-300">{fa ? 'انجام نشد؛ شاید قبلاً رسیدگی شده.' : 'It did not go through; it may be settled already.'}</span> : null}
+			</div>
 		</div>
 	)
 }

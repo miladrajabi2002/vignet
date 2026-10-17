@@ -34,6 +34,8 @@ export const DEPOSIT_KEYWORDS = ['واریز', 'انتقال', 'نشست', 'اف
 
 export function normalizeSms(text: string): string {
   return toEnglishDigits(text)
+    // Some forwarder apps send line breaks escaped, as a literal «\n».
+    .replace(/\\r\\n|\\n|\\r/g, '\n')
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
     .replace(/[‌‎‏‪-‮⁦-⁩]/g, ' ')
