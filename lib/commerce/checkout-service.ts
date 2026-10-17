@@ -38,6 +38,7 @@ import { checkoutEntryUrl, entryFromIntegration, resolveCheckoutEntry, type Chec
 import { findIranianCity } from '@/lib/ai/fact-capture'
 import { cancelStoreCheckout, quoteStore, STORE_CHECKOUT_DISABLED, StoreApiError, storeCheckoutStatus, type StoreEndpoint } from '@/lib/commerce/store-api'
 import type { OrderDraftItem, OrderDraftState, OrderLang, ShippingOption } from '@/lib/commerce/order-capture'
+import { orderRef } from '@/lib/commerce/order-ref'
 
 export const OPEN_CHECKOUT_STATUSES = ['LINK_SENT', 'PAYMENT_PENDING', 'PAYMENT_FAILED']
 const QUOTE_FRESH_MS = 15 * 60 * 1000
@@ -313,6 +314,7 @@ export function quoteIsFresh(quotedAt: Date | null | undefined, now = Date.now()
 
 type DraftForCard = {
   code: string
+  number?: number | null
   items: Prisma.JsonValue
   quote: Prisma.JsonValue | null
   shippingLabel: string | null
@@ -356,7 +358,7 @@ export function buildCheckoutCard(draft: DraftForCard, storeUrl: string, lang: O
     : null
   const total = draft.grandTotal ?? itemsTotal
   return {
-    code: draft.code,
+    code: orderRef(draft),
     url: checkoutEntryUrl(storeUrl, draft.linkSlug, entry),
     storeHost: storeHost(storeUrl),
     items: items.map((item) => ({
@@ -397,7 +399,7 @@ export async function issueCheckoutLink(ctx: CheckoutContext, draftId: string, s
       submittedAt: now,
     },
     select: {
-      code: true, items: true, quote: true, shippingLabel: true, shippingTotal: true,
+      code: true, number: true, items: true, quote: true, shippingLabel: true, shippingTotal: true,
       discountTotal: true, grandTotal: true, linkSlug: true, linkExpiresAt: true,
     },
   })
@@ -456,7 +458,7 @@ export async function resolveCheckoutSlug(params: {
   const draft = await prisma.orderDraft.findUnique({
     where: { linkSlug: body.slug },
     select: {
-      id: true, code: true, status: true, items: true, customerName: true, customerPhone: true,
+      id: true, code: true, number: true, status: true, items: true, customerName: true, customerPhone: true,
       city: true, address: true, postalCode: true, note: true, province: true, coupons: true,
       shippingRateId: true, linkExpiresAt: true, integrationId: true, agentId: true, channel: true,
     },
@@ -497,7 +499,9 @@ export async function resolveCheckoutSlug(params: {
     status: 200,
     body: {
       ok: true,
+      // The plugin matches orders by code; reference is what people quote.
       code: draft.code,
+      reference: orderRef(draft),
       flow,
       channel: draft.channel,
       return_url: returnUrl,
@@ -557,7 +561,11 @@ export function composeStatusNotice(params: {
   lang: OrderLang
 }): string | null {
   const { status, lang } = params
-  const number = params.orderNumber ? (lang === 'en' ? `#${params.orderNumber}` : `#${params.orderNumber}`) : params.code
+  // The store numbers the order it builds itself: name both so the customer
+  // can match the chat's order to the store's receipt.
+  const number = params.orderNumber && params.orderNumber !== params.code
+    ? (lang === 'en' ? `${params.code} (store order #${params.orderNumber})` : `${params.code} (شمارهٔ سایت #${params.orderNumber})`)
+    : params.code
   const amount = params.total != null ? formatToman(params.total, lang) : null
   if (lang === 'en') {
     if (status === 'PAID') return `Payment received ✅\nOrder ${number} is registered on the store${amount ? ` (${amount}${params.paymentTitle ? `, ${params.paymentTitle}` : ''})` : ''}.\nI'll let you know here as soon as it ships.`
@@ -723,7 +731,7 @@ export async function applyCheckoutEvent(
   if (claimed.count === 0) return false // A concurrent event already moved it.
 
   if (next === 'PAYMENT_PENDING' || draft.notifiedStatus === next) return true
-  let text = composeStatusNotice({ status: next, code: draft.code, orderNumber, total: total ?? draft.grandTotal, paymentTitle, lang })
+  let text = composeStatusNotice({ status: next, code: orderRef(draft), orderNumber, total: total ?? draft.grandTotal, paymentTitle, lang })
   if (!text) return true
   if (next === 'PAYMENT_FAILED' && integration) {
     const card = buildCheckoutCard({ ...draft, grandTotal: total ?? draft.grandTotal }, integration.storeUrl, lang, entryFromIntegration(integration))
@@ -755,13 +763,13 @@ export async function applyCheckoutEvent(
       workspaceId: draft.workspaceId,
       type: 'SYSTEM',
       title: next === 'PAID'
-        ? `💰 سفارش پرداخت‌شده از گفتگو${orderNumber ? ` #${orderNumber}` : ''}`
-        : `🛒 سفارش جدید از گفتگو${orderNumber ? ` #${orderNumber}` : ''} (پرداخت آنلاین نشده${paymentTitle ? ` — ${paymentTitle}` : ''})`,
+        ? `💰 سفارش پرداخت‌شده از گفتگو #${orderRef(draft)}${orderNumber ? ` (سایت #${orderNumber})` : ''}`
+        : `🛒 سفارش جدید از گفتگو #${orderRef(draft)}${orderNumber ? ` (سایت #${orderNumber})` : ''} (پرداخت آنلاین نشده${paymentTitle ? ` — ${paymentTitle}` : ''})`,
       body: [
         ...items.map((item) => `• ${itemLine(item, 'fa')}`),
         total != null ? `مبلغ: ${formatToman(total, 'fa')}${paymentTitle ? ` — ${paymentTitle}` : ''}` : '',
         `مشتری: ${draft.customerName ?? '—'} · ${draft.customerPhone ?? '—'}`,
-        `ایجنت: ${draft.agent.name} · کد ${draft.code}`,
+        `ایجنت: ${draft.agent.name}`,
       ].filter(Boolean).join('\n'),
       link: `/conversations/${draft.conversationId}`,
       operatorTelegram: 'orders',
@@ -901,8 +909,8 @@ export async function sweepCheckoutLinks(now = new Date()): Promise<CheckoutSwee
     const card = buildCheckoutCard(draft, integration.storeUrl, lang, entryFromIntegration(integration))
     if (!card) continue
     const text = lang === 'en'
-      ? `Your cart is still waiting 🛒 The payment link for order ${draft.code} is still valid.\n${checkoutMarker(card)}`
-      : `سبد خریدتون هنوز منتظره 🛒 لینک پرداخت سفارش ${draft.code} هنوز معتبره.\n${checkoutMarker(card)}`
+      ? `Your cart is still waiting 🛒 The payment link for order ${orderRef(draft)} is still valid.\n${checkoutMarker(card)}`
+      : `سبد خریدتون هنوز منتظره 🛒 لینک پرداخت سفارش ${orderRef(draft)} هنوز معتبره.\n${checkoutMarker(card)}`
     const result = await deliverAssistantNotice(draft.conversation, text, { checkoutNotice: true, draftId: draft.id, status: 'REMINDER' }).catch(() => 'failed')
     if (result === 'sent') stats.reminded += 1
   }

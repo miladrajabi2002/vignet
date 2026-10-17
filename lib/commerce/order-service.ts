@@ -18,6 +18,7 @@
  */
 import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { orderRef } from '@/lib/commerce/order-ref'
 import { extractTypedVariations, type VariationRow } from '@/lib/products/description'
 import { isVariationAvailable, matchVariationRow, variationLabel } from '@/lib/products/presentation'
 import { fixedLabel, matchVariantInText, nextVariantQuestion, type VariantMatch } from '@/lib/products/variant-match'
@@ -129,6 +130,7 @@ export interface OrderCaptureTurnParams {
 type DraftRow = {
   id: string
   code: string
+  number?: number | null
   status: string
   items: Prisma.JsonValue
   customerName: string | null
@@ -190,6 +192,7 @@ function parseItems(value: Prisma.JsonValue): OrderDraftItem[] {
 function toState(row: DraftRow): OrderDraftState {
   return {
     code: row.code,
+    number: row.number ?? null,
     status: row.status as OrderDraftState['status'],
     items: parseItems(row.items),
     customerName: row.customerName,
@@ -518,6 +521,29 @@ async function saveDraft(params: OrderCaptureTurnParams, id: string | null, stat
 }
 
 /**
+ * Give a confirmed draft the workspace's next order number (#1001, #1002…),
+ * the way a store numbers its orders. Only confirmed carts are numbered, so
+ * abandoned ones leave no gaps; a repeated confirm keeps the first number.
+ * Never throws — without a number the order still goes ahead under its code.
+ */
+async function assignOrderNumber(workspaceId: string, draftId: string): Promise<number | null> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // The row lock makes two confirms of one cart share a number.
+      const [draft] = await tx.$queryRaw<Array<{ number: number | null }>>`SELECT "number" FROM "OrderDraft" WHERE "id" = ${draftId} FOR UPDATE`
+      if (!draft) return null
+      if (draft.number != null) return draft.number
+      const { orderSeq } = await tx.workspace.update({ where: { id: workspaceId }, data: { orderSeq: { increment: 1 } }, select: { orderSeq: true } })
+      await tx.orderDraft.update({ where: { id: draftId }, data: { number: orderSeq } })
+      return orderSeq
+    })
+  } catch (error) {
+    console.error('[order-service] order number failed:', error instanceof Error ? error.name : 'UnknownError')
+    return null
+  }
+}
+
+/**
  * The customer accepted the order summary: the name, phone and address on it
  * go to their CRM profile and the cart is linked to that profile. Never
  * throws — the order itself must not depend on the CRM write.
@@ -840,7 +866,7 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
     if (status === 'PAID' || status === 'ON_HOLD') {
       const text = svc.composeStatusNotice({
         status,
-        code: open.code,
+        code: orderRef(open),
         orderNumber: fresh?.orderNumber ?? open.externalOrderNumber,
         total: fresh?.total ?? open.grandTotal,
         paymentTitle: fresh?.paymentTitle ?? open.paymentMethodTitle,
@@ -850,8 +876,8 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
     }
     const current = card()
     const text = lang === 'en'
-      ? `I don't see the store's payment confirmation for order ${open.code} yet. If you completed the payment, confirmation usually arrives within a few minutes and I'll tell you right here. If you left the payment page midway, you can pay with the same link:`
-      : `هنوز تأیید پرداخت سفارش ${open.code} از سایت فروشگاه نرسیده. اگه پرداخت رو کامل کردید، معمولاً تا چند دقیقه تأییدش می‌رسه و همین‌جا خبرتون می‌کنم. اگه وسط کار از صفحهٔ پرداخت خارج شدید، با همین لینک دوباره پرداخت کنید:`
+      ? `I don't see the store's payment confirmation for order ${orderRef(open)} yet. If you completed the payment, confirmation usually arrives within a few minutes and I'll tell you right here. If you left the payment page midway, you can pay with the same link:`
+      : `هنوز تأیید پرداخت سفارش ${orderRef(open)} از سایت فروشگاه نرسیده. اگه پرداخت رو کامل کردید، معمولاً تا چند دقیقه تأییدش می‌رسه و همین‌جا خبرتون می‌کنم. اگه وسط کار از صفحهٔ پرداخت خارج شدید، با همین لینک دوباره پرداخت کنید:`
     return { kind: 'reply', text: current && !expired ? `${text}\n${checkoutMarker(current)}` : text, draftId: open.id }
   }
 
@@ -869,13 +895,13 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
   const cancel = signals.cancel && cue !== 'remove' && cue !== 'add'
   if (cancel && !closed) {
     await prisma.orderDraft.update({ where: { id: open.id }, data: { expecting: 'confirm_cancel' } })
-    return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: open.code }, lang), draftId: open.id }
+    return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: orderRef(open) }, lang), draftId: open.id }
   }
 
   // The customer would rather pay by card-to-card: the unpaid store order is
   // cancelled and the same cart gets the business's card instead.
   if (params.cardPay && !closed && !cue && signals.cardTransfer) {
-    const text = await issueCardPay(params, open.id, open.code, draftPayable(open), { name: open.customerName, phone: open.customerPhone })
+    const text = await issueCardPay(params, open.id, orderRef(open), draftPayable(open), { name: open.customerName, phone: open.customerPhone })
     if (text) {
       await svc.cancelCheckoutOnStore(open.id)
       return { kind: 'reply', text, draftId: open.id }
@@ -885,7 +911,7 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
   if (signals.linkRequest && !expired) {
     const current = card()
     if (current) {
-      const text = lang === 'en' ? `Here is the payment link for order ${open.code} again:` : `اینم دوباره لینک پرداخت سفارش ${open.code}:`
+      const text = lang === 'en' ? `Here is the payment link for order ${orderRef(open)} again:` : `اینم دوباره لینک پرداخت سفارش ${orderRef(open)}:`
       return { kind: 'reply', text: `${text}\n${checkoutMarker(current)}`, draftId: open.id }
     }
   }
@@ -928,8 +954,8 @@ async function openCheckoutTurn(params: OrderCaptureTurnParams, open: OpenChecko
     : (lang === 'en' ? 'waiting for payment' : 'در انتظار پرداخت')
   const total = open.grandTotal != null ? formatToman(open.grandTotal, lang) : null
   const instruction = lang === 'en'
-    ? `=== Payment link pending ===\nThe customer has a payment link for order ${open.code} (${items.map((item) => itemLine(item, 'en')).join(', ')}${total ? `, ${total}` : ''}); status: ${statusLabel}${expired ? ' (the link has expired)' : ''}. If they ask about paying, tell them payment happens through that link on the store's own website and the confirmation arrives here right after. Never say the order is paid. If they want to change the cart, tell them to just say what to add or remove.`
-    : `=== لینک پرداخت در جریان است ===\nبرای مشتری لینک پرداخت سفارش ${open.code} (${items.map((item) => itemLine(item, 'fa')).join('، ')}${total ? `، ${total}` : ''}) فرستاده شده؛ وضعیت: ${statusLabel}${expired ? ' (مهلت لینک تمام شده)' : ''}. اگر درباره پرداخت پرسید، بگو پرداخت از همان لینک روی سایت خود فروشگاه انجام می‌شود و تأییدش همین‌جا می‌رسد. هرگز نگو سفارش پرداخت شده. اگر خواست سبد را تغییر دهد، بگو کافی است بگوید چه چیزی اضافه یا کم شود.`
+    ? `=== Payment link pending ===\nThe customer has a payment link for order ${orderRef(open)} (${items.map((item) => itemLine(item, 'en')).join(', ')}${total ? `, ${total}` : ''}); status: ${statusLabel}${expired ? ' (the link has expired)' : ''}. If they ask about paying, tell them payment happens through that link on the store's own website and the confirmation arrives here right after. Never say the order is paid. If they want to change the cart, tell them to just say what to add or remove.`
+    : `=== لینک پرداخت در جریان است ===\nبرای مشتری لینک پرداخت سفارش ${orderRef(open)} (${items.map((item) => itemLine(item, 'fa')).join('، ')}${total ? `، ${total}` : ''}) فرستاده شده؛ وضعیت: ${statusLabel}${expired ? ' (مهلت لینک تمام شده)' : ''}. اگر درباره پرداخت پرسید، بگو پرداخت از همان لینک روی سایت خود فروشگاه انجام می‌شود و تأییدش همین‌جا می‌رسد. هرگز نگو سفارش پرداخت شده. اگر خواست سبد را تغییر دهد، بگو کافی است بگوید چه چیزی اضافه یا کم شود.`
   if (signals.question) return { kind: 'instruct', instruction, draftId: open.id }
   return null
 }
@@ -1002,7 +1028,7 @@ async function openCardPayTurn(params: OrderCaptureTurnParams, open: OpenCheckou
 
   if (claims && payment) {
     if (payment.status === 'PAID') {
-      return { kind: 'reply', text: composeCardPayNotice({ status: 'PAID', code: open.code, amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
+      return { kind: 'reply', text: composeCardPayNotice({ status: 'PAID', code: orderRef(open), amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
     }
     // Past the day's limit of unbacked claims the payment waits for the SMS, without the owner.
     let limited = false
@@ -1013,9 +1039,9 @@ async function openCardPayTurn(params: OrderCaptureTurnParams, open: OpenCheckou
     }
     const text = payment.status === 'PENDING' && (limited || (settings && !settings.manualClaim))
       ? (lang === 'en'
-        ? `The bank's confirmation for order ${open.code} has not arrived yet. It usually takes under a minute, and I'll tell you right here as soon as it does.`
-        : `هنوز تأیید بانک برای سفارش ${open.code} نرسیده. معمولاً کمتر از یک دقیقه طول می‌کشه و به محض رسیدن همین‌جا خبرتون می‌کنم.`)
-      : composeCardPayNotice({ status: 'CLAIMED', code: open.code, amount: payment.baseAmount, lang }) ?? ''
+        ? `The bank's confirmation for order ${orderRef(open)} has not arrived yet. It usually takes under a minute, and I'll tell you right here as soon as it does.`
+        : `هنوز تأیید بانک برای سفارش ${orderRef(open)} نرسیده. معمولاً کمتر از یک دقیقه طول می‌کشه و به محض رسیدن همین‌جا خبرتون می‌کنم.`)
+      : composeCardPayNotice({ status: 'CLAIMED', code: orderRef(open), amount: payment.baseAmount, lang }) ?? ''
     return { kind: 'reply', text, draftId: open.id }
   }
 
@@ -1033,19 +1059,19 @@ async function openCardPayTurn(params: OrderCaptureTurnParams, open: OpenCheckou
   const cancel = signals.cancel && cue !== 'remove' && cue !== 'add'
   if (cancel && !closed) {
     await prisma.orderDraft.update({ where: { id: open.id }, data: { expecting: 'confirm_cancel' } })
-    return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: open.code }, lang), draftId: open.id }
+    return { kind: 'reply', text: composeCancelConfirmQuestion({ items: parseItems(open.items), code: orderRef(open) }, lang), draftId: open.id }
   }
 
   if (asksCard && !cue && !claims) {
     if (live && view) {
-      const text = lang === 'en' ? `Here is the card for order ${open.code} again:` : `اینم دوباره کارت و مبلغ سفارش ${open.code}:`
+      const text = lang === 'en' ? `Here is the card for order ${orderRef(open)} again:` : `اینم دوباره کارت و مبلغ سفارش ${orderRef(open)}:`
       return { kind: 'reply', text: `${text}\n${cardPayMarker(view)}`, draftId: open.id }
     }
     if (payment?.status === 'CLAIMED') {
-      return { kind: 'reply', text: composeCardPayNotice({ status: 'CLAIMED', code: open.code, amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
+      return { kind: 'reply', text: composeCardPayNotice({ status: 'CLAIMED', code: orderRef(open), amount: payment.baseAmount, lang }) ?? '', draftId: open.id }
     }
     // The deadline passed: a new amount on the same order.
-    const fresh = await issueCardPay(params, open.id, open.code, draftPayable(open), { name: open.customerName, phone: open.customerPhone })
+    const fresh = await issueCardPay(params, open.id, orderRef(open), draftPayable(open), { name: open.customerName, phone: open.customerPhone })
     if (fresh) return { kind: 'reply', text: fresh, draftId: open.id }
   }
 
@@ -1085,8 +1111,8 @@ async function openCardPayTurn(params: OrderCaptureTurnParams, open: OpenCheckou
     ? (lang === 'en' ? 'the customer said they paid; the business is checking the transfer' : 'مشتری گفته پرداخت کرده و کسب‌وکار در حال بررسی واریز است')
     : live ? (lang === 'en' ? 'waiting for the transfer' : 'در انتظار واریز') : (lang === 'en' ? 'the payment window has ended' : 'مهلت پرداخت تمام شده')
   const instruction = lang === 'en'
-    ? `=== Card-to-card payment pending ===\nThe customer was sent the business's card for order ${open.code} (${items.map((item) => itemLine(item, 'en')).join(', ')}; exact amount ${payToman(payment.payAmount, 'en')}); status: ${state}. The transfer is confirmed automatically from the bank's deposit message — never say it has arrived unless this block says so, and never write a card number or an amount yourself. If they ask how to pay: transfer exactly that amount to the card already sent; saying "send the card again" resends it.`
-    : `=== پرداخت کارت‌به‌کارت در جریان است ===\nبرای مشتری کارت کسب‌وکار برای سفارش ${open.code} (${items.map((item) => itemLine(item, 'fa')).join('، ')}؛ مبلغ دقیق ${payToman(payment.payAmount, 'fa')}) فرستاده شده؛ وضعیت: ${state}. واریز به‌صورت خودکار از روی پیامک بانک تأیید می‌شود؛ تا این بلوک نگفته، هرگز نگو پرداخت رسیده و خودت هیچ شماره کارت یا مبلغی ننویس. اگر پرسید چطور پرداخت کند: همان مبلغ دقیق را به کارتی که فرستاده شده واریز کند؛ با گفتن «دوباره کارت رو بفرست» کارت دوباره فرستاده می‌شود.`
+    ? `=== Card-to-card payment pending ===\nThe customer was sent the business's card for order ${orderRef(open)} (${items.map((item) => itemLine(item, 'en')).join(', ')}; exact amount ${payToman(payment.payAmount, 'en')}); status: ${state}. The transfer is confirmed automatically from the bank's deposit message — never say it has arrived unless this block says so, and never write a card number or an amount yourself. If they ask how to pay: transfer exactly that amount to the card already sent; saying "send the card again" resends it.`
+    : `=== پرداخت کارت‌به‌کارت در جریان است ===\nبرای مشتری کارت کسب‌وکار برای سفارش ${orderRef(open)} (${items.map((item) => itemLine(item, 'fa')).join('، ')}؛ مبلغ دقیق ${payToman(payment.payAmount, 'fa')}) فرستاده شده؛ وضعیت: ${state}. واریز به‌صورت خودکار از روی پیامک بانک تأیید می‌شود؛ تا این بلوک نگفته، هرگز نگو پرداخت رسیده و خودت هیچ شماره کارت یا مبلغی ننویس. اگر پرسید چطور پرداخت کند: همان مبلغ دقیق را به کارتی که فرستاده شده واریز کند؛ با گفتن «دوباره کارت رو بفرست» کارت دوباره فرستاده می‌شود.`
   return { kind: 'instruct', instruction, draftId: open.id }
 }
 
@@ -1512,6 +1538,8 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
           await saveDraft(params, row.id, state)
           return { kind: 'reply', text: composeShippingQuestion(view.rates, lang), draftId: row.id }
         }
+        // The cart goes ahead as it is: number it before the link shows it.
+        state.number ??= await assignOrderNumber(params.workspaceId, row.id)
         // «تأیید، کارت به کارت می‌کنم»: the customer already chose the card.
         const link = checkout.storeDisabled || (params.cardPay && signals.cardTransfer) ? null : await svc.issueCheckoutLink(checkout, row.id, state, lang)
         if (link) {
@@ -1522,8 +1550,9 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
         }
         // The cart cannot be paid on the store (unsynced item): card-to-card, or file it for people.
       }
+      state.number ??= await assignOrderNumber(params.workspaceId, row.id)
       if (params.cardPay) {
-        const text = await issueCardPay(params, row.id, state.code, orderTotal(state), { name: state.customerName, phone: state.customerPhone })
+        const text = await issueCardPay(params, row.id, orderRef(state), orderTotal(state), { name: state.customerName, phone: state.customerPhone })
         if (text) return { kind: 'reply', text, draftId: row.id }
       }
       state.status = 'SUBMITTED'
@@ -1533,7 +1562,7 @@ async function resolveCartTurn(params: OrderCaptureTurnParams, signals: OrderTur
         kind: 'submit',
         text: composeOrderSubmitted(state, lang),
         draftId: row.id,
-        code: state.code,
+        code: orderRef(state),
         operatorSummary: formatOrderForOperator(state),
       }
     }

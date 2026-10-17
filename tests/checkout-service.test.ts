@@ -116,6 +116,13 @@ describe('WooCommerce status → draft status', () => {
     expect(cod).toContain('پرداخت در محل')
     expect(cod).not.toContain('پرداخت با موفقیت')
   })
+
+  it('names the chat order and the store order it became', () => {
+    const paid = composeStatusNotice({ status: 'PAID', code: '1001', orderNumber: '40', total: 1, paymentTitle: null, lang: 'fa' })!
+    expect(paid).toContain('سفارش 1001 (شمارهٔ سایت #40)')
+    const same = composeStatusNotice({ status: 'CANCELLED', code: '1001', orderNumber: '1001', total: null, paymentTitle: null, lang: 'en' })!
+    expect(same).toBe('Order 1001 was cancelled. If you\'d like to order again, just tell me.')
+  })
 })
 
 describe('store lines', () => {

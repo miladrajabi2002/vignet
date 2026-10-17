@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyOrderSlots, composeOrderAsk, composeOrderSubmitted, composeOrderSummary, composeShippingQuestion, extractOrderSlots, formatOrderForOperator, matchShippingChoice, mentionsShippingMethod, missingOrderSlots, newDraftCode, orderInProgressInstruction, parseOrdinalChoice, type OrderDraftState } from '@/lib/commerce/order-capture'
+import { orderRef } from '@/lib/commerce/order-ref'
 
 function draft(overrides: Partial<OrderDraftState> = {}): OrderDraftState {
   return {
@@ -125,6 +126,14 @@ describe('customer-facing text is built from real data', () => {
     expect(text).toContain('A7K2Q9')
     expect(text).toContain('هماهنگی پرداخت')
     expect(text).not.toMatch(/پرداخت شد|ارسال شد/)
+  })
+
+  it('a numbered order is quoted by its number, an older one by its code', () => {
+    const numbered = { ...complete, number: 1001 }
+    expect(composeOrderSubmitted(numbered, 'fa')).toContain('شماره سفارش: 1001')
+    expect(composeOrderSubmitted(numbered, 'fa')).not.toContain('A7K2Q9')
+    expect(formatOrderForOperator(numbered)).toContain('#1001')
+    expect(orderRef({ code: 'A7K2Q9', number: null })).toBe('A7K2Q9')
   })
 
   it('operator summary is complete', () => {

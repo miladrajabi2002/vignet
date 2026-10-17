@@ -6,6 +6,7 @@
  */
 import type { CardPayment, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { orderRef } from '@/lib/commerce/order-ref'
 import { captureError } from '@/lib/errors/capture'
 import { readPayItems, type PayItem } from '@/lib/payments/card/items'
 import { contactPhoneLookupVariants as phoneVariants } from '@/lib/phone'
@@ -244,7 +245,7 @@ async function loadPurchases(workspaceId: string, who: { payments: Prisma.CardPa
     purchases.push({
       id: draft.id,
       paymentId: null,
-      code: draft.code,
+      code: orderRef(draft),
       paidAt: draft.paidAt ?? draft.updatedAt,
       lines: draftLines(draft.items),
       total: Math.round(draft.grandTotal ?? draft.total ?? 0),

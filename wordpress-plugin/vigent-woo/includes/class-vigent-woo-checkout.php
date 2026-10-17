@@ -30,6 +30,7 @@ class Vigent_Woo_Checkout {
 
 	const QUERY_VAR     = 'vigent_checkout';
 	const META_CODE     = '_vigent_cart_code';
+	const META_REF      = '_vigent_order_ref';
 	const META_SLUG     = '_vigent_checkout_slug';
 	const META_CHANNEL  = '_vigent_channel';
 	const META_RETURN   = '_vigent_return_url';
@@ -394,6 +395,8 @@ class Vigent_Woo_Checkout {
 		$c = is_array( $data['customer'] ?? null ) ? $data['customer'] : array();
 		return array(
 			'code'             => sanitize_text_field( (string) ( $data['code'] ?? '' ) ),
+			// The chat's order number («1001»); older Vigent servers send only the code.
+			'reference'        => sanitize_text_field( (string) ( $data['reference'] ?? ( $data['code'] ?? '' ) ) ),
 			'flow'             => sanitize_key( (string) ( $data['flow'] ?? '' ) ),
 			'channel'          => sanitize_text_field( (string) ( $data['channel'] ?? '' ) ),
 			'return_url'       => esc_url_raw( (string) ( $data['return_url'] ?? '' ) ),
@@ -538,10 +541,10 @@ class Vigent_Woo_Checkout {
 			$order->save();
 			$order->add_order_note(
 				sprintf(
-					/* translators: 1: channel label 2: cart code */
-					__( 'سفارش از گفتگوی %1$s در ویجنت ساخته شد (کد %2$s). مشتری به صفحهٔ پرداخت سایت هدایت شد.', 'vigent-woo' ),
+					/* translators: 1: channel label 2: chat order number */
+					__( 'سفارش از گفتگوی %1$s در ویجنت ساخته شد (سفارش گفتگو #%2$s). مشتری به صفحهٔ پرداخت سایت هدایت شد.', 'vigent-woo' ),
 					$this->channel_label( $cart['channel'] ),
-					$cart['code']
+					$cart['reference'] ? $cart['reference'] : $cart['code']
 				)
 			);
 		} catch ( Exception $e ) {
@@ -554,6 +557,7 @@ class Vigent_Woo_Checkout {
 
 	private function tag_order( $order, $cart, $slug, $flow ) {
 		$order->update_meta_data( self::META_CODE, $cart['code'] );
+		$order->update_meta_data( self::META_REF, $cart['reference'] ? $cart['reference'] : $cart['code'] );
 		$order->update_meta_data( self::META_SLUG, $slug );
 		$order->update_meta_data( self::META_CHANNEL, $cart['channel'] );
 		$order->update_meta_data( self::META_FLOW, $flow );
@@ -1040,7 +1044,8 @@ class Vigent_Woo_Checkout {
 		if ( ! $order instanceof WC_Order || ! $order->get_meta( self::META_CODE ) ) {
 			return;
 		}
-		echo '<p><strong>' . esc_html__( 'ثبت‌شده از گفتگو:', 'vigent-woo' ) . '</strong> ' . esc_html( $this->channel_label( (string) $order->get_meta( self::META_CHANNEL ) ) ) . ' — ' . esc_html__( 'کد', 'vigent-woo' ) . ' ' . esc_html( (string) $order->get_meta( self::META_CODE ) ) . '</p>';
+		$reference = (string) $order->get_meta( self::META_REF );
+		echo '<p><strong>' . esc_html__( 'ثبت‌شده از گفتگو:', 'vigent-woo' ) . '</strong> ' . esc_html( $this->channel_label( (string) $order->get_meta( self::META_CHANNEL ) ) ) . ' — ' . esc_html__( 'سفارش گفتگو', 'vigent-woo' ) . ' #' . esc_html( '' !== $reference ? $reference : (string) $order->get_meta( self::META_CODE ) ) . '</p>';
 	}
 
 	// ─── Lookup / locks ─────────────────────────────────────────────────────
@@ -1320,10 +1325,10 @@ class Vigent_Woo_Checkout {
 			$order->save();
 			$order->add_order_note(
 				sprintf(
-					/* translators: 1: channel label 2: cart code 3: card ending 4: how it was confirmed */
-					__( 'سفارش از گفتگوی %1$s در ویجنت (کد %2$s). مشتری کارت‌به‌کارت کرد%3$s و واریز %4$s تأیید شد.', 'vigent-woo' ),
+					/* translators: 1: channel label 2: chat order number 3: card ending 4: how it was confirmed */
+					__( 'سفارش از گفتگوی %1$s در ویجنت (سفارش گفتگو #%2$s). مشتری کارت‌به‌کارت کرد%3$s و واریز %4$s تأیید شد.', 'vigent-woo' ),
 					$this->channel_label( $cart['channel'] ),
-					$cart['code'],
+					$cart['reference'] ? $cart['reference'] : $cart['code'],
 					$card ? sprintf( __( ' به کارت %s', 'vigent-woo' ), $card ) : '',
 					'AUTO' === $confirmed ? __( 'خودکار از روی پیامک بانک', 'vigent-woo' ) : __( 'به‌صورت دستی', 'vigent-woo' )
 				)

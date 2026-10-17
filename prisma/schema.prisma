@@ -26,6 +26,9 @@ model Workspace {
   aiCreditReservedIRR           Int          @default(0)
   // Email for the (upcoming) weekly business report — collected in settings.
   reportEmail                   String?
+  // Last chat order number handed out (OrderDraft.number): the next confirmed
+  // order is orderSeq + 1, so a new business starts at #1001.
+  orderSeq                      Int          @default(1000)
   // Operational vertical selected during onboarding. Channels stay independent
   // capabilities, so an Instagram seller is still COMMERCE rather than a
   // channel-specific business type.
@@ -1597,8 +1600,14 @@ model OrderDraft {
   conversationId      String
   contactId           String?
   channel             ChannelType
-  // Short reference shared with the customer and the operator («A7K2Q9»).
+  // Random key the store plugin and its webhooks match the cart by
+  // («A7K2Q9»); it stays unique across every workspace and store.
   code                String      @unique
+  // The order number the customer and the owner quote («1001»), counted per
+  // workspace like a store's own numbers. Given when the customer confirms,
+  // so abandoned carts leave no gaps; null for carts never confirmed and for
+  // orders placed before numbers existed (those keep showing their code).
+  number              Int?
   status              String      @default("COLLECTING")
   // [{ productId, variationId, name, variant, quantity, unitPrice, url }]
   items               Json
@@ -1663,6 +1672,7 @@ model OrderDraft {
   agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  @@unique([workspaceId, number])
   @@index([workspaceId, status, createdAt])
   @@index([conversationId, status])
   @@index([status, linkExpiresAt])

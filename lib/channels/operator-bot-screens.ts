@@ -22,6 +22,7 @@
 
 import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { orderRef } from '@/lib/commerce/order-ref'
 import { getRedis } from '@/lib/redis'
 import { getDashboardModules } from '@/lib/verticals/registry'
 import { readBusinessProfile, workspaceCapabilities } from '@/lib/verticals/profile'
@@ -430,7 +431,7 @@ export async function ordersScreen(workspaceId: string): Promise<BotScreen> {
       where: { workspaceId, status: 'SUBMITTED' },
       orderBy: { submittedAt: 'desc' },
       take: 5,
-      select: { code: true, customerName: true, total: true, submittedAt: true },
+      select: { code: true, number: true, customerName: true, total: true, submittedAt: true },
     }),
     periodStats(workspaceId, tehranDayStart()),
   ])
@@ -441,7 +442,7 @@ export async function ordersScreen(workspaceId: string): Promise<BotScreen> {
   if (drafts.length) {
     lines.push(DIVIDER, '📝 <b>پیش‌سفارش‌های منتظر تأیید</b> (ثبت‌شده در گفتگو)')
     for (const draft of drafts) {
-      lines.push(`• <code>${draft.code}</code> · ${escapeHtml(draft.customerName || 'مشتری')}${draft.total ? ` · ${fa(Math.round(draft.total))} تومان` : ''}${draft.submittedAt ? ` · ${ago(draft.submittedAt)}` : ''}`)
+      lines.push(`• <code>#${orderRef(draft)}</code> · ${escapeHtml(draft.customerName || 'مشتری')}${draft.total ? ` · ${fa(Math.round(draft.total))} تومان` : ''}${draft.submittedAt ? ` · ${ago(draft.submittedAt)}` : ''}`)
     }
   }
   if (orders.length) {

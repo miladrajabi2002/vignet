@@ -66,6 +66,8 @@ export async function OrdersView({
   const productsT = await getTranslations('products')
   const locale = await getLocale()
   const q = params.q?.trim() ?? ''
+  // «#1001» is how numbers are shown; the stored reference has no «#».
+  const needle = q.replace(/^[#＃]\s*/, '')
   const requestedStatus = params.status ?? ''
   const status = isOrderStatus(requestedStatus) ? requestedStatus : ''
   const page = Math.max(1, Number(params.page) || 1)
@@ -73,9 +75,9 @@ export async function OrdersView({
   const where: Prisma.StoreOrderWhereInput = {
     workspaceId: workspaceId,
     ...(status ? { status } : {}),
-    ...(q
+    ...(needle
       ? {
-          OR: searchVariants(q).flatMap((term): Prisma.StoreOrderWhereInput[] => [
+          OR: searchVariants(needle).flatMap((term): Prisma.StoreOrderWhereInput[] => [
             { externalOrderId: { contains: term, mode: 'insensitive' } },
             { customerName: { contains: term, mode: 'insensitive' } },
             { customerPhone: { contains: term, mode: 'insensitive' } },
@@ -91,7 +93,7 @@ export async function OrdersView({
   // handled ones «تکمیل‌شده».
   const gatewayStatus = status === 'processing' ? false : status === 'completed' ? true : status ? null : undefined
   const gatewayOrders: Purchase[] = page === 1 && gatewayStatus !== null
-    ? await loadGatewayOrders(workspaceId, { query: q ? searchVariants(q) : undefined, handled: gatewayStatus })
+    ? await loadGatewayOrders(workspaceId, { query: needle ? searchVariants(needle) : undefined, handled: gatewayStatus })
     : []
 
   const [orders, totalOrders, orderCapacity, planDefs] = await Promise.all([

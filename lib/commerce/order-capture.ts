@@ -15,6 +15,7 @@
 import { displayPhone, normalizeIranianMobile, toEnglishDigits } from '@/lib/phone'
 import { findIranianCity } from '@/lib/ai/fact-capture'
 import { looksLikePersonName } from '@/lib/ai/customer-identification'
+import { orderRef } from '@/lib/commerce/order-ref'
 
 export type OrderSlot = 'product' | 'variant' | 'name' | 'phone' | 'address' | 'shipping' | 'confirm'
   // Waiting for a yes/no before the WHOLE order is cancelled.
@@ -39,6 +40,8 @@ export interface OrderDraftItem {
 
 export interface OrderDraftState {
   code: string
+  /** Per-workspace order number, given when the customer confirms. */
+  number?: number | null
   status: OrderDraftStatus
   items: OrderDraftItem[]
   customerName: string | null
@@ -248,8 +251,9 @@ export function extractOrderSlots(message: string, expecting: OrderSlot | null, 
 
 // ─── Draft state helpers ────────────────────────────────────────────────────
 
+/** The draft's internal key (store plugin, webhooks); customers see orderRef. */
 export function newDraftCode(random: () => number = Math.random): string {
-  // No 0/O/1/I: codes are read aloud over the phone by operators.
+  // No 0/O/1/I: older orders show this code and were read aloud over the phone.
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
   for (let index = 0; index < 6; index += 1) code += alphabet[Math.floor(random() * alphabet.length)]
@@ -600,8 +604,8 @@ export function composeCartChange(change: { added: OrderDraftItem[]; removed: Or
 
 export function composeOrderSubmitted(draft: OrderDraftState, lang: OrderLang): string {
   return lang === 'en'
-    ? `Your pre-order is filed ✅\nReference: ${draft.code}\nA colleague will message you here to arrange payment and delivery.`
-    : `پیش‌سفارشتون ثبت شد ✅\nکد پیگیری: ${draft.code}\nهمکارم برای هماهنگی پرداخت و ارسال همین‌جا بهتون پیام می‌ده`
+    ? `Your pre-order is filed ✅\nOrder number: ${orderRef(draft)}\nA colleague will message you here to arrange payment and delivery.`
+    : `پیش‌سفارشتون ثبت شد ✅\nشماره سفارش: ${orderRef(draft)}\nهمکارم برای هماهنگی پرداخت و ارسال همین‌جا بهتون پیام می‌ده`
 }
 
 // «نه نمی‌خوام دیگه» to the summary may mean «change something» or «I am
@@ -667,7 +671,7 @@ export function orderInProgressInstruction(draft: OrderDraftState, missing: Orde
 /** Operator-facing plain-text summary (handoff alert, Telegram, dashboard). */
 export function formatOrderForOperator(draft: OrderDraftState): string {
   const total = orderTotal(draft)
-  const lines = [`🛒 پیش‌سفارش #${draft.code}`]
+  const lines = [`🛒 پیش‌سفارش #${orderRef(draft)}`]
   for (const item of draft.items) {
     const price = item.unitPrice != null ? ` — ${faNumber(item.unitPrice * item.quantity)} تومان` : ''
     lines.push(`• ${itemLabel(item)} × ${faNumber(item.quantity)}${price}`)

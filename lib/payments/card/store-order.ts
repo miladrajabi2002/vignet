@@ -16,6 +16,7 @@ import { prisma } from '@/lib/prisma'
 import { captureError } from '@/lib/errors/capture'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { pluginVersionAtLeast } from '@/lib/commerce/checkout-link'
+import { orderRef } from '@/lib/commerce/order-ref'
 import { callStore, StoreApiError, type StoreCheckoutStatus } from '@/lib/commerce/store-api'
 
 export const MIN_CARD_ORDER_PLUGIN_VERSION = '5.2.0'
@@ -105,6 +106,7 @@ export async function placeCardOrderOnStore(draftId: string, now = new Date()): 
       'place',
       {
         code: draft.code,
+        reference: orderRef(draft),
         channel: draft.channel,
         items: lines.map((line, index) => ({ ...line, unit_price: prices.get(`${items[index].productId}:${items[index].variationId ?? 0}`) ?? null })),
         customer: customerBlock(draft, draft.province),
@@ -152,7 +154,7 @@ export async function placeCardOrderOnStore(draftId: string, now = new Date()): 
     await notifyWorkspace({
       workspaceId: draft.workspaceId,
       type: 'SYSTEM',
-      title: `سفارش ${draft.code} پرداخت شد ولی در ووکامرس ثبت نشد`,
+      title: `سفارش ${orderRef(draft)} پرداخت شد ولی در ووکامرس ثبت نشد`,
       body: `${why}\nسفارش را دستی در ووکامرس ثبت کنید؛ پرداخت در ویجنت تأیید شده است.`,
       link: `/conversations/${draft.conversationId}`,
       operatorTelegram: 'orders',

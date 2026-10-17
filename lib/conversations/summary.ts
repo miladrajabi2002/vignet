@@ -291,7 +291,7 @@ export async function ensureConversationSummary(
       orderDrafts: {
         orderBy: { updatedAt: 'desc' },
         take: 1,
-        select: { code: true, status: true, expecting: true, items: true, customerName: true, city: true },
+        select: { code: true, number: true, status: true, expecting: true, items: true, customerName: true, city: true },
       },
       messages: {
         where: sessionMessageWhere(session),

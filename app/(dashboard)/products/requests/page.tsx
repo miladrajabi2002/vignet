@@ -4,6 +4,7 @@ import { BellRing, ClipboardList, MessageSquareText } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { orderRef } from '@/lib/commerce/order-ref'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
@@ -96,7 +97,7 @@ export default async function ChatRequestsPage() {
             {drafts.map((draft) => (
               <li key={draft.id} className="rounded-2xl border border-[var(--border-subtle)] p-3.5 sm:p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span dir="ltr" className="font-mono text-sm font-bold text-[var(--text-primary)]">#{draft.code}</span>
+                  <span dir="ltr" className="font-mono text-sm font-bold text-[var(--text-primary)]">#{orderRef(draft)}</span>
                   <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', DRAFT_TONE[draft.status] ?? DRAFT_TONE.CANCELLED)}>
                     {t(`draftStatus.${draft.status}` as 'draftStatus.SUBMITTED')}
                   </span>

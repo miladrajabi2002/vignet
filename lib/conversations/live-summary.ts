@@ -9,6 +9,7 @@
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
 import { bareReplyKind, comparableText, trimSeparators } from '@/lib/conversations/short-replies'
 import { toEnglishDigits } from '@/lib/phone'
+import { orderRef } from '@/lib/commerce/order-ref'
 
 /** Name/phone the customer typed in this session, for the operator to call back. */
 export interface LiveSummaryContact {
@@ -18,12 +19,15 @@ export interface LiveSummaryContact {
 
 export interface LiveSummaryDraft {
   code: string
+  number?: number | null
   status: string
   expecting: string | null
   items: unknown
   customerName: string | null
   city: string | null
 }
+
+const UNCONFIRMED = new Set(['COLLECTING', 'AWAITING_CONFIRM'])
 
 const STATUS_FA: Record<string, string> = {
   COLLECTING: 'در حال تکمیل',
@@ -130,7 +134,9 @@ export function buildLiveSummary(input: {
       const names = lines.map((line) => `${line.name}${line.variant ? ` — ${line.variant}` : ''} × ${line.quantity}`).join(en ? ', ' : '، ')
       const status = (en ? STATUS_EN : STATUS_FA)[draft.status] ?? draft.status
       const waits = draft.expecting ? (en ? SLOT_EN : SLOT_FA)[draft.expecting] ?? draft.expecting : null
-      parts.push(`${en ? 'Order' : 'سفارش'} ${draft.code}: ${clip(names, 180)} — ${status}${waits ? `${en ? '; waiting for' : '؛ منتظر'} ${waits}` : ''}`)
+      // A cart still being put together has no number yet; its code means nothing to anyone.
+      const ref = draft.number != null || !UNCONFIRMED.has(draft.status) ? ` ${orderRef(draft)}` : ''
+      parts.push(`${en ? 'Order' : 'سفارش'}${ref}: ${clip(names, 180)} — ${status}${waits ? `${en ? '; waiting for' : '؛ منتظر'} ${waits}` : ''}`)
     }
   }
   const namedSlots = Object.entries(state?.slots ?? {})
