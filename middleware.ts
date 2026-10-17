@@ -2,11 +2,9 @@ import { NextResponse, type NextFetchEvent, type NextMiddleware, type NextReques
 import NextAuth from 'next-auth'
 import { authConfig, PROTECTED_PREFIXES } from '@/auth.config'
 import { LOCALE_COOKIE } from '@/lib/locale'
-import { hasSessionCookie, isMarketingPath, SITE_ROUTE_PREFIX, siteVariant } from '@/lib/marketing/site-variant'
+import { isMarketingPath, SITE_ROUTE_PREFIX } from '@/lib/marketing/site-variant'
 
 const { auth } = NextAuth(authConfig)
-
-const SITE_REWRITE_HEADER = 'x-vigent-site-rewrite'
 
 const LOCALE_COOKIE_OPTIONS = {
   path: '/',
@@ -16,37 +14,32 @@ const LOCALE_COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === 'production',
 } as const
 
-// ── Public site → its static variant ────────────────────────────────────
-// /pricing (or /en/pricing) is served from /vg-site/<variant>/pricing, the
-// page prerendered for this visitor's locale and signed-in state (see
-// lib/marketing/site-variant.ts). The URL in the browser stays the same.
-// Runs before Auth.js: public pages never need the session decoded.
+// ── Public site ─────────────────────────────────────────────────────────
+// next.config.mjs (siteRewrites) serves /pricing and /en/pricing from
+// /vg-site/<variant>/pricing, the page prerendered for this visitor's locale
+// and signed-in state. That runs after middleware, so middleware only:
+//   - keeps the internal /vg-site paths from being public URLs (they would
+//     duplicate every page for crawlers);
+//   - remembers English for visitors arriving on /en, like the /en rewrite
+//     below does for app pages.
+// (A middleware rewrite cannot do the routing: Next compares its origin with
+// the `-H 127.0.0.1` listen address while middleware URLs always say
+// "localhost", so every middleware rewrite is proxied as an external URL.)
 function routePublicSite(req: NextRequest): NextResponse | null {
   const { pathname } = req.nextUrl
-  // The internal paths are not public URLs (they would duplicate every page
-  // for crawlers). Middleware runs again for our own rewrite below, which is
-  // marked with SITE_REWRITE_HEADER; anything else gets the 404. The header
-  // only reveals public pages, so a hand-set one exposes nothing.
   if (pathname === SITE_ROUTE_PREFIX || pathname.startsWith(`${SITE_ROUTE_PREFIX}/`)) {
-    if (req.headers.get(SITE_REWRITE_HEADER) === '1') return NextResponse.next()
-    return NextResponse.rewrite(new URL('/vg-site-not-found', req.url))
+    return new NextResponse('Not Found', { status: 404 })
   }
 
   const onEnPrefix = pathname === '/en' || pathname.startsWith('/en/')
-  const rest = onEnPrefix ? pathname.slice(3) || '/' : pathname
+  if (!onEnPrefix) return null
+  const rest = pathname.slice(3) || '/'
   if (!isMarketingPath(rest)) return null
   // Blog and status are fa-only: the /en handling below redirects them.
-  if (onEnPrefix && (rest.startsWith('/blog') || rest === '/status')) return null
+  if (rest.startsWith('/blog') || rest === '/status') return null
 
-  const locale = onEnPrefix || req.cookies.get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'fa'
-  const signedIn = hasSessionCookie(req.cookies.getAll().map(({ name }) => name))
-  const url = req.nextUrl.clone()
-  url.pathname = `${SITE_ROUTE_PREFIX}/${siteVariant(locale, signedIn)}${rest === '/' ? '' : rest}`
-  const requestHeaders = new Headers(req.headers)
-  requestHeaders.set(SITE_REWRITE_HEADER, '1')
-  const res = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
-  // Persist English for this visitor, exactly like the /en rewrite below.
-  if (onEnPrefix) res.cookies.set(LOCALE_COOKIE, 'en', LOCALE_COOKIE_OPTIONS)
+  const res = NextResponse.next()
+  res.cookies.set(LOCALE_COOKIE, 'en', LOCALE_COOKIE_OPTIONS)
   return res
 }
 
@@ -149,15 +142,7 @@ export const config = {
     // English public URL prefix (see the /en handling above).
     '/en',
     '/en/:path*',
-    // Public site, served from its static variants (routePublicSite).
-    '/',
-    '/pricing',
-    '/privacy',
-    '/terms',
-    '/status',
-    '/solutions/:path*',
-    '/docs/:path*',
-    '/blog/:path*',
+    // Internal paths of the static public site (routePublicSite).
     '/vg-site/:path*',
   ],
 }

@@ -2,6 +2,34 @@ import createNextIntlPlugin from 'next-intl/plugin'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
+// ── Static public site routing ───────────────────────────────────────────
+// Public pages are prerendered once per locale × signed-in state under
+// /vg-site/<variant> (lib/marketing/site-variant.ts). These rewrites pick the
+// variant from the URL (/en), the `locale` cookie and the Auth.js session
+// cookie, exactly as the old per-request render did, without touching the
+// browser URL. Keep the paths in sync with MARKETING_ROOTS there.
+const SITE_PATHS = ['/', '/pricing', '/privacy', '/terms', '/status', '/solutions/:path*', '/docs/:path*', '/blog/:path*']
+// Blog and status are fa-only; middleware redirects their /en URLs.
+const EN_SITE_PATHS = SITE_PATHS.filter((path) => !path.startsWith('/blog') && path !== '/status')
+// Any Auth.js session cookie (a large session is split into .0, .1 …).
+const SESSION_COOKIES = ['authjs.session-token', 'authjs.session-token.0', '__Secure-authjs.session-token', '__Secure-authjs.session-token.0']
+
+function siteRewrites() {
+        const target = (variant, path) => `/vg-site/${variant}${path === '/' ? '' : path}`
+        const forVariant = (source, locale, path, condition = []) => [
+                // Signed in: any one session cookie is enough.
+                ...SESSION_COOKIES.map((key) => ({ source, destination: target(`${locale}-member`, path), has: [...condition, { type: 'cookie', key }] })),
+                { source, destination: target(locale, path), has: condition.length ? condition : undefined, missing: SESSION_COOKIES.map((key) => ({ type: 'cookie', key })) },
+        ].map((rule) => (rule.has ? rule : { source: rule.source, destination: rule.destination, missing: rule.missing }))
+        return [
+                ...EN_SITE_PATHS.flatMap((path) => forVariant(`/en${path === '/' ? '' : path}`, 'en', path)),
+                ...SITE_PATHS.flatMap((path) => [
+                        ...forVariant(path, 'en', path, [{ type: 'cookie', key: 'locale', value: 'en' }]),
+                        ...forVariant(path, 'fa', path),
+                ]),
+        ]
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -13,6 +41,9 @@ const nextConfig = {
         // files from two production releases. deploy/deploy.sh supplies the commit.
         deploymentId: process.env.VIGENT_DEPLOYMENT_ID,
         poweredByHeader: false,
+        async rewrites() {
+                return { beforeFiles: siteRewrites() }
+        },
         async redirects() {
                 return [
                         {
