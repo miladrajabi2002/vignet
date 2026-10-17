@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
@@ -112,9 +112,22 @@ export function SwitchCard({
         children?: ReactNode
 }) {
         const [expanded, setExpanded] = useState(false)
+        const [overflows, setOverflows] = useState(false)
+        const noteRef = useRef<HTMLParagraphElement>(null)
         const fa = useLocale() !== 'en'
-        // Two full lines are always readable; only a longer note folds behind "more".
-        const long = typeof description === 'string' && description.length > 110
+        // Two full lines are always readable; only a note that is actually cut
+        // off at the current width folds behind "more".
+        const clampable = typeof description === 'string'
+        useEffect(() => {
+                const note = noteRef.current
+                if (!clampable || expanded || !note) return
+                const measure = () => setOverflows(note.scrollHeight > note.clientHeight + 1)
+                measure()
+                const observer = new ResizeObserver(measure)
+                observer.observe(note)
+                return () => observer.disconnect()
+        }, [clampable, expanded, description])
+        const long = clampable && (overflows || expanded)
         return (
                 <div className="flex items-start gap-3 px-3.5 py-3">
                         <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
@@ -129,7 +142,7 @@ export function SwitchCard({
                                                 </span>
                                         )}
                                 </h3>
-                                <p className={cn('text-[12px] leading-6 text-[var(--text-secondary)]', long && !expanded && 'line-clamp-2')}>
+                                <p ref={noteRef} className={cn('text-[12px] leading-6 text-[var(--text-secondary)]', clampable && !expanded && 'line-clamp-2')}>
                                         {description}
                                 </p>
                                 {long && (
