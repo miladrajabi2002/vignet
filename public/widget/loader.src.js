@@ -1875,11 +1875,12 @@
                         details.appendChild(row)
                 }
                 copyRow(fa ? 'شماره کارت' : 'Card number', c.pan.replace(/(\d{4})(?=\d)/g, '$1 '), c.pan)
-                copyRow(fa ? 'مبلغ دقیق (تومان)' : 'Exact amount (Toman)', grouped(c.amount), String(c.amount))
+                // Bank apps take rials; a toman figure pasted there sends a tenth of the money.
+                copyRow(fa ? 'مبلغ دقیق (ریال)' : 'Exact amount (Rial)', grouped(c.amount * 10), String(c.amount * 10))
                 var note = el('div', 'vgt-cp-note')
                 note.textContent = (fa
-                        ? 'همین مبلغ را بدون رُند کردن واریز کنید؛ پرداخت از روی همین عدد شناخته می‌شود. به ریال: '
-                        : 'Transfer exactly this amount; the payment is recognised by it. In rials: ') + grouped(c.amount * 10)
+                        ? 'همین عدد را به ریال، بدون رُند کردن واریز کنید؛ پرداخت از روی همین عدد شناخته می‌شود. به تومان: '
+                        : 'Transfer exactly this many rials, not rounded; the payment is recognised by it. In tomans: ') + grouped(c.amount)
                 details.appendChild(note)
                 box.appendChild(details)
 

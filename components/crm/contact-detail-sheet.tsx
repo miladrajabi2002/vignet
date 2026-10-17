@@ -31,6 +31,7 @@ import { contactDisplayName } from '@/lib/crm/display'
 import { relativeTime } from '@/lib/format'
 import { displayPhone } from '@/lib/phone'
 import { formatContactAddress, type ContactAddress } from '@/lib/crm/contact-address'
+import { PurchaseCard, type PurchaseView } from '@/components/payments/purchase-card'
 import { cn } from '@/lib/utils'
 
 type DetailTab = 'overview' | 'conversations' | 'edit'
@@ -86,6 +87,8 @@ type ContactDetailData = {
     createdAt: string
     agent: { name: string }
   }>
+  /** What they paid for, newest first. */
+  purchases?: PurchaseView[]
 }
 
 type ChannelIdentity = {
@@ -278,29 +281,15 @@ export function ContactDetailSheet({
       contentClassName="bg-[color:color-mix(in_srgb,var(--bg-base)_70%,transparent)]"
       footer={
         detail ? (
-          <div className={cn('grid gap-2', phone ? 'grid-cols-5' : 'grid-cols-3')}>
+          <div className={cn('grid gap-2', phone ? 'grid-cols-4' : 'grid-cols-3')}>
             {phone && (
-              <>
-                <a
-                  href={`tel:${phone}`}
-                  className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[12px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                >
-                  <Phone className="h-4 w-4" aria-hidden="true" />
-                  {t('detail.call')}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => copyValue(phone, 'phone-footer')}
-                  className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[12px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                >
-                  {copiedKey === 'phone-footer' ? (
-                    <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                  ) : (
-                    <Copy className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  {copiedKey === 'phone-footer' ? t('detail.copied') : t('detail.copy')}
-                </button>
-              </>
+              <a
+                href={`tel:${phone}`}
+                className="spatial-press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-white text-[12px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+                {t('detail.call')}
+              </a>
             )}
             <button
               type="button"
@@ -401,6 +390,23 @@ export function ContactDetailSheet({
         <div className="mt-4" role="tabpanel">
           {tab === 'overview' && (
             <div className="space-y-3">
+              {detail.purchases && detail.purchases.length > 0 && (
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
+                      {locale === 'fa'
+                        ? `خریدها · ${detail.purchases.length.toLocaleString('fa-IR')} سفارش`
+                        : `Purchases · ${detail.purchases.length}`}
+                    </h4>
+                    {detail.purchases.length > 2 && (
+                      <Link href={`/contacts/${detail.id}`} className="ui-link text-xs">{locale === 'fa' ? 'همه' : 'All'}</Link>
+                    )}
+                  </div>
+                  {detail.purchases.slice(0, 2).map((purchase) => (
+                    <PurchaseCard key={purchase.id} purchase={purchase} locale={locale} />
+                  ))}
+                </section>
+              )}
               {detail.phone && (
                 <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
                   <p className="text-xs font-medium text-[var(--text-muted)]">{t('detail.phone')}</p>
@@ -572,9 +578,6 @@ export function ContactDetailSheet({
                 embedded
                 onSaved={(updated) => setDetail((current) => current ? { ...current, ...updated } : current)}
               />
-              <div className="border-t border-[var(--border-subtle)] pt-4">
-                <ContactDeleteAction contactId={detail.id} returnTo={returnTo} />
-              </div>
             </div>
           )}
         </div>

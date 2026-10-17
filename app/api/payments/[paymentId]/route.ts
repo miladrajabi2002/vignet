@@ -3,14 +3,16 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cancelOpenCardPayments, confirmCardPayment, rejectCardPayment, setCardPayBlockForPayment } from '@/lib/payments/card/service'
+import { setPaymentHandled } from '@/lib/payments/card/fulfilment'
 
 type Params = { params: Promise<{ paymentId: string }> }
 
-const schema = z.object({ action: z.enum(['confirm', 'reject', 'cancel', 'block', 'unblock']) })
+const schema = z.object({ action: z.enum(['confirm', 'reject', 'cancel', 'block', 'unblock', 'handled', 'unhandled']) })
 
 /**
  * The owner's own decision on a payment: confirm it by hand, reject a claim,
- * withdraw a link, or stop (and allow again) card-to-card for its customer.
+ * withdraw a link, stop (and allow again) card-to-card for its customer, or
+ * mark a paid order delivered.
  */
 export async function PATCH(req: Request, props: Params) {
   const { paymentId } = await props.params
@@ -25,6 +27,10 @@ export async function PATCH(req: Request, props: Params) {
   if (parsed.data.action === 'block' || parsed.data.action === 'unblock') {
     const done = await setCardPayBlockForPayment(user.workspaceId, payment.id, parsed.data.action === 'block')
     return done ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'NO_CUSTOMER' }, { status: 409 })
+  }
+  if (parsed.data.action === 'handled' || parsed.data.action === 'unhandled') {
+    const done = await setPaymentHandled(user.workspaceId, payment.id, parsed.data.action === 'handled')
+    return done ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'NOT_PAID' }, { status: 409 })
   }
   let changed = false
   if (parsed.data.action === 'confirm') changed = (await confirmCardPayment(payment.id, 'OWNER')).changed

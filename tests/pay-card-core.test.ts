@@ -135,8 +135,10 @@ describe('payment card in a reply', () => {
     const { cardPaySplitMessages } = await import('@/lib/payments/card/pay-card')
     const [head, pan, amount, tail] = cardPaySplitMessages(card)
     expect(pan).toBe('6104337712345675')
-    expect(amount).toBe('1250347')
+    // Rials, which bank apps take: a toman figure pasted there sends a tenth.
+    expect(amount).toBe('12503470')
     expect(head).toContain('A7K2Q9')
+    expect(tail).toContain('12,503,470')
     expect(tail).toContain('1,250,347')
   })
 

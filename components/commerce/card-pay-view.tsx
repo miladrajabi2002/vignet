@@ -129,7 +129,7 @@ export function CardPayCardView({
 	onAccent,
 	live = true,
 	canClaim = true,
-	unit = 'toman',
+	unit = 'rial',
 	onStatus,
 	actions,
 }: {
@@ -139,7 +139,7 @@ export function CardPayCardView({
 	live?: boolean
 	/** False in the owner's dashboard: only the customer says «پرداخت کردم». */
 	canClaim?: boolean
-	/** Rial for the owner's own test: most bank apps take the amount in rials. */
+	/** What the copy button gives: rials by default, since most bank apps take the amount in rials. */
 	unit?: 'toman' | 'rial'
 	onStatus?: (status: CardPayStatus) => void
 	/** The owner's decisions under the card, given its live state and a way to move it. */

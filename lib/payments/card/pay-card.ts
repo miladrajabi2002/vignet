@@ -4,7 +4,7 @@
  * so the server, the chat link and the dashboard thread share one shape.
  */
 import { bankByKey, formatPan } from '@/lib/payments/card/bins'
-import { groupDigits } from '@/lib/payments/card/amount'
+import { groupDigits, tomanToRial } from '@/lib/payments/card/amount'
 
 export const CARDPAY_MARKER_PREFIX = '[[cardpay:'
 
@@ -116,7 +116,7 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
         `💳 ${cardPayHeading(card)}`,
         `${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}`,
         `شماره کارت: ${formatPan(card.pan)}`,
-        `مبلغ دقیق: ${groupDigits(card.amount)} تومان`,
+        `مبلغ دقیق: ${groupDigits(tomanToRial(card.amount))} ریال (${groupDigits(card.amount)} تومان)`,
         'لطفاً دقیقاً همین مبلغ را واریز کنید (بدون رُند کردن)؛ پرداخت از روی همین عدد شناخته و خودکار تأیید می‌شود.',
         left ? `مهلت: ${left.toLocaleString('fa-IR')} دقیقه` : '',
       ]
@@ -124,7 +124,7 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
         `💳 ${cardPayHeading(card)}`,
         `${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}`,
         `Card number: ${formatPan(card.pan)}`,
-        `Exact amount: ${groupDigits(card.amount)} Toman`,
+        `Exact amount: ${groupDigits(tomanToRial(card.amount))} Rial (${groupDigits(card.amount)} Toman)`,
         'Please transfer exactly this amount (do not round it); the payment is recognised by this number and confirmed automatically.',
         left ? `Valid for ${left} minutes` : '',
       ]
@@ -134,7 +134,9 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
 /**
  * The card as separate messages for channels with no copy button (Instagram,
  * Rubika): the card number and the amount each travel alone and without
- * separators, so «hold to copy» takes exactly that number.
+ * separators, so «hold to copy» takes exactly that number. The amount travels
+ * in rials: bank apps take rials, and a toman figure pasted there sends a
+ * tenth of the money.
  */
 export function cardPaySplitMessages(card: CardPayView, now = new Date()): string[] {
   const fa = card.lang !== 'en'
@@ -143,9 +145,9 @@ export function cardPaySplitMessages(card: CardPayView, now = new Date()): strin
     ? `💳 ${cardPayHeading(card)}\n${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}\nشماره کارت و مبلغ دقیق رو جدا می‌فرستم که راحت کپی کنید 👇`
     : `💳 ${cardPayHeading(card)}\n${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}\nThe card number and the exact amount follow as separate messages so they are easy to copy 👇`
   const tail = fa
-    ? `مبلغ به تومانه (${groupDigits(card.amount)}) و باید دقیقاً همین باشه؛ بعد از واریز همین‌جا خودکار تأیید می‌شه.${left ? ` مهلت: ${left.toLocaleString('fa-IR')} دقیقه.` : ''}`
-    : `The amount is in Toman (${groupDigits(card.amount)}) and must be exact; it is confirmed here automatically after the transfer.${left ? ` Valid for ${left} minutes.` : ''}`
-  return [head, card.pan, String(card.amount), tail]
+    ? `مبلغ بالا به ریاله (${groupDigits(tomanToRial(card.amount))} ریال = ${groupDigits(card.amount)} تومان) و باید دقیقاً همین باشه؛ بعد از واریز همین‌جا خودکار تأیید می‌شه.${left ? ` مهلت: ${left.toLocaleString('fa-IR')} دقیقه.` : ''}`
+    : `The amount above is in Rial (${groupDigits(tomanToRial(card.amount))} Rial = ${groupDigits(card.amount)} Toman) and must be exact; it is confirmed here automatically after the transfer.${left ? ` Valid for ${left} minutes.` : ''}`
+  return [head, card.pan, String(tomanToRial(card.amount)), tail]
 }
 
 /** The message that carries a fresh card. */

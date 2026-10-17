@@ -1222,7 +1222,7 @@ function receiptKinds(metadata: unknown): string[] {
 
 /** Trusted outcomes of one conversation (orders, checkout, tool receipts, alerts). */
 export async function loadSalesFacts(conversationId: string, messages: SalesConversationMessage[] = []): Promise<SalesFacts> {
-        const [drafts, alerts] = await Promise.all([
+        const [drafts, alerts, paidCards] = await Promise.all([
                 prisma.orderDraft.findMany({
                         where: { conversationId },
                         select: { status: true, items: true },
@@ -1230,11 +1230,13 @@ export async function loadSalesFacts(conversationId: string, messages: SalesConv
                         take: 10,
                 }).catch(() => []),
                 prisma.restockAlert.count({ where: { conversationId } }).catch(() => 0),
+                // A card-to-card payment sent by hand into the chat has no cart.
+                prisma.cardPayment.count({ where: { conversationId, status: 'PAID', NOT: { reference: { startsWith: 'TEST-' } } } }).catch(() => 0),
         ])
         const statuses = drafts.map((draft) => draft.status)
         const kinds = new Set(messages.filter((message) => message.role === 'ASSISTANT').flatMap((message) => receiptKinds(message.metadata)))
         return {
-                paidOrder: statuses.some((status) => PAID_STATUSES.includes(status)),
+                paidOrder: paidCards > 0 || statuses.some((status) => PAID_STATUSES.includes(status)),
                 filedOrder: statuses.some((status) => FILED_STATUSES.includes(status)),
                 openCheckout: statuses.some((status) => OPEN_CHECKOUT_STATUSES.includes(status)),
                 activeCart: drafts.some((draft) => ACTIVE_CART_STATUSES.includes(draft.status) && Array.isArray(draft.items) && draft.items.length > 0),

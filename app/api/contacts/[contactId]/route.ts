@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { readContactAddress } from '@/lib/crm/contact-address'
+import { loadContactPurchases } from '@/lib/payments/card/fulfilment'
 
 type Params = { params: Promise<{ contactId: string }> }
 
@@ -77,8 +78,9 @@ export async function GET(_req: Request, props: Params) {
   // The profile shows the delivery address; the rest of the metadata (agent
   // memory, sync bookkeeping) stays server-side.
   const { metadata, ...profile } = contact
+  const purchases = await loadContactPurchases(user.workspaceId, { id: contact.id, phone: contact.phone }, contact.conversations.map((c) => c.id), 10).catch(() => [])
   return NextResponse.json(
-    { contact: { ...profile, address: readContactAddress(metadata) } },
+    { contact: { ...profile, address: readContactAddress(metadata), purchases } },
     { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
   )
 }

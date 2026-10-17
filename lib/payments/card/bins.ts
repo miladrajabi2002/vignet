@@ -15,40 +15,44 @@ export interface Bank {
   /** 6-digit prefixes; `prefixes8` wins when one matches (neobank ranges). */
   bins: string[]
   prefixes8?: string[]
-  /** Card face: [deep, light] of the bank's own colour. */
+  /**
+   * Card face: [deep, light] of the bank's own colour. ZarinPay's palette
+   * where it matches the bank's logo; the logo's colour where it does not
+   * (Pasargad black and gold, Refah navy, EDBI green, Iran Zamin purple…).
+   */
   colors: [string, string]
   /** False when the logo set has no mark for this issuer. */
   logo: boolean
 }
 
 export const BANKS: Bank[] = [
-  { key: 'melli', fa: 'بانک ملی ایران', en: 'Bank Melli Iran', bins: ['603799'], colors: ['#0d2f6b', '#1d55a8'], logo: true },
-  { key: 'mellat', fa: 'بانک ملت', en: 'Bank Mellat', bins: ['610433', '991975'], colors: ['#a10f26', '#d12236'], logo: true },
+  { key: 'melli', fa: 'بانک ملی ایران', en: 'Bank Melli Iran', bins: ['603799'], colors: ['#00a651', '#00c759'], logo: true },
+  { key: 'mellat', fa: 'بانک ملت', en: 'Bank Mellat', bins: ['610433', '991975'], colors: ['#e30613', '#ff1a2e'], logo: true },
   { key: 'saderat', fa: 'بانک صادرات ایران', en: 'Bank Saderat Iran', bins: ['603769'], colors: ['#1e1158', '#3a2a9a'], logo: true },
-  { key: 'tejarat', fa: 'بانک تجارت', en: 'Tejarat Bank', bins: ['627353', '585983'], colors: ['#1f0d8a', '#3f3ad1'], logo: true },
-  { key: 'sepah', fa: 'بانک سپه', en: 'Bank Sepah', bins: ['589210', '627381', '639370', '639599', '636949', '505801'], colors: ['#005f94', '#0093dd'], logo: true },
+  { key: 'tejarat', fa: 'بانک تجارت', en: 'Tejarat Bank', bins: ['627353', '585983'], colors: ['#004b87', '#0066b3'], logo: true },
+  { key: 'sepah', fa: 'بانک سپه', en: 'Bank Sepah', bins: ['589210', '627381', '639370', '639599', '636949', '505801'], colors: ['#1e40af', '#3b82f6'], logo: true },
   { key: 'blu', fa: 'بلوبانک', en: 'Blu Bank', bins: [], prefixes8: ['62198610', '62198618', '62198619'], colors: ['#1d74c2', '#3094ea'], logo: false },
-  { key: 'saman', fa: 'بانک سامان', en: 'Saman Bank', bins: ['621986'], colors: ['#007fae', '#00aae8'], logo: true },
+  { key: 'saman', fa: 'بانک سامان', en: 'Saman Bank', bins: ['621986'], colors: ['#0891b2', '#06b6d4'], logo: true },
   { key: 'pasargad', fa: 'بانک پاسارگاد', en: 'Bank Pasargad', bins: ['502229', '639347'], colors: ['#1b1b1b', '#3d3524'], logo: true },
-  { key: 'parsian', fa: 'بانک پارسیان', en: 'Parsian Bank', bins: ['622106', '639194', '627884'], colors: ['#7a0b14', '#a10f1f'], logo: true },
-  { key: 'keshavarzi', fa: 'بانک کشاورزی', en: 'Keshavarzi Bank', bins: ['603770', '639217'], colors: ['#0e2307', '#2b5c1a'], logo: true },
-  { key: 'maskan', fa: 'بانک مسکن', en: 'Bank Maskan', bins: ['628023'], colors: ['#b3140f', '#e8372b'], logo: true },
-  { key: 'refah', fa: 'بانک رفاه کارگران', en: 'Refah Bank', bins: ['589463'], colors: ['#155a00', '#2f8a12'], logo: true },
-  { key: 'ayandeh', fa: 'بانک آینده (ادغام در ملی)', en: 'Ayandeh Bank (now Melli)', bins: ['636214'], colors: ['#4a2f17', '#8a5a2b'], logo: true },
-  { key: 'shahr', fa: 'بانک شهر', en: 'Shahr Bank', bins: ['502806', '504706'], colors: ['#a80a0a', '#dd1c1c'], logo: true },
-  { key: 'en', fa: 'بانک اقتصاد نوین', en: 'EN Bank', bins: ['627412'], colors: ['#471c6f', '#6a3aa3'], logo: true },
-  { key: 'resalat', fa: 'بانک قرض‌الحسنه رسالت', en: 'Resalat Bank', bins: ['504172'], colors: ['#006b99', '#0092cf'], logo: true },
-  { key: 'mehriran', fa: 'بانک قرض‌الحسنه مهر ایران', en: 'Mehr Iran Bank', bins: ['606373'], colors: ['#007a3d', '#00a653'], logo: true },
-  { key: 'sina', fa: 'بانک سینا', en: 'Sina Bank', bins: ['639346'], colors: ['#0f2e7c', '#2456b8'], logo: true },
-  { key: 'dey', fa: 'بانک دی', en: 'Day Bank', bins: ['502938'], colors: ['#006b7a', '#008a9f'], logo: true },
-  { key: 'postbank', fa: 'پست بانک ایران', en: 'Post Bank of Iran', bins: ['627760'], colors: ['#006b2e', '#008840'], logo: true },
-  { key: 'karafarin', fa: 'بانک کارآفرین', en: 'Karafarin Bank', bins: ['627488', '502910'], colors: ['#106c5b', '#168474'], logo: true },
+  { key: 'parsian', fa: 'بانک پارسیان', en: 'Parsian Bank', bins: ['622106', '639194', '627884'], colors: ['#6b4426', '#b27d53'], logo: true },
+  { key: 'keshavarzi', fa: 'بانک کشاورزی', en: 'Keshavarzi Bank', bins: ['603770', '639217'], colors: ['#059669', '#10b981'], logo: true },
+  { key: 'maskan', fa: 'بانک مسکن', en: 'Bank Maskan', bins: ['628023'], colors: ['#ea580c', '#f97316'], logo: true },
+  { key: 'refah', fa: 'بانک رفاه کارگران', en: 'Refah Bank', bins: ['589463'], colors: ['#173576', '#2a4fa3'], logo: true },
+  { key: 'ayandeh', fa: 'بانک آینده (ادغام در ملی)', en: 'Ayandeh Bank (now Melli)', bins: ['636214'], colors: ['#572600', '#863c02'], logo: true },
+  { key: 'shahr', fa: 'بانک شهر', en: 'Shahr Bank', bins: ['502806', '504706'], colors: ['#ed1c24', '#ff3333'], logo: true },
+  { key: 'en', fa: 'بانک اقتصاد نوین', en: 'EN Bank', bins: ['627412'], colors: ['#662d91', '#8b5fb7'], logo: true },
+  { key: 'resalat', fa: 'بانک قرض‌الحسنه رسالت', en: 'Resalat Bank', bins: ['504172'], colors: ['#0089a8', '#00bbe6'], logo: true },
+  { key: 'mehriran', fa: 'بانک قرض‌الحسنه مهر ایران', en: 'Mehr Iran Bank', bins: ['606373'], colors: ['#00a651', '#00c759'], logo: true },
+  { key: 'sina', fa: 'بانک سینا', en: 'Sina Bank', bins: ['639346'], colors: ['#005baa', '#0074d9'], logo: true },
+  { key: 'dey', fa: 'بانک دی', en: 'Day Bank', bins: ['502938'], colors: ['#00aeef', '#33c3ff'], logo: true },
+  { key: 'postbank', fa: 'پست بانک ایران', en: 'Post Bank of Iran', bins: ['627760'], colors: ['#029248', '#00be55'], logo: true },
+  { key: 'karafarin', fa: 'بانک کارآفرین', en: 'Karafarin Bank', bins: ['627488', '502910'], colors: ['#00a652', '#00c75a'], logo: true },
   { key: 'taavon', fa: 'بانک توسعه تعاون', en: 'Tose’e Ta’avon Bank', bins: ['502908'], colors: ['#086673', '#0b8a93'], logo: true },
   { key: 'khavarmianeh', fa: 'بانک خاورمیانه', en: 'Middle East Bank', bins: ['585947'], colors: ['#b8660a', '#f7941e'], logo: true },
   { key: 'gardeshgari', fa: 'بانک گردشگری', en: 'Tourism Bank', bins: ['505416'], colors: ['#7f0707', '#af0a0f'], logo: true },
   { key: 'iranzamin', fa: 'بانک ایران زمین', en: 'Iran Zamin Bank', bins: ['505785'], colors: ['#3c0079', '#5a1fb8'], logo: true },
   { key: 'sarmayeh', fa: 'بانک سرمایه', en: 'Sarmayeh Bank', bins: ['639607'], colors: ['#4d5560', '#7a8490'], logo: true },
-  { key: 'sanatmadan', fa: 'بانک صنعت و معدن', en: 'Bank of Industry & Mine', bins: ['627961'], colors: ['#0a1f5d', '#0f317e'], logo: true },
+  { key: 'sanatmadan', fa: 'بانک صنعت و معدن', en: 'Bank of Industry & Mine', bins: ['627961'], colors: ['#7c2d12', '#a3351a'], logo: true },
   { key: 'edbi', fa: 'بانک توسعه صادرات', en: 'Export Development Bank', bins: ['627648', '207177'], colors: ['#005b12', '#0a7d22'], logo: true },
   { key: 'melal', fa: 'مؤسسه اعتباری ملل', en: 'Melal Credit Institution', bins: ['606256'], colors: ['#2a2b7a', '#37389a'], logo: true },
   { key: 'noor', fa: 'مؤسسه اعتباری نور', en: 'Noor Credit Institution', bins: ['507677'], colors: ['#0b7f88', '#11b8c7'], logo: true },

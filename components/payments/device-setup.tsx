@@ -4,16 +4,18 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { AlertTriangle, Apple, ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, ClipboardPaste, Download, Globe, Lightbulb, ListChecks, Loader2, Lock, MessageSquareText, Radio, RefreshCw, RotateCcw, ShieldCheck, Smartphone } from 'lucide-react'
+import { AlertTriangle, Apple, ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, ClipboardPaste, CreditCard, Download, Globe, Lightbulb, Loader2, Lock, MessageSquareText, Radio, RefreshCw, RotateCcw, Settings2, ShieldCheck, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { StatusChip } from '@/components/ui/status-chip'
 import { CardPayCardView } from '@/components/commerce/card-pay-view'
+import { CardsManager } from '@/components/payments/cards-manager'
+import { ChatCheckoutChoice } from '@/components/payments/chat-checkout-choice'
 import { PhoneMock, useSetupSteps } from '@/components/payments/setup-player'
 import { cn } from '@/lib/utils'
 import { displayPhone, normalizeIranianMobile } from '@/lib/phone'
 import type { CardPayView } from '@/lib/payments/card/pay-card'
-import type { GatewayDeviceRow } from '@/lib/payments/card/dashboard'
+import type { GatewayAgentRow, GatewayDeviceRow } from '@/lib/payments/card/dashboard'
 import type { SmsSampleReading } from '@/lib/payments/card/sms-sample'
 
 type Platform = 'ANDROID' | 'IOS'
@@ -173,7 +175,7 @@ function Question({ title, body, children }: { title: string; body: ReactNode; c
  * the phone is registered it is the guide for that phone, page by page.
  * Whether it works is proved by the test transfer that follows.
  */
-export function DeviceSetup({ devices, inboundLines, hasCard, inSetup = false, exits }: { devices: GatewayDeviceRow[]; inboundLines: string[]; hasCard: boolean; inSetup?: boolean; exits?: StepExits }) {
+export function DeviceSetup({ devices, inboundLines, hasCard, inSetup = false, exits, agents = [] }: { devices: GatewayDeviceRow[]; inboundLines: string[]; hasCard: boolean; inSetup?: boolean; exits?: StepExits; agents?: GatewayAgentRow[] }) {
 	const fa = useLocale() !== 'en'
 	return (
 		<div className="space-y-4">
@@ -193,7 +195,7 @@ export function DeviceSetup({ devices, inboundLines, hasCard, inSetup = false, e
 			)}
 			{devices.length === 0
 				? <NewPhone inboundLines={inboundLines} exits={exits} />
-				: devices.map((device) => <PhoneGuide key={device.id} device={device} line={inboundLines[0] ?? null} hasCard={hasCard} inSetup={inSetup} exits={exits} />)}
+				: devices.map((device) => <PhoneGuide key={device.id} device={device} line={inboundLines[0] ?? null} hasCard={hasCard} inSetup={inSetup} exits={exits} agents={agents} />)}
 		</div>
 	)
 }
@@ -372,14 +374,14 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
 								inputMode="tel"
 								autoComplete="tel"
 								autoFocus
-								className="input pe-12 font-mono text-[17px] tracking-wider"
+								className="input pr-12 font-mono text-[17px] tracking-wider"
 								placeholder="0912 123 4567"
 								value={phone}
 								onChange={(event) => setPhone(event.target.value)}
 								// +98…, 98… and 912… all become 09…: one spelling for one SIM.
 								onBlur={() => { if (validPhone) setPhone(validPhone) }}
 							/>
-							{validPhone ? <span className="pointer-events-none absolute inset-y-0 end-3 grid place-items-center"><span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white"><Check className="size-3.5" strokeWidth={3} aria-hidden /></span><span className="sr-only">{fa ? 'شماره درست است' : 'The number is valid'}</span></span> : null}
+							{validPhone ? <span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center"><span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white"><Check className="size-3.5" strokeWidth={3} aria-hidden /></span><span className="sr-only">{fa ? 'شماره درست است' : 'The number is valid'}</span></span> : null}
 						</label>
 						{phone && !validPhone ? <p className="text-[12.5px] text-[var(--text-muted)]">{fa ? 'مثل 09121234567' : 'Like 09121234567'}</p> : null}
 						{error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
@@ -401,7 +403,7 @@ function NewPhone({ inboundLines, exits }: { inboundLines: string[]; exits?: Ste
  * setup its last page hands over to the test transfer; on its own page the
  * test transfer is its last page.
  */
-function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: GatewayDeviceRow; line: string | null; hasCard: boolean; inSetup: boolean; exits?: StepExits }) {
+function PhoneGuide({ device, line, hasCard, inSetup, exits, agents }: { device: GatewayDeviceRow; line: string | null; hasCard: boolean; inSetup: boolean; exits?: StepExits; agents: GatewayAgentRow[] }) {
 	const fa = useLocale() !== 'en'
 	const numbers = fa ? 'fa-IR' : 'en-US'
 	const router = useRouter()
@@ -447,9 +449,9 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 	let next: ReactNode = null
 	if (page < lastPage) next = <NextButton label={fa ? 'بعدی' : 'Next'} onClick={() => setPage(page + 1)} />
 	else if (inSetup && exits?.next) next = <NextButton label={exits.next.label} onClick={exits.next.onClick} />
-	// The phone is proved: nothing to go back to, the way on is the payments.
+	// The phone is proved: nothing to go back to; the setup ends where it started, in Settings.
 	const done = page === testPage && Boolean(device.verifiedAt)
-	if (done) next = <Link href="/payments" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-5 text-[14px] font-bold text-white dark:text-neutral-900"><ListChecks className="size-4" aria-hidden />{fa ? 'رفتن به پرداخت‌ها' : 'Go to payments'}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden /></Link>
+	if (done) next = <Link href="/payments/settings" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-5 text-[14px] font-bold text-white dark:text-neutral-900"><Settings2 className="size-4" aria-hidden />{fa ? 'رفتن به تنظیمات' : 'Go to settings'}<ArrowLeft className="size-4 ltr:rotate-180" aria-hidden /></Link>
 
 	return (
 		<section className="spatial-surface grid gap-5 rounded-card p-4 sm:p-6">
@@ -462,6 +464,7 @@ function PhoneGuide({ device, line, hasCard, inSetup, exits }: { device: Gateway
 						<p className="text-[13.5px] leading-7 text-[var(--text-secondary)]">{fa ? 'گوشی وقتی وصل حساب می‌شود که پیامک یک واریز واقعی از آن به ویجنت برسد.' : 'The phone counts as connected once a real deposit’s SMS reaches Vigent from it.'}</p>
 					</div>
 					<TestTransfer verified={Boolean(device.verifiedAt)} hasCard={hasCard} />
+					{device.verifiedAt ? <ChatCheckoutChoice agents={agents} /> : null}
 				</div>
 			) : (
 				<div className="grid gap-5 md:grid-cols-[12.5rem_minmax(0,1fr)] md:items-start md:gap-8">
@@ -666,6 +669,18 @@ export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard
 	if (verified) {
 		return <p className="flex max-w-2xl items-center gap-2 rounded-control bg-emerald-50 p-3.5 text-[13.5px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><CheckCircle2 className="size-5 shrink-0" aria-hidden />{fa ? 'واریز آزمایشی از روی پیامک گوشی شما تأیید شد؛ اتصال برقرار است.' : 'The test transfer was confirmed from your phone’s SMS; the connection works.'}</p>
 	}
+	// The test pays into a card: with none (removed since), adding one comes first, right here.
+	if (!hasCard) {
+		return (
+			<div className="grid gap-3">
+				<p className="flex max-w-2xl items-start gap-2 rounded-control border border-amber-200 bg-amber-50 p-3.5 text-[13.5px] leading-7 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+					<CreditCard className="mt-1 size-4 shrink-0" aria-hidden />
+					{fa ? 'کارت فعالی ندارید. اول کارت مقصد را اضافه کنید؛ بعد از افزودن، ساخت تراکنش آزمایشی همین‌جا باز می‌شود.' : 'You have no active card. Add the destination card first; the test transaction opens right here once it is added.'}
+				</p>
+				<CardsManager cards={[]} embedded />
+			</div>
+		)
+	}
 	const rows = fa
 		? ['یک تراکنش ۱۰٬۰۰۰ تومانی با چند رقم آخرِ مخصوص ساخته می‌شود.', 'از یک کارت دیگر، همان مبلغ را دقیقاً به ریال به کارت خودتان واریز کنید.', 'پیامک واریز که از گوشی برسد، این قدم خودش سبز می‌شود.']
 		: ['A 10,000-toman transaction with its own last digits is made.', 'From another card, transfer exactly that many rials to your own card.', 'When the deposit SMS arrives through the phone, this step turns green.']
@@ -689,8 +704,7 @@ export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard
 					</p>
 				) : (
 					<div className="flex flex-wrap items-center gap-3">
-						<Button loading={busy} disabled={!hasCard} onClick={startTest}>{fa ? 'ساخت تراکنش آزمایشی' : 'Create the test transaction'}</Button>
-						{!hasCard && <span className="text-[13px] text-[var(--text-muted)]">{fa ? 'اول یک کارت اضافه کنید.' : 'Add a card first.'}</span>}
+						<Button loading={busy} onClick={startTest}>{fa ? 'ساخت تراکنش آزمایشی' : 'Create the test transaction'}</Button>
 						{testError && <span role="alert" className="text-[13px] text-red-600">{testError}</span>}
 					</div>
 				)}

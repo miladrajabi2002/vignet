@@ -19,7 +19,7 @@ export default async function PaymentDevicesPage() {
       <Link href="/payments/settings" className="inline-flex min-h-9 items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />{fa ? 'بازگشت به تنظیمات' : 'Back to settings'}
       </Link>
-      <DeviceSetup devices={overview.devices} inboundLines={overview.inboundLines} hasCard={overview.cards.some((card) => card.active)} />
+      <DeviceSetup devices={overview.devices} inboundLines={overview.inboundLines} hasCard={overview.cards.some((card) => card.active)} agents={overview.agents} />
     </PaymentsShell>
   )
 }

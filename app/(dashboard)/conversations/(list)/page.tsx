@@ -24,7 +24,8 @@ import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
-import { SalesInsightText, SatisfactionText } from '@/components/crm/sales-insight'
+import { PaidOrderTag, SalesInsightText, SatisfactionText } from '@/components/crm/sales-insight'
+import { conversationsAwaitingHandling } from '@/lib/payments/card/fulfilment'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
 import { SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
 import { DISSATISFIED_BELOW } from '@/lib/ai/turn-signal'
@@ -53,8 +54,9 @@ const VALID_CHANNELS = new Set<ChannelType>([
         'API',
         'CHAT_LINK',
 ])
-type SalesFilter = 'HIGH_INTENT' | 'DISSATISFIED' | 'BUYER' | 'INFORMATION_SEEKER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER'
+type SalesFilter = 'PAID' | 'HIGH_INTENT' | 'DISSATISFIED' | 'BUYER' | 'INFORMATION_SEEKER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER'
 const VALID_SALES_FILTERS = new Set<SalesFilter>([
+        'PAID',
         'HIGH_INTENT',
         'DISSATISFIED',
         'BUYER',
@@ -105,11 +107,17 @@ export default async function ConversationsPage(props: {
                 : undefined
         const query = searchParams.q?.trim().slice(0, 120) || undefined
 
+        // Conversations whose paid order the owner has not delivered yet.
+        const paidWaitingIds = await conversationsAwaitingHandling(user.workspaceId)
+        const paidWaiting = new Set(paidWaitingIds)
+
         const where: Prisma.ConversationWhereInput = { workspaceId: user.workspaceId }
         if (channelFilter) where.channel = channelFilter
         if (statusFilter) where.status = statusFilter
         if (agentFilter) where.agentId = agentFilter
-        if (salesFilter === 'HIGH_INTENT') {
+        if (salesFilter === 'PAID') {
+                where.id = { in: paidWaitingIds }
+        } else if (salesFilter === 'HIGH_INTENT') {
                 where.salesInsight = { is: { buyerProbability: { gte: 50 }, leadType: 'BUYER' } }
         } else if (salesFilter === 'DISSATISFIED') {
                 where.salesInsight = { is: { satisfaction: { lt: DISSATISFIED_BELOW } } }
@@ -457,6 +465,7 @@ export default async function ConversationsPage(props: {
                                                 }))}
                                                 salesOptions={[
                                                         { key: 'ALL', label: isFa ? 'همه دسته‌های فروش' : 'All sales categories', count: totalCount },
+                                                        { key: 'PAID', label: isFa ? 'خرید موفق (منتظر رسیدگی)' : 'Paid, waiting for delivery', count: paidWaitingIds.length },
                                                         { key: 'HIGH_INTENT', label: isFa ? 'فرصت‌های گرم (۵۰٪+)' : 'Warm opportunities (50%+)', count: highIntentCount },
                                                         { key: 'DISSATISFIED', label: isFa ? 'مشتری ناراضی' : 'Dissatisfied customer', count: dissatisfiedCount },
                                                         { key: 'BUYER', label: isFa ? 'خریدار احتمالی' : 'Potential buyer', count: salesCounts.get('BUYER') ?? 0 },
@@ -518,6 +527,7 @@ export default async function ConversationsPage(props: {
                                                                                         locale={locale}
                                                                                         lastMessage={last ? `${conversationPreviewText(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
                                                                                         reactionEmoji={reactionEmoji}
+                                                                                        paidWaiting={paidWaiting.has(c.id)}
                                                                                 />
                                                                         </LiveArrivalItem>
                                                                 ))}
@@ -541,9 +551,11 @@ export default async function ConversationsPage(props: {
                                                                                                         {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-32 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[12px] text-[var(--text-secondary)]" title={`@${channelHandle}`}>{`@${channelHandle}`}</span>}
                                                                                                         {/* The app, and for Instagram the entry the customer used: "Instagram Direct", "Instagram Comment"… */}
                                                                                                         <ChannelBadge type={c.channel} label={sourceTag} />
-                                                                                                        {/* How they feel and how likely they buy, as tags beside the app. */}
+                                                                                                        {/* How they feel and how likely they buy, as tags beside the app; a paid order outranks the guess. */}
                                                                                                         <SatisfactionText satisfaction={c.salesInsight?.satisfaction} locale={locale} variant="tag" />
-                                                                                                        {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightText insight={c.salesInsight} locale={locale} variant="tag" className="hidden lg:inline-flex" />}
+                                                                                                        {paidWaiting.has(c.id)
+                                                                                                                ? <PaidOrderTag locale={locale} />
+                                                                                                                : c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightText insight={c.salesInsight} locale={locale} variant="tag" className="hidden lg:inline-flex" />}
                                                                                                         <InboxRowPending />
                                                                                                         <span
                                                                                                                 className={cn('ms-auto shrink-0 whitespace-nowrap ps-1 text-[12px] tabular-nums text-[var(--text-muted)]', attention && 'font-medium text-[var(--text-primary)]')}

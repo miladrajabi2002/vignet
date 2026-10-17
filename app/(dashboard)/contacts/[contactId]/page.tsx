@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
-import { Phone, MessageSquare } from 'lucide-react'
+import { Phone, MessageSquare, ShoppingBag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge, ChannelGlyph, SourceTagBadges } from '@/components/crm/channel-badge'
@@ -16,6 +16,11 @@ import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
 import { displayPhone } from '@/lib/phone'
 import { formatContactAddress, readContactAddress } from '@/lib/crm/contact-address'
+import { loadContactPurchases } from '@/lib/payments/card/fulfilment'
+import { PurchaseCard } from '@/components/payments/purchase-card'
+
+/** Conversations listed before the rest fold away. */
+const HISTORY_SHOWN = 5
 
 export default async function ContactDetailPage(
   props: {
@@ -48,6 +53,7 @@ export default async function ContactDetailPage(
     },
   })
   if (!contact) notFound()
+  const purchases = await loadContactPurchases(user.workspaceId, { id: contact.id, phone: contact.phone }, contact.conversations.map((c) => c.id)).catch(() => [])
 
   const channels: ChannelType[] = []
   if (contact.telegramId) channels.push('TELEGRAM')
@@ -149,6 +155,27 @@ export default async function ContactDetailPage(
   const latest = contact.conversations[0]
   const stageLabel = t(({ lead: 'stageLead', qualified: 'stageQualified', customer: 'stageCustomer', lost: 'stageLost' } as Record<string, string>)[contact.stage] ?? 'stageLead')
 
+  const historyRow = (c: (typeof contact.conversations)[number]) => (
+    <Link
+      key={c.id}
+      href={`/conversations/${c.id}`}
+      className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-black/[0.035]"
+    >
+      <ChannelGlyph type={c.channel} className="grid h-8 w-8 place-items-center rounded-full border border-[var(--border-default)]" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] text-[var(--text-primary)]">
+          {c.messages[0] ? conversationPreviewText(c.messages[0].content) : c.agent.name}
+        </p>
+        <p className="text-[12px] tabular-nums text-[var(--text-muted)]">
+          {c.agent.name} · {nf.format(c.messageCount)} {locale === 'fa' ? 'پیام' : 'messages'}
+        </p>
+      </div>
+      <span className="shrink-0 whitespace-nowrap text-[12px] text-[var(--text-muted)]">
+        {relativeTime(new Date(c.lastMessageAt ?? c.createdAt), locale)}
+      </span>
+    </Link>
+  )
+
   return (
     <div className="mx-auto max-w-none space-y-4">
       <BackButton href="/contacts" label={t('title')} />
@@ -192,6 +219,43 @@ export default async function ContactDetailPage(
           <ContactDeleteAction contactId={contact.id} compact />
         </div>
       </div>
+
+      {purchases.length > 0 && (() => {
+        const spent = purchases.reduce((sum, p) => sum + p.total, 0)
+        const items = purchases.reduce((sum, p) => sum + p.lines.reduce((n, line) => n + line.quantity, 0), 0)
+        const waiting = purchases.filter((p) => p.paymentId && !p.handledAt).length
+        const money = (value: number) => `${nf.format(Math.round(value))} ${locale === 'fa' ? 'تومان' : 'Toman'}`
+        return (
+          <section className="spatial-surface rounded-card p-4 sm:p-5" aria-labelledby="purchases-title">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white"><ShoppingBag className="size-5" aria-hidden /></span>
+              <div className="min-w-0 flex-1">
+                <h2 id="purchases-title" className="ui-h3">{locale === 'fa' ? 'خریدها' : 'Purchases'}</h2>
+                <p className="text-[12.5px] text-[var(--text-muted)]">
+                  {locale === 'fa' ? `آخرین خرید ${relativeTime(purchases[0].paidAt, locale)}` : `Last purchase ${relativeTime(purchases[0].paidAt, locale)}`}
+                </p>
+              </div>
+            </div>
+            <dl className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                [locale === 'fa' ? 'مجموع پرداخت' : 'Total paid', money(spent)],
+                [locale === 'fa' ? 'سفارش' : 'Orders', nf.format(purchases.length)],
+                waiting
+                  ? [locale === 'fa' ? 'منتظر رسیدگی' : 'To deliver', nf.format(waiting)]
+                  : [locale === 'fa' ? 'قلم کالا/خدمت' : 'Items', nf.format(items)],
+              ].map(([label, value], index) => (
+                <div key={label} className={`rounded-2xl border px-3 py-2.5 ${index === 2 && waiting ? 'border-amber-200 bg-amber-50' : 'border-[var(--border-subtle)] bg-[var(--bg-muted)]'}`}>
+                  <dt className="text-[11.5px] text-[var(--text-muted)]">{label}</dt>
+                  <dd className="mt-0.5 truncate text-[15px] font-extrabold tabular-nums text-[var(--text-primary)]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
+              {purchases.map((purchase) => <PurchaseCard key={purchase.id} purchase={purchase} locale={locale} />)}
+            </div>
+          </section>
+        )
+      })()}
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         {/* Editable details */}
@@ -245,27 +309,23 @@ export default async function ContactDetailPage(
               {t('detail.noHistory')}
             </p>
           ) : (
-            <div className="mt-1 divide-y divide-[var(--border-subtle)]">
-              {contact.conversations.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/conversations/${c.id}`}
-                  className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-black/[0.035]"
-                >
-                  <ChannelGlyph type={c.channel} className="grid h-8 w-8 place-items-center rounded-full border border-[var(--border-default)]" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] text-[var(--text-primary)]">
-                      {c.messages[0] ? conversationPreviewText(c.messages[0].content) : c.agent.name}
-                    </p>
-                    <p className="text-[12px] tabular-nums text-[var(--text-muted)]">
-                      {c.agent.name} · {nf.format(c.messageCount)} {locale === 'fa' ? 'پیام' : 'messages'}
-                    </p>
+            <div className="mt-1">
+              <div className="divide-y divide-[var(--border-subtle)]">
+                {contact.conversations.slice(0, HISTORY_SHOWN).map(historyRow)}
+              </div>
+              {contact.conversations.length > HISTORY_SHOWN && (
+                // A long history stays folded so the page does not run on past it on a phone.
+                <details className="group">
+                  <summary className="mt-1 flex min-h-10 cursor-pointer list-none items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[12.5px] font-medium text-[var(--text-secondary)] hover:bg-black/[0.035] group-open:hidden [&::-webkit-details-marker]:hidden">
+                    {locale === 'fa'
+                      ? `نمایش ${nf.format(contact.conversations.length - HISTORY_SHOWN)} گفتگوی دیگر`
+                      : `Show ${contact.conversations.length - HISTORY_SHOWN} more`}
+                  </summary>
+                  <div className="divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+                    {contact.conversations.slice(HISTORY_SHOWN).map(historyRow)}
                   </div>
-                  <span className="shrink-0 whitespace-nowrap text-[12px] text-[var(--text-muted)]">
-                    {relativeTime(new Date(c.lastMessageAt ?? c.createdAt), locale)}
-                  </span>
-                </Link>
-              ))}
+                </details>
+              )}
             </div>
           )}
         </div>

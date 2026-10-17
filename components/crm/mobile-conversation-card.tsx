@@ -9,7 +9,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationDeleteAction } from '@/components/crm/conversation-actions'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { ConversationStatusDot } from '@/components/crm/conversation-status-dot'
-import { SalesInsightText, SatisfactionText, type SalesInsightView } from '@/components/crm/sales-insight'
+import { PaidOrderTag, SalesInsightText, SatisfactionText, type SalesInsightView } from '@/components/crm/sales-insight'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +37,7 @@ export function MobileConversationCard({
   locale,
   lastMessage,
   reactionEmoji,
+  paidWaiting = false,
 }: {
   conversationId: string
   who: string
@@ -58,6 +59,8 @@ export function MobileConversationCard({
   locale: 'fa' | 'en'
   lastMessage: string
   reactionEmoji?: string | null
+  /** A paid order here waits for the owner to deliver it. */
+  paidWaiting?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -69,6 +72,7 @@ export function MobileConversationCard({
         className={cn(
           'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
           attention && 'border-amber-300/70',
+          paidWaiting && !attention && 'border-emerald-300',
         )}
       >
         <button
@@ -98,6 +102,7 @@ export function MobileConversationCard({
                 </span>
               </div>
               <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                {paidWaiting && <PaidOrderTag locale={locale} />}
                 <ChannelBadge type={channel} label={sourceTag} />
                 <SatisfactionText satisfaction={satisfaction} locale={locale} variant="tag" />
               </div>

@@ -356,6 +356,8 @@ export async function confirmCardPayment(paymentId: string, by: ConfirmedBy, now
   // The setup's own test transfer: the setup turns green, no alert or callback.
   if (payment.reference.startsWith('TEST-')) return { changed: true, payment }
   await tellCustomer(payment, 'PAID')
+  // The buyer joins the customers list as a customer; the order waits in the inbox until it is handled.
+  await import('@/lib/payments/card/fulfilment').then((fulfilment) => fulfilment.recordPaidCustomer(payment))
   await notifyWorkspace({
     workspaceId: payment.workspaceId,
     type: 'SYSTEM',

@@ -20,6 +20,8 @@ import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from 
 import { dateLocaleTag } from '@/lib/localized-date'
 import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
+import { loadGatewayOrders, type Purchase } from '@/lib/payments/card/fulfilment'
+import { PurchaseCard } from '@/components/payments/purchase-card'
 
 const PAGE_SIZE = 20
 const ORDER_STATUSES = [
@@ -84,6 +86,14 @@ export async function OrdersView({
       : {}),
   }
 
+  // Orders paid by card-to-card in Vigent itself (not placed on a store) sit
+  // on the first page beside the store's: waiting ones read «در حال انجام»,
+  // handled ones «تکمیل‌شده».
+  const gatewayStatus = status === 'processing' ? false : status === 'completed' ? true : status ? null : undefined
+  const gatewayOrders: Purchase[] = page === 1 && gatewayStatus !== null
+    ? await loadGatewayOrders(workspaceId, { query: q ? searchVariants(q) : undefined, handled: gatewayStatus })
+    : []
+
   const [orders, totalOrders, orderCapacity, planDefs] = await Promise.all([
     prisma.storeOrder.findMany({
       where,
@@ -117,6 +127,7 @@ export async function OrdersView({
   }
 
   const totalPages = Math.max(1, Math.ceil(totalOrders / PAGE_SIZE))
+  const listedCount = totalOrders + gatewayOrders.length
   const hasFilters = Boolean(q || status)
   const numberLocale = locale === 'en' ? 'en-US' : 'fa-IR'
   const dateFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale === 'en' ? 'en' : 'fa'), {
@@ -170,6 +181,47 @@ export async function OrdersView({
       detailsLabel: t('details'),
       closeLabel: t('hideDetails'),
     }
+  }
+
+  function gatewayEntryProps(order: Purchase) {
+    const items = order.lines.map((line) => `${line.quantity > 1 ? `${new Intl.NumberFormat(numberLocale).format(line.quantity)}× ` : ''}${line.name}`).join('، ')
+    const count = order.lines.reduce((sum, line) => sum + line.quantity, 0)
+    const state = order.handledAt ? 'completed' : 'processing'
+    return {
+      orderNumber: order.code,
+      storeLabel: locale === 'en' ? 'Vigent · card transfer' : 'ویجنت · کارت‌به‌کارت',
+      customerName: order.customerName || t('unknownCustomer'),
+      customerContact: order.customerPhone ? displayPhone(order.customerPhone) : null,
+      itemsLabel: items || t('itemsCount', { count }),
+      itemsCountLabel: items ? t('itemsCount', { count }) : null,
+      statusLabel: order.handledAt ? (locale === 'en' ? 'Handled' : 'رسیدگی شد') : (locale === 'en' ? 'Paid · to deliver' : 'پرداخت‌شده · منتظر رسیدگی'),
+      statusClassName: statusClassName(state),
+      amountLabel: amountLabel(order.total, 'IRT'),
+      dateLabel: dateFormatter.format(order.paidAt),
+      amountTitle: t('amount'),
+      dateTitle: t('date'),
+      detailsLabel: t('details'),
+      closeLabel: t('hideDetails'),
+    }
+  }
+
+  // Newest first across both sources.
+  type ListedOrder = { kind: 'store'; order: OrderRow; at: Date } | { kind: 'gateway'; order: Purchase; at: Date }
+  const listed: ListedOrder[] = [
+    ...orders.map((order): ListedOrder => ({ kind: 'store', order, at: order.orderDate ?? order.createdAt })),
+    ...gatewayOrders.map((order): ListedOrder => ({ kind: 'gateway', order, at: order.paidAt })),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime())
+
+  function listedEntry(entry: ListedOrder, variant: 'row' | 'card') {
+    return entry.kind === 'store' ? (
+      <OrderEntry variant={variant} {...entryProps(entry.order)}>
+        {orderDetails(entry.order)}
+      </OrderEntry>
+    ) : (
+      <OrderEntry variant={variant} {...gatewayEntryProps(entry.order)}>
+        <PurchaseCard purchase={entry.order} locale={locale === 'en' ? 'en' : 'fa'} />
+      </OrderEntry>
+    )
   }
 
   /** The popup body: items, customer, store and shipping, each only when known. */
@@ -264,7 +316,7 @@ export async function OrdersView({
                 : undefined}
             />
             <span className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
-              {t('total', { count: totalOrders.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}
+              {t('total', { count: listedCount.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}
             </span>
           </>
         }
@@ -300,10 +352,10 @@ export async function OrdersView({
         clearFilters={t('clearFilters')}
         filtersLabel={t('filters')}
         closeFilters={t('showResults')}
-        resultsLabel={t('results', { count: totalOrders })}
+        resultsLabel={t('results', { count: listedCount })}
       />
 
-      {orders.length === 0 ? (
+      {listed.length === 0 ? (
         <LiveEmptyState
         icon={ShoppingBag}
         preview={hasFilters ? 'none' : 'orders'}
@@ -324,21 +376,15 @@ export async function OrdersView({
               <span aria-hidden="true" />
             </div>
             <ul className="divide-y divide-[var(--border-subtle)]">
-              {orders.map((order) => (
-                <li key={order.id}>
-                  <OrderEntry variant="row" {...entryProps(order)}>
-                    {orderDetails(order)}
-                  </OrderEntry>
-                </li>
+              {listed.map((entry) => (
+                <li key={entry.order.id}>{listedEntry(entry, 'row')}</li>
               ))}
             </ul>
           </section>
 
           <div className="grid gap-3 md:hidden">
-            {orders.map((order) => (
-              <OrderEntry key={order.id} variant="card" {...entryProps(order)}>
-                {orderDetails(order)}
-              </OrderEntry>
+            {listed.map((entry) => (
+              <div key={entry.order.id}>{listedEntry(entry, 'card')}</div>
             ))}
           </div>
 

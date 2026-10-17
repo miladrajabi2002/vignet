@@ -155,10 +155,11 @@ export function PaymentsShell({ active, overview, locale, action, children }: { 
 					devices={overview.devices}
 					inboundLines={overview.inboundLines}
 					platformEnabled={overview.platformEnabled}
+					agents={overview.agents}
 				/>
 			) : (
 				<>
-					{justActivated && active === 'payments' ? (
+					{justActivated && (active === 'payments' || active === 'settings') ? (
 						<div role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13.5px] leading-7 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
 							<PartyPopper className="mt-1 size-5 shrink-0" aria-hidden />
 							<p>

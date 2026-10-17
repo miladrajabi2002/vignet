@@ -3,9 +3,8 @@
 import Link from 'next/link'
 import QRCode from 'qrcode'
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { AlertCircle, BadgeCheck, Bot, CalendarDays, Clock, CreditCard, GraduationCap, Plus, RefreshCw, ShoppingBag, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import { CalendarDays, Clock, CreditCard, GraduationCap, Package, Plus, RefreshCw, ShoppingBag, UtensilsCrossed, type LucideIcon } from 'lucide-react'
 import { BankCardFace } from '@/components/payments/bank-card'
-import { bankByKey } from '@/lib/payments/card/bins'
 import type { GatewayWeek } from '@/lib/payments/card/dashboard'
 import type { StageBookings, StageCourses, StageMenu, StageModules, StageStore } from '@/lib/dashboard/stage-modules'
 import { cn } from '@/lib/utils'
@@ -129,16 +128,70 @@ export function moduleNodes(modules: StageModules, gateway: GatewayWeek | null, 
 	return out
 }
 
-function Head({ mod, title, sub, href, link, Arrow }: { mod: ModKey; title: string; sub?: ReactNode; href?: string; link?: string; Arrow: LucideIcon }) {
+function Head({ mod, title, sub, end }: { mod: ModKey; title: string; sub?: ReactNode; end?: ReactNode }) {
 	const Icon = MOD[mod].icon
 	return (
 		<div className="ls-pn-h">
 			<span className="ls-mt h-[26px] w-[26px] !rounded-lg"><Icon className="h-[15px] w-[15px]" /></span>
 			<b>{title}</b>
-			{sub ? <span>{sub}</span> : null}
-			{href && link ? <Link href={href} className="ls-go">{link}<Arrow className="h-[13px] w-[13px]" /></Link> : null}
+			{sub ? <span className="ls-pn-sub">{sub}</span> : null}
+			{end}
 		</div>
 	)
+}
+
+/** Counts up from zero when the panel opens, then from the last value; reduced motion shows it at once. */
+function Count({ value, format }: { value: number; format: (value: number) => string }) {
+	const [shown, setShown] = useState(0)
+	const from = useRef(0)
+	useEffect(() => {
+		const start = from.current
+		from.current = value
+		if (start === value || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setShown(value); return }
+		const t0 = performance.now()
+		let frame = 0
+		const tick = (now: number) => {
+			const p = Math.min(1, (now - t0) / 1100)
+			setShown(start + (value - start) * (p === 1 ? 1 : 1 - Math.pow(2, -10 * p)))
+			if (p < 1) frame = requestAnimationFrame(tick)
+		}
+		frame = requestAnimationFrame(tick)
+		return () => cancelAnimationFrame(frame)
+	}, [value])
+	return <>{format(shown)}</>
+}
+
+/** One number on a panel: a big count, a word under it, the page it opens. */
+function Stat({ index, href, icon: Icon, value, label, format, bump = 0, feed, hot, children }: {
+	index: number
+	href?: string
+	icon?: LucideIcon
+	value: number
+	label: string
+	format: (value: number) => string
+	bump?: number
+	/** A live source keeps feeding it (a synced store). */
+	feed?: boolean
+	hot?: boolean
+	children?: ReactNode
+}) {
+	const numRef = useRef<HTMLElement>(null)
+	// A replay landing nudges the number without remounting (and recounting) it.
+	useEffect(() => {
+		if (!bump || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+		numRef.current?.animate([{ transform: 'none' }, { transform: 'scale(1.14)', color: 'var(--ls-c)', offset: 0.4 }, { transform: 'none' }], { duration: 550, easing: 'cubic-bezier(.2,.8,.2,1)' })
+	}, [bump])
+	const body = (
+		<>
+			{Icon ? <span className="ls-stat-ic"><Icon className="h-4 w-4" /></span> : null}
+			<b ref={numRef}><Count value={value} format={format} /></b>
+			<small>{label}</small>
+			{children}
+		</>
+	)
+	const className = cn('ls-stat', feed && 'is-feed', hot && 'is-hot')
+	const style = { '--i': index } as CSSProperties
+	return href ? <Link href={href} className={className} style={style}>{body}</Link> : <div className={className} style={style}>{body}</div>
 }
 
 function Steps({ items, next }: { items: { label: string; done: boolean }[]; next: string }) {
@@ -167,15 +220,6 @@ function Pop({ pop }: { pop: { id: number; text: string } | null }) {
 
 /* ── the payment gateway ─────────────────────────────────────────────── */
 
-const cardFoot = (card: GatewayWeek['cards'][number], fa: boolean, fmt: (value: number) => string) => (
-	<div className="ls-ctile-f">
-		<b>{fa ? `امروز ${fmt(card.today)} تومان` : `Today ${fmt(card.today)} Toman`}</b>
-		<small className={card.verified ? 'is-ok' : undefined}>
-			{card.verified ? <><BadgeCheck className="size-3.5" aria-hidden />{fa ? 'با واریز واقعی تأیید شده' : 'Verified by a real deposit'}</> : fa ? 'هنوز واریزی روی این کارت تطبیق نخورده' : 'No deposit has matched on this card yet'}
-		</small>
-	</div>
-)
-
 export const PayPanel = forwardRef<PanelHandle, {
 	locale: Locale
 	gateway: GatewayWeek | null
@@ -186,26 +230,21 @@ export const PayPanel = forwardRef<PanelHandle, {
 	Arrow: LucideIcon
 }>(function PayPanel({ locale, gateway, payments, setup, narrow, width, Arrow }, ref) {
 	const { fa, fmt } = formatters(locale)
-	const tile = narrow ? Math.min(264, width - 24) : 248
-	if (gateway && gateway.cards.length) return <Wallet ref={ref} locale={locale} data={gateway} payments={payments} narrow={narrow} tile={tile} Arrow={Arrow} />
+	const tile = narrow ? Math.min(280, width - 24) : 248
+	if (gateway && gateway.cards.length) return <Wallet ref={ref} locale={locale} data={gateway} payments={payments} narrow={narrow} tile={tile} />
 	if (gateway) {
-		const slot = (
-			<div className="relative" style={{ width: tile }}>
-				{gateway.review > 0 ? <Link href="/payments" className="ls-badge">{fa ? `${fmt(gateway.review)} واریز منتظر تأیید` : `${fmt(gateway.review)} to review`}</Link> : null}
-				<Link href="/payments/cards" className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-1 rounded-[20px] border border-dashed border-[var(--signal-border)] bg-[var(--signal-soft)] px-6 text-center text-[13px] font-bold text-[var(--signal-strong)]">
-					<Plus className="h-5 w-5" />
-					{fa ? 'کارت فعالی نیست' : 'No active card'}
-					<span className="text-[11.5px] font-medium text-[var(--text-muted)]">{fa ? 'یک کارت روشن کنید تا پرداخت‌ها برسد' : 'Switch a card on to receive payments'}</span>
-				</Link>
-			</div>
-		)
-		const text = <p className="ls-explain">{fa ? <>درگاه روشن است ولی <b>همهٔ کارت‌ها خاموش‌اند</b>؛ تا یک کارت روشن نشود، ایجنت کارتی برای فرستادن در گفتگو ندارد.</> : <>The gateway is on but <b>every card is off</b>; until one is on, the agent has no card to send in a chat.</>}</p>
 		return (
 			<>
-				<Head mod="pay" title={fa ? 'درگاه پرداخت' : 'Payment gateway'} sub={fa ? 'روشن · بدون کارت فعال' : 'On · no active card'} href="/payments" link={fa ? 'درگاه' : 'Gateway'} Arrow={Arrow} />
-				<div className={narrow ? 'flex flex-col items-center gap-3' : 'ls-w2'}>
-					{slot}
-					<div className="ls-wside">{text}<div><Link href="/payments/cards" className="ls-pill">{fa ? 'روشن کردن کارت' : 'Switch a card on'}<Arrow className="h-3.5 w-3.5" /></Link></div></div>
+				<Head mod="pay" title={fa ? 'درگاه پرداخت' : 'Payment gateway'} end={<Review count={gateway.review} fa={fa} fmt={fmt} />} />
+				<div className={narrow ? 'flex flex-col items-center gap-3.5 text-center' : 'ls-w2'}>
+					<Link href="/payments/cards" className="flex aspect-[1.586] flex-col items-center justify-center gap-1.5 rounded-[20px] border border-dashed border-[var(--signal-border)] bg-[var(--signal-soft)] px-6 text-center text-[13px] font-bold text-[var(--signal-strong)]" style={{ width: tile }}>
+						<Plus className="h-5 w-5" />
+						{fa ? 'کارت فعالی نیست' : 'No active card'}
+					</Link>
+					<div className={cn('ls-wside', narrow && 'items-center')}>
+						<p className="ls-explain">{fa ? <>درگاه روشن است ولی <b>همهٔ کارت‌ها خاموش‌اند</b>.</> : <>The gateway is on but <b>every card is off</b>.</>}</p>
+						<div><Link href="/payments/cards" className="ls-pill">{fa ? 'روشن کردن کارت' : 'Switch a card on'}<Arrow className="h-3.5 w-3.5" /></Link></div>
+					</div>
 				</div>
 			</>
 		)
@@ -213,35 +252,29 @@ export const PayPanel = forwardRef<PanelHandle, {
 	if (!setup) return null
 	const order: [keyof NonNullable<StageModules['paySetup']>, string, string][] = [['card', 'کارت بانکی', 'A bank card'], ['phone', 'گوشی دریافت پیامک', 'The SMS phone'], ['test', 'واریز آزمایشی', 'A test deposit'], ['switch', 'روشن کردن درگاه', 'Switch the gateway on']]
 	const done = order.filter(([key]) => setup[key]).length
-	const ghost = (
-		<div className="relative mx-auto" style={{ width: tile }}>
-			<i aria-hidden className="ls-coin ls-demo-coin">{fa ? 'ت' : 'T'}</i>
-			<div className="ls-ctile">
-				<BankCardFace bankKey="unknown" pan="•••• •••• •••• ••••" holder={fa ? 'نام صاحب کارت' : 'Cardholder name'} lang={locale} />
-				<div className="ls-ctile-f">
-					<b>{fa ? 'کارت شما اینجا می‌نشیند' : 'Your card sits here'}</b>
-					<small>{fa ? 'نمونه · بعد از افزودن کارت، واریزهایش همین‌جا دیده می‌شود' : 'Sample · once you add a card, its deposits show here'}</small>
-				</div>
-			</div>
-		</div>
-	)
 	return (
 		<>
-			<Head mod="pay" title={fa ? 'درگاه پرداخت' : 'Payment gateway'} sub={fa ? `راه‌اندازی · ${fmt(done)} از ۴ قدم` : `Setup · ${fmt(done)} of 4 steps`} href="/payments" link={fa ? 'درگاه' : 'Gateway'} Arrow={Arrow} />
-			<div className={narrow ? 'flex flex-col gap-3.5' : 'ls-w2'}>
-				{ghost}
+			<Head mod="pay" title={fa ? 'درگاه پرداخت' : 'Payment gateway'} sub={fa ? `${fmt(done)} از ۴ قدم` : `${fmt(done)} of 4 steps`} />
+			<div className={narrow ? 'flex flex-col gap-4' : 'ls-w2'}>
+				<div className="relative mx-auto" style={{ width: tile }}>
+					<i aria-hidden className="ls-coin ls-demo-coin">{fa ? 'ت' : 'T'}</i>
+					<BankCardFace bankKey="unknown" pan="•••• •••• •••• ••••" holder={fa ? 'کارت شما' : 'Your card'} lang={locale} muted />
+				</div>
 				<div className="ls-wside">
 					<Steps items={order.map(([key, faLabel, enLabel]) => ({ label: fa ? faLabel : enLabel, done: setup[key] }))} next={fa ? 'قدم بعد' : 'Next'} />
-					<p className="ls-explain">{fa ? <>ایجنت کارت شما را با <b>مبلغ دقیق</b> در گفتگو می‌فرستد؛ پیامک واریز بانک که برسد، سفارش، نوبت یا ثبت‌نام خودکار تأیید می‌شود.</> : <>The agent sends your card with <b>an exact amount</b> in the chat; when the bank’s deposit SMS arrives, the order, booking or sign-up confirms by itself.</>}</p>
-					<Link href="/payments" className="ls-cta self-start"><CreditCard className="h-3.5 w-3.5" />{done ? (fa ? 'ادامهٔ راه‌اندازی' : 'Continue setup') : fa ? 'راه‌اندازی قدم‌به‌قدم' : 'Set it up step by step'}</Link>
+					<Link href="/payments" className="ls-cta self-start"><CreditCard className="h-3.5 w-3.5" />{done ? (fa ? 'ادامهٔ راه‌اندازی' : 'Continue setup') : fa ? 'راه‌اندازی درگاه' : 'Set up the gateway'}</Link>
 				</div>
 			</div>
 		</>
 	)
 })
 
-const Wallet = forwardRef<PanelHandle, { locale: Locale; data: GatewayWeek; payments: Payment[]; narrow: boolean; tile: number; Arrow: LucideIcon }>(function Wallet({ locale, data, payments, narrow, tile, Arrow }, ref) {
-	const { fa, fmt, money, pct } = formatters(locale)
+function Review({ count, fa, fmt }: { count: number; fa: boolean; fmt: (value: number) => string }) {
+	return count > 0 ? <Link href="/payments" className="ls-badge">{fa ? `${fmt(count)} منتظر تأیید` : `${fmt(count)} to review`}</Link> : null
+}
+
+const Wallet = forwardRef<PanelHandle, { locale: Locale; data: GatewayWeek; payments: Payment[]; narrow: boolean; tile: number }>(function Wallet({ locale, data, payments, narrow, tile }, ref) {
+	const { fa, fmt, money } = formatters(locale)
 	const cards = data.cards
 	const cardIndex = (payment: Payment | undefined) => Math.max(0, cards.findIndex((card) => card.id === payment?.cardId))
 	const [front, setFront] = useState(() => cardIndex(payments[0]))
@@ -249,12 +282,11 @@ const Wallet = forwardRef<PanelHandle, { locale: Locale; data: GatewayWeek; paym
 	const [pop, setPop] = useState<{ id: number; text: string } | null>(null)
 	const [catchId, setCatchId] = useState(0)
 	const [sheenId, setSheenId] = useState(0)
-	const [tileH, setTileH] = useState(Math.round((tile - 30) / 1.586) + 86)
+	const [tileH, setTileH] = useState(Math.round(tile / 1.586))
 	const frontRef = useRef<HTMLDivElement>(null)
-	const now = useNow()
-	const ago = useAgo(locale, now)
+	const ago = useAgo(locale, useNow())
 
-	// The stack is as tall as one tile. Measure the card's own wrapper (it never
+	// The stack is as tall as one card. Measure the card's own wrapper (it never
 	// remounts, unlike the face that replays a catch) and skip empty readings.
 	useLayoutEffect(() => {
 		const el = frontRef.current
@@ -279,16 +311,12 @@ const Wallet = forwardRef<PanelHandle, { locale: Locale; data: GatewayWeek; paym
 		},
 	}))
 
-	const card = cards[front] ?? cards[0]
-	const bank = bankByKey(card.bankKey)
-	const share = card.dailyCap ? Math.min(100, (card.today / card.dailyCap) * 100) : 0
-	const near = share >= 85
 	const what = (payment: Payment) =>
 		payment.purpose === 'BOOKING' ? (fa ? 'نوبت' : 'Booking') : payment.purpose === 'COURSE' ? (fa ? 'ثبت‌نام دوره' : 'Course sign-up') : `${fa ? 'سفارش' : 'Order'} ${payment.reference}`
+	const peak = Math.max(1, ...data.daily)
 
 	const stack = (
 		<div className="relative mx-auto shrink-0" style={{ width: tile }}>
-			{data.review > 0 ? <Link href="/payments" className="ls-badge">{fa ? `${fmt(data.review)} واریز منتظر تأیید` : `${fmt(data.review)} to review`}</Link> : null}
 			<div className="relative" style={{ height: tileH + 22 }}>
 				{cards.map((item, index) => {
 					const depth = (index - front + cards.length) % cards.length
@@ -302,10 +330,7 @@ const Wallet = forwardRef<PanelHandle, { locale: Locale; data: GatewayWeek; paym
 							style={{ transform: `translateY(${-11 * k}px) scale(${1 - 0.06 * k})`, zIndex: cards.length - depth, opacity: depth > 2 ? 0 : 1, filter: depth ? 'brightness(.9) saturate(.85)' : undefined }}
 						>
 							<div key={depth === 0 ? catchId : 'still'} className={cn(depth === 0 && catchId > 0 && 'ls-catch')}>
-								<div className="ls-ctile">
-									<BankCardFace bankKey={item.bankKey} pan={item.pan} holder={item.holder} lang={locale} />
-									{cardFoot(item, fa, fmt)}
-								</div>
+								<BankCardFace bankKey={item.bankKey} pan={item.pan} holder={item.holder} lang={locale} />
 								{depth === 0 && sheenId > 0 ? <span key={sheenId} aria-hidden className="ls-sheen" /> : null}
 							</div>
 						</div>
@@ -315,72 +340,51 @@ const Wallet = forwardRef<PanelHandle, { locale: Locale; data: GatewayWeek; paym
 			{pop ? <span key={pop.id} className="ls-pop">{pop.text}</span> : null}
 		</div>
 	)
-	const caption = (
-		<div className="ls-cap flex min-w-0 flex-col gap-1.5 text-[12px] text-[var(--text-muted)]">
-			<div className="flex items-center justify-between gap-2">
-				<span className="truncate">{fa ? bank.fa : bank.en} · {fa ? '۷ روز' : '7 days'}</span>
-				<b className="shrink-0 tabular-nums text-[var(--text-primary)]">{card.week ? money(card.week) : fa ? 'بدون واریز' : 'Nothing yet'}</b>
-			</div>
-			{card.dailyCap ? (
-				<>
-					<div className="h-[5px] overflow-hidden rounded-full bg-[rgba(17,17,17,0.07)]">
-						<i className={cn('block h-full rounded-full transition-[width] duration-500', near ? 'bg-gradient-to-l from-amber-500 to-red-600' : 'bg-gradient-to-l from-[#8b74ff] to-[var(--signal)]')} style={{ width: `${card.today ? Math.max(3, share) : 0}%` }} />
-					</div>
-					<div className="flex items-center justify-between gap-2 whitespace-nowrap"><span>{fa ? 'سقف روزانه' : 'Daily cap'}</span><span className="tabular-nums">{fa ? `${pct(share)} از ${money(card.dailyCap)}` : `${pct(share)} of ${money(card.dailyCap)}`}</span></div>
-				</>
-			) : <div className="flex items-center justify-between gap-2"><span>{fa ? 'سقف روزانه' : 'Daily cap'}</span><span>{fa ? 'ندارد' : 'None'}</span></div>}
-			{near ? <span className="ui-chip ui-chip-warn self-start">{fa ? `${pct(share)} سقف امروز پر شده` : `${pct(share)} of today's cap used`}</span> : null}
-		</div>
-	)
-	const list = (
-		<div className="min-w-0">
-			<p className="mb-1.5 text-[11.5px] font-semibold text-[var(--text-muted)]">{fa ? 'آخرین پرداخت‌ها · تومان' : 'Latest payments · Toman'}</p>
-			{ticker.length ? null : (
-				<p className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2.5 text-[11.5px] leading-[1.7] text-[var(--text-muted)]">
-					{fa ? 'هنوز پرداختی نرسیده. پرداخت هر مشتری همین‌جا، با نام کارتی که به آن رسیده، دیده می‌شود.' : 'No payment yet. Each one shows here, with the card it reached.'}
-				</p>
-			)}
-			<ul className="flex flex-col gap-1.5">
-				{ticker.map((payment, index) => (
-					<li key={`${payment.reference}-${payment.paidAt}`} className={cn('flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5', index === 0 && catchId > 0 && 'ls-tick')}>
-						<b className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--ok-ink)]">+{fmt(payment.amount)}</b>
-						<span className="min-w-0 flex-1 truncate text-[11.5px] leading-[1.45] text-[var(--text-primary)]">
-							{what(payment)}
-							<small className="block truncate text-[10.5px] text-[var(--text-muted)]">
-								{fa ? bankByKey(cards[cardIndex(payment)]?.bankKey).fa : bankByKey(cards[cardIndex(payment)]?.bankKey).en}
-								{ago(payment.paidAt) ? ` · ${ago(payment.paidAt)}` : ''}
-							</small>
-						</span>
-					</li>
+	const week = (
+		<div className="ls-sum">
+			<b>{data.amount ? <><Count value={data.amount} format={money} /><i>{fa ? 'تومان' : 'Toman'}</i></> : fa ? 'هنوز واریزی نیست' : 'Nothing yet'}</b>
+			<div className="ls-bars" aria-hidden>
+				{data.daily.map((value, index) => (
+					<i
+						key={index === data.daily.length - 1 ? `t${catchId}` : index}
+						title={money(value)}
+						className={cn(index === data.daily.length - 1 && 'is-today', !value && 'is-zero', index === data.daily.length - 1 && catchId > 0 && 'is-hit')}
+						style={{ '--h': `${value ? Math.max(14, (value / peak) * 100) : 8}%`, '--i': index } as CSSProperties}
+					/>
 				))}
-			</ul>
+			</div>
 		</div>
 	)
-	const pill = (
-		<Link href="/payments" className="ls-pill group self-start">
-			{fa ? 'همهٔ پرداخت‌ها' : 'All payments'}
-			<Arrow className={cn('h-3.5 w-3.5 transition-transform', fa ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5')} />
-		</Link>
-	)
+	const list = ticker.length ? (
+		<ul className="ls-feed">
+			{ticker.map((payment, index) => (
+				<li key={`${payment.reference}-${payment.paidAt}`} className={cn(index === 0 && catchId > 0 && 'ls-tick')} style={{ '--i': index } as CSSProperties}>
+					<b>+{fmt(payment.amount)}</b>
+					<span>{what(payment)}</span>
+					<small>{ago(payment.paidAt)}</small>
+				</li>
+			))}
+		</ul>
+	) : null
 	return (
 		<>
-			<Head mod="pay" title={fa ? 'درگاه پرداخت' : 'Payment gateway'} sub={fa ? `${fmt(cards.length)} کارت روشن · کارت‌به‌کارت` : `${fmt(cards.length)} active cards · card-to-card`} Arrow={Arrow} />
-			<div className={narrow ? 'flex flex-col gap-3.5' : 'ls-w2'}>
+			<Head mod="pay" title={fa ? 'درگاه پرداخت' : 'Payment gateway'} end={<Review count={data.review} fa={fa} fmt={fmt} />} />
+			<div className={narrow ? 'flex flex-col gap-5' : 'ls-w2'}>
 				{stack}
-				<div className="ls-wside">{caption}{list}{pill}</div>
+				<div className="ls-wside">{week}{list}</div>
 			</div>
 		</>
 	)
 })
 
-/* ── the store: connected or not, and what came in ───────────────────── */
+/* ── the store: products and orders, WooCommerce only when it is there ── */
 
-export const StorePanel = forwardRef<PanelHandle, { locale: Locale; data: StageStore; Arrow: LucideIcon }>(function StorePanel({ locale, data, Arrow }, ref) {
+export const StorePanel = forwardRef<PanelHandle, { locale: Locale; data: StageStore }>(function StorePanel({ locale, data }, ref) {
 	const { fa, fmt, money } = formatters(locale)
 	const ago = useAgo(locale, useNow())
 	const [pop, setPop] = useState<{ id: number; text: string } | null>(null)
 	const flash = useBump()
-	const woo = data.source === 'woo', none = data.source === 'none'
+	const woo = data.source === 'woo'
 	const broken = woo && data.sync !== null && !data.sync.ok
 	useImperativeHandle(ref, () => ({
 		land: (index) => {
@@ -391,69 +395,49 @@ export const StorePanel = forwardRef<PanelHandle, { locale: Locale; data: StageS
 		},
 	}))
 	const syncedAgo = ago(data.sync?.at ?? null)
-	const shop = woo ? (
-		<div className="ls-ce"><span className="ls-cmk ls-cmk-woo">Woo</span><span className="ls-cx"><b dir="ltr">{data.url}</b><small>{fa ? 'ووکامرس' : 'WooCommerce'}{data.plugin ? ` · ${fa ? 'افزونه' : 'plugin'} ${data.plugin}` : ''}</small></span></div>
-	) : (
-		<div className="ls-ce is-dim"><span className="ls-cmk ls-cmk-woo is-ghost">Woo</span><span className="ls-cx"><b>{fa ? 'ووکامرس' : 'WooCommerce'}</b><small>{fa ? 'وصل نیست' : 'Not connected'}</small></span></div>
-	)
-	const vigent = (
-		<div className="ls-ce"><span className="ls-cmk ls-cmk-vg"><Bot className="h-[18px] w-[18px]" /></span><span className="ls-cx"><b>{fa ? 'ویجنت' : 'Vigent'}</b><small>{data.products ? (fa ? `${fmt(data.products)} محصول ${woo ? 'همگام' : 'فعال'}` : `${fmt(data.products)} ${woo ? 'synced' : 'active'}`) : fa ? 'بدون محصول' : 'No products'}</small></span></div>
-	)
-	const status = woo
-		? broken
-			? <span className="ui-chip ui-chip-danger">{fa ? 'ناموفق' : 'Failed'}{syncedAgo ? ` · ${syncedAgo}` : ''}</span>
-			: <span className="ui-chip ui-chip-ok"><span className="ui-chip-dot" />{fa ? 'همگام' : 'In sync'}{syncedAgo ? ` · ${syncedAgo}` : ''}</span>
-		: <Link href="/integrations" className="ls-pill">{fa ? 'اتصال ووکامرس' : 'Connect WooCommerce'}</Link>
-	const wire = (
-		<div key={flash.bump} className={cn('ls-wire', woo && (broken ? 'is-bad' : 'is-ok'), flash.bump > 0 && 'is-flash')}>
-			{woo && !broken ? <><i className="ls-wp" /><i className="ls-wp is-back" /></> : null}
-			{broken ? <span className="ls-wx"><AlertCircle className="h-[13px] w-[13px]" /></span> : null}
-		</div>
-	)
+	const source = woo ? (
+		<Link href="/integrations" title={(broken ? data.sync?.error : data.url) ?? undefined} className={cn('ls-src', broken && 'is-bad')}>
+			<span className="ls-cmk ls-cmk-woo">Woo</span>
+			<i aria-hidden />
+			{broken ? (fa ? 'همگام نیست' : 'Out of sync') : fa ? 'همگام' : 'In sync'}
+			{syncedAgo ? <small>{syncedAgo}</small> : null}
+		</Link>
+	) : null
+
+	if (data.source === 'none') {
+		return (
+			<>
+				<Head mod="store" title={fa ? 'محصولات' : 'Products'} />
+				<div className="ls-empty">
+					<span className="ls-stat-ic"><Package className="h-4 w-4" /></span>
+					<p>{fa ? 'هنوز محصولی ثبت نشده' : 'No products yet'}</p>
+					<Link href="/products/new" className="ls-cta"><Plus className="h-3.5 w-3.5" />{fa ? 'افزودن اولین محصول' : 'Add your first product'}</Link>
+				</div>
+			</>
+		)
+	}
 	return (
 		<>
-			<Head
-				mod="store"
-				title={fa ? 'فروشگاه' : 'Store'}
-				sub={woo ? (broken ? (fa ? 'ووکامرس وصل است، همگام‌سازی خطا دارد' : 'WooCommerce connected, sync failing') : fa ? 'ووکامرس وصل است' : 'WooCommerce connected') : none ? (fa ? 'هنوز محصولی ندارد' : 'No products yet') : fa ? 'کاتالوگ ویجنت' : 'Vigent catalog'}
-				href={none ? undefined : '/products'}
-				link={fa ? 'محصولات' : 'Products'}
-				Arrow={Arrow}
-			/>
-			<div className="ls-conn">{shop}<div className="ls-cw">{status}{wire}</div>{vigent}<Pop pop={pop} /></div>
-			{none ? (
-				<div className="mt-3"><Link href="/products/new" className="ls-cta"><Plus className="h-3.5 w-3.5" />{fa ? 'افزودن اولین محصول' : 'Add your first product'}</Link></div>
-			) : (
-				<>
-					{broken ? (
-						<div className="ls-note ls-note-bad mt-2.5">
-							<AlertCircle className="h-3.5 w-3.5" />
-							<span className="min-w-0 flex-1">{data.sync?.error || (fa ? 'آخرین همگام‌سازی ناموفق بود.' : 'The last sync failed.')}{syncedAgo ? (fa ? ` محصول و موجودی تا ${syncedAgo} به‌روزند.` : ` Products and stock are as of ${syncedAgo}.`) : ''}</span>
-							<Link href="/integrations" className="ls-pill ls-pill-ghost">{fa ? 'بررسی اتصال' : 'Check the connection'}</Link>
-						</div>
-					) : null}
-					{data.resync ? (
-						<div className="ls-note ls-note-warn mt-2">
-							<RefreshCw className="h-3.5 w-3.5" />
-							<span>{fa ? 'سقف محصول پلن پر است و بخشی از محصولات تازه همگام نشد. با ارتقای پلن، فروشگاه خودش دوباره می‌فرستد.' : 'The plan’s product limit is full, so some new products did not sync. After an upgrade the store sends them again by itself.'}</span>
-						</div>
-					) : null}
-					<div className="ls-kp mt-2.5" style={{ '--ls-n': data.links || !woo ? 3 : 2 } as CSSProperties}>
-						<div key={flash.bump} className={cn(flash.bump > 0 && 'is-bump')}><b>{fmt(data.orders7.count)}{data.orders7.toman ? <i>{money(data.orders7.toman)}</i> : null}</b><small>{woo ? (fa ? 'سفارش ووکامرس · ۷ روز' : 'WooCommerce orders · 7d') : fa ? 'سفارش · ۷ روز' : 'Orders · 7d'}</small></div>
-						<div><b>{fmt(data.chat7)}</b><small>{fa ? 'ثبت‌شده در گفتگو' : 'Placed in chat'}</small></div>
-						{data.links
-							? <div><b>{fmt(data.links.paid)}<i>{fa ? `از ${fmt(data.links.sent)}` : `of ${fmt(data.links.sent)}`}</i></b><small>{fa ? 'لینک پرداخت، پرداخت شد' : 'Payment links paid'}</small></div>
-							: woo ? null : <div className={cn(data.low > 0 && 'is-hot')}><b>{fmt(data.low)}</b><small>{fa ? 'محصول رو به اتمام' : 'Running low'}</small></div>}
-					</div>
-				</>
-			)}
+			<Head mod="store" title={woo ? (fa ? 'فروشگاه' : 'Store') : fa ? 'محصولات' : 'Products'} sub={woo && data.url ? <bdi dir="ltr">{data.url.replace(/^https?:\/\//, '')}</bdi> : undefined} end={source} />
+			<div className="ls-stats">
+				<Stat index={0} href="/products" icon={Package} value={data.products} label={fa ? 'محصول' : 'Products'} format={fmt} feed={woo && !broken} />
+				<Stat index={1} href="/products/orders" icon={ShoppingBag} value={data.orders7.count} label={fa ? 'سفارش' : 'Orders'} format={fmt} bump={flash.bump}>
+					<Pop pop={pop} />
+				</Stat>
+			</div>
+			{data.resync ? (
+				<p className="ls-note ls-note-warn mt-2.5">
+					<RefreshCw className="h-3.5 w-3.5" />
+					<span>{fa ? 'سقف محصول پلن پر است؛ بخشی از محصولات همگام نشد.' : 'The plan’s product limit is full; some products did not sync.'}</span>
+				</p>
+			) : null}
 		</>
 	)
 })
 
 /* ── the digital menu ────────────────────────────────────────────────── */
 
-export const MenuPanel = forwardRef<PanelHandle, { locale: Locale; data: StageMenu; narrow: boolean; Arrow: LucideIcon }>(function MenuPanel({ locale, data, narrow, Arrow }, ref) {
+export const MenuPanel = forwardRef<PanelHandle, { locale: Locale; data: StageMenu; narrow: boolean }>(function MenuPanel({ locale, data, narrow }, ref) {
 	const { fa, fmt } = formatters(locale)
 	const [qr, setQr] = useState<string | null>(null)
 	const [pop, setPop] = useState<{ id: number; text: string } | null>(null)
@@ -467,22 +451,17 @@ export const MenuPanel = forwardRef<PanelHandle, { locale: Locale; data: StageMe
 	const size = narrow ? 60 : 74
 	return (
 		<>
-			<Head mod="menu" title={fa ? 'منوی دیجیتال' : 'Digital menu'} sub={fa ? `${fmt(data.items)} آیتم فعال` : `${fmt(data.items)} active items`} href="/menu" link={fa ? 'منو' : 'Menu'} Arrow={Arrow} />
-			<div className="flex items-start gap-3.5">
+			<Head mod="menu" title={fa ? 'منوی دیجیتال' : 'Digital menu'} end={data.linkLive ? null : <span className="ui-chip ui-chip-warn ms-auto">{fa ? 'لینک گفتگو خاموش است' : 'The chat link is off'}</span>} />
+			<div className="flex items-stretch gap-2.5">
 				<a href={data.publicUrl} target="_blank" rel="noreferrer" className="ls-qr" aria-label={fa ? 'منوی عمومی' : 'Public menu'}>
 					{/* eslint-disable-next-line @next/next/no-img-element */}
 					{qr ? <img src={qr} alt="" width={size} height={size} /> : <span className="block" style={{ width: size, height: size }} />}
+					<span aria-hidden className="ls-scan" />
 					<Pop pop={pop} />
 				</a>
-				<div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-					{data.linkLive
-						? <span className="ui-chip ui-chip-ok"><span className="ui-chip-dot" />{fa ? 'لینک منو روشن' : 'Menu link on'}</span>
-						: <span className="ui-chip ui-chip-warn">{fa ? 'لینک گفتگو خاموش است' : 'The chat link is off'}</span>}
-					<p className="ls-explain">{fa ? 'مهمان QR روی میز را می‌زند، منو را می‌بیند و سفارشش را در گفتگو ثبت می‌کند.' : 'A guest scans the table QR, sees the menu and orders in the chat.'}</p>
-					<div className="ls-kp self-stretch" style={{ '--ls-n': 2 } as CSSProperties}>
-						<div key={bump.bump} className={cn(bump.bump > 0 && 'is-bump')}><b>{fmt(data.chat7)}</b><small>{fa ? 'سفارش از منو · ۷ روز' : 'Menu orders · 7d'}</small></div>
-						<div><b>{fmt(data.items)}</b><small>{fa ? 'آیتم آمادهٔ پاسخ ایجنت' : 'Items the agent can answer'}</small></div>
-					</div>
+				<div className="ls-stats min-w-0 flex-1">
+					<Stat index={0} href="/menu/orders" value={data.chat7} label={fa ? 'سفارش' : 'Orders'} format={fmt} bump={bump.bump} />
+					<Stat index={1} href="/menu" value={data.items} label={fa ? 'آیتم' : 'Items'} format={fmt} />
 				</div>
 			</div>
 		</>
@@ -493,7 +472,7 @@ export const MenuPanel = forwardRef<PanelHandle, { locale: Locale; data: StageMe
 
 const minuteOfDay = (iso: string) => Math.round((((new Date(iso).getTime() + TEHRAN_OFFSET) % DAY) + DAY) % DAY / 60_000)
 
-export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: StageBookings; narrow: boolean; Arrow: LucideIcon }>(function BookingsPanel({ locale, data, narrow, Arrow }, ref) {
+export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: StageBookings; narrow: boolean }>(function BookingsPanel({ locale, data, narrow }, ref) {
 	const { fa, fmt } = formatters(locale)
 	const nowMs = useNow()
 	const [drop, setDrop] = useState<{ row: number; id: number } | null>(null)
@@ -507,7 +486,7 @@ export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: Sta
 	if (!live) {
 		return (
 			<>
-				<Head mod="bookings" title={data.table ? (fa ? 'رزرو میز' : 'Table reservations') : fa ? 'نوبت‌دهی' : 'Bookings'} sub={data.steps.service ? (fa ? 'خدمت ثبت شده، هنوز ساعت کاری ندارد' : 'A service is in, no working hours yet') : fa ? 'هنوز خدمتی ثبت نشده' : 'No service yet'} Arrow={Arrow} />
+				<Head mod="bookings" title={data.table ? (fa ? 'رزرو میز' : 'Table reservations') : fa ? 'نوبت‌دهی' : 'Bookings'} sub={data.steps.service ? (fa ? 'خدمت ثبت شده، هنوز ساعت کاری ندارد' : 'A service is in, no working hours yet') : fa ? 'هنوز خدمتی ثبت نشده' : 'No service yet'} />
 				<div className="ls-day opacity-75"><div className="absolute inset-x-0 bottom-[18px] top-0 grid place-items-center text-[11.5px] text-[var(--text-muted)]">{fa ? 'خط روز بعد از تعیین ساعت کاری پر می‌شود' : 'The day fills in once working hours are set'}</div></div>
 				<div className="mt-3 flex flex-wrap items-center justify-between gap-3.5">
 					<Steps items={[{ label: fa ? 'یک خدمت فعال' : 'An active service', done: data.steps.service }, { label: fa ? 'ساعت کاری برای خدمت' : 'Working hours on a service', done: data.steps.hours }]} next={fa ? 'قدم بعد' : 'Next'} />
@@ -538,7 +517,7 @@ export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: Sta
 
 	return (
 		<>
-			<Head mod="bookings" title={data.table ? (fa ? 'رزرو میز امروز' : 'Tables today') : fa ? 'نوبت‌های امروز' : 'Today’s bookings'} sub={fa ? `${fmt(rows.length)} ${noun} · ${fmt(data.services)} ${data.table ? 'نوع میز' : 'خدمت'}` : `${fmt(rows.length)} · ${fmt(data.services)} services`} href="/appointments" link={fa ? 'تقویم' : 'Calendar'} Arrow={Arrow} />
+			<Head mod="bookings" title={data.table ? (fa ? 'رزرو میز امروز' : 'Tables today') : fa ? 'نوبت‌های امروز' : 'Today’s bookings'} sub={fa ? `${fmt(rows.length)} ${noun} · ${fmt(data.services)} ${data.table ? 'نوع میز' : 'خدمت'}` : `${fmt(rows.length)} · ${fmt(data.services)} services`} />
 			<div className="ls-day">
 				<div className="ls-day-in">
 					{now !== null && now > data.open ? <span className="ls-day-past" style={{ width: `calc(${at(Math.min(now, data.close))} + 16px)` }} /> : null}
@@ -560,12 +539,6 @@ export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: Sta
 					{now !== null && now >= data.open && now <= data.close ? <><span className="ls-nowl" style={{ right: at(now) }} /><span className="ls-nowt" style={{ right: at(now) }}>{hm(now)}</span></> : null}
 				</div>
 			</div>
-			<div className="ls-lgd">
-				<span><i style={{ background: 'var(--ls-c)' }} />{fa ? 'تأییدشده' : 'Confirmed'}</span>
-				<span><i style={{ background: 'repeating-linear-gradient(135deg,#f59e0b 0 3px,#fde8b8 3px 6px)' }} />{fa ? 'منتظر پیش‌پرداخت' : 'Awaiting prepayment'}</span>
-				<span><i style={{ background: '#d6d2cb' }} />{fa ? 'انجام شد' : 'Done'}</span>
-				<span><i style={{ background: '#fff', boxShadow: 'inset 0 0 0 1.5px #f3a5a5' }} />{fa ? 'نیامد' : 'No-show'}</span>
-			</div>
 			<div className="ls-bk2">
 				{next ? (
 					<div className="ls-nx">
@@ -579,10 +552,9 @@ export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: Sta
 				) : (
 					<div className="ls-nx"><div className="ls-nx-w"><b>{fa ? `${noun} دیگری برای امروز نمانده` : 'Nothing else today'}</b><small>{fa ? `${fmt(data.upcoming)} ${noun} در روزهای بعد` : `${fmt(data.upcoming)} coming up`}</small></div></div>
 				)}
-				<div className="ls-kp" style={{ '--ls-n': 3 } as CSSProperties}>
-					<div><b>{fmt(data.upcoming)}</b><small>{fa ? `${noun} پیش رو` : 'Upcoming'}</small></div>
-					<div className={cn(data.pending > 0 && 'is-hot')}><b>{fmt(data.pending)}</b><small>{fa ? 'منتظر پیش‌پرداخت' : 'Awaiting prepayment'}</small></div>
-					<div><b>{fmt(data.lost7)}</b><small>{fa ? 'لغو یا نیامده · ۷ روز' : 'Cancelled or no-show · 7d'}</small></div>
+				<div className="ls-stats">
+					<Stat index={0} href="/appointments" value={data.upcoming} label={fa ? `${noun} پیش رو` : 'Upcoming'} format={fmt} />
+					<Stat index={1} href="/appointments" value={data.pending} label={fa ? 'منتظر پیش‌پرداخت' : 'Awaiting prepayment'} format={fmt} hot={data.pending > 0} />
 				</div>
 			</div>
 		</>
@@ -591,7 +563,7 @@ export const BookingsPanel = forwardRef<PanelHandle, { locale: Locale; data: Sta
 
 /* ── courses: seats per course ───────────────────────────────────────── */
 
-export const CoursesPanel = forwardRef<PanelHandle, { locale: Locale; data: StageCourses; Arrow: LucideIcon }>(function CoursesPanel({ locale, data, Arrow }, ref) {
+export const CoursesPanel = forwardRef<PanelHandle, { locale: Locale; data: StageCourses }>(function CoursesPanel({ locale, data }, ref) {
 	const { fa, fmt, money } = formatters(locale)
 	const [fill, setFill] = useState<{ course: number; id: number } | null>(null)
 	useEffect(() => {
@@ -609,7 +581,7 @@ export const CoursesPanel = forwardRef<PanelHandle, { locale: Locale; data: Stag
 	if (data.state === 'setup') {
 		return (
 			<>
-				<Head mod="courses" title={fa ? 'دوره‌ها' : 'Courses'} sub={data.steps.published ? (fa ? 'دوره منتشر شده، زمان جلسه ندارد' : 'Published, no session dates') : fa ? 'هنوز دوره‌ای منتشر نشده' : 'Nothing published yet'} Arrow={Arrow} />
+				<Head mod="courses" title={fa ? 'دوره‌ها' : 'Courses'} sub={data.steps.published ? (fa ? 'دوره منتشر شده، زمان جلسه ندارد' : 'Published, no session dates') : fa ? 'هنوز دوره‌ای منتشر نشده' : 'Nothing published yet'} />
 				<div className="flex flex-wrap items-center justify-between gap-3.5">
 					<Steps items={[{ label: fa ? 'یک دورهٔ منتشرشده' : 'A published course', done: data.steps.published }, { label: fa ? 'زمان جلسات دوره' : 'Session dates', done: data.steps.sessions }]} next={fa ? 'قدم بعد' : 'Next'} />
 					<Link href="/courses" className="ls-cta"><GraduationCap className="h-3.5 w-3.5" />{fa ? 'دوره‌ها' : 'Courses'}</Link>
@@ -621,14 +593,14 @@ export const CoursesPanel = forwardRef<PanelHandle, { locale: Locale; data: Stag
 	const formats: Record<string, [string, string]> = { ONLINE: [fa ? 'آنلاین' : 'Online', 'ui-chip-signal'], IN_PERSON: [fa ? 'حضوری' : 'In person', 'ui-chip-neutral'], HYBRID: [fa ? 'ترکیبی' : 'Hybrid', 'ui-chip-warn'] }
 	return (
 		<>
-			<Head mod="courses" title={fa ? 'دوره‌ها' : 'Courses'} sub={fa ? `${fmt(data.list.length)} دوره در حال ثبت‌نام` : `${fmt(data.list.length)} open for sign-up`} href="/courses" link={fa ? 'دوره‌ها' : 'Courses'} Arrow={Arrow} />
+			<Head mod="courses" title={fa ? 'دوره‌ها' : 'Courses'} sub={fa ? `${fmt(data.list.length)} دوره در حال ثبت‌نام` : `${fmt(data.list.length)} open for sign-up`} />
 			<div className="flex flex-col gap-2">
 				{data.list.map((course, index) => {
 					const taken = course.confirmed + course.pending, left = course.capacity - taken
 					const [formatLabel, formatChip] = formats[course.format] ?? formats.IN_PERSON
 					const filling = fill?.course === index
 					return (
-						<Link key={course.title + index} href="/courses" className="ls-cr">
+						<Link key={course.title + index} href="/courses" className="ls-cr" style={{ '--i': index } as CSSProperties}>
 							<span className="ls-cr-t"><span className={cn('ui-chip', formatChip)}>{formatLabel}</span><b>{course.title}</b></span>
 							<span className="ls-cr-s">
 								{course.next ? `${course.started ? (fa ? 'جلسهٔ بعد' : 'Next') : fa ? 'شروع' : 'Starts'} ${when.format(new Date(course.next))}` : fa ? 'جلسه‌ای پیش رو نیست' : 'No upcoming session'}

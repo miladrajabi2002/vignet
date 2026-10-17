@@ -2592,6 +2592,9 @@ model CardPayment {
   claimedAt      DateTime?
   paidAt         DateTime?
   resolvedAt     DateTime?
+  // A paid order waits for the owner (send the goods, start the service)
+  // until they mark it handled; the inbox flags its conversation until then.
+  handledAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -2602,6 +2605,7 @@ model CardPayment {
 
   @@unique([siteId, reference])
   @@index([workspaceId, status, payAmount])
+  @@index([workspaceId, status, handledAt])
   @@index([workspaceId, createdAt])
   @@index([status, expiresAt])
   @@index([orderDraftId])

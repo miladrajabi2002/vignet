@@ -59,9 +59,12 @@ function CopyRow({ label, value, children }: { label: string; value: string; chi
 }
 
 /** The exact amount with its last three digits, the payment's identifier, set apart. */
-function Amount({ value }: { value: number }) {
+/** The amount with its identifying last digits marked (`tail` digits; separators are kept). */
+function Amount({ value, tail = 3 }: { value: number; tail?: number }) {
 	const text = groupDigits(value)
-	return <>{text.slice(0, -3)}<mark className="rounded-md bg-[var(--tint-violet,#f1eeff)] px-0.5 text-[#4c2fd0] dark:bg-[#5b3de8]/25 dark:text-[#c9bfff]">{text.slice(-3)}</mark></>
+	let cut = text.length
+	for (let digits = 0; cut > 0 && digits < tail; cut--) if (/\d/.test(text[cut - 1])) digits++
+	return <>{text.slice(0, cut)}<mark className="rounded-md bg-[var(--tint-violet,#f1eeff)] px-0.5 text-[#4c2fd0] dark:bg-[#5b3de8]/25 dark:text-[#c9bfff]">{text.slice(cut)}</mark></>
 }
 
 function TimerRing({ seconds, total }: { seconds: number; total: number }) {
@@ -76,11 +79,11 @@ function TimerRing({ seconds, total }: { seconds: number; total: number }) {
 }
 
 function Steps({ amount }: { amount: number }) {
-	const last = groupDigits(amount).slice(-3)
+	const last = String(amount * 10).slice(-4)
 	return (
 		<ol className="grid gap-2.5">
 			{[
-				<><b className="font-bold text-[var(--text-primary)]">شماره کارت و مبلغ را کپی کنید.</b> سه رقم آخر مبلغ (<span dir="ltr" className="font-mono">{last}</span>) پرداخت شما را شناسایی می‌کند.</>,
+				<><b className="font-bold text-[var(--text-primary)]">شماره کارت و مبلغ را کپی کنید.</b> چهار رقم آخر مبلغ به ریال (<span dir="ltr" className="font-mono">{last}</span>) پرداخت شما را شناسایی می‌کند.</>,
 				<>در همراه‌بانک یا اپ پرداخت خودتان کارت‌به‌کارت کنید؛ <b className="font-bold text-[var(--text-primary)]">دقیقاً همین مبلغ</b>، بدون رُند کردن.</>,
 				<>این صفحه را باز بگذارید؛ با رسیدن واریز، خودش تأیید می‌شود.</>,
 			].map((text, index) => (
@@ -332,8 +335,8 @@ export function PayPageClient({
 								<div className="grid content-start gap-2.5">
 									<BankCardFace bankKey={card.bankKey} pan={card.pan} holder={card.holder} lang="fa" className="mx-auto max-w-[330px]" />
 									<CopyRow label="شماره کارت" value={card.pan}>{formatPan(card.pan)}</CopyRow>
-									<CopyRow label="مبلغ دقیق (تومان) · رُند نکنید" value={String(card.amount)}><Amount value={card.amount} /></CopyRow>
-									<p className="px-1 text-[11.5px] text-[var(--text-muted)]">اگر اپ بانک مبلغ را به ریال می‌خواهد: <span dir="ltr" className="font-mono">{groupDigits(card.amount * 10)}</span> ریال</p>
+									<CopyRow label="مبلغ دقیق (ریال) · رُند نکنید" value={String(card.amount * 10)}><Amount value={card.amount * 10} tail={4} /></CopyRow>
+									<p className="px-1 text-[11.5px] text-[var(--text-muted)]">به تومان: <span dir="ltr" className="font-mono">{groupDigits(card.amount)}</span> تومان — اگر اپ بانک مبلغ را به تومان می‌خواهد، همین عدد را بزنید.</p>
 								</div>
 								<div className="grid content-start gap-3.5">
 									<div className="hidden md:block"><Steps amount={card.amount} /></div>

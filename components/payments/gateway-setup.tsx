@@ -9,8 +9,9 @@ import { Switch } from '@/components/ui/switch'
 import { BankCardFace } from '@/components/payments/bank-card'
 import { CardsManager } from '@/components/payments/cards-manager'
 import { DeviceSetup, StepFooter, TestTransfer } from '@/components/payments/device-setup'
+import { ChatCheckoutChoice } from '@/components/payments/chat-checkout-choice'
 import { cn } from '@/lib/utils'
-import type { GatewayCardRow, GatewayDeviceRow } from '@/lib/payments/card/dashboard'
+import type { GatewayAgentRow, GatewayCardRow, GatewayDeviceRow } from '@/lib/payments/card/dashboard'
 import { GATEWAY_SETUP_STEPS, type GatewaySetupStep } from '@/lib/payments/card/setup'
 
 const COPY: Record<GatewaySetupStep, { tab: [string, string]; title: [string, string]; body: [string, string]; eta: [string, string] }> = {
@@ -35,7 +36,7 @@ const COPY: Record<GatewaySetupStep, { tab: [string, string]; title: [string, st
 	switch: {
 		tab: ['روشن کردن درگاه', 'Switch it on'],
 		title: ['همه چیز آماده است؛ درگاه را روشن کنید', 'All set; switch the gateway on'],
-		body: ['از این لحظه ایجنت بعد از تأیید هر سفارش، کارت و مبلغ دقیق را می‌فرستد و واریز را خودش تأیید می‌کند.', 'From now on the agent sends your card and the exact amount for every confirmed order and confirms the transfer by itself.'],
+		body: ['اول بگویید خرید داخل گفتگو فعال شود یا نه؛ بعد درگاه را روشن کنید. تنظیمات بعداً هم قابل تغییر است.', 'First say whether the chat takes payment; then switch the gateway on. Both can be changed later in Settings.'],
 		eta: ['یک کلیک', 'One click'],
 	},
 }
@@ -54,6 +55,7 @@ export function GatewaySetup({
 	devices,
 	inboundLines,
 	platformEnabled,
+	agents,
 }: {
 	done: Record<GatewaySetupStep, boolean>
 	current: GatewaySetupStep
@@ -61,6 +63,7 @@ export function GatewaySetup({
 	devices: GatewayDeviceRow[]
 	inboundLines: string[]
 	platformEnabled: boolean
+	agents: GatewayAgentRow[]
 }) {
 	const fa = useLocale() !== 'en'
 	const at = fa ? 0 : 1
@@ -89,6 +92,8 @@ export function GatewaySetup({
 				setError(fa ? 'روشن نشد؛ اول سه قدم قبلی را کامل کنید.' : 'Not switched on; finish the three steps before it first.')
 				return
 			}
+			// The setup ends in Settings, where everything it set can be changed.
+			router.push('/payments/settings')
 			router.refresh()
 		} catch {
 			setError(fa ? 'روشن نشد؛ دوباره تلاش کنید.' : 'Not switched on; try again.')
@@ -178,6 +183,7 @@ export function GatewaySetup({
 
 				{view === 'switch' && (
 					<div className="grid max-w-xl gap-3">
+						<ChatCheckoutChoice agents={agents} />
 						<div className={cn('flex items-center gap-4 rounded-2xl border p-4', done.switch ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/40' : 'border-[var(--border-default)] bg-white dark:bg-neutral-900')}>
 							<Switch checked={done.switch} pending={switching} disabled={switching || done.switch || !done.card || !done.phone || !done.test || !platformEnabled} onChange={(next) => { if (next) void switchOn() }} aria-label={fa ? 'روشن کردن درگاه پرداخت' : 'Switch the payment gateway on'} />
 							<div className="min-w-0">

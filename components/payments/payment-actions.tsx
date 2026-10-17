@@ -223,3 +223,39 @@ export function CardPayOwnerActions({ authority, status, onStatus }: { authority
 		</div>
 	)
 }
+
+/**
+ * A paid order the owner delivered (sent the goods, started the service).
+ * Marking it takes the «خرید موفق» flag off the conversation; it can be undone.
+ */
+export function PaymentHandledButton({ paymentId, handled, size = 'sm' }: { paymentId: string; handled: boolean; size?: 'sm' | 'md' }) {
+	const fa = useLocale() !== 'en'
+	const router = useRouter()
+	const [busy, setBusy] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	async function toggle() {
+		setBusy(true)
+		setError(null)
+		try {
+			const response = await fetch(`/api/payments/${paymentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: handled ? 'unhandled' : 'handled' }) })
+			if (!response.ok) throw new Error('failed')
+			router.refresh()
+		} catch {
+			setError(fa ? 'انجام نشد؛ دوباره تلاش کنید.' : 'That did not work; try again.')
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	return (
+		<span className="inline-flex flex-wrap items-center gap-2">
+			{handled ? (
+				<Button size={size} variant="ghost" loading={busy} onClick={toggle}>{fa ? 'برگرداندن به «منتظر رسیدگی»' : 'Mark as not handled'}</Button>
+			) : (
+				<Button size={size} variant="primary" loading={busy} onClick={toggle}><Check className="size-4" aria-hidden />{fa ? 'رسیدگی شد' : 'Mark handled'}</Button>
+			)}
+			{error ? <span role="alert" className="text-xs text-red-600">{error}</span> : null}
+		</span>
+	)
+}

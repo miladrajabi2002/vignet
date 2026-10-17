@@ -5,6 +5,7 @@ import {
   Frown,
   Gauge,
   Lightbulb,
+  ShoppingBag,
   Smile,
   Sparkles,
   Target,
@@ -257,6 +258,19 @@ export function SalesInsightText({
       {converted
         ? (locale === 'fa' ? 'مشتری فعلی' : 'Existing customer')
         : locale === 'fa' ? `${nf.format(probability)}٪ احتمال خرید` : `${probability}% likely to buy`}
+    </span>
+  )
+}
+
+/** A paid order in this conversation waits for the owner to deliver it. */
+export function PaidOrderTag({ locale, className }: { locale: Locale; className?: string }) {
+  return (
+    <span
+      className={cn(TAG_BASE, 'shrink-0 whitespace-nowrap border-emerald-300 bg-emerald-600 text-[12px] font-semibold text-white', className)}
+      title={locale === 'fa' ? 'مشتری پرداخت کرده؛ سفارش منتظر ارسال یا رسیدگی شماست' : 'The customer paid; the order waits for you to deliver it'}
+    >
+      <ShoppingBag className="h-3 w-3" aria-hidden="true" />
+      {locale === 'fa' ? 'خرید موفق' : 'Paid order'}
     </span>
   )
 }

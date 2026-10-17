@@ -405,10 +405,10 @@ export function createTelegramLikeAdapter(opts: {
             '',
             'شماره کارت:',
             mono(card.pan),
-            'مبلغ دقیق (تومان):',
-            mono(String(card.amount)),
+            'مبلغ دقیق (ریال):',
+            mono(String(card.amount * 10)),
             '',
-            `دقیقاً همین مبلغ (${groupDigits(card.amount)} تومان) را واریز کنید؛ پرداخت از روی همین عدد شناخته و همین‌جا خودکار تأیید می‌شود.`,
+            `دقیقاً همین مبلغ (${groupDigits(card.amount * 10)} ریال = ${groupDigits(card.amount)} تومان) را واریز کنید؛ پرداخت از روی همین عدد شناخته و همین‌جا خودکار تأیید می‌شود.`,
             left ? `⏳ مهلت: ${left.toLocaleString('fa-IR')} دقیقه` : '',
           ]
         : [
@@ -417,10 +417,10 @@ export function createTelegramLikeAdapter(opts: {
             '',
             'Card number:',
             mono(card.pan),
-            'Exact amount (Toman):',
-            mono(String(card.amount)),
+            'Exact amount (Rial):',
+            mono(String(card.amount * 10)),
             '',
-            `Transfer exactly this amount (${groupDigits(card.amount)} Toman); the payment is recognised by it and confirmed here automatically.`,
+            `Transfer exactly this amount (${groupDigits(card.amount * 10)} Rial = ${groupDigits(card.amount)} Toman); the payment is recognised by it and confirmed here automatically.`,
             left ? `⏳ Valid for ${left} minutes` : '',
           ]
       const pageButton = [{ text: fa ? 'صفحهٔ پرداخت و وضعیت' : 'Payment page & status', url: card.url }]
@@ -429,7 +429,7 @@ export function createTelegramLikeAdapter(opts: {
       if (channel === 'TELEGRAM') {
         const copyRow = [
           { text: fa ? 'کپی شماره کارت' : 'Copy card number', copy_text: { text: card.pan } },
-          { text: fa ? 'کپی مبلغ' : 'Copy amount', copy_text: { text: String(card.amount) } },
+          { text: fa ? 'کپی مبلغ (ریال)' : 'Copy amount (Rial)', copy_text: { text: String(card.amount * 10) } },
         ]
         try {
           await call('sendMessage', { ...base, reply_markup: JSON.stringify({ inline_keyboard: [copyRow, pageButton] }) })

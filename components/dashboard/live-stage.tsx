@@ -442,10 +442,10 @@ export function LiveStage({
 	const panel = (() => {
 		switch (active) {
 			case 'pay': return <PayPanel ref={panelRef} locale={locale} gateway={gateway} payments={payments} setup={modules.paySetup} narrow={Boolean(geo?.narrow)} width={panelWidth} Arrow={Arrow} />
-			case 'store': return modules.store ? <StorePanel ref={panelRef} locale={locale} data={modules.store} Arrow={Arrow} /> : null
-			case 'menu': return modules.menu ? <MenuPanel ref={panelRef} locale={locale} data={modules.menu} narrow={Boolean(geo?.narrow)} Arrow={Arrow} /> : null
-			case 'bookings': return modules.bookings ? <BookingsPanel ref={panelRef} locale={locale} data={modules.bookings} narrow={Boolean(geo?.narrow)} Arrow={Arrow} /> : null
-			case 'courses': return modules.courses ? <CoursesPanel ref={panelRef} locale={locale} data={modules.courses} Arrow={Arrow} /> : null
+			case 'store': return modules.store ? <StorePanel ref={panelRef} locale={locale} data={modules.store} /> : null
+			case 'menu': return modules.menu ? <MenuPanel ref={panelRef} locale={locale} data={modules.menu} narrow={Boolean(geo?.narrow)} /> : null
+			case 'bookings': return modules.bookings ? <BookingsPanel ref={panelRef} locale={locale} data={modules.bookings} narrow={Boolean(geo?.narrow)} /> : null
+			case 'courses': return modules.courses ? <CoursesPanel ref={panelRef} locale={locale} data={modules.courses} /> : null
 			default: return null
 		}
 	})()

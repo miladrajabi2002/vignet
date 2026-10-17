@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { BadgeCheck, CreditCard, Eye, MessageSquareText, Plus, ShieldCheck, Trash2 } from 'lucide-react'
+import { CreditCard, Eye, MessageSquareText, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { Switch } from '@/components/ui/switch'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -22,7 +23,7 @@ function masked(card: Pick<GatewayCardRow, 'bin' | 'last4'>): string {
  * it off, remove it. With no card yet (the setup) the form is on the page;
  * after that «افزودن کارت» opens it in a side drawer (a bottom sheet on phones).
  */
-export function CardsManager({ cards }: { cards: GatewayCardRow[] }) {
+export function CardsManager({ cards, embedded = false }: { cards: GatewayCardRow[]; embedded?: boolean }) {
 	const fa = useLocale() !== 'en'
 	const numbers = fa ? 'fa-IR' : 'en-US'
 	const router = useRouter()
@@ -82,6 +83,7 @@ export function CardsManager({ cards }: { cards: GatewayCardRow[] }) {
 			setConfirmDelete(null)
 		}
 	}
+	const deleting = cards.find((card) => card.id === confirmDelete) ?? null
 
 	// The card as the customer will see it, filled in while typing.
 	const preview = <BankCardFace bankKey={info.bank?.key ?? 'unknown'} pan={info.digits.length === 16 ? info.digits : (formatPan(info.digits) || '•••• •••• •••• ••••')} holder={holder.trim() || (fa ? 'نام صاحب کارت' : 'Cardholder name')} lang={fa ? 'fa' : 'en'} />
@@ -116,7 +118,7 @@ export function CardsManager({ cards }: { cards: GatewayCardRow[] }) {
 
 	if (cards.length === 0) {
 		return (
-			<form onSubmit={add} className="spatial-surface overflow-hidden rounded-card">
+			<form onSubmit={add} className={embedded ? 'overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white dark:bg-neutral-900' : 'spatial-surface overflow-hidden rounded-card'}>
 				<div className="flex items-start gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
 					<span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]"><CreditCard className="size-[18px]" /></span>
 					<div className="min-w-0">
@@ -158,28 +160,33 @@ export function CardsManager({ cards }: { cards: GatewayCardRow[] }) {
 						<div className="flex items-center justify-between gap-3">
 							<div className="min-w-0">
 								<p className="text-sm font-medium text-[var(--text-primary)]">{fa ? 'امروز' : 'Today'} {card.receivedToday.toLocaleString(numbers)} {fa ? 'تومان' : 'Toman'}</p>
-								<p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
-									{card.verified
-										? <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300"><BadgeCheck className="size-3.5" aria-hidden />{fa ? 'با واریز واقعی تأیید شده' : 'Verified by a real deposit'}</span>
-										: (fa ? 'هنوز واریزی روی این کارت تطبیق نخورده' : 'No deposit has matched on this card yet')}
-								</p>
+								{card.verified ? null : <p className="mt-0.5 text-xs text-[var(--text-muted)]">{fa ? 'هنوز واریزی روی این کارت تطبیق نخورده' : 'No deposit has matched on this card yet'}</p>}
 							</div>
 							<Switch checked={card.active} pending={busy === card.id} disabled={busy !== null} onChange={(active) => update(card.id, { active })} aria-label={fa ? 'فعال بودن کارت' : 'Card active'} />
 						</div>
-						{confirmDelete === card.id ? (
-							<div className="flex flex-wrap items-center gap-2 rounded-control bg-red-50 p-2.5 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
-								<span className="min-w-0 flex-1">{fa ? 'این کارت حذف شود؟ پرداخت‌های قبلی‌اش می‌مانند.' : 'Remove this card? Its past payments stay.'}</span>
-								<Button size="sm" variant="danger" loading={busy === card.id} onClick={() => update(card.id, {}, 'DELETE')}>{fa ? 'حذف' : 'Remove'}</Button>
-								<Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>{fa ? 'انصراف' : 'Keep'}</Button>
-							</div>
-						) : (
-							<button type="button" onClick={() => setConfirmDelete(card.id)} className="inline-flex w-fit items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-red-600">
-								<Trash2 className="size-3.5" aria-hidden />{fa ? 'حذف کارت' : 'Remove card'}
-							</button>
-						)}
+						{/* The same delete as everywhere else: a quiet bordered button and one confirmation. */}
+						<button
+							type="button"
+							onClick={() => setConfirmDelete(card.id)}
+							className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:border-danger hover:bg-red-50 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/50"
+						>
+							<Trash2 className="size-4" aria-hidden />{fa ? 'حذف کارت' : 'Remove card'}
+						</button>
 					</li>
 				))}
 			</ul>
+
+			<ConfirmDialog
+				open={deleting != null}
+				title={fa ? 'این کارت حذف شود؟' : 'Remove this card?'}
+				description={deleting ? (fa ? `کارت ${deleting.bin.slice(0, 4)}…${deleting.last4} دیگر به مشتری‌ها نشان داده نمی‌شود. پرداخت‌های قبلی‌اش در فهرست می‌مانند.` : `Card ${deleting.bin.slice(0, 4)}…${deleting.last4} is no longer shown to customers. Its past payments stay in the list.`) : undefined}
+				confirmLabel={busy ? (fa ? 'در حال حذف…' : 'Removing…') : (fa ? 'حذف کارت' : 'Remove card')}
+				cancelLabel={fa ? 'انصراف' : 'Keep it'}
+				tone="danger"
+				busy={busy != null}
+				onConfirm={() => { if (deleting) void update(deleting.id, {}, 'DELETE') }}
+				onClose={() => { if (!busy) setConfirmDelete(null) }}
+			/>
 
 			{open && (
 				<SideSheet
