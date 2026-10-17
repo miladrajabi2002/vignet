@@ -1,6 +1,6 @@
-import { ArrowLeftRight, Bell, BellRing, BookOpen, Brain, CalendarCheck, ChartColumn, Check, ClipboardCheck, CreditCard, Hourglass, Inbox, Languages, Layers, Link2, Lock, Megaphone, Mic, PackageCheck, PenLine, ScanSearch, Shirt, ShieldAlert, ShieldCheck, ShoppingCart, SlidersHorizontal, Sparkles, Target, TimerReset, Truck, UserPlus, UtensilsCrossed , WalletCards } from 'lucide-react'
+import { ArrowLeftRight, BookOpen, Check, Inbox, Link2, PackageCheck, ShoppingCart, Sparkles, TelegramIcon, WalletCards } from '@/components/marketing/site/sprite-icons'
+import { Bell, BellRing, Brain, CalendarCheck, ChartColumn, ClipboardCheck, CreditCard, Hourglass, Languages, Layers, Lock, Megaphone, Mic, PenLine, ScanSearch, Shirt, ShieldAlert, ShieldCheck, SlidersHorizontal, Target, TimerReset, Truck, UserPlus, UtensilsCrossed } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import { TelegramIcon } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { DemoPointer } from '@/components/motion/pointer'
 import { Container, SectionHead, type IconType, type SiteLocale } from '../ui'

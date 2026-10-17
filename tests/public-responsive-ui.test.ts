@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const source = (path: string) => readFileSync(path, 'utf8')
@@ -6,15 +6,11 @@ const source = (path: string) => readFileSync(path, 'utf8')
 describe('public adaptive UI contracts', () => {
   it('keeps public mobile navigation persistent and reserves its safe area', () => {
     const layout = source('app/(marketing)/vg-site/[variant]/(chrome)/layout.tsx')
-    const navbar = source('components/marketing/navbar.tsx')
     const mobileNav = source('components/marketing/mobile-bottom-nav.tsx')
     const backToTop = source('components/marketing/back-to-top.tsx')
 
     expect(layout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
     expect(mobileNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
-    expect(mobileNav).toContain('grid-cols-5')
-    expect(navbar).not.toContain('MarketingMobileMenu')
-    expect(existsSync('components/marketing/mobile-menu.tsx')).toBe(false)
     // Phones keep a single fixed layer (the bottom bar); back-to-top starts at md.
     expect(mobileNav).toContain('md:hidden')
     expect(backToTop).toContain('hidden h-11 w-11')

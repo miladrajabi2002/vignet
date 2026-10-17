@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { BookOpen, CircleHelp, MessagesSquare, Phone, Plus } from 'lucide-react'
+import { BookOpen, MessagesSquare, Plus } from '@/components/marketing/site/sprite-icons'
+import { CircleHelp, Phone } from 'lucide-react'
 import { SUPPORT_PHONE_DISPLAY } from '@/lib/marketing/contact'
 import { cn } from '@/lib/utils'
 import { Container, SUPPORT_TEL, SectionHead, btnDark, btnGhost, type SiteLocale } from './ui'

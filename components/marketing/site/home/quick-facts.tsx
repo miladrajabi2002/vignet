@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
-import { ArrowLeftRight, BriefcaseBusiness, CalendarDays, GraduationCap, Inbox, MessageSquare, ShoppingBag, Store, UserRound, Utensils } from 'lucide-react'
+import { ArrowLeftRight, CalendarDays, Inbox, MessageSquare, ShoppingBag, Store, UserRound } from '@/components/marketing/site/sprite-icons'
+import { BriefcaseBusiness, GraduationCap, Utensils } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CHANNELS, CheckLine, Container, type IconType, type SiteLocale } from '../ui'
+import { CHANNELS } from '../channels'
+import { CheckLine, Container, type IconType, type SiteLocale } from '../ui'
 
 const COPY = {
 	fa: {

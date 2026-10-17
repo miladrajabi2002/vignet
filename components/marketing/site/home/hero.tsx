@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
-import { ArrowLeftRight, CalendarDays, CircleCheck, MoonStar, PackageCheck, ShoppingBag, Sparkles, UserRound } from 'lucide-react'
+import { ArrowLeftRight, CalendarDays, CircleCheck, MoonStar, PackageCheck, ShoppingBag, Sparkles, UserRound } from '@/components/marketing/site/sprite-icons'
 import { cn } from '@/lib/utils'
-import { CHANNELS, ChannelBadge, ForwardArrow, HeroPill, SIGNUP_HREF, btnDark, btnGhost, btnLg, type IconType, type SiteLocale } from '../ui'
+import { CHANNELS, ChannelBadge } from '../channels'
+import { ForwardArrow, HeroPill, SIGNUP_HREF, btnDark, btnGhost, btnLg, type IconType, type SiteLocale } from '../ui'
 
 const COPY = {
 	fa: {

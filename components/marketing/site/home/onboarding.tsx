@@ -1,5 +1,6 @@
-import { Check, Globe, GraduationCap, MessageSquare, RefreshCw, Rocket, ShoppingBag, Sparkles, CalendarDays, BriefcaseBusiness, Utensils } from 'lucide-react'
-import { InstagramGlyph, TelegramGlyph } from '@/components/marketing/social-links'
+import { CalendarDays, Check, Globe, InstagramGlyph, MessageSquare, ShoppingBag, Sparkles } from '@/components/marketing/site/sprite-icons'
+import { GraduationCap, RefreshCw, Rocket, BriefcaseBusiness, Utensils } from 'lucide-react'
+import { TelegramGlyph } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 import { Container, SectionPill, type IconType, type SiteLocale } from '../ui'
 import { OnboardingPlayer, type PlayerStep } from './onboarding-player'

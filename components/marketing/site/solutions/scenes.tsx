@@ -27,7 +27,8 @@ import { InstagramGlyph, TelegramPlane } from '@/components/marketing/social-lin
 import { cn } from '@/lib/utils'
 import { DemoPointer } from '@/components/motion/pointer'
 import { BankCardFace } from '@/components/payments/bank-card'
-import { CHANNELS, ChannelBadge, type IconType, type SiteLocale } from '../ui'
+import { CHANNELS, ChannelBadge } from '../channels'
+import { type IconType, type SiteLocale } from '../ui'
 
 /*
  * One motion graphic per solution page. Every scene is server-rendered,

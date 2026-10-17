@@ -1,5 +1,4 @@
-import { Check } from 'lucide-react'
-import { InstagramGlyph } from '@/components/marketing/social-links'
+import { Check, InstagramGlyph } from '@/components/marketing/site/sprite-icons'
 import { InstagramDemoLazy } from '@/components/marketing/instagram-demo-lazy'
 import { SectionPill, type IconType, type SiteLocale } from '../ui'
 

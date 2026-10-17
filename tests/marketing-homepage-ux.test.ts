@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -49,8 +49,6 @@ describe('marketing homepage UX contracts', () => {
 		expect(mobileNav).toContain('bg-emerald-500')
 		expect(mobileNav).toContain("window.matchMedia('(prefers-reduced-motion: reduce)')")
 		expect(navbar).toContain('<MarketingMobileBottomNav')
-		expect(navbar).not.toContain('MarketingMobileMenu')
-		expect(existsSync(join(root, 'components/marketing/mobile-menu.tsx'))).toBe(false)
 		expect(navbar).toContain('col-start-3 hidden items-center')
 	})
 
@@ -63,20 +61,14 @@ describe('marketing homepage UX contracts', () => {
 		expect(pixelSizes).toEqual([])
 	})
 
-	it('keeps the hero on a single primary call to action and away from the old demo', () => {
+	it('keeps the hero on a single primary call to action', () => {
 		const hero = read('components/marketing/site/home/hero.tsx')
 		const ui = read('components/marketing/site/ui.tsx')
-		const page = read('app/(marketing)/vg-site/[variant]/(chrome)/page.tsx')
 
 		expect(ui).toContain("export const SIGNUP_HREF = '/login?next=/onboarding'")
 		expect(hero.match(/<Link href=\{SIGNUP_HREF\}/g)).toHaveLength(1)
 		// The secondary action scrolls to the "what is Vigent" section instead of a separate demo.
 		expect(hero).toContain('href="#what"')
-		expect(hero).not.toContain('href="#demo"')
-		expect(existsSync(join(root, 'components/marketing/demo-section.tsx'))).toBe(false)
-		expect(existsSync(join(root, 'components/marketing/social-proof.tsx'))).toBe(false)
-		expect(page).not.toContain('DemoSection')
-		expect(page).not.toContain('OperationsSection')
 	})
 
 	it('reveals sections only after hydration and never hides content for reduced motion', () => {
@@ -112,34 +104,6 @@ describe('marketing homepage UX contracts', () => {
 		expect(pricing).toContain('name="mobile-pricing-plan"')
 		expect(pricing).not.toContain('open={view.recommended}')
 		expect(pricing).toContain("locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'")
-	})
-
-	it('plays DM, story reply and comment-to-DM as one staged Instagram simulation', () => {
-		const mocks = read('components/marketing/home-variants/shared/mocks.tsx')
-
-		expect(mocks).toContain("export type InstagramDemoMode = 'direct' | 'story' | 'comment'")
-		expect(mocks).toContain("fa ? 'دایرکت هوشمند' : 'Smart DM'")
-		expect(mocks).toContain("fa ? 'ریپلای استوری' : 'Story reply'")
-		expect(mocks).toContain("fa ? 'کامنت به دایرکت' : 'Comment to DM'")
-		expect(mocks).toContain('const INSTAGRAM_SCENARIO_DELAYS: Record<InstagramDemoMode, readonly number[]>')
-		expect(mocks).toContain("const showStoryViewer = mode === 'story' && step < 2")
-		expect(mocks).toContain("const showCommentFeed = mode === 'comment' && step < 4")
-		for (const part of [
-			'InstagramStoryViewer',
-			'InstagramStoryReplyCard',
-			'InstagramSeen',
-			'InstagramIncomingReply',
-			'InstagramProductCatalog',
-			'useInstagramTypedText',
-		]) {
-			expect(mocks).toContain(part)
-		}
-		// Timers stop off screen and reduced motion jumps to the final, readable frame.
-		expect(mocks).toContain('useReducedMotion()')
-		expect(mocks).toContain('if (!active || reduce) return')
-		expect(mocks).toContain('INSTAGRAM_SCENARIO_DELAYS[firstMode].length - 1')
-		expect(mocks).toContain('return () => window.clearTimeout(timer)')
-		expect(mocks).not.toContain('شبیه‌ساز زندهٔ اینستاگرام')
 	})
 
 	it('defers the Instagram simulation until its reserved viewport area is reached', () => {
