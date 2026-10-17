@@ -130,6 +130,9 @@ export async function persistHandoff(params: {
                 const metadata = {
                         agentSkillTrace: agentSkillTrace(params.skillPlan),
                         ...(params.turnCost ? { turnCost: params.turnCost } : {}),
+                        // The handoff summary skips the transfer line by this
+                        // marker; an order's confirmation card is real content.
+                        ...(params.kind === 'order' ? {} : { handoffNotice: true }),
                 } as unknown as Prisma.InputJsonObject
                 const saved = await prisma.$transaction(async (tx) => {
                         let created = true

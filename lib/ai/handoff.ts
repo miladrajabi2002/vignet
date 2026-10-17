@@ -9,6 +9,7 @@ import {
         persistConversationSalesInsight,
         type SalesConversationAnalysis,
 } from '@/lib/ai/sales-intelligence'
+import { HANDOFF_REPLIES } from '@/lib/ai/handoff-replies'
 
 /**
  * Human-handoff policy. The decision uses observable conversation behaviour,
@@ -368,34 +369,13 @@ export function handoffReplyText(decision: HandoffDecision, agent: ChatAgent): s
                 }
                 return agent.handoffMessage
         }
-        if (decision.code === 'EXPLICIT_REQUEST') {
-                return english
-                        ? 'Of course. I’ll transfer this conversation with a summary to a human specialist, so you won’t need to repeat the details.'
-                        : 'حتماً؛ گفتگو را همراه با خلاصه همین صحبت‌ها به یک کارشناس منتقل می‌کنم تا لازم نباشد اطلاعات را دوباره توضیح دهید.'
-        }
-        if (decision.code === 'ORDER_ISSUE') {
-                return english
-                        ? 'I’ve passed your order details to a specialist who will follow up on this right away; you won’t need to repeat anything.'
-                        : 'جزئیات سفارشتون رو برای کارشناس پیگیری فرستادم؛ بدون نیاز به توضیح مجدد سریع پیگیری می‌کنه'
-        }
-        if (decision.code === 'HIGH_RISK' || decision.code === 'DISTRESS') {
-                return english
-                        ? 'To have this handled carefully and promptly, I’m transferring the conversation with a complete summary to a human specialist now.'
-                        : 'برای اینکه موضوع شما دقیق‌تر و سریع‌تر پیگیری شود، همین حالا گفتگو را با خلاصه کامل به یک کارشناس منتقل می‌کنم.'
-        }
-        if (decision.code === 'UNANSWERED' || decision.code === 'REPEATED_REQUEST') {
-                return english
-                        ? 'I’m sorry the earlier answers did not resolve this. I’ll transfer the conversation and its history to a specialist so you do not have to repeat yourself.'
-                        : 'متأسفم که پاسخ کافی نگرفتید. گفتگو و سابقه پاسخ‌ها را به یک کارشناس منتقل می‌کنم تا بدون تکرار توضیحات پیگیری شود.'
-        }
-        if (decision.code === 'NEGOTIATION_AUTHORITY') {
-                return english
-                        ? 'For an accurate review of pricing or custom terms, I’ll transfer the conversation and its details to the right specialist.'
-                        : 'برای بررسی دقیق قیمت یا شرایط اختصاصی، گفتگو را همراه با جزئیات به کارشناس مربوط منتقل می‌کنم.'
-        }
-        return english
-                ? 'For a more precise follow-up, I’ll connect you to a human specialist with a summary of this conversation.'
-                : 'برای ادامه دقیق‌تر گفتگو، شما را همراه با خلاصه صحبت‌ها به یک کارشناس انسانی متصل می‌کنم.'
+        const lang = english ? 'en' : 'fa'
+        if (decision.code === 'EXPLICIT_REQUEST') return HANDOFF_REPLIES.explicit[lang]
+        if (decision.code === 'ORDER_ISSUE') return HANDOFF_REPLIES.order[lang]
+        if (decision.code === 'HIGH_RISK' || decision.code === 'DISTRESS') return HANDOFF_REPLIES.risk[lang]
+        if (decision.code === 'UNANSWERED' || decision.code === 'REPEATED_REQUEST') return HANDOFF_REPLIES.unanswered[lang]
+        if (decision.code === 'NEGOTIATION_AUTHORITY') return HANDOFF_REPLIES.negotiation[lang]
+        return HANDOFF_REPLIES.fallback[lang]
 }
 
 export async function notifyHandoff(params: {

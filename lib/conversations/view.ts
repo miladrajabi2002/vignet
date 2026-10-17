@@ -6,6 +6,7 @@ import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/cr
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { parseConversationWorkingState } from '@/lib/ai/conversation-state'
 import { buildLiveSummary } from '@/lib/conversations/live-summary'
+import { extractSummaryContact } from '@/lib/conversations/summary'
 
 /**
  * One conversation as the operator sees it: thread, customer identity on that
@@ -139,6 +140,7 @@ export async function loadConversationView(params: {
                                 : null,
                         draft: (conversation.orderDrafts ?? [])[0] ?? null,
                         language: conversation.agent.language || conversation.workspace.language,
+                        contact: extractSummaryContact(currentSessionMessages(conversation.messages)),
                 })
 
         const latestInbound = [...conversation.messages].reverse().find((message) => message.role === 'USER')

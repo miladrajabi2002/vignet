@@ -7,6 +7,14 @@
  * summary yet) and as the backbone of the deterministic handoff summary.
  */
 import type { ConversationWorkingState } from '@/lib/ai/conversation-state'
+import { bareReplyKind, comparableText, trimSeparators } from '@/lib/conversations/short-replies'
+import { toEnglishDigits } from '@/lib/phone'
+
+/** Name/phone the customer typed in this session, for the operator to call back. */
+export interface LiveSummaryContact {
+  name: string | null
+  phone: string | null
+}
 
 export interface LiveSummaryDraft {
   code: string
@@ -70,10 +78,36 @@ function clip(value: string, max: number): string {
   return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`
 }
 
+export function formatSummaryContact(contact: LiveSummaryContact | null | undefined, language: string): string | null {
+  if (!contact?.phone && !contact?.name) return null
+  const en = language === 'en'
+  const value = [contact.name ? clip(contact.name, 40) : null, contact.phone].filter(Boolean).join(en ? ', ' : '، ')
+  return `${en ? 'Contact' : 'تماس'}: ${value}`
+}
+
+// An Iranian mobile in any common spelling; the contact line carries it instead.
+const PHONE_RUNS = /(?<!\d)(?:\+98|0098|98|0)?9\d{2}[\s-]?\d{3}[\s-]?\d{4}(?!\d)/g
+
+/**
+ * What a detail the customer gave adds to the summary: nothing for a bare
+ * «بله», and without the phone/name the contact line already carries
+ * («09033977377 ناصر» → nothing; «0912… تهران، ونک» → «تهران، ونک»).
+ */
+export function customerDetailText(value: string, contact?: LiveSummaryContact | null): string | null {
+  let clean = toEnglishDigits(value)
+  if (contact?.phone) clean = clean.replace(PHONE_RUNS, ' ')
+  if (contact?.name?.trim()) clean = clean.split(contact.name.trim()).join(' ')
+  clean = trimSeparators(clean)
+  if (!clean || bareReplyKind(clean)) return null
+  // Nothing was cut out: keep the customer's own spelling (Persian digits).
+  return clean === trimSeparators(toEnglishDigits(value)) ? trimSeparators(value) : clean
+}
+
 export function buildLiveSummary(input: {
   state: ConversationWorkingState | null
   draft: LiveSummaryDraft | null
   language: string
+  contact?: LiveSummaryContact | null
 }): string | null {
   const en = input.language === 'en'
   const parts: string[] = []
@@ -99,12 +133,31 @@ export function buildLiveSummary(input: {
       parts.push(`${en ? 'Order' : 'سفارش'} ${draft.code}: ${clip(names, 180)} — ${status}${waits ? `${en ? '; waiting for' : '؛ منتظر'} ${waits}` : ''}`)
     }
   }
-  const slots = Object.entries(state?.slots ?? {})
-    .filter(([key]) => (en ? SLOT_EN : SLOT_FA)[key])
+  const namedSlots = Object.entries(state?.slots ?? {})
+    .filter(([key, fact]) => (en ? SLOT_EN : SLOT_FA)[key] && customerDetailText(fact.value, input.contact))
     .slice(0, 6)
-    .map(([key, fact]) => `${(en ? SLOT_EN : SLOT_FA)[key]}: ${clip(fact.value, 40)}`)
-  if (slots.length) parts.push(`${en ? 'Stated details' : 'جزئیات گفته‌شده'}: ${slots.join(en ? ', ' : '، ')}`)
+  const slots = namedSlots.map(([key, fact]) => `${(en ? SLOT_EN : SLOT_FA)[key]}: ${clip(fact.value, 40)}`)
+  // Every other detail the customer gave («کفش»، «۱۰۰ کیلو ۶ کارتن»، «شنزن»)
+  // is a constraint without a well-known slot name. Leaving them out made a
+  // freight inquiry's handoff read «شهر: بله» and nothing else.
+  const said = new Set([
+    ...namedSlots.map(([, fact]) => comparableText(fact.value)),
+    ...(state?.activeGoal ? [comparableText(state.activeGoal.label)] : []),
+  ])
+  const freeDetails = (state?.constraints ?? [])
+    .flatMap((fact) => {
+      const text = customerDetailText(fact.value, input.contact)
+      const key = text ? comparableText(text) : ''
+      if (!text || !key || said.has(key)) return []
+      said.add(key)
+      return [clip(text, 60)]
+    })
+    .slice(-6)
+  const details = [...slots, ...freeDetails]
+  if (details.length) parts.push(`${en ? 'Stated details' : 'جزئیات گفته‌شده'}: ${details.join(en ? ', ' : '، ')}`)
+  const contact = formatSummaryContact(input.contact, input.language)
+  if (contact) parts.push(contact)
   if (state?.lastQuestion) parts.push(`${en ? 'Agent is waiting for' : 'ایجنت منتظر پاسخ'}: «${clip(state.lastQuestion.text, 120)}»`)
   if (!parts.length) return null
-  return clip(parts.join(' | '), 700)
+  return clip(parts.join(' | '), 760)
 }

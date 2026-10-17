@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { loadConversationSession, sessionMessageWhere } from '@/lib/conversations/session-store'
+import { bareReplyKind } from '@/lib/conversations/short-replies'
 
 /**
  * Durable, domain-neutral working memory for one live conversation session.
@@ -496,16 +497,20 @@ function advanceWithoutReading(params: {
   } else {
     relation = 'REFINEMENT'
     next.status = 'ACTIVE'
-    const fact: ConversationStateFact = {
-      value: message,
-      normalizedValue: normalize(message).toLocaleLowerCase('fa'),
-      sourceMessageId: params.messageId,
-      confidence: 'EXPLICIT',
+    // «بله» on its own is not a detail of the goal; it only means something
+    // next to the question it answered.
+    if (!bareReplyKind(message)) {
+      const fact: ConversationStateFact = {
+        value: message,
+        normalizedValue: normalize(message).toLocaleLowerCase('fa'),
+        sourceMessageId: params.messageId,
+        confidence: 'EXPLICIT',
+      }
+      next.constraints = [
+        ...next.constraints.filter((item) => item.normalizedValue !== fact.normalizedValue),
+        fact,
+      ].slice(-MAX_CONSTRAINTS)
     }
-    next.constraints = [
-      ...next.constraints.filter((item) => item.normalizedValue !== fact.normalizedValue),
-      fact,
-    ].slice(-MAX_CONSTRAINTS)
   }
   next.lastTurn = { relation, intent: next.activeGoal?.intent ?? 'GENERAL', sourceMessageId: params.messageId }
   next.throughId = params.messageId
@@ -549,8 +554,9 @@ function advanceFromUnderstanding(params: {
     if (next.discussedEntities) reset.discussedEntities = next.discussedEntities
     return finish(reset)
   }
+  const bareReply = bareReplyKind(message)
   const slotFacts = Object.fromEntries(Object.entries(params.understood.slots)
-    .filter(([key, value]) => /^[a-z][a-z0-9_]{0,39}$/.test(key) && value.trim())
+    .filter(([key, value]) => /^[a-z][a-z0-9_]{0,39}$/.test(key) && value.trim() && !bareReplyKind(value))
     .map(([key, value]) => [key, understoodFact(value, params.messageId, relation === 'ANSWER' ? 'ANSWER_TO_QUESTION' : 'EXPLICIT')]))
   if (relation === 'NEW_GOAL') {
     const label = bounded(params.understood.goalLabel || message, MAX_GOAL_CHARS)
@@ -575,12 +581,24 @@ function advanceFromUnderstanding(params: {
     return finish(next)
   }
   // REFINEMENT / ANSWER / REFERENCE / CORRECTION
-  const fact = understoodFact(message, params.messageId, relation === 'ANSWER' ? 'ANSWER_TO_QUESTION' : 'EXPLICIT')
-  next.constraints = [...next.constraints.filter((item) => item.normalizedValue !== fact.normalizedValue), fact].slice(-MAX_CONSTRAINTS)
+  if (!bareReply) {
+    const fact = understoodFact(message, params.messageId, relation === 'ANSWER' ? 'ANSWER_TO_QUESTION' : 'EXPLICIT')
+    next.constraints = [...next.constraints.filter((item) => item.normalizedValue !== fact.normalizedValue), fact].slice(-MAX_CONSTRAINTS)
+  }
   if (relation === 'ANSWER' && next.lastQuestion) {
     const key = next.lastQuestion.key
-    const value = slotFacts[key]?.value ?? message
-    next.slots[key] = understoodFact(value, params.messageId, 'ANSWER_TO_QUESTION')
+    const value = slotFacts[key]?.value
+    if (value) {
+      next.slots[key] = understoodFact(value, params.messageId, 'ANSWER_TO_QUESTION')
+    } else if (!bareReply) {
+      next.slots[key] = understoodFact(message, params.messageId, 'ANSWER_TO_QUESTION')
+    } else if (bareReply === 'no') {
+      // «شنزن به تهران؟» → «نه»: the value the agent checked was wrong.
+      delete next.slots[key]
+    }
+    // «بله» confirms what the slot already holds (the real failing chat
+    // stored «شهر: بله» over «شنزن»); the question/answer pair stays in
+    // lastAnswer, where the reply can still read it in context.
     next.lastAnswer = { key, question: next.lastQuestion.text, value: message, sourceMessageId: params.messageId }
     next.lastQuestion = null
   }
