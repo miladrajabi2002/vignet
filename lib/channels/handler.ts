@@ -1115,6 +1115,25 @@ async function processChannelInbound(
                                 senderAvatarUrl: msg.senderAvatarUrl,
                         })
                         contactId = resolvedContactId
+                        // A customer identified mid-chat (a phone typed into an
+                        // Instagram DM) is linked to the conversation, not to the
+                        // sender id — resolving by sender id alone would drop that
+                        // link on the next message. Keep it, and teach the contact
+                        // the sender id so later messages resolve directly.
+                        if (!contactId && msg.senderId && !msg.senderId.startsWith('comment:')) {
+                                const linked = await prisma.conversation.findFirst({
+                                        where: { agentId: agent.id, channel: type, externalId: msg.chatId, contactId: { not: null } },
+                                        select: { contactId: true },
+                                })
+                                if (linked?.contactId) {
+                                        contactId = linked.contactId
+                                        const { idField } = profileFields(type)
+                                        await prisma.contact.updateMany({
+                                                where: { id: contactId, [idField]: null },
+                                                data: { [idField]: msg.senderId },
+                                        })
+                                }
+                        }
                         if (!contactId && (cleanContactName(msg.senderName) || normalizeContactPhone(msg.senderPhone))) {
                                 // A sender with no name and no phone is not a
                                 // customer yet, so a null there is expected.
@@ -1181,6 +1200,103 @@ async function processChannelInbound(
                         escalationConversationId = persistedInbound.conversationId
                         inboundMessageId = persistedInbound.messageId
                         outcome = 'INBOUND_PERSISTED'
+
+                        // Best-effort backfill of the sender's profile (name, username, avatar).
+                        // Instagram DM webhooks only carry the sender id + @username (no display
+                        // name or avatar), so we make a separate Graph API call to enrich the
+                        // contact. For Telegram/Bale the webhook already gave us the full name
+                        // + username, so this primarily fetches the avatar. Each field is
+                        // written independently with an "only when empty" guard so manual edits
+                        // and previously-fetched values aren't clobbered. Fire-and-forget.
+                        // It runs right after the inbound is saved so no early return
+                        // below (operator-owned thread, media hand-off, opt-out) skips it.
+                        if (msg.senderId) {
+                                const pf = profileFields(type)
+                                // contactId is a mutable loop-scope mirror; capture it in a
+                                // const so TS narrowing survives the async closures below.
+                                const contactIdValue = contactId
+                                const conversationIdValue = persistedInbound.conversationId
+                                // For Instagram, use the dedicated multi-token fetcher that
+                                // tries every token × host × fields combination and logs each
+                                // attempt — this is the only way to debug "ناشناس" contacts.
+                                // The adapter's getSenderProfile only has ONE token (the
+                                // resolved one), but the fetcher reads ALL tokens from config.
+                                const profilePromise: Promise<{
+                                        name?: string
+                                        username?: string
+                                        avatarUrl?: string
+                                } | null> =
+                                        type === 'INSTAGRAM'
+                                                ? fetchInstagramSenderProfile(resolved.config, msg.senderId)
+                                                : adapter.getSenderProfile
+                                                        ? adapter.getSenderProfile(msg.senderId)
+                                                        : adapter.getAvatarUrl
+                                                                ? adapter.getAvatarUrl(msg.senderId).then((url) => url ? { avatarUrl: url } : null)
+                                                                : Promise.resolve(null)
+                                profilePromise
+                                        .then(async (profile) => {
+                                                if (!profile) return
+                                                if (!contactIdValue) {
+                                                        // An Instagram DM carries only a sender id, so the sender
+                                                        // had no contact. The profile names them: file the
+                                                        // customer with that name and avatar and link the chat.
+                                                        const name = cleanContactName(profile.name) ?? cleanContactName(profile.username)
+                                                        if (!name) return
+                                                        const filedId = await resolveInboundContact({
+                                                                workspaceId: agent.workspaceId,
+                                                                channel: type,
+                                                                senderId: msg.senderId,
+                                                                senderName: name,
+                                                                senderUsername: profile.username,
+                                                                senderAvatarUrl: profile.avatarUrl,
+                                                        })
+                                                        if (filedId) {
+                                                                await prisma.conversation.updateMany({
+                                                                        where: { id: conversationIdValue, contactId: null },
+                                                                        data: { contactId: filedId },
+                                                                })
+                                                        }
+                                                        return
+                                                }
+                                                // Avatar — only set when still empty.
+                                                if (profile.avatarUrl) {
+                                                        prisma.contact
+                                                                .updateMany({
+                                                                        where: { id: contactIdValue, [pf.avatarField]: null },
+                                                                        data: { [pf.avatarField]: profile.avatarUrl },
+                                                                })
+                                                                .catch(() => {})
+                                                }
+                                                // Username — only set when still empty.
+                                                if (profile.username) {
+                                                        prisma.contact
+                                                                .updateMany({
+                                                                        where: { id: contactIdValue, [pf.usernameField]: null },
+                                                                        data: { [pf.usernameField]: profile.username },
+                                                                })
+                                                                .catch(() => {})
+                                                }
+                                                // Real name — backfill when the contact's name is empty OR
+                                                // still the raw @handle (the webhook sets senderName to the
+                                                // IG @username, so we want to replace it with the real name).
+                                                if (profile.name) {
+                                                        prisma.contact
+                                                                .updateMany({
+                                                                        where: {
+                                                                                id: contactIdValue,
+                                                                                OR: [
+                                                                                        { name: null },
+                                                                                        { name: msg.senderName ?? '' },
+                                                                                        { name: profile.username ?? '' },
+                                                                                ],
+                                                                        },
+                                                                        data: { name: profile.name },
+                                                                })
+                                                                .catch(() => {})
+                                                }
+                                        })
+                                        .catch((e) => console.error(`[handler] ${type} profile fetch failed:`, e))
+                        }
 
                         // Instagram's deterministic scenarios do not reserve or
                         // capture AI credit, but the channel is still a subscribed
@@ -1459,74 +1575,6 @@ async function processChannelInbound(
                                         ? 'DELIVERY_UNCERTAIN'
                                         : 'DELIVERY_ALREADY_COMPLETED'
                                 return
-                        }
-
-                        // Best-effort backfill of the sender's profile (name, username, avatar).
-                        // Instagram DM webhooks only carry the sender id + @username (no display
-                        // name or avatar), so we make a separate Graph API call to enrich the
-                        // contact. For Telegram/Bale the webhook already gave us the full name
-                        // + username, so this primarily fetches the avatar. Each field is
-                        // written independently with an "only when empty" guard so manual edits
-                        // and previously-fetched values aren't clobbered. Fire-and-forget.
-                        if (msg.senderId && contactId) {
-                                const pf = profileFields(type)
-                                // contactId is a mutable loop-scope mirror; capture it in a
-                                // const so TS narrowing survives the async closures below.
-                                const contactIdValue = contactId
-                                // For Instagram, use the dedicated multi-token fetcher that
-                                // tries every token × host × fields combination and logs each
-                                // attempt — this is the only way to debug "ناشناس" contacts.
-                                // The adapter's getSenderProfile only has ONE token (the
-                                // resolved one), but the fetcher reads ALL tokens from config.
-                                const profilePromise: Promise<{
-                                        name?: string
-                                        username?: string
-                                        avatarUrl?: string
-                                } | null> =
-                                        type === 'INSTAGRAM'
-                                                ? fetchInstagramSenderProfile(resolved.config, msg.senderId)
-                                                : adapter.getSenderProfile
-                                                        ? adapter.getSenderProfile(msg.senderId)
-                                                        : adapter.getAvatarUrl
-                                                                ? adapter.getAvatarUrl(msg.senderId).then((url) => url ? { avatarUrl: url } : null)
-                                                                : Promise.resolve(null)
-                                profilePromise
-                                        .then((profile) => {
-                                                if (!profile) return
-                                                // Avatar — only set when still empty.
-                                                if (profile.avatarUrl) {
-                                                        prisma.contact
-                                                                .updateMany({
-                                                                        where: { id: contactIdValue, [pf.avatarField]: null },
-                                                                        data: { [pf.avatarField]: profile.avatarUrl },
-                                                                })
-                                                                .catch(() => {})
-                                                }
-                                                // Username — only set when still empty.
-                                                if (profile.username) {
-                                                        prisma.contact
-                                                                .updateMany({
-                                                                        where: { id: contactIdValue, [pf.usernameField]: null },
-                                                                        data: { [pf.usernameField]: profile.username },
-                                                                })
-                                                                .catch(() => {})
-                                                }
-                                                // Real name — backfill when the contact's name is empty OR
-                                                // still the raw @handle (the webhook sets senderName to the
-                                                // IG @username, so we want to replace it with the real name).
-                                                if (profile.name) {
-                                                        prisma.contact
-                                                                .updateMany({
-                                                                        where: {
-                                                                                id: contactIdValue,
-                                                                                OR: [{ name: null }, { name: msg.senderName ?? '' }],
-                                                                        },
-                                                                        data: { name: profile.name },
-                                                                })
-                                                                .catch(() => {})
-                                                }
-                                        })
-                                        .catch((e) => console.error(`[handler] ${type} profile fetch failed:`, e))
                         }
 
                         // ─── Instagram automation layer ─────────────────────────────
