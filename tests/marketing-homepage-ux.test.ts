@@ -226,7 +226,11 @@ describe('marketing homepage UX contracts', () => {
 		expect(seal).toContain('src={`https://trustseal.enamad.ir/logo.aspx?${ENAMAD_QUERY}`}')
 		expect(seal).toContain('loading="lazy"')
 		expect(seal).toContain('fetchPriority="low"')
-		// The label fallback relies on an unloaded image having no height.
+		// eNamad hangs for visitors outside Iran, so a local copy sits under the
+		// live badge; it shows through only while the live image has no height.
+		expect(seal).toContain('src="/brands/enamad-seal.png"')
+		expect(seal.indexOf('/brands/enamad-seal.png')).toBeLessThan(seal.indexOf('logo.aspx'))
+		expect(seal.match(/loading="lazy"/g)).toHaveLength(2)
 		expect(seal).not.toMatch(/<img[^>]*\s(?:width|height)=/s)
 		expect(seal).not.toContain("'use client'")
 	})
